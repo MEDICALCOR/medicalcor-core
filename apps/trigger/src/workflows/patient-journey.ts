@@ -25,7 +25,7 @@ export const patientJourneyWorkflow = task({
     factor: 2,
   },
   run: async (payload: z.infer<typeof PatientJourneyPayloadSchema>) => {
-    const { phone, hubspotContactId, channel, initialScore, classification, procedureInterest, correlationId } = payload;
+    const { phone, hubspotContactId, channel: _channel, initialScore: _initialScore, classification, procedureInterest: _procedureInterest, correlationId } = payload;
 
     logger.info('Starting patient journey workflow', {
       phone,
@@ -135,7 +135,7 @@ const NurtureSequencePayloadSchema = z.object({
 export const nurtureSequenceWorkflow = task({
   id: 'nurture-sequence-workflow',
   run: async (payload: z.infer<typeof NurtureSequencePayloadSchema>) => {
-    const { phone, hubspotContactId, sequenceType, correlationId } = payload;
+    const { phone: _phone, hubspotContactId, sequenceType, correlationId } = payload;
 
     logger.info('Starting nurture sequence', {
       hubspotContactId,
@@ -217,7 +217,7 @@ const BookingAgentPayloadSchema = z.object({
 export const bookingAgentWorkflow = task({
   id: 'booking-agent-workflow',
   run: async (payload: z.infer<typeof BookingAgentPayloadSchema>) => {
-    const { phone, hubspotContactId, procedureType, preferredDates, correlationId } = payload;
+    const { phone: _phone, hubspotContactId, procedureType, preferredDates: _preferredDates, correlationId } = payload;
 
     logger.info('Starting booking agent', {
       hubspotContactId,

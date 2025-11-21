@@ -1,5 +1,6 @@
 import { task, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
+import { LeadContextBuilder, normalizeRomanianPhone } from '@medicalcor/core';
 
 /**
  * Voice Call Handler Task
@@ -25,7 +26,7 @@ export const handleVoiceCall = task({
     factor: 2,
   },
   run: async (payload: z.infer<typeof VoiceCallPayloadSchema>) => {
-    const { callSid, from, to, direction, status, duration, correlationId } = payload;
+    const { callSid, from, to, direction, status, correlationId } = payload;
 
     logger.info('Processing voice call', {
       callSid,
@@ -35,8 +36,18 @@ export const handleVoiceCall = task({
       correlationId,
     });
 
-    // Step 1: Normalize phone number
-    const normalizedPhone = normalizePhone(from);
+    // Step 1: Build LeadContext with normalized phone
+    // Note: leadContext will be used when integrating HubSpot and scoring
+    void LeadContextBuilder.fromVoiceCall({
+      from,
+      to,
+      callSid,
+      direction,
+      timestamp: new Date().toISOString(),
+    }).withCorrelationId(correlationId).build();
+
+    const phoneResult = normalizeRomanianPhone(from);
+    const normalizedPhone = phoneResult.normalized;
 
     // Step 2: Upsert contact in HubSpot
     // const hubspotContact = await hubspotClient.syncContact({
@@ -107,7 +118,7 @@ export const handleCallCompleted = task({
     maxAttempts: 3,
   },
   run: async (payload: z.infer<typeof CallCompletedPayloadSchema>) => {
-    const { callSid, from, duration, recordingUrl, correlationId } = payload;
+    const { callSid, from: _from, duration, recordingUrl, correlationId } = payload;
 
     logger.info('Processing completed call', {
       callSid,
@@ -127,10 +138,3 @@ export const handleCallCompleted = task({
   },
 });
 
-function normalizePhone(phone: string): string {
-  const cleaned = phone.replace(/[\s\-\(\)\.]/g, '');
-  if (cleaned.startsWith('+')) return cleaned;
-  if (cleaned.startsWith('40')) return `+${cleaned}`;
-  if (cleaned.startsWith('0')) return `+40${cleaned.substring(1)}`;
-  return `+${cleaned}`;
-}

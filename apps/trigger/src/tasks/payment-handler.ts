@@ -25,7 +25,7 @@ export const handlePaymentSucceeded = task({
     factor: 2,
   },
   run: async (payload: z.infer<typeof PaymentSucceededPayloadSchema>) => {
-    const { paymentId, amount, currency, customerId, customerEmail, metadata, correlationId } = payload;
+    const { paymentId, amount, currency, customerId, customerEmail: _customerEmail, metadata: _metadata, correlationId } = payload;
 
     logger.info('Processing successful payment', {
       paymentId,
@@ -108,7 +108,7 @@ export const handlePaymentFailed = task({
     maxAttempts: 3,
   },
   run: async (payload: z.infer<typeof PaymentFailedPayloadSchema>) => {
-    const { paymentId, amount, currency, failureReason, metadata, correlationId } = payload;
+    const { paymentId, amount, currency: _currency, failureReason, metadata: _metadata, correlationId } = payload;
 
     logger.warn('Processing failed payment', {
       paymentId,

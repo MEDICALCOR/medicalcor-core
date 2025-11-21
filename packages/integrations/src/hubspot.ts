@@ -171,7 +171,7 @@ export class HubSpotClient {
    * Log message to contact timeline
    */
   async logMessageToTimeline(input: TimelineEventInput): Promise<void> {
-    const { contactId, message, direction, channel, messageId, metadata } = input;
+    const { contactId, message, direction, channel } = input;
 
     // Create a note on the contact (simplified timeline entry)
     await this.request('/crm/v3/objects/notes', {
@@ -320,12 +320,30 @@ export class HubSpotClient {
     const url = `${this.baseUrl}${path}`;
 
     const makeRequest = async () => {
+      // Convert headers to plain object if needed
+      const headersRecord: Record<string, string> = {};
+      if (options.headers) {
+        if (options.headers instanceof Headers) {
+          options.headers.forEach((value, key) => {
+            headersRecord[key] = value;
+          });
+        } else if (Array.isArray(options.headers)) {
+          for (const pair of options.headers) {
+            if (pair[0] && pair[1]) {
+              headersRecord[pair[0]] = pair[1];
+            }
+          }
+        } else {
+          Object.assign(headersRecord, options.headers);
+        }
+      }
+
       const response = await fetch(url, {
         ...options,
         headers: {
           'Authorization': `Bearer ${this.config.accessToken}`,
           'Content-Type': 'application/json',
-          ...options.headers,
+          ...headersRecord,
         },
       });
 
