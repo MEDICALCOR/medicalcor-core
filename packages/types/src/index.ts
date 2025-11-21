@@ -1,0 +1,60 @@
+// WhatsApp schemas
+export {
+  WhatsAppContactSchema,
+  WhatsAppTextSchema,
+  WhatsAppMessageSchema,
+  WhatsAppStatusSchema,
+  WhatsAppMetadataSchema,
+  WhatsAppValueSchema,
+  WhatsAppChangeSchema,
+  WhatsAppEntrySchema,
+  WhatsAppWebhookSchema,
+  type WhatsAppContact,
+  type WhatsAppText,
+  type WhatsAppMessage,
+  type WhatsAppStatus,
+  type WhatsAppMetadata,
+  type WhatsAppValue,
+  type WhatsAppChange,
+  type WhatsAppEntry,
+  type WhatsAppWebhook,
+} from './whatsapp.schema.js';
+
+// Voice schemas
+export {
+  CallDirectionSchema,
+  CallStatusSchema,
+  TwilioBaseSchema,
+  VoiceWebhookSchema,
+  CallStatusCallbackSchema,
+  VoiceEventSchema,
+  type CallDirection,
+  type CallStatus,
+  type VoiceWebhook,
+  type CallStatusCallback,
+  type VoiceEvent,
+} from './voice.schema.js';
+
+// Lead and scoring schemas
+export {
+  LeadChannelSchema,
+  LeadScoreSchema,
+  UTMParamsSchema,
+  LeadContextSchema,
+  ScoringOutputSchema,
+  DomainEventBaseSchema,
+  LeadCreatedEventSchema,
+  LeadScoredEventSchema,
+  MessageReceivedEventSchema,
+  DomainEventSchema,
+  type LeadChannel,
+  type LeadScore,
+  type UTMParams,
+  type LeadContext,
+  type ScoringOutput,
+  type DomainEventBase,
+  type LeadCreatedEvent,
+  type LeadScoredEvent,
+  type MessageReceivedEvent,
+  type DomainEvent,
+} from './lead.schema.js';
