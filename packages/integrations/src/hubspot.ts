@@ -179,7 +179,7 @@ export class HubSpotClient {
       body: JSON.stringify({
         properties: {
           hs_timestamp: new Date().toISOString(),
-          hs_note_body: `[${channel.toUpperCase()}] ${direction}: ${message}`,
+          hs_note_body: `[${channel.toUpperCase()}] ${direction}: ${message}${messageId ? ` (ID: ${messageId})` : ''}${metadata?.sentiment && typeof metadata.sentiment === 'string' ? ` [Sentiment: ${metadata.sentiment}]` : ''}`,
         },
         associations: [{
           to: { id: contactId },
@@ -320,22 +320,14 @@ export class HubSpotClient {
     const url = `${this.baseUrl}${path}`;
 
     const makeRequest = async () => {
-      // Convert headers to plain object if needed
-      const headersRecord: Record<string, string> = {};
-      if (options.headers) {
-        if (options.headers instanceof Headers) {
-          options.headers.forEach((value, key) => {
-            headersRecord[key] = value;
-          });
-        } else if (Array.isArray(options.headers)) {
-          for (const pair of options.headers) {
-            if (pair[0] && pair[1]) {
-              headersRecord[pair[0]] = pair[1];
-            }
-          }
-        } else {
-          Object.assign(headersRecord, options.headers);
-        }
+      let customHeaders: Record<string, string> = {};
+
+      if (options.headers instanceof Headers) {
+        customHeaders = Object.fromEntries(options.headers.entries()) as Record<string, string>;
+      } else if (Array.isArray(options.headers)) {
+        customHeaders = Object.fromEntries(options.headers) as Record<string, string>;
+      } else if (options.headers) {
+        customHeaders = options.headers as Record<string, string>;
       }
 
       const response = await fetch(url, {
@@ -343,7 +335,7 @@ export class HubSpotClient {
         headers: {
           'Authorization': `Bearer ${this.config.accessToken}`,
           'Content-Type': 'application/json',
-          ...headersRecord,
+          ...customHeaders,
         },
       });
 

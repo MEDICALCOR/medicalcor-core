@@ -6,7 +6,7 @@ import { z } from 'zod';
  * Orchestrates the end-to-end patient journey from first contact to appointment
  */
 
-const PatientJourneyPayloadSchema = z.object({
+export const PatientJourneyPayloadSchema = z.object({
   phone: z.string(),
   hubspotContactId: z.string(),
   channel: z.enum(['whatsapp', 'voice', 'web']),
@@ -125,7 +125,7 @@ export const patientJourneyWorkflow = task({
  * Lead Nurture Sequence Workflow
  * Automated nurture sequence for warm leads
  */
-const NurtureSequencePayloadSchema = z.object({
+export const NurtureSequencePayloadSchema = z.object({
   phone: z.string(),
   hubspotContactId: z.string(),
   sequenceType: z.enum(['warm_lead', 'cold_lead', 'post_consultation', 'recall']),
@@ -206,7 +206,7 @@ export const nurtureSequenceWorkflow = task({
  * Booking Agent Workflow
  * Handles appointment scheduling via WhatsApp
  */
-const BookingAgentPayloadSchema = z.object({
+export const BookingAgentPayloadSchema = z.object({
   phone: z.string(),
   hubspotContactId: z.string(),
   procedureType: z.string(),
@@ -224,6 +224,10 @@ export const bookingAgentWorkflow = task({
       procedureType,
       correlationId,
     });
+
+    // TODO: This is a stub workflow - implementation pending scheduling service
+    // Using await to satisfy async requirement
+    await Promise.resolve();
 
     // Step 1: Get available slots
     // const availableSlots = await schedulingService.getAvailableSlots({

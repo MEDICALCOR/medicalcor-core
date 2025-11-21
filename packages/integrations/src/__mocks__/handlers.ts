@@ -12,7 +12,7 @@ import { http, HttpResponse } from 'msw';
 const hubspotHandlers = [
   // Search contacts
   http.post('https://api.hubapi.com/crm/v3/objects/contacts/search', async ({ request }) => {
-    const body = await request.json() as { filterGroups: Array<{ filters: Array<{ value: string }> }> };
+    const body = await request.json() as { filterGroups?: { filters?: { value: string }[] }[] };
     const phone = body.filterGroups?.[0]?.filters?.[0]?.value;
 
     // Mock: return existing contact for specific test phone
@@ -42,7 +42,7 @@ const hubspotHandlers = [
   // Get contact by ID
   http.get('https://api.hubapi.com/crm/v3/objects/contacts/:contactId', ({ params }) => {
     return HttpResponse.json({
-      id: params['contactId'],
+      id: params.contactId,
       properties: {
         phone: '+40721000001',
         firstname: 'Test',
@@ -59,7 +59,7 @@ const hubspotHandlers = [
   http.post('https://api.hubapi.com/crm/v3/objects/contacts', async ({ request }) => {
     const body = await request.json() as { properties: Record<string, string> };
     return HttpResponse.json({
-      id: 'hs_contact_new_' + Date.now(),
+      id: `hs_contact_new_${Date.now()}`,
       properties: body.properties,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -70,7 +70,7 @@ const hubspotHandlers = [
   http.patch('https://api.hubapi.com/crm/v3/objects/contacts/:contactId', async ({ params, request }) => {
     const body = await request.json() as { properties: Record<string, string> };
     return HttpResponse.json({
-      id: params['contactId'],
+      id: params.contactId,
       properties: body.properties,
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: new Date().toISOString(),
@@ -80,7 +80,7 @@ const hubspotHandlers = [
   // Create note
   http.post('https://api.hubapi.com/crm/v3/objects/notes', () => {
     return HttpResponse.json({
-      id: 'note_' + Date.now(),
+      id: `note_${Date.now()}`,
       properties: {},
       createdAt: new Date().toISOString(),
     }, { status: 201 });
@@ -90,7 +90,7 @@ const hubspotHandlers = [
   http.post('https://api.hubapi.com/crm/v3/objects/tasks', async ({ request }) => {
     const body = await request.json() as { properties: Record<string, string> };
     return HttpResponse.json({
-      id: 'task_' + Date.now(),
+      id: `task_${Date.now()}`,
       properties: body.properties,
       createdAt: new Date().toISOString(),
     }, { status: 201 });
@@ -99,7 +99,7 @@ const hubspotHandlers = [
   // Create call
   http.post('https://api.hubapi.com/crm/v3/objects/calls', () => {
     return HttpResponse.json({
-      id: 'call_' + Date.now(),
+      id: `call_${Date.now()}`,
       properties: {},
       createdAt: new Date().toISOString(),
     }, { status: 201 });
@@ -117,7 +117,7 @@ const whatsappHandlers = [
     return HttpResponse.json({
       messaging_product: 'whatsapp',
       contacts: [{ input: body.to, wa_id: body.to }],
-      messages: [{ id: 'wamid.' + Date.now() }],
+      messages: [{ id: `wamid.${Date.now()}` }],
     });
   }),
 ];
@@ -129,13 +129,13 @@ const whatsappHandlers = [
 const openaiHandlers = [
   // Chat completions
   http.post('https://api.openai.com/v1/chat/completions', async ({ request }) => {
-    const body = await request.json() as { messages: Array<{ content: string }> };
+    const body = await request.json() as { messages: { content: string }[] };
     const lastMessage = body.messages[body.messages.length - 1]?.content ?? '';
 
     // Mock scoring response
     if (lastMessage.includes('Analyze') || lastMessage.includes('score')) {
       return HttpResponse.json({
-        id: 'chatcmpl-' + Date.now(),
+        id: `chatcmpl-${Date.now()}`,
         object: 'chat.completion',
         created: Date.now(),
         model: 'gpt-4o',
@@ -163,7 +163,7 @@ const openaiHandlers = [
 
     // Default response
     return HttpResponse.json({
-      id: 'chatcmpl-' + Date.now(),
+      id: `chatcmpl-${Date.now()}`,
       object: 'chat.completion',
       created: Date.now(),
       model: 'gpt-4o',
@@ -185,18 +185,167 @@ const openaiHandlers = [
 // =============================================================================
 
 const stripeHandlers = [
-  // Webhook events - typically you verify signatures, not call APIs
-  // But we can mock any Stripe API calls if needed
+  // Get customer
   http.get('https://api.stripe.com/v1/customers/:customerId', ({ params }) => {
     return HttpResponse.json({
-      id: params['customerId'],
+      id: params.customerId,
       object: 'customer',
       email: 'test@example.com',
       name: 'Test Customer',
+      phone: '+40721000001',
       created: Date.now(),
     });
   }),
+
+  // List payment intents
+  http.get('https://api.stripe.com/v1/payment_intents/:paymentId', ({ params }) => {
+    return HttpResponse.json({
+      id: params.paymentId,
+      object: 'payment_intent',
+      amount: 50000, // 500.00 EUR
+      currency: 'eur',
+      status: 'succeeded',
+      customer: 'cus_test123',
+      metadata: {
+        phone: '+40721000001',
+      },
+    });
+  }),
 ];
+
+// =============================================================================
+// Vapi.ai API Mocks (Voice AI)
+// =============================================================================
+
+const vapiHandlers = [
+  // Get call transcript
+  http.get('https://api.vapi.ai/call/:callId/transcript', ({ params }) => {
+    return HttpResponse.json({
+      callId: params.callId,
+      transcript: 'Mock transcript: Patient asking about dental implants and pricing.',
+      summary: 'Patient interested in All-on-4 procedure, mentioned budget concerns.',
+      sentiment: 'positive',
+      duration: 180,
+    });
+  }),
+
+  // Get call details
+  http.get('https://api.vapi.ai/call/:callId', ({ params }) => {
+    return HttpResponse.json({
+      id: params.callId,
+      status: 'completed',
+      duration: 180,
+      from: '+40721000001',
+      to: '+40212000000',
+      recordingUrl: 'https://recordings.vapi.ai/mock-recording.mp3',
+    });
+  }),
+];
+
+// =============================================================================
+// Test Helper - Rate Limited Response
+// =============================================================================
+
+/**
+ * Creates a rate limited handler for testing retry logic
+ */
+export function createRateLimitedHandler(
+  url: string,
+  method: 'get' | 'post' | 'patch' = 'post',
+  retryAfter = 5
+) {
+  let callCount = 0;
+  return http[method](url, () => {
+    callCount++;
+    if (callCount <= 2) {
+      return new HttpResponse(null, {
+        status: 429,
+        headers: { 'Retry-After': String(retryAfter) },
+      });
+    }
+    return HttpResponse.json({ success: true });
+  });
+}
+
+/**
+ * Creates a handler that fails N times then succeeds
+ */
+export function createFailingHandler(
+  url: string,
+  method: 'get' | 'post' | 'patch' = 'post',
+  failCount = 2,
+  errorStatus = 503
+) {
+  let callCount = 0;
+  return http[method](url, () => {
+    callCount++;
+    if (callCount <= failCount) {
+      return new HttpResponse(null, { status: errorStatus });
+    }
+    return HttpResponse.json({ success: true });
+  });
+}
+
+// =============================================================================
+// Test Fixtures
+// =============================================================================
+
+export const testFixtures = {
+  contacts: {
+    existing: {
+      id: 'hs_contact_123',
+      phone: '+40721000001',
+      email: 'test@example.com',
+      firstname: 'Test',
+      lastname: 'User',
+      lifecyclestage: 'lead',
+      lead_score: '3',
+    },
+    hotLead: {
+      id: 'hs_contact_hot',
+      phone: '+40721000002',
+      email: 'hot@example.com',
+      firstname: 'Hot',
+      lastname: 'Lead',
+      lifecyclestage: 'lead',
+      lead_score: '5',
+    },
+  },
+  scoring: {
+    hot: {
+      score: 5,
+      classification: 'HOT' as const,
+      confidence: 0.95,
+      reasoning: 'Explicit All-on-X interest with budget mentioned',
+      suggestedAction: 'Contact immediately',
+      budgetMentioned: true,
+      procedureInterest: ['All-on-X', 'implant'],
+    },
+    warm: {
+      score: 3,
+      classification: 'WARM' as const,
+      confidence: 0.75,
+      reasoning: 'General interest in dental procedures',
+      suggestedAction: 'Send more information',
+      budgetMentioned: false,
+      procedureInterest: ['general'],
+    },
+    cold: {
+      score: 2,
+      classification: 'COLD' as const,
+      confidence: 0.6,
+      reasoning: 'Early research stage',
+      suggestedAction: 'Add to nurture sequence',
+      budgetMentioned: false,
+      procedureInterest: [],
+    },
+  },
+  messages: {
+    hotLead: 'Buna ziua, sunt interesat de All-on-4. Cat costa procedura? Am buget de aproximativ 10000 euro.',
+    warmLead: 'As vrea sa aflu mai multe despre implanturi dentare.',
+    coldLead: 'Informatii generale despre clinica, va rog.',
+  },
+};
 
 // =============================================================================
 // Export all handlers
@@ -207,4 +356,5 @@ export const handlers = [
   ...whatsappHandlers,
   ...openaiHandlers,
   ...stripeHandlers,
+  ...vapiHandlers,
 ];
