@@ -33,3 +33,17 @@ export {
   type ChatCompletionOptions,
   type AIReplyOptions,
 } from './openai.js';
+
+export {
+  SchedulingService,
+  MockSchedulingService,
+  createSchedulingService,
+  createMockSchedulingService,
+  type SchedulingServiceConfig,
+  type TimeSlot,
+  type GetAvailableSlotsOptions,
+  type BookAppointmentInput,
+  type Appointment,
+  type CancelAppointmentInput,
+  type RescheduleAppointmentInput,
+} from './scheduling.js';

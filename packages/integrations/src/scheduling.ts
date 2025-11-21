@@ -1,0 +1,588 @@
+import { withRetry, ExternalServiceError } from '@medicalcor/core';
+
+/**
+ * Scheduling Service Integration
+ * Handles appointment slot availability and booking
+ *
+ * This integrates with an external scheduling service (e.g., Calendly, Cal.com, custom API)
+ * or can use a mock implementation for development
+ */
+
+export interface SchedulingServiceConfig {
+  apiUrl: string;
+  apiKey: string;
+  clinicId?: string;
+  defaultTimezone?: string;
+  retryConfig?: {
+    maxRetries: number;
+    baseDelayMs: number;
+  };
+}
+
+export interface TimeSlot {
+  id: string;
+  date: string; // ISO date string YYYY-MM-DD
+  time: string; // HH:mm format
+  dateTime: string; // Full ISO datetime
+  duration: number; // in minutes
+  available: boolean;
+  practitioner?: {
+    id: string;
+    name: string;
+    specialty?: string;
+  };
+  location?: {
+    id: string;
+    name: string;
+    address?: string;
+  };
+}
+
+export interface GetAvailableSlotsOptions {
+  procedureType: string;
+  preferredDates?: string[]; // ISO date strings
+  startDate?: string;
+  endDate?: string;
+  practitionerId?: string;
+  locationId?: string;
+  limit?: number;
+}
+
+export interface BookAppointmentInput {
+  slotId: string;
+  patientPhone: string;
+  patientName?: string;
+  patientEmail?: string;
+  procedureType: string;
+  notes?: string;
+  hubspotContactId?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface Appointment {
+  id: string;
+  slotId: string;
+  patientPhone: string;
+  patientName?: string;
+  patientEmail?: string;
+  procedureType: string;
+  scheduledAt: string;
+  duration: number;
+  status: 'confirmed' | 'pending' | 'cancelled' | 'completed' | 'no_show';
+  practitioner?: {
+    id: string;
+    name: string;
+  };
+  location?: {
+    id: string;
+    name: string;
+    address?: string;
+  };
+  confirmationCode?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CancelAppointmentInput {
+  appointmentId: string;
+  reason?: string;
+  notifyPatient?: boolean;
+}
+
+export interface RescheduleAppointmentInput {
+  appointmentId: string;
+  newSlotId: string;
+  reason?: string;
+  notifyPatient?: boolean;
+}
+
+export class SchedulingService {
+  private config: SchedulingServiceConfig;
+  private baseUrl: string;
+
+  constructor(config: SchedulingServiceConfig) {
+    this.config = config;
+    this.baseUrl = config.apiUrl;
+  }
+
+  /**
+   * Get available appointment slots
+   */
+  async getAvailableSlots(options: GetAvailableSlotsOptions): Promise<TimeSlot[]> {
+    const {
+      procedureType,
+      preferredDates,
+      startDate,
+      endDate,
+      practitionerId,
+      locationId,
+      limit = 5,
+    } = options;
+
+    // Build query parameters
+    const params = new URLSearchParams({
+      procedure_type: procedureType,
+      limit: limit.toString(),
+    });
+
+    if (preferredDates?.length) {
+      params.set('preferred_dates', preferredDates.join(','));
+    }
+    if (startDate) {
+      params.set('start_date', startDate);
+    }
+    if (endDate) {
+      params.set('end_date', endDate);
+    }
+    if (practitionerId) {
+      params.set('practitioner_id', practitionerId);
+    }
+    if (locationId) {
+      params.set('location_id', locationId);
+    }
+    if (this.config.clinicId) {
+      params.set('clinic_id', this.config.clinicId);
+    }
+
+    const response = await this.request<{ slots: TimeSlot[] }>(
+      `/api/v1/slots?${params.toString()}`
+    );
+
+    return response.slots.filter((slot) => slot.available);
+  }
+
+  /**
+   * Get slot by ID
+   */
+  async getSlot(slotId: string): Promise<TimeSlot | null> {
+    try {
+      return await this.request<TimeSlot>(`/api/v1/slots/${slotId}`);
+    } catch (error) {
+      if (error instanceof ExternalServiceError && error.message.includes('404')) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Book an appointment
+   */
+  async bookAppointment(input: BookAppointmentInput): Promise<Appointment> {
+    const {
+      slotId,
+      patientPhone,
+      patientName,
+      patientEmail,
+      procedureType,
+      notes,
+      hubspotContactId,
+      metadata,
+    } = input;
+
+    return this.request<Appointment>('/api/v1/appointments', {
+      method: 'POST',
+      body: JSON.stringify({
+        slot_id: slotId,
+        patient: {
+          phone: patientPhone,
+          name: patientName,
+          email: patientEmail,
+        },
+        procedure_type: procedureType,
+        notes,
+        external_refs: {
+          hubspot_contact_id: hubspotContactId,
+        },
+        metadata,
+        clinic_id: this.config.clinicId,
+      }),
+    });
+  }
+
+  /**
+   * Get appointment by ID
+   */
+  async getAppointment(appointmentId: string): Promise<Appointment | null> {
+    try {
+      return await this.request<Appointment>(`/api/v1/appointments/${appointmentId}`);
+    } catch (error) {
+      if (error instanceof ExternalServiceError && error.message.includes('404')) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Cancel an appointment
+   */
+  async cancelAppointment(input: CancelAppointmentInput): Promise<Appointment> {
+    const { appointmentId, reason, notifyPatient = true } = input;
+
+    return this.request<Appointment>(`/api/v1/appointments/${appointmentId}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({
+        reason,
+        notify_patient: notifyPatient,
+      }),
+    });
+  }
+
+  /**
+   * Reschedule an appointment
+   */
+  async rescheduleAppointment(input: RescheduleAppointmentInput): Promise<Appointment> {
+    const { appointmentId, newSlotId, reason, notifyPatient = true } = input;
+
+    return this.request<Appointment>(`/api/v1/appointments/${appointmentId}/reschedule`, {
+      method: 'POST',
+      body: JSON.stringify({
+        new_slot_id: newSlotId,
+        reason,
+        notify_patient: notifyPatient,
+      }),
+    });
+  }
+
+  /**
+   * Get appointments for a patient
+   */
+  async getPatientAppointments(
+    patientPhone: string,
+    options?: {
+      status?: Appointment['status'];
+      limit?: number;
+    }
+  ): Promise<Appointment[]> {
+    const params = new URLSearchParams({
+      patient_phone: patientPhone,
+      limit: (options?.limit ?? 10).toString(),
+    });
+
+    if (options?.status) {
+      params.set('status', options.status);
+    }
+
+    const response = await this.request<{ appointments: Appointment[] }>(
+      `/api/v1/appointments?${params.toString()}`
+    );
+
+    return response.appointments;
+  }
+
+  /**
+   * Check if a specific slot is still available
+   */
+  async isSlotAvailable(slotId: string): Promise<boolean> {
+    const slot = await this.getSlot(slotId);
+    return slot?.available ?? false;
+  }
+
+  /**
+   * Format slot for display
+   */
+  formatSlotForDisplay(slot: TimeSlot, language: 'ro' | 'en' | 'de' = 'ro'): string {
+    const date = new Date(slot.dateTime);
+
+    const dateFormatters: Record<string, Intl.DateTimeFormat> = {
+      ro: new Intl.DateTimeFormat('ro-RO', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      }),
+      en: new Intl.DateTimeFormat('en-US', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      }),
+      de: new Intl.DateTimeFormat('de-DE', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      }),
+    };
+
+    const formattedDate = dateFormatters[language]?.format(date) ?? date.toLocaleDateString();
+    const formattedTime = slot.time;
+
+    const locationStr = slot.location ? ` - ${slot.location.name}` : '';
+    const practitionerStr = slot.practitioner ? ` cu ${slot.practitioner.name}` : '';
+
+    return `${formattedDate} ora ${formattedTime}${practitionerStr}${locationStr}`;
+  }
+
+  /**
+   * Generate a short slot description for buttons
+   */
+  formatSlotShort(slot: TimeSlot): string {
+    const date = new Date(slot.dateTime);
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    return `${day}.${month} ${slot.time}`;
+  }
+
+  /**
+   * Make HTTP request to scheduling API
+   */
+  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+    const url = `${this.baseUrl}${path}`;
+
+    const makeRequest = async () => {
+      const existingHeaders =
+        options.headers instanceof Headers
+          ? Object.fromEntries(options.headers.entries())
+          : (options.headers as Record<string, string> | undefined);
+
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${this.config.apiKey}`,
+          'Content-Type': 'application/json',
+          ...existingHeaders,
+        },
+      });
+
+      if (response.status === 429) {
+        throw new RateLimitError(60);
+      }
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        throw new ExternalServiceError('SchedulingService', `${response.status}: ${errorBody}`);
+      }
+
+      return response.json() as Promise<T>;
+    };
+
+    return withRetry(makeRequest, {
+      maxRetries: this.config.retryConfig?.maxRetries ?? 3,
+      baseDelayMs: this.config.retryConfig?.baseDelayMs ?? 1000,
+      shouldRetry: (error) => {
+        if (error instanceof RateLimitError) return true;
+        if (error instanceof ExternalServiceError && error.message.includes('502')) return true;
+        if (error instanceof ExternalServiceError && error.message.includes('503')) return true;
+        return false;
+      },
+    });
+  }
+}
+
+class RateLimitError extends Error {
+  constructor(public retryAfter: number) {
+    super(`Rate limited. Retry after ${retryAfter} seconds`);
+    this.name = 'RateLimitError';
+  }
+}
+
+/**
+ * Create a configured scheduling service
+ */
+export function createSchedulingService(config: SchedulingServiceConfig): SchedulingService {
+  return new SchedulingService(config);
+}
+
+/**
+ * Mock Scheduling Service for development/testing
+ * Generates realistic mock slots without external API dependency
+ */
+export class MockSchedulingService {
+  private appointments = new Map<string, Appointment>();
+  private slotCounter = 0;
+
+  /**
+   * Generate mock available slots
+   */
+  getAvailableSlots(options: GetAvailableSlotsOptions): Promise<TimeSlot[]> {
+    const { procedureType, preferredDates, limit = 5 } = options;
+
+    const slots: TimeSlot[] = [];
+    const startDate = preferredDates?.[0]
+      ? new Date(preferredDates[0])
+      : new Date(Date.now() + 24 * 60 * 60 * 1000); // Tomorrow
+
+    // Generate slots for the next 7 days, 3-4 slots per day
+    const workingHours = ['09:00', '10:30', '14:00', '15:30', '17:00'];
+    const locations = [
+      { id: 'loc_1', name: 'Clinica Centrală', address: 'Str. Victoriei 15, București' },
+      { id: 'loc_2', name: 'Clinica Nord', address: 'Bd. Lascăr Catargiu 42, București' },
+    ];
+    const practitioners = [
+      { id: 'dr_1', name: 'Dr. Maria Popescu', specialty: 'Stomatologie Generală' },
+      { id: 'dr_2', name: 'Dr. Alexandru Ionescu', specialty: 'Ortodonție' },
+      { id: 'dr_3', name: 'Dr. Elena Dumitrescu', specialty: 'Implantologie' },
+    ];
+
+    for (let dayOffset = 1; dayOffset <= 7 && slots.length < limit; dayOffset++) {
+      const currentDate = new Date(startDate);
+      currentDate.setDate(currentDate.getDate() + dayOffset);
+
+      // Skip weekends
+      if (currentDate.getDay() === 0 || currentDate.getDay() === 6) continue;
+
+      // Pick 2-3 random time slots for this day
+      const availableTimesForDay = workingHours
+        .sort(() => Math.random() - 0.5)
+        .slice(0, Math.floor(Math.random() * 2) + 2);
+
+      for (const time of availableTimesForDay) {
+        if (slots.length >= limit) break;
+
+        const dateStr = currentDate.toISOString().split('T')[0];
+        const [hours, minutes] = time.split(':');
+        const dateTime = new Date(currentDate);
+        dateTime.setHours(parseInt(hours ?? '9', 10), parseInt(minutes ?? '0', 10), 0, 0);
+
+        // Random duration based on procedure type
+        const duration = procedureType.includes('implant')
+          ? 90
+          : procedureType.includes('cleaning')
+            ? 30
+            : 60;
+
+        this.slotCounter++;
+        const selectedPractitioner =
+          practitioners[Math.floor(Math.random() * practitioners.length)];
+        const selectedLocation = locations[Math.floor(Math.random() * locations.length)];
+
+        const slot: TimeSlot = {
+          id: `slot_${this.slotCounter}_${Date.now()}`,
+          date: dateStr ?? '',
+          time,
+          dateTime: dateTime.toISOString(),
+          duration,
+          available: true,
+        };
+
+        if (selectedPractitioner) {
+          slot.practitioner = selectedPractitioner;
+        }
+        if (selectedLocation) {
+          slot.location = selectedLocation;
+        }
+
+        slots.push(slot);
+      }
+    }
+
+    return Promise.resolve(slots.slice(0, limit));
+  }
+
+  /**
+   * Mock book appointment
+   */
+  bookAppointment(input: BookAppointmentInput): Promise<Appointment> {
+    const appointmentId = `apt_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const confirmationCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+    const appointment: Appointment = {
+      id: appointmentId,
+      slotId: input.slotId,
+      patientPhone: input.patientPhone,
+      procedureType: input.procedureType,
+      scheduledAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), // Mock: 2 days from now
+      duration: 60,
+      status: 'confirmed',
+      practitioner: {
+        id: 'dr_1',
+        name: 'Dr. Maria Popescu',
+      },
+      location: {
+        id: 'loc_1',
+        name: 'Clinica Centrală',
+        address: 'Str. Victoriei 15, București',
+      },
+      confirmationCode,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    // Set optional properties only if they have values
+    if (input.patientName) {
+      appointment.patientName = input.patientName;
+    }
+    if (input.patientEmail) {
+      appointment.patientEmail = input.patientEmail;
+    }
+    if (input.notes) {
+      appointment.notes = input.notes;
+    }
+
+    this.appointments.set(appointmentId, appointment);
+    return Promise.resolve(appointment);
+  }
+
+  /**
+   * Mock get appointment
+   */
+  getAppointment(appointmentId: string): Promise<Appointment | null> {
+    return Promise.resolve(this.appointments.get(appointmentId) ?? null);
+  }
+
+  /**
+   * Mock cancel appointment
+   */
+  cancelAppointment(input: CancelAppointmentInput): Promise<Appointment> {
+    const appointment = this.appointments.get(input.appointmentId);
+    if (!appointment) {
+      return Promise.reject(
+        new ExternalServiceError('MockSchedulingService', '404: Appointment not found')
+      );
+    }
+
+    appointment.status = 'cancelled';
+    appointment.updatedAt = new Date().toISOString();
+    return Promise.resolve(appointment);
+  }
+
+  /**
+   * Format slot for display (same as real service)
+   */
+  formatSlotForDisplay(slot: TimeSlot, language: 'ro' | 'en' | 'de' = 'ro'): string {
+    const date = new Date(slot.dateTime);
+
+    const dateFormatters: Record<string, Intl.DateTimeFormat> = {
+      ro: new Intl.DateTimeFormat('ro-RO', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      }),
+      en: new Intl.DateTimeFormat('en-US', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      }),
+      de: new Intl.DateTimeFormat('de-DE', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      }),
+    };
+
+    const formattedDate = dateFormatters[language]?.format(date) ?? date.toLocaleDateString();
+    const formattedTime = slot.time;
+
+    const locationStr = slot.location ? ` - ${slot.location.name}` : '';
+    const practitionerStr = slot.practitioner ? ` cu ${slot.practitioner.name}` : '';
+
+    return `${formattedDate} ora ${formattedTime}${practitionerStr}${locationStr}`;
+  }
+
+  /**
+   * Generate a short slot description for buttons
+   */
+  formatSlotShort(slot: TimeSlot): string {
+    const date = new Date(slot.dateTime);
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    return `${day}.${month} ${slot.time}`;
+  }
+}
+
+/**
+ * Create mock scheduling service for development
+ */
+export function createMockSchedulingService(): MockSchedulingService {
+  return new MockSchedulingService();
+}
