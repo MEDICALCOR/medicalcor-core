@@ -1,0 +1,528 @@
+---
+title: "[CORTEX 0.1] Initialize TypeScript monorepo (pnpm + turbo)"
+labels: ["type:feature","P0-critical","area:infra"]
+milestone: "W1 – Bootstrap + Core Architecture"
+body: |
+  ### Objective
+  Create strict TS monorepo baseline.
+
+  ### Tasks
+  - Add pnpm workspace + Turborepo
+  - Add apps/api, apps/trigger, packages/core, packages/integrations, packages/types
+  - Add tsconfig.base.json (strict, noImplicitAny, exactOptionalPropertyTypes)
+  - Add eslint + prettier + husky + lint-staged
+  - Add .env.example
+
+  ### Acceptance Criteria
+  - `pnpm install && pnpm dev` runs without errors
+  - `pnpm lint` passes
+  - Turbo pipelines configured (build, dev, test, lint)
+---
+title: "[CORTEX 0.2] Repo CI: lint/test/build on PR"
+labels: ["type:feature","P0-critical","area:infra"]
+milestone: "W1 – Bootstrap + Core Architecture"
+body: |
+  ### Objective
+  Fail-fast CI for medical-grade code.
+
+  ### Tasks
+  - Add GitHub Action: node 20, pnpm cache
+  - Run lint, typecheck, unit tests, build
+  - Protect main with required checks
+
+  ### Acceptance Criteria
+  - Any PR triggers CI
+  - Main cannot merge without green checks
+---
+title: "[SEC 0.3] Medical-grade logger (PII redaction + correlation IDs)"
+labels: ["type:security","P0-critical","area:infra","area:ai-scoring"]
+milestone: "W1 – Bootstrap + Core Architecture"
+body: |
+  ### Objective
+  Prevent any raw PII from reaching logs.
+
+  ### Tasks
+  - Add Pino logger package in packages/core
+  - Redaction rules for phone, email, transcripts, message bodies, gclid/fbclid
+  - Add request-correlation middleware in apps/api
+
+  ### Acceptance Criteria
+  - No raw phone/email appears in logs
+  - Every request has a stable correlation id
+---
+title: "[TYPES 0.4] Zod domain schemas v1"
+labels: ["type:feature","P0-critical","area:infra"]
+milestone: "W1 – Bootstrap + Core Architecture"
+body: |
+  ### Objective
+  Shared Zod schemas for all inputs/outputs.
+
+  ### Tasks
+  - packages/types: LeadContext, ScoringOutput, WhatsAppWebhook, VoiceEvent
+  - Export inferred TS types
+
+  ### Acceptance Criteria
+  - All services import schemas from packages/types
+  - Zod validation used at boundaries
+---
+title: "[API 0.5] Fastify webhook gateway skeleton"
+labels: ["type:feature","P0-critical","area:trigger"]
+milestone: "W1 – Bootstrap + Core Architecture"
+body: |
+  ### Objective
+  Minimal API to receive webhooks and forward to Trigger.dev.
+
+  ### Tasks
+  - Create apps/api with Fastify
+  - Health endpoint /health
+  - POST /webhooks/whatsapp
+  - POST /webhooks/voice
+  - Zod validation
+
+  ### Acceptance Criteria
+  - Server starts on `pnpm dev:api`
+  - Invalid payload -> 400 with safe error
+---
+title: "[TRIGGER 0.6] Trigger.dev v3 init + first task"
+labels: ["type:feature","P0-critical","area:trigger"]
+milestone: "W1 – Bootstrap + Core Architecture"
+body: |
+  ### Objective
+  Replace n8n with durable workflows.
+
+  ### Tasks
+  - Setup Trigger.dev project in apps/trigger
+  - Create hello-world task
+  - Configure secrets + local dev runner
+
+  ### Acceptance Criteria
+  - Task visible and runnable in Trigger.dev dashboard
+  - Local dev runs tasks via tunnel
+---
+title: "[HUBSPOT 1.1] HubSpot typed client singleton"
+labels: ["type:feature","P0-critical","area:hubspot"]
+milestone: "W2 – HubSpot CRM + WhatsApp Cortex"
+body: |
+  ### Objective
+  HubSpot as single source of truth.
+
+  ### Tasks
+  - packages/integrations/hubspot.ts
+  - Client init with retries/backoff
+  - Rate limit handling
+
+  ### Acceptance Criteria
+  - All HubSpot calls go through this client
+  - Handles 429 gracefully
+---
+title: "[HUBSPOT 1.2] syncContact(phone) upsert + dedup"
+labels: ["type:feature","P0-critical","area:hubspot"]
+milestone: "W2 – HubSpot CRM + WhatsApp Cortex"
+body: |
+  ### Objective
+  Idempotent contact sync by E.164 phone.
+
+  ### Tasks
+  - Search by phone property
+  - If not found, create
+  - If duplicates, pick oldest and merge
+
+  ### Acceptance Criteria
+  - Same phone never creates >1 active contact
+  - Function is pure+testable
+---
+title: "[HUBSPOT 1.3] Timeline logging for IN/OUT messages"
+labels: ["type:feature","P0-critical","area:hubspot"]
+milestone: "W2 – HubSpot CRM + WhatsApp Cortex"
+body: |
+  ### Objective
+  Every contact interaction is auditable.
+
+  ### Tasks
+  - logMessageToTimeline(contactId, message, direction)
+  - Store metadata: channel, message_id, score
+
+  ### Acceptance Criteria
+  - Entries visible in HubSpot contact timeline
+  - No PII leakage beyond intended fields
+---
+title: "[CORE 1.4] Phone normalization service (RO -> E.164)"
+labels: ["type:feature","P0-critical","area:infra"]
+milestone: "W2 – HubSpot CRM + WhatsApp Cortex"
+body: |
+  ### Objective
+  Normalize any Romanian phone input.
+
+  ### Acceptance Criteria
+  - Input formats supported: 07xx, +40, 0040, spaces/dashes
+  - Deterministic output and validation flag
+---
+title: "[DATA 1.5] domain_events event store (append-only)"
+labels: ["type:feature","P0-critical","area:infra"]
+milestone: "W2 – HubSpot CRM + WhatsApp Cortex"
+body: |
+  ### Objective
+  Durable audit layer separate from HubSpot.
+
+  ### Tasks
+  - Supabase migration for domain_events
+  - Event types + idempotency_key
+  - Insert helper in packages/core
+
+  ### Acceptance Criteria
+  - Every handler step emits domain event
+  - Duplicate idempotency_key rejected
+---
+title: "[WA 2.1] 360dialog webhook signature verification"
+labels: ["type:security","P0-critical","area:whatsapp"]
+milestone: "W2 – HubSpot CRM + WhatsApp Cortex"
+body: |
+  ### Objective
+  Reject spoofed WhatsApp webhooks.
+
+  ### Acceptance Criteria
+  - Invalid HMAC -> 401
+  - Valid HMAC -> handler proceeds
+---
+title: "[WA 2.2] 360dialog typed integration wrapper"
+labels: ["type:feature","P0-critical","area:whatsapp"]
+milestone: "W2 – HubSpot CRM + WhatsApp Cortex"
+body: |
+  ### Objective
+  Minimal, reliable WhatsApp BSP layer.
+
+  ### Tasks
+  - sendText(to, text)
+  - sendTemplate(to, name, params)
+  - retry/backoff
+
+  ### Acceptance Criteria
+  - Works with sandbox + production tokens
+  - Throws typed errors
+---
+title: "[AI 2.3] AIScoringService v1 (GPT-4o + Zod strict output)"
+labels: ["type:ai","P0-critical","area:ai-scoring"]
+milestone: "W2 – HubSpot CRM + WhatsApp Cortex"
+body: |
+  ### Objective
+  Port legacy enhanced scoring to strict TS.
+
+  ### Acceptance Criteria
+  - Output validates ScoringOutputSchema
+  - Safe fallback on model failure
+  - Score rules preserved (All-on-X explicit + budget => 5)
+---
+title: "[TRIGGER 2.4] WhatsApp durable handler (end-to-end)"
+labels: ["type:feature","P0-critical","area:trigger","area:whatsapp"]
+milestone: "W2 – HubSpot CRM + WhatsApp Cortex"
+body: |
+  ### Objective
+  Durable WhatsApp lead ingestion.
+
+  ### Logic
+  1. Verify HMAC
+  2. Normalize phone
+  3. HubSpot upsert
+  4. Timeline IN log
+  5. AI scoring
+  6. HOT -> template + high priority task
+  7. COLD -> AI reply
+  8. Emit domain_events
+
+  ### Acceptance Criteria
+  - Idempotent by message_id
+  - Visible traces in Trigger.dev
+---
+title: "[HUBSPOT 2.5] Create High-Priority task for HOT leads"
+labels: ["type:feature","P0-critical","area:hubspot"]
+milestone: "W2 – HubSpot CRM + WhatsApp Cortex"
+body: |
+  ### Objective
+  Instantly notify agents.
+
+  ### Acceptance Criteria
+  - HOT score >=4 creates HubSpot task
+  - Task includes suggested next action + context
+---
+title: "[SEC 2.6] GDPR consent capture (WhatsApp opt-in)"
+labels: ["type:security","P0-critical","area:whatsapp","area:hubspot"]
+milestone: "W2 – HubSpot CRM + WhatsApp Cortex"
+body: |
+  ### Objective
+  Track marketing + medical data consent at first contact.
+
+  ### Tasks
+  - consent property in HubSpot
+  - consent_records table in Supabase
+  - Handler writes both
+
+  ### Acceptance Criteria
+  - No CRM write without consent state
+  - Consent text version stored
+---
+title: "[VOICE 3.1] Twilio Media Streams WS gateway skeleton"
+labels: ["type:feature","P1-high","area:voice"]
+milestone: "W3 – Voice AI + Realtime Supervisor"
+body: |
+  ### Objective
+  Accept Twilio audio and proxy to Vapi.ai.
+
+  ### Acceptance Criteria
+  - Stable WS connection handshake
+  - Backpressure handling
+---
+title: "[VOICE 3.2] Vapi stream proxy placeholder + events"
+labels: ["type:feature","P1-high","area:voice","area:ai-scoring"]
+milestone: "W3 – Voice AI + Realtime Supervisor"
+body: |
+  ### Objective
+  Forward audio to Vapi and capture partial transcripts.
+
+  ### Acceptance Criteria
+  - transcript chunks buffered and persisted end-of-call
+---
+title: "[HUBSPOT 3.3] Voice transcript + summary to Timeline"
+labels: ["type:feature","P1-high","area:hubspot","area:voice"]
+milestone: "W3 – Voice AI + Realtime Supervisor"
+body: |
+  ### Objective
+  Phone calls are first-class timeline events.
+
+  ### Acceptance Criteria
+  - final transcript logged
+  - call sentiment stored as property
+---
+title: "[TRIGGER 3.4] Voice durable handler (call-ended event)"
+labels: ["type:feature","P1-high","area:trigger","area:voice"]
+milestone: "W3 – Voice AI + Realtime Supervisor"
+body: |
+  ### Objective
+  Durable call pipeline.
+
+  ### Acceptance Criteria
+  - Handles retries for Vapi downtime
+  - Emits domain_events(call_received, call_ended, call_scored)
+---
+title: "[SEC 3.5] Storage encryption for voice transcripts"
+labels: ["type:security","P1-high","area:infra","area:voice"]
+milestone: "W3 – Voice AI + Realtime Supervisor"
+body: |
+  ### Objective
+  Reduce breach impact.
+
+  ### Acceptance Criteria
+  - transcripts encrypted at column level OR stored hashed with separate vault key
+---
+title: "[MIGRATE 4.1] Shadow-mode sync to Pipedrive (read-only mirror)"
+labels: ["type:refactor","P1-high","area:hubspot"]
+milestone: "W3 – Voice AI + Realtime Supervisor"
+body: |
+  ### Objective
+  Parallel run 30-90 days so ops don’t break.
+
+  ### Acceptance Criteria
+  - HubSpot is write-master
+  - Pipedrive only receives mirrored updates
+---
+title: "[LEGACY 4.2] Remove n8n core flows"
+labels: ["type:refactor","P1-high","area:infra"]
+milestone: "W4 – Security Hardening + Observability"
+body: |
+  ### Objective
+  Hard cutover away from glue-code.
+
+  ### Acceptance Criteria
+  - All ingest paths go to apps/api + Trigger.dev
+  - n8n only optional/archived
+---
+title: "[LEGACY 4.3] Remove Kommo usage"
+labels: ["type:refactor","P1-high","area:whatsapp"]
+milestone: "W4 – Security Hardening + Observability"
+body: |
+  ### Objective
+  360dialog becomes the only WhatsApp channel.
+
+  ### Acceptance Criteria
+  - No Kommo webhooks active
+---
+title: "[OBS 4.4] OpenTelemetry tracing (API + Trigger)"
+labels: ["type:feature","P1-high","area:infra"]
+milestone: "W4 – Security Hardening + Observability"
+body: |
+  ### Objective
+  Full distributed traces.
+
+  ### Acceptance Criteria
+  - TraceId links API -> Trigger tasks -> external calls
+---
+title: "[OBS 4.5] Metrics + alerts (p95 latency, error rate)"
+labels: ["type:feature","P1-high","area:infra"]
+milestone: "W4 – Security Hardening + Observability"
+body: |
+  ### Objective
+  Enterprise SLOs.
+
+  ### Acceptance Criteria
+  - Grafana dashboard wired
+  - Slack alerts on thresholds
+---
+title: "[SEC 4.6] CSRF + rate limiting for public webhooks"
+labels: ["type:security","P1-high","area:infra"]
+milestone: "W4 – Security Hardening + Observability"
+body: |
+  ### Objective
+  Hardening against abuse.
+
+  ### Acceptance Criteria
+  - Per-IP + per-source limits via Redis
+  - Safe 429 behavior
+---
+title: "[SEC 4.7] Processor registry + DPA evidence"
+labels: ["type:security","P1-high","area:infra"]
+milestone: "W4 – Security Hardening + Observability"
+body: |
+  ### Objective
+  Maintain GDPR processor list.
+
+  ### Acceptance Criteria
+  - processors.yml in repo with status + link
+  - reviewed quarterly
+---
+title: "[AI 5.1] RAG intake (vector DB) for context-aware scoring"
+labels: ["type:ai","P2-medium","area:ai-scoring"]
+milestone: "W4 – Security Hardening + Observability"
+body: |
+  ### Objective
+  Nuvia-level personalized responses.
+
+  ### Acceptance Criteria
+  - Scoring prompts include retrieved context
+  - Deterministic safe fallbacks
+---
+title: "[AI 5.2] Predictive Recall automation (WA templates)"
+labels: ["type:ai","P2-medium","area:whatsapp","area:trigger"]
+milestone: "W4 – Security Hardening + Observability"
+body: |
+  ### Objective
+  Revenue from follow-ups.
+
+  ### Acceptance Criteria
+  - Trigger cron sends recall to eligible contacts
+  - Timeline entries created
+---
+title: "[GROWTH 5.3] Referral loop automation"
+labels: ["type:feature","P2-medium","area:ai-scoring"]
+milestone: "W4 – Security Hardening + Observability"
+body: |
+  ### Objective
+  Post-positive sentiment referral ask.
+
+  ### Acceptance Criteria
+  - Sentiment >= threshold triggers referral template
+---
+title: "[GROWTH 6.1] UTM + cost attribution model (SoT join)"
+labels: ["type:feature","P2-medium","area:infra"]
+milestone: "W4 – Security Hardening + Observability"
+body: |
+  ### Objective
+  ROAS per campaign, end-to-end.
+
+  ### Acceptance Criteria
+  - UTMs stored on first touch in HubSpot + events
+  - Revenue joined back by contact_id
+---
+title: "[GROWTH 6.2] Booking agent v0 (calendar negotiation via WA)"
+labels: ["type:ai","P2-medium","area:whatsapp"]
+milestone: "W4 – Security Hardening + Observability"
+body: |
+  ### Objective
+  Reduce human scheduling load.
+
+  ### Acceptance Criteria
+  - Suggests 3 slots
+  - Confirms and logs appointment
+---
+title: "[DOCS 0.7] Architecture README + diagrams"
+labels: ["type:chore","P1-high","area:infra"]
+milestone: "W1 – Bootstrap + Core Architecture"
+body: |
+  ### Objective
+  One canonical doc for system.
+
+  ### Acceptance Criteria
+  - Mermaid diagrams: event flow, integrations
+  - Updated with each PR
+---
+title: "[TEST 0.8] Test harness (Jest + MSW) for integrations"
+labels: ["type:test","P0-critical","area:infra"]
+milestone: "W1 – Bootstrap + Core Architecture"
+body: |
+  ### Objective
+  Mock external SaaS.
+
+  ### Acceptance Criteria
+  - Unit tests run offline
+  - MSW mocks HubSpot/360dialog/OpenAI
+---
+title: "[SEC 0.9] Secrets management baseline"
+labels: ["type:security","P0-critical","area:infra"]
+milestone: "W1 – Bootstrap + Core Architecture"
+body: |
+  ### Objective
+  Centralize secrets usage.
+
+  ### Acceptance Criteria
+  - No secrets committed
+  - Secrets validated on boot
+---
+title: "[CORE 1.6] LeadContext builder (first-touch normalization)"
+labels: ["type:feature","P0-critical","area:infra"]
+milestone: "W2 – HubSpot CRM + WhatsApp Cortex"
+body: |
+  ### Objective
+  Build canonical context object for AI/flows.
+
+  ### Acceptance Criteria
+  - Context includes first_touch, utm, channel, language guess
+---
+title: "[AI 2.7] Language detection + reply language routing"
+labels: ["type:ai","P1-high","area:ai-scoring"]
+milestone: "W2 – HubSpot CRM + WhatsApp Cortex"
+body: |
+  ### Objective
+  RO/EN/DE auto replies.
+
+  ### Acceptance Criteria
+  - Detects language from message
+  - AI reply in same language
+---
+title: "[WA 2.8] Template catalog + param validator"
+labels: ["type:feature","P1-high","area:whatsapp"]
+milestone: "W2 – HubSpot CRM + WhatsApp Cortex"
+body: |
+  ### Objective
+  Avoid broken template sends.
+
+  ### Acceptance Criteria
+  - Zod validates params per template
+---
+title: "[VOICE 3.6] Live agent-assist hooks (future Flex card)"
+labels: ["type:feature","P2-medium","area:voice"]
+milestone: "W3 – Voice AI + Realtime Supervisor"
+body: |
+  ### Objective
+  Prep for HubSpot UI extension.
+
+  ### Acceptance Criteria
+  - Exposes realtime events over SSE/WebSocket
+---
+title: "[OBS 4.8] Error taxonomy + incident playbook"
+labels: ["type:chore","P2-medium","area:infra"]
+milestone: "W4 – Security Hardening + Observability"
+body: |
+  ### Objective
+  Standardize incidents.
+
+  ### Acceptance Criteria
+  - Error codes P0/P1/P2 defined
+  - Runbook linked in docs
