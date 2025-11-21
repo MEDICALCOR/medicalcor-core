@@ -171,7 +171,7 @@ export class HubSpotClient {
    * Log message to contact timeline
    */
   async logMessageToTimeline(input: TimelineEventInput): Promise<void> {
-    const { contactId, message, direction, channel, messageId, metadata } = input;
+    const { contactId, message, direction, channel } = input;
 
     // Create a note on the contact (simplified timeline entry)
     await this.request('/crm/v3/objects/notes', {

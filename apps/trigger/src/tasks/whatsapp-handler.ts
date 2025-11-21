@@ -1,9 +1,13 @@
 import { task, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
-import { normalizeRomanianPhone, createEventStore, createInMemoryEventStore } from '@medicalcor/core';
+import {
+  normalizeRomanianPhone,
+  createEventStore,
+  createInMemoryEventStore,
+  LeadContextBuilder,
+} from '@medicalcor/core';
 import { createHubSpotClient, createWhatsAppClient, createOpenAIClient } from '@medicalcor/integrations';
 import { createScoringService } from '@medicalcor/domain';
-import type { LeadContext } from '@medicalcor/types';
 
 /**
  * WhatsApp Message Handler Task
@@ -41,17 +45,17 @@ export type WhatsAppMessagePayload = z.infer<typeof WhatsAppMessagePayloadSchema
 
 // Initialize clients (lazy - only when task runs)
 function getClients() {
-  const hubspotToken = process.env['HUBSPOT_ACCESS_TOKEN'];
-  const whatsappApiKey = process.env['WHATSAPP_API_KEY'];
-  const whatsappPhoneNumberId = process.env['WHATSAPP_PHONE_NUMBER_ID'];
-  const openaiApiKey = process.env['OPENAI_API_KEY'];
-  const databaseUrl = process.env['DATABASE_URL'];
+  const hubspotToken = process.env.HUBSPOT_ACCESS_TOKEN;
+  const whatsappApiKey = process.env.WHATSAPP_API_KEY;
+  const whatsappPhoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const openaiApiKey = process.env.OPENAI_API_KEY;
+  const databaseUrl = process.env.DATABASE_URL;
 
   const hubspot = hubspotToken
     ? createHubSpotClient({ accessToken: hubspotToken })
     : null;
 
-  const webhookSecret = process.env['WHATSAPP_WEBHOOK_SECRET'];
+  const webhookSecret = process.env.WHATSAPP_WEBHOOK_SECRET;
   const whatsapp = whatsappApiKey && whatsappPhoneNumberId
     ? createWhatsAppClient({
         apiKey: whatsappApiKey,
@@ -94,7 +98,31 @@ export const handleWhatsAppMessage = task({
       correlationId,
     });
 
-    // Step 1: Normalize phone number
+    // Step 1: Build LeadContext with normalized phone
+    const waMessage: { id: string; body?: string; type?: string; timestamp?: string } = {
+      id: message.id,
+      type: message.type,
+      timestamp: message.timestamp,
+    };
+    if (message.text?.body) {
+      waMessage.body = message.text.body;
+    }
+
+    const waInput: Parameters<typeof LeadContextBuilder.fromWhatsApp>[0] = {
+      from: message.from,
+      message: waMessage,
+      metadata: {
+        phone_number_id: metadata.phone_number_id,
+        display_phone_number: metadata.display_phone_number,
+      },
+    };
+    if (contact) {
+      waInput.contact = { name: contact.profile.name, wa_id: contact.wa_id };
+    }
+
+    const leadContextBuilder = LeadContextBuilder.fromWhatsApp(waInput)
+      .withCorrelationId(correlationId);
+
     const phoneResult = normalizeRomanianPhone(message.from);
     const normalizedPhone = phoneResult.normalized;
     logger.info('Phone normalized', {
@@ -136,18 +164,11 @@ export const handleWhatsAppMessage = task({
       }
     }
 
-    // Step 4: AI Scoring
-    const leadContext: LeadContext = {
-      phone: normalizedPhone,
-      name: contact?.profile.name,
-      channel: 'whatsapp',
-      firstTouchTimestamp: message.timestamp,
-      language: 'ro', // Default to Romanian, could be detected
-      messageHistory: message.text?.body
-        ? [{ role: 'user', content: message.text.body, timestamp: message.timestamp }]
-        : [],
-      hubspotContactId,
-    };
+    // Step 4: AI Scoring - Build final LeadContext
+    if (hubspotContactId) {
+      leadContextBuilder.withHubSpotContact(hubspotContactId);
+    }
+    const leadContext = leadContextBuilder.buildForScoring();
 
     let scoreResult;
     try {

@@ -54,3 +54,20 @@ export {
   type StoredEvent,
   type EventPublisher,
 } from './event-store.js';
+
+export {
+  LeadContextBuilder,
+  buildLeadContextFromWhatsApp,
+  buildLeadContextFromVoiceCall,
+  buildLeadContextFromWebForm,
+  type LeadContext,
+  type LeadChannel,
+  type MessageRole,
+  type SupportedLanguage,
+  type UTMParams,
+  type MessageEntry,
+  type WhatsAppInput,
+  type VoiceCallInput,
+  type WebFormInput,
+  type ReferralInput,
+} from './lead-context.js';
