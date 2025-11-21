@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@medicalcor/types": ["packages/types/src"],
+      "@medicalcor/core": ["packages/core/src"],
+      "@medicalcor/infra": ["packages/infra/src"],
+      "@medicalcor/integrations": ["packages/integrations/src"]
+    }
+  },
+  "files": [],
+  "references": [
+    { "path": "packages/types" },
+    { "path": "packages/core" },
+    { "path": "packages/infra" },
+    { "path": "packages/integrations" },
+    { "path": "apps/api" },
+    { "path": "apps/trigger" }
+  ]
+}
