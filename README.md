@@ -44,8 +44,11 @@ pnpm typecheck
 | Package | Description |
 |---------|-------------|
 | `@medicalcor/api` | Fastify webhook gateway |
-| `@medicalcor/core` | Logger, errors, utilities |
+| `@medicalcor/trigger` | Trigger.dev workflows and jobs |
+| `@medicalcor/core` | Logger, errors, utilities, env validation |
 | `@medicalcor/types` | Zod schemas for all domains |
+| `@medicalcor/domain` | Scoring, triage, scheduling services |
+| `@medicalcor/integrations` | HubSpot, WhatsApp, OpenAI clients |
 
 ## Environment Setup
 
@@ -60,3 +63,18 @@ Copy `.env.example` to `.env` and configure your credentials.
 - **API Framework**: Fastify 5
 - **Validation**: Zod
 - **Background Jobs**: Trigger.dev
+- **Testing**: Vitest + MSW
+- **Linting**: ESLint 9 + Prettier
+
+## Testing
+
+```bash
+pnpm test              # Run all tests
+pnpm test:watch        # Watch mode
+pnpm test:coverage     # With coverage report
+```
+
+## Documentation
+
+- [Architecture](./docs/ARCHITECTURE.md) - System design with Mermaid diagrams
+- [Infrastructure](./infra/README.md) - Docker and Terraform setup

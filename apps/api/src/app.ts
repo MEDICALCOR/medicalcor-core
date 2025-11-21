@@ -1,7 +1,13 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
-import { createLogger, generateCorrelationId } from '@medicalcor/core';
+import {
+  createLogger,
+  generateCorrelationId,
+  validateEnv,
+  getMissingSecrets,
+  logSecretsStatus,
+} from '@medicalcor/core';
 import { healthRoutes, webhookRoutes } from './routes/index.js';
 
 /**
@@ -12,6 +18,34 @@ import { healthRoutes, webhookRoutes } from './routes/index.js';
  */
 
 const logger = createLogger({ name: 'api' });
+
+/**
+ * Validate environment and secrets on boot
+ */
+function validateEnvironment(): void {
+  const isProduction = process.env['NODE_ENV'] === 'production';
+
+  try {
+    validateEnv(isProduction);
+    logger.info('Environment validation passed');
+  } catch (error) {
+    logger.error({ error }, 'Environment validation failed');
+    if (isProduction) {
+      process.exit(1);
+    }
+  }
+
+  // Log secrets status (without revealing values)
+  logSecretsStatus(logger);
+
+  // Warn about missing secrets in development
+  if (!isProduction) {
+    const missing = getMissingSecrets();
+    if (missing.length > 0) {
+      logger.warn({ missing }, 'Some secrets are not configured (ok for development)');
+    }
+  }
+}
 
 async function buildApp() {
   const fastify = Fastify({
@@ -104,6 +138,9 @@ async function buildApp() {
 }
 
 async function start() {
+  // Validate environment before starting
+  validateEnvironment();
+
   const app = await buildApp();
 
   const port = parseInt(process.env['PORT'] ?? '3000', 10);
@@ -111,7 +148,7 @@ async function start() {
 
   try {
     await app.listen({ port, host });
-    logger.info({ port, host }, 'Server started');
+    logger.info({ port, host, env: process.env['NODE_ENV'] ?? 'development' }, 'Server started');
   } catch (error) {
     logger.error({ error }, 'Failed to start server');
     process.exit(1);
