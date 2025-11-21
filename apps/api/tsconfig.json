@@ -6,6 +6,6 @@
     "tsBuildInfoFile": "./tsconfig.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/__tests__/**"],
   "references": [{ "path": "../../packages/core" }, { "path": "../../packages/types" }]
 }
