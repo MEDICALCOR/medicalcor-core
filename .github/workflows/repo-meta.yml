@@ -1,0 +1,44 @@
+name: Repo Meta Setup
+
+on:
+  workflow_dispatch:
+
+jobs:
+  labels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply default labels
+        uses: actions-ecosystem/action-create-labels@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          labels: |
+            type:feature
+            type:bug
+            type:security
+            type:refactor
+            type:chore
+            type:ai
+            type:api
+            type:integration
+            P0-critical
+            P1-high
+            P2-medium
+            P3-low
+            area:trigger
+            area:hubspot
+            area:whatsapp
+            area:voice
+            area:ai-scoring
+            area:infra
+
+  milestones:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure milestones exist
+        run: |
+          gh api repos/${{ github.repository }}/milestones -f title='W1 – Bootstrap + Core Architecture' -f due_on='2025-11-28T23:59:59Z' || true
+          gh api repos/${{ github.repository }}/milestones -f title='W2 – HubSpot CRM + WhatsApp Cortex' -f due_on='2025-12-05T23:59:59Z' || true
+          gh api repos/${{ github.repository }}/milestones -f title='W3 – Voice AI + Realtime Supervisor' -f due_on='2025-12-12T23:59:59Z' || true
+          gh api repos/${{ github.repository }}/milestones -f title='W4 – Security Hardening + Observability' -f due_on='2025-12-19T23:59:59Z' || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
