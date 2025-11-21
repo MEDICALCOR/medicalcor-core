@@ -19,11 +19,21 @@
     "./scheduling": {
       "types": "./dist/scheduling/index.d.ts",
       "import": "./dist/scheduling/index.js"
+    },
+    "./consent": {
+      "types": "./dist/consent/index.d.ts",
+      "import": "./dist/consent/index.js"
+    },
+    "./language": {
+      "types": "./dist/language/index.d.ts",
+      "import": "./dist/language/index.js"
     }
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
@@ -32,6 +42,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@medicalcor/core": "workspace:*",
     "@medicalcor/types": "workspace:*",
     "zod": "^3.23.8"
   },

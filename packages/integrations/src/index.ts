@@ -10,12 +10,19 @@ export {
   WhatsAppClient,
   createWhatsAppClient,
   TEMPLATE_CATALOG,
+  TemplateCatalogService,
+  createTemplateCatalogService,
   type WhatsAppClientConfig,
   type SendTextOptions,
   type SendTemplateOptions,
   type TemplateComponent,
   type MessageResponse,
   type TemplateName,
+  type TemplateDefinition,
+  type TemplateParameter,
+  type TemplateMessage,
+  type TemplateSendResult,
+  type SupportedLanguage,
 } from './whatsapp.js';
 
 export {

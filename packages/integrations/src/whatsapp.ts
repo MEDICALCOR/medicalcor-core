@@ -26,13 +26,13 @@ export interface SendTextOptions {
 
 export interface TemplateComponent {
   type: 'header' | 'body' | 'button';
-  parameters?: Array<{
+  parameters?: {
     type: 'text' | 'image' | 'document' | 'video';
     text?: string;
     image?: { link: string };
     document?: { link: string; filename?: string };
     video?: { link: string };
-  }>;
+  }[];
   sub_type?: 'quick_reply' | 'url';
   index?: string;
 }
@@ -46,8 +46,8 @@ export interface SendTemplateOptions {
 
 export interface MessageResponse {
   messaging_product: 'whatsapp';
-  contacts: Array<{ input: string; wa_id: string }>;
-  messages: Array<{ id: string }>;
+  contacts: { input: string; wa_id: string }[];
+  messages: { id: string }[];
 }
 
 export interface MediaUploadResponse {
@@ -114,7 +114,7 @@ export class WhatsAppClient {
   async sendInteractiveButtons(options: {
     to: string;
     bodyText: string;
-    buttons: Array<{ id: string; title: string }>;
+    buttons: { id: string; title: string }[];
     headerText?: string;
     footerText?: string;
   }): Promise<MessageResponse> {
@@ -133,7 +133,7 @@ export class WhatsAppClient {
           body: { text: bodyText },
           footer: footerText ? { text: footerText } : undefined,
           action: {
-            buttons: buttons.map(b => ({
+            buttons: buttons.map((b) => ({
               type: 'reply',
               reply: { id: b.id, title: b.title },
             })),
@@ -150,10 +150,10 @@ export class WhatsAppClient {
     to: string;
     bodyText: string;
     buttonText: string;
-    sections: Array<{
+    sections: {
       title: string;
-      rows: Array<{ id: string; title: string; description?: string }>;
-    }>;
+      rows: { id: string; title: string; description?: string }[];
+    }[];
     headerText?: string;
     footerText?: string;
   }): Promise<MessageResponse> {
@@ -291,10 +291,7 @@ export class WhatsAppClient {
     const providedSignature = signature.replace('sha256=', '');
 
     try {
-      return crypto.timingSafeEqual(
-        Buffer.from(expectedSignature),
-        Buffer.from(providedSignature)
-      );
+      return crypto.timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(providedSignature));
     } catch {
       return false;
     }
@@ -336,12 +333,17 @@ export class WhatsAppClient {
     const url = `${this.baseUrl}${path}`;
 
     const makeRequest = async () => {
+      const existingHeaders =
+        options.headers instanceof Headers
+          ? Object.fromEntries(options.headers.entries())
+          : (options.headers as Record<string, string> | undefined);
+
       const response = await fetch(url, {
         ...options,
         headers: {
           'D360-API-KEY': this.config.apiKey,
           'Content-Type': 'application/json',
-          ...options.headers,
+          ...existingHeaders,
         },
       });
 
@@ -385,44 +387,418 @@ export function createWhatsAppClient(config: WhatsAppClientConfig): WhatsAppClie
 }
 
 /**
- * Template catalog with parameter validation
+ * Template Catalog Service
+ * Manages WhatsApp Business API templates with multi-language support
  */
-export const TEMPLATE_CATALOG = {
+
+export type SupportedLanguage = 'ro' | 'en' | 'de';
+
+export interface TemplateDefinition {
+  id: string;
+  name: string;
+  category: 'marketing' | 'utility' | 'authentication';
+  languages: SupportedLanguage[];
+  parameters: TemplateParameter[];
+  description: string;
+  requiresConsent: boolean;
+  cooldownMinutes: number; // Minimum time between sends
+}
+
+export interface TemplateParameter {
+  name: string;
+  type: 'text' | 'date' | 'time' | 'currency' | 'url';
+  required: boolean;
+  maxLength?: number;
+  format?: string; // e.g., 'DD.MM.YYYY' for dates
+}
+
+export interface TemplateMessage {
+  templateId: string;
+  language: SupportedLanguage;
+  parameters: Record<string, string>;
+}
+
+export interface TemplateSendResult {
+  success: boolean;
+  messageId?: string;
+  error?: string;
+  validationErrors?: string[];
+}
+
+/**
+ * Full template catalog with multi-language support
+ */
+export const TEMPLATE_CATALOG: Record<string, TemplateDefinition> = {
+  // Marketing templates
   hot_lead_acknowledgment: {
+    id: 'hot_lead_acknowledgment',
     name: 'hot_lead_acknowledgment',
-    language: 'ro',
-    parameters: ['name'] as const,
+    category: 'marketing',
+    languages: ['ro', 'en', 'de'],
+    parameters: [{ name: 'name', type: 'text', required: true, maxLength: 50 }],
+    description: 'Welcome message for high-priority leads',
+    requiresConsent: true,
+    cooldownMinutes: 60,
   },
   appointment_confirmation: {
+    id: 'appointment_confirmation',
     name: 'appointment_confirmation',
-    language: 'ro',
-    parameters: ['date', 'time', 'location'] as const,
+    category: 'utility',
+    languages: ['ro', 'en', 'de'],
+    parameters: [
+      { name: 'date', type: 'date', required: true, format: 'DD.MM.YYYY' },
+      { name: 'time', type: 'time', required: true, format: 'HH:mm' },
+      { name: 'location', type: 'text', required: true, maxLength: 100 },
+    ],
+    description: 'Appointment booking confirmation',
+    requiresConsent: false,
+    cooldownMinutes: 0,
   },
   appointment_reminder_24h: {
+    id: 'appointment_reminder_24h',
     name: 'appointment_reminder_24h',
-    language: 'ro',
-    parameters: ['date', 'time', 'location'] as const,
+    category: 'utility',
+    languages: ['ro', 'en', 'de'],
+    parameters: [
+      { name: 'date', type: 'date', required: true, format: 'DD.MM.YYYY' },
+      { name: 'time', type: 'time', required: true, format: 'HH:mm' },
+      { name: 'location', type: 'text', required: true, maxLength: 100 },
+    ],
+    description: '24-hour appointment reminder',
+    requiresConsent: false,
+    cooldownMinutes: 0,
   },
   appointment_reminder_2h: {
+    id: 'appointment_reminder_2h',
     name: 'appointment_reminder_2h',
-    language: 'ro',
-    parameters: ['time', 'location'] as const,
+    category: 'utility',
+    languages: ['ro', 'en', 'de'],
+    parameters: [
+      { name: 'time', type: 'time', required: true, format: 'HH:mm' },
+      { name: 'location', type: 'text', required: true, maxLength: 100 },
+    ],
+    description: '2-hour appointment reminder',
+    requiresConsent: false,
+    cooldownMinutes: 0,
   },
   payment_confirmation: {
+    id: 'payment_confirmation',
     name: 'payment_confirmation',
-    language: 'ro',
-    parameters: ['amount'] as const,
+    category: 'utility',
+    languages: ['ro', 'en', 'de'],
+    parameters: [
+      { name: 'amount', type: 'currency', required: true },
+      { name: 'date', type: 'date', required: false, format: 'DD.MM.YYYY' },
+    ],
+    description: 'Payment/deposit confirmation',
+    requiresConsent: false,
+    cooldownMinutes: 0,
   },
   recall_reminder: {
+    id: 'recall_reminder',
     name: 'recall_reminder',
-    language: 'ro',
-    parameters: ['name'] as const,
+    category: 'marketing',
+    languages: ['ro', 'en', 'de'],
+    parameters: [
+      { name: 'name', type: 'text', required: true, maxLength: 50 },
+      { name: 'months', type: 'text', required: false },
+    ],
+    description: 'Periodic checkup/cleaning reminder',
+    requiresConsent: true,
+    cooldownMinutes: 1440, // 24 hours
   },
   consent_renewal: {
+    id: 'consent_renewal',
     name: 'consent_renewal',
-    language: 'ro',
-    parameters: [] as const,
+    category: 'utility',
+    languages: ['ro', 'en', 'de'],
+    parameters: [],
+    description: 'GDPR consent renewal request',
+    requiresConsent: false, // Special case - asking for consent
+    cooldownMinutes: 10080, // 7 days
   },
-} as const;
+  treatment_follow_up: {
+    id: 'treatment_follow_up',
+    name: 'treatment_follow_up',
+    category: 'utility',
+    languages: ['ro', 'en', 'de'],
+    parameters: [
+      { name: 'name', type: 'text', required: true, maxLength: 50 },
+      { name: 'procedure', type: 'text', required: true, maxLength: 100 },
+    ],
+    description: 'Post-treatment follow-up message',
+    requiresConsent: false,
+    cooldownMinutes: 0,
+  },
+  consultation_offer: {
+    id: 'consultation_offer',
+    name: 'consultation_offer',
+    category: 'marketing',
+    languages: ['ro', 'en', 'de'],
+    parameters: [
+      { name: 'name', type: 'text', required: true, maxLength: 50 },
+      { name: 'offer', type: 'text', required: false, maxLength: 200 },
+    ],
+    description: 'Free consultation offer for leads',
+    requiresConsent: true,
+    cooldownMinutes: 4320, // 3 days
+  },
+  welcome_first_contact: {
+    id: 'welcome_first_contact',
+    name: 'welcome_first_contact',
+    category: 'utility',
+    languages: ['ro', 'en', 'de'],
+    parameters: [{ name: 'name', type: 'text', required: false, maxLength: 50 }],
+    description: 'Welcome message for first-time contacts',
+    requiresConsent: false,
+    cooldownMinutes: 0,
+  },
+};
 
 export type TemplateName = keyof typeof TEMPLATE_CATALOG;
+
+/**
+ * Template Catalog Service
+ */
+export class TemplateCatalogService {
+  private sendHistory = new Map<string, Date>(); // contactId:templateId -> lastSent
+
+  /**
+   * Get template definition
+   */
+  getTemplate(templateId: string): TemplateDefinition | null {
+    return TEMPLATE_CATALOG[templateId] ?? null;
+  }
+
+  /**
+   * Get all templates
+   */
+  getAllTemplates(): TemplateDefinition[] {
+    return Object.values(TEMPLATE_CATALOG);
+  }
+
+  /**
+   * Get templates by category
+   */
+  getTemplatesByCategory(category: TemplateDefinition['category']): TemplateDefinition[] {
+    return this.getAllTemplates().filter((t) => t.category === category);
+  }
+
+  /**
+   * Get templates available in a specific language
+   */
+  getTemplatesForLanguage(language: SupportedLanguage): TemplateDefinition[] {
+    return this.getAllTemplates().filter((t) => t.languages.includes(language));
+  }
+
+  /**
+   * Validate template parameters
+   */
+  validateParameters(
+    templateId: string,
+    parameters: Record<string, string>
+  ): { valid: boolean; errors: string[] } {
+    const template = this.getTemplate(templateId);
+    if (!template) {
+      return { valid: false, errors: [`Template not found: ${templateId}`] };
+    }
+
+    const errors: string[] = [];
+
+    for (const param of template.parameters) {
+      const value = parameters[param.name];
+
+      // Check required parameters
+      if (param.required && (!value || value.trim() === '')) {
+        errors.push(`Missing required parameter: ${param.name}`);
+        continue;
+      }
+
+      if (!value) continue;
+
+      // Check max length
+      if (param.maxLength && value.length > param.maxLength) {
+        errors.push(`Parameter ${param.name} exceeds max length of ${param.maxLength}`);
+      }
+
+      // Validate format based on type
+      if (param.type === 'date' && param.format === 'DD.MM.YYYY') {
+        if (!/^\d{2}\.\d{2}\.\d{4}$/.test(value)) {
+          errors.push(`Parameter ${param.name} must be in format DD.MM.YYYY`);
+        }
+      }
+
+      if (param.type === 'time' && param.format === 'HH:mm') {
+        if (!/^\d{2}:\d{2}$/.test(value)) {
+          errors.push(`Parameter ${param.name} must be in format HH:mm`);
+        }
+      }
+
+      if (param.type === 'currency') {
+        if (!/^[\d.,]+\s*[A-Z]{0,3}$/.test(value)) {
+          errors.push(`Parameter ${param.name} must be a valid currency amount`);
+        }
+      }
+    }
+
+    return { valid: errors.length === 0, errors };
+  }
+
+  /**
+   * Check if template can be sent (respects cooldown)
+   */
+  canSendTemplate(
+    contactId: string,
+    templateId: string
+  ): { allowed: boolean; waitMinutes?: number } {
+    const template = this.getTemplate(templateId);
+    if (!template) {
+      return { allowed: false };
+    }
+
+    if (template.cooldownMinutes === 0) {
+      return { allowed: true };
+    }
+
+    const key = `${contactId}:${templateId}`;
+    const lastSent = this.sendHistory.get(key);
+
+    if (!lastSent) {
+      return { allowed: true };
+    }
+
+    const minutesSinceLastSend = (Date.now() - lastSent.getTime()) / 1000 / 60;
+    if (minutesSinceLastSend >= template.cooldownMinutes) {
+      return { allowed: true };
+    }
+
+    return {
+      allowed: false,
+      waitMinutes: Math.ceil(template.cooldownMinutes - minutesSinceLastSend),
+    };
+  }
+
+  /**
+   * Record template send
+   */
+  recordTemplateSend(contactId: string, templateId: string): void {
+    const key = `${contactId}:${templateId}`;
+    this.sendHistory.set(key, new Date());
+  }
+
+  /**
+   * Build template components from parameters
+   */
+  buildTemplateComponents(
+    templateId: string,
+    parameters: Record<string, string>
+  ): TemplateComponent[] {
+    const template = this.getTemplate(templateId);
+    if (!template) {
+      return [];
+    }
+
+    const bodyParams = template.parameters
+      .filter((p): p is TemplateParameter & { name: string } => Boolean(parameters[p.name]))
+      .map((p) => {
+        const paramValue = parameters[p.name];
+        return {
+          type: 'text' as const,
+          text: paramValue ?? '',
+        };
+      });
+
+    if (bodyParams.length === 0) {
+      return [];
+    }
+
+    return [
+      {
+        type: 'body',
+        parameters: bodyParams,
+      },
+    ];
+  }
+
+  /**
+   * Get template name for specific language
+   * Templates are registered with language suffix in Meta Business Suite
+   */
+  getTemplateNameForLanguage(templateId: string, _language: SupportedLanguage): string {
+    const template = this.getTemplate(templateId);
+    if (!template) {
+      return templateId;
+    }
+
+    // Return base name - Meta handles language internally via language code
+    return template.name;
+  }
+
+  /**
+   * Get language code for Meta API
+   */
+  getMetaLanguageCode(language: SupportedLanguage): string {
+    const codes: Record<SupportedLanguage, string> = {
+      ro: 'ro',
+      en: 'en',
+      de: 'de',
+    };
+    return codes[language];
+  }
+
+  /**
+   * Format date for template
+   */
+  formatDateForTemplate(date: Date | string, language: SupportedLanguage = 'ro'): string {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    const day = d.getDate().toString().padStart(2, '0');
+    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+    const year = d.getFullYear();
+
+    // Romanian/German use DD.MM.YYYY, English uses MM/DD/YYYY
+    if (language === 'en') {
+      return `${month}/${day}/${year}`;
+    }
+    return `${day}.${month}.${year}`;
+  }
+
+  /**
+   * Format time for template
+   */
+  formatTimeForTemplate(time: Date | string): string {
+    if (typeof time === 'string' && /^\d{2}:\d{2}$/.test(time)) {
+      return time;
+    }
+    const d = typeof time === 'string' ? new Date(time) : time;
+    const hours = d.getHours().toString().padStart(2, '0');
+    const minutes = d.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+
+  /**
+   * Format currency for template
+   */
+  formatCurrencyForTemplate(
+    amount: number,
+    currency = 'EUR',
+    language: SupportedLanguage = 'ro'
+  ): string {
+    const locales: Record<SupportedLanguage, string> = {
+      ro: 'ro-RO',
+      en: 'en-US',
+      de: 'de-DE',
+    };
+
+    return new Intl.NumberFormat(locales[language], {
+      style: 'currency',
+      currency,
+    }).format(amount);
+  }
+}
+
+/**
+ * Create template catalog service instance
+ */
+export function createTemplateCatalogService(): TemplateCatalogService {
+  return new TemplateCatalogService();
+}

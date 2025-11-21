@@ -137,6 +137,9 @@ importers:
 
   packages/domain:
     dependencies:
+      '@medicalcor/core':
+        specifier: workspace:*
+        version: link:../core
       '@medicalcor/types':
         specifier: workspace:*
         version: link:../types
