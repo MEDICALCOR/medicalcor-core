@@ -68,13 +68,19 @@ jobs:
               return r.json()
 
           # 1) Load backlog YAML
-          with open(backlog_file, "r", encoding="utf-8") as f:
-              data = yaml.safe_load(f)
+          wwith open(backlog_file, "r", encoding="utf-8") as f:
+    docs = list(yaml.safe_load_all(f))
 
-          issues = data.get("issues", [])
-          if not issues:
-              print("No issues found in backlog.")
-              raise SystemExit(0)
+# Merge issues from all YAML documents
+issues = []
+for d in docs:
+    if isinstance(d, dict) and d.get("issues"):
+        issues.extend(d["issues"])
+
+if not issues:
+    print("No issues found in backlog.")
+    raise SystemExit(0)
+
 
           # 2) Build milestone title -> number map
           milestones = gh_get(f"/repos/{owner}/{name}/milestones", params={"state": "all", "per_page": 100})
