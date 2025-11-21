@@ -1,25 +1,56 @@
-/**
- * @medicalcor/core
- *
- * Core utilities and services for the MedicalCor platform.
- */
-
-// Logger exports
 export {
   createLogger,
-  createChildLogger,
-  withCorrelation,
-  safeLog,
+  withCorrelationId,
+  generateCorrelationId,
   logger,
-  REDACTION_PATHS,
-  redactString,
-  type LoggerConfig,
-  type LogContext,
   type Logger,
-} from "./logger/index.js";
+  type CreateLoggerOptions,
+} from './logger.js';
 
-// Phone normalization
-export { normalizePhone, isValidRomanianPhone, formatPhoneForDisplay } from "./phone.js";
+export {
+  AppError,
+  ValidationError,
+  AuthenticationError,
+  WebhookSignatureError,
+  RateLimitError,
+  ExternalServiceError,
+  NotFoundError,
+  isOperationalError,
+  toSafeErrorResponse,
+  type SafeErrorDetails,
+} from './errors.js';
 
-// Domain event helpers
-export { createDomainEvent, type DomainEvent, type EventMetadata } from "./events.js";
+export {
+  normalizeRomanianPhone,
+  withRetry,
+  sleep,
+  createIdempotencyKey,
+  safeJsonParse,
+  isDefined,
+  pick,
+  omit,
+} from './utils.js';
+
+export {
+  ApiEnvSchema,
+  DevEnvSchema,
+  validateEnv,
+  getEnv,
+  hasSecret,
+  getMissingSecrets,
+  logSecretsStatus,
+  type ApiEnv,
+  type DevEnv,
+} from './env.js';
+
+export {
+  EventStore,
+  InMemoryEventStore,
+  PostgresEventStore,
+  createEventStore,
+  createInMemoryEventStore,
+  type EventStoreConfig,
+  type EventStoreRepository,
+  type StoredEvent,
+  type EventPublisher,
+} from './event-store.js';

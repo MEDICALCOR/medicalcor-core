@@ -1,12 +1,130 @@
-/**
- * @medicalcor/types
- *
- * Shared Zod schemas and TypeScript types for the MedicalCor platform.
- * All domain entities and API contracts are defined here.
- */
+// WhatsApp schemas
+export {
+  WhatsAppContactSchema,
+  WhatsAppTextSchema,
+  WhatsAppMessageSchema,
+  WhatsAppStatusSchema,
+  WhatsAppMetadataSchema,
+  WhatsAppValueSchema,
+  WhatsAppChangeSchema,
+  WhatsAppEntrySchema,
+  WhatsAppWebhookSchema,
+  type WhatsAppContact,
+  type WhatsAppText,
+  type WhatsAppMessage,
+  type WhatsAppStatus,
+  type WhatsAppMetadata,
+  type WhatsAppValue,
+  type WhatsAppChange,
+  type WhatsAppEntry,
+  type WhatsAppWebhook,
+} from './whatsapp.schema.js';
 
-export * from "./schemas/lead.js";
-export * from "./schemas/scoring.js";
-export * from "./schemas/whatsapp.js";
-export * from "./schemas/voice.js";
-export * from "./schemas/common.js";
+// Voice schemas
+export {
+  CallDirectionSchema,
+  CallStatusSchema,
+  TwilioBaseSchema,
+  VoiceWebhookSchema,
+  CallStatusCallbackSchema,
+  VoiceEventSchema,
+  type CallDirection,
+  type CallStatus,
+  type VoiceWebhook,
+  type CallStatusCallback,
+  type VoiceEvent,
+} from './voice.schema.js';
+
+// Lead and scoring schemas
+export {
+  LeadChannelSchema,
+  LeadScoreSchema,
+  UTMParamsSchema,
+  LeadContextSchema,
+  ScoringOutputSchema,
+  type LeadChannel,
+  type LeadScore,
+  type UTMParams,
+  type LeadContext,
+  type ScoringOutput,
+} from './lead.schema.js';
+
+// Stripe schemas
+export {
+  StripeEventTypeSchema,
+  PaymentIntentSchema,
+  ChargeSchema,
+  StripeCustomerSchema,
+  InvoiceSchema,
+  CheckoutSessionSchema,
+  StripeWebhookEventSchema,
+  PaymentEventSchema,
+  type StripeEventType,
+  type PaymentIntent,
+  type Charge,
+  type StripeCustomer,
+  type Invoice,
+  type CheckoutSession,
+  type StripeWebhookEvent,
+  type PaymentEvent,
+} from './stripe.schema.js';
+
+// HubSpot schemas
+export {
+  HubSpotContactPropertiesSchema,
+  HubSpotContactSchema,
+  HubSpotContactInputSchema,
+  HubSpotFilterSchema,
+  HubSpotFilterGroupSchema,
+  HubSpotSearchRequestSchema,
+  HubSpotSearchResponseSchema,
+  HubSpotTimelineEventSchema,
+  HubSpotTaskSchema,
+  type HubSpotContactProperties,
+  type HubSpotContact,
+  type HubSpotContactInput,
+  type HubSpotFilter,
+  type HubSpotFilterGroup,
+  type HubSpotSearchRequest,
+  type HubSpotSearchResponse,
+  type HubSpotTimelineEvent,
+  type HubSpotTask,
+} from './hubspot.schema.js';
+
+// Domain events schemas
+export {
+  EventBaseSchema,
+  WhatsAppMessageReceivedEventSchema,
+  WhatsAppMessageSentEventSchema,
+  WhatsAppStatusUpdateEventSchema,
+  VoiceCallInitiatedEventSchema,
+  VoiceCallCompletedEventSchema,
+  VoiceTranscriptReadyEventSchema,
+  LeadCreatedEventSchema,
+  LeadScoredEventSchema,
+  LeadQualifiedEventSchema,
+  LeadAssignedEventSchema,
+  PaymentReceivedEventSchema,
+  PaymentFailedEventSchema,
+  AppointmentScheduledEventSchema,
+  AppointmentReminderSentEventSchema,
+  ConsentRecordedEventSchema,
+  DomainEventSchema,
+  type EventBase,
+  type WhatsAppMessageReceivedEvent,
+  type WhatsAppMessageSentEvent,
+  type WhatsAppStatusUpdateEvent,
+  type VoiceCallInitiatedEvent,
+  type VoiceCallCompletedEvent,
+  type VoiceTranscriptReadyEvent,
+  type LeadCreatedEvent,
+  type LeadScoredEvent,
+  type LeadQualifiedEvent,
+  type LeadAssignedEvent,
+  type PaymentReceivedEvent,
+  type PaymentFailedEvent,
+  type AppointmentScheduledEvent,
+  type AppointmentReminderSentEvent,
+  type ConsentRecordedEvent,
+  type DomainEvent,
+} from './events.schema.js';

@@ -139,7 +139,14 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 # Turborepo
-.turbo
+.turbo/
 
 # Husky
 .husky/_
+
+# Trigger.dev compiled config
+trigger.config.js
+trigger.config.js.map
+trigger.config.d.ts
+trigger.config.d.ts.map
+.trigger/

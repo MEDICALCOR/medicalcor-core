@@ -6,6 +6,11 @@
     "tsBuildInfoFile": "./tsconfig.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist"],
-  "references": [{ "path": "../../packages/core" }, { "path": "../../packages/types" }]
+  "exclude": ["node_modules", "dist", "trigger.config.ts"],
+  "references": [
+    { "path": "../../packages/core" },
+    { "path": "../../packages/types" },
+    { "path": "../../packages/integrations" },
+    { "path": "../../packages/domain" }
+  ]
 }

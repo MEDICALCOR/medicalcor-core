@@ -1,6 +1,6 @@
 {
   "name": "@medicalcor/core",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": true,
   "description": "Core utilities for MedicalCor - logger, helpers, and domain services",
   "type": "module",
@@ -10,15 +10,17 @@
       "import": "./dist/index.js"
     },
     "./logger": {
-      "types": "./dist/logger/index.d.ts",
-      "import": "./dist/logger/index.js"
+      "types": "./dist/logger.d.ts",
+      "import": "./dist/logger.js"
+    },
+    "./errors": {
+      "types": "./dist/errors.d.ts",
+      "import": "./dist/errors.js"
     }
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "scripts": {
     "build": "tsc --build",
     "dev": "tsc --build --watch",
@@ -30,12 +32,25 @@
     "clean": "rm -rf dist .turbo tsconfig.tsbuildinfo"
   },
   "dependencies": {
+    "@medicalcor/types": "workspace:*",
     "pino": "^9.5.0",
-    "pino-pretty": "^11.3.0"
+    "pino-pretty": "^11.3.0",
+    "uuid": "^10.0.0",
+    "zod": "^3.23.8"
+  },
+  "peerDependencies": {
+    "pg": "^8.0.0"
+  },
+  "peerDependenciesMeta": {
+    "pg": {
+      "optional": true
+    }
   },
   "devDependencies": {
-    "@types/node": "^20.10.0",
-    "typescript": "^5.6.0",
-    "vitest": "^2.1.0"
+    "@types/node": "^22.9.0",
+    "@types/pg": "^8.11.0",
+    "@types/uuid": "^10.0.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
   }
 }
