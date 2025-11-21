@@ -6,7 +6,7 @@ import { z } from 'zod';
  * Orchestrates the end-to-end patient journey from first contact to appointment
  */
 
-const PatientJourneyPayloadSchema = z.object({
+export const PatientJourneyPayloadSchema = z.object({
   phone: z.string(),
   hubspotContactId: z.string(),
   channel: z.enum(['whatsapp', 'voice', 'web']),
@@ -25,7 +25,7 @@ export const patientJourneyWorkflow = task({
     factor: 2,
   },
   run: async (payload: z.infer<typeof PatientJourneyPayloadSchema>) => {
-    const { phone, hubspotContactId, channel, initialScore, classification, procedureInterest, correlationId } = payload;
+    const { phone, hubspotContactId, channel: _channel, initialScore: _initialScore, classification, procedureInterest: _procedureInterest, correlationId } = payload;
 
     logger.info('Starting patient journey workflow', {
       phone,
@@ -125,7 +125,7 @@ export const patientJourneyWorkflow = task({
  * Lead Nurture Sequence Workflow
  * Automated nurture sequence for warm leads
  */
-const NurtureSequencePayloadSchema = z.object({
+export const NurtureSequencePayloadSchema = z.object({
   phone: z.string(),
   hubspotContactId: z.string(),
   sequenceType: z.enum(['warm_lead', 'cold_lead', 'post_consultation', 'recall']),
@@ -135,7 +135,7 @@ const NurtureSequencePayloadSchema = z.object({
 export const nurtureSequenceWorkflow = task({
   id: 'nurture-sequence-workflow',
   run: async (payload: z.infer<typeof NurtureSequencePayloadSchema>) => {
-    const { phone, hubspotContactId, sequenceType, correlationId } = payload;
+    const { phone: _phone, hubspotContactId, sequenceType, correlationId } = payload;
 
     logger.info('Starting nurture sequence', {
       hubspotContactId,
@@ -206,7 +206,7 @@ export const nurtureSequenceWorkflow = task({
  * Booking Agent Workflow
  * Handles appointment scheduling via WhatsApp
  */
-const BookingAgentPayloadSchema = z.object({
+export const BookingAgentPayloadSchema = z.object({
   phone: z.string(),
   hubspotContactId: z.string(),
   procedureType: z.string(),
@@ -217,13 +217,17 @@ const BookingAgentPayloadSchema = z.object({
 export const bookingAgentWorkflow = task({
   id: 'booking-agent-workflow',
   run: async (payload: z.infer<typeof BookingAgentPayloadSchema>) => {
-    const { phone, hubspotContactId, procedureType, preferredDates, correlationId } = payload;
+    const { phone: _phone, hubspotContactId, procedureType, preferredDates: _preferredDates, correlationId } = payload;
 
     logger.info('Starting booking agent', {
       hubspotContactId,
       procedureType,
       correlationId,
     });
+
+    // TODO: This is a stub workflow - implementation pending scheduling service
+    // Using await to satisfy async requirement
+    await Promise.resolve();
 
     // Step 1: Get available slots
     // const availableSlots = await schedulingService.getAvailableSlots({

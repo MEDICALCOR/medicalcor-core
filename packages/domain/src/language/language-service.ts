@@ -238,7 +238,6 @@ export class LanguageService {
     }
 
     const scores: Record<SupportedLanguage, number> = { ro: 0, en: 0, de: 0 };
-    const _totalWords = words.length;
 
     // Score based on word matches
     for (const word of words) {

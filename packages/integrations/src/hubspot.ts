@@ -179,7 +179,7 @@ export class HubSpotClient {
       body: JSON.stringify({
         properties: {
           hs_timestamp: new Date().toISOString(),
-          hs_note_body: `[${channel.toUpperCase()}] ${direction}: ${message}`,
+          hs_note_body: `[${channel.toUpperCase()}] ${direction}: ${message}${messageId ? ` (ID: ${messageId})` : ''}${metadata?.sentiment && typeof metadata.sentiment === 'string' ? ` [Sentiment: ${metadata.sentiment}]` : ''}`,
         },
         associations: [{
           to: { id: contactId },
@@ -320,12 +320,22 @@ export class HubSpotClient {
     const url = `${this.baseUrl}${path}`;
 
     const makeRequest = async () => {
+      let customHeaders: Record<string, string> = {};
+
+      if (options.headers instanceof Headers) {
+        customHeaders = Object.fromEntries(options.headers.entries()) as Record<string, string>;
+      } else if (Array.isArray(options.headers)) {
+        customHeaders = Object.fromEntries(options.headers) as Record<string, string>;
+      } else if (options.headers) {
+        customHeaders = options.headers as Record<string, string>;
+      }
+
       const response = await fetch(url, {
         ...options,
         headers: {
           'Authorization': `Bearer ${this.config.accessToken}`,
           'Content-Type': 'application/json',
-          ...options.headers,
+          ...customHeaders,
         },
       });
 
