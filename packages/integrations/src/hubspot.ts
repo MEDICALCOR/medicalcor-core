@@ -65,8 +65,8 @@ export class HubSpotClient {
 
     if (existingContacts.length > 0) {
       // If multiple found, pick oldest (first created) and optionally merge others
-      const primary = existingContacts.sort((a, b) =>
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      const primary = existingContacts.sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
       )[0];
 
       if (!primary) {
@@ -97,17 +97,30 @@ export class HubSpotClient {
    */
   async searchContactsByPhone(phone: string): Promise<HubSpotContact[]> {
     const searchRequest: HubSpotSearchRequest = {
-      filterGroups: [{
-        filters: [{
-          propertyName: 'phone',
-          operator: 'EQ',
-          value: phone,
-        }],
-      }],
+      filterGroups: [
+        {
+          filters: [
+            {
+              propertyName: 'phone',
+              operator: 'EQ',
+              value: phone,
+            },
+          ],
+        },
+      ],
       properties: [
-        'email', 'phone', 'firstname', 'lastname', 'lifecyclestage',
-        'lead_status', 'lead_score', 'lead_source', 'hs_language',
-        'procedure_interest', 'budget_range', 'consent_marketing',
+        'email',
+        'phone',
+        'firstname',
+        'lastname',
+        'lifecyclestage',
+        'lead_status',
+        'lead_score',
+        'lead_source',
+        'hs_language',
+        'procedure_interest',
+        'budget_range',
+        'consent_marketing',
       ],
       limit: 10,
     };
@@ -131,10 +144,21 @@ export class HubSpotClient {
    */
   async getContact(contactId: string): Promise<HubSpotContact> {
     const properties = [
-      'email', 'phone', 'firstname', 'lastname', 'lifecyclestage',
-      'lead_status', 'lead_score', 'lead_source', 'hs_language',
-      'procedure_interest', 'budget_range', 'consent_marketing',
-      'utm_source', 'utm_medium', 'utm_campaign',
+      'email',
+      'phone',
+      'firstname',
+      'lastname',
+      'lifecyclestage',
+      'lead_status',
+      'lead_score',
+      'lead_source',
+      'hs_language',
+      'procedure_interest',
+      'budget_range',
+      'consent_marketing',
+      'utm_source',
+      'utm_medium',
+      'utm_campaign',
     ].join(',');
 
     return this.request<HubSpotContact>(
@@ -155,7 +179,10 @@ export class HubSpotClient {
   /**
    * Update contact properties
    */
-  async updateContact(contactId: string, properties: Record<string, string | undefined>): Promise<HubSpotContact> {
+  async updateContact(
+    contactId: string,
+    properties: Record<string, string | undefined>
+  ): Promise<HubSpotContact> {
     // Filter out undefined values
     const cleanProperties = Object.fromEntries(
       Object.entries(properties).filter(([, v]) => v !== undefined)
@@ -171,7 +198,7 @@ export class HubSpotClient {
    * Log message to contact timeline
    */
   async logMessageToTimeline(input: TimelineEventInput): Promise<void> {
-    const { contactId, message, direction, channel } = input;
+    const { contactId, message, direction, channel, messageId, metadata } = input;
 
     // Create a note on the contact (simplified timeline entry)
     await this.request('/crm/v3/objects/notes', {
@@ -181,13 +208,17 @@ export class HubSpotClient {
           hs_timestamp: new Date().toISOString(),
           hs_note_body: `[${channel.toUpperCase()}] ${direction}: ${message}${messageId ? ` (ID: ${messageId})` : ''}${metadata?.sentiment && typeof metadata.sentiment === 'string' ? ` [Sentiment: ${metadata.sentiment}]` : ''}`,
         },
-        associations: [{
-          to: { id: contactId },
-          types: [{
-            associationCategory: 'HUBSPOT_DEFINED',
-            associationTypeId: 202, // Note to Contact
-          }],
-        }],
+        associations: [
+          {
+            to: { id: contactId },
+            types: [
+              {
+                associationCategory: 'HUBSPOT_DEFINED',
+                associationTypeId: 202, // Note to Contact
+              },
+            ],
+          },
+        ],
       }),
     });
   }
@@ -217,13 +248,17 @@ export class HubSpotClient {
           // Custom property for call SID
           hs_call_external_id: callSid,
         },
-        associations: [{
-          to: { id: contactId },
-          types: [{
-            associationCategory: 'HUBSPOT_DEFINED',
-            associationTypeId: 194, // Call to Contact
-          }],
-        }],
+        associations: [
+          {
+            to: { id: contactId },
+            types: [
+              {
+                associationCategory: 'HUBSPOT_DEFINED',
+                associationTypeId: 194, // Call to Contact
+              },
+            ],
+          },
+        ],
       }),
     });
 
@@ -250,13 +285,17 @@ export class HubSpotClient {
         hs_timestamp: (dueDate ?? new Date()).toISOString(),
         hubspot_owner_id: ownerId,
       },
-      associations: [{
-        to: { id: contactId },
-        types: [{
-          associationCategory: 'HUBSPOT_DEFINED',
-          associationTypeId: 204, // Task to Contact
-        }],
-      }],
+      associations: [
+        {
+          to: { id: contactId },
+          types: [
+            {
+              associationCategory: 'HUBSPOT_DEFINED',
+              associationTypeId: 204, // Task to Contact
+            },
+          ],
+        },
+      ],
     };
 
     return this.request<HubSpotTask>('/crm/v3/objects/tasks', {
@@ -270,13 +309,17 @@ export class HubSpotClient {
    */
   async findContactByEmail(email: string): Promise<HubSpotContact | null> {
     const response = await this.searchContacts({
-      filterGroups: [{
-        filters: [{
-          propertyName: 'email',
-          operator: 'EQ',
-          value: email,
-        }],
-      }],
+      filterGroups: [
+        {
+          filters: [
+            {
+              propertyName: 'email',
+              operator: 'EQ',
+              value: email,
+            },
+          ],
+        },
+      ],
       limit: 1,
     });
 
@@ -302,13 +345,17 @@ export class HubSpotClient {
           hs_timestamp: new Date().toISOString(),
           hs_note_body: `Payment ${status}: ${(amount / 100).toFixed(2)} ${currency.toUpperCase()} (ID: ${paymentId})`,
         },
-        associations: [{
-          to: { id: contactId },
-          types: [{
-            associationCategory: 'HUBSPOT_DEFINED',
-            associationTypeId: 202,
-          }],
-        }],
+        associations: [
+          {
+            to: { id: contactId },
+            types: [
+              {
+                associationCategory: 'HUBSPOT_DEFINED',
+                associationTypeId: 202,
+              },
+            ],
+          },
+        ],
       }),
     });
   }
@@ -333,7 +380,7 @@ export class HubSpotClient {
       const response = await fetch(url, {
         ...options,
         headers: {
-          'Authorization': `Bearer ${this.config.accessToken}`,
+          Authorization: `Bearer ${this.config.accessToken}`,
           'Content-Type': 'application/json',
           ...customHeaders,
         },
