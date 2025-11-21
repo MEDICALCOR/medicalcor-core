@@ -1,12 +1,28 @@
 /**
- * MedicalCor Trigger.dev Workflow Service
- *
- * Durable workflows for WhatsApp and Voice lead processing.
+ * Trigger.dev Entry Point
+ * Exports all tasks, workflows, and scheduled jobs
  */
 
-import { logger } from "@medicalcor/core";
+// Tasks
+export {
+  handleWhatsAppMessage,
+  handleWhatsAppStatus,
+  type WhatsAppMessagePayload,
+  type WhatsAppStatusPayload,
+} from './tasks/whatsapp-handler.js';
+export { handleVoiceCall, handleCallCompleted } from './tasks/voice-handler.js';
+export { handlePaymentSucceeded, handlePaymentFailed } from './tasks/payment-handler.js';
 
-logger.info("Trigger.dev workflow service starting...");
+// Workflows
+export { patientJourneyWorkflow, nurtureSequenceWorkflow, bookingAgentWorkflow } from './workflows/patient-journey.js';
+export { scoreLeadWorkflow } from './workflows/lead-scoring.js';
 
-// Placeholder - Trigger.dev integration to be implemented
-export const VERSION = "0.0.1";
+// Scheduled Jobs
+export {
+  dailyRecallCheck,
+  appointmentReminders,
+  leadScoringRefresh,
+  weeklyAnalyticsReport,
+  staleLeadCleanup,
+  gdprConsentAudit,
+} from './jobs/cron-jobs.js';

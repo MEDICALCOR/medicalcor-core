@@ -1,0 +1,9 @@
+# Prettier ignore
+node_modules
+dist
+.turbo
+.trigger
+coverage
+pnpm-lock.yaml
+*.min.js
+*.min.css

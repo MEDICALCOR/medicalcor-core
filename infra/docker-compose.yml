@@ -1,0 +1,147 @@
+version: '3.8'
+
+services:
+  # =============================================================================
+  # API Service (Fastify Webhook Gateway)
+  # =============================================================================
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - LOG_LEVEL=info
+      - REDIS_URL=redis://redis:6379
+      # Secrets loaded from .env file
+      - WHATSAPP_API_KEY
+      - WHATSAPP_VERIFY_TOKEN
+      - WHATSAPP_WEBHOOK_SECRET
+      - TWILIO_ACCOUNT_SID
+      - TWILIO_AUTH_TOKEN
+      - STRIPE_WEBHOOK_SECRET
+      - HUBSPOT_ACCESS_TOKEN
+      - TRIGGER_SECRET_KEY
+    depends_on:
+      - redis
+      - postgres
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - medicalcor
+    restart: unless-stopped
+
+  # =============================================================================
+  # Redis (Rate Limiting & Caching)
+  # =============================================================================
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - medicalcor
+    restart: unless-stopped
+
+  # =============================================================================
+  # PostgreSQL (Supabase compatible - Event Store)
+  # =============================================================================
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=medicalcor
+      - POSTGRES_PASSWORD=medicalcor_dev_password
+      - POSTGRES_DB=medicalcor
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medicalcor"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - medicalcor
+    restart: unless-stopped
+
+  # =============================================================================
+  # Webhook Tunnel (ngrok alternative for local development)
+  # =============================================================================
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      - api
+    networks:
+      - medicalcor
+    profiles:
+      - tunnel
+
+  # =============================================================================
+  # Prometheus (Metrics Collection)
+  # =============================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    networks:
+      - medicalcor
+    profiles:
+      - monitoring
+    restart: unless-stopped
+
+  # =============================================================================
+  # Grafana (Metrics Visualization)
+  # =============================================================================
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    networks:
+      - medicalcor
+    profiles:
+      - monitoring
+    restart: unless-stopped
+
+networks:
+  medicalcor:
+    driver: bridge
+
+volumes:
+  redis_data:
+  postgres_data:
+  prometheus_data:
+  grafana_data:
