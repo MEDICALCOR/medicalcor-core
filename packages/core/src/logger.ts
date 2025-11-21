@@ -97,7 +97,8 @@ export function createLogger(options: CreateLoggerOptions): Logger {
     formatters: {
       level: (label) => ({ level: label }),
     },
-    base: correlationId ? { correlationId } : undefined,
+    // Use null to omit base, or provide correlationId if present
+    base: correlationId ? { correlationId } : null,
     serializers: {
       err: pino.stdSerializers.err,
       req: (req) => redactObject({

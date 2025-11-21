@@ -89,7 +89,7 @@ export class RateLimitError extends AppError {
  */
 export class ExternalServiceError extends AppError {
   public readonly service: string;
-  public readonly originalError?: Error;
+  public readonly originalError: Error | undefined;
 
   constructor(service: string, message: string, originalError?: Error) {
     super(`${service} error: ${message}`, 'EXTERNAL_SERVICE_ERROR', 502);

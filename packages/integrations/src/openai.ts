@@ -69,7 +69,7 @@ export class OpenAIClient {
         messages,
         max_tokens: maxTokens,
         temperature,
-        response_format: jsonMode ? { type: 'json_object' } : undefined,
+        ...(jsonMode && { response_format: { type: 'json_object' as const } }),
       });
 
       const content = response.choices[0]?.message?.content;

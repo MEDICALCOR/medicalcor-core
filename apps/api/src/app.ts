@@ -111,6 +111,7 @@ async function buildApp() {
   // Global error handler
   fastify.setErrorHandler((error, request, reply) => {
     const correlationId = request.headers['x-correlation-id'];
+    const statusCode = (error as { statusCode?: number }).statusCode ?? 500;
 
     fastify.log.error(
       { correlationId, err: error },
@@ -118,10 +119,10 @@ async function buildApp() {
     );
 
     // Return safe error response
-    return reply.status(error.statusCode ?? 500).send({
+    return reply.status(statusCode).send({
       code: 'INTERNAL_ERROR',
       message: 'An unexpected error occurred',
-      statusCode: error.statusCode ?? 500,
+      statusCode,
     });
   });
 

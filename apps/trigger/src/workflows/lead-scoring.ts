@@ -41,10 +41,10 @@ export const scoreLeadWorkflow = task({
     // Step 1: Build lead context
     const context = await buildLeadContext({
       phone,
-      hubspotContactId,
       message,
       channel,
-      messageHistory,
+      ...(hubspotContactId && { hubspotContactId }),
+      ...(messageHistory && { messageHistory }),
     });
 
     logger.info('Lead context built', {

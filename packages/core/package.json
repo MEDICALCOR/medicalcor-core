@@ -27,11 +27,23 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@medicalcor/types": "workspace:*",
     "pino": "^9.5.0",
+    "uuid": "^10.0.0",
     "zod": "^3.23.8"
+  },
+  "peerDependencies": {
+    "pg": "^8.0.0"
+  },
+  "peerDependenciesMeta": {
+    "pg": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "^22.9.0",
+    "@types/pg": "^8.11.0",
+    "@types/uuid": "^10.0.0",
     "typescript": "^5.6.3"
   }
 }

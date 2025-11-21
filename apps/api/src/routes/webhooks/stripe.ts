@@ -118,7 +118,7 @@ export const stripeWebhookRoutes: FastifyPluginAsync = async (fastify) => {
               correlationId,
               paymentId: paymentData.id,
               amount: 'amount' in paymentData ? paymentData.amount : undefined,
-              customer: paymentData.customer,
+              customer: 'customer' in paymentData ? paymentData.customer : undefined,
             },
             'Payment succeeded'
           );
@@ -133,7 +133,7 @@ export const stripeWebhookRoutes: FastifyPluginAsync = async (fastify) => {
             {
               correlationId,
               paymentId: paymentData.id,
-              customer: paymentData.customer,
+              customer: 'customer' in paymentData ? paymentData.customer : undefined,
             },
             'Payment failed'
           );

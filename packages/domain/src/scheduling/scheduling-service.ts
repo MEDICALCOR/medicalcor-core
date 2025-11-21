@@ -160,11 +160,11 @@ export class SchedulingService {
       id: this.generateId(),
       hubspotContactId,
       phone,
-      patientName,
+      ...(patientName !== undefined && { patientName }),
       slot,
       procedureType,
       status: 'scheduled',
-      notes,
+      ...(notes !== undefined && { notes }),
       reminders: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -192,7 +192,9 @@ export class SchedulingService {
     }
 
     appointment.status = 'cancelled';
-    appointment.notes = reason ? `${appointment.notes ?? ''}\nCancelled: ${reason}` : appointment.notes;
+    if (reason) {
+      appointment.notes = `${appointment.notes ?? ''}\nCancelled: ${reason}`;
+    }
     appointment.updatedAt = new Date().toISOString();
 
     this.appointments.set(appointmentId, appointment);

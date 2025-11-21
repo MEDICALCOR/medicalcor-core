@@ -4,7 +4,12 @@
  */
 
 // Tasks
-export { handleWhatsAppMessage } from './tasks/whatsapp-handler.js';
+export {
+  handleWhatsAppMessage,
+  handleWhatsAppStatus,
+  type WhatsAppMessagePayload,
+  type WhatsAppStatusPayload,
+} from './tasks/whatsapp-handler.js';
 export { handleVoiceCall, handleCallCompleted } from './tasks/voice-handler.js';
 export { handlePaymentSucceeded, handlePaymentFailed } from './tasks/payment-handler.js';
 

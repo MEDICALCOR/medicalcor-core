@@ -49,7 +49,7 @@ const SCORING_RULES = {
 
 export class ScoringService {
   private config: ScoringServiceConfig;
-  private openai?: OpenAIClient;
+  private openai: OpenAIClient | undefined;
 
   constructor(config: ScoringServiceConfig, deps?: ScoringServiceDeps) {
     this.config = config;

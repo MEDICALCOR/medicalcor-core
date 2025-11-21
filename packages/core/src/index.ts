@@ -42,3 +42,15 @@ export {
   type ApiEnv,
   type DevEnv,
 } from './env.js';
+
+export {
+  EventStore,
+  InMemoryEventStore,
+  PostgresEventStore,
+  createEventStore,
+  createInMemoryEventStore,
+  type EventStoreConfig,
+  type EventStoreRepository,
+  type StoredEvent,
+  type EventPublisher,
+} from './event-store.js';
