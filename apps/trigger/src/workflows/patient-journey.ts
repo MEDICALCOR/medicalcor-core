@@ -133,11 +133,70 @@ export const patientJourneyWorkflow = task({
 
       logger.info('Hot lead: Created urgent task and sent acknowledgment', { correlationId });
     } else if (classification === 'WARM') {
-      // Warm leads get nurture sequence - would trigger nurtureSequenceWorkflow
-      logger.info('Warm lead: Would start nurture sequence', { correlationId });
+      // Warm leads get nurture sequence
+      logger.info('Warm lead: Starting nurture sequence', { correlationId });
+
+      // Trigger nurture sequence for warm leads
+      await nurtureSequenceWorkflow.trigger({
+        phone,
+        hubspotContactId,
+        sequenceType: 'warm_lead',
+        correlationId: `${correlationId}_nurture`,
+      });
+
+      // Send initial warm lead message
+      if (whatsapp) {
+        try {
+          await whatsapp.sendText({
+            to: phone,
+            text: 'Bună ziua! Vă mulțumim pentru interesul acordat serviciilor noastre. Echipa noastră vă va contacta în curând cu informații detaliate despre procedurile disponibile și beneficiile acestora.',
+          });
+          logger.info('Sent warm lead introduction message', { correlationId });
+        } catch (error) {
+          logger.error('Failed to send warm lead message', { error, correlationId });
+        }
+      }
     } else if (classification === 'COLD') {
-      // Cold leads get AI response and follow-up scheduling
-      logger.info('Cold lead: Scheduled 24h follow-up', { correlationId });
+      // Cold leads get nurture sequence and scheduled follow-up
+      logger.info('Cold lead: Starting cold nurture sequence with 24h follow-up', {
+        correlationId,
+      });
+
+      // Trigger cold lead nurture sequence
+      await nurtureSequenceWorkflow.trigger({
+        phone,
+        hubspotContactId,
+        sequenceType: 'cold_lead',
+        correlationId: `${correlationId}_nurture`,
+      });
+
+      // Send initial informational message
+      if (whatsapp) {
+        try {
+          await whatsapp.sendText({
+            to: phone,
+            text: 'Bună ziua! Vă mulțumim că ne-ați contactat. Dacă aveți întrebări despre serviciile noastre de stomatologie, suntem aici să vă ajutăm.',
+          });
+          logger.info('Sent cold lead introduction message', { correlationId });
+        } catch (error) {
+          logger.error('Failed to send cold lead message', { error, correlationId });
+        }
+      }
+    } else {
+      // Unqualified leads get polite acknowledgment
+      logger.info('Unqualified lead: Sending polite response', { correlationId });
+
+      if (whatsapp) {
+        try {
+          await whatsapp.sendText({
+            to: phone,
+            text: 'Bună ziua! Vă mulțumim pentru mesaj. Dacă aveți întrebări în viitor, nu ezitați să ne contactați.',
+          });
+          logger.info('Sent unqualified lead response', { correlationId });
+        } catch (error) {
+          logger.error('Failed to send unqualified lead message', { error, correlationId });
+        }
+      }
     }
 
     // Emit domain event

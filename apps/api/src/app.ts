@@ -8,7 +8,7 @@ import {
   getMissingSecrets,
   logSecretsStatus,
 } from '@medicalcor/core';
-import { healthRoutes, webhookRoutes } from './routes/index.js';
+import { healthRoutes, webhookRoutes, workflowRoutes } from './routes/index.js';
 
 /**
  * MedicalCor API - Webhook Gateway
@@ -23,7 +23,7 @@ const logger = createLogger({ name: 'api' });
  * Validate environment and secrets on boot
  */
 function validateEnvironment(): void {
-  const isProduction = process.env['NODE_ENV'] === 'production';
+  const isProduction = process.env.NODE_ENV === 'production';
 
   try {
     validateEnv(isProduction);
@@ -50,7 +50,7 @@ function validateEnvironment(): void {
 async function buildApp() {
   const fastify = Fastify({
     logger: {
-      level: process.env['LOG_LEVEL'] ?? 'info',
+      level: process.env.LOG_LEVEL ?? 'info',
       // Use custom serializers for PII redaction
       serializers: {
         req(request) {
@@ -75,7 +75,8 @@ async function buildApp() {
 
   // Add correlation ID to all requests
   fastify.addHook('onRequest', async (request, _reply) => {
-    const correlationId = (request.headers['x-correlation-id'] as string) ?? generateCorrelationId();
+    const header = request.headers['x-correlation-id'];
+    const correlationId = typeof header === 'string' ? header : generateCorrelationId();
     request.headers['x-correlation-id'] = correlationId;
   });
 
@@ -86,7 +87,7 @@ async function buildApp() {
 
   // CORS configuration
   await fastify.register(cors, {
-    origin: process.env['CORS_ORIGIN'] ?? false,
+    origin: process.env.CORS_ORIGIN ?? false,
     methods: ['GET', 'POST'],
   });
 
@@ -107,16 +108,14 @@ async function buildApp() {
   // Register routes
   await fastify.register(healthRoutes);
   await fastify.register(webhookRoutes);
+  await fastify.register(workflowRoutes);
 
   // Global error handler
   fastify.setErrorHandler((error, request, reply) => {
     const correlationId = request.headers['x-correlation-id'];
     const statusCode = (error as { statusCode?: number }).statusCode ?? 500;
 
-    fastify.log.error(
-      { correlationId, err: error },
-      'Unhandled error'
-    );
+    fastify.log.error({ correlationId, err: error }, 'Unhandled error');
 
     // Return safe error response
     return reply.status(statusCode).send({
@@ -144,12 +143,12 @@ async function start() {
 
   const app = await buildApp();
 
-  const port = parseInt(process.env['PORT'] ?? '3000', 10);
-  const host = process.env['HOST'] ?? '0.0.0.0';
+  const port = parseInt(process.env.PORT ?? '3000', 10);
+  const host = process.env.HOST ?? '0.0.0.0';
 
   try {
     await app.listen({ port, host });
-    logger.info({ port, host, env: process.env['NODE_ENV'] ?? 'development' }, 'Server started');
+    logger.info({ port, host, env: process.env.NODE_ENV ?? 'development' }, 'Server started');
   } catch (error) {
     logger.error({ error }, 'Failed to start server');
     process.exit(1);
@@ -172,6 +171,6 @@ async function start() {
   process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
-start();
+void start();
 
 export { buildApp };
