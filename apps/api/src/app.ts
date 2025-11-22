@@ -9,6 +9,7 @@ import {
   logSecretsStatus,
 } from '@medicalcor/core';
 import { healthRoutes, webhookRoutes, workflowRoutes } from './routes/index.js';
+import { rateLimitPlugin, type RateLimitConfig } from './plugins/rate-limit.js';
 
 /**
  * MedicalCor API - Webhook Gateway
@@ -90,6 +91,23 @@ async function buildApp() {
     origin: process.env.CORS_ORIGIN ?? false,
     methods: ['GET', 'POST'],
   });
+
+  // Rate limiting configuration
+  const rateLimitConfig: Partial<RateLimitConfig> = {
+    useRedis: !!process.env.REDIS_URL,
+    redisUrl: process.env.REDIS_URL,
+    globalLimit: parseInt(process.env.RATE_LIMIT_GLOBAL ?? '1000', 10),
+    webhookLimits: {
+      whatsapp: parseInt(process.env.RATE_LIMIT_WHATSAPP ?? '200', 10),
+      voice: parseInt(process.env.RATE_LIMIT_VOICE ?? '100', 10),
+      stripe: parseInt(process.env.RATE_LIMIT_STRIPE ?? '50', 10),
+      booking: parseInt(process.env.RATE_LIMIT_BOOKING ?? '100', 10),
+      vapi: parseInt(process.env.RATE_LIMIT_VAPI ?? '100', 10),
+    },
+    allowlist: process.env.RATE_LIMIT_ALLOWLIST?.split(',').filter(Boolean) ?? [],
+    addHeaders: process.env.RATE_LIMIT_HEADERS !== 'false',
+  };
+  await fastify.register(rateLimitPlugin, rateLimitConfig);
 
   // Parse URL-encoded bodies (for Twilio webhooks)
   fastify.addContentTypeParser(

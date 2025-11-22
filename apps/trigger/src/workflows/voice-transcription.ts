@@ -509,7 +509,8 @@ export const extractKeywordsFromTranscript = task({
     maxTimeoutInMs: 3000,
     factor: 2,
   },
-  run: (payload: { callId: string; transcript: string; correlationId: string }) => {
+  // eslint-disable-next-line @typescript-eslint/require-await
+  run: async (payload: { callId: string; transcript: string; correlationId: string }) => {
     const { callId, transcript, correlationId } = payload;
 
     logger.info('Extracting keywords from transcript', { callId, correlationId });
