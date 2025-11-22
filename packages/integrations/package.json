@@ -21,6 +21,10 @@
       "types": "./dist/openai.d.ts",
       "import": "./dist/openai.js"
     },
+    "./vapi": {
+      "types": "./dist/vapi.d.ts",
+      "import": "./dist/vapi.js"
+    },
     "./__mocks__/handlers": {
       "import": "./src/__mocks__/handlers.ts"
     },

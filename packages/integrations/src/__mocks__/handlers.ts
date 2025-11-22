@@ -12,26 +12,28 @@ import { http, HttpResponse } from 'msw';
 const hubspotHandlers = [
   // Search contacts
   http.post('https://api.hubapi.com/crm/v3/objects/contacts/search', async ({ request }) => {
-    const body = await request.json() as { filterGroups?: { filters?: { value: string }[] }[] };
+    const body = (await request.json()) as { filterGroups?: { filters?: { value: string }[] }[] };
     const phone = body.filterGroups?.[0]?.filters?.[0]?.value;
 
     // Mock: return existing contact for specific test phone
     if (phone === '+40721000001') {
       return HttpResponse.json({
         total: 1,
-        results: [{
-          id: 'hs_contact_123',
-          properties: {
-            phone: '+40721000001',
-            firstname: 'Test',
-            lastname: 'User',
-            email: 'test@example.com',
-            lifecyclestage: 'lead',
-            lead_score: '3',
+        results: [
+          {
+            id: 'hs_contact_123',
+            properties: {
+              phone: '+40721000001',
+              firstname: 'Test',
+              lastname: 'User',
+              email: 'test@example.com',
+              lifecyclestage: 'lead',
+              lead_score: '3',
+            },
+            createdAt: '2024-01-01T00:00:00Z',
+            updatedAt: '2024-01-01T00:00:00Z',
           },
-          createdAt: '2024-01-01T00:00:00Z',
-          updatedAt: '2024-01-01T00:00:00Z',
-        }],
+        ],
       });
     }
 
@@ -57,52 +59,67 @@ const hubspotHandlers = [
 
   // Create contact
   http.post('https://api.hubapi.com/crm/v3/objects/contacts', async ({ request }) => {
-    const body = await request.json() as { properties: Record<string, string> };
-    return HttpResponse.json({
-      id: `hs_contact_new_${Date.now()}`,
-      properties: body.properties,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }, { status: 201 });
+    const body = (await request.json()) as { properties: Record<string, string> };
+    return HttpResponse.json(
+      {
+        id: `hs_contact_new_${Date.now()}`,
+        properties: body.properties,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      { status: 201 }
+    );
   }),
 
   // Update contact
-  http.patch('https://api.hubapi.com/crm/v3/objects/contacts/:contactId', async ({ params, request }) => {
-    const body = await request.json() as { properties: Record<string, string> };
-    return HttpResponse.json({
-      id: params.contactId,
-      properties: body.properties,
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: new Date().toISOString(),
-    });
-  }),
+  http.patch(
+    'https://api.hubapi.com/crm/v3/objects/contacts/:contactId',
+    async ({ params, request }) => {
+      const body = (await request.json()) as { properties: Record<string, string> };
+      return HttpResponse.json({
+        id: params.contactId,
+        properties: body.properties,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  ),
 
   // Create note
   http.post('https://api.hubapi.com/crm/v3/objects/notes', () => {
-    return HttpResponse.json({
-      id: `note_${Date.now()}`,
-      properties: {},
-      createdAt: new Date().toISOString(),
-    }, { status: 201 });
+    return HttpResponse.json(
+      {
+        id: `note_${Date.now()}`,
+        properties: {},
+        createdAt: new Date().toISOString(),
+      },
+      { status: 201 }
+    );
   }),
 
   // Create task
   http.post('https://api.hubapi.com/crm/v3/objects/tasks', async ({ request }) => {
-    const body = await request.json() as { properties: Record<string, string> };
-    return HttpResponse.json({
-      id: `task_${Date.now()}`,
-      properties: body.properties,
-      createdAt: new Date().toISOString(),
-    }, { status: 201 });
+    const body = (await request.json()) as { properties: Record<string, string> };
+    return HttpResponse.json(
+      {
+        id: `task_${Date.now()}`,
+        properties: body.properties,
+        createdAt: new Date().toISOString(),
+      },
+      { status: 201 }
+    );
   }),
 
   // Create call
   http.post('https://api.hubapi.com/crm/v3/objects/calls', () => {
-    return HttpResponse.json({
-      id: `call_${Date.now()}`,
-      properties: {},
-      createdAt: new Date().toISOString(),
-    }, { status: 201 });
+    return HttpResponse.json(
+      {
+        id: `call_${Date.now()}`,
+        properties: {},
+        createdAt: new Date().toISOString(),
+      },
+      { status: 201 }
+    );
   }),
 ];
 
@@ -113,7 +130,7 @@ const hubspotHandlers = [
 const whatsappHandlers = [
   // Send message
   http.post('https://waba.360dialog.io/v1/messages', async ({ request }) => {
-    const body = await request.json() as { to: string };
+    const body = (await request.json()) as { to: string };
     return HttpResponse.json({
       messaging_product: 'whatsapp',
       contacts: [{ input: body.to, wa_id: body.to }],
@@ -129,7 +146,7 @@ const whatsappHandlers = [
 const openaiHandlers = [
   // Chat completions
   http.post('https://api.openai.com/v1/chat/completions', async ({ request }) => {
-    const body = await request.json() as { messages: { content: string }[] };
+    const body = (await request.json()) as { messages: { content: string }[] };
     const lastMessage = body.messages[body.messages.length - 1]?.content ?? '';
 
     // Mock scoring response
@@ -139,24 +156,26 @@ const openaiHandlers = [
         object: 'chat.completion',
         created: Date.now(),
         model: 'gpt-4o',
-        choices: [{
-          index: 0,
-          message: {
-            role: 'assistant',
-            content: JSON.stringify({
-              score: 4,
-              classification: 'HOT',
-              confidence: 0.85,
-              reasoning: 'Mock scoring result for testing',
-              suggestedAction: 'Contact immediately',
-              detectedIntent: 'implant_inquiry',
-              urgencyIndicators: [],
-              budgetMentioned: true,
-              procedureInterest: ['implant'],
-            }),
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: 'assistant',
+              content: JSON.stringify({
+                score: 4,
+                classification: 'HOT',
+                confidence: 0.85,
+                reasoning: 'Mock scoring result for testing',
+                suggestedAction: 'Contact immediately',
+                detectedIntent: 'implant_inquiry',
+                urgencyIndicators: [],
+                budgetMentioned: true,
+                procedureInterest: ['implant'],
+              }),
+            },
+            finish_reason: 'stop',
           },
-          finish_reason: 'stop',
-        }],
+        ],
         usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
       });
     }
@@ -167,14 +186,16 @@ const openaiHandlers = [
       object: 'chat.completion',
       created: Date.now(),
       model: 'gpt-4o',
-      choices: [{
-        index: 0,
-        message: {
-          role: 'assistant',
-          content: 'Mock response for testing',
+      choices: [
+        {
+          index: 0,
+          message: {
+            role: 'assistant',
+            content: 'Mock response for testing',
+          },
+          finish_reason: 'stop',
         },
-        finish_reason: 'stop',
-      }],
+      ],
       usage: { prompt_tokens: 50, completion_tokens: 20, total_tokens: 70 },
     });
   }),
@@ -222,10 +243,48 @@ const vapiHandlers = [
   http.get('https://api.vapi.ai/call/:callId/transcript', ({ params }) => {
     return HttpResponse.json({
       callId: params.callId,
-      transcript: 'Mock transcript: Patient asking about dental implants and pricing.',
-      summary: 'Patient interested in All-on-4 procedure, mentioned budget concerns.',
-      sentiment: 'positive',
+      messages: [
+        {
+          role: 'assistant',
+          message: 'Buna ziua! Cu ce va putem ajuta astazi?',
+          timestamp: Date.now() - 180000,
+          duration: 3,
+        },
+        {
+          role: 'user',
+          message: 'Buna ziua, vreau informatii despre implanturi dentare. Cat costa un implant?',
+          timestamp: Date.now() - 175000,
+          duration: 5,
+        },
+        {
+          role: 'assistant',
+          message:
+            'Cu placere! Pretul unui implant incepe de la 600 euro. Doriti o consultatie gratuita?',
+          timestamp: Date.now() - 168000,
+          duration: 6,
+        },
+        {
+          role: 'user',
+          message: 'Da, as dori sa fac o programare pentru saptamana viitoare.',
+          timestamp: Date.now() - 160000,
+          duration: 4,
+        },
+        {
+          role: 'assistant',
+          message: 'Perfect! Va pot programa joi la ora 10:00. Va convine?',
+          timestamp: Date.now() - 154000,
+          duration: 4,
+        },
+        {
+          role: 'user',
+          message: 'Da, perfect. Multumesc!',
+          timestamp: Date.now() - 148000,
+          duration: 2,
+        },
+      ],
       duration: 180,
+      startedAt: new Date(Date.now() - 180000).toISOString(),
+      endedAt: new Date().toISOString(),
     });
   }),
 
@@ -233,12 +292,73 @@ const vapiHandlers = [
   http.get('https://api.vapi.ai/call/:callId', ({ params }) => {
     return HttpResponse.json({
       id: params.callId,
-      status: 'completed',
-      duration: 180,
-      from: '+40721000001',
-      to: '+40212000000',
-      recordingUrl: 'https://recordings.vapi.ai/mock-recording.mp3',
+      orgId: 'org_test123',
+      assistantId: 'ast_test123',
+      status: 'ended',
+      type: 'inbound',
+      phoneNumber: {
+        id: 'pn_test123',
+        number: '+40212000000',
+      },
+      customer: {
+        number: '+40721000001',
+        name: 'Test Patient',
+      },
+      startedAt: new Date(Date.now() - 180000).toISOString(),
+      endedAt: new Date().toISOString(),
+      endedReason: 'customer-ended-call',
+      cost: 0.15,
     });
+  }),
+
+  // Create outbound call
+  http.post('https://api.vapi.ai/call', async ({ request }) => {
+    const body = (await request.json()) as { customer?: { number: string } };
+    return HttpResponse.json(
+      {
+        id: `call_${Date.now()}`,
+        orgId: 'org_test123',
+        assistantId: 'ast_test123',
+        status: 'queued',
+        type: 'outbound',
+        customer: body.customer,
+        createdAt: new Date().toISOString(),
+      },
+      { status: 201 }
+    );
+  }),
+
+  // List calls
+  http.get('https://api.vapi.ai/call', () => {
+    return HttpResponse.json([
+      {
+        id: 'call_1',
+        orgId: 'org_test123',
+        assistantId: 'ast_test123',
+        status: 'ended',
+        type: 'inbound',
+        customer: { number: '+40721000001' },
+        startedAt: new Date(Date.now() - 3600000).toISOString(),
+        endedAt: new Date(Date.now() - 3420000).toISOString(),
+        endedReason: 'customer-ended-call',
+      },
+      {
+        id: 'call_2',
+        orgId: 'org_test123',
+        assistantId: 'ast_test123',
+        status: 'ended',
+        type: 'outbound',
+        customer: { number: '+40721000002' },
+        startedAt: new Date(Date.now() - 7200000).toISOString(),
+        endedAt: new Date(Date.now() - 7080000).toISOString(),
+        endedReason: 'assistant-ended-call',
+      },
+    ]);
+  }),
+
+  // End call
+  http.delete('https://api.vapi.ai/call/:callId', () => {
+    return new HttpResponse(null, { status: 204 });
   }),
 ];
 
@@ -341,7 +461,8 @@ export const testFixtures = {
     },
   },
   messages: {
-    hotLead: 'Buna ziua, sunt interesat de All-on-4. Cat costa procedura? Am buget de aproximativ 10000 euro.',
+    hotLead:
+      'Buna ziua, sunt interesat de All-on-4. Cat costa procedura? Am buget de aproximativ 10000 euro.',
     warmLead: 'As vrea sa aflu mai multe despre implanturi dentare.',
     coldLead: 'Informatii generale despre clinica, va rog.',
   },

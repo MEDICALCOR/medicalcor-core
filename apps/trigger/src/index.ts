@@ -24,6 +24,14 @@ export {
   bookingAgentWorkflow,
 } from './workflows/patient-journey.js';
 export { scoreLeadWorkflow } from './workflows/lead-scoring.js';
+export {
+  processPostCall,
+  handleVapiWebhook,
+  generateTranscriptSummary,
+  extractKeywordsFromTranscript,
+  type PostCallPayload,
+  type TranscriptWebhookPayload,
+} from './workflows/voice-transcription.js';
 
 // Scheduled Jobs
 export {

@@ -47,3 +47,21 @@ export {
   type CancelAppointmentInput,
   type RescheduleAppointmentInput,
 } from './scheduling.js';
+
+export {
+  VapiClient,
+  createVapiClient,
+  formatTranscriptForCRM,
+  extractLeadQualification,
+  type VapiClientConfig,
+  type VapiCall,
+  type VapiCallStatus,
+  type VapiEndedReason,
+  type VapiTranscript,
+  type VapiMessage,
+  type VapiCallSummary,
+  type TranscriptAnalysis,
+  type CreateOutboundCallInput,
+  type GetCallInput,
+  type ListCallsInput,
+} from './vapi.js';
