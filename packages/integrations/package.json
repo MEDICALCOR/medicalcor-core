@@ -20,11 +20,19 @@
     "./openai": {
       "types": "./dist/openai.d.ts",
       "import": "./dist/openai.js"
+    },
+    "./__mocks__/handlers": {
+      "import": "./src/__mocks__/handlers.ts"
+    },
+    "./__mocks__/server": {
+      "import": "./src/__mocks__/server.ts"
     }
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc --build",
     "dev": "tsc --build --watch",
