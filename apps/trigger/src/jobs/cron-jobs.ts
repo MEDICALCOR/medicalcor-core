@@ -1,9 +1,118 @@
 import { schedules, logger } from '@trigger.dev/sdk/v3';
+import crypto from 'crypto';
+import { createEventStore, createInMemoryEventStore } from '@medicalcor/core';
+import {
+  createHubSpotClient,
+  createWhatsAppClient,
+  createSchedulingService,
+  createMockSchedulingService,
+} from '@medicalcor/integrations';
+import { nurtureSequenceWorkflow } from '../workflows/patient-journey.js';
+import { scoreLeadWorkflow } from '../workflows/lead-scoring.js';
 
 /**
  * Scheduled Jobs (Cron)
  * Recurring tasks for automation
  */
+
+// ============================================
+// Client Initialization
+// ============================================
+
+function getClients() {
+  const hubspotToken = process.env.HUBSPOT_ACCESS_TOKEN;
+  const whatsappApiKey = process.env.WHATSAPP_API_KEY;
+  const whatsappPhoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const schedulingApiUrl = process.env.SCHEDULING_SERVICE_URL;
+  const schedulingApiKey = process.env.SCHEDULING_SERVICE_TOKEN;
+  const databaseUrl = process.env.DATABASE_URL;
+
+  const hubspot = hubspotToken ? createHubSpotClient({ accessToken: hubspotToken }) : null;
+
+  const whatsapp =
+    whatsappApiKey && whatsappPhoneNumberId
+      ? createWhatsAppClient({
+          apiKey: whatsappApiKey,
+          phoneNumberId: whatsappPhoneNumberId,
+        })
+      : null;
+
+  const scheduling =
+    schedulingApiUrl && schedulingApiKey
+      ? createSchedulingService({ apiUrl: schedulingApiUrl, apiKey: schedulingApiKey })
+      : createMockSchedulingService();
+
+  const eventStore = databaseUrl
+    ? createEventStore({ source: 'cron-jobs', connectionString: databaseUrl })
+    : createInMemoryEventStore('cron-jobs');
+
+  return { hubspot, whatsapp, scheduling, eventStore };
+}
+
+// ============================================
+// Date Helper Functions
+// ============================================
+
+function generateCorrelationId(): string {
+  return `cron_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
+}
+
+function sixMonthsAgo(): string {
+  const date = new Date();
+  date.setMonth(date.getMonth() - 6);
+  return date.getTime().toString();
+}
+
+function sevenDaysAgo(): string {
+  const date = new Date();
+  date.setDate(date.getDate() - 7);
+  return date.getTime().toString();
+}
+
+function ninetyDaysAgo(): string {
+  const date = new Date();
+  date.setDate(date.getDate() - 90);
+  return date.getTime().toString();
+}
+
+function almostTwoYearsAgo(): string {
+  const date = new Date();
+  date.setMonth(date.getMonth() - 23); // 23 months = almost 2 years
+  return date.getTime().toString();
+}
+
+function isIn24Hours(dateStr: string): boolean {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffHours = (date.getTime() - now.getTime()) / (1000 * 60 * 60);
+  return diffHours > 23 && diffHours <= 25; // 23-25 hours window
+}
+
+function isIn2Hours(dateStr: string): boolean {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffHours = (date.getTime() - now.getTime()) / (1000 * 60 * 60);
+  return diffHours > 1.5 && diffHours <= 2.5; // 1.5-2.5 hours window
+}
+
+function formatDate(dateStr: string, language: 'ro' | 'en' | 'de' = 'ro'): string {
+  const date = new Date(dateStr);
+  const formatters: Record<string, Intl.DateTimeFormat> = {
+    ro: new Intl.DateTimeFormat('ro-RO', { weekday: 'long', day: 'numeric', month: 'long' }),
+    en: new Intl.DateTimeFormat('en-US', { weekday: 'long', day: 'numeric', month: 'long' }),
+    de: new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }),
+  };
+  return formatters[language]?.format(date) ?? date.toLocaleDateString();
+}
+
+function formatTime(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
+}
+
+// ============================================
+// Cron Jobs
+// ============================================
 
 /**
  * Daily recall check - finds patients due for follow-up
@@ -13,36 +122,77 @@ export const dailyRecallCheck = schedules.task({
   id: 'daily-recall-check',
   cron: '0 9 * * *', // 9:00 AM every day
   run: async () => {
-    logger.info('Starting daily recall check');
+    const correlationId = generateCorrelationId();
+    logger.info('Starting daily recall check', { correlationId });
 
-    // Find contacts due for recall
-    // const recallDueContacts = await hubspotClient.searchContacts({
-    //   filterGroups: [{
-    //     filters: [
-    //       { propertyName: 'last_appointment_date', operator: 'LT', value: sixMonthsAgo() },
-    //       { propertyName: 'consent_marketing', operator: 'EQ', value: 'true' },
-    //       { propertyName: 'lifecyclestage', operator: 'EQ', value: 'customer' },
-    //     ],
-    //   }],
-    // });
+    const { hubspot, eventStore } = getClients();
 
-    // logger.info(`Found ${recallDueContacts.total} contacts due for recall`);
+    if (!hubspot) {
+      logger.warn('HubSpot client not configured, skipping recall check', { correlationId });
+      return { success: false, reason: 'HubSpot not configured', contactsProcessed: 0 };
+    }
 
-    // Trigger recall sequence for each
-    // for (const contact of recallDueContacts.results) {
-    //   await nurtureSequenceWorkflow.trigger({
-    //     phone: contact.properties.phone,
-    //     hubspotContactId: contact.id,
-    //     sequenceType: 'recall',
-    //     correlationId: generateCorrelationId(),
-    //   });
-    // }
+    let contactsProcessed = 0;
+    let errors = 0;
 
-    return {
-      success: true,
-      // contactsProcessed: recallDueContacts.total,
-      contactsProcessed: 0,
-    };
+    try {
+      // Find contacts due for recall (last appointment > 6 months ago)
+      const recallDueContacts = await hubspot.searchContacts({
+        filterGroups: [
+          {
+            filters: [
+              { propertyName: 'last_appointment_date', operator: 'LT', value: sixMonthsAgo() },
+              { propertyName: 'consent_marketing', operator: 'EQ', value: 'true' },
+              { propertyName: 'lifecyclestage', operator: 'EQ', value: 'customer' },
+            ],
+          },
+        ],
+        properties: ['phone', 'email', 'firstname', 'last_appointment_date'],
+        limit: 100, // Process in batches
+      });
+
+      logger.info(`Found ${recallDueContacts.total} contacts due for recall`, { correlationId });
+
+      // Trigger recall sequence for each contact
+      for (const contact of recallDueContacts.results) {
+        if (!contact.properties.phone) {
+          logger.warn('Contact missing phone, skipping', { contactId: contact.id, correlationId });
+          continue;
+        }
+
+        try {
+          await nurtureSequenceWorkflow.trigger({
+            phone: contact.properties.phone,
+            hubspotContactId: contact.id,
+            sequenceType: 'recall',
+            correlationId: `${correlationId}_${contact.id}`,
+          });
+          contactsProcessed++;
+        } catch (error) {
+          logger.error('Failed to trigger recall sequence', {
+            contactId: contact.id,
+            error,
+            correlationId,
+          });
+          errors++;
+        }
+      }
+
+      // Emit job completion event
+      await emitJobEvent(eventStore, 'cron.daily_recall_check.completed', {
+        contactsFound: recallDueContacts.total,
+        contactsProcessed,
+        errors,
+        correlationId,
+      });
+
+      logger.info('Daily recall check completed', { contactsProcessed, errors, correlationId });
+    } catch (error) {
+      logger.error('Daily recall check failed', { error, correlationId });
+      return { success: false, error: String(error), contactsProcessed };
+    }
+
+    return { success: true, contactsProcessed, errors };
   },
 });
 
@@ -54,45 +204,149 @@ export const appointmentReminders = schedules.task({
   id: 'appointment-reminders',
   cron: '0 * * * *', // Every hour
   run: async () => {
-    logger.info('Starting appointment reminder check');
+    const correlationId = generateCorrelationId();
+    logger.info('Starting appointment reminder check', { correlationId });
 
-    // Find appointments in the next 24 hours
-    // const upcomingAppointments = await schedulingService.getUpcomingAppointments({
-    //   startTime: new Date(),
-    //   endTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    // });
+    const { hubspot, whatsapp, eventStore } = getClients();
 
-    // const reminders24h = upcomingAppointments.filter(a => isIn24Hours(a.scheduledAt));
-    // const reminders2h = upcomingAppointments.filter(a => isIn2Hours(a.scheduledAt));
+    if (!whatsapp) {
+      logger.warn('WhatsApp client not configured, skipping reminders', { correlationId });
+      return { success: false, reason: 'WhatsApp not configured' };
+    }
 
-    // Send 24h reminders
-    // for (const apt of reminders24h) {
-    //   if (!apt.reminder24hSent) {
-    //     await whatsappClient.sendTemplate(apt.phone, 'appointment_reminder_24h', {
-    //       date: formatDate(apt.scheduledAt),
-    //       time: formatTime(apt.scheduledAt),
-    //       location: apt.location,
-    //     });
-    //     await schedulingService.markReminderSent(apt.id, '24h');
-    //   }
-    // }
+    let reminders24hSent = 0;
+    let reminders2hSent = 0;
+    let errors = 0;
 
-    // Send 2h reminders
-    // for (const apt of reminders2h) {
-    //   if (!apt.reminder2hSent) {
-    //     await whatsappClient.sendTemplate(apt.phone, 'appointment_reminder_2h', {
-    //       time: formatTime(apt.scheduledAt),
-    //       location: apt.location,
-    //     });
-    //     await schedulingService.markReminderSent(apt.id, '2h');
-    //   }
-    // }
+    try {
+      // Find contacts with appointments in the next 24 hours
+      // We use HubSpot's next_appointment_date property
+      const now = new Date();
+      const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-    return {
-      success: true,
-      // reminders24hSent: reminders24h.length,
-      // reminders2hSent: reminders2h.length,
-    };
+      const upcomingAppointments = await hubspot?.searchContacts({
+        filterGroups: [
+          {
+            filters: [
+              {
+                propertyName: 'next_appointment_date',
+                operator: 'GTE',
+                value: now.getTime().toString(),
+              },
+              {
+                propertyName: 'next_appointment_date',
+                operator: 'LTE',
+                value: in24Hours.getTime().toString(),
+              },
+            ],
+          },
+        ],
+        properties: [
+          'phone',
+          'firstname',
+          'next_appointment_date',
+          'appointment_procedure',
+          'reminder_24h_sent',
+          'reminder_2h_sent',
+          'hs_language',
+        ],
+        limit: 100,
+      });
+
+      if (!upcomingAppointments) {
+        logger.warn('No HubSpot client to fetch appointments', { correlationId });
+        return { success: false, reason: 'HubSpot not configured' };
+      }
+
+      logger.info(`Found ${upcomingAppointments.total} appointments in next 24 hours`, {
+        correlationId,
+      });
+
+      for (const contact of upcomingAppointments.results) {
+        const props = contact.properties as Record<string, string | undefined>;
+        if (!props.phone || !props.next_appointment_date) {
+          continue;
+        }
+
+        const appointmentDate = props.next_appointment_date;
+        const hsLang = props.hs_language;
+        const language: 'ro' | 'en' | 'de' =
+          hsLang === 'ro' || hsLang === 'en' || hsLang === 'de' ? hsLang : 'ro';
+
+        try {
+          // Send 24h reminder if not sent
+          if (isIn24Hours(appointmentDate) && props.reminder_24h_sent !== 'true') {
+            await whatsapp.sendTemplate({
+              to: props.phone,
+              templateName: 'appointment_reminder_24h',
+              language: language === 'ro' ? 'ro' : language === 'de' ? 'de' : 'en',
+              components: [
+                {
+                  type: 'body',
+                  parameters: [
+                    { type: 'text', text: props.firstname ?? 'Pacient' },
+                    { type: 'text', text: formatDate(appointmentDate, language) },
+                    { type: 'text', text: formatTime(appointmentDate) },
+                  ],
+                },
+              ],
+            });
+
+            // Mark reminder as sent
+            if (hubspot) {
+              await hubspot.updateContact(contact.id, { reminder_24h_sent: 'true' });
+            }
+            reminders24hSent++;
+            logger.info('Sent 24h reminder', { contactId: contact.id, correlationId });
+          }
+
+          // Send 2h reminder if not sent
+          if (isIn2Hours(appointmentDate) && props.reminder_2h_sent !== 'true') {
+            await whatsapp.sendTemplate({
+              to: props.phone,
+              templateName: 'appointment_reminder_2h',
+              language: language === 'ro' ? 'ro' : language === 'de' ? 'de' : 'en',
+              components: [
+                {
+                  type: 'body',
+                  parameters: [{ type: 'text', text: formatTime(appointmentDate) }],
+                },
+              ],
+            });
+
+            // Mark reminder as sent
+            if (hubspot) {
+              await hubspot.updateContact(contact.id, { reminder_2h_sent: 'true' });
+            }
+            reminders2hSent++;
+            logger.info('Sent 2h reminder', { contactId: contact.id, correlationId });
+          }
+        } catch (error) {
+          logger.error('Failed to send reminder', { contactId: contact.id, error, correlationId });
+          errors++;
+        }
+      }
+
+      // Emit job completion event
+      await emitJobEvent(eventStore, 'cron.appointment_reminders.completed', {
+        reminders24hSent,
+        reminders2hSent,
+        errors,
+        correlationId,
+      });
+
+      logger.info('Appointment reminders completed', {
+        reminders24hSent,
+        reminders2hSent,
+        errors,
+        correlationId,
+      });
+    } catch (error) {
+      logger.error('Appointment reminders failed', { error, correlationId });
+      return { success: false, error: String(error) };
+    }
+
+    return { success: true, reminders24hSent, reminders2hSent, errors };
   },
 });
 
@@ -104,39 +358,90 @@ export const leadScoringRefresh = schedules.task({
   id: 'lead-scoring-refresh',
   cron: '0 2 * * *', // 2:00 AM every day
   run: async () => {
-    logger.info('Starting lead scoring refresh');
+    const correlationId = generateCorrelationId();
+    logger.info('Starting lead scoring refresh', { correlationId });
 
-    // Find leads that haven't been scored recently
-    // const staleLeads = await hubspotClient.searchContacts({
-    //   filterGroups: [{
-    //     filters: [
-    //       { propertyName: 'lead_score_updated', operator: 'LT', value: sevenDaysAgo() },
-    //       { propertyName: 'lifecyclestage', operator: 'NEQ', value: 'customer' },
-    //     ],
-    //   }],
-    //   limit: 100,
-    // });
+    const { hubspot, eventStore } = getClients();
 
-    // Re-score each lead
-    // for (const lead of staleLeads.results) {
-    //   const recentMessages = await getRecentMessages(lead.id);
-    //   if (recentMessages.length > 0) {
-    //     await scoreLeadWorkflow.trigger({
-    //       phone: lead.properties.phone,
-    //       hubspotContactId: lead.id,
-    //       message: recentMessages[0].content,
-    //       channel: 'whatsapp',
-    //       messageHistory: recentMessages,
-    //       correlationId: generateCorrelationId(),
-    //     });
-    //   }
-    // }
+    if (!hubspot) {
+      logger.warn('HubSpot client not configured, skipping scoring refresh', { correlationId });
+      return { success: false, reason: 'HubSpot not configured', leadsRefreshed: 0 };
+    }
 
-    return {
-      success: true,
-      // leadsRefreshed: staleLeads.total,
-      leadsRefreshed: 0,
-    };
+    let leadsRefreshed = 0;
+    let errors = 0;
+
+    try {
+      // Find leads that haven't been scored recently (7+ days)
+      const staleLeads = await hubspot.searchContacts({
+        filterGroups: [
+          {
+            filters: [
+              { propertyName: 'lead_score_updated', operator: 'LT', value: sevenDaysAgo() },
+              { propertyName: 'lifecyclestage', operator: 'NEQ', value: 'customer' },
+              { propertyName: 'lead_status', operator: 'NEQ', value: 'archived' },
+            ],
+          },
+        ],
+        properties: [
+          'phone',
+          'email',
+          'firstname',
+          'lead_score',
+          'lead_status',
+          'last_message_content',
+        ],
+        limit: 50, // Process in smaller batches
+      });
+
+      logger.info(`Found ${staleLeads.total} stale leads to re-score`, { correlationId });
+
+      for (const lead of staleLeads.results) {
+        const leadProps = lead.properties as Record<string, string | undefined>;
+        if (!leadProps.phone) {
+          logger.warn('Lead missing phone, skipping', { leadId: lead.id, correlationId });
+          continue;
+        }
+
+        try {
+          // Use last message content if available, otherwise generic re-score message
+          const message = leadProps.last_message_content ?? 'Follow-up re-scoring';
+
+          await scoreLeadWorkflow.trigger({
+            phone: leadProps.phone,
+            hubspotContactId: lead.id,
+            message,
+            channel: 'whatsapp',
+            correlationId: `${correlationId}_${lead.id}`,
+          });
+
+          // Update the score timestamp
+          await hubspot.updateContact(lead.id, {
+            lead_score_updated: new Date().toISOString(),
+          });
+
+          leadsRefreshed++;
+        } catch (error) {
+          logger.error('Failed to re-score lead', { leadId: lead.id, error, correlationId });
+          errors++;
+        }
+      }
+
+      // Emit job completion event
+      await emitJobEvent(eventStore, 'cron.lead_scoring_refresh.completed', {
+        leadsFound: staleLeads.total,
+        leadsRefreshed,
+        errors,
+        correlationId,
+      });
+
+      logger.info('Lead scoring refresh completed', { leadsRefreshed, errors, correlationId });
+    } catch (error) {
+      logger.error('Lead scoring refresh failed', { error, correlationId });
+      return { success: false, error: String(error), leadsRefreshed };
+    }
+
+    return { success: true, leadsRefreshed, errors };
   },
 });
 
@@ -148,29 +453,113 @@ export const weeklyAnalyticsReport = schedules.task({
   id: 'weekly-analytics-report',
   cron: '0 8 * * 1', // 8:00 AM every Monday
   run: async () => {
-    logger.info('Generating weekly analytics report');
+    const correlationId = generateCorrelationId();
+    logger.info('Generating weekly analytics report', { correlationId });
 
-    // Calculate metrics
-    // const metrics = {
-    //   newLeads: await countNewLeads(7),
-    //   hotLeads: await countLeadsByClassification('HOT', 7),
-    //   conversions: await countConversions(7),
-    //   appointmentsScheduled: await countAppointments(7),
-    //   messagesReceived: await countMessages('received', 7),
-    //   messagesSent: await countMessages('sent', 7),
-    //   avgResponseTime: await calculateAvgResponseTime(7),
-    // };
+    const { hubspot, eventStore } = getClients();
 
-    // Generate report
-    // const report = formatWeeklyReport(metrics);
+    try {
+      // Calculate metrics from HubSpot
+      const metrics = {
+        newLeads: 0,
+        hotLeads: 0,
+        warmLeads: 0,
+        coldLeads: 0,
+        conversions: 0,
+        period: '7 days',
+        generatedAt: new Date().toISOString(),
+      };
 
-    // Send to Slack/Email
-    // await notificationService.sendReport('weekly', report);
+      if (hubspot) {
+        // Count new leads in the last 7 days
+        const newLeadsResult = await hubspot.searchContacts({
+          filterGroups: [
+            {
+              filters: [{ propertyName: 'createdate', operator: 'GTE', value: sevenDaysAgo() }],
+            },
+          ],
+          limit: 1,
+        });
+        metrics.newLeads = newLeadsResult.total;
 
-    return {
-      success: true,
-      // metrics,
-    };
+        // Count hot leads
+        const hotLeadsResult = await hubspot.searchContacts({
+          filterGroups: [
+            {
+              filters: [
+                { propertyName: 'lead_status', operator: 'EQ', value: 'hot' },
+                { propertyName: 'createdate', operator: 'GTE', value: sevenDaysAgo() },
+              ],
+            },
+          ],
+          limit: 1,
+        });
+        metrics.hotLeads = hotLeadsResult.total;
+
+        // Count warm leads
+        const warmLeadsResult = await hubspot.searchContacts({
+          filterGroups: [
+            {
+              filters: [
+                { propertyName: 'lead_status', operator: 'EQ', value: 'warm' },
+                { propertyName: 'createdate', operator: 'GTE', value: sevenDaysAgo() },
+              ],
+            },
+          ],
+          limit: 1,
+        });
+        metrics.warmLeads = warmLeadsResult.total;
+
+        // Count cold leads
+        const coldLeadsResult = await hubspot.searchContacts({
+          filterGroups: [
+            {
+              filters: [
+                { propertyName: 'lead_status', operator: 'EQ', value: 'cold' },
+                { propertyName: 'createdate', operator: 'GTE', value: sevenDaysAgo() },
+              ],
+            },
+          ],
+          limit: 1,
+        });
+        metrics.coldLeads = coldLeadsResult.total;
+
+        // Count conversions (leads that became customers)
+        const conversionsResult = await hubspot.searchContacts({
+          filterGroups: [
+            {
+              filters: [
+                { propertyName: 'lifecyclestage', operator: 'EQ', value: 'customer' },
+                {
+                  propertyName: 'hs_lifecyclestage_customer_date',
+                  operator: 'GTE',
+                  value: sevenDaysAgo(),
+                },
+              ],
+            },
+          ],
+          limit: 1,
+        });
+        metrics.conversions = conversionsResult.total;
+      }
+
+      // Format report
+      const report = formatWeeklyReport(metrics);
+
+      logger.info('Weekly analytics report generated', { metrics, correlationId });
+
+      // Emit report event (could trigger Slack/Email notification)
+      await emitJobEvent(eventStore, 'cron.weekly_analytics.completed', {
+        metrics,
+        report,
+        correlationId,
+      });
+
+      return { success: true, metrics };
+    } catch (error) {
+      logger.error('Weekly analytics report failed', { error, correlationId });
+      return { success: false, error: String(error) };
+    }
   },
 });
 
@@ -182,30 +571,66 @@ export const staleLeadCleanup = schedules.task({
   id: 'stale-lead-cleanup',
   cron: '0 3 * * 0', // 3:00 AM every Sunday
   run: async () => {
-    logger.info('Starting stale lead cleanup');
+    const correlationId = generateCorrelationId();
+    logger.info('Starting stale lead cleanup', { correlationId });
 
-    // Find leads with no activity in 90 days
-    // const staleLeads = await hubspotClient.searchContacts({
-    //   filterGroups: [{
-    //     filters: [
-    //       { propertyName: 'last_activity_date', operator: 'LT', value: ninetyDaysAgo() },
-    //       { propertyName: 'lifecyclestage', operator: 'NEQ', value: 'customer' },
-    //     ],
-    //   }],
-    // });
+    const { hubspot, eventStore } = getClients();
 
-    // Archive stale leads
-    // for (const lead of staleLeads.results) {
-    //   await hubspotClient.updateContact(lead.id, {
-    //     lead_status: 'archived',
-    //   });
-    // }
+    if (!hubspot) {
+      logger.warn('HubSpot client not configured, skipping cleanup', { correlationId });
+      return { success: false, reason: 'HubSpot not configured', leadsArchived: 0 };
+    }
 
-    return {
-      success: true,
-      // leadsArchived: staleLeads.total,
-      leadsArchived: 0,
-    };
+    let leadsArchived = 0;
+    let errors = 0;
+
+    try {
+      // Find leads with no activity in 90 days
+      const staleLeads = await hubspot.searchContacts({
+        filterGroups: [
+          {
+            filters: [
+              { propertyName: 'notes_last_updated', operator: 'LT', value: ninetyDaysAgo() },
+              { propertyName: 'lifecyclestage', operator: 'NEQ', value: 'customer' },
+              { propertyName: 'lead_status', operator: 'NEQ', value: 'archived' },
+            ],
+          },
+        ],
+        properties: ['phone', 'email', 'firstname', 'lead_status', 'notes_last_updated'],
+        limit: 100,
+      });
+
+      logger.info(`Found ${staleLeads.total} stale leads to archive`, { correlationId });
+
+      for (const lead of staleLeads.results) {
+        try {
+          await hubspot.updateContact(lead.id, {
+            lead_status: 'archived',
+            archived_date: new Date().toISOString(),
+            archived_reason: 'No activity for 90+ days',
+          });
+          leadsArchived++;
+        } catch (error) {
+          logger.error('Failed to archive lead', { leadId: lead.id, error, correlationId });
+          errors++;
+        }
+      }
+
+      // Emit job completion event
+      await emitJobEvent(eventStore, 'cron.stale_lead_cleanup.completed', {
+        leadsFound: staleLeads.total,
+        leadsArchived,
+        errors,
+        correlationId,
+      });
+
+      logger.info('Stale lead cleanup completed', { leadsArchived, errors, correlationId });
+    } catch (error) {
+      logger.error('Stale lead cleanup failed', { error, correlationId });
+      return { success: false, error: String(error), leadsArchived };
+    }
+
+    return { success: true, leadsArchived, errors };
   },
 });
 
@@ -217,30 +642,166 @@ export const gdprConsentAudit = schedules.task({
   id: 'gdpr-consent-audit',
   cron: '0 4 * * *', // 4:00 AM every day
   run: async () => {
-    logger.info('Starting GDPR consent audit');
+    const correlationId = generateCorrelationId();
+    logger.info('Starting GDPR consent audit', { correlationId });
 
-    // Find contacts with expiring consent (2 years)
-    // const expiringConsent = await hubspotClient.searchContacts({
-    //   filterGroups: [{
-    //     filters: [
-    //       { propertyName: 'consent_date', operator: 'LT', value: almostTwoYearsAgo() },
-    //       { propertyName: 'consent_marketing', operator: 'EQ', value: 'true' },
-    //     ],
-    //   }],
-    // });
+    const { hubspot, whatsapp, eventStore } = getClients();
 
-    // Send consent renewal request
-    // for (const contact of expiringConsent.results) {
-    //   await whatsappClient.sendTemplate(contact.properties.phone, 'consent_renewal', {});
-    //   await hubspotClient.updateContact(contact.id, {
-    //     consent_renewal_sent: new Date().toISOString(),
-    //   });
-    // }
+    if (!hubspot) {
+      logger.warn('HubSpot client not configured, skipping consent audit', { correlationId });
+      return { success: false, reason: 'HubSpot not configured', consentRenewalsSent: 0 };
+    }
 
-    return {
-      success: true,
-      // consentRenewalsSent: expiringConsent.total,
-      consentRenewalsSent: 0,
-    };
+    let consentRenewalsSent = 0;
+    let errors = 0;
+
+    try {
+      // Find contacts with consent expiring (approaching 2 years)
+      // Note: We search for contacts with old consent date and filter out those with renewal sent
+      const expiringConsent = await hubspot.searchContacts({
+        filterGroups: [
+          {
+            filters: [
+              { propertyName: 'consent_date', operator: 'LT', value: almostTwoYearsAgo() },
+              { propertyName: 'consent_marketing', operator: 'EQ', value: 'true' },
+            ],
+          },
+        ],
+        properties: [
+          'phone',
+          'email',
+          'firstname',
+          'consent_date',
+          'hs_language',
+          'consent_renewal_sent',
+        ],
+        limit: 50,
+      });
+
+      logger.info(`Found ${expiringConsent.total} contacts with expiring consent`, {
+        correlationId,
+      });
+
+      for (const contact of expiringConsent.results) {
+        const contactProps = contact.properties as Record<string, string | undefined>;
+        // Skip if no phone or if consent renewal was already sent
+        if (!contactProps.phone || contactProps.consent_renewal_sent) {
+          continue;
+        }
+
+        try {
+          // Send consent renewal request via WhatsApp
+          if (whatsapp) {
+            const contactLang = contactProps.hs_language;
+            const language: 'ro' | 'en' | 'de' =
+              contactLang === 'ro' || contactLang === 'en' || contactLang === 'de'
+                ? contactLang
+                : 'ro';
+            await whatsapp.sendTemplate({
+              to: contactProps.phone,
+              templateName: 'consent_renewal',
+              language: language === 'ro' ? 'ro' : language === 'de' ? 'de' : 'en',
+              components: [
+                {
+                  type: 'body',
+                  parameters: [{ type: 'text', text: contactProps.firstname ?? 'Pacient' }],
+                },
+              ],
+            });
+          }
+
+          // Mark consent renewal as sent
+          await hubspot.updateContact(contact.id, {
+            consent_renewal_sent: new Date().toISOString(),
+          });
+
+          consentRenewalsSent++;
+          logger.info('Sent consent renewal', { contactId: contact.id, correlationId });
+        } catch (error) {
+          logger.error('Failed to send consent renewal', {
+            contactId: contact.id,
+            error,
+            correlationId,
+          });
+          errors++;
+        }
+      }
+
+      // Emit job completion event
+      await emitJobEvent(eventStore, 'cron.gdpr_consent_audit.completed', {
+        expiringFound: expiringConsent.total,
+        consentRenewalsSent,
+        errors,
+        correlationId,
+      });
+
+      logger.info('GDPR consent audit completed', { consentRenewalsSent, errors, correlationId });
+    } catch (error) {
+      logger.error('GDPR consent audit failed', { error, correlationId });
+      return { success: false, error: String(error), consentRenewalsSent };
+    }
+
+    return { success: true, consentRenewalsSent, errors };
   },
 });
+
+// ============================================
+// Helper Functions
+// ============================================
+
+/**
+ * Format weekly report for notifications
+ */
+function formatWeeklyReport(metrics: {
+  newLeads: number;
+  hotLeads: number;
+  warmLeads: number;
+  coldLeads: number;
+  conversions: number;
+  period: string;
+  generatedAt: string;
+}): string {
+  return `
+📊 Weekly Analytics Report
+Period: ${metrics.period}
+Generated: ${new Date(metrics.generatedAt).toLocaleString('ro-RO')}
+
+📈 Lead Activity:
+• New leads: ${metrics.newLeads}
+• Hot leads: ${metrics.hotLeads}
+• Warm leads: ${metrics.warmLeads}
+• Cold leads: ${metrics.coldLeads}
+
+🎯 Conversions: ${metrics.conversions}
+
+💡 Conversion Rate: ${metrics.newLeads > 0 ? ((metrics.conversions / metrics.newLeads) * 100).toFixed(1) : 0}%
+  `.trim();
+}
+
+/**
+ * Emit job completion event
+ */
+async function emitJobEvent(
+  eventStore: {
+    emit: (input: {
+      type: string;
+      correlationId: string;
+      payload: Record<string, unknown>;
+      aggregateType?: string;
+    }) => Promise<unknown>;
+  },
+  type: string,
+  payload: Record<string, unknown>
+): Promise<void> {
+  const correlationId = (payload.correlationId as string) || generateCorrelationId();
+  try {
+    await eventStore.emit({
+      type,
+      correlationId,
+      payload,
+      aggregateType: 'cron',
+    });
+  } catch (error) {
+    logger.warn('Failed to emit job event', { type, error });
+  }
+}

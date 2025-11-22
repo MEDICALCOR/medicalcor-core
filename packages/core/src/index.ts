@@ -71,3 +71,26 @@ export {
   type WebFormInput,
   type ReferralInput,
 } from './lead-context.js';
+
+export {
+  initTelemetry,
+  shutdownTelemetry,
+  getTracer,
+  createSpan,
+  withSpan,
+  withSpanSync,
+  getCurrentSpan,
+  getCurrentContext,
+  addSpanAttributes,
+  recordException,
+  traceExternalCall,
+  Traced,
+  SpanAttributes,
+  SpanStatusCode,
+  SpanKind,
+  type TelemetryConfig,
+  type Span,
+  type Tracer,
+  type SpanOptions,
+  type Context,
+} from './telemetry.js';

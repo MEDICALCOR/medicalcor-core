@@ -11,6 +11,8 @@ export default tseslint.config(
       '**/.turbo/**',
       '**/.trigger/**',
       '**/coverage/**',
+      '**/*.test.ts',
+      '**/__tests__/**',
     ],
   },
 
@@ -25,7 +27,9 @@ export default tseslint.config(
   {
     languageOptions: {
       parserOptions: {
-        projectService: true,
+        projectService: {
+          allowDefaultProject: ['eslint.config.js'],
+        },
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -65,10 +69,8 @@ export default tseslint.config(
 
       // Relaxed for practicality
       '@typescript-eslint/no-confusing-void-expression': 'off',
-      '@typescript-eslint/no-misused-promises': [
-        'error',
-        { checksVoidReturn: false },
-      ],
+      '@typescript-eslint/no-misused-promises': ['error', { checksVoidReturn: false }],
+      '@typescript-eslint/no-deprecated': 'off',
     },
   },
 

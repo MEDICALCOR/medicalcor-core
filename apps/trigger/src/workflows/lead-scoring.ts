@@ -1,5 +1,8 @@
 import { task, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
+import crypto from 'crypto';
+import { createEventStore, createInMemoryEventStore } from '@medicalcor/core';
+import { createHubSpotClient, createOpenAIClient } from '@medicalcor/integrations';
 import type { LeadContext, ScoringOutput } from '@medicalcor/types';
 
 /**
@@ -7,16 +10,38 @@ import type { LeadContext, ScoringOutput } from '@medicalcor/types';
  * AI-powered lead scoring with context enrichment
  */
 
-const LeadScoringPayloadSchema = z.object({
+/**
+ * Initialize clients lazily based on environment configuration
+ */
+function getClients() {
+  const hubspotToken = process.env.HUBSPOT_ACCESS_TOKEN;
+  const openaiKey = process.env.OPENAI_API_KEY;
+  const databaseUrl = process.env.DATABASE_URL;
+
+  const hubspot = hubspotToken ? createHubSpotClient({ accessToken: hubspotToken }) : null;
+  const openai = openaiKey ? createOpenAIClient({ apiKey: openaiKey, model: 'gpt-4o' }) : null;
+
+  const eventStore = databaseUrl
+    ? createEventStore({ source: 'lead-scoring', connectionString: databaseUrl })
+    : createInMemoryEventStore('lead-scoring');
+
+  return { hubspot, openai, eventStore };
+}
+
+export const LeadScoringPayloadSchema = z.object({
   phone: z.string(),
   hubspotContactId: z.string().optional(),
   message: z.string(),
   channel: z.enum(['whatsapp', 'voice', 'web']),
-  messageHistory: z.array(z.object({
-    role: z.enum(['user', 'assistant']),
-    content: z.string(),
-    timestamp: z.string(),
-  })).optional(),
+  messageHistory: z
+    .array(
+      z.object({
+        role: z.enum(['user', 'assistant']),
+        content: z.string(),
+        timestamp: z.string(),
+      })
+    )
+    .optional(),
   correlationId: z.string(),
 });
 
@@ -30,22 +55,28 @@ export const scoreLeadWorkflow = task({
   },
   run: async (payload: z.infer<typeof LeadScoringPayloadSchema>) => {
     const { phone, hubspotContactId, message, channel, messageHistory, correlationId } = payload;
+    const { hubspot, openai, eventStore } = getClients();
 
     logger.info('Starting lead scoring workflow', {
       phone,
       channel,
       hasHistory: !!messageHistory?.length,
+      hasOpenAI: !!openai,
+      hasHubSpot: !!hubspot,
       correlationId,
     });
 
-    // Step 1: Build lead context
-    const context = await buildLeadContext({
-      phone,
-      message,
-      channel,
-      ...(hubspotContactId && { hubspotContactId }),
-      ...(messageHistory && { messageHistory }),
-    });
+    // Step 1: Build lead context (with HubSpot enrichment)
+    const context = await buildLeadContext(
+      {
+        phone,
+        message,
+        channel,
+        ...(hubspotContactId && { hubspotContactId }),
+        ...(messageHistory && { messageHistory }),
+      },
+      hubspot
+    );
 
     logger.info('Lead context built', {
       correlationId,
@@ -53,10 +84,28 @@ export const scoreLeadWorkflow = task({
       messageCount: context.messageHistory?.length ?? 0,
     });
 
-    // Step 2: AI Scoring
-    const scoringResult = await performAIScoring(context);
+    // Step 2: AI Scoring (with fallback to rule-based)
+    let scoringResult: ScoringOutput;
+    if (openai) {
+      try {
+        scoringResult = await openai.scoreMessage(context);
+        logger.info('AI scoring completed', {
+          correlationId,
+          score: scoringResult.score,
+          classification: scoringResult.classification,
+          confidence: scoringResult.confidence,
+          method: 'ai',
+        });
+      } catch (error) {
+        logger.warn('AI scoring failed, falling back to rule-based', { error, correlationId });
+        scoringResult = analyzeMessageForScore(context.messageHistory?.[0]?.content ?? '');
+      }
+    } else {
+      logger.info('No OpenAI client, using rule-based scoring', { correlationId });
+      scoringResult = analyzeMessageForScore(context.messageHistory?.[0]?.content ?? '');
+    }
 
-    logger.info('AI scoring completed', {
+    logger.info('Lead scoring completed', {
       correlationId,
       score: scoringResult.score,
       classification: scoringResult.classification,
@@ -64,30 +113,42 @@ export const scoreLeadWorkflow = task({
     });
 
     // Step 3: Update HubSpot with score
-    if (hubspotContactId) {
-      // await hubspotClient.updateContact(hubspotContactId, {
-      //   lead_score: scoringResult.score.toString(),
-      //   lead_status: scoringResult.classification,
-      //   procedure_interest: scoringResult.procedureInterest?.join(';'),
-      //   budget_range: scoringResult.budgetMentioned ? 'mentioned' : undefined,
-      //   urgency_level: scoringResult.urgencyIndicators?.length ? 'high' : 'normal',
-      // });
-      logger.info('HubSpot contact updated with score', { correlationId, hubspotContactId });
+    if (hubspotContactId && hubspot) {
+      try {
+        const updateProps: Record<string, string | undefined> = {
+          lead_score: scoringResult.score.toString(),
+          lead_status: scoringResult.classification.toLowerCase(),
+        };
+        if (scoringResult.procedureInterest && scoringResult.procedureInterest.length > 0) {
+          updateProps.procedure_interest = scoringResult.procedureInterest.join(';');
+        }
+        if (scoringResult.budgetMentioned) {
+          updateProps.budget_range = 'mentioned';
+        }
+        if (scoringResult.urgencyIndicators && scoringResult.urgencyIndicators.length > 0) {
+          updateProps.urgency_level = 'high';
+        }
+        await hubspot.updateContact(hubspotContactId, updateProps);
+        logger.info('HubSpot contact updated with score', { correlationId, hubspotContactId });
+      } catch (error) {
+        logger.error('Failed to update HubSpot contact', { error, correlationId });
+      }
     }
 
     // Step 4: Emit scoring event
-    // await eventStore.emit({
-    //   type: 'lead.scored',
-    //   correlationId,
-    //   payload: {
-    //     phone,
-    //     hubspotContactId,
-    //     score: scoringResult.score,
-    //     classification: scoringResult.classification,
-    //     confidence: scoringResult.confidence,
-    //     reasoning: scoringResult.reasoning,
-    //   },
-    // });
+    await emitEvent(eventStore, 'lead.scored', hubspotContactId ?? phone, {
+      phone,
+      hubspotContactId,
+      channel,
+      score: scoringResult.score,
+      classification: scoringResult.classification,
+      confidence: scoringResult.confidence,
+      reasoning: scoringResult.reasoning,
+      suggestedAction: scoringResult.suggestedAction,
+      correlationId,
+    });
+
+    logger.info('Lead scoring workflow completed', { correlationId });
 
     return {
       success: true,
@@ -96,6 +157,9 @@ export const scoreLeadWorkflow = task({
       confidence: scoringResult.confidence,
       suggestedAction: scoringResult.suggestedAction,
       reasoning: scoringResult.reasoning,
+      procedureInterest: scoringResult.procedureInterest,
+      budgetMentioned: scoringResult.budgetMentioned,
+      urgencyIndicators: scoringResult.urgencyIndicators,
     };
   },
 });
@@ -103,25 +167,55 @@ export const scoreLeadWorkflow = task({
 /**
  * Build lead context from various sources
  */
-async function buildLeadContext(params: {
-  phone: string;
-  hubspotContactId?: string;
-  message: string;
-  channel: 'whatsapp' | 'voice' | 'web';
-  messageHistory?: { role: 'user' | 'assistant'; content: string; timestamp: string }[];
-}): Promise<LeadContext> {
+async function buildLeadContext(
+  params: {
+    phone: string;
+    hubspotContactId?: string;
+    message: string;
+    channel: 'whatsapp' | 'voice' | 'web';
+    messageHistory?: { role: 'user' | 'assistant'; content: string; timestamp: string }[];
+  },
+  hubspot: ReturnType<typeof createHubSpotClient> | null
+): Promise<LeadContext> {
   const { phone, hubspotContactId, message, channel, messageHistory } = params;
 
   // Fetch HubSpot data if available
-  // let hubspotData: any = null;
-  // if (hubspotContactId) {
-  //   hubspotData = await hubspotClient.getContact(hubspotContactId);
-  // }
+  let hubspotData: {
+    properties: {
+      utm_source?: string | undefined;
+      utm_medium?: string | undefined;
+      utm_campaign?: string | undefined;
+      procedure_interest?: string | undefined;
+      hs_language?: string | undefined;
+    };
+  } | null = null;
 
-  // Detect language from message
-  const language = detectLanguage(message);
+  if (hubspotContactId && hubspot) {
+    try {
+      const contact = await hubspot.getContact(hubspotContactId);
+      hubspotData = {
+        properties: {
+          utm_source: contact.properties.utm_source,
+          utm_medium: contact.properties.utm_medium,
+          utm_campaign: contact.properties.utm_campaign,
+          procedure_interest: contact.properties.procedure_interest,
+          hs_language: contact.properties.hs_language,
+        },
+      };
+    } catch (error) {
+      logger.warn('Failed to fetch HubSpot contact for context', { error, hubspotContactId });
+    }
+  }
 
-  return {
+  // Detect language from message (or use HubSpot preference)
+  const hsLanguage = hubspotData?.properties.hs_language;
+  const language: 'ro' | 'en' | 'de' | undefined =
+    hsLanguage === 'ro' || hsLanguage === 'en' || hsLanguage === 'de'
+      ? hsLanguage
+      : detectLanguage(message);
+
+  // Build context with enrichment from HubSpot
+  const context: LeadContext = {
     phone,
     channel,
     firstTouchTimestamp: new Date().toISOString(),
@@ -130,49 +224,25 @@ async function buildLeadContext(params: {
       { role: 'user', content: message, timestamp: new Date().toISOString() },
     ],
     hubspotContactId,
-    // utm: hubspotData?.properties.utm_source ? {
-    //   utm_source: hubspotData.properties.utm_source,
-    //   utm_medium: hubspotData.properties.utm_medium,
-    //   utm_campaign: hubspotData.properties.utm_campaign,
-    // } : undefined,
   };
-}
 
-/**
- * Perform AI scoring using GPT-4o with structured output
- */
-async function performAIScoring(context: LeadContext): Promise<ScoringOutput> {
-  // const systemPrompt = `You are a medical lead scoring assistant for a dental implant clinic.
-  // Analyze the conversation and score the lead from 1-5 based on:
-  // - Intent clarity (are they interested in a procedure?)
-  // - Budget signals (have they mentioned budget or asked about pricing?)
-  // - Urgency indicators (timeline, pain, immediate need)
-  // - Procedure specificity (All-on-X, implants, specific treatments)
-  //
-  // Score 5 (HOT): Explicit interest in All-on-X/implants + budget mentioned OR urgent need
-  // Score 4 (HOT): Clear procedure interest + some qualification signals
-  // Score 3 (WARM): General interest, needs more information
-  // Score 2 (COLD): Vague interest, early research stage
-  // Score 1 (UNQUALIFIED): Not a fit or just information gathering`;
+  // Add UTM data if available
+  const utmSource = hubspotData?.properties.utm_source;
+  if (utmSource) {
+    context.utm = {
+      utm_source: utmSource,
+    };
+    const utmMedium = hubspotData?.properties.utm_medium;
+    if (utmMedium) {
+      context.utm.utm_medium = utmMedium;
+    }
+    const utmCampaign = hubspotData?.properties.utm_campaign;
+    if (utmCampaign) {
+      context.utm.utm_campaign = utmCampaign;
+    }
+  }
 
-  // const response = await openaiClient.chat.completions.create({
-  //   model: 'gpt-4o',
-  //   messages: [
-  //     { role: 'system', content: systemPrompt },
-  //     ...context.messageHistory.map(m => ({
-  //       role: m.role as 'user' | 'assistant',
-  //       content: m.content,
-  //     })),
-  //   ],
-  //   response_format: { type: 'json_object' },
-  //   temperature: 0.3,
-  // });
-
-  // For now, return a mock scoring result
-  // In production, this would parse the AI response
-  const mockScore = analyzeMessageForScore(context.messageHistory?.[0]?.content ?? '');
-
-  return mockScore;
+  return context;
 }
 
 /**
@@ -182,7 +252,17 @@ function analyzeMessageForScore(message: string): ScoringOutput {
   const lowerMessage = message.toLowerCase();
 
   // HOT indicators
-  const hotKeywords = ['all-on-4', 'all-on-x', 'all on 4', 'implant complet', 'vreau sa fac', 'cat costa', 'pret', 'programare', 'urgent'];
+  const hotKeywords = [
+    'all-on-4',
+    'all-on-x',
+    'all on 4',
+    'implant complet',
+    'vreau sa fac',
+    'cat costa',
+    'pret',
+    'programare',
+    'urgent',
+  ];
   const warmKeywords = ['implant', 'dinti', 'tratament', 'informatii', 'interesat'];
   const budgetKeywords = ['pret', 'cost', 'buget', 'cat', 'euro', 'lei', 'finantare'];
   const urgencyKeywords = ['urgent', 'durere', 'cat mai repede', 'maine', 'azi', 'acum'];
@@ -192,25 +272,25 @@ function analyzeMessageForScore(message: string): ScoringOutput {
   const indicators: string[] = [];
 
   // Check for hot keywords
-  if (hotKeywords.some(k => lowerMessage.includes(k))) {
+  if (hotKeywords.some((k) => lowerMessage.includes(k))) {
     score = Math.max(score, 4);
     indicators.push('explicit_procedure_interest');
   }
 
   // Check for warm keywords
-  if (warmKeywords.some(k => lowerMessage.includes(k))) {
+  if (warmKeywords.some((k) => lowerMessage.includes(k))) {
     score = Math.max(score, 3);
     indicators.push('general_interest');
   }
 
   // Budget mention boosts score
-  if (budgetKeywords.some(k => lowerMessage.includes(k))) {
+  if (budgetKeywords.some((k) => lowerMessage.includes(k))) {
     score = Math.min(score + 1, 5);
     indicators.push('budget_mentioned');
   }
 
   // Urgency boosts score
-  if (urgencyKeywords.some(k => lowerMessage.includes(k))) {
+  if (urgencyKeywords.some((k) => lowerMessage.includes(k))) {
     score = Math.min(score + 1, 5);
     indicators.push('urgency_detected');
   }
@@ -227,7 +307,7 @@ function analyzeMessageForScore(message: string): ScoringOutput {
     confidence: 0.7, // Rule-based has lower confidence than AI
     reasoning: `Score based on keyword analysis: ${indicators.join(', ')}`,
     suggestedAction: getSuggestedAction(classification),
-    urgencyIndicators: indicators.filter(i => i === 'urgency_detected'),
+    urgencyIndicators: indicators.filter((i) => i === 'urgency_detected'),
     budgetMentioned: indicators.includes('budget_mentioned'),
   };
 }
@@ -246,19 +326,75 @@ function getSuggestedAction(classification: 'HOT' | 'WARM' | 'COLD' | 'UNQUALIFI
 }
 
 function detectLanguage(text: string): 'ro' | 'en' | 'de' | undefined {
-  const romanianIndicators = ['salut', 'buna', 'vreau', 'sunt', 'pentru', 'și', 'că', 'este', 'ați'];
-  const englishIndicators = ['hello', 'hi', 'want', 'need', 'looking', 'interested', 'price', 'cost'];
+  const romanianIndicators = [
+    'salut',
+    'buna',
+    'vreau',
+    'sunt',
+    'pentru',
+    'și',
+    'că',
+    'este',
+    'ați',
+  ];
+  const englishIndicators = [
+    'hello',
+    'hi',
+    'want',
+    'need',
+    'looking',
+    'interested',
+    'price',
+    'cost',
+  ];
   const germanIndicators = ['hallo', 'guten', 'ich', 'möchte', 'preis', 'kosten', 'zahnimplantat'];
 
   const lowerText = text.toLowerCase();
 
-  const roScore = romanianIndicators.filter(w => lowerText.includes(w)).length;
-  const enScore = englishIndicators.filter(w => lowerText.includes(w)).length;
-  const deScore = germanIndicators.filter(w => lowerText.includes(w)).length;
+  const roScore = romanianIndicators.filter((w) => lowerText.includes(w)).length;
+  const enScore = englishIndicators.filter((w) => lowerText.includes(w)).length;
+  const deScore = germanIndicators.filter((w) => lowerText.includes(w)).length;
 
   if (roScore > enScore && roScore > deScore) return 'ro';
   if (enScore > roScore && enScore > deScore) return 'en';
   if (deScore > roScore && deScore > enScore) return 'de';
 
   return 'ro'; // Default to Romanian
+}
+
+/**
+ * Helper to emit domain events
+ */
+async function emitEvent(
+  eventStore: {
+    emit: (input: {
+      type: string;
+      correlationId: string;
+      payload: Record<string, unknown>;
+      aggregateId?: string;
+      aggregateType?: string;
+    }) => Promise<unknown>;
+  },
+  type: string,
+  aggregateId: string,
+  payload: Record<string, unknown>
+): Promise<void> {
+  const correlationId = (payload.correlationId as string) || crypto.randomUUID();
+  const aggregateType = type.split('.')[0];
+  const input: {
+    type: string;
+    correlationId: string;
+    payload: Record<string, unknown>;
+    aggregateId?: string;
+    aggregateType?: string;
+  } = {
+    type,
+    correlationId,
+    payload,
+    aggregateId,
+  };
+  if (aggregateType) {
+    input.aggregateType = aggregateType;
+  }
+  await eventStore.emit(input);
 }
