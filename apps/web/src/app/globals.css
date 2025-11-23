@@ -1,0 +1,133 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 172 100% 6%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 172 100% 6%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 172 100% 6%;
+
+    --primary: 173 58% 39%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 172 30% 96%;
+    --secondary-foreground: 173 58% 26%;
+
+    --muted: 172 30% 96%;
+    --muted-foreground: 172 20% 40%;
+
+    --accent: 173 40% 92%;
+    --accent-foreground: 173 58% 26%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 172 20% 90%;
+    --input: 172 20% 90%;
+    --ring: 173 58% 39%;
+
+    --radius: 0.5rem;
+
+    /* Medical Status Colors */
+    --status-hot: 0 84% 60%;
+    --status-warm: 38 92% 50%;
+    --status-cold: 217 91% 60%;
+    --status-success: 142 76% 36%;
+  }
+
+  .dark {
+    --background: 172 50% 4%;
+    --foreground: 172 10% 98%;
+
+    --card: 172 40% 8%;
+    --card-foreground: 172 10% 98%;
+
+    --popover: 172 40% 8%;
+    --popover-foreground: 172 10% 98%;
+
+    --primary: 173 58% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 172 30% 15%;
+    --secondary-foreground: 172 20% 90%;
+
+    --muted: 172 30% 15%;
+    --muted-foreground: 172 20% 65%;
+
+    --accent: 173 30% 20%;
+    --accent-foreground: 172 20% 90%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 172 30% 18%;
+    --input: 172 30% 18%;
+    --ring: 173 58% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Medical Status Badge Colors */
+.status-hot {
+  @apply bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400;
+}
+
+.status-warm {
+  @apply bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400;
+}
+
+.status-cold {
+  @apply bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400;
+}
+
+.status-success {
+  @apply bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400;
+}
+
+/* Pulse animation for live indicators */
+.live-pulse {
+  @apply relative;
+}
+
+.live-pulse::before {
+  content: '';
+  @apply absolute -left-2 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-emerald-500;
+  animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
