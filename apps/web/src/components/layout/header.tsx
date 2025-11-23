@@ -5,6 +5,7 @@ import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { ConnectionStatus, NotificationBell } from '@/components/realtime';
 import { MobileMenuTrigger, useSidebar } from './sidebar';
+import { LanguageSwitcher } from '@/components/i18n/language-switcher';
 import Link from 'next/link';
 
 export function Header() {
@@ -36,6 +37,9 @@ export function Header() {
       <div className="flex items-center gap-1 sm:gap-2">
         {/* Real-time Notifications */}
         <NotificationBell />
+
+        {/* Language switcher */}
+        <LanguageSwitcher />
 
         {/* Theme toggle */}
         <Button
