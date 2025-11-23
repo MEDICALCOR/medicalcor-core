@@ -1,7 +1,13 @@
 'use server';
 
 import { z } from 'zod';
-import { HubSpotClient } from '@medicalcor/integrations';
+import {
+  HubSpotClient,
+  StripeClient,
+  type MockStripeClient,
+  createMockStripeClient,
+} from '@medicalcor/integrations';
+import { SchedulingService } from '@medicalcor/domain';
 import {
   PatientListItemSchema,
   RecentLeadSchema,
@@ -23,8 +29,10 @@ import {
  * Note: These run ONLY on the server - API keys are never exposed to client.
  */
 
-// Lazy-initialized HubSpot client (only created when first action is called)
+// Lazy-initialized clients (only created when first action is called)
 let hubspotClient: HubSpotClient | null = null;
+let stripeClient: StripeClient | MockStripeClient | null = null;
+let schedulingService: SchedulingService | null = null;
 
 function getHubSpotClient(): HubSpotClient {
   if (!hubspotClient) {
@@ -35,6 +43,27 @@ function getHubSpotClient(): HubSpotClient {
     hubspotClient = new HubSpotClient({ accessToken });
   }
   return hubspotClient;
+}
+
+function getStripeClient(): StripeClient | MockStripeClient {
+  if (!stripeClient) {
+    const secretKey = process.env.STRIPE_SECRET_KEY;
+    if (!secretKey) {
+      // Use mock client for development when Stripe is not configured
+      console.warn('[getStripeClient] STRIPE_SECRET_KEY not set, using mock client');
+      stripeClient = createMockStripeClient();
+    } else {
+      stripeClient = new StripeClient({ secretKey });
+    }
+  }
+  return stripeClient;
+}
+
+function getSchedulingService(): SchedulingService {
+  schedulingService ??= new SchedulingService({
+    timezone: 'Europe/Bucharest',
+  });
+  return schedulingService;
 }
 
 /**
@@ -246,66 +275,74 @@ export async function getRecentLeadsAction(limit = 5): Promise<RecentLead[]> {
 }
 
 /**
- * Fetches dashboard statistics from HubSpot
+ * Fetches dashboard statistics from HubSpot, SchedulingService, and Stripe
  */
 export async function getDashboardStatsAction(): Promise<DashboardStats> {
   try {
     const hubspot = getHubSpotClient();
+    const scheduling = getSchedulingService();
+    const stripe = getStripeClient();
 
-    // Fetch leads count
-    const leadsResponse = await hubspot.searchContacts({
-      filterGroups: [
-        {
-          filters: [
+    // Fetch all data in parallel for better performance
+    const [leadsResponse, patientsResponse, urgentResponse, appointmentsToday, dailyRevenueResult] =
+      await Promise.all([
+        // Fetch leads count
+        hubspot.searchContacts({
+          filterGroups: [
             {
-              propertyName: 'lifecyclestage',
-              operator: 'EQ',
-              value: 'lead',
+              filters: [
+                {
+                  propertyName: 'lifecyclestage',
+                  operator: 'EQ',
+                  value: 'lead',
+                },
+              ],
             },
           ],
-        },
-      ],
-      limit: 1, // We only need the total count
-    });
-
-    // Fetch active patients count
-    const patientsResponse = await hubspot.searchContacts({
-      filterGroups: [
-        {
-          filters: [
+          limit: 1,
+        }),
+        // Fetch active patients count
+        hubspot.searchContacts({
+          filterGroups: [
             {
-              propertyName: 'lifecyclestage',
-              operator: 'EQ',
-              value: 'customer',
+              filters: [
+                {
+                  propertyName: 'lifecyclestage',
+                  operator: 'EQ',
+                  value: 'customer',
+                },
+              ],
             },
           ],
-        },
-      ],
-      limit: 1,
-    });
-
-    // Fetch urgent (high score) leads
-    const urgentResponse = await hubspot.searchContacts({
-      filterGroups: [
-        {
-          filters: [
+          limit: 1,
+        }),
+        // Fetch urgent (high score) leads
+        hubspot.searchContacts({
+          filterGroups: [
             {
-              propertyName: 'lead_score',
-              operator: 'GTE',
-              value: '4',
+              filters: [
+                {
+                  propertyName: 'lead_score',
+                  operator: 'GTE',
+                  value: '4',
+                },
+              ],
             },
           ],
-        },
-      ],
-      limit: 1,
-    });
+          limit: 1,
+        }),
+        // Fetch today's appointments from SchedulingService
+        getTodayAppointmentsCount(scheduling),
+        // Fetch daily revenue from Stripe
+        getDailyRevenueAmount(stripe),
+      ]);
 
     const stats: DashboardStats = {
       totalLeads: leadsResponse.total,
       activePatients: patientsResponse.total,
       urgentTriage: urgentResponse.total,
-      appointmentsToday: 0, // TODO: Integrate with scheduling service
-      dailyRevenue: undefined, // TODO: Integrate with Stripe
+      appointmentsToday,
+      dailyRevenue: dailyRevenueResult,
     };
 
     return DashboardStatsSchema.parse(stats);
@@ -318,5 +355,40 @@ export async function getDashboardStatsAction(): Promise<DashboardStats> {
       urgentTriage: 0,
       appointmentsToday: 0,
     };
+  }
+}
+
+/**
+ * Helper: Get count of today's appointments from SchedulingService
+ */
+async function getTodayAppointmentsCount(scheduling: SchedulingService): Promise<number> {
+  try {
+    const now = new Date();
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(now);
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const appointments = await scheduling.getUpcomingAppointments(todayStart, todayEnd);
+    return appointments.length;
+  } catch (error) {
+    console.error('[getTodayAppointmentsCount] Failed to fetch appointments:', error);
+    return 0;
+  }
+}
+
+/**
+ * Helper: Get daily revenue from Stripe (in RON, major units)
+ */
+async function getDailyRevenueAmount(
+  stripe: StripeClient | MockStripeClient
+): Promise<number | undefined> {
+  try {
+    const result = await stripe.getDailyRevenue('Europe/Bucharest');
+    // Convert from minor units (bani) to major units (RON)
+    return stripe.toMajorUnits(result.amount);
+  } catch (error) {
+    console.error('[getDailyRevenueAmount] Failed to fetch daily revenue:', error);
+    return undefined;
   }
 }

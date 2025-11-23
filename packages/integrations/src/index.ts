@@ -65,3 +65,12 @@ export {
   type GetCallInput,
   type ListCallsInput,
 } from './vapi.js';
+
+export {
+  StripeClient,
+  MockStripeClient,
+  createStripeClient,
+  createMockStripeClient,
+  type StripeClientConfig,
+  type DailyRevenueResult,
+} from './stripe.js';
