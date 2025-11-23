@@ -4,7 +4,9 @@ import { ThemeProvider } from 'next-themes';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { RealtimeProvider, useRealtimeConnection } from '@/lib/realtime';
+import { KeyboardProvider } from '@/lib/keyboard';
 import { NotificationBridge } from '@/components/notifications';
+import { ShortcutsHelp, GlobalShortcuts } from '@/components/keyboard';
 
 // Auto-connect and notification bridge
 function RealtimeAutoConnect({ children }: { children: React.ReactNode }) {
@@ -39,9 +41,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-        <RealtimeProvider>
-          <RealtimeAutoConnect>{children}</RealtimeAutoConnect>
-        </RealtimeProvider>
+        <KeyboardProvider>
+          <RealtimeProvider>
+            <RealtimeAutoConnect>
+              <GlobalShortcuts />
+              <ShortcutsHelp />
+              {children}
+            </RealtimeAutoConnect>
+          </RealtimeProvider>
+        </KeyboardProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );
