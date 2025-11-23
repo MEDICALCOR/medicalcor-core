@@ -13,6 +13,7 @@
   "dependencies": {
     "@medicalcor/core": "workspace:*",
     "@medicalcor/domain": "workspace:*",
+    "@medicalcor/integrations": "workspace:*",
     "@medicalcor/types": "workspace:*",
     "@ducanh2912/next-pwa": "^10.2.9",
     "@hookform/resolvers": "^3.9.1",
