@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Stethoscope,
+  BarChart3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,7 @@ const navigation = [
   { name: 'Pacienți', href: '/patients', icon: Users },
   { name: 'Calendar', href: '/calendar', icon: Calendar },
   { name: 'Mesaje', href: '/messages', icon: MessageSquare },
+  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   { name: 'Setări', href: '/settings', icon: Settings },
 ];
 
