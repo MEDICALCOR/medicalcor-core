@@ -16,7 +16,7 @@ const withPWA = withPWAInit({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  transpilePackages: ['@medicalcor/core', '@medicalcor/domain', '@medicalcor/types'],
+  transpilePackages: ['@medicalcor/core', '@medicalcor/domain', '@medicalcor/types', '@medicalcor/integrations'],
   experimental: {
     serverActions: {
       bodySizeLimit: '2mb',

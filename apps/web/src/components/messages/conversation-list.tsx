@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, MessageSquare, Phone, Mail, Filter, Clock, CheckCheck } from 'lucide-react';
+import { Search, MessageSquare, Phone, Mail, Filter, CheckCheck } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import type { Conversation, MessageChannel, ConversationStatus } from '@/lib/messages';
+import type { Conversation } from '@/app/actions/get-patients';
+
+type MessageChannel = 'whatsapp' | 'sms' | 'email';
+type ConversationStatus = 'active' | 'waiting' | 'resolved' | 'archived';
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -62,7 +65,7 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
     if (
       search &&
       !conv.patientName.toLowerCase().includes(search.toLowerCase()) &&
-      !conv.patientPhone.includes(search)
+      !conv.phone.includes(search)
     ) {
       return false;
     }
@@ -193,28 +196,20 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
                   </div>
 
                   <div className="flex items-center gap-1 mt-0.5">
-                    {conv.lastMessage?.direction === 'OUT' && (
+                    {conv.lastMessage.direction === 'OUT' && (
                       <CheckCheck className="h-3 w-3 text-blue-500 shrink-0" />
                     )}
                     <p className="text-sm text-muted-foreground truncate">
-                      {conv.lastMessage?.content}
+                      {conv.lastMessage.content}
                     </p>
                   </div>
 
-                  {/* Tags and Status */}
+                  {/* Status indicator */}
                   <div className="flex items-center gap-1.5 mt-1.5">
                     <div className={cn('w-2 h-2 rounded-full', statusColors[conv.status])} />
-                    {conv.tags?.slice(0, 2).map((tag) => (
-                      <Badge key={tag} variant="secondary" className="text-[10px] px-1.5 py-0">
-                        {tag}
-                      </Badge>
-                    ))}
-                    {conv.assignedTo && (
-                      <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                        <Clock className="h-2.5 w-2.5" />
-                        {conv.assignedTo}
-                      </span>
-                    )}
+                    <span className="text-[10px] text-muted-foreground capitalize">
+                      {conv.status}
+                    </span>
                   </div>
                 </div>
               </div>

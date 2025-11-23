@@ -11,13 +11,13 @@ import {
   Check,
   CheckCheck,
   AlertCircle,
-  Bot,
   MessageSquare,
   Mail,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,13 +26,17 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import type { Conversation, Message, MessageStatus, MessageChannel } from '@/lib/messages';
+import type { Conversation, Message } from '@/app/actions/get-patients';
+
+type MessageStatus = 'sent' | 'delivered' | 'read' | 'failed';
+type MessageChannel = 'whatsapp' | 'sms' | 'email';
 
 interface ConversationViewProps {
   conversation: Conversation;
   messages: Message[];
   onSendMessage: (content: string) => void;
   onStatusChange?: (status: Conversation['status']) => void;
+  isLoading?: boolean;
 }
 
 const statusIcons: Record<MessageStatus, React.ElementType> = {
@@ -98,6 +102,7 @@ export function ConversationView({
   messages,
   onSendMessage,
   onStatusChange,
+  isLoading = false,
 }: ConversationViewProps) {
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -142,7 +147,7 @@ export function ConversationView({
                 {channelLabels[conversation.channel]}
               </Badge>
             </div>
-            <p className="text-sm text-muted-foreground">{conversation.patientPhone}</p>
+            <p className="text-sm text-muted-foreground">{conversation.phone}</p>
           </div>
         </div>
 
@@ -176,71 +181,72 @@ export function ConversationView({
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/30">
-        {Array.from(messageGroups.entries()).map(([dateKey, msgs]) => (
-          <div key={dateKey}>
-            {/* Date Header */}
-            <div className="flex justify-center mb-4">
-              <Badge variant="secondary" className="text-xs font-normal">
-                {formatDateHeader(msgs[0].timestamp)}
-              </Badge>
-            </div>
+        {isLoading ? (
+          <div className="space-y-3">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className={cn('flex', i % 2 === 0 ? 'justify-end' : 'justify-start')}>
+                <Skeleton className="h-16 w-[60%] rounded-2xl" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          Array.from(messageGroups.entries()).map(([dateKey, msgs]) => (
+            <div key={dateKey}>
+              {/* Date Header */}
+              <div className="flex justify-center mb-4">
+                <Badge variant="secondary" className="text-xs font-normal">
+                  {formatDateHeader(msgs[0].timestamp)}
+                </Badge>
+              </div>
 
-            {/* Messages for this date */}
-            <div className="space-y-3">
-              {msgs.map((message) => {
-                const isOutgoing = message.direction === 'OUT';
-                const StatusIcon = statusIcons[message.status];
+              {/* Messages for this date */}
+              <div className="space-y-3">
+                {msgs.map((message) => {
+                  const isOutgoing = message.direction === 'OUT';
+                  const StatusIcon = statusIcons[message.status];
 
-                return (
-                  <div
-                    key={message.id}
-                    className={cn('flex', isOutgoing ? 'justify-end' : 'justify-start')}
-                  >
+                  return (
                     <div
-                      className={cn(
-                        'max-w-[70%] rounded-2xl px-4 py-2',
-                        isOutgoing
-                          ? 'bg-primary text-primary-foreground rounded-br-md'
-                          : 'bg-card border rounded-bl-md'
-                      )}
+                      key={message.id}
+                      className={cn('flex', isOutgoing ? 'justify-end' : 'justify-start')}
                     >
-                      {/* Automated message indicator */}
-                      {message.metadata?.isAutomated && (
-                        <div className="flex items-center gap-1 mb-1 text-xs opacity-70">
-                          <Bot className="h-3 w-3" />
-                          <span>Răspuns automat</span>
-                        </div>
-                      )}
-
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-
-                      {/* Footer with time and status */}
                       <div
                         className={cn(
-                          'flex items-center gap-1 mt-1 text-[10px]',
+                          'max-w-[70%] rounded-2xl px-4 py-2',
                           isOutgoing
-                            ? 'text-primary-foreground/70 justify-end'
-                            : 'text-muted-foreground'
+                            ? 'bg-primary text-primary-foreground rounded-br-md'
+                            : 'bg-card border rounded-bl-md'
                         )}
                       >
-                        <span>{formatMessageTime(message.timestamp)}</span>
-                        {isOutgoing && (
-                          <StatusIcon
-                            className={cn(
-                              'h-3 w-3',
-                              message.status === 'read' && 'text-blue-400',
-                              message.status === 'failed' && 'text-red-400'
-                            )}
-                          />
-                        )}
+                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+
+                        {/* Footer with time and status */}
+                        <div
+                          className={cn(
+                            'flex items-center gap-1 mt-1 text-[10px]',
+                            isOutgoing
+                              ? 'text-primary-foreground/70 justify-end'
+                              : 'text-muted-foreground'
+                          )}
+                        >
+                          <span>{formatMessageTime(message.timestamp)}</span>
+                          {isOutgoing && (
+                            <StatusIcon
+                              className={cn(
+                                'h-3 w-3',
+                                message.status === 'read' && 'text-blue-400'
+                              )}
+                            />
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
         <div ref={messagesEndRef} />
       </div>
 
