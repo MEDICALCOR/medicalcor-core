@@ -4,8 +4,9 @@ import { ThemeProvider } from 'next-themes';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { RealtimeProvider, useRealtimeConnection } from '@/lib/realtime';
+import { NotificationBridge } from '@/components/notifications';
 
-// Auto-connect component
+// Auto-connect and notification bridge
 function RealtimeAutoConnect({ children }: { children: React.ReactNode }) {
   const { connect } = useRealtimeConnection();
 
@@ -14,7 +15,12 @@ function RealtimeAutoConnect({ children }: { children: React.ReactNode }) {
     connect();
   }, [connect]);
 
-  return <>{children}</>;
+  return (
+    <>
+      <NotificationBridge />
+      {children}
+    </>
+  );
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
