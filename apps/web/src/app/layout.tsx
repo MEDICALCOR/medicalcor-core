@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/providers';
-import { Sidebar } from '@/components/layout/sidebar';
+import { Sidebar, SidebarProvider, MobileSidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -40,13 +40,16 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <Providers>
-          <div className="flex min-h-screen">
-            <Sidebar />
-            <div className="flex flex-1 flex-col pl-64 transition-all duration-300">
-              <Header />
-              <main className="flex-1 p-6">{children}</main>
+          <SidebarProvider>
+            <div className="flex min-h-screen">
+              <Sidebar />
+              <MobileSidebar />
+              <div className="flex flex-1 flex-col lg:pl-64 transition-all duration-300">
+                <Header />
+                <main className="flex-1 p-4 sm:p-6">{children}</main>
+              </div>
             </div>
-          </div>
+          </SidebarProvider>
         </Providers>
       </body>
     </html>
