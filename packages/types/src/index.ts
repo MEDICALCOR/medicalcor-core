@@ -91,6 +91,22 @@ export {
   type HubSpotTask,
 } from './hubspot.schema.js';
 
+// Patient/Lead schemas for Dashboard
+export {
+  PatientStatusSchema,
+  LeadClassificationSchema,
+  LeadSourceSchema,
+  PatientListItemSchema,
+  RecentLeadSchema,
+  DashboardStatsSchema,
+  type PatientStatus,
+  type LeadClassification,
+  type LeadSource,
+  type PatientListItem,
+  type RecentLead,
+  type DashboardStats,
+} from './patient.schema.js';
+
 // Domain events schemas
 export {
   EventBaseSchema,
