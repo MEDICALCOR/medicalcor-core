@@ -1,8 +1,9 @@
 'use client';
 
-import { Bell, Moon, Sun, User } from 'lucide-react';
+import { Moon, Sun, User } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
+import { ConnectionStatus, NotificationBell } from '@/components/realtime';
 
 export function Header() {
   const { theme, setTheme } = useTheme();
@@ -11,19 +12,14 @@ export function Header() {
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background/95 px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex items-center gap-4">
         <h1 className="text-lg font-semibold">MedicalCor Cortex</h1>
-        <div className="live-pulse pl-4">
-          <span className="text-sm text-emerald-600 dark:text-emerald-400">Live</span>
+        <div className="pl-4">
+          <ConnectionStatus />
         </div>
       </div>
 
       <div className="flex items-center gap-2">
-        {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
-            3
-          </span>
-        </Button>
+        {/* Real-time Notifications */}
+        <NotificationBell />
 
         {/* Theme toggle */}
         <Button
