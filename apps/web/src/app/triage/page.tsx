@@ -12,130 +12,37 @@ import {
   Thermometer,
   Snowflake,
   CheckCircle2,
+  Users,
 } from 'lucide-react';
 import Link from 'next/link';
+import { getTriageBoardAction } from '../actions/triage';
+import type { TriageColumn, TriageLead, TriageColumnId } from '@medicalcor/types';
 
-// Mock data - will be replaced with Server Actions querying domain_events
-const triageColumns = [
-  {
-    id: 'new',
-    title: 'Nou',
-    icon: Clock,
-    color: 'bg-gray-100 dark:bg-gray-800',
-    leads: [
-      {
-        id: '1',
-        phone: '+40721***001',
-        source: 'whatsapp',
-        time: '2 min',
-        message: 'Bună, vreau info implant',
-      },
-      {
-        id: '2',
-        phone: '+40722***002',
-        source: 'voice',
-        time: '8 min',
-        message: 'Apel incoming - în așteptare',
-      },
-    ],
-  },
-  {
-    id: 'hot',
-    title: 'HOT',
-    icon: Flame,
-    color: 'bg-red-50 dark:bg-red-950/30',
-    leads: [
-      {
-        id: '3',
-        phone: '+40723***003',
-        source: 'whatsapp',
-        time: '15 min',
-        score: 5,
-        confidence: 0.92,
-        reasoning: 'All-on-X interest + budget mentioned (10k EUR)',
-        procedureInterest: ['All-on-X', 'implant'],
-      },
-      {
-        id: '4',
-        phone: '+40724***004',
-        source: 'voice',
-        time: '32 min',
-        score: 5,
-        confidence: 0.88,
-        reasoning: 'Urgent pain + immediate appointment request',
-        procedureInterest: ['extraction', 'emergency'],
-      },
-    ],
-  },
-  {
-    id: 'warm',
-    title: 'WARM',
-    icon: Thermometer,
-    color: 'bg-amber-50 dark:bg-amber-950/30',
-    leads: [
-      {
-        id: '5',
-        phone: '+40725***005',
-        source: 'whatsapp',
-        time: '1h',
-        score: 3,
-        confidence: 0.75,
-        reasoning: 'General inquiry about dental services',
-        procedureInterest: ['cleaning', 'consultation'],
-      },
-    ],
-  },
-  {
-    id: 'cold',
-    title: 'COLD',
-    icon: Snowflake,
-    color: 'bg-blue-50 dark:bg-blue-950/30',
-    leads: [
-      {
-        id: '6',
-        phone: '+40726***006',
-        source: 'whatsapp',
-        time: '2h',
-        score: 2,
-        confidence: 0.65,
-        reasoning: 'Price comparison only',
-        procedureInterest: [],
-      },
-    ],
-  },
-  {
-    id: 'scheduled',
-    title: 'Programat',
-    icon: CheckCircle2,
-    color: 'bg-emerald-50 dark:bg-emerald-950/30',
-    leads: [
-      {
-        id: '7',
-        phone: '+40727***007',
-        source: 'whatsapp',
-        time: '3h',
-        score: 4,
-        appointment: 'Luni 10:00',
-        procedureInterest: ['implant'],
-      },
-    ],
-  },
-];
+/**
+ * Triage Page - Server Component
+ *
+ * Displays leads grouped by AI scoring classification.
+ * Data fetched from HubSpot via Server Actions.
+ */
 
-interface Lead {
-  id: string;
-  phone: string;
-  source: string;
-  time: string;
-  message?: string;
-  score?: number;
-  confidence?: number;
-  reasoning?: string;
-  procedureInterest?: string[];
-  appointment?: string;
-}
+// Icon mapping for columns
+const COLUMN_ICONS: Record<TriageColumnId, React.ElementType> = {
+  new: Clock,
+  hot: Flame,
+  warm: Thermometer,
+  cold: Snowflake,
+  scheduled: CheckCircle2,
+};
 
-function LeadCard({ lead, columnId }: { lead: Lead; columnId: string }) {
+const COLUMN_COLORS: Record<TriageColumnId, string> = {
+  new: 'bg-gray-100 dark:bg-gray-800',
+  hot: 'bg-red-50 dark:bg-red-950/30',
+  warm: 'bg-amber-50 dark:bg-amber-950/30',
+  cold: 'bg-blue-50 dark:bg-blue-950/30',
+  scheduled: 'bg-emerald-50 dark:bg-emerald-950/30',
+};
+
+function LeadCard({ lead, columnId }: { lead: TriageLead; columnId: TriageColumnId }) {
   const isScored = columnId !== 'new';
 
   return (
@@ -149,7 +56,7 @@ function LeadCard({ lead, columnId }: { lead: Lead; columnId: string }) {
               ) : (
                 <Phone className="h-4 w-4 text-blue-600" />
               )}
-              <span className="font-medium">{lead.phone}</span>
+              <span className="font-medium font-mono">{lead.phone}</span>
             </div>
             <span className="text-xs text-muted-foreground">{lead.time}</span>
           </div>
@@ -176,7 +83,7 @@ function LeadCard({ lead, columnId }: { lead: Lead; columnId: string }) {
 
               {lead.reasoning && (
                 <p className="text-xs text-muted-foreground italic line-clamp-2">
-                  "{lead.reasoning}"
+                  &quot;{lead.reasoning}&quot;
                 </p>
               )}
 
@@ -209,11 +116,12 @@ function LeadCard({ lead, columnId }: { lead: Lead; columnId: string }) {
   );
 }
 
-function TriageColumn({ column }: { column: (typeof triageColumns)[0] }) {
-  const Icon = column.icon;
+function TriageColumnComponent({ column }: { column: TriageColumn }) {
+  const Icon = COLUMN_ICONS[column.id];
+  const bgColor = COLUMN_COLORS[column.id];
 
   return (
-    <div className={`flex flex-col rounded-lg ${column.color} p-4`}>
+    <div className={`flex flex-col rounded-lg ${bgColor} p-4`}>
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Icon className="h-5 w-5" />
@@ -222,11 +130,18 @@ function TriageColumn({ column }: { column: (typeof triageColumns)[0] }) {
         <Badge variant="secondary">{column.leads.length}</Badge>
       </div>
 
-      <div className="flex flex-col gap-3">
-        {column.leads.map((lead) => (
-          <LeadCard key={lead.id} lead={lead} columnId={column.id} />
-        ))}
-      </div>
+      {column.leads.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+          <Users className="h-8 w-8 mb-2 opacity-50" />
+          <p className="text-sm">Niciun lead</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {column.leads.map((lead) => (
+            <LeadCard key={lead.id} lead={lead} columnId={column.id} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -242,6 +157,19 @@ function TriageBoardSkeleton() {
             <Skeleton className="h-32 w-full" />
           </div>
         </div>
+      ))}
+    </div>
+  );
+}
+
+// Async component for triage board
+async function TriageBoardSection() {
+  const columns = await getTriageBoardAction();
+
+  return (
+    <div className="grid grid-cols-1 gap-4 overflow-x-auto md:grid-cols-3 lg:grid-cols-5">
+      {columns.map((column) => (
+        <TriageColumnComponent key={column.id} column={column} />
       ))}
     </div>
   );
@@ -264,11 +192,7 @@ export default function TriagePage() {
       </div>
 
       <Suspense fallback={<TriageBoardSkeleton />}>
-        <div className="grid grid-cols-1 gap-4 overflow-x-auto md:grid-cols-3 lg:grid-cols-5">
-          {triageColumns.map((column) => (
-            <TriageColumn key={column.id} column={column} />
-          ))}
-        </div>
+        <TriageBoardSection />
       </Suspense>
     </div>
   );

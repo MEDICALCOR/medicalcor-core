@@ -107,6 +107,64 @@ export {
   type DashboardStats,
 } from './patient.schema.js';
 
+// Dashboard & UI schemas
+export {
+  // Triage
+  TriageColumnIdSchema,
+  TriageLeadSchema,
+  TriageColumnSchema,
+  // Calendar
+  AppointmentStatusSchema,
+  TimeSlotSchema,
+  DayScheduleSchema,
+  // Analytics
+  AnalyticsMetricsSchema,
+  TimeSeriesDataPointSchema,
+  LeadsBySourceSchema,
+  ConversionFunnelStepSchema,
+  TopProcedureSchema,
+  OperatorPerformanceSchema,
+  // Messages
+  MessageDirectionSchema,
+  MessageStatusSchema,
+  ConversationStatusSchema,
+  ConversationChannelSchema,
+  MessageSchema,
+  ConversationSchema,
+  // Patient Detail
+  PatientActivityTypeSchema,
+  PatientActivitySchema,
+  PatientAppointmentSchema,
+  PatientDocumentSchema,
+  PatientNoteSchema,
+  PatientDetailSchema,
+  // Types
+  type TriageColumnId,
+  type TriageLead,
+  type TriageColumn,
+  type AppointmentStatus,
+  type TimeSlot,
+  type DaySchedule,
+  type AnalyticsMetrics,
+  type TimeSeriesDataPoint,
+  type LeadsBySource,
+  type ConversionFunnelStep,
+  type TopProcedure,
+  type OperatorPerformance,
+  type MessageDirection,
+  type MessageStatus,
+  type ConversationStatus,
+  type ConversationChannel,
+  type Message,
+  type Conversation,
+  type PatientActivityType,
+  type PatientActivity,
+  type PatientAppointment,
+  type PatientDocument,
+  type PatientNote,
+  type PatientDetail,
+} from './dashboard.schema.js';
+
 // Domain events schemas
 export {
   EventBaseSchema,
