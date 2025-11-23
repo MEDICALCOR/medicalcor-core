@@ -1,0 +1,493 @@
+'use client';
+
+import { useState } from 'react';
+import {
+  Pill,
+  Plus,
+  Search,
+  Printer,
+  Send,
+  Eye,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Calendar,
+  User,
+  RefreshCw,
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { cn } from '@/lib/utils';
+
+interface Prescription {
+  id: string;
+  prescriptionNumber: string;
+  patientId: string;
+  patientName: string;
+  doctorName: string;
+  createdAt: Date;
+  validUntil: Date;
+  status: 'active' | 'dispensed' | 'expired' | 'cancelled';
+  medications: PrescriptionMedication[];
+  diagnosis?: string;
+  notes?: string;
+}
+
+interface PrescriptionMedication {
+  name: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  quantity: number;
+  instructions?: string;
+}
+
+const prescriptions: Prescription[] = [
+  {
+    id: 'rx1',
+    prescriptionNumber: 'RX-2024-001',
+    patientId: 'p1',
+    patientName: 'Ion Popescu',
+    doctorName: 'Dr. Maria Ionescu',
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+    validUntil: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000),
+    status: 'active',
+    diagnosis: 'Hipertensiune arterială',
+    medications: [
+      {
+        name: 'Amlodipină',
+        dosage: '5mg',
+        frequency: '1x/zi',
+        duration: '30 zile',
+        quantity: 30,
+        instructions: 'Dimineața, înainte de masă',
+      },
+      {
+        name: 'Aspirină',
+        dosage: '75mg',
+        frequency: '1x/zi',
+        duration: '30 zile',
+        quantity: 30,
+        instructions: 'Seara, după masă',
+      },
+    ],
+  },
+  {
+    id: 'rx2',
+    prescriptionNumber: 'RX-2024-002',
+    patientId: 'p2',
+    patientName: 'Maria Stan',
+    doctorName: 'Dr. Elena Dumitrescu',
+    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+    validUntil: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+    status: 'active',
+    diagnosis: 'Infecție respiratorie',
+    medications: [
+      {
+        name: 'Amoxicilină',
+        dosage: '500mg',
+        frequency: '3x/zi',
+        duration: '7 zile',
+        quantity: 21,
+      },
+      {
+        name: 'Paracetamol',
+        dosage: '500mg',
+        frequency: 'la nevoie',
+        duration: '7 zile',
+        quantity: 20,
+        instructions: 'Max 4 comprimate/zi',
+      },
+    ],
+  },
+  {
+    id: 'rx3',
+    prescriptionNumber: 'RX-2024-003',
+    patientId: 'p3',
+    patientName: 'Andrei Georgescu',
+    doctorName: 'Dr. Andrei Popa',
+    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+    validUntil: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+    status: 'dispensed',
+    medications: [
+      { name: 'Ibuprofen', dosage: '400mg', frequency: '2x/zi', duration: '5 zile', quantity: 10 },
+    ],
+  },
+  {
+    id: 'rx4',
+    prescriptionNumber: 'RX-2024-004',
+    patientId: 'p4',
+    patientName: 'Elena Dumitrescu',
+    doctorName: 'Dr. Maria Ionescu',
+    createdAt: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000),
+    validUntil: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+    status: 'expired',
+    medications: [
+      { name: 'Metformin', dosage: '850mg', frequency: '2x/zi', duration: '30 zile', quantity: 60 },
+    ],
+  },
+];
+
+const statusConfig = {
+  active: { label: 'Activă', color: 'bg-green-100 text-green-700', icon: CheckCircle },
+  dispensed: { label: 'Eliberată', color: 'bg-blue-100 text-blue-700', icon: CheckCircle },
+  expired: { label: 'Expirată', color: 'bg-gray-100 text-gray-700', icon: Clock },
+  cancelled: { label: 'Anulată', color: 'bg-red-100 text-red-700', icon: AlertTriangle },
+};
+
+export default function PrescriptionsPage() {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [medications, setMedications] = useState([
+    { name: '', dosage: '', frequency: '', duration: '', quantity: 1 },
+  ]);
+
+  const formatDate = (date: Date): string => {
+    return date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  const addMedication = () => {
+    setMedications([
+      ...medications,
+      { name: '', dosage: '', frequency: '', duration: '', quantity: 1 },
+    ]);
+  };
+
+  const filteredPrescriptions = prescriptions.filter((rx) => {
+    const matchesSearch =
+      searchQuery === '' ||
+      rx.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      rx.prescriptionNumber.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || rx.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const activeCount = prescriptions.filter((rx) => rx.status === 'active').length;
+  const expiringCount = prescriptions.filter((rx) => {
+    const daysUntilExpiry = Math.ceil(
+      (rx.validUntil.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+    );
+    return rx.status === 'active' && daysUntilExpiry <= 7 && daysUntilExpiry > 0;
+  }).length;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Pill className="h-6 w-6 text-primary" />
+            Rețete Electronice
+          </h1>
+          <p className="text-muted-foreground mt-1">Emite și gestionează rețetele medicale</p>
+        </div>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Rețetă nouă
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Emite rețetă electronică</DialogTitle>
+              <DialogDescription>Completează detaliile pentru rețeta medicală</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Pacient</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selectează pacient" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="p1">Ion Popescu - CNP: 1234567890123</SelectItem>
+                      <SelectItem value="p2">Maria Stan - CNP: 2345678901234</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Diagnostic</Label>
+                  <Input placeholder="ex: Hipertensiune arterială" />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-medium">Medicamente prescrise</Label>
+                  <Button variant="outline" size="sm" onClick={addMedication}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Adaugă
+                  </Button>
+                </div>
+
+                {medications.map((med, index) => (
+                  <div key={index} className="p-4 border rounded-lg space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Medicament {index + 1}</span>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Denumire</Label>
+                        <Input placeholder="ex: Amlodipină" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Dozaj</Label>
+                        <Input placeholder="ex: 5mg" />
+                      </div>
+                    </div>
+                    <div className="grid sm:grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Frecvență</Label>
+                        <Select>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selectează" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1x">1x/zi</SelectItem>
+                            <SelectItem value="2x">2x/zi</SelectItem>
+                            <SelectItem value="3x">3x/zi</SelectItem>
+                            <SelectItem value="prn">La nevoie</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Durată</Label>
+                        <Input placeholder="ex: 30 zile" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Cantitate</Label>
+                        <Input type="number" placeholder="30" />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Instrucțiuni</Label>
+                      <Input placeholder="ex: Dimineața, înainte de masă" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Observații</Label>
+                <Textarea placeholder="Observații suplimentare..." rows={2} />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  Anulează
+                </Button>
+                <Button variant="outline">
+                  <Eye className="h-4 w-4 mr-2" />
+                  Previzualizare
+                </Button>
+                <Button onClick={() => setIsDialogOpen(false)}>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Emite rețetă
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+              <Pill className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Total rețete</p>
+              <p className="text-xl font-bold">{prescriptions.length}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Active</p>
+              <p className="text-xl font-bold">{activeCount}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center">
+              <AlertTriangle className="h-5 w-5 text-yellow-600" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Expiră curând</p>
+              <p className="text-xl font-bold">{expiringCount}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+              <Calendar className="h-5 w-5 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Emise azi</p>
+              <p className="text-xl font-bold">
+                {
+                  prescriptions.filter(
+                    (rx) => rx.createdAt.toDateString() === new Date().toDateString()
+                  ).length
+                }
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <CardTitle>Rețete recente</CardTitle>
+            <div className="flex gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Caută..."
+                  className="pl-9 w-[180px]"
+                  value={searchQuery}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setSearchQuery(e.target.value)
+                  }
+                />
+              </div>
+              <Select
+                value={statusFilter}
+                onValueChange={(value: string) => setStatusFilter(value)}
+              >
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toate</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="dispensed">Eliberate</SelectItem>
+                  <SelectItem value="expired">Expirate</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {filteredPrescriptions.map((rx) => {
+              const StatusIcon = statusConfig[rx.status].icon;
+              const daysUntilExpiry = Math.ceil(
+                (rx.validUntil.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+              );
+              const isExpiringSoon =
+                rx.status === 'active' && daysUntilExpiry <= 7 && daysUntilExpiry > 0;
+
+              return (
+                <div key={rx.id} className="border rounded-lg">
+                  <div className="flex items-center justify-between p-4">
+                    <div className="flex items-center gap-4">
+                      <div
+                        className={cn(
+                          'w-10 h-10 rounded-lg flex items-center justify-center',
+                          statusConfig[rx.status].color.split(' ')[0]
+                        )}
+                      >
+                        <StatusIcon className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="font-medium">{rx.prescriptionNumber}</h4>
+                          <Badge className={cn('text-xs', statusConfig[rx.status].color)}>
+                            {statusConfig[rx.status].label}
+                          </Badge>
+                          {isExpiringSoon && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs text-yellow-600 border-yellow-300"
+                            >
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              Expiră în {daysUntilExpiry} zile
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground flex items-center gap-2">
+                          <User className="h-3 w-3" />
+                          {rx.patientName} • {rx.doctorName}
+                        </p>
+                        {rx.diagnosis && (
+                          <p className="text-xs text-muted-foreground mt-1">Dg: {rx.diagnosis}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right text-sm">
+                        <p>Emisă: {formatDate(rx.createdAt)}</p>
+                        <p className="text-muted-foreground">
+                          Valabilă: {formatDate(rx.validUntil)}
+                        </p>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon">
+                          <Printer className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon">
+                          <Send className="h-4 w-4" />
+                        </Button>
+                        {rx.status === 'active' && (
+                          <Button variant="ghost" size="icon">
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="px-4 pb-4 border-t pt-3">
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Medicamente ({rx.medications.length})
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {rx.medications.map((med, idx) => (
+                        <Badge key={idx} variant="outline" className="text-xs">
+                          <Pill className="h-3 w-3 mr-1" />
+                          {med.name} {med.dosage} - {med.frequency}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
