@@ -7,6 +7,7 @@ import { RealtimeProvider, useRealtimeConnection } from '@/lib/realtime';
 import { KeyboardProvider } from '@/lib/keyboard';
 import { NotificationBridge } from '@/components/notifications';
 import { ShortcutsHelp, GlobalShortcuts } from '@/components/keyboard';
+import { QuickSearchProvider } from '@/components/quick-search';
 
 // Auto-connect and notification bridge
 function RealtimeAutoConnect({ children }: { children: React.ReactNode }) {
@@ -44,9 +45,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <KeyboardProvider>
           <RealtimeProvider>
             <RealtimeAutoConnect>
-              <GlobalShortcuts />
-              <ShortcutsHelp />
-              {children}
+              <QuickSearchProvider>
+                <GlobalShortcuts />
+                <ShortcutsHelp />
+                {children}
+              </QuickSearchProvider>
             </RealtimeAutoConnect>
           </RealtimeProvider>
         </KeyboardProvider>
