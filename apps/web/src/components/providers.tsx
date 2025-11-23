@@ -8,6 +8,8 @@ import { KeyboardProvider } from '@/lib/keyboard';
 import { NotificationBridge } from '@/components/notifications';
 import { ShortcutsHelp, GlobalShortcuts } from '@/components/keyboard';
 import { QuickSearchProvider } from '@/components/quick-search';
+import { ServiceWorkerRegistration } from '@/components/pwa/service-worker-registration';
+import { I18nProvider } from '@/lib/i18n';
 
 // Auto-connect and notification bridge
 function RealtimeAutoConnect({ children }: { children: React.ReactNode }) {
@@ -42,17 +44,20 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-        <KeyboardProvider>
-          <RealtimeProvider>
-            <RealtimeAutoConnect>
-              <QuickSearchProvider>
-                <GlobalShortcuts />
-                <ShortcutsHelp />
-                {children}
-              </QuickSearchProvider>
-            </RealtimeAutoConnect>
-          </RealtimeProvider>
-        </KeyboardProvider>
+        <I18nProvider>
+          <KeyboardProvider>
+            <RealtimeProvider>
+              <RealtimeAutoConnect>
+                <QuickSearchProvider>
+                  <GlobalShortcuts />
+                  <ShortcutsHelp />
+                  <ServiceWorkerRegistration />
+                  {children}
+                </QuickSearchProvider>
+              </RealtimeAutoConnect>
+            </RealtimeProvider>
+          </KeyboardProvider>
+        </I18nProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

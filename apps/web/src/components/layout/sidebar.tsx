@@ -14,10 +14,16 @@ import {
   Stethoscope,
   BarChart3,
   Zap,
+  Menu,
+  X,
+  Upload,
+  FileText,
+  UserCog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, useEffect, createContext, useContext } from 'react';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -27,17 +33,133 @@ const navigation = [
   { name: 'Mesaje', href: '/messages', icon: MessageSquare },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   { name: 'Workflows', href: '/workflows', icon: Zap },
+  { name: 'Rapoarte', href: '/reports', icon: FileText },
+  { name: 'Import', href: '/import', icon: Upload },
+  { name: 'Utilizatori', href: '/users', icon: UserCog },
   { name: 'Setări', href: '/settings', icon: Settings },
 ];
 
-export function Sidebar() {
+// Context for sidebar state
+interface SidebarContextType {
+  isOpen: boolean;
+  setIsOpen: (open: boolean) => void;
+  isMobile: boolean;
+}
+
+const SidebarContext = createContext<SidebarContextType>({
+  isOpen: false,
+  setIsOpen: () => undefined,
+  isMobile: false,
+});
+
+export const useSidebar = () => useContext(SidebarContext);
+
+export function SidebarProvider({ children }: { children: React.ReactNode }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  return (
+    <SidebarContext.Provider value={{ isOpen, setIsOpen, isMobile }}>
+      {children}
+    </SidebarContext.Provider>
+  );
+}
+
+function SidebarNav({ collapsed, onLinkClick }: { collapsed?: boolean; onLinkClick?: () => void }) {
   const pathname = usePathname();
+
+  return (
+    <nav className="flex-1 space-y-1 p-2 overflow-y-auto">
+      {navigation.map((item) => {
+        const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+        return (
+          <Link
+            key={item.name}
+            href={item.href}
+            onClick={onLinkClick}
+            className={cn(
+              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+              isActive
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+            )}
+          >
+            <item.icon className="h-5 w-5 shrink-0" />
+            {!collapsed && <span>{item.name}</span>}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+// Mobile sidebar using Sheet component
+export function MobileSidebar() {
+  const { isOpen, setIsOpen } = useSidebar();
+
+  return (
+    <Sheet open={isOpen} onOpenChange={setIsOpen}>
+      <SheetContent side="left" className="w-72 p-0">
+        <div className="flex h-full flex-col">
+          {/* Logo */}
+          <div className="flex h-16 items-center justify-between border-b px-4">
+            <Link href="/" className="flex items-center gap-2" onClick={() => setIsOpen(false)}>
+              <Stethoscope className="h-8 w-8 text-primary" />
+              <span className="text-lg font-bold text-primary">Cortex</span>
+            </Link>
+            <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+
+          {/* Navigation */}
+          <SidebarNav onLinkClick={() => setIsOpen(false)} />
+
+          {/* Footer */}
+          <div className="border-t p-4">
+            <p className="text-xs text-muted-foreground text-center">MedicalCor Cortex v1.0</p>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+// Mobile menu trigger button
+export function MobileMenuTrigger() {
+  const { setIsOpen, isMobile } = useSidebar();
+
+  if (!isMobile) return null;
+
+  return (
+    <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setIsOpen(true)}>
+      <Menu className="h-5 w-5" />
+      <span className="sr-only">Deschide meniul</span>
+    </Button>
+  );
+}
+
+// Desktop sidebar
+export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const { isMobile } = useSidebar();
+
+  // Don't render on mobile - use MobileSidebar instead
+  if (isMobile) return null;
 
   return (
     <aside
       className={cn(
-        'fixed left-0 top-0 z-40 h-screen border-r bg-card transition-all duration-300',
+        'fixed left-0 top-0 z-40 h-screen border-r bg-card transition-all duration-300 hidden lg:block',
         collapsed ? 'w-16' : 'w-64'
       )}
     >
@@ -58,26 +180,7 @@ export function Sidebar() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 p-2">
-          {navigation.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                )}
-              >
-                <item.icon className="h-5 w-5 shrink-0" />
-                {!collapsed && <span>{item.name}</span>}
-              </Link>
-            );
-          })}
-        </nav>
+        <SidebarNav collapsed={collapsed} />
 
         {/* Collapse button */}
         <div className="border-t p-2">
