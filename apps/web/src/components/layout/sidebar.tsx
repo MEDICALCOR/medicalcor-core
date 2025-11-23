@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Stethoscope,
   BarChart3,
+  Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,7 @@ const navigation = [
   { name: 'Calendar', href: '/calendar', icon: Calendar },
   { name: 'Mesaje', href: '/messages', icon: MessageSquare },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { name: 'Workflows', href: '/workflows', icon: Zap },
   { name: 'Setări', href: '/settings', icon: Settings },
 ];
 
