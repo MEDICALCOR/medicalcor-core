@@ -9,10 +9,7 @@ import { tasks } from '@trigger.dev/sdk/v3';
  * Uses HMAC-SHA1 as per Twilio's specification
  * @see https://www.twilio.com/docs/usage/security#validating-requests
  */
-function verifyTwilioSignature(
-  request: FastifyRequest,
-  authToken: string
-): boolean {
+function verifyTwilioSignature(request: FastifyRequest, authToken: string): boolean {
   const signature = request.headers['x-twilio-signature'];
 
   if (!signature || typeof signature !== 'string') {
@@ -20,7 +17,7 @@ function verifyTwilioSignature(
   }
 
   // Get the full URL that Twilio called
-  const webhookUrl = process.env['TWILIO_WEBHOOK_URL'];
+  const webhookUrl = process.env.TWILIO_WEBHOOK_URL;
   if (!webhookUrl) {
     // Fall back to constructing URL from request (less secure)
     return false;
@@ -31,7 +28,7 @@ function verifyTwilioSignature(
   const sortedKeys = Object.keys(body).sort();
   let data = webhookUrl;
   for (const key of sortedKeys) {
-    data += key + body[key];
+    data += key + (body[key] ?? '');
   }
 
   // Calculate expected signature
@@ -42,10 +39,7 @@ function verifyTwilioSignature(
 
   // Use timing-safe comparison
   try {
-    return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature)
-    );
+    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
   } catch {
     // Buffers have different lengths - signature is invalid
     return false;
@@ -70,17 +64,20 @@ export const voiceWebhookRoutes: FastifyPluginAsync = (fastify) => {
 
     try {
       // SECURITY: Verify Twilio signature
-      const authToken = process.env['TWILIO_AUTH_TOKEN'];
+      const authToken = process.env.TWILIO_AUTH_TOKEN;
       if (authToken) {
         if (!verifyTwilioSignature(request, authToken)) {
           fastify.log.warn({ correlationId }, 'Invalid Twilio signature on voice webhook');
           return await reply.status(403).send({ error: 'Invalid signature' });
         }
-      } else if (process.env['NODE_ENV'] === 'production') {
+      } else if (process.env.NODE_ENV === 'production') {
         fastify.log.error({ correlationId }, 'TWILIO_AUTH_TOKEN not configured in production');
         return await reply.status(500).send({ error: 'Server configuration error' });
       } else {
-        fastify.log.warn({ correlationId }, 'TWILIO_AUTH_TOKEN not configured - skipping signature verification in development');
+        fastify.log.warn(
+          { correlationId },
+          'TWILIO_AUTH_TOKEN not configured - skipping signature verification in development'
+        );
       }
 
       // Twilio sends form-urlencoded data
@@ -127,11 +124,28 @@ export const voiceWebhookRoutes: FastifyPluginAsync = (fastify) => {
         );
       });
 
-      // Return TwiML response immediately (Twilio requires quick response)
+      // Return TwiML response with Vapi.ai streaming handoff
+      const vapiAssistantId = process.env.VAPI_ASSISTANT_ID;
+
+      if (!vapiAssistantId) {
+        fastify.log.error({ correlationId }, 'CRITICAL: VAPI_ASSISTANT_ID not configured');
+        // Fallback to polite error message
+        const fallbackTwiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say>We apologize, but our voice assistant is temporarily unavailable. Please try again later or contact us through our website.</Say>
+</Response>`;
+        return await reply.header('Content-Type', 'application/xml').send(fallbackTwiml);
+      }
+
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say>Thank you for calling. Please hold while we connect you.</Say>
-  <Pause length="2"/>
+    <Connect>
+        <Stream url="wss://api.vapi.ai/pull">
+            <Parameter name="assistantId" value="${vapiAssistantId}" />
+            <Parameter name="customerPhoneNumber" value="${webhook.From}" />
+            <Parameter name="callSid" value="${webhook.CallSid}" />
+        </Stream>
+    </Connect>
 </Response>`;
 
       return await reply.header('Content-Type', 'application/xml').send(twiml);
@@ -153,13 +167,13 @@ export const voiceWebhookRoutes: FastifyPluginAsync = (fastify) => {
 
     try {
       // SECURITY: Verify Twilio signature
-      const authToken = process.env['TWILIO_AUTH_TOKEN'];
+      const authToken = process.env.TWILIO_AUTH_TOKEN;
       if (authToken) {
         if (!verifyTwilioSignature(request, authToken)) {
           fastify.log.warn({ correlationId }, 'Invalid Twilio signature on status webhook');
           return await reply.status(403).send({ error: 'Invalid signature' });
         }
-      } else if (process.env['NODE_ENV'] === 'production') {
+      } else if (process.env.NODE_ENV === 'production') {
         fastify.log.error({ correlationId }, 'TWILIO_AUTH_TOKEN not configured in production');
         return await reply.status(500).send({ error: 'Server configuration error' });
       }
