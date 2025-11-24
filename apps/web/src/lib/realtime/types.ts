@@ -17,7 +17,8 @@ export type RealtimeEventType =
   | 'task.created'
   | 'task.completed'
   | 'urgency.new'
-  | 'urgency.resolved';
+  | 'urgency.resolved'
+  | 'auth_error';
 
 export interface RealtimeEvent<T = unknown> {
   id: string;

@@ -4,10 +4,20 @@ import {
   normalizeRomanianPhone,
   createEventStore,
   createInMemoryEventStore,
+  createDatabaseClient,
   LeadContextBuilder,
 } from '@medicalcor/core';
-import { createHubSpotClient, createWhatsAppClient, createOpenAIClient } from '@medicalcor/integrations';
-import { createScoringService } from '@medicalcor/domain';
+import {
+  createHubSpotClient,
+  createWhatsAppClient,
+  createOpenAIClient,
+} from '@medicalcor/integrations';
+import {
+  createScoringService,
+  createPersistentConsentService,
+  createConsentService,
+  type ConsentService,
+} from '@medicalcor/domain';
 
 /**
  * WhatsApp Message Handler Task
@@ -22,7 +32,7 @@ import { createScoringService } from '@medicalcor/domain';
  * 6. Emit domain event
  */
 
-const WhatsAppMessagePayloadSchema = z.object({
+export const WhatsAppMessagePayloadSchema = z.object({
   message: z.object({
     id: z.string(),
     from: z.string(),
@@ -34,10 +44,12 @@ const WhatsAppMessagePayloadSchema = z.object({
     display_phone_number: z.string(),
     phone_number_id: z.string(),
   }),
-  contact: z.object({
-    profile: z.object({ name: z.string() }),
-    wa_id: z.string(),
-  }).optional(),
+  contact: z
+    .object({
+      profile: z.object({ name: z.string() }),
+      wa_id: z.string(),
+    })
+    .optional(),
   correlationId: z.string(),
 });
 
@@ -51,22 +63,19 @@ function getClients() {
   const openaiApiKey = process.env.OPENAI_API_KEY;
   const databaseUrl = process.env.DATABASE_URL;
 
-  const hubspot = hubspotToken
-    ? createHubSpotClient({ accessToken: hubspotToken })
-    : null;
+  const hubspot = hubspotToken ? createHubSpotClient({ accessToken: hubspotToken }) : null;
 
   const webhookSecret = process.env.WHATSAPP_WEBHOOK_SECRET;
-  const whatsapp = whatsappApiKey && whatsappPhoneNumberId
-    ? createWhatsAppClient({
-        apiKey: whatsappApiKey,
-        phoneNumberId: whatsappPhoneNumberId,
-        ...(webhookSecret && { webhookSecret }),
-      })
-    : null;
+  const whatsapp =
+    whatsappApiKey && whatsappPhoneNumberId
+      ? createWhatsAppClient({
+          apiKey: whatsappApiKey,
+          phoneNumberId: whatsappPhoneNumberId,
+          ...(webhookSecret && { webhookSecret }),
+        })
+      : null;
 
-  const openai = openaiApiKey
-    ? createOpenAIClient({ apiKey: openaiApiKey })
-    : null;
+  const openai = openaiApiKey ? createOpenAIClient({ apiKey: openaiApiKey }) : null;
 
   const scoring = createScoringService({
     openaiApiKey: openaiApiKey ?? '',
@@ -77,7 +86,17 @@ function getClients() {
     ? createEventStore({ source: 'whatsapp-handler', connectionString: databaseUrl })
     : createInMemoryEventStore('whatsapp-handler');
 
-  return { hubspot, whatsapp, openai, scoring, eventStore };
+  // GDPR Consent Service - uses PostgreSQL if DATABASE_URL is configured
+  // Falls back to in-memory for development (with warning)
+  let consent: ConsentService;
+  if (databaseUrl) {
+    const db = createDatabaseClient(databaseUrl);
+    consent = createPersistentConsentService(db);
+  } else {
+    consent = createConsentService();
+  }
+
+  return { hubspot, whatsapp, openai, scoring, eventStore, consent };
 }
 
 export const handleWhatsAppMessage = task({
@@ -90,7 +109,7 @@ export const handleWhatsAppMessage = task({
   },
   run: async (payload: WhatsAppMessagePayload) => {
     const { message, metadata, contact, correlationId } = payload;
-    const { hubspot, whatsapp, openai, scoring, eventStore } = getClients();
+    const { hubspot, whatsapp, openai, scoring, eventStore, consent } = getClients();
 
     logger.info('Processing WhatsApp message', {
       messageId: message.id,
@@ -120,8 +139,8 @@ export const handleWhatsAppMessage = task({
       waInput.contact = { name: contact.profile.name, wa_id: contact.wa_id };
     }
 
-    const leadContextBuilder = LeadContextBuilder.fromWhatsApp(waInput)
-      .withCorrelationId(correlationId);
+    const leadContextBuilder =
+      LeadContextBuilder.fromWhatsApp(waInput).withCorrelationId(correlationId);
 
     const phoneResult = normalizeRomanianPhone(message.from);
     const normalizedPhone = phoneResult.normalized;
@@ -164,6 +183,95 @@ export const handleWhatsAppMessage = task({
       }
     }
 
+    // Step 3.5: GDPR Consent Check & Recording
+    // Check if this message is a consent response (da/nu/yes/no/stop)
+    const messageBody = message.text?.body ?? '';
+    const consentResponse = consent.parseConsentFromMessage(messageBody);
+
+    if (consentResponse && hubspotContactId) {
+      // User is responding to consent request - record their response
+      const consentStatus = consentResponse.granted ? 'granted' : 'denied';
+      try {
+        for (const consentType of consentResponse.consentTypes) {
+          await consent.recordConsent({
+            contactId: hubspotContactId,
+            phone: normalizedPhone,
+            consentType,
+            status: consentStatus,
+            source: {
+              channel: 'whatsapp',
+              method: 'explicit',
+              evidenceUrl: null,
+              witnessedBy: null,
+            },
+          });
+        }
+        logger.info('Consent recorded from message', {
+          status: consentStatus,
+          types: consentResponse.consentTypes,
+          correlationId,
+        });
+
+        // Send confirmation message
+        if (whatsapp) {
+          const confirmationMsg = consentResponse.granted
+            ? 'Mulțumim! Consimțământul dumneavoastră a fost înregistrat. Putem continua conversația.'
+            : 'Am înregistrat preferința dumneavoastră. Nu vă vom mai trimite mesaje promoționale.';
+          await whatsapp.sendText({ to: normalizedPhone, text: confirmationMsg });
+        }
+
+        // If consent was denied, stop processing further
+        if (!consentResponse.granted) {
+          return {
+            success: true,
+            messageId: message.id,
+            normalizedPhone,
+            hubspotContactId,
+            consentDenied: true,
+          };
+        }
+      } catch (err) {
+        logger.error('Failed to record consent', { err, correlationId });
+      }
+    } else if (hubspotContactId) {
+      // Check if we have valid consent for data processing
+      const hasValidConsent = await consent.hasValidConsent(hubspotContactId, 'data_processing');
+
+      if (!hasValidConsent) {
+        // Check if this is first contact - we need to request consent
+        const existingConsent = await consent.getConsent(hubspotContactId, 'data_processing');
+
+        if (!existingConsent || existingConsent.status === 'pending') {
+          // First contact or pending - send consent request
+          logger.info('No valid consent found, requesting consent', { correlationId });
+
+          if (whatsapp) {
+            const consentMessage = consent.generateConsentMessage('ro');
+            await whatsapp.sendText({ to: normalizedPhone, text: consentMessage });
+
+            // Record pending consent
+            await consent.recordConsent({
+              contactId: hubspotContactId,
+              phone: normalizedPhone,
+              consentType: 'data_processing',
+              status: 'pending',
+              source: {
+                channel: 'whatsapp',
+                method: 'explicit',
+                evidenceUrl: null,
+                witnessedBy: null,
+              },
+            });
+          }
+
+          // Continue processing for initial messages but log the consent status
+          logger.warn('Processing message without explicit consent - consent requested', {
+            correlationId,
+          });
+        }
+      }
+    }
+
     // Step 4: AI Scoring - Build final LeadContext
     if (hubspotContactId) {
       leadContextBuilder.withHubSpotContact(hubspotContactId);
@@ -197,7 +305,10 @@ export const handleWhatsAppMessage = task({
             priority: 'HIGH',
             dueDate: new Date(Date.now() + 30 * 60 * 1000), // Due in 30 minutes during business hours
           });
-          logger.info('Created priority request task', { contactId: hubspotContactId, correlationId });
+          logger.info('Created priority request task', {
+            contactId: hubspotContactId,
+            correlationId,
+          });
         } catch (err) {
           logger.error('Failed to create HubSpot task', { err, correlationId });
         }
@@ -211,10 +322,12 @@ export const handleWhatsAppMessage = task({
             templateName: 'hot_lead_acknowledgment',
             language: 'ro',
             ...(contact?.profile.name && {
-              components: [{
-                type: 'body' as const,
-                parameters: [{ type: 'text' as const, text: contact.profile.name }],
-              }],
+              components: [
+                {
+                  type: 'body' as const,
+                  parameters: [{ type: 'text' as const, text: contact.profile.name }],
+                },
+              ],
             }),
           };
           await whatsapp.sendTemplate(templateOptions);
@@ -297,15 +410,19 @@ export const handleWhatsAppMessage = task({
  * WhatsApp Status Handler Task
  * Processes message delivery status updates
  */
-const WhatsAppStatusPayloadSchema = z.object({
+export const WhatsAppStatusPayloadSchema = z.object({
   messageId: z.string(),
   status: z.string(),
   recipientId: z.string(),
   timestamp: z.string(),
-  errors: z.array(z.object({
-    code: z.number(),
-    title: z.string(),
-  })).optional(),
+  errors: z
+    .array(
+      z.object({
+        code: z.number(),
+        title: z.string(),
+      })
+    )
+    .optional(),
   correlationId: z.string(),
 });
 

@@ -10,6 +10,7 @@
 import { createLogger, type Logger } from '@medicalcor/core';
 import type { ConsentRepository } from './consent-repository.js';
 import { InMemoryConsentRepository } from './consent-repository.js';
+import { PostgresConsentRepository } from './postgres-consent-repository.js';
 
 export type ConsentType =
   | 'data_processing' // General data processing consent
@@ -472,5 +473,47 @@ Sie können Ihre Zustimmung jederzeit widerrufen, indem Sie "STOP" antworten.`,
  * const service = createConsentService();
  */
 export function createConsentService(options?: ConsentServiceOptions): ConsentService {
+  return new ConsentService(options);
+}
+
+/**
+ * Database client interface for PostgresConsentRepository
+ */
+export interface ConsentDatabaseClient {
+  query(sql: string, params?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
+}
+
+/**
+ * Create a consent service with PostgreSQL persistence
+ * This is the recommended way to create a consent service for production use.
+ *
+ * @param db - Database client (from createDatabaseClient())
+ * @param config - Optional consent configuration overrides
+ * @returns ConsentService with PostgreSQL persistence
+ *
+ * @example
+ * ```typescript
+ * import { createDatabaseClient } from '@medicalcor/core';
+ * import { createPersistentConsentService } from '@medicalcor/domain';
+ *
+ * const db = createDatabaseClient();
+ * const consentService = createPersistentConsentService(db);
+ *
+ * // Check if user has valid consent
+ * const hasConsent = await consentService.hasValidConsent(contactId, 'data_processing');
+ * ```
+ */
+export function createPersistentConsentService(
+  db: ConsentDatabaseClient,
+  config?: Partial<ConsentConfig>
+): ConsentService {
+  // Use PostgresConsentRepository with the provided database client
+  const repository = new PostgresConsentRepository(db);
+
+  const options: ConsentServiceOptions = { repository };
+  if (config) {
+    options.config = config;
+  }
+
   return new ConsentService(options);
 }
