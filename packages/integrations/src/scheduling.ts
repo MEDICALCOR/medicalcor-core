@@ -1,4 +1,56 @@
+import { z } from 'zod';
 import { withRetry, ExternalServiceError, RateLimitError } from '@medicalcor/core';
+
+/**
+ * Input validation schemas for Scheduling service
+ */
+const PhoneSchema = z.string().min(10).max(20);
+const EmailSchema = z.string().email().optional();
+
+const BookAppointmentInputSchema = z.object({
+  slotId: z.string().min(1),
+  patientPhone: PhoneSchema,
+  patientName: z.string().min(1).max(256).optional(),
+  patientEmail: EmailSchema,
+  procedureType: z.string().min(1).max(128),
+  notes: z.string().max(2000).optional(),
+  hubspotContactId: z.string().optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
+
+const GetAvailableSlotsOptionsSchema = z.object({
+  procedureType: z.string().min(1).max(128),
+  preferredDates: z.array(z.string()).optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  practitionerId: z.string().optional(),
+  locationId: z.string().optional(),
+  limit: z.number().int().min(1).max(100).optional(),
+});
+
+const CancelAppointmentInputSchema = z.object({
+  appointmentId: z.string().min(1),
+  reason: z.string().max(1000).optional(),
+  notifyPatient: z.boolean().optional(),
+});
+
+const RescheduleAppointmentInputSchema = z.object({
+  appointmentId: z.string().min(1),
+  newSlotId: z.string().min(1),
+  reason: z.string().max(1000).optional(),
+  notifyPatient: z.boolean().optional(),
+});
+
+const SchedulingServiceConfigSchema = z.object({
+  apiUrl: z.string().url(),
+  apiKey: z.string().min(1),
+  clinicId: z.string().optional(),
+  defaultTimezone: z.string().optional(),
+  retryConfig: z.object({
+    maxRetries: z.number().int().min(0).max(10),
+    baseDelayMs: z.number().int().min(100).max(30000),
+  }).optional(),
+});
 
 /**
  * Scheduling Service Integration
@@ -102,14 +154,18 @@ export class SchedulingService {
   private baseUrl: string;
 
   constructor(config: SchedulingServiceConfig) {
-    this.config = config;
-    this.baseUrl = config.apiUrl;
+    // Validate config at construction time
+    const validatedConfig = SchedulingServiceConfigSchema.parse(config);
+    this.config = validatedConfig;
+    this.baseUrl = validatedConfig.apiUrl;
   }
 
   /**
    * Get available appointment slots
    */
   async getAvailableSlots(options: GetAvailableSlotsOptions): Promise<TimeSlot[]> {
+    // Validate input
+    const validated = GetAvailableSlotsOptionsSchema.parse(options);
     const {
       procedureType,
       preferredDates,
@@ -118,7 +174,7 @@ export class SchedulingService {
       practitionerId,
       locationId,
       limit = 5,
-    } = options;
+    } = validated;
 
     // Build query parameters
     const params = new URLSearchParams({
@@ -170,6 +226,8 @@ export class SchedulingService {
    * Book an appointment
    */
   async bookAppointment(input: BookAppointmentInput): Promise<Appointment> {
+    // Validate input
+    const validated = BookAppointmentInputSchema.parse(input);
     const {
       slotId,
       patientPhone,
@@ -179,7 +237,7 @@ export class SchedulingService {
       notes,
       hubspotContactId,
       metadata,
-    } = input;
+    } = validated;
 
     return this.request<Appointment>('/api/v1/appointments', {
       method: 'POST',
@@ -219,7 +277,9 @@ export class SchedulingService {
    * Cancel an appointment
    */
   async cancelAppointment(input: CancelAppointmentInput): Promise<Appointment> {
-    const { appointmentId, reason, notifyPatient = true } = input;
+    // Validate input
+    const validated = CancelAppointmentInputSchema.parse(input);
+    const { appointmentId, reason, notifyPatient = true } = validated;
 
     return this.request<Appointment>(`/api/v1/appointments/${appointmentId}/cancel`, {
       method: 'POST',
@@ -234,7 +294,9 @@ export class SchedulingService {
    * Reschedule an appointment
    */
   async rescheduleAppointment(input: RescheduleAppointmentInput): Promise<Appointment> {
-    const { appointmentId, newSlotId, reason, notifyPatient = true } = input;
+    // Validate input
+    const validated = RescheduleAppointmentInputSchema.parse(input);
+    const { appointmentId, newSlotId, reason, notifyPatient = true } = validated;
 
     return this.request<Appointment>(`/api/v1/appointments/${appointmentId}/reschedule`, {
       method: 'POST',
@@ -350,7 +412,15 @@ export class SchedulingService {
 
       if (!response.ok) {
         const errorBody = await response.text();
-        throw new ExternalServiceError('SchedulingService', `${response.status}: ${errorBody}`);
+        // Log full error internally (may contain PII) but don't expose in exception
+        console.error('[SchedulingService] API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          url: path,
+          errorBody, // May contain PII - only for internal logs
+        });
+        // Throw generic error without PII
+        throw new ExternalServiceError('SchedulingService', `Request failed with status ${response.status}`);
       }
 
       return response.json() as Promise<T>;
