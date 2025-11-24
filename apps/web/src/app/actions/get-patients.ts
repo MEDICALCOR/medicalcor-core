@@ -1333,17 +1333,27 @@ export async function getConversationsActionPaginated(options?: {
  * Fetches messages for a conversation
  * Requires WhatsApp Business API or database integration to store message history.
  * Currently returns empty array until messaging storage is implemented.
+ * @requires VIEW_MESSAGES permission
  */
 export async function getMessagesAction(_conversationId: string): Promise<Message[]> {
-  // Real implementation requires:
-  // 1. WhatsApp Business API integration to fetch message history
-  // 2. Or a database table to store incoming/outgoing messages
-  // Currently no messaging storage is configured
+  try {
+    // Authorization check - verify user has VIEW_MESSAGES permission
+    await requirePermission('VIEW_MESSAGES');
 
-  await Promise.resolve(); // Async operation placeholder
+    // Real implementation requires:
+    // 1. WhatsApp Business API integration to fetch message history
+    // 2. Or a database table to store incoming/outgoing messages
+    // Currently no messaging storage is configured
 
-  // Return empty array - no message data available without messaging service integration
-  return [];
+    // Return empty array - no message data available without messaging service integration
+    return [];
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      throw error; // Re-throw auth errors to be handled by UI
+    }
+    console.error('[getMessagesAction] Failed to fetch messages:', error);
+    return [];
+  }
 }
 
 // ============================================================================
