@@ -151,15 +151,6 @@ describe('TriageService', () => {
   });
 
   describe('getNotificationContacts', () => {
-    it('should return doctor and manager for critical', () => {
-      const contacts = service.getNotificationContacts('critical');
-      expect(contacts).toContain('on-call-doctor');
-      expect(contacts).toContain('clinic-manager');
-    });
-
-    it('should return supervisor for high', () => {
-      const contacts = service.getNotificationContacts('high');
-      expect(contacts).toContain('shift-supervisor');
     it('should return scheduling team for high_priority', () => {
       const contacts = service.getNotificationContacts('high_priority');
       expect(contacts).toContain('scheduling-team');

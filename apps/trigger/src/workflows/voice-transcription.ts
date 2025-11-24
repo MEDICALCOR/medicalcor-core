@@ -288,14 +288,16 @@ export const processPostCall = task({
           });
         }
 
-        // Create high-priority task for HOT leads or critical/high urgency
+        // Create priority task for HOT leads or high_priority/high urgency
         if (
           (scoreResult?.classification === 'HOT' ||
             summary?.urgencyLevel === 'critical' ||
+            summary?.urgencyLevel === 'high' ||
+            triageResult?.urgencyLevel === 'high_priority' ||
             triageResult?.urgencyLevel === 'high') &&
           triageResult
         ) {
-          // Get notification contacts for urgent cases
+          // Get notification contacts for priority cases
           const notificationContacts = triage.getNotificationContacts(triageResult.urgencyLevel);
           const taskBody = buildTaskBody(summary, scoreResult, triageResult, aiSummary);
           const contactsInfo =
@@ -303,16 +305,16 @@ export const processPostCall = task({
 
           await hubspot.createTask({
             contactId: hubspotContactId,
-            subject: `${triageResult.urgencyLevel === 'critical' ? 'URGENT' : triageResult.urgencyLevel === 'high' ? 'HIGH PRIORITY' : 'HOT'} VOICE: ${customerName ?? normalizedPhone}`,
-            body: `${taskBody}${contactsInfo}`,
-            priority: triageResult.urgencyLevel === 'critical' ? 'HIGH' : 'MEDIUM',
+            subject: `${triageResult.urgencyLevel === 'high_priority' ? 'PRIORITY REQUEST' : 'HIGH PRIORITY'} - Voice: ${customerName ?? normalizedPhone}`,
+            body: `${triageResult.urgencyLevel === 'high_priority' ? 'Patient reported discomfort. Wants quick appointment.\n\n' : ''}${taskBody}${contactsInfo}`,
+            priority: triageResult.urgencyLevel === 'high_priority' ? 'HIGH' : 'MEDIUM',
             dueDate:
-              triageResult.routingRecommendation === 'immediate_callback'
-                ? new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
+              triageResult.routingRecommendation === 'next_available_slot'
+                ? new Date(Date.now() + 30 * 60 * 1000) // 30 minutes during business hours
                 : new Date(Date.now() + 60 * 60 * 1000), // 1 hour
           });
 
-          logger.info('High-priority task created', {
+          logger.info('Priority task created', {
             hubspotContactId,
             notificationContacts,
             correlationId,
