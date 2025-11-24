@@ -44,31 +44,47 @@ export interface EventPublisher {
   publish(event: StoredEvent): Promise<void>;
 }
 
+/** Internal type for PostgreSQL row mapping */
+interface PostgresRow {
+  id: string;
+  type: string;
+  aggregate_id: string | null;
+  aggregate_type: string | null;
+  version: number | null;
+  payload: Record<string, unknown>;
+  correlation_id: string;
+  causation_id: string | null;
+  idempotency_key: string;
+  timestamp: Date;
+  source: string;
+}
+
 /**
  * In-memory event store implementation (for development/testing)
  */
 export class InMemoryEventStore implements EventStoreRepository {
   private events: StoredEvent[] = [];
 
-  async append(event: StoredEvent): Promise<void> {
+  append(event: StoredEvent): Promise<void> {
     this.events.push(event);
+    return Promise.resolve();
   }
 
-  async getByCorrelationId(correlationId: string): Promise<StoredEvent[]> {
-    return this.events.filter(e => e.metadata.correlationId === correlationId);
+  getByCorrelationId(correlationId: string): Promise<StoredEvent[]> {
+    return Promise.resolve(this.events.filter((e) => e.metadata.correlationId === correlationId));
   }
 
-  async getByAggregateId(aggregateId: string, afterVersion?: number): Promise<StoredEvent[]> {
-    return this.events
-      .filter(e => e.aggregateId === aggregateId)
-      .filter(e => afterVersion === undefined || (e.version ?? 0) > afterVersion)
-      .sort((a, b) => (a.version ?? 0) - (b.version ?? 0));
+  getByAggregateId(aggregateId: string, afterVersion?: number): Promise<StoredEvent[]> {
+    return Promise.resolve(
+      this.events
+        .filter((e) => e.aggregateId === aggregateId)
+        .filter((e) => afterVersion === undefined || (e.version ?? 0) > afterVersion)
+        .sort((a, b) => (a.version ?? 0) - (b.version ?? 0))
+    );
   }
 
-  async getByType(type: string, limit = 100): Promise<StoredEvent[]> {
-    return this.events
-      .filter(e => e.type === type)
-      .slice(-limit);
+  getByType(type: string, limit = 100): Promise<StoredEvent[]> {
+    return Promise.resolve(this.events.filter((e) => e.type === type).slice(-limit));
   }
 
   // For testing
@@ -173,11 +189,12 @@ export class PostgresEventStore implements EventStoreRepository {
     const client = await (this.pool as { connect: () => Promise<unknown> }).connect();
 
     try {
-      const result = await (client as { query: (sql: string, params: unknown[]) => Promise<{ rows: unknown[] }> }).query(
-        `SELECT * FROM ${this.tableName} WHERE correlation_id = $1 ORDER BY timestamp ASC`,
-        [correlationId]
-      );
-      return result.rows.map((row) => this.rowToEvent(row as Record<string, unknown>));
+      const result = await (
+        client as { query: (sql: string, params: unknown[]) => Promise<{ rows: unknown[] }> }
+      ).query(`SELECT * FROM ${this.tableName} WHERE correlation_id = $1 ORDER BY timestamp ASC`, [
+        correlationId,
+      ]);
+      return result.rows.map((row) => this.rowToEvent(row as PostgresRow));
     } finally {
       (client as { release: () => void }).release();
     }
@@ -197,8 +214,10 @@ export class PostgresEventStore implements EventStoreRepository {
 
       sql += ` ORDER BY version ASC`;
 
-      const result = await (client as { query: (sql: string, params: unknown[]) => Promise<{ rows: unknown[] }> }).query(sql, params);
-      return result.rows.map((row) => this.rowToEvent(row as Record<string, unknown>));
+      const result = await (
+        client as { query: (sql: string, params: unknown[]) => Promise<{ rows: unknown[] }> }
+      ).query(sql, params);
+      return result.rows.map((row) => this.rowToEvent(row as PostgresRow));
     } finally {
       (client as { release: () => void }).release();
     }
@@ -208,31 +227,33 @@ export class PostgresEventStore implements EventStoreRepository {
     const client = await (this.pool as { connect: () => Promise<unknown> }).connect();
 
     try {
-      const result = await (client as { query: (sql: string, params: unknown[]) => Promise<{ rows: unknown[] }> }).query(
-        `SELECT * FROM ${this.tableName} WHERE type = $1 ORDER BY timestamp DESC LIMIT $2`,
-        [type, limit]
-      );
-      return result.rows.map((row) => this.rowToEvent(row as Record<string, unknown>));
+      const result = await (
+        client as { query: (sql: string, params: unknown[]) => Promise<{ rows: unknown[] }> }
+      ).query(`SELECT * FROM ${this.tableName} WHERE type = $1 ORDER BY timestamp DESC LIMIT $2`, [
+        type,
+        limit,
+      ]);
+      return result.rows.map((row) => this.rowToEvent(row as PostgresRow));
     } finally {
       (client as { release: () => void }).release();
     }
   }
 
-  private rowToEvent(row: Record<string, unknown>): StoredEvent {
-    const causationId = row['causation_id'];
+  private rowToEvent(row: PostgresRow): StoredEvent {
+    const causationId = row.causation_id;
     return {
-      id: row['id'] as string,
-      type: row['type'] as string,
-      aggregateId: (row['aggregate_id'] as string | null) ?? undefined,
-      aggregateType: (row['aggregate_type'] as string | null) ?? undefined,
-      version: (row['version'] as number | null) ?? undefined,
-      payload: row['payload'] as Record<string, unknown>,
+      id: row.id,
+      type: row.type,
+      aggregateId: row.aggregate_id ?? undefined,
+      aggregateType: row.aggregate_type ?? undefined,
+      version: row.version ?? undefined,
+      payload: row.payload,
       metadata: {
-        correlationId: row['correlation_id'] as string,
+        correlationId: row.correlation_id,
         causationId: typeof causationId === 'string' ? causationId : undefined,
-        idempotencyKey: row['idempotency_key'] as string,
-        timestamp: (row['timestamp'] as Date).toISOString(),
-        source: row['source'] as string,
+        idempotencyKey: row.idempotency_key,
+        timestamp: row.timestamp.toISOString(),
+        source: row.source,
       },
     };
   }
@@ -253,10 +274,7 @@ export class EventStore {
   private logger: Logger;
   private source: string;
 
-  constructor(
-    repository: EventStoreRepository,
-    options: { source: string }
-  ) {
+  constructor(repository: EventStoreRepository, options: { source: string }) {
     this.repository = repository;
     this.source = options.source;
     this.logger = createLogger({ name: 'event-store' });
@@ -272,10 +290,10 @@ export class EventStore {
   /**
    * Emit a domain event
    */
-  async emit<T extends Record<string, unknown>>(input: {
+  async emit(input: {
     type: string;
     correlationId: string;
-    payload: T;
+    payload: Record<string, unknown>;
     aggregateId?: string;
     aggregateType?: string;
     version?: number;
@@ -292,7 +310,8 @@ export class EventStore {
       metadata: {
         correlationId: input.correlationId,
         causationId: input.causationId,
-        idempotencyKey: input.idempotencyKey ?? `${input.type}:${input.correlationId}:${Date.now()}`,
+        idempotencyKey:
+          input.idempotencyKey ?? `${input.type}:${input.correlationId}:${Date.now()}`,
         timestamp: new Date().toISOString(),
         source: this.source,
       },
@@ -304,7 +323,7 @@ export class EventStore {
 
     // Publish to all publishers (fire and forget)
     for (const publisher of this.publishers) {
-      publisher.publish(event).catch(err => {
+      publisher.publish(event).catch((err: unknown) => {
         this.logger.error({ err, eventId: event.id }, 'Failed to publish event');
       });
     }

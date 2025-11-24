@@ -17,7 +17,7 @@ export class AppError extends Error {
   public readonly statusCode: number;
   public readonly isOperational: boolean;
 
-  constructor(message: string, code: string, statusCode: number = 500) {
+  constructor(message: string, code: string, statusCode = 500) {
     super(message);
     this.name = 'AppError';
     this.code = code;
@@ -55,7 +55,7 @@ export class ValidationError extends AppError {
  * Authentication error
  */
 export class AuthenticationError extends AppError {
-  constructor(message: string = 'Authentication required') {
+  constructor(message = 'Authentication required') {
     super(message, 'AUTHENTICATION_ERROR', 401);
     this.name = 'AuthenticationError';
   }
@@ -65,7 +65,7 @@ export class AuthenticationError extends AppError {
  * Webhook signature verification error
  */
 export class WebhookSignatureError extends AppError {
-  constructor(message: string = 'Invalid webhook signature') {
+  constructor(message = 'Invalid webhook signature') {
     super(message, 'WEBHOOK_SIGNATURE_ERROR', 401);
     this.name = 'WebhookSignatureError';
   }
@@ -77,7 +77,7 @@ export class WebhookSignatureError extends AppError {
 export class RateLimitError extends AppError {
   public readonly retryAfter: number;
 
-  constructor(retryAfter: number = 60) {
+  constructor(retryAfter = 60) {
     super('Rate limit exceeded', 'RATE_LIMIT_ERROR', 429);
     this.name = 'RateLimitError';
     this.retryAfter = retryAfter;

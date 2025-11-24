@@ -15,7 +15,7 @@ export function normalizeRomanianPhone(phone: string): {
   original: string;
 } {
   // Remove all spaces, dashes, parentheses
-  const cleaned = phone.replace(/[\s\-\(\)\.]/g, '');
+  const cleaned = phone.replace(/[\s\-().]/g, '');
 
   // Romanian mobile prefixes
   const validMobilePrefixes = ['72', '73', '74', '75', '76', '77', '78', '79'];
@@ -134,10 +134,7 @@ export function isDefined<T>(value: T | null | undefined): value is T {
 /**
  * Pick specific keys from an object
  */
-export function pick<T extends object, K extends keyof T>(
-  obj: T,
-  keys: K[]
-): Pick<T, K> {
+export function pick<T extends object, K extends keyof T>(obj: T, keys: K[]): Pick<T, K> {
   const result = {} as Pick<T, K>;
   for (const key of keys) {
     if (key in obj) {
@@ -150,13 +147,9 @@ export function pick<T extends object, K extends keyof T>(
 /**
  * Omit specific keys from an object
  */
-export function omit<T extends object, K extends keyof T>(
-  obj: T,
-  keys: K[]
-): Omit<T, K> {
-  const result = { ...obj };
-  for (const key of keys) {
-    delete result[key];
-  }
-  return result as Omit<T, K>;
+export function omit<T extends object, K extends keyof T>(obj: T, keys: K[]): Omit<T, K> {
+  const keysToOmit = new Set<keyof T>(keys);
+  return Object.fromEntries(
+    Object.entries(obj).filter(([key]) => !keysToOmit.has(key as keyof T))
+  ) as Omit<T, K>;
 }

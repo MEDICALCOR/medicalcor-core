@@ -8,11 +8,11 @@
  * - Structured JSON logging in production
  */
 
-import pino, { type Logger, type LoggerOptions } from "pino";
+import pino, { type Logger, type LoggerOptions } from 'pino';
 
-import { createCensor, REDACTION_PATHS, redactString } from "./redaction.js";
+import { createCensor, REDACTION_PATHS, redactString } from './redaction.js';
 
-export { REDACTION_PATHS, redactString } from "./redaction.js";
+export { REDACTION_PATHS, redactString } from './redaction.js';
 
 /**
  * Logger configuration options
@@ -52,20 +52,20 @@ export interface LogContext {
  * Get default log level based on environment
  */
 function getDefaultLevel(): string {
-  const env = process.env["NODE_ENV"];
-  const envLevel = process.env["LOG_LEVEL"];
+  const env = process.env.NODE_ENV;
+  const envLevel = process.env.LOG_LEVEL;
 
   if (envLevel) {
     return envLevel;
   }
 
   switch (env) {
-    case "production":
-      return "info";
-    case "test":
-      return "silent";
+    case 'production':
+      return 'info';
+    case 'test':
+      return 'silent';
     default:
-      return "debug";
+      return 'debug';
   }
 }
 
@@ -73,7 +73,7 @@ function getDefaultLevel(): string {
  * Check if running in development mode
  */
 function isDevelopment(): boolean {
-  return process.env["NODE_ENV"] !== "production" && process.env["NODE_ENV"] !== "test";
+  return process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test';
 }
 
 /**
@@ -82,7 +82,7 @@ function isDevelopment(): boolean {
 function createLoggerOptions(config: LoggerConfig = {}): LoggerOptions {
   const {
     level = getDefaultLevel(),
-    serviceName = "medicalcor",
+    serviceName = 'medicalcor',
     disableRedaction = false,
     additionalRedactionPaths = [],
   } = config;
@@ -98,22 +98,22 @@ function createLoggerOptions(config: LoggerConfig = {}): LoggerOptions {
     // Base bindings
     base: {
       service: serviceName,
-      env: process.env["NODE_ENV"] ?? "development",
+      env: process.env.NODE_ENV ?? 'development',
     },
 
     // Format options
     formatters: {
       level: (label) => ({ level: label }),
       bindings: (bindings) => ({
-        service: bindings["service"],
-        env: bindings["env"],
-        pid: bindings["pid"],
-        hostname: bindings["hostname"],
+        service: bindings.service as string,
+        env: bindings.env as string,
+        pid: bindings.pid as number,
+        hostname: bindings.hostname as string,
       }),
     },
 
     // Message key for the log message
-    messageKey: "msg",
+    messageKey: 'msg',
   };
 
   // Only add redaction if enabled (exactOptionalPropertyTypes compliance)
@@ -144,15 +144,15 @@ export function createLogger(config: LoggerConfig = {}): Logger {
   if (pretty) {
     // Use pino-pretty for development
     const transport = pino.transport({
-      target: "pino-pretty",
+      target: 'pino-pretty',
       options: {
         colorize: true,
-        translateTime: "SYS:standard",
-        ignore: "pid,hostname",
-        messageFormat: "{msg}",
+        translateTime: 'SYS:standard',
+        ignore: 'pid,hostname',
+        messageFormat: '{msg}',
         singleLine: false,
       },
-    });
+    }) as pino.DestinationStream;
     return pino(options, transport);
   }
 
@@ -164,7 +164,7 @@ export function createLogger(config: LoggerConfig = {}): Logger {
  * Can be used directly or replaced with a custom configuration
  */
 export const logger: Logger = createLogger({
-  serviceName: process.env["SERVICE_NAME"] ?? "medicalcor",
+  serviceName: process.env.SERVICE_NAME ?? 'medicalcor',
 });
 
 /**
@@ -172,7 +172,7 @@ export const logger: Logger = createLogger({
  */
 export function withCorrelation(
   correlationId: string,
-  context: Omit<LogContext, "correlationId"> = {}
+  context: Omit<LogContext, 'correlationId'> = {}
 ): Logger {
   return createChildLogger(logger, { correlationId, ...context });
 }
@@ -185,9 +185,9 @@ export function safeLog(obj: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(obj)) {
-    if (typeof value === "string") {
+    if (typeof value === 'string') {
       result[key] = redactString(value);
-    } else if (typeof value === "object" && value !== null) {
+    } else if (typeof value === 'object' && value !== null) {
       result[key] = safeLog(value as Record<string, unknown>);
     } else {
       result[key] = value;
@@ -198,4 +198,4 @@ export function safeLog(obj: Record<string, unknown>): Record<string, unknown> {
 }
 
 // Re-export pino types for convenience
-export type { Logger, LoggerOptions } from "pino";
+export type { Logger, LoggerOptions } from 'pino';

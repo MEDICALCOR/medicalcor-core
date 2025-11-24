@@ -18,19 +18,18 @@
  */
 export function normalizePhone(phone: string): string | null {
   // Remove all non-digit characters except leading +
-  let cleaned = phone.replace(/[^\d+]/g, "");
+  let cleaned = phone.replace(/[^\d+]/g, '');
 
   // Handle various formats
-  if (cleaned.startsWith("+40")) {
-    // Already E.164
-    cleaned = cleaned;
-  } else if (cleaned.startsWith("40") && cleaned.length === 11) {
+  if (cleaned.startsWith('+40')) {
+    // Already E.164, no transformation needed
+  } else if (cleaned.startsWith('40') && cleaned.length === 11) {
     // Missing + prefix
     cleaned = `+${cleaned}`;
-  } else if (cleaned.startsWith("0040")) {
+  } else if (cleaned.startsWith('0040')) {
     // International prefix with 00
     cleaned = `+${cleaned.slice(2)}`;
-  } else if (cleaned.startsWith("0") && cleaned.length === 10) {
+  } else if (cleaned.startsWith('0') && cleaned.length === 10) {
     // Local format
     cleaned = `+40${cleaned.slice(1)}`;
   } else {

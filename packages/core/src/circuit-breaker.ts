@@ -61,17 +61,17 @@ export class CircuitBreakerError extends Error {
  */
 export class CircuitBreaker {
   private state: CircuitState = CircuitState.CLOSED;
-  private failures: number = 0;
-  private successes: number = 0;
+  private failures = 0;
+  private successes = 0;
   private lastFailureTime: number | null = null;
   private lastSuccessTime: number | null = null;
-  private nextAttemptTime: number = 0;
+  private nextAttemptTime = 0;
   private failureTimestamps: number[] = [];
 
   // Stats tracking
-  private totalRequests: number = 0;
-  private totalFailures: number = 0;
-  private totalSuccesses: number = 0;
+  private totalRequests = 0;
+  private totalFailures = 0;
+  private totalSuccesses = 0;
 
   private readonly config: Required<
     Pick<CircuitBreakerConfig, 'name' | 'failureThreshold' | 'resetTimeoutMs' | 'successThreshold'>
@@ -178,7 +178,8 @@ export class CircuitBreaker {
     } else if (newState === CircuitState.OPEN) {
       this.nextAttemptTime = Date.now() + this.config.resetTimeoutMs;
       this.successes = 0;
-    } else if (newState === CircuitState.HALF_OPEN) {
+    } else {
+      // HALF_OPEN state
       this.successes = 0;
       this.failures = 0;
     }
@@ -236,8 +237,8 @@ export class CircuitBreaker {
   isAllowingRequests(): boolean {
     if (this.state === CircuitState.CLOSED) return true;
     if (this.state === CircuitState.HALF_OPEN) return true;
-    if (this.state === CircuitState.OPEN && Date.now() >= this.nextAttemptTime) return true;
-    return false;
+    // state must be OPEN at this point
+    return Date.now() >= this.nextAttemptTime;
   }
 }
 

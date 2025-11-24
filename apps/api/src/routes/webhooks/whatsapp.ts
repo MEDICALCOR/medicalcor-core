@@ -1,7 +1,18 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import crypto from 'crypto';
-import { WhatsAppWebhookSchema, type WhatsAppMessage, type WhatsAppMetadata, type WhatsAppContact } from '@medicalcor/types';
-import { ValidationError, WebhookSignatureError, toSafeErrorResponse, generateCorrelationId, IdempotencyKeys } from '@medicalcor/core';
+import {
+  WhatsAppWebhookSchema,
+  type WhatsAppMessage,
+  type WhatsAppMetadata,
+  type WhatsAppContact,
+} from '@medicalcor/types';
+import {
+  ValidationError,
+  WebhookSignatureError,
+  toSafeErrorResponse,
+  generateCorrelationId,
+  IdempotencyKeys,
+} from '@medicalcor/core';
 import { tasks } from '@trigger.dev/sdk/v3';
 
 /**
@@ -9,18 +20,19 @@ import { tasks } from '@trigger.dev/sdk/v3';
  * Handles incoming messages and status updates from WhatsApp Business API
  */
 export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
+  await Promise.resolve(); // Satisfy require-await for Fastify plugin pattern
   /**
    * Verify HMAC signature from 360dialog (timing-safe)
    */
   function verifySignature(payload: string, signature: string | undefined): boolean {
-    const secret = process.env['WHATSAPP_WEBHOOK_SECRET'];
+    const secret = process.env.WHATSAPP_WEBHOOK_SECRET;
     if (!secret) {
       // SECURITY: Never bypass signature verification
       // In development, log a warning but still reject unsigned requests
-      if (process.env['NODE_ENV'] !== 'production') {
+      if (process.env.NODE_ENV !== 'production') {
         fastify.log.warn(
           'WHATSAPP_WEBHOOK_SECRET not configured - webhook requests will be rejected. ' +
-          'Set this environment variable to accept webhooks.'
+            'Set this environment variable to accept webhooks.'
         );
       }
       return false;
@@ -30,19 +42,13 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
       return false;
     }
 
-    const expectedSignature = crypto
-      .createHmac('sha256', secret)
-      .update(payload)
-      .digest('hex');
+    const expectedSignature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
 
     const providedSignature = signature.replace('sha256=', '');
 
     // Timing-safe comparison to prevent timing attacks
     try {
-      return crypto.timingSafeEqual(
-        Buffer.from(expectedSignature),
-        Buffer.from(providedSignature)
-      );
+      return crypto.timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(providedSignature));
     } catch {
       return false;
     }
@@ -58,14 +64,17 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
     const token = query['hub.verify_token'];
     const challenge = query['hub.challenge'];
 
-    const verifyToken = process.env['WHATSAPP_VERIFY_TOKEN'];
+    const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
 
     if (mode === 'subscribe' && token === verifyToken) {
       fastify.log.info('WhatsApp webhook verified');
       return reply.send(challenge);
     }
 
-    fastify.log.warn({ mode, tokenMatch: token === verifyToken }, 'WhatsApp webhook verification failed');
+    fastify.log.warn(
+      { mode, tokenMatch: token === verifyToken },
+      'WhatsApp webhook verification failed'
+    );
     return reply.status(403).send({ error: 'Verification failed' });
   });
 
@@ -75,7 +84,8 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
    * Verifies HMAC signature and forwards to Trigger.dev
    */
   fastify.post('/webhooks/whatsapp', async (request: FastifyRequest, reply: FastifyReply) => {
-    const correlationId = (request.headers['x-correlation-id'] as string) ?? generateCorrelationId();
+    const correlationId =
+      (request.headers['x-correlation-id'] as string | undefined) ?? generateCorrelationId();
     const signature = request.headers['x-hub-signature-256'] as string | undefined;
 
     try {
@@ -90,27 +100,33 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
       const parseResult = WhatsAppWebhookSchema.safeParse(request.body);
 
       if (!parseResult.success) {
-        const error = new ValidationError('Invalid WhatsApp webhook payload', parseResult.error.flatten());
-        fastify.log.warn({ correlationId, errors: parseResult.error.issues }, 'WhatsApp webhook validation failed');
-        return reply.status(400).send(toSafeErrorResponse(error));
+        const error = new ValidationError(
+          'Invalid WhatsApp webhook payload',
+          parseResult.error.flatten()
+        );
+        fastify.log.warn(
+          { correlationId, errors: parseResult.error.issues },
+          'WhatsApp webhook validation failed'
+        );
+        return await reply.status(400).send(toSafeErrorResponse(error));
       }
 
       const webhook = parseResult.data;
 
       // Collect all tasks to trigger
-      const messageTasks: Array<{
+      const messageTasks: {
         message: WhatsAppMessage;
         metadata: WhatsAppMetadata;
         contact?: WhatsAppContact;
-      }> = [];
+      }[] = [];
 
-      const statusTasks: Array<{
+      const statusTasks: {
         messageId: string;
         status: string;
         recipientId: string;
         timestamp: string;
-        errors?: Array<{ code: number; title: string }>;
-      }> = [];
+        errors?: { code: number; title: string }[];
+      }[] = [];
 
       // Process each entry
       for (const entry of webhook.entry) {
@@ -120,7 +136,7 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
           // Collect incoming messages
           if (messages) {
             for (const message of messages) {
-              const contact = contacts?.find(c => c.wa_id === message.from);
+              const contact = contacts?.find((c) => c.wa_id === message.from);
               const taskEntry = { message, metadata, ...(contact && { contact }) };
               messageTasks.push(taskEntry);
 
@@ -140,7 +156,7 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
           // Collect status updates
           if (statuses) {
             for (const status of statuses) {
-              const mappedErrors = status.errors?.map(e => ({ code: e.code, title: e.title }));
+              const mappedErrors = status.errors?.map((e) => ({ code: e.code, title: e.title }));
               statusTasks.push({
                 messageId: status.id,
                 status: status.status,
@@ -184,11 +200,16 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
             },
           }),
         };
-        tasks.trigger('whatsapp-message-handler', messagePayload, {
-          idempotencyKey: IdempotencyKeys.whatsAppMessage(message.id),
-        }).catch(err => {
-          fastify.log.error({ err, messageId: message.id }, 'Failed to trigger WhatsApp message handler');
-        });
+        tasks
+          .trigger('whatsapp-message-handler', messagePayload, {
+            idempotencyKey: IdempotencyKeys.whatsAppMessage(message.id),
+          })
+          .catch((err: unknown) => {
+            fastify.log.error(
+              { err, messageId: message.id },
+              'Failed to trigger WhatsApp message handler'
+            );
+          });
       }
 
       // Trigger all status handlers
@@ -201,16 +222,21 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
           correlationId,
           ...(status.errors && { errors: status.errors }),
         };
-        tasks.trigger('whatsapp-status-handler', statusPayload, {
-          idempotencyKey: IdempotencyKeys.whatsAppStatus(status.messageId, status.status),
-        }).catch(err => {
-          fastify.log.error({ err, messageId: status.messageId }, 'Failed to trigger WhatsApp status handler');
-        });
+        tasks
+          .trigger('whatsapp-status-handler', statusPayload, {
+            idempotencyKey: IdempotencyKeys.whatsAppStatus(status.messageId, status.status),
+          })
+          .catch((err: unknown) => {
+            fastify.log.error(
+              { err, messageId: status.messageId },
+              'Failed to trigger WhatsApp status handler'
+            );
+          });
       }
 
       // Always respond 200 immediately to acknowledge receipt
       // WhatsApp expects quick acknowledgment (<15s)
-      return reply.status(200).send({ status: 'received' });
+      return await reply.status(200).send({ status: 'received' });
     } catch (error) {
       if (error instanceof WebhookSignatureError) {
         return reply.status(401).send(toSafeErrorResponse(error));
