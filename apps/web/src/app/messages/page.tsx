@@ -1,11 +1,14 @@
 'use client';
 
-import { useState, useCallback, useEffect, useTransition } from 'react';
+import { useState, useCallback, useTransition } from 'react';
 import { ConversationList } from '@/components/messages/conversation-list';
 import { ConversationView, EmptyConversationView } from '@/components/messages/conversation-view';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
+import { useInfiniteScroll } from '@/hooks/use-infinite-scroll';
 import {
-  getConversationsAction,
+  getConversationsActionPaginated,
   getMessagesAction,
   type Conversation,
   type Message,
@@ -22,19 +25,23 @@ function ConversationListSkeleton() {
 }
 
 export default function MessagesPage() {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const {
+    items: conversations,
+    isInitialLoading: isLoadingConversations,
+    isLoadingMore,
+    hasMore,
+    loadMore,
+    observerRef,
+  } = useInfiniteScroll({
+    fetchPage: useCallback(
+      (cursor?: string) => getConversationsActionPaginated({ cursor, pageSize: 30 }),
+      []
+    ),
+  });
+
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoadingConversations, startConversationsTransition] = useTransition();
   const [isLoadingMessages, startMessagesTransition] = useTransition();
-
-  // Fetch conversations on mount
-  useEffect(() => {
-    startConversationsTransition(async () => {
-      const fetchedConversations = await getConversationsAction();
-      setConversations(fetchedConversations);
-    });
-  }, []);
 
   const handleSelectConversation = useCallback((conversation: Conversation) => {
     setSelectedConversation(conversation);
@@ -44,11 +51,6 @@ export default function MessagesPage() {
       const fetchedMessages = await getMessagesAction(conversation.id);
       setMessages(fetchedMessages);
     });
-
-    // Mark conversation as read
-    setConversations((prev) =>
-      prev.map((c) => (c.id === conversation.id ? { ...c, unreadCount: 0 } : c))
-    );
   }, []);
 
   const handleSendMessage = useCallback(
@@ -67,23 +69,6 @@ export default function MessagesPage() {
 
       setMessages((prev) => [...prev, newMessage]);
 
-      // Update conversation's last message
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === selectedConversation.id
-            ? {
-                ...c,
-                lastMessage: {
-                  content: newMessage.content,
-                  direction: newMessage.direction,
-                  timestamp: newMessage.timestamp,
-                },
-                updatedAt: new Date(),
-              }
-            : c
-        )
-      );
-
       // Simulate delivery status update
       setTimeout(() => {
         setMessages((prev) =>
@@ -97,10 +82,6 @@ export default function MessagesPage() {
   const handleStatusChange = useCallback(
     (status: Conversation['status']) => {
       if (!selectedConversation) return;
-
-      setConversations((prev) =>
-        prev.map((c) => (c.id === selectedConversation.id ? { ...c, status } : c))
-      );
       setSelectedConversation((prev) => (prev ? { ...prev, status } : null));
     },
     [selectedConversation]
@@ -110,17 +91,43 @@ export default function MessagesPage() {
     <div className="h-[calc(100vh-4rem)]">
       <div className="grid grid-cols-[380px_1fr] h-full">
         {/* Conversation List */}
-        {isLoadingConversations ? (
-          <div className="border-r">
+        <div className="border-r flex flex-col">
+          {isLoadingConversations ? (
             <ConversationListSkeleton />
-          </div>
-        ) : (
-          <ConversationList
-            conversations={conversations}
-            selectedId={selectedConversation?.id}
-            onSelect={handleSelectConversation}
-          />
-        )}
+          ) : (
+            <>
+              <ConversationList
+                conversations={conversations}
+                selectedId={selectedConversation?.id}
+                onSelect={handleSelectConversation}
+              />
+
+              {/* Load More Button */}
+              {hasMore && (
+                <div className="border-t p-4">
+                  {isLoadingMore ? (
+                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Se încarcă...</span>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void loadMore()}
+                      className="w-full"
+                    >
+                      Încarcă mai multe conversații
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              {/* Intersection Observer Sentinel */}
+              <div ref={observerRef} className="h-1" />
+            </>
+          )}
+        </div>
 
         {/* Conversation View */}
         {selectedConversation ? (
