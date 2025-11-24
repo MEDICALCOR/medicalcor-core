@@ -1,4 +1,4 @@
-import { withRetry, ExternalServiceError, RateLimitError } from '@medicalcor/core';
+import { withRetry, ExternalServiceError, RateLimitError, logger } from '@medicalcor/core';
 
 /**
  * Stripe Integration Client
@@ -227,10 +227,16 @@ export class StripeClient {
 
         if (!response.ok) {
           const errorBody = await response.text();
-          throw new ExternalServiceError('Stripe', `${response.status}: ${errorBody}`);
+          // Log full error internally (may contain sensitive data)
+          logger.error({ status: response.status, errorBody, url: path }, 'Stripe API error');
+          // Throw generic error to prevent data leakage
+          throw new ExternalServiceError(
+            'Stripe',
+            `API request failed with status ${response.status}`
+          );
         }
 
-        return response.json() as Promise<T>;
+        return (await response.json()) as T;
       } catch (error) {
         // Convert AbortError to ExternalServiceError for consistent handling
         if (error instanceof Error && error.name === 'AbortError') {

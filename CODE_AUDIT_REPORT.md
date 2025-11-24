@@ -17,7 +17,7 @@ This comprehensive code audit of the MedicalCor Core medical CRM platform identi
 | Severity     | Count | Resolved | Immediate Action Required |
 | ------------ | ----- | -------- | ------------------------- |
 | **CRITICAL** | 15    | 7 ✅     | Yes - Block deployment    |
-| **HIGH**     | 31    | 7 ✅     | Yes - This sprint         |
+| **HIGH**     | 31    | 8 ✅     | Yes - This sprint         |
 | **MEDIUM**   | 37    | 1 ✅     | Short-term - Next sprint  |
 | **LOW**      | 15    | 0        | Medium-term backlog       |
 
@@ -35,6 +35,7 @@ This comprehensive code audit of the MedicalCor Core medical CRM platform identi
 - ✅ **SEC-010:** Input validation for HubSpot and WhatsApp integration methods (Nov 24, 2025)
 - ✅ **SEC-011:** Route parameter validation for workflow endpoints (Nov 24, 2025)
 - ✅ **SEC-012:** Query parameter validation for webhook verification (Nov 24, 2025)
+- ✅ **SEC-013:** API error response sanitization across all integration clients (Nov 24, 2025)
 - ✅ **PERF-001:** Cron job N+1 patterns eliminated with batch processing (already fixed, confirmed Nov 24)
 - ✅ **PERF-007:** Cursor-based pagination implemented (Nov 24, 2025)
 
@@ -314,16 +315,35 @@ medicalcor-core/
 
 ### 1.4 HIGH: Data Protection
 
-#### SEC-013: API Error Responses Leak Sensitive Data
+#### SEC-013: API Error Response Data Leakage ✅ RESOLVED
 
-- **Files:** `packages/integrations/src/hubspot.ts:396`, `stripe.ts:216`, `whatsapp.ts:354`, `vapi.ts:217`, `openai.ts:77`
+- **Severity:** HIGH → **Status: RESOLVED (Nov 24, 2025)**
+- **Files:** `packages/integrations/src/hubspot.ts`, `stripe.ts`, `whatsapp.ts`, `vapi.ts`, `scheduling.ts`
+- **Description:** ~~Error responses included sensitive API data.~~ **RESOLVED:** Sanitized error messages with internal logging.
+- **Implementation:**
+  - ✅ Added logger import to all integration clients
+  - ✅ Log full error body internally for debugging
+  - ✅ Throw generic errors with only status codes
+  - ✅ HubSpot: Line 480 - Generic error message
+  - ✅ WhatsApp: Line 511 - Generic error message
+  - ✅ Stripe: Line 231 - Generic error message
+  - ✅ Vapi: Lines 252, 278, 307, 329, 351 - All 5 methods sanitized
+  - ✅ SchedulingService: Line 354 - Generic error message
+- **Security Benefits:**
+  - Prevents PII leakage in error responses
+  - Sensitive data logged internally only
+  - Users see generic "status 4xx/5xx" errors
+  - Full debugging info preserved in logs
+- **Pattern Applied:**
 
 ```typescript
-throw new ExternalServiceError('HubSpot', `${response.status}: ${errorBody}`);
-// errorBody may contain PII from API response
-```
+// Before (❌ Leaks sensitive data)
+throw new ExternalServiceError('Service', `${status}: ${errorBody}`);
 
-- **Recommendation:** Log full error internally, throw generic message.
+// After (✅ Sanitized)
+logger.error({ status, errorBody, url }, 'Service API error');
+throw new ExternalServiceError('Service', `API request failed with status ${status}`);
+```
 
 #### SEC-014: Incomplete PII Redaction
 

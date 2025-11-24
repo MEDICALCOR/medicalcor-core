@@ -3,6 +3,7 @@ import {
   ExternalServiceError,
   WebhookSignatureError,
   RateLimitError,
+  logger,
 } from '@medicalcor/core';
 import crypto from 'crypto';
 import { z } from 'zod';
@@ -506,7 +507,13 @@ export class WhatsAppClient {
 
         if (!response.ok) {
           const errorBody = await response.text();
-          throw new ExternalServiceError('WhatsApp', `${response.status}: ${errorBody}`);
+          // Log full error internally (may contain sensitive data)
+          logger.error({ status: response.status, errorBody, url: path }, 'WhatsApp API error');
+          // Throw generic error to prevent data leakage
+          throw new ExternalServiceError(
+            'WhatsApp',
+            `API request failed with status ${response.status}`
+          );
         }
 
         return (await response.json()) as T;

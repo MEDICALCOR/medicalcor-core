@@ -1,4 +1,4 @@
-import { withRetry, ExternalServiceError, RateLimitError } from '@medicalcor/core';
+import { withRetry, ExternalServiceError, RateLimitError, logger } from '@medicalcor/core';
 import { z } from 'zod';
 import type {
   HubSpotContact,
@@ -476,7 +476,13 @@ export class HubSpotClient {
 
         if (!response.ok) {
           const errorBody = await response.text();
-          throw new ExternalServiceError('HubSpot', `${response.status}: ${errorBody}`);
+          // Log full error internally (may contain sensitive data)
+          logger.error({ status: response.status, errorBody, url: path }, 'HubSpot API error');
+          // Throw generic error to prevent data leakage
+          throw new ExternalServiceError(
+            'HubSpot',
+            `API request failed with status ${response.status}`
+          );
         }
 
         return (await response.json()) as T;

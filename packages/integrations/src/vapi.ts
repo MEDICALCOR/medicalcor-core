@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { withRetry, ExternalServiceError } from '@medicalcor/core';
+import { withRetry, ExternalServiceError, logger } from '@medicalcor/core';
 
 /**
  * Vapi.ai Voice AI Integration Client
@@ -247,8 +247,14 @@ export class VapiClient {
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        throw new ExternalServiceError('Vapi', `Failed to create outbound call: ${error}`);
+        const errorBody = await response.text();
+        // Log full error internally (may contain sensitive data)
+        logger.error({ status: response.status, errorBody }, 'Vapi create call failed');
+        // Throw generic error to prevent data leakage
+        throw new ExternalServiceError(
+          'Vapi',
+          `Failed to create outbound call: status ${response.status}`
+        );
       }
 
       return response.json() as Promise<VapiCall>;
@@ -268,8 +274,12 @@ export class VapiClient {
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        throw new ExternalServiceError('Vapi', `Failed to get call: ${error}`);
+        const errorBody = await response.text();
+        logger.error(
+          { status: response.status, errorBody, callId: input.callId },
+          'Vapi get call failed'
+        );
+        throw new ExternalServiceError('Vapi', `Failed to get call: status ${response.status}`);
       }
 
       return response.json() as Promise<VapiCall>;
@@ -296,8 +306,9 @@ export class VapiClient {
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        throw new ExternalServiceError('Vapi', `Failed to list calls: ${error}`);
+        const errorBody = await response.text();
+        logger.error({ status: response.status, errorBody }, 'Vapi list calls failed');
+        throw new ExternalServiceError('Vapi', `Failed to list calls: status ${response.status}`);
       }
 
       return response.json() as Promise<VapiCall[]>;
@@ -317,8 +328,12 @@ export class VapiClient {
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        throw new ExternalServiceError('Vapi', `Failed to get transcript: ${error}`);
+        const errorBody = await response.text();
+        logger.error({ status: response.status, errorBody, callId }, 'Vapi get transcript failed');
+        throw new ExternalServiceError(
+          'Vapi',
+          `Failed to get transcript: status ${response.status}`
+        );
       }
 
       return response.json() as Promise<VapiTranscript>;
@@ -338,8 +353,9 @@ export class VapiClient {
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        throw new ExternalServiceError('Vapi', `Failed to end call: ${error}`);
+        const errorBody = await response.text();
+        logger.error({ status: response.status, errorBody, callId }, 'Vapi end call failed');
+        throw new ExternalServiceError('Vapi', `Failed to end call: status ${response.status}`);
       }
     };
 
