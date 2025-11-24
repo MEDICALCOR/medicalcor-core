@@ -1,11 +1,8 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/providers';
 import { Sidebar, SidebarProvider, MobileSidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
-
-const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'MedicalCor Cortex',
@@ -38,7 +35,7 @@ export default function RootLayout({
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
-      <body className={inter.className}>
+      <body className="font-sans">
         <Providers>
           <SidebarProvider>
             <div className="flex min-h-screen">
