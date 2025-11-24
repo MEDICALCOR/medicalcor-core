@@ -59,6 +59,15 @@ const BookingAgentPayloadSchema = z.object({
   selectedSlotId: z.string().optional(),
 });
 
+// Schema for route parameters
+const TaskIdParamsSchema = z.object({
+  taskId: z
+    .string()
+    .min(1, 'Task ID is required')
+    .max(256, 'Task ID too long')
+    .regex(/^[a-zA-Z0-9_-]+$/, 'Task ID must be alphanumeric with hyphens or underscores'),
+});
+
 // eslint-disable-next-line @typescript-eslint/require-await -- Fastify plugin pattern
 export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
   /**
@@ -313,10 +322,23 @@ export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /workflows/status/:taskId
    */
   fastify.get('/workflows/status/:taskId', async (request: FastifyRequest, reply: FastifyReply) => {
-    const { taskId } = request.params as { taskId: string };
     const correlationId = getCorrelationId(request);
 
     try {
+      // Validate route parameters
+      const paramsResult = TaskIdParamsSchema.safeParse(request.params);
+
+      if (!paramsResult.success) {
+        const error = new ValidationError(
+          'Invalid task ID parameter',
+          paramsResult.error.flatten()
+        );
+        fastify.log.warn({ correlationId, errors: paramsResult.error.issues }, 'Invalid task ID');
+        return await reply.status(400).send(toSafeErrorResponse(error));
+      }
+
+      const { taskId } = paramsResult.data;
+
       // Note: This requires Trigger.dev runs API access
       // For now, return a placeholder response
       fastify.log.info({ correlationId, taskId }, 'Workflow status requested');

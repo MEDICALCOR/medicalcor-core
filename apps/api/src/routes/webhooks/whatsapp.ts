@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import crypto from 'crypto';
+import { z } from 'zod';
 import {
   WhatsAppWebhookSchema,
   type WhatsAppMessage,
@@ -14,6 +15,16 @@ import {
   IdempotencyKeys,
 } from '@medicalcor/core';
 import { tasks } from '@trigger.dev/sdk/v3';
+
+/**
+ * Schema for WhatsApp webhook verification query parameters
+ * Used by Meta/360dialog to verify webhook URL ownership
+ */
+const WebhookVerificationQuerySchema = z.object({
+  'hub.mode': z.string().min(1),
+  'hub.verify_token': z.string().min(1),
+  'hub.challenge': z.string().min(1),
+});
 
 /**
  * WhatsApp (360dialog) webhook routes
@@ -59,10 +70,21 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
    * Used by Meta/360dialog to verify webhook URL ownership
    */
   fastify.get('/webhooks/whatsapp', async (request: FastifyRequest, reply: FastifyReply) => {
-    const query = request.query as Record<string, string>;
-    const mode = query['hub.mode'];
-    const token = query['hub.verify_token'];
-    const challenge = query['hub.challenge'];
+    // Validate query parameters
+    const queryResult = WebhookVerificationQuerySchema.safeParse(request.query);
+
+    if (!queryResult.success) {
+      fastify.log.warn({ errors: queryResult.error.issues }, 'Invalid webhook verification query');
+      return await reply.status(400).send({
+        error: 'Invalid webhook verification parameters',
+      });
+    }
+
+    const {
+      'hub.mode': mode,
+      'hub.verify_token': token,
+      'hub.challenge': challenge,
+    } = queryResult.data;
 
     const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
 

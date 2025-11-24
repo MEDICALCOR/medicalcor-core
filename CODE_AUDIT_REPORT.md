@@ -17,7 +17,7 @@ This comprehensive code audit of the MedicalCor Core medical CRM platform identi
 | Severity     | Count | Resolved | Immediate Action Required |
 | ------------ | ----- | -------- | ------------------------- |
 | **CRITICAL** | 15    | 7 ✅     | Yes - Block deployment    |
-| **HIGH**     | 31    | 5 ✅     | Yes - This sprint         |
+| **HIGH**     | 31    | 7 ✅     | Yes - This sprint         |
 | **MEDIUM**   | 37    | 1 ✅     | Short-term - Next sprint  |
 | **LOW**      | 15    | 0        | Medium-term backlog       |
 
@@ -33,6 +33,8 @@ This comprehensive code audit of the MedicalCor Core medical CRM platform identi
 - ✅ **SEC-008:** Stripe webhook signature verification (already implemented, confirmed Nov 24)
 - ✅ **SEC-009:** Vapi webhook payload validation with comprehensive Zod schemas (Nov 24, 2025)
 - ✅ **SEC-010:** Input validation for HubSpot and WhatsApp integration methods (Nov 24, 2025)
+- ✅ **SEC-011:** Route parameter validation for workflow endpoints (Nov 24, 2025)
+- ✅ **SEC-012:** Query parameter validation for webhook verification (Nov 24, 2025)
 - ✅ **PERF-001:** Cron job N+1 patterns eliminated with batch processing (already fixed, confirmed Nov 24)
 - ✅ **PERF-007:** Cursor-based pagination implemented (Nov 24, 2025)
 
@@ -283,24 +285,32 @@ medicalcor-core/
   - Injection attack prevention through schema enforcement
 - **Testing:** All 18 integration tests passing
 
-#### SEC-011: Unvalidated Route Parameters
+#### SEC-011: Route Parameter Validation ✅ RESOLVED
 
+- **Severity:** HIGH → **Status: RESOLVED (Nov 24, 2025)**
 - **File:** `apps/api/src/routes/workflows.ts`
-- **Line:** 316
+- **Description:** ~~Route parameters not validated.~~ **RESOLVED:** Added Zod validation for taskId parameter.
+- **Implementation:**
+  - ✅ `TaskIdParamsSchema` - Validates task IDs (lines 63-69)
+  - ✅ Alphanumeric validation with hyphens/underscores
+  - ✅ Length limits (1-256 characters)
+  - ✅ Regex pattern: `^[a-zA-Z0-9_-]+$`
+  - ✅ Updated GET /workflows/status/:taskId endpoint (lines 329-338)
+  - ✅ Returns 400 Bad Request for invalid task IDs
+- **Security:** Prevents injection attacks via malformed route parameters
 
-```typescript
-const { taskId } = request.params as { taskId: string };
-// taskId not validated - could contain injection payloads
-```
+#### SEC-012: Query Parameter Validation ✅ RESOLVED
 
-#### SEC-012: Query Parameter Type Assertion
-
+- **Severity:** HIGH → **Status: RESOLVED (Nov 24, 2025)**
 - **File:** `apps/api/src/routes/webhooks/whatsapp.ts`
-- **Lines:** 52-56
-
-```typescript
-const query = request.query as Record<string, string>; // Unsafe
-```
+- **Description:** ~~Query parameters unsafely type-cast.~~ **RESOLVED:** Added Zod validation for webhook verification.
+- **Implementation:**
+  - ✅ `WebhookVerificationQuerySchema` - Validates webhook verification params (lines 23-27)
+  - ✅ Validates hub.mode, hub.verify_token, hub.challenge parameters
+  - ✅ Required string validation for all parameters
+  - ✅ Updated GET /webhooks/whatsapp endpoint (lines 74-81)
+  - ✅ Returns 400 Bad Request for invalid query parameters
+- **Security:** Prevents injection via malformed webhook verification requests
 
 ### 1.4 HIGH: Data Protection
 
