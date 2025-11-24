@@ -16,24 +16,27 @@ This comprehensive code audit of the MedicalCor Core medical CRM platform identi
 
 | Severity | Count | Resolved | Immediate Action Required |
 |----------|-------|----------|---------------------------|
-| **CRITICAL** | 15 | 2 ✅ | Yes - Block deployment |
+| **CRITICAL** | 15 | 4 ✅ | Yes - Block deployment |
 | **HIGH** | 31 | 0 | Yes - This sprint |
 | **MEDIUM** | 37 | 1 ✅ | Short-term - Next sprint |
 | **LOW** | 15 | 0 | Medium-term backlog |
 
 ### Recent Resolutions
 
-- ✅ **SEC-001:** Complete NextAuth.js authentication system implemented (Nov 24, 2025)
-- ✅ **SEC-002:** All server actions now protected with requirePermission() (Nov 24, 2025)
-- ✅ **PERF-007:** Cursor-based pagination implemented, resolved 1000-record limit (Nov 24, 2025)
+- ✅ **SEC-001:** Complete NextAuth.js authentication system (already implemented, documented Nov 24)
+- ✅ **SEC-002:** All server actions protected with authorization (Nov 24, 2025)
+- ✅ **SEC-006:** Twilio webhook signature verification (already implemented, confirmed Nov 24)
+- ✅ **SEC-008:** Stripe webhook signature verification (already implemented, confirmed Nov 24)
+- ✅ **PERF-007:** Cursor-based pagination implemented (Nov 24, 2025)
 
 ### Top Priority Issues (Outstanding)
 
 1. ~~**No authentication system**~~ ✅ **RESOLVED** - NextAuth.js implemented
 2. ~~**Server actions lack authorization**~~ ✅ **RESOLVED** - All actions protected
-3. **Missing webhook signature verification** for Twilio/Vapi endpoints (SEC-006, SEC-008)
+3. ~~**Missing webhook signature verification**~~ ✅ **RESOLVED** - Twilio & Stripe verified
 4. **No authorization on workflow trigger endpoints** - anyone can trigger workflows (SEC-003)
-5. **N+1 query patterns** in cron jobs causing performance degradation (PERF-001)
+5. **WhatsApp signature bypass in development** - allows forged webhooks (SEC-007)
+6. **N+1 query patterns** in cron jobs causing performance degradation (PERF-001)
 
 ---
 
@@ -135,18 +138,20 @@ fastify.post('/workflows/lead-score', async (request, reply) => {
 
 ### 1.2 CRITICAL: Webhook Security
 
-#### SEC-006: Missing Twilio Signature Verification
+#### SEC-006: Missing Twilio Signature Verification ✅ RESOLVED
+- **Severity:** CRITICAL → **Status: RESOLVED (Already Implemented)**
 - **File:** `apps/api/src/routes/webhooks/voice.ts`
-- **Lines:** 15-77, 83-138
-- **Description:** Twilio webhook endpoints do not verify the `X-Twilio-Signature` header.
-```typescript
-// Line 15 - No signature verification
-fastify.post('/webhooks/voice', async (request, reply) => {
-  const parseResult = VoiceWebhookSchema.safeParse(request.body);
-  // Anyone can forge Twilio requests
-```
-- **Impact:** Attackers can forge fake call notifications, trigger arbitrary workflows.
-- **Recommendation:** Use Twilio's `validateRequest()` function.
+- **Description:** ~~Twilio webhook endpoints do not verify signatures.~~ **RESOLVED:** Full HMAC-SHA1 signature verification implemented.
+- **Implementation:**
+  - ✅ `verifyTwilioSignature()` function (lines 12-47)
+  - ✅ Uses HMAC-SHA1 as per Twilio spec
+  - ✅ Validates `X-Twilio-Signature` header
+  - ✅ Timing-safe comparison with `crypto.timingSafeEqual()`
+  - ✅ Requires `TWILIO_AUTH_TOKEN` environment variable
+  - ✅ Returns 403 Forbidden on invalid signature (lines 76-79, 179-182)
+  - ✅ Both endpoints protected: `/webhooks/voice` and `/webhooks/voice/status`
+- **Security:** Attackers cannot forge fake call notifications without Twilio auth token
+- **Reference:** https://www.twilio.com/docs/usage/security#validating-requests
 
 #### SEC-007: WhatsApp Signature Bypass in Development
 - **File:** `apps/api/src/routes/webhooks/whatsapp.ts`
@@ -162,11 +167,21 @@ function verifySignature(payload: string, signature: string | undefined): boolea
 - **Impact:** Non-production environments can have webhooks forged.
 - **Recommendation:** Never return `true` without verification.
 
-#### SEC-008: Missing Stripe Webhook Verification in Integration
-- **File:** `packages/integrations/src/stripe.ts`
-- **Lines:** 1-320
-- **Description:** No `verifyWebhookSignature()` method exists (unlike WhatsApp client).
-- **Impact:** Fake payment events could be accepted.
+#### SEC-008: Missing Stripe Webhook Verification ✅ RESOLVED
+- **Severity:** CRITICAL → **Status: RESOLVED (Already Implemented)**
+- **File:** `apps/api/src/routes/webhooks/stripe.ts`
+- **Description:** ~~No webhook signature verification.~~ **RESOLVED:** Full HMAC-SHA256 signature verification implemented.
+- **Implementation:**
+  - ✅ `verifyStripeSignature()` function (lines 21-57)
+  - ✅ Uses HMAC-SHA256 as per Stripe spec
+  - ✅ Validates `stripe-signature` header
+  - ✅ Timestamp tolerance check (5 minutes max) prevents replay attacks
+  - ✅ Timing-safe comparison with `crypto.timingSafeEqual()`
+  - ✅ Requires `STRIPE_WEBHOOK_SECRET` environment variable
+  - ✅ Returns 401 Unauthorized on invalid signature (lines 350-352)
+  - ✅ Raw body parsing for signature verification (line 61-63)
+- **Security:** Fake payment events cannot be injected without Stripe webhook secret
+- **Reference:** https://stripe.com/docs/webhooks/signatures
 
 #### SEC-009: Vapi Webhook Payload Not Validated
 - **File:** `packages/integrations/src/vapi.ts`
@@ -522,13 +537,13 @@ private auditLog: ConsentAuditEntry[] = [];
 
 1. **SEC-001/002:** Implement authentication system with NextAuth.js
 2. **SEC-003/004:** Add API key authentication to workflow/booking endpoints
-3. **SEC-006:** Add Twilio webhook signature verification
+3. ~~**SEC-006:** Add Twilio webhook signature verification~~ ✅ Already implemented
 4. **MAINT-002:** Persist GDPR consent to database
 
 ### High Priority (This Sprint)
 
 1. **SEC-007:** Fix WhatsApp signature verification bypass
-2. **SEC-008:** Add Stripe webhook signature verification
+2. ~~**SEC-008:** Add Stripe webhook signature verification~~ ✅ Already implemented
 3. **SEC-010:** Add input validation to integration clients
 4. **PERF-001:** Batch cron job API calls with `Promise.allSettled()`
 5. **QUAL-001:** Extract `getClients()` to shared module
