@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import crypto from 'crypto';
 import { WhatsAppWebhookSchema, type WhatsAppMessage, type WhatsAppMetadata, type WhatsAppContact } from '@medicalcor/types';
-import { ValidationError, WebhookSignatureError, toSafeErrorResponse, generateCorrelationId } from '@medicalcor/core';
+import { ValidationError, WebhookSignatureError, toSafeErrorResponse, generateCorrelationId, IdempotencyKeys } from '@medicalcor/core';
 import { tasks } from '@trigger.dev/sdk/v3';
 
 /**
@@ -184,7 +184,9 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
             },
           }),
         };
-        tasks.trigger('whatsapp-message-handler', messagePayload).catch(err => {
+        tasks.trigger('whatsapp-message-handler', messagePayload, {
+          idempotencyKey: IdempotencyKeys.whatsAppMessage(message.id),
+        }).catch(err => {
           fastify.log.error({ err, messageId: message.id }, 'Failed to trigger WhatsApp message handler');
         });
       }
@@ -199,7 +201,9 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
           correlationId,
           ...(status.errors && { errors: status.errors }),
         };
-        tasks.trigger('whatsapp-status-handler', statusPayload).catch(err => {
+        tasks.trigger('whatsapp-status-handler', statusPayload, {
+          idempotencyKey: IdempotencyKeys.whatsAppStatus(status.messageId, status.status),
+        }).catch(err => {
           fastify.log.error({ err, messageId: status.messageId }, 'Failed to trigger WhatsApp status handler');
         });
       }
