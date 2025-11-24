@@ -1,6 +1,10 @@
 import { task, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
-import { normalizeRomanianPhone, createEventStore, createInMemoryEventStore } from '@medicalcor/core';
+import {
+  normalizeRomanianPhone,
+  createEventStore,
+  createInMemoryEventStore,
+} from '@medicalcor/core';
 import { createHubSpotClient, createOpenAIClient } from '@medicalcor/integrations';
 import { createScoringService, createTriageService } from '@medicalcor/domain';
 import type { LeadContext } from '@medicalcor/types';
@@ -19,17 +23,13 @@ import type { LeadContext } from '@medicalcor/types';
 
 // Initialize clients lazily
 function getClients() {
-  const hubspotToken = process.env['HUBSPOT_ACCESS_TOKEN'];
-  const openaiApiKey = process.env['OPENAI_API_KEY'];
-  const databaseUrl = process.env['DATABASE_URL'];
+  const hubspotToken = process.env.HUBSPOT_ACCESS_TOKEN;
+  const openaiApiKey = process.env.OPENAI_API_KEY;
+  const databaseUrl = process.env.DATABASE_URL;
 
-  const hubspot = hubspotToken
-    ? createHubSpotClient({ accessToken: hubspotToken })
-    : null;
+  const hubspot = hubspotToken ? createHubSpotClient({ accessToken: hubspotToken }) : null;
 
-  const openai = openaiApiKey
-    ? createOpenAIClient({ apiKey: openaiApiKey })
-    : null;
+  const openai = openaiApiKey ? createOpenAIClient({ apiKey: openaiApiKey }) : null;
 
   const scoring = createScoringService({
     openaiApiKey: openaiApiKey ?? '',
@@ -124,7 +124,9 @@ export const handleVoiceCall = task({
           channel: 'voice',
           firstTouchTimestamp: new Date().toISOString(),
           language: 'ro',
-          messageHistory: [{ role: 'user', content: transcript, timestamp: new Date().toISOString() }],
+          messageHistory: [
+            { role: 'user', content: transcript, timestamp: new Date().toISOString() },
+          ],
           hubspotContactId,
         };
 
@@ -169,8 +171,36 @@ export const handleVoiceCall = task({
           last_call_sentiment: sentiment,
           urgency_level: triageResult.urgencyLevel,
         });
-        logger.info('Contact updated with voice scoring', { contactId: hubspotContactId, correlationId });
+        logger.info('Contact updated with voice scoring', {
+          contactId: hubspotContactId,
+          correlationId,
+        });
 
+        // Create high-priority task for HOT leads or critical/high urgency
+        if (
+          scoreResult.classification === 'HOT' ||
+          triageResult.urgencyLevel === 'critical' ||
+          triageResult.urgencyLevel === 'high'
+        ) {
+          // Get notification contacts for urgent cases
+          const notificationContacts = triage.getNotificationContacts(triageResult.urgencyLevel);
+          const contactsInfo =
+            notificationContacts.length > 0 ? `\n\nNotify: ${notificationContacts.join(', ')}` : '';
+
+          await hubspot.createTask({
+            contactId: hubspotContactId,
+            subject: `${triageResult.urgencyLevel === 'critical' ? 'URGENT' : triageResult.urgencyLevel === 'high' ? 'HIGH PRIORITY' : 'HOT'} VOICE LEAD: ${normalizedPhone}`,
+            body: `${triageResult.notes}\n\nSuggested Action: ${scoreResult.suggestedAction}${contactsInfo}`,
+            priority: triageResult.urgencyLevel === 'critical' ? 'HIGH' : 'MEDIUM',
+            dueDate:
+              triageResult.routingRecommendation === 'immediate_callback'
+                ? new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
+                : new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+          });
+          logger.info('High-priority task created for voice lead', {
+            notificationContacts,
+            correlationId,
+          });
         // Create priority task for HOT leads or high_priority scheduling requests
         if (scoreResult.classification === 'HOT' || triageResult.urgencyLevel === 'high_priority') {
           await hubspot.createTask({
@@ -255,7 +285,8 @@ export const handleCallCompleted = task({
     factor: 2,
   },
   run: async (payload: CallCompletedPayload) => {
-    const { callSid, from, duration, transcript, recordingUrl, summary, sentiment, correlationId } = payload;
+    const { callSid, from, duration, transcript, recordingUrl, summary, sentiment, correlationId } =
+      payload;
     const { hubspot, scoring, triage, eventStore } = getClients();
 
     logger.info('Processing completed call', {
@@ -301,7 +332,9 @@ export const handleCallCompleted = task({
           channel: 'voice',
           firstTouchTimestamp: new Date().toISOString(),
           language: 'ro',
-          messageHistory: [{ role: 'user', content: transcript, timestamp: new Date().toISOString() }],
+          messageHistory: [
+            { role: 'user', content: transcript, timestamp: new Date().toISOString() },
+          ],
           hubspotContactId,
         };
 
@@ -324,6 +357,21 @@ export const handleCallCompleted = task({
           last_call_summary: summary,
         });
 
+        // Create task for HOT leads or escalation required
+        if (
+          scoreResult.classification === 'HOT' ||
+          triageResult.escalationRequired ||
+          triageResult.urgencyLevel === 'high'
+        ) {
+          // Get notification contacts for urgent cases
+          const notificationContacts = triage.getNotificationContacts(triageResult.urgencyLevel);
+          const contactsInfo =
+            notificationContacts.length > 0 ? `\n\nNotify: ${notificationContacts.join(', ')}` : '';
+
+          await hubspot.createTask({
+            contactId: hubspotContactId,
+            subject: `${triageResult.urgencyLevel === 'critical' ? 'URGENT' : 'HIGH PRIORITY'} VOICE LEAD: ${normalizedPhone} - ${scoreResult.classification}`,
+            body: `Call Duration: ${duration}s\n\n${triageResult.notes}\n\nSummary: ${summary ?? 'N/A'}${contactsInfo}`,
         // Create task for HOT leads or priority scheduling requests
         if (scoreResult.classification === 'HOT' || triageResult.prioritySchedulingRequested) {
           await hubspot.createTask({

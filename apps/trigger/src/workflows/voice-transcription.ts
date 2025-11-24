@@ -14,8 +14,8 @@ import {
   type VapiTranscript,
   type VapiCallSummary,
 } from '@medicalcor/integrations';
-import { createScoringService, createTriageService } from '@medicalcor/domain';
-import type { LeadContext } from '@medicalcor/types';
+import { createScoringService, createTriageService, type TriageResult } from '@medicalcor/domain';
+import type { LeadContext, ScoringOutput } from '@medicalcor/types';
 
 /**
  * Voice Transcription Processing Workflow
@@ -288,23 +288,35 @@ export const processPostCall = task({
           });
         }
 
-        // Create high-priority task for HOT leads
+        // Create high-priority task for HOT leads or critical/high urgency
         if (
-          (scoreResult?.classification === 'HOT' || summary?.urgencyLevel === 'critical') &&
+          (scoreResult?.classification === 'HOT' ||
+            summary?.urgencyLevel === 'critical' ||
+            triageResult?.urgencyLevel === 'high') &&
           triageResult
         ) {
+          // Get notification contacts for urgent cases
+          const notificationContacts = triage.getNotificationContacts(triageResult.urgencyLevel);
+          const taskBody = buildTaskBody(summary, scoreResult, triageResult, aiSummary);
+          const contactsInfo =
+            notificationContacts.length > 0 ? `\n\nNotify: ${notificationContacts.join(', ')}` : '';
+
           await hubspot.createTask({
             contactId: hubspotContactId,
-            subject: `${summary?.urgencyLevel === 'critical' ? 'URGENT' : 'HOT'} VOICE: ${customerName ?? normalizedPhone}`,
-            body: buildTaskBody(summary, scoreResult, triageResult, aiSummary),
-            priority: summary?.urgencyLevel === 'critical' ? 'HIGH' : 'MEDIUM',
+            subject: `${triageResult.urgencyLevel === 'critical' ? 'URGENT' : triageResult.urgencyLevel === 'high' ? 'HIGH PRIORITY' : 'HOT'} VOICE: ${customerName ?? normalizedPhone}`,
+            body: `${taskBody}${contactsInfo}`,
+            priority: triageResult.urgencyLevel === 'critical' ? 'HIGH' : 'MEDIUM',
             dueDate:
               triageResult.routingRecommendation === 'immediate_callback'
                 ? new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
                 : new Date(Date.now() + 60 * 60 * 1000), // 1 hour
           });
 
-          logger.info('High-priority task created', { hubspotContactId, correlationId });
+          logger.info('High-priority task created', {
+            hubspotContactId,
+            notificationContacts,
+            correlationId,
+          });
         }
 
         logger.info('HubSpot updated', { hubspotContactId, correlationId });
@@ -605,22 +617,9 @@ export const extractKeywordsFromTranscript = task({
 // Helper Functions
 // =============================================================================
 
-interface TriageResult {
-  urgencyLevel: string;
-  routingRecommendation: string;
-  notes: string;
-}
-
-interface ScoreResult {
-  score: number;
-  classification: string;
-  suggestedAction?: string | undefined;
-  procedureInterest?: string[] | undefined;
-}
-
 function buildTaskBody(
   summary: VapiCallSummary | null,
-  scoreResult: ScoreResult | null,
+  scoreResult: ScoringOutput | null,
   triageResult: TriageResult | null,
   aiSummary: string | null
 ): string {
