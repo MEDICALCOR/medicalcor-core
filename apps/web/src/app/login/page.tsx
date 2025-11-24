@@ -27,7 +27,7 @@ export default function LoginPage() {
         redirect: false,
       });
 
-      if (result?.error) {
+      if (result.error) {
         setError('Invalid email or password');
         return;
       }
@@ -49,9 +49,7 @@ export default function LoginPage() {
             <Lock className="h-6 w-6 text-teal-600 dark:text-teal-400" />
           </div>
           <CardTitle className="text-2xl font-bold">MedicalCor Cortex</CardTitle>
-          <CardDescription>
-            Sign in to access the medical CRM dashboard
-          </CardDescription>
+          <CardDescription>Sign in to access the medical CRM dashboard</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

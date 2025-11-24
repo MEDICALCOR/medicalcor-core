@@ -6,7 +6,7 @@
 import { auth, hasRole, PERMISSIONS, type UserRole } from './index';
 
 export class AuthorizationError extends Error {
-  constructor(message: string = 'Unauthorized access') {
+  constructor(message = 'Unauthorized access') {
     super(message);
     this.name = 'AuthorizationError';
   }
@@ -49,7 +49,7 @@ export async function requirePermission(permission: keyof typeof PERMISSIONS) {
   const session = await requireAuth();
   const allowedRoles = PERMISSIONS[permission];
 
-  if (!hasRole(session.user.role, allowedRoles as UserRole[])) {
+  if (!hasRole(session.user.role, allowedRoles)) {
     throw new AuthorizationError(`Permission denied: ${permission}`);
   }
 

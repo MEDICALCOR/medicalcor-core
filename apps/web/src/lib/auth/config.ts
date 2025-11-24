@@ -59,12 +59,10 @@ const MOCK_USERS: Record<string, AuthUser & { password: string }> = {
  * Validate user credentials
  * In production, replace with database lookup and bcrypt comparison
  */
-async function validateCredentials(
-  email: string,
-  password: string
-): Promise<AuthUser | null> {
+function validateCredentials(email: string, password: string): AuthUser | null {
   const user = MOCK_USERS[email];
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!user) {
     return null;
   }
@@ -89,9 +87,10 @@ export const authConfig: NextAuthConfig = {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
       const isOnDashboard = !nextUrl.pathname.startsWith('/login');
-      const isPublicPath = nextUrl.pathname === '/login' ||
-                          nextUrl.pathname === '/offline' ||
-                          nextUrl.pathname.startsWith('/api/auth');
+      const isPublicPath =
+        nextUrl.pathname === '/login' ||
+        nextUrl.pathname === '/offline' ||
+        nextUrl.pathname.startsWith('/api/auth');
 
       if (isPublicPath) {
         return true;
@@ -108,6 +107,7 @@ export const authConfig: NextAuthConfig = {
     },
 
     jwt({ token, user }) {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (user) {
         // Add custom fields to JWT token
         token.id = user.id;
@@ -118,6 +118,7 @@ export const authConfig: NextAuthConfig = {
     },
 
     session({ session, token }) {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (session.user) {
         // Add custom fields to session
         session.user.id = token.id as string;
@@ -135,7 +136,7 @@ export const authConfig: NextAuthConfig = {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
       },
-      async authorize(credentials) {
+      authorize(credentials) {
         const parsed = CredentialsSchema.safeParse(credentials);
 
         if (!parsed.success) {
@@ -143,7 +144,7 @@ export const authConfig: NextAuthConfig = {
         }
 
         const { email, password } = parsed.data;
-        const user = await validateCredentials(email, password);
+        const user = validateCredentials(email, password);
 
         return user;
       },

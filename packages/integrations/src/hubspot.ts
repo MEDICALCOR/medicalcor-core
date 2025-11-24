@@ -15,10 +15,12 @@ const HubSpotClientConfigSchema = z.object({
   accessToken: z.string().min(1, 'Access token is required'),
   portalId: z.string().optional(),
   baseUrl: z.string().url().optional(),
-  retryConfig: z.object({
-    maxRetries: z.number().int().min(0).max(10),
-    baseDelayMs: z.number().int().min(100).max(30000),
-  }).optional(),
+  retryConfig: z
+    .object({
+      maxRetries: z.number().int().min(0).max(10),
+      baseDelayMs: z.number().int().min(100).max(30000),
+    })
+    .optional(),
 });
 
 const PhoneSchema = z.string().min(10).max(20);
@@ -55,12 +57,14 @@ const TaskInputSchema = z.object({
 
 export interface HubSpotClientConfig {
   accessToken: string;
-  portalId?: string;
-  baseUrl?: string;
-  retryConfig?: {
-    maxRetries: number;
-    baseDelayMs: number;
-  };
+  portalId?: string | undefined;
+  baseUrl?: string | undefined;
+  retryConfig?:
+    | {
+        maxRetries: number;
+        baseDelayMs: number;
+      }
+    | undefined;
 }
 
 export interface TimelineEventInput {
@@ -243,7 +247,9 @@ export class HubSpotClient {
    * Log message to contact timeline
    */
   async logMessageToTimeline(input: TimelineEventInput): Promise<void> {
-    const { contactId, message, direction, channel, messageId, metadata } = input;
+    // Validate input
+    const validated = TimelineEventInputSchema.parse(input);
+    const { contactId, message, direction, channel, messageId, metadata } = validated;
 
     // Create a note on the contact (simplified timeline entry)
     await this.request('/crm/v3/objects/notes', {
@@ -453,7 +459,7 @@ export class HubSpotClient {
           throw new ExternalServiceError('HubSpot', `${response.status}: ${errorBody}`);
         }
 
-        return response.json() as Promise<T>;
+        return (await response.json()) as T;
       } catch (error) {
         clearTimeout(timeoutId);
         if (error instanceof Error && error.name === 'AbortError') {
