@@ -114,3 +114,13 @@ export {
   getTodayString,
   getCurrentHourString,
 } from './idempotency.js';
+
+export {
+  createDatabaseClient,
+  createIsolatedDatabaseClient,
+  closeDatabasePool,
+  type DatabaseClient,
+  type DatabasePool,
+  type PoolClient,
+  type QueryResult,
+} from './database.js';

@@ -100,7 +100,8 @@ export async function canAccessPatient(patientId: string): Promise<boolean> {
     const contact = await hubspot.getContact(patientId);
 
     // Check if patient's clinic_id matches user's clinic
-    const patientClinicId = contact.properties.clinic_id;
+    // clinic_id is a custom HubSpot property, not in the standard type
+    const patientClinicId = (contact.properties as Record<string, string | undefined>).clinic_id;
 
     // If patient has no clinic assigned, deny access for non-admins
     if (!patientClinicId) {
