@@ -96,42 +96,36 @@ export const patientJourneyWorkflow = task({
     logger.info('Stage 1: Initial engagement', { correlationId });
 
     if (classification === 'HOT') {
-      // Hot leads get immediate attention
+      // Hot leads get priority scheduling attention
       if (hubspot) {
         try {
           await hubspot.createTask({
             contactId: hubspotContactId,
-            subject: `URGENT: Hot lead requires immediate follow-up`,
-            body: `Lead score: ${initialScore}/5. Interested in: ${procedureInterest?.join(', ') ?? 'Unknown'}`,
+            subject: `PRIORITY REQUEST: Patient wants quick appointment`,
+            body: `Lead score: ${initialScore}/5. Interested in: ${procedureInterest?.join(', ') ?? 'Unknown'}\n\nPatient reported interest/discomfort. Schedule priority appointment during business hours.`,
             priority: 'HIGH',
-            dueDate: new Date(), // Due immediately
+            dueDate: new Date(Date.now() + 30 * 60 * 1000), // Due in 30 minutes during business hours
           });
-          logger.info('Created urgent HubSpot task for hot lead', { correlationId });
+          logger.info('Created priority request task for hot lead', { correlationId });
         } catch (error) {
           logger.error('Failed to create HubSpot task', { error, correlationId });
         }
       }
 
-      // Send acknowledgment template
+      // Send priority scheduling acknowledgment
       if (whatsapp) {
         try {
-          await whatsapp.sendTemplate({
+          await whatsapp.sendText({
             to: phone,
-            templateName: 'hot_lead_acknowledgment',
-            components: [
-              {
-                type: 'body',
-                parameters: [{ type: 'text', text: 'valued customer' }],
-              },
-            ],
+            text: 'Am înțeles că aveți un disconfort. Vă priorizăm pentru o programare cât mai rapidă în timpul programului de lucru. Pentru urgențe vitale, sunați la 112.',
           });
-          logger.info('Sent hot lead acknowledgment via WhatsApp', { correlationId });
+          logger.info('Sent priority scheduling acknowledgment via WhatsApp', { correlationId });
         } catch (error) {
           logger.error('Failed to send WhatsApp acknowledgment', { error, correlationId });
         }
       }
 
-      logger.info('Hot lead: Created urgent task and sent acknowledgment', { correlationId });
+      logger.info('Hot lead: Created priority task and sent acknowledgment', { correlationId });
     } else if (classification === 'WARM') {
       // Warm leads get nurture sequence
       logger.info('Warm lead: Starting nurture sequence', { correlationId });
