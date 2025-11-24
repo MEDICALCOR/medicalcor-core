@@ -47,12 +47,43 @@ export const CorrelationIdSchema = z
   .describe("Correlation ID for distributed tracing");
 
 /**
- * Pagination parameters
+ * Pagination parameters (offset-based)
  */
 export const PaginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
+
+/**
+ * Cursor-based pagination parameters
+ * Used for efficient pagination through large datasets
+ */
+export const CursorPaginationSchema = z.object({
+  cursor: z.string().optional().describe("Opaque cursor for next page"),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+/**
+ * Paginated response wrapper
+ * Generic schema for cursor-based paginated results
+ */
+export const PaginatedResponseSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
+  z.object({
+    items: z.array(itemSchema),
+    nextCursor: z.string().nullable().describe("Cursor for next page, null if no more pages"),
+    hasMore: z.boolean().describe("Whether more items exist"),
+    total: z.number().optional().describe("Total count if available"),
+  });
+
+/**
+ * Creates a paginated response type
+ */
+export interface PaginatedResponse<T> {
+  items: T[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  total?: number;
+}
 
 export type PhoneNumber = z.infer<typeof PhoneNumberSchema>;
 export type E164Phone = z.infer<typeof E164PhoneSchema>;
@@ -61,3 +92,4 @@ export type UUID = z.infer<typeof UUIDSchema>;
 export type Timestamp = z.infer<typeof TimestampSchema>;
 export type CorrelationId = z.infer<typeof CorrelationIdSchema>;
 export type Pagination = z.infer<typeof PaginationSchema>;
+export type CursorPagination = z.infer<typeof CursorPaginationSchema>;
