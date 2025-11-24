@@ -63,21 +63,19 @@ export const voiceWebhookRoutes: FastifyPluginAsync = (fastify) => {
       typeof headerCorrelationId === 'string' ? headerCorrelationId : generateCorrelationId();
 
     try {
-      // SECURITY: Verify Twilio signature
+      // SECURITY: Verify Twilio signature (REQUIRED in all environments)
       const authToken = process.env.TWILIO_AUTH_TOKEN;
-      if (authToken) {
-        if (!verifyTwilioSignature(request, authToken)) {
-          fastify.log.warn({ correlationId }, 'Invalid Twilio signature on voice webhook');
-          return await reply.status(403).send({ error: 'Invalid signature' });
-        }
-      } else if (process.env.NODE_ENV === 'production') {
-        fastify.log.error({ correlationId }, 'TWILIO_AUTH_TOKEN not configured in production');
-        return await reply.status(500).send({ error: 'Server configuration error' });
-      } else {
-        fastify.log.warn(
+      if (!authToken) {
+        fastify.log.error(
           { correlationId },
-          'TWILIO_AUTH_TOKEN not configured - skipping signature verification in development'
+          'CRITICAL: TWILIO_AUTH_TOKEN not configured - webhook security disabled'
         );
+        return await reply.status(500).send({ error: 'Server configuration error' });
+      }
+
+      if (!verifyTwilioSignature(request, authToken)) {
+        fastify.log.warn({ correlationId }, 'Invalid Twilio signature on voice webhook');
+        return await reply.status(403).send({ error: 'Invalid signature' });
       }
 
       // Twilio sends form-urlencoded data
@@ -166,16 +164,19 @@ export const voiceWebhookRoutes: FastifyPluginAsync = (fastify) => {
       typeof headerCorrelationId === 'string' ? headerCorrelationId : generateCorrelationId();
 
     try {
-      // SECURITY: Verify Twilio signature
+      // SECURITY: Verify Twilio signature (REQUIRED in all environments)
       const authToken = process.env.TWILIO_AUTH_TOKEN;
-      if (authToken) {
-        if (!verifyTwilioSignature(request, authToken)) {
-          fastify.log.warn({ correlationId }, 'Invalid Twilio signature on status webhook');
-          return await reply.status(403).send({ error: 'Invalid signature' });
-        }
-      } else if (process.env.NODE_ENV === 'production') {
-        fastify.log.error({ correlationId }, 'TWILIO_AUTH_TOKEN not configured in production');
+      if (!authToken) {
+        fastify.log.error(
+          { correlationId },
+          'CRITICAL: TWILIO_AUTH_TOKEN not configured - webhook security disabled'
+        );
         return await reply.status(500).send({ error: 'Server configuration error' });
+      }
+
+      if (!verifyTwilioSignature(request, authToken)) {
+        fastify.log.warn({ correlationId }, 'Invalid Twilio signature on status webhook');
+        return await reply.status(403).send({ error: 'Invalid signature' });
       }
 
       const parseResult = CallStatusCallbackSchema.safeParse(request.body);
