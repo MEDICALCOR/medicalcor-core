@@ -1,11 +1,20 @@
-import { withRetry, ExternalServiceError, WebhookSignatureError, RateLimitError } from '@medicalcor/core';
+import {
+  withRetry,
+  ExternalServiceError,
+  WebhookSignatureError,
+  RateLimitError,
+} from '@medicalcor/core';
 import crypto from 'crypto';
 import { z } from 'zod';
 
 /**
  * Input validation schemas for WhatsApp client
  */
-const PhoneSchema = z.string().min(10).max(15).regex(/^\+?[1-9]\d{9,14}$/, 'Invalid phone number format');
+const PhoneSchema = z
+  .string()
+  .min(10)
+  .max(15)
+  .regex(/^\+?[1-9]\d{9,14}$/, 'Invalid phone number format');
 
 const SendTextOptionsSchema = z.object({
   to: PhoneSchema,
@@ -15,20 +24,28 @@ const SendTextOptionsSchema = z.object({
 
 const TemplateComponentSchema = z.object({
   type: z.enum(['header', 'body', 'button']),
-  parameters: z.array(z.object({
-    type: z.enum(['text', 'image', 'document', 'video']),
-    text: z.string().optional(),
-    image: z.object({ link: z.string().url() }).optional(),
-    document: z.object({ link: z.string().url(), filename: z.string().optional() }).optional(),
-    video: z.object({ link: z.string().url() }).optional(),
-  })).optional(),
+  parameters: z
+    .array(
+      z.object({
+        type: z.enum(['text', 'image', 'document', 'video']),
+        text: z.string().optional(),
+        image: z.object({ link: z.string().url() }).optional(),
+        document: z.object({ link: z.string().url(), filename: z.string().optional() }).optional(),
+        video: z.object({ link: z.string().url() }).optional(),
+      })
+    )
+    .optional(),
   sub_type: z.enum(['quick_reply', 'url']).optional(),
   index: z.string().optional(),
 });
 
 const SendTemplateOptionsSchema = z.object({
   to: PhoneSchema,
-  templateName: z.string().min(1).max(512).regex(/^[a-z0-9_]+$/, 'Template name must be lowercase alphanumeric with underscores'),
+  templateName: z
+    .string()
+    .min(1)
+    .max(512)
+    .regex(/^[a-z0-9_]+$/, 'Template name must be lowercase alphanumeric with underscores'),
   language: z.string().min(2).max(5).optional(),
   components: z.array(TemplateComponentSchema).optional(),
 });
@@ -39,10 +56,12 @@ const WhatsAppClientConfigSchema = z.object({
   businessAccountId: z.string().optional(),
   webhookSecret: z.string().optional(),
   baseUrl: z.string().url().optional(),
-  retryConfig: z.object({
-    maxRetries: z.number().int().min(0).max(10),
-    baseDelayMs: z.number().int().min(100).max(30000),
-  }).optional(),
+  retryConfig: z
+    .object({
+      maxRetries: z.number().int().min(0).max(10),
+      baseDelayMs: z.number().int().min(100).max(30000),
+    })
+    .optional(),
 });
 
 /**
@@ -53,13 +72,15 @@ const WhatsAppClientConfigSchema = z.object({
 export interface WhatsAppClientConfig {
   apiKey: string;
   phoneNumberId: string;
-  businessAccountId?: string;
-  webhookSecret?: string;
-  baseUrl?: string;
-  retryConfig?: {
-    maxRetries: number;
-    baseDelayMs: number;
-  };
+  businessAccountId?: string | undefined;
+  webhookSecret?: string | undefined;
+  baseUrl?: string | undefined;
+  retryConfig?:
+    | {
+        maxRetries: number;
+        baseDelayMs: number;
+      }
+    | undefined;
 }
 
 export interface SendTextOptions {
@@ -415,7 +436,7 @@ export class WhatsAppClient {
           throw new ExternalServiceError('WhatsApp', `${response.status}: ${errorBody}`);
         }
 
-        return response.json() as Promise<T>;
+        return (await response.json()) as T;
       } catch (error) {
         clearTimeout(timeoutId);
         if (error instanceof Error && error.name === 'AbortError') {

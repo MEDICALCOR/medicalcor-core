@@ -60,7 +60,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           <div className="text-center">
             <h3 className="font-semibold text-destructive">A aparut o eroare</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              {this.state.error?.message || 'Ceva nu a functionat corect.'}
+              {this.state.error?.message ?? 'Ceva nu a functionat corect.'}
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={this.handleRetry}>
@@ -109,7 +109,8 @@ export class PageErrorBoundary extends Component<ErrorBoundaryProps, ErrorBounda
           <div className="max-w-md text-center">
             <h1 className="text-2xl font-bold text-destructive">Eroare de aplicatie</h1>
             <p className="mt-2 text-muted-foreground">
-              A aparut o eroare neasteptata. Va rugam sa reincarcati pagina sau sa contactati suportul daca problema persista.
+              A aparut o eroare neasteptata. Va rugam sa reincarcati pagina sau sa contactati
+              suportul daca problema persista.
             </p>
             {process.env.NODE_ENV === 'development' && this.state.error && (
               <pre className="mt-4 max-h-40 overflow-auto rounded bg-muted p-3 text-left text-xs">
@@ -149,11 +150,7 @@ export function AsyncBoundary({
 }): ReactNode {
   return (
     <ErrorBoundary fallback={fallback}>
-      {loadingFallback ? (
-        <>{children}</>
-      ) : (
-        children
-      )}
+      {loadingFallback ? <>{children}</> : children}
     </ErrorBoundary>
   );
 }

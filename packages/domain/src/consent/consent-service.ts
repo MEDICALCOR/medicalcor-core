@@ -110,7 +110,7 @@ export class ConsentService {
     if (!options?.repository) {
       this.logger.warn(
         'ConsentService initialized with in-memory repository. ' +
-        'This is NOT suitable for production - consent data will be lost on restart!'
+          'This is NOT suitable for production - consent data will be lost on restart!'
       );
     }
   }
@@ -184,13 +184,13 @@ export class ConsentService {
   /**
    * Grant consent (convenience method)
    */
-  grantConsent(
+  async grantConsent(
     contactId: string,
     phone: string,
     consentType: ConsentType,
     source: ConsentSource,
     options?: { ipAddress?: string; userAgent?: string; metadata?: Record<string, unknown> }
-  ): ConsentRecord {
+  ): Promise<ConsentRecord> {
     return this.recordConsent({
       contactId,
       phone,
@@ -206,14 +206,13 @@ export class ConsentService {
   /**
    * Withdraw consent
    */
-  withdrawConsent(
+  async withdrawConsent(
     contactId: string,
     consentType: ConsentType,
     reason?: string,
     performedBy = 'patient'
-  ): ConsentRecord {
-    const key = this.getConsentKey(contactId, consentType);
-    const existing = this.consents.get(key);
+  ): Promise<ConsentRecord> {
+    const existing = await this.repository.findByContactAndType(contactId, consentType);
 
     if (!existing) {
       throw new Error(`Consent record not found for ${contactId}:${consentType}`);
@@ -224,9 +223,9 @@ export class ConsentService {
     existing.withdrawnAt = new Date().toISOString();
     existing.updatedAt = new Date().toISOString();
 
-    this.consents.set(key, existing);
+    await this.repository.save(existing);
 
-    this.createAuditEntry({
+    await this.createAuditEntry({
       consentId: existing.id,
       action: 'withdrawn',
       previousStatus,
@@ -245,9 +244,8 @@ export class ConsentService {
   /**
    * Check if consent is valid
    */
-  hasValidConsent(contactId: string, consentType: ConsentType): boolean {
-    const key = this.getConsentKey(contactId, consentType);
-    const consent = this.consents.get(key);
+  async hasValidConsent(contactId: string, consentType: ConsentType): Promise<boolean> {
+    const consent = await this.repository.findByContactAndType(contactId, consentType);
 
     if (!consent) return false;
     if (consent.status !== 'granted') return false;
@@ -255,7 +253,7 @@ export class ConsentService {
     // Check expiration
     if (consent.expiresAt && new Date(consent.expiresAt) < new Date()) {
       // Auto-expire
-      this.expireConsent(consent);
+      await this.expireConsent(consent);
       return false;
     }
 
@@ -271,11 +269,13 @@ export class ConsentService {
   /**
    * Check if all required consents are granted
    */
-  hasRequiredConsents(contactId: string): { valid: boolean; missing: ConsentType[] } {
+  async hasRequiredConsents(
+    contactId: string
+  ): Promise<{ valid: boolean; missing: ConsentType[] }> {
     const missing: ConsentType[] = [];
 
     for (const consentType of this.config.requiredForProcessing) {
-      const hasConsent = this.hasValidConsent(contactId, consentType);
+      const hasConsent = await this.hasValidConsent(contactId, consentType);
       if (!hasConsent) {
         missing.push(consentType);
       }
@@ -290,53 +290,41 @@ export class ConsentService {
   /**
    * Get consent status for a contact
    */
-  getConsent(contactId: string, consentType: ConsentType): ConsentRecord | null {
-    const key = this.getConsentKey(contactId, consentType);
-    return this.consents.get(key) ?? null;
+  async getConsent(contactId: string, consentType: ConsentType): Promise<ConsentRecord | null> {
+    return this.repository.findByContactAndType(contactId, consentType);
   }
 
   /**
    * Get all consents for a contact
    */
-  getConsentsForContact(contactId: string): ConsentRecord[] {
-    const results: ConsentRecord[] = [];
-
-    for (const consent of this.consents.values()) {
-      if (consent.contactId === contactId) {
-        results.push(consent);
-      }
-    }
-
-    return results;
+  async getConsentsForContact(contactId: string): Promise<ConsentRecord[]> {
+    return this.repository.findByContact(contactId);
   }
 
   /**
    * Get audit trail for a consent
    */
-  getAuditTrail(consentId: string): ConsentAuditEntry[] {
-    return this.auditLog.filter((entry) => entry.consentId === consentId);
+  async getAuditTrail(consentId: string): Promise<ConsentAuditEntry[]> {
+    return this.repository.getAuditTrail(consentId);
   }
 
   /**
    * Get audit trail for a contact
    */
-  getContactAuditTrail(contactId: string): ConsentAuditEntry[] {
-    const consents = this.getConsentsForContact(contactId);
-    const consentIds = new Set(consents.map((c) => c.id));
-
-    return this.auditLog.filter((entry) => consentIds.has(entry.consentId));
+  async getContactAuditTrail(contactId: string): Promise<ConsentAuditEntry[]> {
+    return this.repository.getContactAuditTrail(contactId);
   }
 
   /**
    * Export consent data for GDPR data portability request
    */
-  exportConsentData(contactId: string): {
+  async exportConsentData(contactId: string): Promise<{
     consents: ConsentRecord[];
     auditTrail: ConsentAuditEntry[];
     exportedAt: string;
-  } {
-    const consents = this.getConsentsForContact(contactId);
-    const auditTrail = this.getContactAuditTrail(contactId);
+  }> {
+    const consents = await this.getConsentsForContact(contactId);
+    const auditTrail = await this.getContactAuditTrail(contactId);
 
     return {
       consents,
@@ -348,14 +336,12 @@ export class ConsentService {
   /**
    * Delete all consent data for GDPR erasure request
    */
-  eraseConsentData(contactId: string, performedBy: string, reason: string): void {
-    const consents = this.getConsentsForContact(contactId);
+  async eraseConsentData(contactId: string, performedBy: string, reason: string): Promise<void> {
+    const consents = await this.getConsentsForContact(contactId);
 
     for (const consent of consents) {
-      const key = this.getConsentKey(contactId, consent.consentType);
-
       // Create final audit entry before deletion
-      this.createAuditEntry({
+      await this.createAuditEntry({
         consentId: consent.id,
         action: 'withdrawn',
         previousStatus: consent.status,
@@ -365,9 +351,9 @@ export class ConsentService {
         ipAddress: null,
         metadata: { erasureRequest: true },
       });
-
-      this.consents.delete(key);
     }
+
+    await this.repository.deleteByContact(contactId);
 
     this.logger.info({ contactId, erasedCount: consents.length }, 'Consent data erased');
   }
@@ -427,17 +413,16 @@ Sie können Ihre Zustimmung jederzeit widerrufen, indem Sie "STOP" antworten.`,
   /**
    * Expire a consent record
    */
-  private expireConsent(consent: ConsentRecord): void {
-    const key = this.getConsentKey(consent.contactId, consent.consentType);
+  private async expireConsent(consent: ConsentRecord): Promise<void> {
     const previousStatus = consent.status;
 
     consent.status = 'withdrawn';
     consent.withdrawnAt = new Date().toISOString();
     consent.updatedAt = new Date().toISOString();
 
-    this.consents.set(key, consent);
+    await this.repository.save(consent);
 
-    this.createAuditEntry({
+    await this.createAuditEntry({
       consentId: consent.id,
       action: 'expired',
       previousStatus,
@@ -452,7 +437,9 @@ Sie können Ihre Zustimmung jederzeit widerrufen, indem Sie "STOP" antworten.`,
   /**
    * Create audit log entry
    */
-  private async createAuditEntry(entry: Omit<ConsentAuditEntry, 'id' | 'timestamp'>): Promise<void> {
+  private async createAuditEntry(
+    entry: Omit<ConsentAuditEntry, 'id' | 'timestamp'>
+  ): Promise<void> {
     const auditEntry: ConsentAuditEntry = {
       id: this.generateId(),
       ...entry,

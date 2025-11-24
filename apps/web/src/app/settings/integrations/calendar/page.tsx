@@ -404,7 +404,9 @@ export default function CalendarSyncPage() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline">{actionLabels[sync.action]}</Badge>
+                          <Badge variant="outline">
+                            {actionLabels[sync.action as keyof typeof actionLabels]}
+                          </Badge>
                           <span className="font-medium">{sync.event}</span>
                         </div>
                         <p className="text-sm text-muted-foreground">
