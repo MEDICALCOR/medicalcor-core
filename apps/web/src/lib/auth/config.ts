@@ -1,11 +1,15 @@
 /**
  * NextAuth.js Configuration
  * Provides authentication for the MedicalCor Cortex web application
+ *
+ * SECURITY NOTE: Authentication is configured via environment variables.
+ * No hardcoded credentials are allowed in this file.
  */
 
 import type { NextAuthConfig } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { z } from 'zod';
+import bcrypt from 'bcryptjs';
 
 // User roles for RBAC
 export type UserRole = 'admin' | 'doctor' | 'receptionist' | 'staff';
@@ -26,55 +30,109 @@ const CredentialsSchema = z.object({
 });
 
 /**
- * Mock user database for development
- * In production, replace with actual database lookup
+ * User configuration from environment variables
+ * Each user is configured via env vars in the format:
+ * AUTH_USER_<ID>_EMAIL, AUTH_USER_<ID>_PASSWORD_HASH, AUTH_USER_<ID>_NAME, AUTH_USER_<ID>_ROLE, AUTH_USER_<ID>_CLINIC_ID
+ *
+ * Password hashes should be generated with bcrypt (cost factor 12+)
+ * Example: npx bcryptjs hash "yourpassword" 12
  */
-const MOCK_USERS: Record<string, AuthUser & { password: string }> = {
-  'admin@medicalcor.ro': {
-    id: 'user_admin_001',
-    email: 'admin@medicalcor.ro',
-    name: 'Admin User',
-    role: 'admin',
-    password: 'admin123456', // In production, use hashed passwords
-  },
-  'doctor@medicalcor.ro': {
-    id: 'user_doctor_001',
-    email: 'doctor@medicalcor.ro',
-    name: 'Dr. Elena Popescu',
-    role: 'doctor',
-    clinicId: 'clinic_001',
-    password: 'doctor123456',
-  },
-  'reception@medicalcor.ro': {
-    id: 'user_reception_001',
-    email: 'reception@medicalcor.ro',
-    name: 'Ana Receptionist',
-    role: 'receptionist',
-    clinicId: 'clinic_001',
-    password: 'reception123456',
-  },
-};
+interface EnvUser {
+  id: string;
+  email: string;
+  passwordHash: string;
+  name: string;
+  role: UserRole;
+  clinicId?: string;
+}
 
 /**
- * Validate user credentials
- * In production, replace with database lookup and bcrypt comparison
+ * Load users from environment variables
+ * SECURITY: Users are defined via environment variables, not hardcoded
  */
-function validateCredentials(email: string, password: string): AuthUser | null {
-  const user = MOCK_USERS[email];
+function loadUsersFromEnv(): EnvUser[] {
+  const users: EnvUser[] = [];
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  // Load primary admin user from dedicated env vars
+  const adminEmail = process.env.AUTH_ADMIN_EMAIL;
+  const adminPasswordHash = process.env.AUTH_ADMIN_PASSWORD_HASH;
+  const adminName = process.env.AUTH_ADMIN_NAME ?? 'Administrator';
+
+  if (adminEmail && adminPasswordHash) {
+    users.push({
+      id: 'admin_primary',
+      email: adminEmail,
+      passwordHash: adminPasswordHash,
+      name: adminName,
+      role: 'admin',
+    });
+  }
+
+  // Load additional users from numbered env vars (AUTH_USER_1_*, AUTH_USER_2_*, etc.)
+  for (let i = 1; i <= 20; i++) {
+    const prefix = `AUTH_USER_${i}_`;
+    const email = process.env[`${prefix}EMAIL`];
+    const passwordHash = process.env[`${prefix}PASSWORD_HASH`];
+    const name = process.env[`${prefix}NAME`];
+    const role = process.env[`${prefix}ROLE`] as UserRole | undefined;
+    const clinicId = process.env[`${prefix}CLINIC_ID`];
+
+    if (email && passwordHash && name && role) {
+      users.push({
+        id: `user_${i}`,
+        email,
+        passwordHash,
+        name,
+        role,
+        clinicId: clinicId || undefined,
+      });
+    }
+  }
+
+  return users;
+}
+
+// Load users once at startup
+const configuredUsers = loadUsersFromEnv();
+
+// Log warning if no users are configured (but don't log user details for security)
+if (configuredUsers.length === 0) {
+  console.warn(
+    '[Auth] WARNING: No users configured. Set AUTH_ADMIN_EMAIL and AUTH_ADMIN_PASSWORD_HASH environment variables.'
+  );
+} else {
+  console.log(`[Auth] Loaded ${configuredUsers.length} user(s) from environment configuration`);
+}
+
+/**
+ * Validate user credentials against environment-configured users
+ * Uses bcrypt for secure password comparison
+ */
+async function validateCredentials(email: string, password: string): Promise<AuthUser | null> {
+  const user = configuredUsers.find((u) => u.email.toLowerCase() === email.toLowerCase());
+
   if (!user) {
+    // Use constant-time comparison to prevent timing attacks
+    // Hash a dummy password to maintain consistent timing
+    await bcrypt.compare(password, '$2a$12$dummy.hash.for.timing.attack.prevention');
     return null;
   }
 
-  // In production: use bcrypt.compare(password, user.hashedPassword)
-  if (user.password !== password) {
+  // Securely compare password with stored hash
+  const isValid = await bcrypt.compare(password, user.passwordHash);
+
+  if (!isValid) {
     return null;
   }
 
-  // Return user without password
-  const { password: _, ...authUser } = user;
-  return authUser;
+  // Return user without password hash
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    clinicId: user.clinicId,
+  };
 }
 
 export const authConfig: NextAuthConfig = {
@@ -136,7 +194,7 @@ export const authConfig: NextAuthConfig = {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
       },
-      authorize(credentials) {
+      async authorize(credentials) {
         const parsed = CredentialsSchema.safeParse(credentials);
 
         if (!parsed.success) {
@@ -144,7 +202,7 @@ export const authConfig: NextAuthConfig = {
         }
 
         const { email, password } = parsed.data;
-        const user = validateCredentials(email, password);
+        const user = await validateCredentials(email, password);
 
         return user;
       },

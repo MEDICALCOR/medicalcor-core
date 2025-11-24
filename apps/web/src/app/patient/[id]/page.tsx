@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-// import { notFound } from 'next/navigation'; // Will be used when fetching real data
+import { notFound } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,78 +15,11 @@ import {
   Activity,
   User,
   FileText,
+  ShieldAlert,
 } from 'lucide-react';
 import Link from 'next/link';
-
-// Mock patient data - will be fetched via Server Actions
-const mockPatient = {
-  id: '1',
-  phone: '+40721123456',
-  name: 'Ion Popescu',
-  email: 'ion.popescu@email.com',
-  hubspotContactId: 'hs_123456',
-  lifecycleStage: 'lead',
-  leadScore: 5,
-  classification: 'HOT',
-  language: 'ro',
-  firstTouch: '2024-11-20T10:30:00Z',
-  lastActivity: '2024-11-23T14:22:00Z',
-  procedureInterest: ['All-on-X', 'implant'],
-  totalSpent: 0,
-  appointmentsCount: 0,
-};
-
-// Mock timeline events
-const mockTimeline = [
-  {
-    id: '1',
-    type: 'whatsapp.message.received',
-    timestamp: '2024-11-23T14:22:00Z',
-    data: {
-      direction: 'IN',
-      content: 'Bună ziua, sunt interesat de All-on-4. Puteți să îmi spuneți prețul?',
-    },
-  },
-  {
-    id: '2',
-    type: 'lead.scored',
-    timestamp: '2024-11-23T14:22:05Z',
-    data: {
-      score: 5,
-      classification: 'HOT',
-      confidence: 0.92,
-      reasoning: 'All-on-X interest with budget inquiry - high intent',
-    },
-  },
-  {
-    id: '3',
-    type: 'whatsapp.message.sent',
-    timestamp: '2024-11-23T14:22:30Z',
-    data: {
-      direction: 'OUT',
-      content: 'Bună ziua! Mulțumim pentru interes. Prețul pentru All-on-4 începe de la €4,500...',
-    },
-  },
-  {
-    id: '4',
-    type: 'hubspot.task.created',
-    timestamp: '2024-11-23T14:23:00Z',
-    data: {
-      subject: 'HOT LEAD: Follow-up All-on-X inquiry',
-      priority: 'HIGH',
-    },
-  },
-  {
-    id: '5',
-    type: 'voice.call.initiated',
-    timestamp: '2024-11-20T10:30:00Z',
-    data: {
-      direction: 'inbound',
-      duration: 180,
-      transcript: 'Bună ziua, vreau să fac o programare pentru implant...',
-    },
-  },
-];
+import { getPatientByIdAction, getPatientTimelineAction, type PatientDetailData, type PatientTimelineEvent } from '@/app/actions/get-patients';
+import { AuthorizationError } from '@/lib/auth/server-action-auth';
 
 function getEventIcon(type: string) {
   if (type.includes('whatsapp')) return <MessageSquare className="h-4 w-4" />;
@@ -207,7 +140,8 @@ function TimelineItem({ event }: { event: TimelineEvent }) {
   );
 }
 
-function PatientHeader({ patient }: { patient: typeof mockPatient }) {
+function PatientHeader({ patient }: { patient: PatientDetailData }) {
+  const name = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || patient.phone;
   return (
     <Card>
       <CardHeader>
@@ -217,7 +151,7 @@ function PatientHeader({ patient }: { patient: typeof mockPatient }) {
               <User className="h-8 w-8 text-primary" />
             </div>
             <div>
-              <CardTitle className="text-2xl">{patient.name || patient.phone}</CardTitle>
+              <CardTitle className="text-2xl">{name}</CardTitle>
               <CardDescription className="flex items-center gap-2">
                 <Phone className="h-3 w-3" />
                 {patient.phone}
@@ -240,7 +174,7 @@ function PatientHeader({ patient }: { patient: typeof mockPatient }) {
             }
             className="text-lg px-4 py-1"
           >
-            {patient.classification} ({patient.leadScore}/5)
+            {patient.classification} ({patient.leadScore ?? 0}/5)
           </Badge>
         </div>
       </CardHeader>
@@ -248,16 +182,16 @@ function PatientHeader({ patient }: { patient: typeof mockPatient }) {
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <div>
             <p className="text-sm text-muted-foreground">Lifecycle Stage</p>
-            <p className="font-medium capitalize">{patient.lifecycleStage}</p>
+            <p className="font-medium capitalize">{patient.lifecycleStage ?? 'lead'}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Limbă</p>
-            <p className="font-medium uppercase">{patient.language}</p>
+            <p className="font-medium uppercase">{patient.language ?? 'ro'}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Interes Proceduri</p>
             <div className="flex flex-wrap gap-1">
-              {patient.procedureInterest.map((proc) => (
+              {(patient.procedureInterest ?? []).map((proc) => (
                 <Badge key={proc} variant="outline" className="text-xs">
                   {proc}
                 </Badge>
@@ -267,10 +201,41 @@ function PatientHeader({ patient }: { patient: typeof mockPatient }) {
           <div>
             <p className="text-sm text-muted-foreground">Ultima Activitate</p>
             <p className="font-medium">
-              {new Date(patient.lastActivity).toLocaleDateString('ro-RO')}
+              {new Date(patient.updatedAt).toLocaleDateString('ro-RO')}
             </p>
           </div>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AccessDenied() {
+  return (
+    <Card className="border-destructive">
+      <CardHeader>
+        <div className="flex items-center gap-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
+            <ShieldAlert className="h-8 w-8 text-destructive" />
+          </div>
+          <div>
+            <CardTitle className="text-destructive">Acces Interzis</CardTitle>
+            <CardDescription>
+              Nu aveți permisiunea de a accesa acest pacient.
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-muted-foreground">
+          Contactați administratorul pentru a solicita acces.
+        </p>
+        <Link href="/triage">
+          <Button variant="outline" className="mt-4">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Înapoi la Triage
+          </Button>
+        </Link>
       </CardContent>
     </Card>
   );
@@ -319,15 +284,48 @@ function PatientSkeleton() {
 export default async function PatientPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  // In production, fetch patient data here using Server Actions
-  // const patient = await getPatientById(id);
-  // For now, use mock data with the ID for demo purposes
-  const patient = { ...mockPatient, id };
+  let patient: PatientDetailData | null = null;
+  let timeline: PatientTimelineEvent[] = [];
+  let accessDenied = false;
 
-  // This check will be relevant when fetching real data
-  // if (!patient) {
-  //   notFound();
-  // }
+  try {
+    // Fetch patient data with IDOR protection
+    [patient, timeline] = await Promise.all([
+      getPatientByIdAction(id),
+      getPatientTimelineAction(id),
+    ]);
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      accessDenied = true;
+    } else {
+      console.error('[PatientPage] Error fetching patient:', error);
+    }
+  }
+
+  // Handle access denied
+  if (accessDenied) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Link href="/triage">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">Patient 360</h2>
+            <p className="text-muted-foreground">Vizualizare completă a interacțiunilor</p>
+          </div>
+        </div>
+        <AccessDenied />
+      </div>
+    );
+  }
+
+  // Handle patient not found
+  if (!patient) {
+    notFound();
+  }
 
   return (
     <div className="space-y-6">
@@ -354,11 +352,17 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
               <CardDescription>Istoricul complet al comunicării</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-0">
-                {mockTimeline.map((event) => (
-                  <TimelineItem key={event.id} event={event} />
-                ))}
-              </div>
+              {timeline.length > 0 ? (
+                <div className="space-y-0">
+                  {timeline.map((event) => (
+                    <TimelineItem key={event.id} event={event} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  Nu există evenimente în timeline.
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -372,12 +376,14 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total cheltuit</span>
-                  <span className="font-medium">€{patient.totalSpent}</span>
+                  <span className="text-muted-foreground">Lead Score</span>
+                  <span className="font-medium">{patient.leadScore ?? 0}/5</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Programări</span>
-                  <span className="font-medium">{patient.appointmentsCount}</span>
+                  <span className="text-muted-foreground">Clasificare</span>
+                  <Badge variant={patient.classification === 'HOT' ? 'hot' : patient.classification === 'WARM' ? 'warm' : 'cold'}>
+                    {patient.classification}
+                  </Badge>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">HubSpot ID</span>
