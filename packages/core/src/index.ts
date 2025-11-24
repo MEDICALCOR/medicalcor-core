@@ -291,3 +291,41 @@ export {
   type AIRouterConfig,
   type DetectedIntent,
 } from './ai-gateway/index.js';
+
+// Authentication & Authorization
+export {
+  // Services
+  AuthService,
+  PasswordResetService,
+  // Repositories
+  UserRepository,
+  SessionRepository,
+  AuthEventRepository,
+  LoginAttemptRepository,
+  toSafeUser,
+  // Configuration
+  PASSWORD_POLICY,
+  SESSION_CONFIG,
+  RATE_LIMIT_CONFIG,
+  PASSWORD_RESET_CONFIG,
+  // Types
+  type UserRole,
+  type UserStatus,
+  type AuthEventType,
+  type AuthEventResult,
+  type User,
+  type SafeUser,
+  type CreateUserData,
+  type UpdateUserData,
+  type Session as AuthSession,
+  type CreateSessionData,
+  type AuthEvent,
+  type CreateAuthEventData,
+  type LoginAttempt,
+  type PasswordResetToken,
+  type RefreshToken,
+  type RateLimitResult,
+  type AuthContext,
+  type LoginResult,
+  type PasswordValidationResult,
+} from './auth/index.js';
