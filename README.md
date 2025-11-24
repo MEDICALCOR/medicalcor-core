@@ -54,6 +54,45 @@ pnpm typecheck
 
 Copy `.env.example` to `.env` and configure your credentials.
 
+## Authentication
+
+The system includes a complete NextAuth.js v5 authentication system with RBAC (Role-Based Access Control).
+
+### Quick Setup
+
+1. Generate authentication secret:
+```bash
+openssl rand -base64 32
+```
+
+2. Generate admin password hash:
+```bash
+pnpm hash-password
+# Or for production:
+pnpm hash-password:prod
+```
+
+3. Add to `.env`:
+```env
+NEXTAUTH_SECRET=your_generated_secret
+NEXTAUTH_URL=http://localhost:3001
+
+AUTH_ADMIN_EMAIL=admin@medicalcor.com
+AUTH_ADMIN_PASSWORD_HASH=$2a$12$xxxxxxxxxxxxxxxxxxxxx
+AUTH_ADMIN_NAME=Administrator
+```
+
+4. Access login page at: `http://localhost:3001/login`
+
+### User Roles
+
+- **admin** - Full system access, user management
+- **doctor** - Medical records, analytics, appointments
+- **receptionist** - Patient management, messaging
+- **staff** - View appointments only
+
+📖 **Full Documentation:** [Authentication Setup Guide](./docs/AUTH_SETUP.md)
+
 ## Tech Stack
 
 - **Runtime**: Node.js 20+
