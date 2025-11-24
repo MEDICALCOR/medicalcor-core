@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import crypto from 'crypto';
 import { VoiceWebhookSchema, CallStatusCallbackSchema } from '@medicalcor/types';
-import { ValidationError, toSafeErrorResponse, generateCorrelationId } from '@medicalcor/core';
+import { ValidationError, toSafeErrorResponse, generateCorrelationId, IdempotencyKeys } from '@medicalcor/core';
 import { tasks } from '@trigger.dev/sdk/v3';
 
 /**
@@ -115,7 +115,9 @@ export const voiceWebhookRoutes: FastifyPluginAsync = (fastify) => {
         correlationId,
       };
 
-      tasks.trigger('voice-call-handler', taskPayload).catch((err: unknown) => {
+      tasks.trigger('voice-call-handler', taskPayload, {
+        idempotencyKey: IdempotencyKeys.voiceCall(webhook.CallSid),
+      }).catch((err: unknown) => {
         fastify.log.error(
           { err, callSid: webhook.CallSid, correlationId },
           'Failed to trigger voice call handler'
@@ -216,7 +218,9 @@ export const voiceWebhookRoutes: FastifyPluginAsync = (fastify) => {
         correlationId,
       };
 
-      tasks.trigger('voice-call-handler', taskPayload).catch((err: unknown) => {
+      tasks.trigger('voice-call-handler', taskPayload, {
+        idempotencyKey: IdempotencyKeys.custom('voice-status', callback.CallSid, callback.CallStatus),
+      }).catch((err: unknown) => {
         fastify.log.error(
           { err, callSid: callback.CallSid, correlationId },
           'Failed to trigger voice call handler'

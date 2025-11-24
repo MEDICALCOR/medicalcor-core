@@ -51,6 +51,25 @@ variable "api_image" {
   default     = "gcr.io/medicalcor/api:latest"
 }
 
+# Workload Identity Federation variables
+variable "github_repo_owner" {
+  description = "GitHub repository owner (organization or username) for Workload Identity Federation"
+  type        = string
+  default     = ""
+}
+
+variable "github_repo_name" {
+  description = "GitHub repository name for Workload Identity Federation"
+  type        = string
+  default     = ""
+}
+
+variable "enable_workload_identity" {
+  description = "Enable Workload Identity Federation for GitHub Actions CI/CD"
+  type        = bool
+  default     = false
+}
+
 # =============================================================================
 # Provider Configuration
 # =============================================================================
@@ -88,6 +107,10 @@ resource "google_cloud_run_v2_service" "api" {
   ingress  = "INGRESS_TRAFFIC_ALL"
 
   template {
+    # SECURITY: Use dedicated service account instead of default compute SA
+    # This follows principle of least privilege
+    service_account = google_service_account.api.email
+
     containers {
       image = var.api_image
 
@@ -352,6 +375,103 @@ resource "google_project_iam_member" "api_cloudsql_client" {
 }
 
 # =============================================================================
+# Workload Identity Federation (for CI/CD without JSON keys)
+# SECURITY: Replaces service account key files with identity federation
+# =============================================================================
+
+# Workload Identity Pool for GitHub Actions
+resource "google_iam_workload_identity_pool" "github" {
+  count = var.enable_workload_identity ? 1 : 0
+
+  workload_identity_pool_id = "github-actions-${var.environment}"
+  display_name              = "GitHub Actions Pool (${var.environment})"
+  description               = "Workload Identity Pool for GitHub Actions CI/CD - no JSON keys required"
+  disabled                  = false
+}
+
+# Workload Identity Pool Provider for GitHub OIDC
+resource "google_iam_workload_identity_pool_provider" "github" {
+  count = var.enable_workload_identity ? 1 : 0
+
+  workload_identity_pool_id          = google_iam_workload_identity_pool.github[0].workload_identity_pool_id
+  workload_identity_pool_provider_id = "github-oidc"
+  display_name                       = "GitHub OIDC Provider"
+  description                        = "OIDC identity provider for GitHub Actions"
+
+  # GitHub OIDC configuration
+  oidc {
+    issuer_uri = "https://token.actions.githubusercontent.com"
+  }
+
+  # Attribute mapping from GitHub OIDC token
+  attribute_mapping = {
+    "google.subject"       = "assertion.sub"
+    "attribute.actor"      = "assertion.actor"
+    "attribute.aud"        = "assertion.aud"
+    "attribute.repository" = "assertion.repository"
+    "attribute.ref"        = "assertion.ref"
+    "attribute.ref_type"   = "assertion.ref_type"
+  }
+
+  # SECURITY: Only allow tokens from the specific repository
+  attribute_condition = var.github_repo_owner != "" && var.github_repo_name != "" ? "assertion.repository == '${var.github_repo_owner}/${var.github_repo_name}'" : "false"
+}
+
+# Service account for CI/CD deployments
+resource "google_service_account" "ci_cd" {
+  count = var.enable_workload_identity ? 1 : 0
+
+  account_id   = "medicalcor-cicd-${var.environment}"
+  display_name = "MedicalCor CI/CD Service Account (${var.environment})"
+  description  = "Service account for GitHub Actions deployments - uses Workload Identity Federation"
+}
+
+# Allow GitHub Actions to impersonate the CI/CD service account
+resource "google_service_account_iam_member" "ci_cd_workload_identity" {
+  count = var.enable_workload_identity ? 1 : 0
+
+  service_account_id = google_service_account.ci_cd[0].name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github[0].name}/attribute.repository/${var.github_repo_owner}/${var.github_repo_name}"
+}
+
+# CI/CD permissions - Cloud Run deployer
+resource "google_project_iam_member" "ci_cd_run_admin" {
+  count = var.enable_workload_identity ? 1 : 0
+
+  project = var.project_id
+  role    = "roles/run.admin"
+  member  = "serviceAccount:${google_service_account.ci_cd[0].email}"
+}
+
+# CI/CD permissions - Artifact Registry writer (for pushing Docker images)
+resource "google_project_iam_member" "ci_cd_artifact_registry" {
+  count = var.enable_workload_identity ? 1 : 0
+
+  project = var.project_id
+  role    = "roles/artifactregistry.writer"
+  member  = "serviceAccount:${google_service_account.ci_cd[0].email}"
+}
+
+# CI/CD permissions - Service account user (to deploy with API service account)
+resource "google_service_account_iam_member" "ci_cd_api_sa_user" {
+  count = var.enable_workload_identity ? 1 : 0
+
+  service_account_id = google_service_account.api.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.ci_cd[0].email}"
+}
+
+# CI/CD permissions - Secret accessor for deployment
+resource "google_project_iam_member" "ci_cd_secret_accessor" {
+  count = var.enable_workload_identity ? 1 : 0
+
+  project = var.project_id
+  role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:${google_service_account.ci_cd[0].email}"
+}
+
+# =============================================================================
 # Outputs
 # =============================================================================
 
@@ -368,4 +488,15 @@ output "db_connection_name" {
 output "redis_host" {
   description = "Redis host"
   value       = google_redis_instance.cache.host
+}
+
+# Workload Identity Federation outputs (for GitHub Actions configuration)
+output "workload_identity_provider" {
+  description = "Workload Identity Provider resource name for GitHub Actions"
+  value       = var.enable_workload_identity ? google_iam_workload_identity_pool_provider.github[0].name : null
+}
+
+output "ci_cd_service_account" {
+  description = "Service account email for CI/CD deployments"
+  value       = var.enable_workload_identity ? google_service_account.ci_cd[0].email : null
 }
