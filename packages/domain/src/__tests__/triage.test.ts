@@ -5,20 +5,7 @@ describe('TriageService', () => {
   const service = new TriageService();
 
   describe('assess', () => {
-    it('should return critical urgency for medical emergencies', () => {
-      const result = service.assess({
-        leadScore: 'WARM',
-        channel: 'whatsapp',
-        messageContent: 'Am avut un accident si mi-am spart dintele',
-        hasExistingRelationship: false,
-      });
-
-      expect(result.urgencyLevel).toBe('critical');
-      expect(result.escalationRequired).toBe(true);
-      expect(result.routingRecommendation).toBe('immediate_callback');
-    });
-
-    it('should return high urgency for critical symptoms', () => {
+    it('should return high_priority for pain/discomfort keywords (not emergency)', () => {
       const result = service.assess({
         leadScore: 'WARM',
         channel: 'whatsapp',
@@ -26,8 +13,23 @@ describe('TriageService', () => {
         hasExistingRelationship: false,
       });
 
-      expect(result.urgencyLevel).toBe('high');
-      expect(result.medicalFlags).toContain('symptom:durere_puternica');
+      // NOTE: Pain/discomfort indicates high purchase intent, not medical emergency
+      expect(result.urgencyLevel).toBe('high_priority');
+      expect(result.prioritySchedulingRequested).toBe(true);
+      expect(result.routingRecommendation).toBe('next_available_slot');
+      expect(result.medicalFlags).toContain('priority_scheduling_requested');
+    });
+
+    it('should return high_priority for urgent keywords', () => {
+      const result = service.assess({
+        leadScore: 'WARM',
+        channel: 'whatsapp',
+        messageContent: 'Am nevoie urgent de o programare',
+        hasExistingRelationship: false,
+      });
+
+      expect(result.urgencyLevel).toBe('high_priority');
+      expect(result.medicalFlags).toContain('symptom:urgent');
     });
 
     it('should prioritize HOT leads', () => {
@@ -91,7 +93,7 @@ describe('TriageService', () => {
       expect(result.medicalFlags).toContain('re_engagement_opportunity');
     });
 
-    it('should include comprehensive notes', () => {
+    it('should include comprehensive notes with safety disclaimer', () => {
       const result = service.assess({
         leadScore: 'HOT',
         channel: 'voice',
@@ -101,7 +103,7 @@ describe('TriageService', () => {
         previousAppointments: 2,
       });
 
-      expect(result.notes).toContain('HOT');
+      expect(result.notes).toContain('HIGH_PRIORITY');
       expect(result.notes).toContain('voice');
       expect(result.notes).toContain('All-on-X');
       expect(result.notes).toContain('PRIORITY SCHEDULING REQUESTED');
@@ -143,6 +145,8 @@ describe('TriageService', () => {
 
       expect(result.prioritySchedulingRequested).toBe(true);
       expect(result.routingRecommendation).toBe('same_day');
+      // Should include safety disclaimer for priority cases
+      expect(result.notes).toContain('112');
     });
   });
 
@@ -156,6 +160,15 @@ describe('TriageService', () => {
     it('should return supervisor for high', () => {
       const contacts = service.getNotificationContacts('high');
       expect(contacts).toContain('shift-supervisor');
+    it('should return scheduling team for high_priority', () => {
+      const contacts = service.getNotificationContacts('high_priority');
+      expect(contacts).toContain('scheduling-team');
+      expect(contacts).toContain('reception-lead');
+    });
+
+    it('should return reception for high', () => {
+      const contacts = service.getNotificationContacts('high');
+      expect(contacts).toContain('reception-team');
     });
 
     it('should return empty for normal', () => {

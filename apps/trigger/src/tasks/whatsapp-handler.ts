@@ -187,17 +187,17 @@ export const handleWhatsAppMessage = task({
 
     // Step 5: Route based on score
     if (scoreResult.classification === 'HOT') {
-      // Create high-priority task in HubSpot
+      // Create priority task in HubSpot
       if (hubspot && hubspotContactId) {
         try {
           await hubspot.createTask({
             contactId: hubspotContactId,
-            subject: `HOT LEAD: ${contact?.profile.name ?? normalizedPhone}`,
-            body: scoreResult.suggestedAction,
+            subject: `PRIORITY REQUEST: ${contact?.profile.name ?? normalizedPhone}`,
+            body: `Patient reported interest/discomfort. Wants quick appointment.\n\n${scoreResult.suggestedAction}`,
             priority: 'HIGH',
-            dueDate: new Date(Date.now() + 30 * 60 * 1000), // Due in 30 minutes
+            dueDate: new Date(Date.now() + 30 * 60 * 1000), // Due in 30 minutes during business hours
           });
-          logger.info('Created HOT lead task', { contactId: hubspotContactId, correlationId });
+          logger.info('Created priority request task', { contactId: hubspotContactId, correlationId });
         } catch (err) {
           logger.error('Failed to create HubSpot task', { err, correlationId });
         }

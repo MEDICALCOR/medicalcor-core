@@ -58,7 +58,7 @@ describe('ScoringService', () => {
       expect(result.classification).toBe('WARM');
     });
 
-    it('should boost score for urgency indicators', () => {
+    it('should boost score for urgency indicators (priority scheduling)', () => {
       const result = service.ruleBasedScore({
         phone: '+40721123456',
         channel: 'whatsapp',
@@ -70,8 +70,9 @@ describe('ScoringService', () => {
         }],
       });
 
+      // Pain/urgency indicates high purchase intent and need for priority scheduling
       expect(result.score).toBeGreaterThanOrEqual(4);
-      expect(result.urgencyIndicators).toContain('urgency_detected');
+      expect(result.urgencyIndicators).toContain('priority_scheduling_requested');
     });
 
     it('should score COLD for vague messages', () => {

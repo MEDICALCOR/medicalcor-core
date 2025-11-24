@@ -138,11 +138,11 @@ export class ScoringService {
       }
     }
 
-    // Check urgency (boost score)
+    // Check urgency (boost score - pain/urgency indicates high purchase intent)
     const hasUrgency = SCORING_RULES.urgencyIndicators.some(k => lowerContent.includes(k));
     if (hasUrgency) {
       score = Math.min(score + 1, 5);
-      indicators.push('urgency_detected');
+      indicators.push('priority_scheduling_requested');
     }
 
     // Check budget mention (boost score)
@@ -161,7 +161,7 @@ export class ScoringService {
       reasoning: `Rule-based scoring: ${indicators.join(', ') || 'no specific indicators'}`,
       suggestedAction: this.getSuggestedAction(classification, context.language),
       detectedIntent: indicators[0],
-      urgencyIndicators: hasUrgency ? ['urgency_detected'] : [],
+      urgencyIndicators: hasUrgency ? ['priority_scheduling_requested'] : [],
       budgetMentioned: hasBudgetMention,
       procedureInterest: procedures,
     };
@@ -211,12 +211,13 @@ export class ScoringService {
    * Build system prompt for AI scoring
    */
   private buildSystemPrompt(): string {
-    return `You are a medical lead scoring assistant for a dental implant clinic specializing in All-on-X procedures.
+    return `You are a lead scoring assistant for a dental implant clinic specializing in All-on-X procedures.
+NOTE: This is NOT an emergency clinic. Pain/urgency signals indicate high purchase intent and need for priority scheduling, not medical emergencies.
 
 Your task is to analyze conversations and score leads from 1-5 based on:
 
 SCORING CRITERIA:
-- Score 5 (HOT): Explicit All-on-X/implant interest + budget mentioned OR urgent medical need
+- Score 5 (HOT): Explicit All-on-X/implant interest + budget mentioned OR priority scheduling requested (pain/discomfort)
 - Score 4 (HOT): Clear procedure interest + qualification signals (timeline, decision-maker)
 - Score 3 (WARM): General interest in dental procedures, needs more information
 - Score 2 (COLD): Vague interest, early research stage, price shopping
@@ -225,7 +226,7 @@ SCORING CRITERIA:
 KEY SIGNALS TO DETECT:
 1. Procedure Interest: All-on-4, All-on-X, dental implants, full arch restoration
 2. Budget Signals: Asking about price, mentioning budget range, financing questions
-3. Urgency: Pain, tooth loss, upcoming event, timeline mentions
+3. Priority Scheduling: Pain, discomfort, urgency - indicates high purchase intent and need for quick appointment
 4. Decision-Making: "I want to", "When can I", "Let's schedule"
 
 RESPONSE FORMAT (JSON):
@@ -236,7 +237,7 @@ RESPONSE FORMAT (JSON):
   "reasoning": "<brief explanation>",
   "suggestedAction": "<recommended next step>",
   "detectedIntent": "<primary intent>",
-  "urgencyIndicators": ["<list of urgency signals>"],
+  "urgencyIndicators": ["<list of priority scheduling signals>"],
   "budgetMentioned": <true|false>,
   "procedureInterest": ["<list of procedures>"]
 }`;
