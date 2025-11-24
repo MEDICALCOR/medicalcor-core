@@ -1,61 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Plus, Clock, User } from 'lucide-react';
-
-// Mock data - will use SchedulingService from @medicalcor/domain
-const mockSlots = [
-  { id: '1', time: '09:00', duration: 30, available: true },
-  {
-    id: '2',
-    time: '09:30',
-    duration: 30,
-    available: false,
-    patient: 'Ion P.',
-    procedure: 'Consultație',
-  },
-  {
-    id: '3',
-    time: '10:00',
-    duration: 60,
-    available: false,
-    patient: 'Maria D.',
-    procedure: 'Implant',
-  },
-  { id: '4', time: '11:00', duration: 30, available: true },
-  { id: '5', time: '11:30', duration: 30, available: true },
-  {
-    id: '6',
-    time: '12:00',
-    duration: 30,
-    available: false,
-    patient: 'Andrei M.',
-    procedure: 'Cleaning',
-  },
-  { id: '7', time: '14:00', duration: 45, available: true },
-  {
-    id: '8',
-    time: '14:45',
-    duration: 30,
-    available: false,
-    patient: 'Elena S.',
-    procedure: 'Follow-up',
-  },
-  { id: '9', time: '15:15', duration: 60, available: true },
-  { id: '10', time: '16:15', duration: 30, available: true },
-  {
-    id: '11',
-    time: '16:45',
-    duration: 30,
-    available: false,
-    patient: 'Mihai R.',
-    procedure: 'Extraction',
-  },
-  { id: '12', time: '17:15', duration: 30, available: true },
-];
+import { Skeleton } from '@/components/ui/skeleton';
+import { ChevronLeft, ChevronRight, Plus, Clock, User, Loader2 } from 'lucide-react';
+import { getCalendarSlotsAction, type CalendarSlot } from '@/app/actions/get-patients';
 
 const weekDays = ['Lun', 'Mar', 'Mie', 'Joi', 'Vin'];
 
@@ -72,16 +23,7 @@ function generateWeekDates(startDate: Date) {
   return dates;
 }
 
-interface Slot {
-  id: string;
-  time: string;
-  duration: number;
-  available: boolean;
-  patient?: string;
-  procedure?: string;
-}
-
-function TimeSlot({ slot, onBook }: { slot: Slot; onBook: (slot: Slot) => void }) {
+function TimeSlot({ slot, onBook }: { slot: CalendarSlot; onBook: (slot: CalendarSlot) => void }) {
   if (slot.available) {
     return (
       <button
@@ -114,11 +56,32 @@ function TimeSlot({ slot, onBook }: { slot: Slot; onBook: (slot: Slot) => void }
   );
 }
 
+function SlotsSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
+        <Skeleton key={i} className="h-16 w-full" />
+      ))}
+    </div>
+  );
+}
+
 export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [slots, setSlots] = useState<CalendarSlot[]>([]);
+  const [isPending, startTransition] = useTransition();
 
   const weekDates = generateWeekDates(currentDate);
+
+  // Fetch slots when selected date changes
+  useEffect(() => {
+    startTransition(async () => {
+      const dateStr = selectedDate.toISOString().split('T')[0] ?? '';
+      const fetchedSlots = await getCalendarSlotsAction(dateStr);
+      setSlots(fetchedSlots);
+    });
+  }, [selectedDate]);
 
   const goToPreviousWeek = () => {
     const newDate = new Date(currentDate);
@@ -132,7 +95,7 @@ export default function CalendarPage() {
     setCurrentDate(newDate);
   };
 
-  const handleBookSlot = (slot: Slot) => {
+  const handleBookSlot = (slot: CalendarSlot) => {
     // TODO: Open booking modal with proper form
     alert(`Programare nouă la ${slot.time}\nDurata: ${slot.duration} minute`);
   };
@@ -214,13 +177,23 @@ export default function CalendarPage() {
                   month: 'long',
                 })}
               </span>
+              {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
             </div>
 
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {mockSlots.map((slot) => (
-                <TimeSlot key={slot.id} slot={slot} onBook={handleBookSlot} />
-              ))}
-            </div>
+            {isPending ? (
+              <SlotsSkeleton />
+            ) : slots.length > 0 ? (
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {slots.map((slot) => (
+                  <TimeSlot key={slot.id} slot={slot} onBook={handleBookSlot} />
+                ))}
+              </div>
+            ) : (
+              <div className="py-8 text-center text-muted-foreground">
+                <p>Nicio programare disponibilă pentru această zi.</p>
+                <p className="text-sm">Selectați o altă zi sau adăugați sloturi noi.</p>
+              </div>
+            )}
           </div>
 
           {/* Legend */}

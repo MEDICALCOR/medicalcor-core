@@ -2,9 +2,14 @@
  * GDPR Consent Service
  * Manages patient consent for data processing and communications
  * Provides audit trail for compliance
+ *
+ * IMPORTANT: Use with a persistent repository (PostgresConsentRepository)
+ * for GDPR compliance. The in-memory repository is only for development/testing.
  */
 
 import { createLogger, type Logger } from '@medicalcor/core';
+import type { ConsentRepository } from './consent-repository.js';
+import { InMemoryConsentRepository } from './consent-repository.js';
 
 export type ConsentType =
   | 'data_processing' // General data processing consent
@@ -86,21 +91,35 @@ const DEFAULT_CONFIG: ConsentConfig = {
   currentPolicyVersion: 1,
 };
 
+export interface ConsentServiceOptions {
+  config?: Partial<ConsentConfig>;
+  repository?: ConsentRepository;
+}
+
 export class ConsentService {
   private config: ConsentConfig;
-  private consents = new Map<string, ConsentRecord>();
-  private auditLog: ConsentAuditEntry[] = [];
+  private repository: ConsentRepository;
   private logger: Logger;
 
-  constructor(config?: Partial<ConsentConfig>) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
+  constructor(options?: ConsentServiceOptions) {
+    this.config = { ...DEFAULT_CONFIG, ...options?.config };
+    // Use provided repository or fall back to in-memory (dev only)
+    this.repository = options?.repository ?? new InMemoryConsentRepository();
     this.logger = createLogger({ name: 'consent-service' });
+
+    if (!options?.repository) {
+      this.logger.warn(
+        'ConsentService initialized with in-memory repository. ' +
+        'This is NOT suitable for production - consent data will be lost on restart!'
+      );
+    }
   }
 
   /**
    * Record or update consent
+   * @returns Promise resolving to the consent record
    */
-  recordConsent(request: ConsentRequest): ConsentRecord {
+  async recordConsent(request: ConsentRequest): Promise<ConsentRecord> {
     const {
       contactId,
       phone,
@@ -113,8 +132,7 @@ export class ConsentService {
       metadata,
     } = request;
 
-    const existingKey = this.getConsentKey(contactId, consentType);
-    const existing = this.consents.get(existingKey);
+    const existing = await this.repository.findByContactAndType(contactId, consentType);
     const previousStatus = existing?.status ?? null;
 
     const now = new Date().toISOString();
@@ -140,10 +158,11 @@ export class ConsentService {
       updatedAt: now,
     };
 
-    this.consents.set(existingKey, consent);
+    // Persist to repository
+    await this.repository.save(consent);
 
     // Create audit entry
-    this.createAuditEntry({
+    await this.createAuditEntry({
       consentId: consent.id,
       action: existing ? (status === 'withdrawn' ? 'withdrawn' : 'updated') : 'created',
       previousStatus,
@@ -433,21 +452,14 @@ Sie können Ihre Zustimmung jederzeit widerrufen, indem Sie "STOP" antworten.`,
   /**
    * Create audit log entry
    */
-  private createAuditEntry(entry: Omit<ConsentAuditEntry, 'id' | 'timestamp'>): void {
+  private async createAuditEntry(entry: Omit<ConsentAuditEntry, 'id' | 'timestamp'>): Promise<void> {
     const auditEntry: ConsentAuditEntry = {
       id: this.generateId(),
       ...entry,
       timestamp: new Date().toISOString(),
     };
 
-    this.auditLog.push(auditEntry);
-  }
-
-  /**
-   * Generate consent key for storage
-   */
-  private getConsentKey(contactId: string, consentType: ConsentType): string {
-    return `${contactId}:${consentType}`;
+    await this.repository.appendAuditEntry(auditEntry);
   }
 
   /**
@@ -460,7 +472,18 @@ Sie können Ihre Zustimmung jederzeit widerrufen, indem Sie "STOP" antworten.`,
 
 /**
  * Create a consent service instance
+ * @param options - Configuration and repository options
+ * @returns ConsentService instance
+ *
+ * @example
+ * // Production with PostgreSQL
+ * const repository = new PostgresConsentRepository(db);
+ * const service = createConsentService({ repository });
+ *
+ * @example
+ * // Development with in-memory (not for production!)
+ * const service = createConsentService();
  */
-export function createConsentService(config?: Partial<ConsentConfig>): ConsentService {
-  return new ConsentService(config);
+export function createConsentService(options?: ConsentServiceOptions): ConsentService {
+  return new ConsentService(options);
 }

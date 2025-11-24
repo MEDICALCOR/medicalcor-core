@@ -1,28 +1,49 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useTransition } from 'react';
 import { ConversationList } from '@/components/messages/conversation-list';
 import { ConversationView, EmptyConversationView } from '@/components/messages/conversation-view';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
-  generateMockConversations,
-  generateMockMessages,
+  getConversationsAction,
+  getMessagesAction,
   type Conversation,
   type Message,
-} from '@/lib/messages';
+} from '@/app/actions/get-patients';
 
-// Generate initial mock data
-const initialConversations = generateMockConversations(15);
+function ConversationListSkeleton() {
+  return (
+    <div className="space-y-2 p-4">
+      {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+        <Skeleton key={i} className="h-20 w-full" />
+      ))}
+    </div>
+  );
+}
 
 export default function MessagesPage() {
-  const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoadingConversations, startConversationsTransition] = useTransition();
+  const [isLoadingMessages, startMessagesTransition] = useTransition();
+
+  // Fetch conversations on mount
+  useEffect(() => {
+    startConversationsTransition(async () => {
+      const fetchedConversations = await getConversationsAction();
+      setConversations(fetchedConversations);
+    });
+  }, []);
 
   const handleSelectConversation = useCallback((conversation: Conversation) => {
     setSelectedConversation(conversation);
-    // Generate mock messages for the selected conversation
-    const convMessages = generateMockMessages(conversation.id, 12);
-    setMessages(convMessages);
+
+    // Fetch messages for the selected conversation
+    startMessagesTransition(async () => {
+      const fetchedMessages = await getMessagesAction(conversation.id);
+      setMessages(fetchedMessages);
+    });
 
     // Mark conversation as read
     setConversations((prev) =>
@@ -50,7 +71,15 @@ export default function MessagesPage() {
       setConversations((prev) =>
         prev.map((c) =>
           c.id === selectedConversation.id
-            ? { ...c, lastMessage: newMessage, updatedAt: new Date() }
+            ? {
+                ...c,
+                lastMessage: {
+                  content: newMessage.content,
+                  direction: newMessage.direction,
+                  timestamp: newMessage.timestamp,
+                },
+                updatedAt: new Date(),
+              }
             : c
         )
       );
@@ -81,11 +110,17 @@ export default function MessagesPage() {
     <div className="h-[calc(100vh-4rem)]">
       <div className="grid grid-cols-[380px_1fr] h-full">
         {/* Conversation List */}
-        <ConversationList
-          conversations={conversations}
-          selectedId={selectedConversation?.id}
-          onSelect={handleSelectConversation}
-        />
+        {isLoadingConversations ? (
+          <div className="border-r">
+            <ConversationListSkeleton />
+          </div>
+        ) : (
+          <ConversationList
+            conversations={conversations}
+            selectedId={selectedConversation?.id}
+            onSelect={handleSelectConversation}
+          />
+        )}
 
         {/* Conversation View */}
         {selectedConversation ? (
@@ -94,6 +129,7 @@ export default function MessagesPage() {
             messages={messages}
             onSendMessage={handleSendMessage}
             onStatusChange={handleStatusChange}
+            isLoading={isLoadingMessages}
           />
         ) : (
           <EmptyConversationView />
