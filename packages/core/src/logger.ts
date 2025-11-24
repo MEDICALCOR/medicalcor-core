@@ -88,7 +88,7 @@ export interface CreateLoggerOptions {
  * Create a logger instance with PII redaction
  */
 export function createLogger(options: CreateLoggerOptions): Logger {
-  const { name, level = process.env['LOG_LEVEL'] ?? 'info', correlationId } = options;
+  const { name, level = process.env.LOG_LEVEL ?? 'info', correlationId } = options;
 
   const loggerOptions: LoggerOptions = {
     name,
@@ -101,11 +101,12 @@ export function createLogger(options: CreateLoggerOptions): Logger {
     base: correlationId ? { correlationId } : null,
     serializers: {
       err: pino.stdSerializers.err,
-      req: (req) => redactObject({
-        method: req.method,
-        url: req.url,
-        headers: req.headers,
-      }),
+      req: (req: { method?: string; url?: string; headers?: Record<string, string> }) =>
+        redactObject({
+          method: req.method,
+          url: req.url,
+          headers: req.headers,
+        }),
       res: pino.stdSerializers.res,
     },
   };

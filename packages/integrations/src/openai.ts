@@ -72,7 +72,7 @@ export class OpenAIClient {
         ...(jsonMode && { response_format: { type: 'json_object' as const } }),
       });
 
-      const content = response.choices[0]?.message?.content;
+      const content = response.choices[0]?.message.content;
       if (!content) {
         throw new ExternalServiceError('OpenAI', 'Empty response from API');
       }
@@ -140,7 +140,8 @@ export class OpenAIClient {
       messages: [
         {
           role: 'system',
-          content: 'You are a language detector. Respond with only the ISO 639-1 code (ro, en, de) or "unknown".',
+          content:
+            'You are a language detector. Respond with only the ISO 639-1 code (ro, en, de) or "unknown".',
         },
         { role: 'user', content: `Detect the language: "${text}"` },
       ],
@@ -240,9 +241,8 @@ ALWAYS respond in this exact JSON format:
    * Build user prompt for scoring
    */
   private buildScoringUserPrompt(context: LeadContext): string {
-    const messages = context.messageHistory?.map(m =>
-      `${m.role.toUpperCase()}: ${m.content}`
-    ).join('\n') ?? '';
+    const messages =
+      context.messageHistory?.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join('\n') ?? '';
 
     return `Analyze this lead:
 CHANNEL: ${context.channel}
@@ -258,7 +258,7 @@ ${messages}`;
    */
   private parseScoringResponse(response: string): ScoringOutput {
     try {
-      const parsed = JSON.parse(response) as ScoringOutput;
+      const parsed = JSON.parse(response) as Partial<ScoringOutput>;
 
       return {
         score: Math.min(5, Math.max(1, parsed.score ?? 2)),
@@ -309,9 +309,11 @@ Do not make up specific prices or availability - direct to staff for details.`;
    */
   private buildReplyUserPrompt(context: LeadContext): string {
     const lastMessage = context.messageHistory?.[context.messageHistory.length - 1];
-    const history = context.messageHistory?.slice(-5).map(m =>
-      `${m.role}: ${m.content}`
-    ).join('\n') ?? '';
+    const history =
+      context.messageHistory
+        ?.slice(-5)
+        .map((m) => `${m.role}: ${m.content}`)
+        .join('\n') ?? '';
 
     return `Generate a helpful reply to this conversation:
 

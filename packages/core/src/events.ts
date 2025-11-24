@@ -2,7 +2,7 @@
  * Domain Event helpers for event-driven architecture
  */
 
-import { randomUUID } from "node:crypto";
+import { randomUUID } from 'node:crypto';
 
 /**
  * Event metadata included with every domain event
@@ -64,7 +64,7 @@ export function createDomainEvent<TType extends string, TPayload>(
   const {
     correlationId,
     causationId,
-    source = process.env["SERVICE_NAME"] ?? "medicalcor",
+    source = process.env.SERVICE_NAME ?? 'medicalcor',
     version = 1,
   } = options;
 

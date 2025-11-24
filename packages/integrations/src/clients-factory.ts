@@ -5,28 +5,15 @@
  * Includes circuit breaker support for resilience
  */
 
-import {
-  CircuitBreakerRegistry,
-  CircuitState,
-  type CircuitBreakerStats,
-} from '@medicalcor/core';
-import {
-  createHubSpotClient,
-  type HubSpotClient,
-} from './hubspot.js';
-import {
-  createWhatsAppClient,
-  type WhatsAppClient,
-} from './whatsapp.js';
-import {
-  createOpenAIClient,
-  type OpenAIClient,
-} from './openai.js';
+import { CircuitBreakerRegistry, CircuitState, type CircuitBreakerStats } from '@medicalcor/core';
+import { createHubSpotClient, type HubSpotClient } from './hubspot.js';
+import { createWhatsAppClient, type WhatsAppClient } from './whatsapp.js';
+import { createOpenAIClient, type OpenAIClient } from './openai.js';
 import {
   createSchedulingService,
   createMockSchedulingService,
   type SchedulingService,
-  MockSchedulingService,
+  type MockSchedulingService,
 } from './scheduling.js';
 
 /**
@@ -70,7 +57,7 @@ export interface IntegrationClients {
   openai: OpenAIClient | null;
   scheduling: SchedulingService | MockSchedulingService | null;
   /** Returns true if all required clients are available */
-  isConfigured: (required: Array<'hubspot' | 'whatsapp' | 'openai' | 'scheduling'>) => boolean;
+  isConfigured: (required: ('hubspot' | 'whatsapp' | 'openai' | 'scheduling')[]) => boolean;
   /** Get circuit breaker statistics for all services */
   getCircuitBreakerStats: () => CircuitBreakerStats[];
   /** Check if a specific service circuit is open */
@@ -127,14 +114,11 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
 
   // HubSpot client
   const hubspotToken = process.env.HUBSPOT_ACCESS_TOKEN;
-  const hubspotRaw = hubspotToken
-    ? createHubSpotClient({ accessToken: hubspotToken })
-    : null;
+  const hubspotRaw = hubspotToken ? createHubSpotClient({ accessToken: hubspotToken }) : null;
 
   // Wrap HubSpot client with circuit breaker
-  const hubspot = hubspotRaw && cbEnabled
-    ? wrapClientWithCircuitBreaker(hubspotRaw, 'hubspot')
-    : hubspotRaw;
+  const hubspot =
+    hubspotRaw && cbEnabled ? wrapClientWithCircuitBreaker(hubspotRaw, 'hubspot') : hubspotRaw;
 
   // WhatsApp client
   const whatsappApiKey = process.env.WHATSAPP_API_KEY;
@@ -150,18 +134,15 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
       : null;
 
   // Wrap WhatsApp client with circuit breaker
-  const whatsapp = whatsappRaw && cbEnabled
-    ? wrapClientWithCircuitBreaker(whatsappRaw, 'whatsapp')
-    : whatsappRaw;
+  const whatsapp =
+    whatsappRaw && cbEnabled ? wrapClientWithCircuitBreaker(whatsappRaw, 'whatsapp') : whatsappRaw;
 
   // OpenAI client (optional)
   let openai: OpenAIClient | null = null;
   if (includeOpenAI) {
     const openaiApiKey = process.env.OPENAI_API_KEY;
     const openaiRaw = openaiApiKey ? createOpenAIClient({ apiKey: openaiApiKey }) : null;
-    openai = openaiRaw && cbEnabled
-      ? wrapClientWithCircuitBreaker(openaiRaw, 'openai')
-      : openaiRaw;
+    openai = openaiRaw && cbEnabled ? wrapClientWithCircuitBreaker(openaiRaw, 'openai') : openaiRaw;
   }
 
   // Scheduling service (optional)
@@ -179,7 +160,9 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
   }
 
   // Helper to check if required clients are configured
-  const isConfigured = (required: Array<'hubspot' | 'whatsapp' | 'openai' | 'scheduling'>): boolean => {
+  const isConfigured = (
+    required: ('hubspot' | 'whatsapp' | 'openai' | 'scheduling')[]
+  ): boolean => {
     for (const client of required) {
       switch (client) {
         case 'hubspot':
@@ -243,7 +226,6 @@ function wrapClientWithCircuitBreaker<T extends object>(client: T, serviceName: 
       }
 
       // Return wrapped function that uses circuit breaker
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return async (...args: unknown[]) => {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-return
         return breaker.execute(() => value.apply(target, args));

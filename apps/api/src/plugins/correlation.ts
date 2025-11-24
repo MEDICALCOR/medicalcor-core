@@ -5,23 +5,24 @@
  * Reads from x-correlation-id header or generates a new UUID.
  */
 
-import { randomUUID } from "node:crypto";
+import { randomUUID } from 'node:crypto';
 
-import { type FastifyPluginAsync } from "fastify";
-import fp from "fastify-plugin";
+import type { FastifyPluginAsync } from 'fastify';
+import fp from 'fastify-plugin';
 
-declare module "fastify" {
+declare module 'fastify' {
   interface FastifyRequest {
     correlationId: string;
   }
 }
 
-const CORRELATION_HEADER = "x-correlation-id";
+const CORRELATION_HEADER = 'x-correlation-id';
 
 const correlationPlugin: FastifyPluginAsync = async (fastify) => {
-  fastify.decorateRequest("correlationId", "");
+  await Promise.resolve(); // Satisfy require-await for Fastify plugin pattern
+  fastify.decorateRequest('correlationId', '');
 
-  fastify.addHook("onRequest", async (request, reply) => {
+  fastify.addHook('onRequest', async (request, reply) => {
     // Get correlation ID from header or generate new one
     const correlationId =
       (request.headers[CORRELATION_HEADER] as string | undefined) ?? randomUUID();
@@ -37,6 +38,6 @@ const correlationPlugin: FastifyPluginAsync = async (fastify) => {
 };
 
 export default fp(correlationPlugin, {
-  name: "correlation",
-  fastify: "5.x",
+  name: 'correlation',
+  fastify: '5.x',
 });
