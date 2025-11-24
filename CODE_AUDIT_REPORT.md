@@ -17,7 +17,7 @@ This comprehensive code audit of the MedicalCor Core medical CRM platform identi
 | Severity     | Count | Resolved | Immediate Action Required |
 | ------------ | ----- | -------- | ------------------------- |
 | **CRITICAL** | 15    | 7 ✅     | Yes - Block deployment    |
-| **HIGH**     | 31    | 8 ✅     | Yes - This sprint         |
+| **HIGH**     | 31    | 9 ✅     | Yes - This sprint         |
 | **MEDIUM**   | 37    | 1 ✅     | Short-term - Next sprint  |
 | **LOW**      | 15    | 0        | Medium-term backlog       |
 
@@ -36,6 +36,7 @@ This comprehensive code audit of the MedicalCor Core medical CRM platform identi
 - ✅ **SEC-011:** Route parameter validation for workflow endpoints (Nov 24, 2025)
 - ✅ **SEC-012:** Query parameter validation for webhook verification (Nov 24, 2025)
 - ✅ **SEC-013:** API error response sanitization across all integration clients (Nov 24, 2025)
+- ✅ **SEC-014:** Enhanced PII redaction with 20+ patterns (international phones, SSN, DOB, medical IDs, etc.) (Nov 24, 2025)
 - ✅ **PERF-001:** Cron job N+1 patterns eliminated with batch processing (already fixed, confirmed Nov 24)
 - ✅ **PERF-007:** Cursor-based pagination implemented (Nov 24, 2025)
 
@@ -345,13 +346,35 @@ logger.error({ status, errorBody, url }, 'Service API error');
 throw new ExternalServiceError('Service', `API request failed with status ${status}`);
 ```
 
-#### SEC-014: Incomplete PII Redaction
+#### SEC-014: Incomplete PII Redaction ✅ RESOLVED
 
-- **Files:** `packages/core/src/logger.ts:9-34`, `packages/core/src/logger/redaction.ts:105-120`
-- **Description:** Phone regex only matches Romanian numbers. Missing patterns for international phones, SSN, DOB, medical record numbers.
+- **Files:** `packages/core/src/logger.ts:9-34`, `packages/core/src/logger/redaction.ts:105-142`
+- **Description:** Phone regex only matched Romanian numbers. Missing patterns for international phones, SSN, DOB, medical record numbers.
+- **Resolution:** Enhanced `PII_PATTERNS` with 15+ new patterns and updated `redactString()` to apply all patterns
+
+**Changes Made:**
+
+1. Added international phone patterns (E.164 format, general format)
+2. Added US SSN pattern (`/\b\d{3}[-\s]?\d{2}[-\s]?\d{4}\b/g`)
+3. Added 3 date formats (ISO, DMY, MDY) for DOB detection
+4. Added medical identifiers (MRN, Patient ID)
+5. Added IBAN pattern for bank accounts
+6. Added IPv6 pattern
+7. Added API key/token patterns (sk*live*, Bearer, JWT)
+8. Added passport number pattern
+9. Updated `redactString()` to apply all 20+ patterns
+
+**New Patterns Added:**
 
 ```typescript
-phone: /(\+?40|0040|0)?[0-9]{9,10}/g,  // Only Romanian phones
+internationalPhone: /\+[1-9]\d{1,14}/g,  // E.164 format
+generalPhone: /\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b/g,
+ssn: /\b\d{3}[-\s]?\d{2}[-\s]?\d{4}\b/g,
+dateISO: /\b(19|20)\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])\b/g,
+medicalRecordNumber: /\b(MRN|mrn)[-:\s]?\d{6,12}\b/gi,
+apiKey: /\b(sk_live_|pk_live_|sk_test_|pk_test_|api[_-]?key[_-]?)[a-zA-Z0-9]{20,}\b/gi,
+jwtToken: /\beyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\b/g,
+// ... and more
 ```
 
 #### SEC-015: OpenAI Prompt Injection Vulnerability
