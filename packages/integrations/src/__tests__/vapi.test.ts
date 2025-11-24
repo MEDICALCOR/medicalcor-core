@@ -212,6 +212,8 @@ describe('VapiClient', () => {
         type: 'call.ended',
         call: {
           id: 'call_123',
+          orgId: 'org_123',
+          assistantId: 'asst_123',
           status: 'ended',
           type: 'inbound',
           customer: { number: '+40721000001' },

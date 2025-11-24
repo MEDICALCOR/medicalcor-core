@@ -22,10 +22,7 @@ export interface Projection<TState = unknown> {
   updatedAt: Date;
 }
 
-export type ProjectionHandler<TState, TEvent = unknown> = (
-  state: TState,
-  event: StoredEvent<TEvent>
-) => TState;
+export type ProjectionHandler<TState> = (state: TState, event: StoredEvent) => TState;
 
 export interface ProjectionDefinition<TState> {
   name: string;
@@ -50,11 +47,8 @@ export class ProjectionBuilder<TState> {
   /**
    * Register handler for an event type
    */
-  on<TEvent>(
-    eventType: string,
-    handler: ProjectionHandler<TState, TEvent>
-  ): ProjectionBuilder<TState> {
-    this.handlers.set(eventType, handler as ProjectionHandler<TState>);
+  on(eventType: string, handler: ProjectionHandler<TState>): ProjectionBuilder<TState> {
+    this.handlers.set(eventType, handler);
     return this;
   }
 
@@ -113,7 +107,7 @@ export class ProjectionManager {
         const projection = this.states.get(name)!;
         projection.state = handler(projection.state, event);
         projection.lastEventId = event.id;
-        projection.lastEventTimestamp = event.timestamp;
+        projection.lastEventTimestamp = new Date(event.metadata.timestamp);
         projection.updatedAt = new Date();
       }
     }
@@ -142,7 +136,7 @@ export class ProjectionManager {
       if (handler) {
         projection.state = handler(projection.state, event);
         projection.lastEventId = event.id;
-        projection.lastEventTimestamp = event.timestamp;
+        projection.lastEventTimestamp = new Date(event.metadata.timestamp);
       }
     }
 
@@ -206,20 +200,26 @@ export const LeadStatsProjection = defineProjection<LeadStatsState>(
     convertedLeads: 0,
   }
 )
-  .on<{ channel: string }>('LeadCreated', (state, event) => ({
-    ...state,
-    totalLeads: state.totalLeads + 1,
-    leadsByChannel: {
-      ...state.leadsByChannel,
-      [event.payload.channel]: (state.leadsByChannel[event.payload.channel] ?? 0) + 1,
-    },
-    leadsByStatus: {
-      ...state.leadsByStatus,
-      new: (state.leadsByStatus.new ?? 0) + 1,
-    },
-  }))
-  .on<{ score: number; classification: string }>('LeadScored', (state, event) => {
-    const newTotalScore = state.totalScore + event.payload.score;
+  .on('LeadCreated', (state, event) => {
+    const payload = event.payload as { channel: string };
+    const channel = payload.channel as string;
+    return {
+      ...state,
+      totalLeads: state.totalLeads + 1,
+      leadsByChannel: {
+        ...state.leadsByChannel,
+        [channel]: (state.leadsByChannel[channel] ?? 0) + 1,
+      },
+      leadsByStatus: {
+        ...state.leadsByStatus,
+        new: (state.leadsByStatus.new ?? 0) + 1,
+      },
+    };
+  })
+  .on('LeadScored', (state, event) => {
+    const payload = event.payload as { score: number; classification: string };
+    const classification = payload.classification as string;
+    const newTotalScore = state.totalScore + payload.score;
     const newScoredLeads = state.scoredLeads + 1;
     return {
       ...state,
@@ -228,25 +228,27 @@ export const LeadStatsProjection = defineProjection<LeadStatsState>(
       averageScore: newTotalScore / newScoredLeads,
       leadsByClassification: {
         ...state.leadsByClassification,
-        [event.payload.classification]:
-          (state.leadsByClassification[event.payload.classification] ?? 0) + 1,
+        [classification]: (state.leadsByClassification[classification] ?? 0) + 1,
       },
     };
   })
-  .on<{ classification: string }>('LeadQualified', (state, event) => ({
-    ...state,
-    leadsByStatus: {
-      ...state.leadsByStatus,
-      new: Math.max(0, (state.leadsByStatus.new ?? 0) - 1),
-      qualified: (state.leadsByStatus.qualified ?? 0) + 1,
-    },
-    leadsByClassification: {
-      ...state.leadsByClassification,
-      [event.payload.classification]:
-        (state.leadsByClassification[event.payload.classification] ?? 0) + 1,
-    },
-  }))
-  .on<{ hubspotContactId: string }>('LeadConverted', (state) => {
+  .on('LeadQualified', (state, event) => {
+    const payload = event.payload as { classification: string };
+    const classification = payload.classification as string;
+    return {
+      ...state,
+      leadsByStatus: {
+        ...state.leadsByStatus,
+        new: Math.max(0, (state.leadsByStatus.new ?? 0) - 1),
+        qualified: (state.leadsByStatus.qualified ?? 0) + 1,
+      },
+      leadsByClassification: {
+        ...state.leadsByClassification,
+        [classification]: (state.leadsByClassification[classification] ?? 0) + 1,
+      },
+    };
+  })
+  .on('LeadConverted', (state) => {
     const newConverted = state.convertedLeads + 1;
     return {
       ...state,
@@ -259,7 +261,7 @@ export const LeadStatsProjection = defineProjection<LeadStatsState>(
       },
     };
   })
-  .on<{ reason: string }>('LeadLost', (state) => ({
+  .on('LeadLost', (state) => ({
     ...state,
     leadsByStatus: {
       ...state.leadsByStatus,
@@ -300,9 +302,9 @@ export const PatientActivityProjection = defineProjection<PatientActivityState>(
     appointmentsScheduled: state.appointmentsScheduled + 1,
     recentActivities: [
       {
-        patientId: event.aggregateId,
+        patientId: event.aggregateId ?? '',
         type: 'appointment_scheduled',
-        timestamp: event.timestamp,
+        timestamp: new Date(event.metadata.timestamp),
         details: event.payload,
       },
       ...state.recentActivities.slice(0, 99), // Keep last 100
@@ -313,9 +315,9 @@ export const PatientActivityProjection = defineProjection<PatientActivityState>(
     appointmentsCancelled: state.appointmentsCancelled + 1,
     recentActivities: [
       {
-        patientId: event.aggregateId,
+        patientId: event.aggregateId ?? '',
         type: 'appointment_cancelled',
-        timestamp: event.timestamp,
+        timestamp: new Date(event.metadata.timestamp),
         details: event.payload,
       },
       ...state.recentActivities.slice(0, 99),
@@ -326,9 +328,9 @@ export const PatientActivityProjection = defineProjection<PatientActivityState>(
     messagesReceived: state.messagesReceived + 1,
     recentActivities: [
       {
-        patientId: event.aggregateId,
+        patientId: event.aggregateId ?? '',
         type: 'message_received',
-        timestamp: event.timestamp,
+        timestamp: new Date(event.metadata.timestamp),
         details: event.payload,
       },
       ...state.recentActivities.slice(0, 99),
@@ -339,9 +341,9 @@ export const PatientActivityProjection = defineProjection<PatientActivityState>(
     messagesSent: state.messagesSent + 1,
     recentActivities: [
       {
-        patientId: event.aggregateId,
+        patientId: event.aggregateId ?? '',
         type: 'message_sent',
-        timestamp: event.timestamp,
+        timestamp: new Date(event.metadata.timestamp),
         details: event.payload,
       },
       ...state.recentActivities.slice(0, 99),
@@ -395,42 +397,42 @@ export const DailyMetricsProjection = defineProjection<DailyMetricsState>(
   { metrics: new Map() }
 )
   .on('LeadCreated', (state, event) => {
-    const date = getDateKey(event.timestamp);
+    const date = getDateKey(new Date(event.metadata.timestamp));
     const metrics = new Map(state.metrics);
     const entry = ensureMetricEntry(state, date);
     metrics.set(date, { ...entry, newLeads: entry.newLeads + 1 });
     return { ...state, metrics };
   })
   .on('LeadQualified', (state, event) => {
-    const date = getDateKey(event.timestamp);
+    const date = getDateKey(new Date(event.metadata.timestamp));
     const metrics = new Map(state.metrics);
     const entry = ensureMetricEntry(state, date);
     metrics.set(date, { ...entry, qualifiedLeads: entry.qualifiedLeads + 1 });
     return { ...state, metrics };
   })
   .on('LeadConverted', (state, event) => {
-    const date = getDateKey(event.timestamp);
+    const date = getDateKey(new Date(event.metadata.timestamp));
     const metrics = new Map(state.metrics);
     const entry = ensureMetricEntry(state, date);
     metrics.set(date, { ...entry, convertedLeads: entry.convertedLeads + 1 });
     return { ...state, metrics };
   })
   .on('AppointmentScheduled', (state, event) => {
-    const date = getDateKey(event.timestamp);
+    const date = getDateKey(new Date(event.metadata.timestamp));
     const metrics = new Map(state.metrics);
     const entry = ensureMetricEntry(state, date);
     metrics.set(date, { ...entry, appointmentsScheduled: entry.appointmentsScheduled + 1 });
     return { ...state, metrics };
   })
   .on('WhatsAppMessageReceived', (state, event) => {
-    const date = getDateKey(event.timestamp);
+    const date = getDateKey(new Date(event.metadata.timestamp));
     const metrics = new Map(state.metrics);
     const entry = ensureMetricEntry(state, date);
     metrics.set(date, { ...entry, messagesReceived: entry.messagesReceived + 1 });
     return { ...state, metrics };
   })
   .on('WhatsAppMessageSent', (state, event) => {
-    const date = getDateKey(event.timestamp);
+    const date = getDateKey(new Date(event.metadata.timestamp));
     const metrics = new Map(state.metrics);
     const entry = ensureMetricEntry(state, date);
     metrics.set(date, { ...entry, messagesSent: entry.messagesSent + 1 });

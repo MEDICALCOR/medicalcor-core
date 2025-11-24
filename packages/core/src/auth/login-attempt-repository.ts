@@ -56,7 +56,11 @@ export class LoginAttemptRepository {
       [data.email.toLowerCase(), data.ipAddress, data.success, data.failureReason ?? null]
     );
 
-    return mapRowToLoginAttempt(result.rows[0]);
+    const row = result.rows[0];
+    if (!row) {
+      throw new Error('Failed to create login attempt');
+    }
+    return mapRowToLoginAttempt(row);
   }
 
   /**
@@ -71,7 +75,7 @@ export class LoginAttemptRepository {
        WHERE LOWER(email) = LOWER($1) AND success = FALSE AND created_at > $2`,
       [email, windowStart.toISOString()]
     );
-    const emailFailedCount = parseInt(emailResult.rows[0].count as string, 10);
+    const emailFailedCount = parseInt((emailResult.rows[0]?.count as string) ?? '0', 10);
 
     // Check failed attempts from this IP
     const ipResult = await this.db.query<Record<string, unknown>>(
@@ -79,7 +83,7 @@ export class LoginAttemptRepository {
        WHERE ip_address = $1 AND success = FALSE AND created_at > $2`,
       [ipAddress, windowStart.toISOString()]
     );
-    const ipFailedCount = parseInt(ipResult.rows[0].count as string, 10);
+    const ipFailedCount = parseInt((ipResult.rows[0]?.count as string) ?? '0', 10);
 
     // Calculate reset time
     const resetAt = new Date(Date.now() + RATE_LIMIT_CONFIG.lockoutMinutes * 60 * 1000);
@@ -199,6 +203,15 @@ export class LoginAttemptRepository {
     );
 
     const row = result.rows[0];
+    if (!row) {
+      return {
+        total: 0,
+        successful: 0,
+        failed: 0,
+        uniqueEmails: 0,
+        uniqueIps: 0,
+      };
+    }
     return {
       total: parseInt(row.total as string, 10),
       successful: parseInt(row.successful as string, 10),

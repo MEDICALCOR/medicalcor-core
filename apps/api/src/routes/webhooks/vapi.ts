@@ -121,8 +121,6 @@ const VapiWebhookEventSchema = z.discriminatedUnion('type', [
   }),
 ]);
 
-type VapiWebhookEvent = z.infer<typeof VapiWebhookEventSchema>;
-
 export const vapiWebhookRoutes: FastifyPluginAsync = (fastify) => {
   // Store raw body for signature verification
   fastify.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, payload, done) => {

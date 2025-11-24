@@ -501,17 +501,17 @@ export class VapiClient {
       case 'call.ended':
         return {
           type: validated.type,
-          data: validated.call,
+          data: validated.call as VapiCall,
         };
       case 'transcript.updated':
         return {
           type: 'transcript.updated',
-          data: validated.transcript,
+          data: validated.transcript as VapiTranscript,
         };
       case 'function.call':
         return {
           type: 'function.call',
-          data: validated.message,
+          data: validated.message as VapiMessage,
         };
     }
   }

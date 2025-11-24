@@ -136,9 +136,9 @@ export const handleWhatsAppMessage = task({
     // Step 3.5: GDPR Consent Check & Recording
     // Check if this message is a consent response (da/nu/yes/no/stop)
     const messageBody = message.text?.body ?? '';
-    const consentResponse = consent.parseConsentFromMessage(messageBody);
+    const consentResponse = consent ? consent.parseConsentFromMessage(messageBody) : null;
 
-    if (consentResponse && hubspotContactId) {
+    if (consentResponse && hubspotContactId && consent) {
       // User is responding to consent request - record their response
       const consentStatus = consentResponse.granted ? 'granted' : 'denied';
       try {
@@ -183,7 +183,7 @@ export const handleWhatsAppMessage = task({
       } catch (err) {
         logger.error('Failed to record consent', { err, correlationId });
       }
-    } else if (hubspotContactId) {
+    } else if (hubspotContactId && consent) {
       // Check if we have valid consent for data processing
       const hasValidConsent = await consent.hasValidConsent(hubspotContactId, 'data_processing');
 
@@ -229,6 +229,11 @@ export const handleWhatsAppMessage = task({
     const leadContext = leadContextBuilder.buildForScoring();
 
     let scoreResult;
+    if (!scoring) {
+      logger.error('Scoring service not available', { correlationId });
+      throw new Error('Scoring service not configured');
+    }
+
     try {
       scoreResult = await scoring.scoreMessage(leadContext);
       logger.info('Lead scored', {

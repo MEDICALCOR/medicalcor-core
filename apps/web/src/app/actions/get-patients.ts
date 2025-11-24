@@ -1383,11 +1383,8 @@ export async function getPatientByIdAction(patientId: string): Promise<PatientDe
     const hubspot = getHubSpotClient();
 
     // Fetch contact from HubSpot
+    // Note: getContact throws if contact not found
     const contact = await hubspot.getContact(patientId);
-
-    if (!contact) {
-      return null;
-    }
 
     // Map HubSpot contact to our PatientDetailData schema
     const procedureInterest = contact.properties.procedure_interest

@@ -51,8 +51,12 @@ export class SessionRepository {
       ]
     );
 
+    const row = result.rows[0];
+    if (!row) {
+      throw new Error('Failed to create session');
+    }
     logger.debug({ userId: data.userId }, 'Session created');
-    return mapRowToSession(result.rows[0]);
+    return mapRowToSession(row);
   }
 
   /**
@@ -180,7 +184,7 @@ export class SessionRepository {
       [userId]
     );
 
-    return parseInt(result.rows[0].count as string, 10);
+    return parseInt((result.rows[0]?.count as string) ?? '0', 10);
   }
 
   /**
@@ -217,6 +221,14 @@ export class SessionRepository {
     `);
 
     const row = result.rows[0];
+    if (!row) {
+      return {
+        total: 0,
+        active: 0,
+        expired: 0,
+        revoked: 0,
+      };
+    }
     return {
       total: parseInt(row.total as string, 10),
       active: parseInt(row.active as string, 10),

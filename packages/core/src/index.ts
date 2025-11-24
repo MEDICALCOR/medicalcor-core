@@ -72,28 +72,8 @@ export {
   type ReferralInput,
 } from './lead-context.js';
 
-export {
-  initTelemetry,
-  shutdownTelemetry,
-  getTracer,
-  createSpan,
-  withSpan,
-  withSpanSync,
-  getCurrentSpan,
-  getCurrentContext,
-  addSpanAttributes,
-  recordException,
-  traceExternalCall,
-  Traced,
-  SpanAttributes,
-  SpanStatusCode,
-  SpanKind,
-  type TelemetryConfig,
-  type Span,
-  type Tracer,
-  type SpanOptions,
-  type Context,
-} from './telemetry.js';
+// NOTE: Telemetry is NOT exported from main index to avoid Edge Runtime issues
+// Import from '@medicalcor/core/telemetry' when needed (server-side only)
 
 export {
   CircuitBreaker,
@@ -125,7 +105,7 @@ export {
   type QueryResult,
 } from './database.js';
 
-// Observability-First
+// Observability-First (Metrics only - Edge Runtime compatible)
 export {
   // Metrics
   Counter,
@@ -156,41 +136,25 @@ export {
   aiFunctionCalls,
   aiFunctionDuration,
   aiIntentDetections,
-  // Instrumentation
-  instrumentFastify,
-  instrumentExternalCall,
-  instrumentDatabase,
-  createCommandMetricsMiddleware,
-  createQueryMetricsMiddleware,
-  createHealthIndicator,
-  // Diagnostics
-  DiagnosticsCollector,
-  diagnostics,
-  recordTrace,
-  lookupTrace,
-  searchTraces,
-  getPrometheusMetrics,
-  getMetricsJSON,
   // Types
   type MetricLabel,
   type MetricValue,
   type MetricType,
   type MetricDefinition,
-  type InstrumentationOptions,
-  type ExternalCallOptions,
-  type RequestContext,
-  type HealthIndicator,
-  type HealthCheckResult,
-  type DatabaseClient as InstrumentedDatabaseClient,
-  type DiagnosticSnapshot,
-  type SystemSnapshot,
-  type HttpSnapshot,
-  type BusinessSnapshot,
-  type PerformanceSnapshot,
-  type HealthSnapshot,
-  type TraceLookup,
-  type TraceSpan,
 } from './observability/index.js';
+
+// NOTE: Instrumentation and Diagnostics are NOT exported from main index to avoid Edge Runtime issues
+// They use Node.js-specific APIs (OpenTelemetry SDK, process.platform, etc.)
+//
+// Import from '@medicalcor/core/observability/instrumentation' when needed (server-side only):
+// - instrumentFastify, instrumentExternalCall, instrumentDatabase
+// - createCommandMetricsMiddleware, createQueryMetricsMiddleware, createHealthIndicator
+// - Types: InstrumentationOptions, ExternalCallOptions, RequestContext, HealthIndicator, HealthCheckResult, DatabaseClient
+//
+// Import from '@medicalcor/core/observability/diagnostics' when needed (server-side only):
+// - DiagnosticsCollector, diagnostics, recordTrace, lookupTrace, searchTraces
+// - getPrometheusMetrics, getMetricsJSON
+// - Types: DiagnosticSnapshot, SystemSnapshot, HttpSnapshot, BusinessSnapshot, PerformanceSnapshot, HealthSnapshot, TraceLookup, TraceSpan
 
 // CQRS + Event Sourcing
 export {

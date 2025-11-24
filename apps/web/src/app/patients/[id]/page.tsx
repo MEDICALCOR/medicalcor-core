@@ -67,7 +67,6 @@ function AccessDenied() {
  * Note: HubSpot doesn't store detailed medical data, so we use empty defaults
  */
 function toPatientDetail(data: PatientDetailData): PatientDetail {
-  const name = [data.firstName, data.lastName].filter(Boolean).join(' ') || data.phone;
   return {
     id: data.id,
     firstName: data.firstName,

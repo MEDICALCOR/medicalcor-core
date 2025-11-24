@@ -8,7 +8,7 @@
  * - Projection-based reads
  */
 
-import { z, type ZodSchema } from 'zod';
+import type { ZodSchema } from 'zod';
 
 // ============================================================================
 // CORE TYPES
@@ -23,23 +23,23 @@ export interface Query<TParams = unknown> {
 export interface QueryMetadata {
   queryId: string;
   correlationId: string;
-  userId?: string;
-  tenantId?: string;
+  userId?: string | undefined;
+  tenantId?: string | undefined;
   timestamp: Date;
-  cacheKey?: string;
-  cacheTtlMs?: number;
+  cacheKey?: string | undefined;
+  cacheTtlMs?: number | undefined;
 }
 
 export interface QueryResult<TData = unknown> {
   success: boolean;
   queryId: string;
-  data?: TData;
-  pagination?: PaginationInfo;
+  data?: TData | undefined;
+  pagination?: PaginationInfo | undefined;
   error?: {
     code: string;
     message: string;
     details?: unknown;
-  };
+  } | undefined;
   cached: boolean;
   executionTimeMs: number;
 }
@@ -54,16 +54,16 @@ export interface PaginationInfo {
 }
 
 export interface PaginatedParams {
-  page?: number;
-  pageSize?: number;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
+  page?: number | undefined;
+  pageSize?: number | undefined;
+  sortBy?: string | undefined;
+  sortOrder?: 'asc' | 'desc' | undefined;
 }
 
 export interface QueryContext {
   correlationId: string;
-  userId?: string;
-  tenantId?: string;
+  userId?: string | undefined;
+  tenantId?: string | undefined;
 }
 
 export type QueryHandler<TParams, TData> = (
@@ -83,7 +83,7 @@ export type QueryMiddleware = (
 
 interface RegisteredQueryHandler {
   handler: QueryHandler<unknown, unknown>;
-  schema?: ZodSchema;
+  schema?: ZodSchema | undefined;
 }
 
 interface CacheEntry {

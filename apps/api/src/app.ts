@@ -9,7 +9,7 @@ import {
   logSecretsStatus,
 } from '@medicalcor/core';
 import { healthRoutes, webhookRoutes, workflowRoutes, aiRoutes, diagnosticsRoutes } from './routes/index.js';
-import { instrumentFastify } from '@medicalcor/core';
+import { instrumentFastify } from '@medicalcor/core/observability/instrumentation';
 import { rateLimitPlugin, type RateLimitConfig } from './plugins/rate-limit.js';
 import { apiAuthPlugin } from './plugins/api-auth.js';
 

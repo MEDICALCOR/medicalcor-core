@@ -89,12 +89,14 @@ export class PasswordResetService {
     // Check minimum interval
     if (recentTokens.length > 0) {
       const lastToken = recentTokens[0];
-      const minInterval = TOKEN_CONFIG.minRequestIntervalMinutes * 60 * 1000;
-      if (Date.now() - lastToken.createdAt.getTime() < minInterval) {
-        return {
-          success: false,
-          error: 'Please wait before requesting another reset.',
-        };
+      if (lastToken) {
+        const minInterval = TOKEN_CONFIG.minRequestIntervalMinutes * 60 * 1000;
+        if (Date.now() - lastToken.createdAt.getTime() < minInterval) {
+          return {
+            success: false,
+            error: 'Please wait before requesting another reset.',
+          };
+        }
       }
     }
 
@@ -152,6 +154,9 @@ export class PasswordResetService {
     }
 
     const row = result.rows[0];
+    if (!row) {
+      return { valid: false, error: 'Invalid or expired reset token' };
+    }
     const resetToken = mapRowToToken(row);
 
     // Check if already used
@@ -181,7 +186,7 @@ export class PasswordResetService {
   ): Promise<{ success: boolean; error?: string }> {
     const validation = await this.validateToken(token);
     if (!validation.valid || !validation.userId) {
-      return { success: false, error: validation.error };
+      return { success: false, error: validation.error ?? 'Invalid token' };
     }
 
     const tokenHash = createHash('sha256').update(token).digest('hex');

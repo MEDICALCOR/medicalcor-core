@@ -112,8 +112,8 @@ export abstract class AggregateRoot<TState extends AggregateState = AggregateSta
       aggregateType: this.aggregateType,
       version: this.state.version + 1,
       timestamp: new Date(),
-      correlationId,
-      causationId,
+      ...(correlationId && { correlationId }),
+      ...(causationId && { causationId }),
     };
 
     this.apply(event);
@@ -138,12 +138,16 @@ export abstract class AggregateRoot<TState extends AggregateState = AggregateSta
       const event: DomainEvent = {
         type: storedEvent.type,
         payload: storedEvent.payload,
-        aggregateId: storedEvent.aggregateId,
-        aggregateType: storedEvent.aggregateType,
-        version: storedEvent.version,
-        timestamp: storedEvent.timestamp,
-        correlationId: storedEvent.correlationId,
-        causationId: storedEvent.causationId,
+        aggregateId: storedEvent.aggregateId ?? '',
+        aggregateType: storedEvent.aggregateType ?? '',
+        version: storedEvent.version ?? 0,
+        timestamp: new Date(storedEvent.metadata.timestamp),
+        ...(storedEvent.metadata.correlationId && {
+          correlationId: storedEvent.metadata.correlationId,
+        }),
+        ...(storedEvent.metadata.causationId && {
+          causationId: storedEvent.metadata.causationId,
+        }),
       };
       this.apply(event);
     }
@@ -188,7 +192,7 @@ export interface AggregateRepository<T extends AggregateRoot> {
   exists(id: string): Promise<boolean>;
 }
 
-export abstract class EventSourcedRepository<T extends AggregateRoot>
+export abstract class EventSourcedRepository<T extends AggregateRoot<any>>
   implements AggregateRepository<T>
 {
   constructor(
@@ -207,17 +211,26 @@ export abstract class EventSourcedRepository<T extends AggregateRoot>
     }
 
     for (const event of events) {
-      await this.eventStore.append({
+      const emitParams: {
+        type: string;
+        aggregateId?: string;
+        aggregateType?: string;
+        version?: number;
+        payload: Record<string, unknown>;
+        correlationId: string;
+        causationId?: string;
+      } = {
         type: event.type,
-        aggregateId: event.aggregateId,
-        aggregateType: event.aggregateType,
-        version: event.version,
-        payload: event.payload,
-        correlationId: event.correlationId,
-        causationId: event.causationId,
-        timestamp: event.timestamp,
-        source: 'aggregate',
-      });
+        payload: event.payload as Record<string, unknown>,
+        correlationId: event.correlationId ?? '',
+      };
+
+      if (event.aggregateId) emitParams.aggregateId = event.aggregateId;
+      if (event.aggregateType) emitParams.aggregateType = event.aggregateType;
+      if (event.version !== undefined) emitParams.version = event.version;
+      if (event.causationId) emitParams.causationId = event.causationId;
+
+      await this.eventStore.emit(emitParams);
     }
 
     aggregate.clearUncommittedEvents();
@@ -227,14 +240,21 @@ export abstract class EventSourcedRepository<T extends AggregateRoot>
    * Load aggregate from event store
    */
   async getById(id: string): Promise<T | null> {
-    const events = await this.eventStore.getByAggregate(id, this.aggregateType);
+    const events = await this.eventStore.getByAggregateId(id);
 
     if (events.length === 0) {
       return null;
     }
 
+    // Filter by aggregate type
+    const filteredEvents = events.filter((e) => e.aggregateType === this.aggregateType);
+
+    if (filteredEvents.length === 0) {
+      return null;
+    }
+
     const aggregate = this.createEmpty(id);
-    aggregate.loadFromHistory(events);
+    aggregate.loadFromHistory(filteredEvents);
 
     return aggregate;
   }
@@ -243,8 +263,8 @@ export abstract class EventSourcedRepository<T extends AggregateRoot>
    * Check if aggregate exists
    */
   async exists(id: string): Promise<boolean> {
-    const events = await this.eventStore.getByAggregate(id, this.aggregateType);
-    return events.length > 0;
+    const events = await this.eventStore.getByAggregateId(id);
+    return events.filter((e) => e.aggregateType === this.aggregateType).length > 0;
   }
 
   /**
@@ -287,17 +307,41 @@ export class LeadAggregate extends AggregateRoot<LeadState> {
       status: 'new' as const,
     }));
 
-    this.on('LeadScored', (state, payload: { score: number; classification: string }) => ({
-      ...state,
-      score: payload.score,
-      classification: payload.classification as LeadState['classification'],
-    }));
+    this.on(
+      'LeadScored',
+      (state, payload: { score: number; classification: string }): LeadState => {
+        const newState: LeadState = {
+          ...state,
+          score: payload.score,
+        };
+        if (payload.classification) {
+          newState.classification = payload.classification as
+            | 'HOT'
+            | 'WARM'
+            | 'COLD'
+            | 'UNQUALIFIED';
+        }
+        return newState;
+      }
+    );
 
-    this.on('LeadQualified', (state, payload: { classification: string }) => ({
-      ...state,
-      classification: payload.classification as LeadState['classification'],
-      status: 'qualified' as const,
-    }));
+    this.on(
+      'LeadQualified',
+      (state, payload: { classification: string }): LeadState => {
+        const newState: LeadState = {
+          ...state,
+          status: 'qualified' as const,
+        };
+        if (payload.classification) {
+          newState.classification = payload.classification as
+            | 'HOT'
+            | 'WARM'
+            | 'COLD'
+            | 'UNQUALIFIED';
+        }
+        return newState;
+      }
+    );
 
     this.on('LeadAssigned', (state, payload: { assignedTo: string }) => ({
       ...state,
@@ -419,7 +463,7 @@ export class LeadRepository extends EventSourcedRepository<LeadAggregate> {
     const events = await this.eventStore.getByType('LeadCreated');
 
     for (const event of events) {
-      if ((event.payload as { phone: string }).phone === phone) {
+      if ((event.payload as { phone: string }).phone === phone && event.aggregateId) {
         return this.getById(event.aggregateId);
       }
     }

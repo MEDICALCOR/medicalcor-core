@@ -1,14 +1,19 @@
 /**
- * Observability-First Module
+ * Observability-First Module (Edge Runtime Compatible)
  *
  * Provides comprehensive observability with:
- * - Prometheus-compatible metrics
- * - Auto-instrumentation for HTTP, DB, external services
- * - 100ms diagnostics for fast debugging
+ * - Prometheus-compatible metrics (Edge Runtime compatible)
+ * - Auto-instrumentation for HTTP, DB, external services (server-side only)
+ * - 100ms diagnostics for fast debugging (server-side only)
  * - Grafana dashboard support
+ *
+ * NOTE: Only metrics are exported from this index (Edge Runtime compatible).
+ * Instrumentation and Diagnostics use Node.js APIs and must be imported directly:
+ * - './instrumentation.js' for instrumentFastify, instrumentExternalCall, etc.
+ * - './diagnostics.js' for DiagnosticsCollector, getPrometheusMetrics, etc.
  */
 
-// Metrics
+// Metrics (Edge Runtime Compatible)
 export {
   // Core classes
   Counter,
@@ -48,37 +53,10 @@ export {
   type MetricDefinition,
 } from './metrics.js';
 
-// Instrumentation
-export {
-  instrumentFastify,
-  instrumentExternalCall,
-  instrumentDatabase,
-  createCommandMetricsMiddleware,
-  createQueryMetricsMiddleware,
-  createHealthIndicator,
-  type InstrumentationOptions,
-  type ExternalCallOptions,
-  type RequestContext,
-  type HealthIndicator,
-  type HealthCheckResult,
-  type DatabaseClient,
-} from './instrumentation.js';
-
-// Diagnostics
-export {
-  DiagnosticsCollector,
-  diagnostics,
-  recordTrace,
-  lookupTrace,
-  searchTraces,
-  getPrometheusMetrics,
-  getMetricsJSON,
-  type DiagnosticSnapshot,
-  type SystemSnapshot,
-  type HttpSnapshot,
-  type BusinessSnapshot,
-  type PerformanceSnapshot,
-  type HealthSnapshot,
-  type TraceLookup,
-  type TraceSpan,
-} from './diagnostics.js';
+// NOTE: Instrumentation and Diagnostics exports REMOVED to avoid Edge Runtime issues
+// - Instrumentation uses OpenTelemetry SDK (not Edge Runtime compatible)
+// - Diagnostics uses Node.js APIs (process.platform, process.memoryUsage, etc.)
+//
+// Import directly from:
+// - '@medicalcor/core/observability/instrumentation' (server-side only)
+// - '@medicalcor/core/observability/diagnostics' (server-side only)

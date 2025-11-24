@@ -10,7 +10,6 @@
 import { z } from 'zod';
 import type {
   AIFunction,
-  AIFunctionCall,
   AIFunctionResult,
   FunctionContext,
   FunctionRegistry,
@@ -80,8 +79,8 @@ export interface AIResponse {
   suggestedFollowUp?: {
     message: string;
     functions: string[];
-  };
-  traceId?: string;
+  } | undefined;
+  traceId?: string | undefined;
 }
 
 // ============================================================================
@@ -552,7 +551,7 @@ export class AIRouter {
    * Transform step input based on previous results
    */
   private transformStepInput(
-    step: { arguments: Record<string, unknown>; dependsOn?: string[]; transformInput?: string },
+    step: { arguments: Record<string, unknown>; dependsOn?: string[] | undefined; transformInput?: string | undefined },
     previousResults: Map<string, AIFunctionResult>
   ): Record<string, unknown> {
     const args = { ...step.arguments };

@@ -20,6 +20,14 @@
     "./telemetry": {
       "types": "./dist/telemetry.d.ts",
       "import": "./dist/telemetry.js"
+    },
+    "./observability/instrumentation": {
+      "types": "./dist/observability/instrumentation.d.ts",
+      "import": "./dist/observability/instrumentation.js"
+    },
+    "./observability/diagnostics": {
+      "types": "./dist/observability/diagnostics.d.ts",
+      "import": "./dist/observability/diagnostics.js"
     }
   },
   "main": "./dist/index.js",
