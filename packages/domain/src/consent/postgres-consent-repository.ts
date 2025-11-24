@@ -134,7 +134,7 @@ export class PostgresConsentRepository implements ConsentRepository {
   async findByContact(contactId: string): Promise<ConsentRecord[]> {
     const sql = `SELECT * FROM consents WHERE contact_id = $1 ORDER BY created_at DESC`;
     const result = await this.db.query(sql, [contactId]);
-    return (result.rows as ConsentRow[]).map((row) => this.rowToConsent(row));
+    return (result.rows as unknown as ConsentRow[]).map((row) => this.rowToConsent(row));
   }
 
   async delete(consentId: string): Promise<void> {
@@ -159,13 +159,13 @@ export class PostgresConsentRepository implements ConsentRepository {
       ORDER BY expires_at ASC
     `;
     const result = await this.db.query(sql, [withinDays]);
-    return (result.rows as ConsentRow[]).map((row) => this.rowToConsent(row));
+    return (result.rows as unknown as ConsentRow[]).map((row) => this.rowToConsent(row));
   }
 
   async findByStatus(status: ConsentStatus): Promise<ConsentRecord[]> {
     const sql = `SELECT * FROM consents WHERE status = $1 ORDER BY updated_at DESC`;
     const result = await this.db.query(sql, [status]);
-    return (result.rows as ConsentRow[]).map((row) => this.rowToConsent(row));
+    return (result.rows as unknown as ConsentRow[]).map((row) => this.rowToConsent(row));
   }
 
   async appendAuditEntry(entry: ConsentAuditEntry): Promise<void> {
@@ -196,7 +196,7 @@ export class PostgresConsentRepository implements ConsentRepository {
       ORDER BY timestamp DESC
     `;
     const result = await this.db.query(sql, [consentId]);
-    return (result.rows as AuditRow[]).map((row) => this.rowToAuditEntry(row));
+    return (result.rows as unknown as AuditRow[]).map((row) => this.rowToAuditEntry(row));
   }
 
   async getContactAuditTrail(contactId: string): Promise<ConsentAuditEntry[]> {
@@ -207,7 +207,7 @@ export class PostgresConsentRepository implements ConsentRepository {
       ORDER BY cal.timestamp DESC
     `;
     const result = await this.db.query(sql, [contactId]);
-    return (result.rows as AuditRow[]).map((row) => this.rowToAuditEntry(row));
+    return (result.rows as unknown as AuditRow[]).map((row) => this.rowToAuditEntry(row));
   }
 
   private rowToConsent(row: ConsentRow): ConsentRecord {

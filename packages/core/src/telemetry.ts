@@ -89,10 +89,14 @@ export function initTelemetry(config: TelemetryConfig): void {
     // Use console exporter for debugging, OTLP for production
     const exporter = debug ? new ConsoleSpanExporter() : otlpExporter;
 
+    // Note: Using type assertion to handle version mismatch between
+    // @opentelemetry/resources and @opentelemetry/sdk-node transitive dependencies
+    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
     sdk = new NodeSDK({
-      resource,
-      traceExporter: exporter,
+      resource: resource as any,
+      traceExporter: exporter as any,
     });
+    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
 
     sdk.start();
     isInitialized = true;
