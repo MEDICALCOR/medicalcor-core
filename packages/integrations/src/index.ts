@@ -80,4 +80,5 @@ export {
   getOpenAIApiKey,
   type ClientsConfig,
   type IntegrationClients,
+  type CircuitBreakerOptions,
 } from './clients-factory.js';

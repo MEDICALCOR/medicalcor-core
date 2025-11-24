@@ -94,3 +94,23 @@ export {
   type SpanOptions,
   type Context,
 } from './telemetry.js';
+
+export {
+  CircuitBreaker,
+  CircuitBreakerRegistry,
+  CircuitBreakerError,
+  CircuitState,
+  globalCircuitBreakerRegistry,
+  withCircuitBreaker,
+  createCircuitBreakerWrapper,
+  type CircuitBreakerConfig,
+  type CircuitBreakerStats,
+} from './circuit-breaker.js';
+
+export {
+  IdempotencyKeys,
+  createNamespacedIdempotencyKey,
+  hashMessageContent,
+  getTodayString,
+  getCurrentHourString,
+} from './idempotency.js';

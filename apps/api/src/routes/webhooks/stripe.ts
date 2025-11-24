@@ -5,6 +5,7 @@ import {
   WebhookSignatureError,
   toSafeErrorResponse,
   generateCorrelationId,
+  IdempotencyKeys,
 } from '@medicalcor/core';
 import { tasks } from '@trigger.dev/sdk/v3';
 import crypto from 'crypto';
@@ -147,7 +148,9 @@ export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
             correlationId,
           };
 
-          tasks.trigger('payment-succeeded-handler', successPayload).catch((err: unknown) => {
+          tasks.trigger('payment-succeeded-handler', successPayload, {
+            idempotencyKey: IdempotencyKeys.paymentSucceeded(paymentData.id),
+          }).catch((err: unknown) => {
             fastify.log.error(
               { err, paymentId: paymentData.id, correlationId },
               'Failed to trigger payment succeeded handler'
@@ -204,7 +207,9 @@ export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
             correlationId,
           };
 
-          tasks.trigger('payment-failed-handler', failedPayload).catch((err: unknown) => {
+          tasks.trigger('payment-failed-handler', failedPayload, {
+            idempotencyKey: IdempotencyKeys.paymentFailed(paymentData.id),
+          }).catch((err: unknown) => {
             fastify.log.error(
               { err, paymentId: paymentData.id, correlationId },
               'Failed to trigger payment failed handler'
@@ -243,7 +248,9 @@ export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
               correlationId,
             };
 
-            tasks.trigger('payment-succeeded-handler', checkoutPayload).catch((err: unknown) => {
+            tasks.trigger('payment-succeeded-handler', checkoutPayload, {
+              idempotencyKey: IdempotencyKeys.paymentSucceeded(session.id),
+            }).catch((err: unknown) => {
               fastify.log.error(
                 { err, sessionId: session.id, correlationId },
                 'Failed to trigger payment handler for checkout session'
@@ -281,7 +288,9 @@ export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
               correlationId,
             };
 
-            tasks.trigger('payment-succeeded-handler', invoicePayload).catch((err: unknown) => {
+            tasks.trigger('payment-succeeded-handler', invoicePayload, {
+              idempotencyKey: IdempotencyKeys.paymentSucceeded(invoice.id),
+            }).catch((err: unknown) => {
               fastify.log.error(
                 { err, invoiceId: invoice.id, correlationId },
                 'Failed to trigger payment handler for invoice'
@@ -319,7 +328,9 @@ export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
               correlationId,
             };
 
-            tasks.trigger('refund-handler', refundPayload).catch((err: unknown) => {
+            tasks.trigger('refund-handler', refundPayload, {
+              idempotencyKey: IdempotencyKeys.refund(`refund_${charge.id}`),
+            }).catch((err: unknown) => {
               fastify.log.error(
                 { err, chargeId: charge.id, correlationId },
                 'Failed to trigger refund handler'

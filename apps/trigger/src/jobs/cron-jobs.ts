@@ -1,6 +1,6 @@
 import { schedules, logger } from '@trigger.dev/sdk/v3';
 import crypto from 'crypto';
-import { createEventStore, createInMemoryEventStore } from '@medicalcor/core';
+import { createEventStore, createInMemoryEventStore, IdempotencyKeys, getTodayString, getCurrentHourString } from '@medicalcor/core';
 import { createIntegrationClients } from '@medicalcor/integrations';
 import { nurtureSequenceWorkflow } from '../workflows/patient-journey.js';
 import { scoreLeadWorkflow } from '../workflows/lead-scoring.js';
@@ -195,6 +195,7 @@ export const dailyRecallCheck = schedules.task({
       });
 
       // Process contacts in batches for better performance
+      const todayStr = getTodayString();
       const batchResult = await processBatch(
         contactsWithPhone,
         async (contact) => {
@@ -203,6 +204,8 @@ export const dailyRecallCheck = schedules.task({
             hubspotContactId: contact.id,
             sequenceType: 'recall',
             correlationId: `${correlationId}_${contact.id}`,
+          }, {
+            idempotencyKey: IdempotencyKeys.recallCheck(contact.id, todayStr),
           });
         },
         logger
@@ -489,6 +492,7 @@ export const leadScoringRefresh = schedules.task({
       });
 
       // Process leads in batches for better performance
+      const todayStr = getTodayString();
       const batchResult = await processBatch(
         leadsWithPhone,
         async (lead) => {
@@ -501,6 +505,8 @@ export const leadScoringRefresh = schedules.task({
             message,
             channel: 'whatsapp',
             correlationId: `${correlationId}_${lead.id}`,
+          }, {
+            idempotencyKey: IdempotencyKeys.cronJobItem('lead-scoring-refresh', todayStr, lead.id),
           });
 
           // Update the score timestamp
