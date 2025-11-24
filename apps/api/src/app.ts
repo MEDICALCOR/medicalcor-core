@@ -10,6 +10,7 @@ import {
 } from '@medicalcor/core';
 import { healthRoutes, webhookRoutes, workflowRoutes } from './routes/index.js';
 import { rateLimitPlugin, type RateLimitConfig } from './plugins/rate-limit.js';
+import { apiAuthPlugin } from './plugins/api-auth.js';
 
 /**
  * MedicalCor API - Webhook Gateway
@@ -108,6 +109,12 @@ async function buildApp() {
     addHeaders: process.env.RATE_LIMIT_HEADERS !== 'false',
   };
   await fastify.register(rateLimitPlugin, rateLimitConfig);
+
+  // API Key authentication for protected endpoints (workflows)
+  await fastify.register(apiAuthPlugin, {
+    apiKeys: process.env.API_SECRET_KEY ? [process.env.API_SECRET_KEY] : [],
+    protectedPaths: ['/workflows'],
+  });
 
   // Parse URL-encoded bodies (for Twilio webhooks)
   fastify.addContentTypeParser(

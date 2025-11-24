@@ -19,6 +19,10 @@ import {
   type LeadSource,
   type HubSpotContact,
 } from '@medicalcor/types';
+import {
+  requirePermission,
+  AuthorizationError,
+} from '@/lib/auth/server-action-auth';
 
 /**
  * Server Actions for Patient/Lead Data Fetching
@@ -26,6 +30,7 @@ import {
  * These actions fetch data directly from HubSpot (Single Source of Truth)
  * and transform it to our internal schemas with Zod validation.
  *
+ * SECURITY: All actions require authentication and appropriate permissions.
  * Note: These run ONLY on the server - API keys are never exposed to client.
  */
 
@@ -159,9 +164,13 @@ function formatRelativeTime(date: string): string {
 /**
  * Fetches all patients/leads from HubSpot
  * Returns validated PatientListItem array
+ * @requires VIEW_PATIENTS permission
  */
 export async function getPatientsAction(): Promise<PatientListItem[]> {
   try {
+    // Authorization check
+    await requirePermission('VIEW_PATIENTS');
+
     const hubspot = getHubSpotClient();
 
     // Search for all contacts with relevant properties
@@ -219,6 +228,9 @@ export async function getPatientsAction(): Promise<PatientListItem[]> {
     // Validate through Zod for type safety
     return z.array(PatientListItemSchema).parse(patients);
   } catch (error) {
+    if (error instanceof AuthorizationError) {
+      throw error; // Re-throw auth errors to be handled by UI
+    }
     console.error('[getPatientsAction] Failed to fetch patients:', error);
     // Return empty array on error - UI will show empty state
     return [];
@@ -228,9 +240,11 @@ export async function getPatientsAction(): Promise<PatientListItem[]> {
 /**
  * Fetches recent leads for Dashboard display
  * Returns leads with masked phone numbers (GDPR)
+ * @requires VIEW_PATIENTS permission
  */
 export async function getRecentLeadsAction(limit = 5): Promise<RecentLead[]> {
   try {
+    await requirePermission('VIEW_PATIENTS');
     const hubspot = getHubSpotClient();
 
     const response = await hubspot.searchContacts({
@@ -269,6 +283,7 @@ export async function getRecentLeadsAction(limit = 5): Promise<RecentLead[]> {
 
     return z.array(RecentLeadSchema).parse(leads);
   } catch (error) {
+    if (error instanceof AuthorizationError) throw error;
     console.error('[getRecentLeadsAction] Failed to fetch recent leads:', error);
     return [];
   }
@@ -276,9 +291,11 @@ export async function getRecentLeadsAction(limit = 5): Promise<RecentLead[]> {
 
 /**
  * Fetches dashboard statistics from HubSpot, SchedulingService, and Stripe
+ * @requires VIEW_PATIENTS permission
  */
 export async function getDashboardStatsAction(): Promise<DashboardStats> {
   try {
+    await requirePermission('VIEW_PATIENTS');
     const hubspot = getHubSpotClient();
     const scheduling = getSchedulingService();
     const stripe = getStripeClient();
@@ -418,9 +435,11 @@ export interface TriageColumn {
 
 /**
  * Fetches leads for Triage board, grouped by classification/status
+ * @requires VIEW_PATIENTS permission
  */
 export async function getTriageLeadsAction(): Promise<TriageColumn[]> {
   try {
+    await requirePermission('VIEW_PATIENTS');
     const hubspot = getHubSpotClient();
     const scheduling = getSchedulingService();
 
@@ -630,9 +649,11 @@ export interface CalendarSlot {
 
 /**
  * Fetches calendar slots for a specific date
+ * @requires VIEW_APPOINTMENTS permission
  */
 export async function getCalendarSlotsAction(dateStr: string): Promise<CalendarSlot[]> {
   try {
+    await requirePermission('VIEW_APPOINTMENTS');
     const scheduling = getSchedulingService();
 
     const date = new Date(dateStr);
@@ -763,11 +784,13 @@ export interface AnalyticsData {
 
 /**
  * Fetches analytics data from HubSpot
+ * @requires VIEW_ANALYTICS permission
  */
 export async function getAnalyticsDataAction(
   timeRange: '7d' | '30d' | '90d' | '12m' = '30d'
 ): Promise<AnalyticsData> {
   try {
+    await requirePermission('VIEW_ANALYTICS');
     const hubspot = getHubSpotClient();
     const stripe = getStripeClient();
 
@@ -1129,9 +1152,11 @@ export interface Message {
 
 /**
  * Fetches conversations list from HubSpot contacts with recent activity
+ * @requires VIEW_MESSAGES permission
  */
 export async function getConversationsAction(): Promise<Conversation[]> {
   try {
+    await requirePermission('VIEW_MESSAGES');
     const hubspot = getHubSpotClient();
 
     // Fetch recent contacts with messages
