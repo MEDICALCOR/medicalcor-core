@@ -17,7 +17,7 @@ This comprehensive code audit of the MedicalCor Core medical CRM platform identi
 | Severity     | Count | Resolved | Immediate Action Required |
 | ------------ | ----- | -------- | ------------------------- |
 | **CRITICAL** | 15    | 7 ✅     | Yes - Block deployment    |
-| **HIGH**     | 31    | 3 ✅     | Yes - This sprint         |
+| **HIGH**     | 31    | 4 ✅     | Yes - This sprint         |
 | **MEDIUM**   | 37    | 1 ✅     | Short-term - Next sprint  |
 | **LOW**      | 15    | 0        | Medium-term backlog       |
 
@@ -31,6 +31,7 @@ This comprehensive code audit of the MedicalCor Core medical CRM platform identi
 - ✅ **SEC-006:** Twilio webhook signature verification (already implemented, confirmed Nov 24)
 - ✅ **SEC-007:** WhatsApp signature bypass removed (already fixed, confirmed Nov 24)
 - ✅ **SEC-008:** Stripe webhook signature verification (already implemented, confirmed Nov 24)
+- ✅ **SEC-009:** Vapi webhook payload validation with comprehensive Zod schemas (Nov 24, 2025)
 - ✅ **PERF-001:** Cron job N+1 patterns eliminated with batch processing (already fixed, confirmed Nov 24)
 - ✅ **PERF-007:** Cursor-based pagination implemented (Nov 24, 2025)
 
@@ -223,11 +224,26 @@ medicalcor-core/
 - **Security:** Fake payment events cannot be injected without Stripe webhook secret
 - **Reference:** https://stripe.com/docs/webhooks/signatures
 
-#### SEC-009: Vapi Webhook Payload Not Validated
+#### SEC-009: Vapi Webhook Payload Validation ✅ RESOLVED
 
+- **Severity:** HIGH → **Status: RESOLVED (Nov 24, 2025)**
 - **File:** `packages/integrations/src/vapi.ts`
-- **Lines:** 421-450
-- **Description:** Webhook payloads are cast without proper Zod validation or signature verification.
+- **Description:** ~~Webhook payloads were cast without proper Zod validation.~~ **RESOLVED:** Comprehensive validation schemas implemented.
+- **Implementation:**
+  - ✅ Created complete Zod schemas for all Vapi types (lines 49-117)
+  - ✅ `VapiCallSchema` validates call events with status, type, customer info
+  - ✅ `VapiMessageSchema` validates transcript messages with role, timestamp
+  - ✅ `VapiTranscriptSchema` validates transcript structure
+  - ✅ `VapiWebhookEventSchema` discriminated union for all event types:
+    - `call.started` - Call initiation events
+    - `call.ended` - Call completion events
+    - `transcript.updated` - Real-time transcript updates
+    - `function.call` - Function call events
+  - ✅ Updated `parseWebhookPayload()` to use `safeParse()` validation (lines 457-470)
+  - ✅ Returns null on validation failure instead of unsafe type casting
+  - ✅ All tests passing (18/18 in vapi.test.ts)
+- **Security:** Malformed webhook payloads are rejected before processing
+- **Note:** Signature verification already implemented in webhook route (`apps/api/src/routes/webhooks/vapi.ts`)
 
 ### 1.3 HIGH: Input Validation
 

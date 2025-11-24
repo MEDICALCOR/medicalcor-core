@@ -46,42 +46,75 @@ export const VapiEndedReasonSchema = z.enum([
 
 export type VapiEndedReason = z.infer<typeof VapiEndedReasonSchema>;
 
-export interface VapiCall {
-  id: string;
-  orgId: string;
-  assistantId: string;
-  status: VapiCallStatus;
-  type: 'inbound' | 'outbound';
-  phoneNumber?: {
-    id: string;
-    number: string;
-  };
-  customer?: {
-    number: string;
-    name?: string;
-  };
-  startedAt?: string;
-  endedAt?: string;
-  endedReason?: VapiEndedReason;
-  cost?: number;
-}
+export const VapiCallSchema = z.object({
+  id: z.string(),
+  orgId: z.string().optional(),
+  assistantId: z.string().optional(),
+  status: VapiCallStatusSchema,
+  type: z.enum(['inbound', 'outbound']),
+  phoneNumber: z
+    .object({
+      id: z.string(),
+      number: z.string(),
+    })
+    .optional(),
+  customer: z
+    .object({
+      number: z.string(),
+      name: z.string().optional(),
+    })
+    .optional(),
+  startedAt: z.string().optional(),
+  endedAt: z.string().optional(),
+  endedReason: VapiEndedReasonSchema.optional(),
+  cost: z.number().optional(),
+});
 
-export interface VapiTranscript {
-  callId: string;
-  messages: VapiMessage[];
-  duration: number;
-  startedAt: string;
-  endedAt: string;
-}
+export type VapiCall = z.infer<typeof VapiCallSchema>;
 
-export interface VapiMessage {
-  role: 'assistant' | 'user' | 'system' | 'function_call';
-  message: string;
-  timestamp: number;
-  duration?: number;
-  name?: string; // For function calls
-  arguments?: string; // For function calls
-}
+export const VapiMessageSchema = z.object({
+  role: z.enum(['assistant', 'user', 'system', 'function_call']),
+  message: z.string(),
+  timestamp: z.number(),
+  duration: z.number().optional(),
+  name: z.string().optional(),
+  arguments: z.string().optional(),
+});
+
+export type VapiMessage = z.infer<typeof VapiMessageSchema>;
+
+export const VapiTranscriptSchema = z.object({
+  callId: z.string(),
+  messages: z.array(VapiMessageSchema),
+  duration: z.number(),
+  startedAt: z.string(),
+  endedAt: z.string().optional(),
+});
+
+export type VapiTranscript = z.infer<typeof VapiTranscriptSchema>;
+
+// Webhook event schemas for payload validation
+export const VapiWebhookEventSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('call.started'),
+    call: VapiCallSchema,
+  }),
+  z.object({
+    type: z.literal('call.ended'),
+    call: VapiCallSchema,
+  }),
+  z.object({
+    type: z.literal('transcript.updated'),
+    transcript: VapiTranscriptSchema,
+  }),
+  z.object({
+    type: z.literal('function.call'),
+    call: VapiCallSchema,
+    message: VapiMessageSchema,
+  }),
+]);
+
+export type VapiWebhookEvent = z.infer<typeof VapiWebhookEventSchema>;
 
 export interface VapiCallSummary {
   callId: string;
@@ -416,37 +449,24 @@ export class VapiClient {
   }
 
   /**
-   * Process webhook payload from Vapi
+   * Process webhook payload from Vapi with validation
+   *
+   * @param payload - The raw webhook payload
+   * @returns Validated webhook event or null if invalid
    */
-  parseWebhookPayload(payload: unknown): {
-    type: 'call.started' | 'call.ended' | 'transcript.updated' | 'function.call';
-    data: VapiCall | VapiTranscript | VapiMessage;
-  } | null {
+  parseWebhookPayload(payload: unknown): VapiWebhookEvent | null {
     if (!payload || typeof payload !== 'object') return null;
 
-    const p = payload as Record<string, unknown>;
-    const type = p.type as string;
+    // Validate payload against webhook event schema
+    const parseResult = VapiWebhookEventSchema.safeParse(payload);
 
-    switch (type) {
-      case 'call.started':
-      case 'call.ended':
-        return {
-          type: type,
-          data: p.call as VapiCall,
-        };
-      case 'transcript.updated':
-        return {
-          type: 'transcript.updated',
-          data: p.transcript as VapiTranscript,
-        };
-      case 'function.call':
-        return {
-          type: 'function.call',
-          data: p.message as VapiMessage,
-        };
-      default:
-        return null;
+    if (!parseResult.success) {
+      // Validation failed - return null
+      // Note: Validation errors are logged by the caller (webhook route handler)
+      return null;
     }
+
+    return parseResult.data;
   }
 
   // =============================================================================

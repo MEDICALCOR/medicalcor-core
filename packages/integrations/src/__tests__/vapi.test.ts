@@ -221,11 +221,45 @@ describe('VapiClient', () => {
       const result = client.parseWebhookPayload(payload);
 
       expect(result?.type).toBe('call.ended');
-      expect(result?.data).toHaveProperty('id', 'call_123');
+      if (result?.type === 'call.ended') {
+        expect(result.call.id).toBe('call_123');
+        expect(result.call.status).toBe('ended');
+      }
+    });
+
+    it('should parse transcript.updated webhook', () => {
+      const payload = {
+        type: 'transcript.updated',
+        transcript: {
+          callId: 'call_456',
+          messages: [
+            { role: 'user', message: 'Hello', timestamp: Date.now() },
+            { role: 'assistant', message: 'Hi', timestamp: Date.now() },
+          ],
+          duration: 60,
+          startedAt: new Date().toISOString(),
+        },
+      };
+
+      const result = client.parseWebhookPayload(payload);
+
+      expect(result?.type).toBe('transcript.updated');
+      if (result?.type === 'transcript.updated') {
+        expect(result.transcript.callId).toBe('call_456');
+        expect(result.transcript.messages).toHaveLength(2);
+      }
     });
 
     it('should return null for invalid payload', () => {
       const result = client.parseWebhookPayload({ type: 'unknown' });
+      expect(result).toBeNull();
+    });
+
+    it('should return null for malformed payload', () => {
+      const result = client.parseWebhookPayload({
+        type: 'call.ended',
+        call: { invalidField: true },
+      });
       expect(result).toBeNull();
     });
   });
