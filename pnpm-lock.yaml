@@ -293,6 +293,9 @@ importers:
       '@opentelemetry/semantic-conventions':
         specifier: ^1.38.0
         version: 1.38.0
+      bcryptjs:
+        specifier: ^3.0.3
+        version: 3.0.3
       pg:
         specifier: ^8.0.0
         version: 8.16.3
@@ -309,6 +312,9 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      '@types/bcryptjs':
+        specifier: ^2.4.6
+        version: 2.4.6
       '@types/node':
         specifier: ^22.9.0
         version: 22.19.1
@@ -2661,6 +2667,9 @@ packages:
     engines: {node: '>=18.20.0'}
     peerDependencies:
       zod: ^3.0.0
+
+  '@types/bcryptjs@2.4.6':
+    resolution: {integrity: sha512-9xlo6R2qDs5uixm0bcIqCeMCE6HiQsIyel9KQySStiyqNl2tnj2mP3DX1Nf56MD6KMenNNlBBsy3LJ7gUEQPXQ==}
 
   '@types/bcryptjs@3.0.0':
     resolution: {integrity: sha512-WRZOuCuaz8UcZZE4R5HXTco2goQSI2XxjGY3hbM/xDvwmqFWd4ivooImsMx65OKM6CtNKbnZ5YL+YwAwK7c1dg==}
@@ -8013,6 +8022,8 @@ snapshots:
       - bufferutil
       - supports-color
       - utf-8-validate
+
+  '@types/bcryptjs@2.4.6': {}
 
   '@types/bcryptjs@3.0.0':
     dependencies:

@@ -18,6 +18,8 @@ import {
   type LeadClassification,
   type LeadSource,
   type HubSpotContact,
+  type PaginatedResponse,
+  type HubSpotSearchRequest,
 } from '@medicalcor/types';
 import {
   requirePermission,
@@ -70,6 +72,45 @@ function getSchedulingService(): SchedulingService {
     timezone: 'Europe/Bucharest',
   });
   return schedulingService;
+}
+
+/**
+ * Fetches all contacts matching a search query using cursor-based pagination
+ * Handles HubSpot's 100-per-page limit automatically
+ * @param searchParams - HubSpot search parameters (without limit/after)
+ * @param maxResults - Maximum results to fetch (default 5000, prevents runaway queries)
+ */
+async function fetchAllContacts(
+  hubspot: HubSpotClient,
+  searchParams: Omit<HubSpotSearchRequest, 'limit' | 'after'>,
+  maxResults = 5000
+): Promise<HubSpotContact[]> {
+  const allResults: HubSpotContact[] = [];
+  let cursor: string | undefined;
+  const pageSize = 100; // HubSpot max per page
+
+  do {
+    const response = await hubspot.searchContacts({
+      ...searchParams,
+      limit: pageSize,
+      after: cursor,
+    });
+
+    allResults.push(...response.results);
+
+    // Get next cursor from HubSpot paging
+    cursor = response.paging?.next?.after;
+
+    // Safety check to prevent infinite loops
+    if (allResults.length >= maxResults) {
+      console.warn(
+        `[fetchAllContacts] Reached maxResults limit (${maxResults}), stopping pagination`
+      );
+      break;
+    }
+  } while (cursor);
+
+  return allResults;
 }
 
 /**
@@ -163,18 +204,36 @@ function formatRelativeTime(date: string): string {
 }
 
 /**
- * Fetches all patients/leads from HubSpot
- * Returns validated PatientListItem array
+ * Fetches all patients/leads from HubSpot (legacy non-paginated version)
+ * @deprecated Use getPatientsActionPaginated for new implementations
  * @requires VIEW_PATIENTS permission
  */
 export async function getPatientsAction(): Promise<PatientListItem[]> {
+  const result = await getPatientsActionPaginated({ pageSize: 100 });
+  return result.items;
+}
+
+/**
+ * Fetches patients/leads from HubSpot with cursor-based pagination
+ * Returns validated PaginatedResponse with PatientListItem array
+ * @param options.cursor - Cursor for next page (from previous response)
+ * @param options.pageSize - Number of items per page (1-100, default 20)
+ * @requires VIEW_PATIENTS permission
+ */
+export async function getPatientsActionPaginated(options?: {
+  cursor?: string;
+  pageSize?: number;
+}): Promise<PaginatedResponse<PatientListItem>> {
+  const { cursor, pageSize = 20 } = options ?? {};
+  const validatedPageSize = Math.min(Math.max(pageSize, 1), 100);
+
   try {
     // Authorization check
     await requirePermission('VIEW_PATIENTS');
 
     const hubspot = getHubSpotClient();
 
-    // Search for all contacts with relevant properties
+    // Search for contacts with relevant properties
     const response = await hubspot.searchContacts({
       filterGroups: [
         {
@@ -203,7 +262,8 @@ export async function getPatientsAction(): Promise<PatientListItem[]> {
           direction: 'DESCENDING',
         },
       ],
-      limit: 100,
+      limit: validatedPageSize,
+      after: cursor,
     });
 
     // Map HubSpot contacts to our PatientListItem schema
@@ -227,14 +287,29 @@ export async function getPatientsAction(): Promise<PatientListItem[]> {
     }));
 
     // Validate through Zod for type safety
-    return z.array(PatientListItemSchema).parse(patients);
+    const validatedPatients = z.array(PatientListItemSchema).parse(patients);
+
+    // Extract next cursor from HubSpot paging info
+    const nextCursor = response.paging?.next?.after ?? null;
+
+    return {
+      items: validatedPatients,
+      nextCursor,
+      hasMore: nextCursor !== null,
+      total: response.total,
+    };
   } catch (error) {
     if (error instanceof AuthorizationError) {
       throw error; // Re-throw auth errors to be handled by UI
     }
-    console.error('[getPatientsAction] Failed to fetch patients:', error);
-    // Return empty array on error - UI will show empty state
-    return [];
+    console.error('[getPatientsActionPaginated] Failed to fetch patients:', error);
+    // Return empty result on error - UI will show empty state
+    return {
+      items: [],
+      nextCursor: null,
+      hasMore: false,
+      total: 0,
+    };
   }
 }
 
@@ -949,8 +1024,8 @@ export async function getAnalyticsDataAction(
     const leadsOverTime: TimeSeriesPoint[] = [];
     const appointmentsOverTime: TimeSeriesPoint[] = [];
 
-    // Aggregate leads by creation date from HubSpot
-    const leadsWithDates = await hubspot.searchContacts({
+    // Aggregate leads by creation date from HubSpot (using paginated fetch for all results)
+    const leadsWithDates = await fetchAllContacts(hubspot, {
       filterGroups: [
         {
           filters: [
@@ -960,12 +1035,11 @@ export async function getAnalyticsDataAction(
         },
       ],
       properties: ['createdate'],
-      limit: 1000,
     });
 
     // Count leads per day
     const leadsByDay = new Map<string, number>();
-    for (const contact of leadsWithDates.results) {
+    for (const contact of leadsWithDates) {
       const dateStr = new Date(contact.createdAt).toISOString().split('T')[0] ?? '';
       leadsByDay.set(dateStr, (leadsByDay.get(dateStr) ?? 0) + 1);
     }
@@ -1005,7 +1079,7 @@ export async function getAnalyticsDataAction(
       manual: '#6B7280',
     };
 
-    const leadsWithSource = await hubspot.searchContacts({
+    const leadsWithSource = await fetchAllContacts(hubspot, {
       filterGroups: [
         {
           filters: [
@@ -1015,12 +1089,11 @@ export async function getAnalyticsDataAction(
         },
       ],
       properties: ['lead_source'],
-      limit: 1000,
     });
 
     // Count by source
     const sourceCount = new Map<string, number>();
-    for (const contact of leadsWithSource.results) {
+    for (const contact of leadsWithSource) {
       const source = mapLeadSource(contact.properties.lead_source);
       sourceCount.set(source, (sourceCount.get(source) ?? 0) + 1);
     }
@@ -1049,7 +1122,7 @@ export async function getAnalyticsDataAction(
     ];
 
     // Top procedures - requires procedure_interest aggregation from HubSpot
-    const leadsWithProcedure = await hubspot.searchContacts({
+    const leadsWithProcedure = await fetchAllContacts(hubspot, {
       filterGroups: [
         {
           filters: [
@@ -1059,11 +1132,10 @@ export async function getAnalyticsDataAction(
         },
       ],
       properties: ['procedure_interest'],
-      limit: 1000,
     });
 
     const procedureCount = new Map<string, number>();
-    for (const contact of leadsWithProcedure.results) {
+    for (const contact of leadsWithProcedure) {
       const procedures = contact.properties.procedure_interest?.split(',') ?? [];
       for (const proc of procedures) {
         const trimmed = proc.trim();
@@ -1152,10 +1224,28 @@ export interface Message {
 }
 
 /**
- * Fetches conversations list from HubSpot contacts with recent activity
+ * Fetches conversations list from HubSpot contacts (legacy non-paginated version)
+ * @deprecated Use getConversationsActionPaginated for new implementations
  * @requires VIEW_MESSAGES permission
  */
 export async function getConversationsAction(): Promise<Conversation[]> {
+  const result = await getConversationsActionPaginated({ pageSize: 50 });
+  return result.items;
+}
+
+/**
+ * Fetches conversations list from HubSpot contacts with cursor-based pagination
+ * @param options.cursor - Cursor for next page (from previous response)
+ * @param options.pageSize - Number of items per page (1-100, default 20)
+ * @requires VIEW_MESSAGES permission
+ */
+export async function getConversationsActionPaginated(options?: {
+  cursor?: string;
+  pageSize?: number;
+}): Promise<PaginatedResponse<Conversation>> {
+  const { cursor, pageSize = 20 } = options ?? {};
+  const validatedPageSize = Math.min(Math.max(pageSize, 1), 100);
+
   try {
     await requirePermission('VIEW_MESSAGES');
     const hubspot = getHubSpotClient();
@@ -1177,7 +1267,8 @@ export async function getConversationsAction(): Promise<Conversation[]> {
         'lead_source',
       ],
       sorts: [{ propertyName: 'lastmodifieddate', direction: 'DESCENDING' }],
-      limit: 50,
+      limit: validatedPageSize,
+      after: cursor,
     });
 
     const conversations: Conversation[] = response.results.map((contact: HubSpotContact) => {
@@ -1218,10 +1309,23 @@ export async function getConversationsAction(): Promise<Conversation[]> {
       };
     });
 
-    return conversations;
+    // Extract next cursor from HubSpot paging info
+    const nextCursor = response.paging?.next?.after ?? null;
+
+    return {
+      items: conversations,
+      nextCursor,
+      hasMore: nextCursor !== null,
+      total: response.total,
+    };
   } catch (error) {
-    console.error('[getConversationsAction] Failed to fetch conversations:', error);
-    return [];
+    console.error('[getConversationsActionPaginated] Failed to fetch conversations:', error);
+    return {
+      items: [],
+      nextCursor: null,
+      hasMore: false,
+      total: 0,
+    };
   }
 }
 

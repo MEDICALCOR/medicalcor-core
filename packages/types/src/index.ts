@@ -144,3 +144,25 @@ export {
   type ConsentRecordedEvent,
   type DomainEvent,
 } from './events.schema.js';
+
+// Common schemas (pagination, validation)
+export {
+  PhoneNumberSchema,
+  E164PhoneSchema,
+  EmailSchema,
+  UUIDSchema,
+  TimestampSchema,
+  CorrelationIdSchema,
+  PaginationSchema,
+  CursorPaginationSchema,
+  PaginatedResponseSchema,
+  type PhoneNumber,
+  type E164Phone,
+  type Email,
+  type UUID,
+  type Timestamp,
+  type CorrelationId,
+  type Pagination,
+  type CursorPagination,
+  type PaginatedResponse,
+} from './schemas/common.js';
