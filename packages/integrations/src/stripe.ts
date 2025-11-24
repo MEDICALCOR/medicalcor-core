@@ -1,4 +1,5 @@
-import { withRetry, ExternalServiceError, RateLimitError } from '@medicalcor/core';
+import crypto from 'crypto';
+import { withRetry, ExternalServiceError, RateLimitError, WebhookSignatureError } from '@medicalcor/core';
 
 /**
  * Stripe Integration Client
@@ -7,6 +8,7 @@ import { withRetry, ExternalServiceError, RateLimitError } from '@medicalcor/cor
 
 export interface StripeClientConfig {
   secretKey: string;
+  webhookSecret?: string;
   retryConfig?: {
     maxRetries: number;
     baseDelayMs: number;
@@ -194,6 +196,69 @@ export class StripeClient {
    */
   toMajorUnits(amount: number): number {
     return Math.round(amount / 100);
+  }
+
+  /**
+   * Verify Stripe webhook signature
+   * Uses HMAC-SHA256 as per Stripe's specification
+   * @see https://stripe.com/docs/webhooks/signatures
+   */
+  verifyWebhookSignature(payload: string, signatureHeader: string): boolean {
+    if (!this.config.webhookSecret) {
+      throw new Error('Webhook secret not configured');
+    }
+
+    // Parse signature header: t=<timestamp>,v1=<signature>
+    const signatureParts = signatureHeader.split(',');
+    let timestamp = '';
+    let signature = '';
+
+    for (const part of signatureParts) {
+      const [key, value] = part.split('=');
+      if (key === 't') {
+        timestamp = value ?? '';
+      } else if (key === 'v1') {
+        signature = value ?? '';
+      }
+    }
+
+    if (!timestamp || !signature) {
+      return false;
+    }
+
+    // Check timestamp is within 5 minutes to prevent replay attacks
+    const currentTime = Math.floor(Date.now() / 1000);
+    const webhookTime = parseInt(timestamp, 10);
+    const TOLERANCE_SECONDS = 300; // 5 minutes
+
+    if (Math.abs(currentTime - webhookTime) > TOLERANCE_SECONDS) {
+      return false;
+    }
+
+    // Compute expected signature: HMAC-SHA256 of "timestamp.payload"
+    const signedPayload = `${timestamp}.${payload}`;
+    const expectedSignature = crypto
+      .createHmac('sha256', this.config.webhookSecret)
+      .update(signedPayload, 'utf8')
+      .digest('hex');
+
+    // Timing-safe comparison to prevent timing attacks
+    try {
+      return crypto.timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(signature));
+    } catch {
+      // Length mismatch or other error
+      return false;
+    }
+  }
+
+  /**
+   * Validate and verify incoming webhook
+   * Throws WebhookSignatureError if signature is invalid
+   */
+  validateWebhook(payload: string, signatureHeader: string): void {
+    if (!this.verifyWebhookSignature(payload, signatureHeader)) {
+      throw new WebhookSignatureError('Invalid Stripe webhook signature');
+    }
   }
 
   /**

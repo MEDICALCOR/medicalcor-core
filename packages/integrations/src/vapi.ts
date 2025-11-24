@@ -46,6 +46,64 @@ export const VapiEndedReasonSchema = z.enum([
 
 export type VapiEndedReason = z.infer<typeof VapiEndedReasonSchema>;
 
+// Zod schemas for webhook validation
+export const VapiMessageSchema = z.object({
+  role: z.enum(['assistant', 'user', 'system', 'function_call']),
+  message: z.string(),
+  timestamp: z.number(),
+  duration: z.number().optional(),
+  name: z.string().optional(),
+  arguments: z.string().optional(),
+});
+
+export const VapiCallSchema = z.object({
+  id: z.string(),
+  orgId: z.string(),
+  assistantId: z.string(),
+  status: VapiCallStatusSchema,
+  type: z.enum(['inbound', 'outbound']),
+  phoneNumber: z.object({
+    id: z.string(),
+    number: z.string(),
+  }).optional(),
+  customer: z.object({
+    number: z.string(),
+    name: z.string().optional(),
+  }).optional(),
+  startedAt: z.string().optional(),
+  endedAt: z.string().optional(),
+  endedReason: VapiEndedReasonSchema.optional(),
+  cost: z.number().optional(),
+});
+
+export const VapiTranscriptSchema = z.object({
+  callId: z.string(),
+  messages: z.array(VapiMessageSchema),
+  duration: z.number(),
+  startedAt: z.string(),
+  endedAt: z.string(),
+});
+
+// Webhook payload schemas
+export const VapiWebhookPayloadSchema = z.union([
+  z.object({
+    type: z.literal('call.started'),
+    call: VapiCallSchema,
+  }),
+  z.object({
+    type: z.literal('call.ended'),
+    call: VapiCallSchema,
+  }),
+  z.object({
+    type: z.literal('transcript.updated'),
+    transcript: VapiTranscriptSchema,
+  }),
+  z.object({
+    type: z.literal('function.call'),
+    message: VapiMessageSchema,
+  }),
+]);
+
 export interface VapiCall {
   id: string;
   orgId: string;
@@ -416,36 +474,45 @@ export class VapiClient {
   }
 
   /**
-   * Process webhook payload from Vapi
+   * Parse and validate incoming webhook payload using Zod
+   * Returns null if payload is invalid
+   * @throws {z.ZodError} if validation fails and throwOnError is true
    */
-  parseWebhookPayload(payload: unknown): {
+  parseWebhookPayload(
+    payload: unknown,
+    options: { throwOnError?: boolean } = {}
+  ): {
     type: 'call.started' | 'call.ended' | 'transcript.updated' | 'function.call';
     data: VapiCall | VapiTranscript | VapiMessage;
   } | null {
-    if (!payload || typeof payload !== 'object') return null;
+    const parseResult = VapiWebhookPayloadSchema.safeParse(payload);
 
-    const p = payload as Record<string, unknown>;
-    const type = p.type as string;
+    if (!parseResult.success) {
+      if (options.throwOnError) {
+        throw parseResult.error;
+      }
+      return null;
+    }
 
-    switch (type) {
+    const validated = parseResult.data;
+
+    switch (validated.type) {
       case 'call.started':
       case 'call.ended':
         return {
-          type: type,
-          data: p.call as VapiCall,
+          type: validated.type,
+          data: validated.call,
         };
       case 'transcript.updated':
         return {
           type: 'transcript.updated',
-          data: p.transcript as VapiTranscript,
+          data: validated.transcript,
         };
       case 'function.call':
         return {
           type: 'function.call',
-          data: p.message as VapiMessage,
+          data: validated.message,
         };
-      default:
-        return null;
     }
   }
 
