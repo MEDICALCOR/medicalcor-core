@@ -50,6 +50,22 @@ const TaskInputSchema = z.object({
   ownerId: z.string().optional(),
 });
 
+const CallTimelineInputSchema = z.object({
+  contactId: z.string().min(1),
+  callSid: z.string().min(1).max(256),
+  duration: z.number().int().min(0).max(86400), // Max 24 hours
+  transcript: z.string().max(65535).optional(),
+  sentiment: z.string().max(100).optional(),
+});
+
+const PaymentTimelineInputSchema = z.object({
+  contactId: z.string().min(1),
+  paymentId: z.string().min(1).max(256),
+  amount: z.number().int().positive(), // Amount in smallest currency unit (e.g., cents)
+  currency: z.string().length(3).toUpperCase(), // ISO 4217 currency codes
+  status: z.string().min(1).max(100),
+});
+
 /**
  * HubSpot CRM Integration Client
  * Single source of truth for all CRM operations
@@ -284,7 +300,9 @@ export class HubSpotClient {
     transcript?: string;
     sentiment?: string;
   }): Promise<void> {
-    const { contactId, callSid, duration, transcript, sentiment } = input;
+    // Validate input
+    const validated = CallTimelineInputSchema.parse(input);
+    const { contactId, callSid, duration, transcript, sentiment } = validated;
 
     // Create a call record
     await this.request('/crm/v3/objects/calls', {
@@ -389,7 +407,9 @@ export class HubSpotClient {
     currency: string;
     status: string;
   }): Promise<void> {
-    const { contactId, paymentId, amount, currency, status } = input;
+    // Validate input
+    const validated = PaymentTimelineInputSchema.parse(input);
+    const { contactId, paymentId, amount, currency, status } = validated;
 
     await this.request('/crm/v3/objects/notes', {
       method: 'POST',

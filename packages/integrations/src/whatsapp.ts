@@ -50,6 +50,69 @@ const SendTemplateOptionsSchema = z.object({
   components: z.array(TemplateComponentSchema).optional(),
 });
 
+const SendInteractiveButtonsSchema = z.object({
+  to: PhoneSchema,
+  bodyText: z.string().min(1).max(1024),
+  buttons: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(256),
+        title: z.string().min(1).max(20),
+      })
+    )
+    .min(1)
+    .max(3), // WhatsApp allows max 3 buttons
+  headerText: z.string().max(60).optional(),
+  footerText: z.string().max(60).optional(),
+});
+
+const SendInteractiveListSchema = z.object({
+  to: PhoneSchema,
+  bodyText: z.string().min(1).max(1024),
+  buttonText: z.string().min(1).max(20),
+  sections: z
+    .array(
+      z.object({
+        title: z.string().min(1).max(24),
+        rows: z
+          .array(
+            z.object({
+              id: z.string().min(1).max(200),
+              title: z.string().min(1).max(24),
+              description: z.string().max(72).optional(),
+            })
+          )
+          .min(1)
+          .max(10), // Max 10 rows per section
+      })
+    )
+    .min(1)
+    .max(10), // Max 10 sections
+  headerText: z.string().max(60).optional(),
+  footerText: z.string().max(60).optional(),
+});
+
+const SendImageSchema = z.object({
+  to: PhoneSchema,
+  imageUrl: z.string().url(),
+  caption: z.string().max(1024).optional(),
+});
+
+const SendDocumentSchema = z.object({
+  to: PhoneSchema,
+  documentUrl: z.string().url(),
+  filename: z.string().min(1).max(256).optional(),
+  caption: z.string().max(1024).optional(),
+});
+
+const SendLocationSchema = z.object({
+  to: PhoneSchema,
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  name: z.string().max(1000).optional(),
+  address: z.string().max(1000).optional(),
+});
+
 const WhatsAppClientConfigSchema = z.object({
   apiKey: z.string().min(1, 'API key is required'),
   phoneNumberId: z.string().min(1, 'Phone number ID is required'),
@@ -189,7 +252,9 @@ export class WhatsAppClient {
     headerText?: string;
     footerText?: string;
   }): Promise<MessageResponse> {
-    const { to, bodyText, buttons, headerText, footerText } = options;
+    // Validate input
+    const validated = SendInteractiveButtonsSchema.parse(options);
+    const { to, bodyText, buttons, headerText, footerText } = validated;
 
     return this.request<MessageResponse>('/messages', {
       method: 'POST',
@@ -228,7 +293,9 @@ export class WhatsAppClient {
     headerText?: string;
     footerText?: string;
   }): Promise<MessageResponse> {
-    const { to, bodyText, buttonText, sections, headerText, footerText } = options;
+    // Validate input
+    const validated = SendInteractiveListSchema.parse(options);
+    const { to, bodyText, buttonText, sections, headerText, footerText } = validated;
 
     return this.request<MessageResponse>('/messages', {
       method: 'POST',
@@ -259,7 +326,9 @@ export class WhatsAppClient {
     imageUrl: string;
     caption?: string;
   }): Promise<MessageResponse> {
-    const { to, imageUrl, caption } = options;
+    // Validate input
+    const validated = SendImageSchema.parse(options);
+    const { to, imageUrl, caption } = validated;
 
     return this.request<MessageResponse>('/messages', {
       method: 'POST',
@@ -285,7 +354,9 @@ export class WhatsAppClient {
     filename?: string;
     caption?: string;
   }): Promise<MessageResponse> {
-    const { to, documentUrl, filename, caption } = options;
+    // Validate input
+    const validated = SendDocumentSchema.parse(options);
+    const { to, documentUrl, filename, caption } = validated;
 
     return this.request<MessageResponse>('/messages', {
       method: 'POST',
@@ -313,7 +384,9 @@ export class WhatsAppClient {
     name?: string;
     address?: string;
   }): Promise<MessageResponse> {
-    const { to, latitude, longitude, name, address } = options;
+    // Validate input
+    const validated = SendLocationSchema.parse(options);
+    const { to, latitude, longitude, name, address } = validated;
 
     return this.request<MessageResponse>('/messages', {
       method: 'POST',

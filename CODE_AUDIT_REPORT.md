@@ -17,7 +17,7 @@ This comprehensive code audit of the MedicalCor Core medical CRM platform identi
 | Severity     | Count | Resolved | Immediate Action Required |
 | ------------ | ----- | -------- | ------------------------- |
 | **CRITICAL** | 15    | 7 ✅     | Yes - Block deployment    |
-| **HIGH**     | 31    | 4 ✅     | Yes - This sprint         |
+| **HIGH**     | 31    | 5 ✅     | Yes - This sprint         |
 | **MEDIUM**   | 37    | 1 ✅     | Short-term - Next sprint  |
 | **LOW**      | 15    | 0        | Medium-term backlog       |
 
@@ -32,6 +32,7 @@ This comprehensive code audit of the MedicalCor Core medical CRM platform identi
 - ✅ **SEC-007:** WhatsApp signature bypass removed (already fixed, confirmed Nov 24)
 - ✅ **SEC-008:** Stripe webhook signature verification (already implemented, confirmed Nov 24)
 - ✅ **SEC-009:** Vapi webhook payload validation with comprehensive Zod schemas (Nov 24, 2025)
+- ✅ **SEC-010:** Input validation for HubSpot and WhatsApp integration methods (Nov 24, 2025)
 - ✅ **PERF-001:** Cron job N+1 patterns eliminated with batch processing (already fixed, confirmed Nov 24)
 - ✅ **PERF-007:** Cursor-based pagination implemented (Nov 24, 2025)
 
@@ -247,19 +248,40 @@ medicalcor-core/
 
 ### 1.3 HIGH: Input Validation
 
-#### SEC-010: No Input Validation Before External API Calls
+#### SEC-010: Input Validation for External API Calls ✅ RESOLVED
 
-- **Files:** All integration clients
-- **Description:** Phone numbers, emails, and other inputs are not validated before API calls.
+- **Severity:** HIGH → **Status: RESOLVED (Nov 24, 2025)**
+- **Files:** `packages/integrations/src/hubspot.ts`, `packages/integrations/src/whatsapp.ts`
+- **Description:** ~~Inputs not validated before external API calls.~~ **RESOLVED:** Comprehensive Zod validation added.
+- **Implementation:**
 
-```typescript
-// hubspot.ts line 55 - No validation
-async syncContact(data: { phone: string; name?: string; ... }) {
-  const { phone, name, email } = data;
-  // phone could be malformed, SQL injection attempt, etc.
-```
+  **HubSpot Client:**
+  - ✅ `CallTimelineInputSchema` - Validates call logging with duration limits, transcript length
+  - ✅ `PaymentTimelineInputSchema` - Validates payment data with currency codes, amounts
+  - ✅ `logCallToTimeline()` - Now validates all inputs (lines 305-306)
+  - ✅ `logPaymentToTimeline()` - Now validates all inputs (lines 411-412)
+  - ✅ Previously validated: `syncContact()`, `logMessageToTimeline()`, `createTask()`
 
-- **Recommendation:** Add Zod validation at integration boundaries.
+  **WhatsApp Client:**
+  - ✅ `SendInteractiveButtonsSchema` - Validates button messages (max 3 buttons, title length)
+  - ✅ `SendInteractiveListSchema` - Validates list messages (max 10 sections/rows)
+  - ✅ `SendImageSchema` - Validates image URLs and captions
+  - ✅ `SendDocumentSchema` - Validates document URLs and filenames
+  - ✅ `SendLocationSchema` - Validates GPS coordinates (-90 to 90, -180 to 180)
+  - ✅ `sendInteractiveButtons()` - Now validates inputs (lines 241-242)
+  - ✅ `sendInteractiveList()` - Now validates inputs (lines 282-283)
+  - ✅ `sendImage()` - Now validates inputs (lines 315-316)
+  - ✅ `sendDocument()` - Now validates inputs (lines 343-344)
+  - ✅ `sendLocation()` - Now validates inputs (lines 373-374)
+  - ✅ Previously validated: `sendText()`, `sendTemplate()`
+
+- **Security Benefits:**
+  - Phone number format validation prevents malformed numbers
+  - URL validation prevents SSRF attacks
+  - String length limits prevent buffer overflow
+  - Coordinate validation ensures valid GPS data
+  - Injection attack prevention through schema enforcement
+- **Testing:** All 18 integration tests passing
 
 #### SEC-011: Unvalidated Route Parameters
 
