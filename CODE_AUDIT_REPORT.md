@@ -17,7 +17,7 @@ This comprehensive code audit of the MedicalCor Core medical CRM platform identi
 | Severity     | Count | Resolved | Immediate Action Required |
 | ------------ | ----- | -------- | ------------------------- |
 | **CRITICAL** | 15    | 7 ✅     | Yes - Block deployment    |
-| **HIGH**     | 31    | 1 ✅     | Yes - This sprint         |
+| **HIGH**     | 31    | 2 ✅     | Yes - This sprint         |
 | **MEDIUM**   | 37    | 1 ✅     | Short-term - Next sprint  |
 | **LOW**      | 15    | 0        | Medium-term backlog       |
 
@@ -26,6 +26,7 @@ This comprehensive code audit of the MedicalCor Core medical CRM platform identi
 - ✅ **SEC-001:** Complete NextAuth.js authentication system (already implemented, documented Nov 24)
 - ✅ **SEC-002:** All server actions protected with authorization (Nov 24, 2025)
 - ✅ **SEC-003:** API key authentication for workflow endpoints (already implemented, documented Nov 24)
+- ✅ **SEC-004:** Booking webhook authentication with signature verification (Nov 24, 2025)
 - ✅ **SEC-006:** Twilio webhook signature verification (already implemented, confirmed Nov 24)
 - ✅ **SEC-007:** WhatsApp signature bypass removed (already fixed, confirmed Nov 24)
 - ✅ **SEC-008:** Stripe webhook signature verification (already implemented, confirmed Nov 24)
@@ -139,12 +140,22 @@ medicalcor-core/
 - **Security:** Only clients with valid API key can trigger workflows. Timing-safe comparison prevents timing attacks.
 - **Usage:** See `docs/API_AUTHENTICATION.md` for complete guide
 
-#### SEC-004: Missing Auth on Booking Webhooks
+#### SEC-004: Missing Auth on Booking Webhooks ✅ RESOLVED
 
+- **Severity:** HIGH → **Status: RESOLVED (Nov 24, 2025)**
 - **File:** `apps/api/src/routes/webhooks/booking.ts`
-- **Lines:** 55-161, 167-223, 229-292
-- **Description:** Booking endpoints have no authentication or signature verification.
-- **Impact:** Attackers can book appointments, spam the system, manipulate patient data.
+- **Description:** ~~Booking endpoints had no authentication or signature verification.~~ **RESOLVED:** All booking endpoints now have proper authentication.
+- **Implementation:**
+  - ✅ WhatsApp callback endpoints use HMAC-SHA256 signature verification (lines 66-86)
+  - ✅ Internal/direct booking endpoint uses API key authentication (lines 93-109)
+  - ✅ Timing-safe comparison with `crypto.timingSafeEqual()` prevents timing attacks
+  - ✅ Returns 401 Unauthorized for invalid signatures or missing API keys
+  - ✅ Detailed logging for failed authentication attempts
+- **Protected Endpoints:**
+  - `POST /webhooks/booking/interactive` - WhatsApp signature required (lines 123-130)
+  - `POST /webhooks/booking/direct` - API key required (lines 245-251)
+  - `POST /webhooks/booking/text-selection` - WhatsApp signature required (lines 320-327)
+- **Security:** Attackers can no longer trigger fake bookings, spam the system, or manipulate patient data without valid credentials.
 
 #### SEC-005: IDOR Vulnerability in Patient Pages
 

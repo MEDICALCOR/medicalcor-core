@@ -1,11 +1,22 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import crypto from 'crypto';
 import { z } from 'zod';
-import { ValidationError, toSafeErrorResponse, generateCorrelationId } from '@medicalcor/core';
+import {
+  ValidationError,
+  WebhookSignatureError,
+  AuthenticationError,
+  toSafeErrorResponse,
+  generateCorrelationId,
+} from '@medicalcor/core';
 import { tasks } from '@trigger.dev/sdk/v3';
 
 /**
  * Booking webhook routes
  * Handles WhatsApp interactive button/list selection callbacks for appointment booking
+ *
+ * SECURITY:
+ * - WhatsApp callbacks require signature verification (x-hub-signature-256 header)
+ * - Internal/direct booking requires API key (x-api-key header)
  */
 
 // Schema for WhatsApp interactive message callback
@@ -46,6 +57,57 @@ function getCorrelationId(request: FastifyRequest): string {
   return typeof header === 'string' ? header : generateCorrelationId();
 }
 
+/**
+ * Verify WhatsApp HMAC signature (timing-safe)
+ * @param payload - The raw request body as string
+ * @param signature - The signature from x-hub-signature-256 header
+ * @returns true if signature is valid
+ */
+function verifyWhatsAppSignature(payload: string, signature: string | undefined): boolean {
+  const secret = process.env.WHATSAPP_WEBHOOK_SECRET;
+  if (!secret) {
+    return false;
+  }
+
+  if (!signature) {
+    return false;
+  }
+
+  const expectedSignature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+
+  const providedSignature = signature.replace('sha256=', '');
+
+  // Timing-safe comparison to prevent timing attacks
+  try {
+    return crypto.timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(providedSignature));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Verify API key for internal endpoints (timing-safe)
+ * @param apiKey - The API key from x-api-key header
+ * @returns true if API key is valid
+ */
+function verifyApiKey(apiKey: string | undefined): boolean {
+  const validKey = process.env.API_SECRET_KEY;
+  if (!validKey) {
+    return false;
+  }
+
+  if (!apiKey) {
+    return false;
+  }
+
+  // Timing-safe comparison to prevent timing attacks
+  try {
+    return crypto.timingSafeEqual(Buffer.from(apiKey), Buffer.from(validKey));
+  } catch {
+    return false;
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/require-await -- Fastify plugin pattern
 export const bookingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
   /**
@@ -58,6 +120,15 @@ export const bookingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
       const correlationId = getCorrelationId(request);
 
       try {
+        // Verify WhatsApp signature (HMAC-SHA256)
+        const signature = request.headers['x-hub-signature-256'] as string | undefined;
+        const rawBody = JSON.stringify(request.body);
+
+        if (!verifyWhatsAppSignature(rawBody, signature)) {
+          fastify.log.warn({ correlationId }, 'Invalid WhatsApp signature for booking webhook');
+          throw new WebhookSignatureError('Invalid WhatsApp webhook signature');
+        }
+
         const parseResult = InteractiveCallbackSchema.safeParse(request.body);
 
         if (!parseResult.success) {
@@ -151,6 +222,9 @@ export const bookingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
           correlationId,
         });
       } catch (error) {
+        if (error instanceof WebhookSignatureError) {
+          return await reply.status(401).send(toSafeErrorResponse(error));
+        }
         fastify.log.error(
           { correlationId, error },
           'Booking interactive callback processing error'
@@ -168,6 +242,14 @@ export const bookingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
     const correlationId = getCorrelationId(request);
 
     try {
+      // Verify API key (internal endpoint)
+      const apiKey = request.headers['x-api-key'] as string | undefined;
+
+      if (!verifyApiKey(apiKey)) {
+        fastify.log.warn({ correlationId }, 'Invalid API key for direct booking');
+        throw new AuthenticationError('Invalid or missing API key');
+      }
+
       const parseResult = DirectBookingSchema.safeParse(request.body);
 
       if (!parseResult.success) {
@@ -217,6 +299,9 @@ export const bookingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
         correlationId,
       });
     } catch (error) {
+      if (error instanceof AuthenticationError) {
+        return await reply.status(401).send(toSafeErrorResponse(error));
+      }
       fastify.log.error({ correlationId, error }, 'Direct booking processing error');
       return await reply.status(500).send(toSafeErrorResponse(error));
     }
@@ -232,6 +317,15 @@ export const bookingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
       const correlationId = getCorrelationId(request);
 
       try {
+        // Verify WhatsApp signature (HMAC-SHA256)
+        const signature = request.headers['x-hub-signature-256'] as string | undefined;
+        const rawBody = JSON.stringify(request.body);
+
+        if (!verifyWhatsAppSignature(rawBody, signature)) {
+          fastify.log.warn({ correlationId }, 'Invalid WhatsApp signature for text selection');
+          throw new WebhookSignatureError('Invalid WhatsApp webhook signature');
+        }
+
         const parseResult = TextSelectionSchema.safeParse(request.body);
 
         if (!parseResult.success) {
@@ -285,6 +379,9 @@ export const bookingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
           correlationId,
         });
       } catch (error) {
+        if (error instanceof WebhookSignatureError) {
+          return await reply.status(401).send(toSafeErrorResponse(error));
+        }
         fastify.log.error({ correlationId, error }, 'Text selection processing error');
         return await reply.status(500).send(toSafeErrorResponse(error));
       }
