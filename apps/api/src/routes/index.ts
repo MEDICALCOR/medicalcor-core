@@ -6,3 +6,5 @@ export {
   bookingWebhookRoutes,
 } from './webhooks/index.js';
 export { workflowRoutes } from './workflows.js';
+export { aiRoutes } from './ai.js';
+export { diagnosticsRoutes } from './diagnostics.js';
