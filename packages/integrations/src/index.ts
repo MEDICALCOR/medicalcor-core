@@ -81,4 +81,6 @@ export {
   type ClientsConfig,
   type IntegrationClients,
   type CircuitBreakerOptions,
+  type ClientName,
+  type EventStore,
 } from './clients-factory.js';

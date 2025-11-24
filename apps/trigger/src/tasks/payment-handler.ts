@@ -1,7 +1,7 @@
 import { task, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
-import { normalizeRomanianPhone, createEventStore, createInMemoryEventStore } from '@medicalcor/core';
-import { createHubSpotClient, createWhatsAppClient, createTemplateCatalogService } from '@medicalcor/integrations';
+import { normalizeRomanianPhone } from '@medicalcor/core';
+import { createIntegrationClients } from '@medicalcor/integrations';
 
 /**
  * Payment Handler Task
@@ -15,31 +15,12 @@ import { createHubSpotClient, createWhatsAppClient, createTemplateCatalogService
  * 5. Emit domain event
  */
 
-// Initialize clients lazily
+// Initialize clients lazily using shared factory
 function getClients() {
-  const hubspotToken = process.env['HUBSPOT_ACCESS_TOKEN'];
-  const whatsappApiKey = process.env['WHATSAPP_API_KEY'];
-  const whatsappPhoneNumberId = process.env['WHATSAPP_PHONE_NUMBER_ID'];
-  const databaseUrl = process.env['DATABASE_URL'];
-
-  const hubspot = hubspotToken
-    ? createHubSpotClient({ accessToken: hubspotToken })
-    : null;
-
-  const whatsapp = whatsappApiKey && whatsappPhoneNumberId
-    ? createWhatsAppClient({
-        apiKey: whatsappApiKey,
-        phoneNumberId: whatsappPhoneNumberId,
-      })
-    : null;
-
-  const templateCatalog = createTemplateCatalogService();
-
-  const eventStore = databaseUrl
-    ? createEventStore({ source: 'payment-handler', connectionString: databaseUrl })
-    : createInMemoryEventStore('payment-handler');
-
-  return { hubspot, whatsapp, templateCatalog, eventStore };
+  return createIntegrationClients({
+    source: 'payment-handler',
+    includeTemplateCatalog: true,
+  });
 }
 
 /**

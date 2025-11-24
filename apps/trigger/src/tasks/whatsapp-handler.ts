@@ -1,23 +1,7 @@
 import { task, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
-import {
-  normalizeRomanianPhone,
-  createEventStore,
-  createInMemoryEventStore,
-  createDatabaseClient,
-  LeadContextBuilder,
-} from '@medicalcor/core';
-import {
-  createHubSpotClient,
-  createWhatsAppClient,
-  createOpenAIClient,
-} from '@medicalcor/integrations';
-import {
-  createScoringService,
-  createPersistentConsentService,
-  createConsentService,
-  type ConsentService,
-} from '@medicalcor/domain';
+import { normalizeRomanianPhone, LeadContextBuilder } from '@medicalcor/core';
+import { createIntegrationClients } from '@medicalcor/integrations';
 
 /**
  * WhatsApp Message Handler Task
@@ -55,48 +39,14 @@ export const WhatsAppMessagePayloadSchema = z.object({
 
 export type WhatsAppMessagePayload = z.infer<typeof WhatsAppMessagePayloadSchema>;
 
-// Initialize clients (lazy - only when task runs)
+// Initialize clients using shared factory
 function getClients() {
-  const hubspotToken = process.env.HUBSPOT_ACCESS_TOKEN;
-  const whatsappApiKey = process.env.WHATSAPP_API_KEY;
-  const whatsappPhoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  const openaiApiKey = process.env.OPENAI_API_KEY;
-  const databaseUrl = process.env.DATABASE_URL;
-
-  const hubspot = hubspotToken ? createHubSpotClient({ accessToken: hubspotToken }) : null;
-
-  const webhookSecret = process.env.WHATSAPP_WEBHOOK_SECRET;
-  const whatsapp =
-    whatsappApiKey && whatsappPhoneNumberId
-      ? createWhatsAppClient({
-          apiKey: whatsappApiKey,
-          phoneNumberId: whatsappPhoneNumberId,
-          ...(webhookSecret && { webhookSecret }),
-        })
-      : null;
-
-  const openai = openaiApiKey ? createOpenAIClient({ apiKey: openaiApiKey }) : null;
-
-  const scoring = createScoringService({
-    openaiApiKey: openaiApiKey ?? '',
-    fallbackEnabled: true,
+  return createIntegrationClients({
+    source: 'whatsapp-handler',
+    includeOpenAI: true,
+    includeScoring: true,
+    includeConsent: true,
   });
-
-  const eventStore = databaseUrl
-    ? createEventStore({ source: 'whatsapp-handler', connectionString: databaseUrl })
-    : createInMemoryEventStore('whatsapp-handler');
-
-  // GDPR Consent Service - uses PostgreSQL if DATABASE_URL is configured
-  // Falls back to in-memory for development (with warning)
-  let consent: ConsentService;
-  if (databaseUrl) {
-    const db = createDatabaseClient(databaseUrl);
-    consent = createPersistentConsentService(db);
-  } else {
-    consent = createConsentService();
-  }
-
-  return { hubspot, whatsapp, openai, scoring, eventStore, consent };
 }
 
 export const handleWhatsAppMessage = task({

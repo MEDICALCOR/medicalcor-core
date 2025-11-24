@@ -1,8 +1,7 @@
 import { task, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
 import crypto from 'crypto';
-import { createEventStore, createInMemoryEventStore } from '@medicalcor/core';
-import { createHubSpotClient, createOpenAIClient } from '@medicalcor/integrations';
+import { createIntegrationClients } from '@medicalcor/integrations';
 import type { LeadContext, ScoringOutput } from '@medicalcor/types';
 
 /**
@@ -11,21 +10,13 @@ import type { LeadContext, ScoringOutput } from '@medicalcor/types';
  */
 
 /**
- * Initialize clients lazily based on environment configuration
+ * Initialize clients lazily using shared factory
  */
 function getClients() {
-  const hubspotToken = process.env.HUBSPOT_ACCESS_TOKEN;
-  const openaiKey = process.env.OPENAI_API_KEY;
-  const databaseUrl = process.env.DATABASE_URL;
-
-  const hubspot = hubspotToken ? createHubSpotClient({ accessToken: hubspotToken }) : null;
-  const openai = openaiKey ? createOpenAIClient({ apiKey: openaiKey, model: 'gpt-4o' }) : null;
-
-  const eventStore = databaseUrl
-    ? createEventStore({ source: 'lead-scoring', connectionString: databaseUrl })
-    : createInMemoryEventStore('lead-scoring');
-
-  return { hubspot, openai, eventStore };
+  return createIntegrationClients({
+    source: 'lead-scoring',
+    includeOpenAI: true,
+  });
 }
 
 export const LeadScoringPayloadSchema = z.object({
@@ -175,7 +166,7 @@ async function buildLeadContext(
     channel: 'whatsapp' | 'voice' | 'web';
     messageHistory?: { role: 'user' | 'assistant'; content: string; timestamp: string }[];
   },
-  hubspot: ReturnType<typeof createHubSpotClient> | null
+  hubspot: ReturnType<typeof getClients>['hubspot']
 ): Promise<LeadContext> {
   const { phone, hubspotContactId, message, channel, messageHistory } = params;
 

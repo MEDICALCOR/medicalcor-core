@@ -186,6 +186,14 @@ export const IdempotencyKeys = {
   },
 
   /**
+   * Generate key for Vapi webhook processing
+   * Ensures same call is only processed once
+   */
+  vapiWebhook: (callId: string): string => {
+    return createNamespacedIdempotencyKey('vapi-webhook', callId);
+  },
+
+  /**
    * Custom key generator for edge cases
    */
   custom: (prefix: string, ...parts: string[]): string => {
