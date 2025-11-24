@@ -16,7 +16,7 @@ This comprehensive code audit of the MedicalCor Core medical CRM platform identi
 
 | Severity     | Count | Resolved | Immediate Action Required |
 | ------------ | ----- | -------- | ------------------------- |
-| **CRITICAL** | 15    | 5 ✅     | Yes - Block deployment    |
+| **CRITICAL** | 15    | 6 ✅     | Yes - Block deployment    |
 | **HIGH**     | 31    | 0        | Yes - This sprint         |
 | **MEDIUM**   | 37    | 1 ✅     | Short-term - Next sprint  |
 | **LOW**      | 15    | 0        | Medium-term backlog       |
@@ -27,6 +27,7 @@ This comprehensive code audit of the MedicalCor Core medical CRM platform identi
 - ✅ **SEC-002:** All server actions protected with authorization (Nov 24, 2025)
 - ✅ **SEC-003:** API key authentication for workflow endpoints (already implemented, documented Nov 24)
 - ✅ **SEC-006:** Twilio webhook signature verification (already implemented, confirmed Nov 24)
+- ✅ **SEC-007:** WhatsApp signature bypass removed (already fixed, confirmed Nov 24)
 - ✅ **SEC-008:** Stripe webhook signature verification (already implemented, confirmed Nov 24)
 - ✅ **PERF-007:** Cursor-based pagination implemented (Nov 24, 2025)
 
@@ -36,7 +37,7 @@ This comprehensive code audit of the MedicalCor Core medical CRM platform identi
 2. ~~**Server actions lack authorization**~~ ✅ **RESOLVED** - All actions protected
 3. ~~**Missing webhook signature verification**~~ ✅ **RESOLVED** - Twilio & Stripe verified
 4. ~~**No authorization on workflow trigger endpoints**~~ ✅ **RESOLVED** - API key authentication
-5. **WhatsApp signature bypass in development** - allows forged webhooks (SEC-007)
+5. ~~**WhatsApp signature bypass in development**~~ ✅ **RESOLVED** - Bypass removed
 6. **N+1 query patterns** in cron jobs causing performance degradation (PERF-001)
 
 ---
@@ -169,22 +170,21 @@ medicalcor-core/
 - **Security:** Attackers cannot forge fake call notifications without Twilio auth token
 - **Reference:** https://www.twilio.com/docs/usage/security#validating-requests
 
-#### SEC-007: WhatsApp Signature Bypass in Development
+#### SEC-007: WhatsApp Signature Bypass in Development ✅ RESOLVED
 
+- **Severity:** CRITICAL → **Status: RESOLVED (Already Fixed)**
 - **File:** `apps/api/src/routes/webhooks/whatsapp.ts`
-- **Lines:** 15-24
-
-```typescript
-function verifySignature(payload: string, signature: string | undefined): boolean {
-  const secret = process.env['WHATSAPP_WEBHOOK_SECRET'];
-  if (!secret) {
-    if (process.env['NODE_ENV'] !== 'production') {
-      return true;  // DANGEROUS: Bypasses verification!
-    }
-```
-
-- **Impact:** Non-production environments can have webhooks forged.
-- **Recommendation:** Never return `true` without verification.
+- **Description:** ~~Development environment bypassed signature verification with `return true`.~~ **RESOLVED:** Bypass removed, all environments now require valid signatures.
+- **Implementation:**
+  - ✅ `verifySignature()` function (lines 27-55)
+  - ✅ Returns `false` when `WHATSAPP_WEBHOOK_SECRET` is not configured (in ALL environments)
+  - ✅ Uses HMAC-SHA256 as per 360dialog/Meta spec
+  - ✅ Validates `x-hub-signature-256` header
+  - ✅ Timing-safe comparison with `crypto.timingSafeEqual()`
+  - ✅ Returns 401 Unauthorized on invalid signature (line 242)
+  - ✅ Logs warning in development when secret is missing (lines 32-36)
+- **Security:** Development and production now have identical security - no bypass possible. Forged webhooks are rejected in all environments.
+- **Reference:** https://developers.facebook.com/docs/graph-api/webhooks/getting-started#verification-requests
 
 #### SEC-008: Missing Stripe Webhook Verification ✅ RESOLVED
 
