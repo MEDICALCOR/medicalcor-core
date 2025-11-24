@@ -8,7 +8,8 @@ import {
   getMissingSecrets,
   logSecretsStatus,
 } from '@medicalcor/core';
-import { healthRoutes, webhookRoutes, workflowRoutes } from './routes/index.js';
+import { healthRoutes, webhookRoutes, workflowRoutes, aiRoutes, diagnosticsRoutes } from './routes/index.js';
+import { instrumentFastify } from '@medicalcor/core';
 import { rateLimitPlugin, type RateLimitConfig } from './plugins/rate-limit.js';
 import { apiAuthPlugin } from './plugins/api-auth.js';
 
@@ -130,10 +131,18 @@ async function buildApp() {
     }
   );
 
+  // Instrument Fastify for observability
+  instrumentFastify(fastify, {
+    serviceName: 'medicalcor-api',
+    ignorePaths: ['/health', '/live', '/ready', '/metrics'],
+  });
+
   // Register routes
   await fastify.register(healthRoutes);
   await fastify.register(webhookRoutes);
   await fastify.register(workflowRoutes);
+  await fastify.register(aiRoutes);
+  await fastify.register(diagnosticsRoutes);
 
   // Global error handler
   fastify.setErrorHandler((error, request, reply) => {

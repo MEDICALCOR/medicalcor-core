@@ -1,0 +1,397 @@
+/**
+ * User Repository
+ * Database operations for user management
+ */
+
+import bcrypt from 'bcryptjs';
+import { createHash, randomBytes } from 'crypto';
+import type { DatabasePool } from '../database.js';
+import { createLogger, type Logger } from '../logger.js';
+import type {
+  User,
+  SafeUser,
+  CreateUserData,
+  UpdateUserData,
+  UserRole,
+  UserStatus,
+} from './types.js';
+
+const logger: Logger = createLogger({ name: 'user-repository' });
+
+/** bcrypt cost factor for password hashing */
+const BCRYPT_COST = 12;
+
+/** Map database row to User entity */
+function mapRowToUser(row: Record<string, unknown>): User {
+  return {
+    id: row.id as string,
+    email: row.email as string,
+    passwordHash: row.password_hash as string,
+    name: row.name as string,
+    role: row.role as UserRole,
+    clinicId: row.clinic_id as string | undefined,
+    status: row.status as UserStatus,
+    emailVerified: row.email_verified as boolean,
+    emailVerifiedAt: row.email_verified_at ? new Date(row.email_verified_at as string) : undefined,
+    failedLoginAttempts: row.failed_login_attempts as number,
+    lockedUntil: row.locked_until ? new Date(row.locked_until as string) : undefined,
+    passwordChangedAt: row.password_changed_at
+      ? new Date(row.password_changed_at as string)
+      : undefined,
+    mustChangePassword: row.must_change_password as boolean,
+    lastLoginAt: row.last_login_at ? new Date(row.last_login_at as string) : undefined,
+    lastLoginIp: row.last_login_ip as string | undefined,
+    createdAt: new Date(row.created_at as string),
+    updatedAt: new Date(row.updated_at as string),
+  };
+}
+
+/** Convert User to SafeUser (without sensitive data) */
+export function toSafeUser(user: User): SafeUser {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    clinicId: user.clinicId,
+    status: user.status,
+    emailVerified: user.emailVerified,
+    lastLoginAt: user.lastLoginAt,
+    createdAt: user.createdAt,
+  };
+}
+
+/**
+ * User Repository
+ * Handles all user-related database operations
+ */
+export class UserRepository {
+  constructor(private db: DatabasePool) {}
+
+  /**
+   * Find user by ID
+   */
+  async findById(id: string): Promise<User | null> {
+    const result = await this.db.query<Record<string, unknown>>(
+      'SELECT * FROM users WHERE id = $1',
+      [id]
+    );
+    return result.rows[0] ? mapRowToUser(result.rows[0]) : null;
+  }
+
+  /**
+   * Find user by email (case-insensitive)
+   */
+  async findByEmail(email: string): Promise<User | null> {
+    const result = await this.db.query<Record<string, unknown>>(
+      'SELECT * FROM users WHERE LOWER(email) = LOWER($1)',
+      [email]
+    );
+    return result.rows[0] ? mapRowToUser(result.rows[0]) : null;
+  }
+
+  /**
+   * Create a new user
+   */
+  async create(data: CreateUserData): Promise<User> {
+    const passwordHash = await bcrypt.hash(data.password, BCRYPT_COST);
+
+    const result = await this.db.query<Record<string, unknown>>(
+      `INSERT INTO users (email, password_hash, name, role, clinic_id, status, email_verified)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [
+        data.email.toLowerCase(),
+        passwordHash,
+        data.name,
+        data.role,
+        data.clinicId ?? null,
+        data.status ?? 'active',
+        data.emailVerified ?? false,
+      ]
+    );
+
+    logger.info({ email: data.email, role: data.role }, 'User created');
+    return mapRowToUser(result.rows[0]);
+  }
+
+  /**
+   * Update user
+   */
+  async update(id: string, data: UpdateUserData): Promise<User | null> {
+    const setClauses: string[] = [];
+    const values: unknown[] = [];
+    let paramIndex = 1;
+
+    if (data.email !== undefined) {
+      setClauses.push(`email = $${paramIndex++}`);
+      values.push(data.email.toLowerCase());
+    }
+    if (data.name !== undefined) {
+      setClauses.push(`name = $${paramIndex++}`);
+      values.push(data.name);
+    }
+    if (data.role !== undefined) {
+      setClauses.push(`role = $${paramIndex++}`);
+      values.push(data.role);
+    }
+    if (data.clinicId !== undefined) {
+      setClauses.push(`clinic_id = $${paramIndex++}`);
+      values.push(data.clinicId);
+    }
+    if (data.status !== undefined) {
+      setClauses.push(`status = $${paramIndex++}`);
+      values.push(data.status);
+    }
+    if (data.emailVerified !== undefined) {
+      setClauses.push(`email_verified = $${paramIndex++}`);
+      values.push(data.emailVerified);
+      if (data.emailVerified) {
+        setClauses.push(`email_verified_at = CURRENT_TIMESTAMP`);
+      }
+    }
+    if (data.mustChangePassword !== undefined) {
+      setClauses.push(`must_change_password = $${paramIndex++}`);
+      values.push(data.mustChangePassword);
+    }
+
+    if (setClauses.length === 0) {
+      return this.findById(id);
+    }
+
+    values.push(id);
+
+    const result = await this.db.query<Record<string, unknown>>(
+      `UPDATE users SET ${setClauses.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+      values
+    );
+
+    if (result.rows[0]) {
+      logger.info({ userId: id }, 'User updated');
+      return mapRowToUser(result.rows[0]);
+    }
+    return null;
+  }
+
+  /**
+   * Update password
+   */
+  async updatePassword(id: string, newPassword: string): Promise<boolean> {
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_COST);
+
+    const result = await this.db.query(
+      `UPDATE users SET
+        password_hash = $1,
+        password_changed_at = CURRENT_TIMESTAMP,
+        must_change_password = FALSE,
+        failed_login_attempts = 0,
+        locked_until = NULL
+       WHERE id = $2`,
+      [passwordHash, id]
+    );
+
+    if (result.rowCount && result.rowCount > 0) {
+      logger.info({ userId: id }, 'Password updated');
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Verify password against stored hash
+   */
+  async verifyPassword(user: User, password: string): Promise<boolean> {
+    return await bcrypt.compare(password, user.passwordHash);
+  }
+
+  /**
+   * Increment failed login attempts
+   */
+  async incrementFailedAttempts(id: string): Promise<{ attempts: number; lockedUntil?: Date }> {
+    const result = await this.db.query<Record<string, unknown>>(
+      `UPDATE users SET
+        failed_login_attempts = failed_login_attempts + 1,
+        locked_until = CASE
+          WHEN failed_login_attempts >= 4 THEN CURRENT_TIMESTAMP + INTERVAL '30 minutes'
+          ELSE locked_until
+        END
+       WHERE id = $1
+       RETURNING failed_login_attempts, locked_until`,
+      [id]
+    );
+
+    const row = result.rows[0];
+    return {
+      attempts: row.failed_login_attempts as number,
+      lockedUntil: row.locked_until ? new Date(row.locked_until as string) : undefined,
+    };
+  }
+
+  /**
+   * Reset failed login attempts after successful login
+   */
+  async resetFailedAttempts(id: string): Promise<void> {
+    await this.db.query(
+      `UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1`,
+      [id]
+    );
+  }
+
+  /**
+   * Update last login info
+   */
+  async updateLastLogin(id: string, ipAddress?: string): Promise<void> {
+    await this.db.query(
+      `UPDATE users SET last_login_at = CURRENT_TIMESTAMP, last_login_ip = $2 WHERE id = $1`,
+      [id, ipAddress ?? null]
+    );
+  }
+
+  /**
+   * Check if account is locked
+   */
+  async isAccountLocked(id: string): Promise<{ locked: boolean; until?: Date }> {
+    const result = await this.db.query<Record<string, unknown>>(
+      `SELECT locked_until FROM users WHERE id = $1`,
+      [id]
+    );
+
+    if (!result.rows[0]) {
+      return { locked: false };
+    }
+
+    const lockedUntil = result.rows[0].locked_until;
+    if (!lockedUntil) {
+      return { locked: false };
+    }
+
+    const lockDate = new Date(lockedUntil as string);
+    if (lockDate > new Date()) {
+      return { locked: true, until: lockDate };
+    }
+
+    return { locked: false };
+  }
+
+  /**
+   * Unlock account manually
+   */
+  async unlockAccount(id: string): Promise<void> {
+    await this.db.query(
+      `UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1`,
+      [id]
+    );
+    logger.info({ userId: id }, 'Account unlocked');
+  }
+
+  /**
+   * Delete user
+   */
+  async delete(id: string): Promise<boolean> {
+    const result = await this.db.query('DELETE FROM users WHERE id = $1', [id]);
+    if (result.rowCount && result.rowCount > 0) {
+      logger.info({ userId: id }, 'User deleted');
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * List users with pagination
+   */
+  async list(options?: {
+    limit?: number;
+    offset?: number;
+    status?: UserStatus;
+    role?: UserRole;
+    clinicId?: string;
+  }): Promise<{ users: SafeUser[]; total: number }> {
+    const { limit = 50, offset = 0, status, role, clinicId } = options ?? {};
+
+    const whereClauses: string[] = [];
+    const values: unknown[] = [];
+    let paramIndex = 1;
+
+    if (status) {
+      whereClauses.push(`status = $${paramIndex++}`);
+      values.push(status);
+    }
+    if (role) {
+      whereClauses.push(`role = $${paramIndex++}`);
+      values.push(role);
+    }
+    if (clinicId) {
+      whereClauses.push(`clinic_id = $${paramIndex++}`);
+      values.push(clinicId);
+    }
+
+    const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+    const [countResult, dataResult] = await Promise.all([
+      this.db.query<Record<string, unknown>>(
+        `SELECT COUNT(*) as count FROM users ${whereClause}`,
+        values
+      ),
+      this.db.query<Record<string, unknown>>(
+        `SELECT * FROM users ${whereClause} ORDER BY created_at DESC LIMIT $${paramIndex++} OFFSET $${paramIndex}`,
+        [...values, limit, offset]
+      ),
+    ]);
+
+    return {
+      users: dataResult.rows.map((row) => toSafeUser(mapRowToUser(row))),
+      total: parseInt(countResult.rows[0].count as string, 10),
+    };
+  }
+
+  /**
+   * Search users by name or email
+   */
+  async search(query: string, limit = 20): Promise<SafeUser[]> {
+    const result = await this.db.query<Record<string, unknown>>(
+      `SELECT * FROM users
+       WHERE LOWER(name) LIKE $1 OR LOWER(email) LIKE $1
+       ORDER BY name ASC
+       LIMIT $2`,
+      [`%${query.toLowerCase()}%`, limit]
+    );
+
+    return result.rows.map((row) => toSafeUser(mapRowToUser(row)));
+  }
+
+  /**
+   * Count users by status
+   */
+  async countByStatus(): Promise<Record<UserStatus, number>> {
+    const result = await this.db.query<Record<string, unknown>>(
+      `SELECT status, COUNT(*) as count FROM users GROUP BY status`
+    );
+
+    const counts: Record<UserStatus, number> = {
+      active: 0,
+      inactive: 0,
+      suspended: 0,
+      pending_verification: 0,
+    };
+
+    for (const row of result.rows) {
+      counts[row.status as UserStatus] = parseInt(row.count as string, 10);
+    }
+
+    return counts;
+  }
+
+  /**
+   * Generate a secure random token
+   */
+  static generateToken(): string {
+    return randomBytes(32).toString('hex');
+  }
+
+  /**
+   * Hash a token for storage
+   */
+  static hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
+}

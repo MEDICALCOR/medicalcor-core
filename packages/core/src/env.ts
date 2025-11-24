@@ -74,8 +74,7 @@ const CorsEnvSchema = z.object({
 });
 
 // Full API environment schema
-export const ApiEnvSchema = ServerEnvSchema
-  .merge(WhatsAppEnvSchema)
+export const ApiEnvSchema = ServerEnvSchema.merge(WhatsAppEnvSchema)
   .merge(TwilioEnvSchema)
   .merge(StripeEnvSchema)
   .merge(HubSpotEnvSchema)
@@ -86,16 +85,18 @@ export const ApiEnvSchema = ServerEnvSchema
   .merge(CorsEnvSchema);
 
 // Partial schema for development (not all secrets required)
-export const DevEnvSchema = ServerEnvSchema.merge(z.object({
-  WHATSAPP_API_KEY: z.string().optional(),
-  WHATSAPP_VERIFY_TOKEN: z.string().optional(),
-  TWILIO_ACCOUNT_SID: z.string().optional(),
-  TWILIO_AUTH_TOKEN: z.string().optional(),
-  STRIPE_SECRET_KEY: z.string().optional(),
-  STRIPE_WEBHOOK_SECRET: z.string().optional(),
-  HUBSPOT_ACCESS_TOKEN: z.string().optional(),
-  OPENAI_API_KEY: z.string().optional(),
-}));
+export const DevEnvSchema = ServerEnvSchema.merge(
+  z.object({
+    WHATSAPP_API_KEY: z.string().optional(),
+    WHATSAPP_VERIFY_TOKEN: z.string().optional(),
+    TWILIO_ACCOUNT_SID: z.string().optional(),
+    TWILIO_AUTH_TOKEN: z.string().optional(),
+    STRIPE_SECRET_KEY: z.string().optional(),
+    STRIPE_WEBHOOK_SECRET: z.string().optional(),
+    HUBSPOT_ACCESS_TOKEN: z.string().optional(),
+    OPENAI_API_KEY: z.string().optional(),
+  })
+);
 
 export type ApiEnv = z.infer<typeof ApiEnvSchema>;
 export type DevEnv = z.infer<typeof DevEnvSchema>;
@@ -112,7 +113,7 @@ export function validateEnv(strict = false): ApiEnv | DevEnv {
   if (!result.success) {
     const errors = result.error.flatten().fieldErrors;
     const errorMessages = Object.entries(errors)
-      .map(([field, messages]) => `  ${field}: ${messages?.join(', ')}`)
+      .map(([field, messages]) => `  ${field}: ${messages.join(', ')}`)
       .join('\n');
 
     throw new Error(`Environment validation failed:\n${errorMessages}`);
@@ -125,7 +126,7 @@ export function validateEnv(strict = false): ApiEnv | DevEnv {
  * Get validated env with type safety
  */
 export function getEnv(): ApiEnv | DevEnv {
-  const isProduction = process.env['NODE_ENV'] === 'production';
+  const isProduction = process.env.NODE_ENV === 'production';
   return validateEnv(isProduction);
 }
 
@@ -152,7 +153,7 @@ export function getMissingSecrets(): string[] {
     'OPENAI_API_KEY',
   ];
 
-  return required.filter(name => !hasSecret(name));
+  return required.filter((name) => !hasSecret(name));
 }
 
 /**
@@ -174,10 +175,10 @@ export function logSecretsStatus(logger: { info: (msg: string, data?: object) =>
     'REDIS_URL',
   ];
 
-  const status = secrets.reduce((acc, name) => {
+  const status = secrets.reduce<Record<string, string>>((acc, name) => {
     acc[name] = hasSecret(name) ? 'configured' : 'missing';
     return acc;
-  }, {} as Record<string, string>);
+  }, {});
 
   logger.info('Secrets status', status);
 }

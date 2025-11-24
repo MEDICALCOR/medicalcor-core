@@ -1,0 +1,374 @@
+/**
+ * CQRS Command Bus
+ *
+ * Handles command dispatching and execution with:
+ * - Type-safe command/handler registration
+ * - Middleware support (validation, logging, metrics)
+ * - Async execution with correlation tracking
+ */
+
+import { z, type ZodSchema } from 'zod';
+import type { EventStore, StoredEvent, EventPublisher } from '../event-store.js';
+
+// ============================================================================
+// CORE TYPES
+// ============================================================================
+
+export interface Command<TPayload = unknown> {
+  type: string;
+  payload: TPayload;
+  metadata: CommandMetadata;
+}
+
+export interface CommandMetadata {
+  commandId: string;
+  correlationId: string;
+  causationId?: string;
+  userId?: string;
+  tenantId?: string;
+  timestamp: Date;
+  version?: number;
+}
+
+export interface CommandResult<TResult = unknown> {
+  success: boolean;
+  commandId: string;
+  aggregateId?: string;
+  version?: number;
+  result?: TResult;
+  events?: StoredEvent[];
+  error?: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
+  executionTimeMs: number;
+}
+
+export interface CommandContext {
+  correlationId: string;
+  causationId?: string;
+  userId?: string;
+  tenantId?: string;
+  eventStore: EventStore;
+  eventPublisher?: EventPublisher;
+}
+
+export type CommandHandler<TPayload, TResult> = (
+  command: Command<TPayload>,
+  context: CommandContext
+) => Promise<CommandResult<TResult>>;
+
+export type CommandMiddleware = (
+  command: Command,
+  context: CommandContext,
+  next: () => Promise<CommandResult>
+) => Promise<CommandResult>;
+
+// ============================================================================
+// COMMAND BUS IMPLEMENTATION
+// ============================================================================
+
+interface RegisteredHandler {
+  handler: CommandHandler<unknown, unknown>;
+  schema?: ZodSchema;
+}
+
+export class CommandBus {
+  private handlers = new Map<string, RegisteredHandler>();
+  private middleware: CommandMiddleware[] = [];
+
+  constructor(
+    private eventStore: EventStore,
+    private eventPublisher?: EventPublisher
+  ) {}
+
+  /**
+   * Register a command handler
+   */
+  register<TPayload, TResult>(
+    commandType: string,
+    handler: CommandHandler<TPayload, TResult>,
+    schema?: ZodSchema<TPayload>
+  ): void {
+    if (this.handlers.has(commandType)) {
+      throw new Error(`Handler for command '${commandType}' already registered`);
+    }
+
+    this.handlers.set(commandType, {
+      handler: handler as CommandHandler<unknown, unknown>,
+      schema,
+    });
+  }
+
+  /**
+   * Add middleware to the command pipeline
+   */
+  use(middleware: CommandMiddleware): void {
+    this.middleware.push(middleware);
+  }
+
+  /**
+   * Dispatch a command for execution
+   */
+  async dispatch<TPayload, TResult>(
+    command: Command<TPayload>
+  ): Promise<CommandResult<TResult>> {
+    const startTime = Date.now();
+    const registration = this.handlers.get(command.type);
+
+    if (!registration) {
+      return {
+        success: false,
+        commandId: command.metadata.commandId,
+        error: {
+          code: 'HANDLER_NOT_FOUND',
+          message: `No handler registered for command '${command.type}'`,
+        },
+        executionTimeMs: Date.now() - startTime,
+      };
+    }
+
+    // Validate payload if schema provided
+    if (registration.schema) {
+      const validation = registration.schema.safeParse(command.payload);
+      if (!validation.success) {
+        return {
+          success: false,
+          commandId: command.metadata.commandId,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Command payload validation failed',
+            details: validation.error.flatten(),
+          },
+          executionTimeMs: Date.now() - startTime,
+        };
+      }
+    }
+
+    const context: CommandContext = {
+      correlationId: command.metadata.correlationId,
+      causationId: command.metadata.causationId,
+      userId: command.metadata.userId,
+      tenantId: command.metadata.tenantId,
+      eventStore: this.eventStore,
+      eventPublisher: this.eventPublisher,
+    };
+
+    // Build middleware chain
+    const executeHandler = async (): Promise<CommandResult> => {
+      return registration.handler(command, context);
+    };
+
+    const chain = this.middleware.reduceRight<() => Promise<CommandResult>>(
+      (next, mw) => () => mw(command, context, next),
+      executeHandler
+    );
+
+    try {
+      const result = await chain();
+      return {
+        ...result,
+        executionTimeMs: Date.now() - startTime,
+      } as CommandResult<TResult>;
+    } catch (error) {
+      return {
+        success: false,
+        commandId: command.metadata.commandId,
+        error: {
+          code: 'EXECUTION_ERROR',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        },
+        executionTimeMs: Date.now() - startTime,
+      };
+    }
+  }
+
+  /**
+   * Helper to create and dispatch a command
+   */
+  async send<TPayload, TResult>(
+    type: string,
+    payload: TPayload,
+    metadata: Partial<CommandMetadata> = {}
+  ): Promise<CommandResult<TResult>> {
+    const command: Command<TPayload> = {
+      type,
+      payload,
+      metadata: {
+        commandId: metadata.commandId ?? crypto.randomUUID(),
+        correlationId: metadata.correlationId ?? crypto.randomUUID(),
+        causationId: metadata.causationId,
+        userId: metadata.userId,
+        tenantId: metadata.tenantId,
+        timestamp: metadata.timestamp ?? new Date(),
+        version: metadata.version,
+      },
+    };
+
+    return this.dispatch(command);
+  }
+
+  /**
+   * Check if a handler is registered for a command type
+   */
+  hasHandler(commandType: string): boolean {
+    return this.handlers.has(commandType);
+  }
+
+  /**
+   * Get list of registered command types
+   */
+  getRegisteredCommands(): string[] {
+    return Array.from(this.handlers.keys());
+  }
+}
+
+// ============================================================================
+// BUILT-IN MIDDLEWARE
+// ============================================================================
+
+/**
+ * Logging middleware
+ */
+export function loggingMiddleware(
+  logger: { info: (obj: unknown, msg: string) => void; error: (obj: unknown, msg: string) => void }
+): CommandMiddleware {
+  return async (command, context, next) => {
+    logger.info(
+      {
+        commandType: command.type,
+        commandId: command.metadata.commandId,
+        correlationId: context.correlationId,
+      },
+      'Command received'
+    );
+
+    const result = await next();
+
+    if (result.success) {
+      logger.info(
+        {
+          commandType: command.type,
+          commandId: command.metadata.commandId,
+          aggregateId: result.aggregateId,
+          eventCount: result.events?.length ?? 0,
+          executionTimeMs: result.executionTimeMs,
+        },
+        'Command executed successfully'
+      );
+    } else {
+      logger.error(
+        {
+          commandType: command.type,
+          commandId: command.metadata.commandId,
+          error: result.error,
+        },
+        'Command execution failed'
+      );
+    }
+
+    return result;
+  };
+}
+
+/**
+ * Retry middleware for transient failures
+ */
+export function retryMiddleware(options: {
+  maxRetries: number;
+  retryableErrors: string[];
+  backoffMs: number;
+}): CommandMiddleware {
+  return async (command, context, next) => {
+    let lastError: CommandResult | undefined;
+
+    for (let attempt = 0; attempt <= options.maxRetries; attempt++) {
+      const result = await next();
+
+      if (result.success) {
+        return result;
+      }
+
+      if (!options.retryableErrors.includes(result.error?.code ?? '')) {
+        return result;
+      }
+
+      lastError = result;
+
+      if (attempt < options.maxRetries) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, options.backoffMs * Math.pow(2, attempt))
+        );
+      }
+    }
+
+    return lastError!;
+  };
+}
+
+/**
+ * Idempotency middleware
+ */
+export function idempotencyMiddleware(
+  cache: Map<string, CommandResult>
+): CommandMiddleware {
+  return async (command, _context, next) => {
+    const key = `${command.type}:${command.metadata.commandId}`;
+
+    if (cache.has(key)) {
+      return cache.get(key)!;
+    }
+
+    const result = await next();
+
+    if (result.success) {
+      cache.set(key, result);
+    }
+
+    return result;
+  };
+}
+
+// ============================================================================
+// COMMAND HELPERS
+// ============================================================================
+
+/**
+ * Create a typed command factory
+ */
+export function defineCommand<TPayload>(type: string, schema: ZodSchema<TPayload>) {
+  return {
+    type,
+    schema,
+    create(
+      payload: TPayload,
+      metadata: Partial<CommandMetadata> = {}
+    ): Command<TPayload> {
+      return {
+        type,
+        payload,
+        metadata: {
+          commandId: metadata.commandId ?? crypto.randomUUID(),
+          correlationId: metadata.correlationId ?? crypto.randomUUID(),
+          causationId: metadata.causationId,
+          userId: metadata.userId,
+          tenantId: metadata.tenantId,
+          timestamp: metadata.timestamp ?? new Date(),
+          version: metadata.version,
+        },
+      };
+    },
+  };
+}
+
+// ============================================================================
+// FACTORY
+// ============================================================================
+
+export function createCommandBus(
+  eventStore: EventStore,
+  eventPublisher?: EventPublisher
+): CommandBus {
+  return new CommandBus(eventStore, eventPublisher);
+}
