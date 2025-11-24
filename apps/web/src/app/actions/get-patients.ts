@@ -890,12 +890,20 @@ export async function getAnalyticsDataAction(
       previousTotalLeads > 0 ? (previousCustomers.total / previousTotalLeads) * 100 : 0;
     const conversionRateChange = conversionRate - previousConversionRate;
 
-    // Fetch revenue
-    const dailyRevenue = await getDailyRevenueAmount(stripe);
-
-    // Get appointments count from SchedulingService
+    // Fetch revenue for current and previous periods
     const scheduling = getSchedulingService();
-    const appointmentsCount = await getTodayAppointmentsCount(scheduling);
+    const [currentRevenue, previousRevenue, appointmentsCount] = await Promise.all([
+      stripe.getRevenueForPeriod(startDate, now),
+      stripe.getRevenueForPeriod(previousPeriodStart, startDate),
+      getTodayAppointmentsCount(scheduling),
+    ]);
+
+    const currentRevenueAmount = stripe.toMajorUnits(currentRevenue.amount);
+    const previousRevenueAmount = stripe.toMajorUnits(previousRevenue.amount);
+    const revenueChange =
+      previousRevenueAmount > 0
+        ? ((currentRevenueAmount - previousRevenueAmount) / previousRevenueAmount) * 100
+        : 0;
 
     // Build metrics - using real data only, 0 for unavailable metrics
     const metrics: AnalyticsMetrics = {
@@ -904,13 +912,13 @@ export async function getAnalyticsDataAction(
       hotLeads: hotLeadsCount,
       hotLeadsChange: Math.round(hotLeadsChange * 10) / 10,
       appointmentsScheduled: appointmentsCount,
-      appointmentsChange: 0, // Requires historical appointment data
+      appointmentsChange: 0, // Requires historical appointment data (SchedulingService doesn't track history)
       conversionRate: Math.round(conversionRate * 10) / 10,
       conversionRateChange: Math.round(conversionRateChange * 10) / 10,
       avgResponseTime: 0, // Requires messaging service integration
       avgResponseTimeChange: 0,
-      revenue: dailyRevenue ?? 0,
-      revenueChange: 0, // Requires historical Stripe data comparison
+      revenue: currentRevenueAmount,
+      revenueChange: Math.round(revenueChange * 10) / 10,
     };
 
     // Fetch time series data from HubSpot contacts created per day
@@ -938,6 +946,16 @@ export async function getAnalyticsDataAction(
       leadsByDay.set(dateStr, (leadsByDay.get(dateStr) ?? 0) + 1);
     }
 
+    // Fetch all appointments for the period
+    const allAppointments = await scheduling.getUpcomingAppointments(startDate, now);
+
+    // Count appointments per day
+    const appointmentsByDay = new Map<string, number>();
+    for (const apt of allAppointments) {
+      const dateStr = apt.slot.date;
+      appointmentsByDay.set(dateStr, (appointmentsByDay.get(dateStr) ?? 0) + 1);
+    }
+
     // Build time series
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
@@ -946,10 +964,9 @@ export async function getAnalyticsDataAction(
         date: dateStr,
         value: leadsByDay.get(dateStr) ?? 0,
       });
-      // Appointments need scheduling service integration
       appointmentsOverTime.push({
         date: dateStr,
-        value: 0, // Real data requires SchedulingService aggregation
+        value: appointmentsByDay.get(dateStr) ?? 0,
       });
     }
 
