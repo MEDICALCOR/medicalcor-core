@@ -1,9 +1,17 @@
 import { schedules, logger } from '@trigger.dev/sdk/v3';
 import crypto from 'crypto';
-import { createEventStore, createInMemoryEventStore, IdempotencyKeys, getTodayString, getCurrentHourString } from '@medicalcor/core';
+import { createEventStore, createInMemoryEventStore, IdempotencyKeys, getTodayString } from '@medicalcor/core';
 import { createIntegrationClients } from '@medicalcor/integrations';
 import { nurtureSequenceWorkflow } from '../workflows/patient-journey.js';
 import { scoreLeadWorkflow } from '../workflows/lead-scoring.js';
+
+/**
+ * HubSpot contact search result type
+ */
+interface HubSpotContactResult {
+  id: string;
+  properties: Record<string, string | undefined>;
+}
 
 /**
  * Scheduled Jobs (Cron)
@@ -186,7 +194,7 @@ export const dailyRecallCheck = schedules.task({
       logger.info(`Found ${recallDueContacts.total} contacts due for recall`, { correlationId });
 
       // Filter contacts with valid phone numbers
-      const contactsWithPhone = recallDueContacts.results.filter((contact) => {
+      const contactsWithPhone = (recallDueContacts.results as HubSpotContactResult[]).filter((contact) => {
         if (!contact.properties.phone) {
           logger.warn('Contact missing phone, skipping', { contactId: contact.id, correlationId });
           return false;
@@ -216,8 +224,9 @@ export const dailyRecallCheck = schedules.task({
 
       // Log individual errors for debugging
       for (const { item, error } of batchResult.errors) {
+        const contact = item as HubSpotContactResult;
         logger.error('Failed to trigger recall sequence', {
-          contactId: item.id,
+          contactId: contact.id,
           error,
           correlationId,
         });
@@ -308,25 +317,22 @@ export const appointmentReminders = schedules.task({
       });
 
       // Filter contacts with valid data
-      const validContacts = upcomingAppointments.results.filter((contact) => {
-        const props = contact.properties as Record<string, string | undefined>;
-        return props.phone && props.next_appointment_date;
+      const validContacts = (upcomingAppointments.results as HubSpotContactResult[]).filter((contact) => {
+        return contact.properties.phone && contact.properties.next_appointment_date;
       });
 
       // Separate contacts into 24h and 2h reminder groups
       const contacts24h = validContacts.filter((contact) => {
-        const props = contact.properties as Record<string, string | undefined>;
         return (
-          isIn24Hours(props.next_appointment_date as string) &&
-          props.reminder_24h_sent !== 'true'
+          isIn24Hours(contact.properties.next_appointment_date as string) &&
+          contact.properties.reminder_24h_sent !== 'true'
         );
       });
 
       const contacts2h = validContacts.filter((contact) => {
-        const props = contact.properties as Record<string, string | undefined>;
         return (
-          isIn2Hours(props.next_appointment_date as string) &&
-          props.reminder_2h_sent !== 'true'
+          isIn2Hours(contact.properties.next_appointment_date as string) &&
+          contact.properties.reminder_2h_sent !== 'true'
         );
       });
 
@@ -336,7 +342,7 @@ export const appointmentReminders = schedules.task({
         const batch24hResult = await processBatch(
           contacts24h,
           async (contact) => {
-            const props = contact.properties as Record<string, string | undefined>;
+            const props = contact.properties;
             const appointmentDate = props.next_appointment_date as string;
             const hsLang = props.hs_language;
             const language: 'ro' | 'en' | 'de' =
@@ -369,7 +375,8 @@ export const appointmentReminders = schedules.task({
         errors += batch24hResult.errors.length;
 
         for (const { item, error } of batch24hResult.errors) {
-          logger.error('Failed to send 24h reminder', { contactId: item.id, error, correlationId });
+          const c = item as HubSpotContactResult;
+          logger.error('Failed to send 24h reminder', { contactId: c.id, error, correlationId });
         }
       }
 
@@ -379,7 +386,7 @@ export const appointmentReminders = schedules.task({
         const batch2hResult = await processBatch(
           contacts2h,
           async (contact) => {
-            const props = contact.properties as Record<string, string | undefined>;
+            const props = contact.properties;
             const appointmentDate = props.next_appointment_date as string;
             const hsLang = props.hs_language;
             const language: 'ro' | 'en' | 'de' =
@@ -408,7 +415,8 @@ export const appointmentReminders = schedules.task({
         errors += batch2hResult.errors.length;
 
         for (const { item, error } of batch2hResult.errors) {
-          logger.error('Failed to send 2h reminder', { contactId: item.id, error, correlationId });
+          const c = item as HubSpotContactResult;
+          logger.error('Failed to send 2h reminder', { contactId: c.id, error, correlationId });
         }
       }
 
@@ -482,9 +490,8 @@ export const leadScoringRefresh = schedules.task({
       logger.info(`Found ${staleLeads.total} stale leads to re-score`, { correlationId });
 
       // Filter leads with valid phone numbers
-      const leadsWithPhone = staleLeads.results.filter((lead) => {
-        const leadProps = lead.properties as Record<string, string | undefined>;
-        if (!leadProps.phone) {
+      const leadsWithPhone = (staleLeads.results as HubSpotContactResult[]).filter((lead) => {
+        if (!lead.properties.phone) {
           logger.warn('Lead missing phone, skipping', { leadId: lead.id, correlationId });
           return false;
         }
@@ -496,11 +503,10 @@ export const leadScoringRefresh = schedules.task({
       const batchResult = await processBatch(
         leadsWithPhone,
         async (lead) => {
-          const leadProps = lead.properties as Record<string, string | undefined>;
-          const message = leadProps.last_message_content ?? 'Follow-up re-scoring';
+          const message = lead.properties.last_message_content ?? 'Follow-up re-scoring';
 
           await scoreLeadWorkflow.trigger({
-            phone: leadProps.phone as string,
+            phone: lead.properties.phone as string,
             hubspotContactId: lead.id,
             message,
             channel: 'whatsapp',
@@ -522,7 +528,8 @@ export const leadScoringRefresh = schedules.task({
 
       // Log individual errors for debugging
       for (const { item, error } of batchResult.errors) {
-        logger.error('Failed to re-score lead', { leadId: item.id, error, correlationId });
+        const lead = item as HubSpotContactResult;
+        logger.error('Failed to re-score lead', { leadId: lead.id, error, correlationId });
       }
 
       // Emit job completion event
@@ -702,7 +709,7 @@ export const staleLeadCleanup = schedules.task({
 
       // Process leads in batches for better performance
       const batchResult = await processBatch(
-        staleLeads.results,
+        staleLeads.results as HubSpotContactResult[],
         async (lead) => {
           await hubspot.updateContact(lead.id, {
             lead_status: 'archived',
@@ -718,7 +725,8 @@ export const staleLeadCleanup = schedules.task({
 
       // Log individual errors for debugging
       for (const { item, error } of batchResult.errors) {
-        logger.error('Failed to archive lead', { leadId: item.id, error, correlationId });
+        const lead = item as HubSpotContactResult;
+        logger.error('Failed to archive lead', { leadId: lead.id, error, correlationId });
       }
 
       // Emit job completion event
@@ -788,33 +796,32 @@ export const gdprConsentAudit = schedules.task({
       });
 
       // Filter contacts that need consent renewal
-      const contactsNeedingRenewal = expiringConsent.results.filter((contact) => {
-        const contactProps = contact.properties as Record<string, string | undefined>;
+      const contactsNeedingRenewal = (expiringConsent.results as HubSpotContactResult[]).filter((contact) => {
         // Skip if no phone or if consent renewal was already sent
-        return contactProps.phone && !contactProps.consent_renewal_sent;
+        return contact.properties.phone && !contact.properties.consent_renewal_sent;
       });
 
       // Process contacts in batches for better performance
       const batchResult = await processBatch(
         contactsNeedingRenewal,
         async (contact) => {
-          const contactProps = contact.properties as Record<string, string | undefined>;
+          const props = contact.properties;
 
           // Send consent renewal request via WhatsApp
           if (whatsapp) {
-            const contactLang = contactProps.hs_language;
+            const contactLang = props.hs_language;
             const language: 'ro' | 'en' | 'de' =
               contactLang === 'ro' || contactLang === 'en' || contactLang === 'de'
                 ? contactLang
                 : 'ro';
             await whatsapp.sendTemplate({
-              to: contactProps.phone as string,
+              to: props.phone as string,
               templateName: 'consent_renewal',
               language: language === 'ro' ? 'ro' : language === 'de' ? 'de' : 'en',
               components: [
                 {
                   type: 'body',
-                  parameters: [{ type: 'text', text: contactProps.firstname ?? 'Pacient' }],
+                  parameters: [{ type: 'text', text: props.firstname ?? 'Pacient' }],
                 },
               ],
             });
@@ -835,8 +842,9 @@ export const gdprConsentAudit = schedules.task({
 
       // Log individual errors for debugging
       for (const { item, error } of batchResult.errors) {
+        const c = item as HubSpotContactResult;
         logger.error('Failed to send consent renewal', {
-          contactId: item.id,
+          contactId: c.id,
           error,
           correlationId,
         });

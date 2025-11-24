@@ -105,13 +105,18 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
 
   // Initialize circuit breakers with custom config if provided
   if (cbEnabled) {
-    const cbConfig = {
+    const cbConfig: Parameters<typeof integrationCircuitBreakerRegistry.get>[1] = {
       failureThreshold: circuitBreaker.failureThreshold ?? 5,
       resetTimeoutMs: circuitBreaker.resetTimeoutMs ?? 30000,
       successThreshold: circuitBreaker.successThreshold ?? 2,
-      onOpen: circuitBreaker.onOpen,
-      onClose: circuitBreaker.onClose,
     };
+    // Only add callback properties if they are defined
+    if (circuitBreaker.onOpen) {
+      cbConfig.onOpen = circuitBreaker.onOpen;
+    }
+    if (circuitBreaker.onClose) {
+      cbConfig.onClose = circuitBreaker.onClose;
+    }
 
     // Pre-register circuit breakers for each service
     integrationCircuitBreakerRegistry.get('hubspot', cbConfig);
@@ -168,7 +173,7 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
       schedulingApiUrl && schedulingApiKey
         ? createSchedulingService({ apiUrl: schedulingApiUrl, apiKey: schedulingApiKey })
         : createMockSchedulingService();
-    scheduling = schedulingRaw && cbEnabled
+    scheduling = cbEnabled
       ? wrapClientWithCircuitBreaker(schedulingRaw, 'scheduling')
       : schedulingRaw;
   }
@@ -238,7 +243,9 @@ function wrapClientWithCircuitBreaker<T extends object>(client: T, serviceName: 
       }
 
       // Return wrapped function that uses circuit breaker
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return async (...args: unknown[]) => {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
         return breaker.execute(() => value.apply(target, args));
       };
     },
