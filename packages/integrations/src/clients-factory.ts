@@ -5,6 +5,26 @@
  * Includes circuit breaker support for resilience
  */
 
+import {
+  CircuitBreakerRegistry,
+  CircuitState,
+  type CircuitBreakerStats,
+  createEventStore,
+  createInMemoryEventStore,
+  createDatabaseClient,
+} from '@medicalcor/core';
+import {
+  createHubSpotClient,
+  type HubSpotClient,
+} from './hubspot.js';
+import {
+  createWhatsAppClient,
+  type WhatsAppClient,
+} from './whatsapp.js';
+import {
+  createOpenAIClient,
+  type OpenAIClient,
+} from './openai.js';
 import { CircuitBreakerRegistry, CircuitState, type CircuitBreakerStats } from '@medicalcor/core';
 import { createHubSpotClient, type HubSpotClient } from './hubspot.js';
 import { createWhatsAppClient, type WhatsAppClient } from './whatsapp.js';
@@ -15,6 +35,33 @@ import {
   type SchedulingService,
   type MockSchedulingService,
 } from './scheduling.js';
+import {
+  createVapiClient,
+  type VapiClient,
+} from './vapi.js';
+import { createTemplateCatalogService, type TemplateCatalogService } from './whatsapp.js';
+import {
+  createScoringService,
+  createTriageService,
+  createConsentService,
+  createPersistentConsentService,
+  type ScoringService,
+  type TriageService,
+  type ConsentService,
+} from '@medicalcor/domain';
+
+/**
+ * Event store type that matches our domain events
+ */
+export type EventStore = {
+  emit: (input: {
+    type: string;
+    correlationId: string;
+    payload: Record<string, unknown>;
+    aggregateId?: string;
+    aggregateType?: string;
+  }) => Promise<unknown>;
+};
 
 /**
  * Circuit breaker configuration for integrations
@@ -44,9 +91,22 @@ export interface ClientsConfig {
   includeOpenAI?: boolean;
   /** Include scheduling service */
   includeScheduling?: boolean;
+  /** Include Vapi voice client */
+  includeVapi?: boolean;
+  /** Include scoring service (requires OpenAI for AI scoring) */
+  includeScoring?: boolean;
+  /** Include triage service */
+  includeTriage?: boolean;
+  /** Include consent service (GDPR) */
+  includeConsent?: boolean;
+  /** Include template catalog service */
+  includeTemplateCatalog?: boolean;
   /** Circuit breaker configuration */
   circuitBreaker?: CircuitBreakerOptions;
 }
+
+/** Supported client names for configuration checks */
+export type ClientName = 'hubspot' | 'whatsapp' | 'openai' | 'scheduling' | 'vapi' | 'scoring' | 'triage' | 'consent' | 'templateCatalog' | 'eventStore';
 
 /**
  * Result of client initialization
@@ -56,14 +116,21 @@ export interface IntegrationClients {
   whatsapp: WhatsAppClient | null;
   openai: OpenAIClient | null;
   scheduling: SchedulingService | MockSchedulingService | null;
+  vapi: VapiClient | null;
+  scoring: ScoringService | null;
+  triage: TriageService | null;
+  consent: ConsentService | null;
+  templateCatalog: TemplateCatalogService | null;
+  eventStore: EventStore;
   /** Returns true if all required clients are available */
+  isConfigured: (required: ClientName[]) => boolean;
   isConfigured: (required: ('hubspot' | 'whatsapp' | 'openai' | 'scheduling')[]) => boolean;
   /** Get circuit breaker statistics for all services */
   getCircuitBreakerStats: () => CircuitBreakerStats[];
   /** Check if a specific service circuit is open */
-  isCircuitOpen: (service: 'hubspot' | 'whatsapp' | 'openai' | 'scheduling') => boolean;
+  isCircuitOpen: (service: ClientName) => boolean;
   /** Reset circuit breaker for a specific service */
-  resetCircuit: (service: 'hubspot' | 'whatsapp' | 'openai' | 'scheduling') => void;
+  resetCircuit: (service: ClientName) => void;
 }
 
 // Global circuit breaker registry for integrations
@@ -87,7 +154,17 @@ const integrationCircuitBreakerRegistry = new CircuitBreakerRegistry({
  * ```
  */
 export function createIntegrationClients(config: ClientsConfig): IntegrationClients {
-  const { includeOpenAI = false, includeScheduling = false, circuitBreaker = {} } = config;
+  const {
+    source,
+    includeOpenAI = false,
+    includeScheduling = false,
+    includeVapi = false,
+    includeScoring = false,
+    includeTriage = false,
+    includeConsent = false,
+    includeTemplateCatalog = false,
+    circuitBreaker = {},
+  } = config;
   const cbEnabled = circuitBreaker.enabled !== false; // Default enabled
 
   // Initialize circuit breakers with custom config if provided
@@ -110,7 +187,11 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
     integrationCircuitBreakerRegistry.get('whatsapp', cbConfig);
     integrationCircuitBreakerRegistry.get('openai', cbConfig);
     integrationCircuitBreakerRegistry.get('scheduling', cbConfig);
+    integrationCircuitBreakerRegistry.get('vapi', cbConfig);
   }
+
+  const databaseUrl = process.env.DATABASE_URL;
+  const openaiApiKey = process.env.OPENAI_API_KEY;
 
   // HubSpot client
   const hubspotToken = process.env.HUBSPOT_ACCESS_TOKEN;
@@ -159,7 +240,61 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
       : schedulingRaw;
   }
 
+  // Vapi voice client (optional)
+  let vapi: VapiClient | null = null;
+  if (includeVapi) {
+    const vapiApiKey = process.env.VAPI_API_KEY;
+    const vapiRaw = vapiApiKey
+      ? createVapiClient({
+          apiKey: vapiApiKey,
+          assistantId: process.env.VAPI_ASSISTANT_ID,
+          phoneNumberId: process.env.VAPI_PHONE_NUMBER_ID,
+        })
+      : null;
+    vapi = vapiRaw && cbEnabled
+      ? wrapClientWithCircuitBreaker(vapiRaw, 'vapi')
+      : vapiRaw;
+  }
+
+  // Scoring service (optional)
+  let scoring: ScoringService | null = null;
+  if (includeScoring) {
+    scoring = createScoringService({
+      openaiApiKey: openaiApiKey ?? '',
+      fallbackEnabled: true,
+    });
+  }
+
+  // Triage service (optional)
+  let triage: TriageService | null = null;
+  if (includeTriage) {
+    triage = createTriageService();
+  }
+
+  // Consent service (optional, GDPR compliance)
+  let consent: ConsentService | null = null;
+  if (includeConsent) {
+    if (databaseUrl) {
+      const db = createDatabaseClient(databaseUrl);
+      consent = createPersistentConsentService(db);
+    } else {
+      consent = createConsentService();
+    }
+  }
+
+  // Template catalog service (optional)
+  let templateCatalog: TemplateCatalogService | null = null;
+  if (includeTemplateCatalog) {
+    templateCatalog = createTemplateCatalogService();
+  }
+
+  // Event store (always initialized)
+  const eventStore: EventStore = databaseUrl
+    ? createEventStore({ source, connectionString: databaseUrl })
+    : createInMemoryEventStore(source);
+
   // Helper to check if required clients are configured
+  const isConfigured = (required: ClientName[]): boolean => {
   const isConfigured = (
     required: ('hubspot' | 'whatsapp' | 'openai' | 'scheduling')[]
   ): boolean => {
@@ -177,6 +312,24 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
         case 'scheduling':
           if (!scheduling) return false;
           break;
+        case 'vapi':
+          if (!vapi) return false;
+          break;
+        case 'scoring':
+          if (!scoring) return false;
+          break;
+        case 'triage':
+          if (!triage) return false;
+          break;
+        case 'consent':
+          if (!consent) return false;
+          break;
+        case 'templateCatalog':
+          if (!templateCatalog) return false;
+          break;
+        case 'eventStore':
+          // eventStore is always initialized
+          break;
       }
     }
     return true;
@@ -188,14 +341,21 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
   };
 
   // Check if circuit is open
-  const isCircuitOpen = (service: 'hubspot' | 'whatsapp' | 'openai' | 'scheduling'): boolean => {
-    const breaker = integrationCircuitBreakerRegistry.get(service);
-    return breaker.getState() === CircuitState.OPEN;
+  const isCircuitOpen = (service: ClientName): boolean => {
+    // Only check for services that have circuit breakers
+    if (['hubspot', 'whatsapp', 'openai', 'scheduling', 'vapi'].includes(service)) {
+      const breaker = integrationCircuitBreakerRegistry.get(service);
+      return breaker.getState() === CircuitState.OPEN;
+    }
+    return false;
   };
 
   // Reset circuit breaker
-  const resetCircuit = (service: 'hubspot' | 'whatsapp' | 'openai' | 'scheduling'): void => {
-    integrationCircuitBreakerRegistry.reset(service);
+  const resetCircuit = (service: ClientName): void => {
+    // Only reset for services that have circuit breakers
+    if (['hubspot', 'whatsapp', 'openai', 'scheduling', 'vapi'].includes(service)) {
+      integrationCircuitBreakerRegistry.reset(service);
+    }
   };
 
   return {
@@ -203,6 +363,12 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
     whatsapp,
     openai,
     scheduling,
+    vapi,
+    scoring,
+    triage,
+    consent,
+    templateCatalog,
+    eventStore,
     isConfigured,
     getCircuitBreakerStats,
     isCircuitOpen,

@@ -1,12 +1,7 @@
 import { task, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
-import {
-  normalizeRomanianPhone,
-  createEventStore,
-  createInMemoryEventStore,
-} from '@medicalcor/core';
-import { createHubSpotClient, createOpenAIClient } from '@medicalcor/integrations';
-import { createScoringService, createTriageService } from '@medicalcor/domain';
+import { normalizeRomanianPhone } from '@medicalcor/core';
+import { createIntegrationClients } from '@medicalcor/integrations';
 import type { LeadContext } from '@medicalcor/types';
 
 /**
@@ -21,28 +16,14 @@ import type { LeadContext } from '@medicalcor/types';
  * 5. Emit domain events
  */
 
-// Initialize clients lazily
+// Initialize clients lazily using shared factory
 function getClients() {
-  const hubspotToken = process.env.HUBSPOT_ACCESS_TOKEN;
-  const openaiApiKey = process.env.OPENAI_API_KEY;
-  const databaseUrl = process.env.DATABASE_URL;
-
-  const hubspot = hubspotToken ? createHubSpotClient({ accessToken: hubspotToken }) : null;
-
-  const openai = openaiApiKey ? createOpenAIClient({ apiKey: openaiApiKey }) : null;
-
-  const scoring = createScoringService({
-    openaiApiKey: openaiApiKey ?? '',
-    fallbackEnabled: true,
+  return createIntegrationClients({
+    source: 'voice-handler',
+    includeOpenAI: true,
+    includeScoring: true,
+    includeTriage: true,
   });
-
-  const triage = createTriageService();
-
-  const eventStore = databaseUrl
-    ? createEventStore({ source: 'voice-handler', connectionString: databaseUrl })
-    : createInMemoryEventStore('voice-handler');
-
-  return { hubspot, openai, scoring, triage, eventStore };
 }
 
 export const VoiceCallPayloadSchema = z.object({

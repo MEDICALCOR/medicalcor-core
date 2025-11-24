@@ -1,51 +1,21 @@
 import { task, logger, wait } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
 import crypto from 'crypto';
-import { createEventStore, createInMemoryEventStore } from '@medicalcor/core';
 import {
-  createHubSpotClient,
-  createWhatsAppClient,
-  createSchedulingService,
-  createMockSchedulingService,
-  createTemplateCatalogService,
+  createIntegrationClients,
   type TimeSlot,
   type Appointment,
 } from '@medicalcor/integrations';
 
 /**
- * Initialize clients lazily based on environment configuration
+ * Initialize clients lazily using shared factory
  */
 function getClients() {
-  const hubspotToken = process.env.HUBSPOT_ACCESS_TOKEN;
-  const whatsappApiKey = process.env.WHATSAPP_API_KEY;
-  const whatsappPhoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  const schedulingApiUrl = process.env.SCHEDULING_SERVICE_URL;
-  const schedulingApiKey = process.env.SCHEDULING_SERVICE_TOKEN;
-  const databaseUrl = process.env.DATABASE_URL;
-
-  const hubspot = hubspotToken ? createHubSpotClient({ accessToken: hubspotToken }) : null;
-
-  const whatsapp =
-    whatsappApiKey && whatsappPhoneNumberId
-      ? createWhatsAppClient({
-          apiKey: whatsappApiKey,
-          phoneNumberId: whatsappPhoneNumberId,
-        })
-      : null;
-
-  // Use real scheduling service if configured, otherwise use mock
-  const scheduling =
-    schedulingApiUrl && schedulingApiKey
-      ? createSchedulingService({ apiUrl: schedulingApiUrl, apiKey: schedulingApiKey })
-      : createMockSchedulingService();
-
-  const templateCatalog = createTemplateCatalogService();
-
-  const eventStore = databaseUrl
-    ? createEventStore({ source: 'patient-journey', connectionString: databaseUrl })
-    : createInMemoryEventStore('patient-journey');
-
-  return { hubspot, whatsapp, scheduling, templateCatalog, eventStore };
+  return createIntegrationClients({
+    source: 'patient-journey',
+    includeScheduling: true,
+    includeTemplateCatalog: true,
+  });
 }
 
 /**

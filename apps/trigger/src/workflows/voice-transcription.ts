@@ -1,20 +1,14 @@
 import { task, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
+import { normalizeRomanianPhone } from '@medicalcor/core';
 import {
-  normalizeRomanianPhone,
-  createEventStore,
-  createInMemoryEventStore,
-} from '@medicalcor/core';
-import {
-  createHubSpotClient,
-  createOpenAIClient,
-  createVapiClient,
+  createIntegrationClients,
   formatTranscriptForCRM,
   extractLeadQualification,
   type VapiTranscript,
   type VapiCallSummary,
 } from '@medicalcor/integrations';
-import { createScoringService, createTriageService, type TriageResult } from '@medicalcor/domain';
+import type { TriageResult } from '@medicalcor/domain';
 import type { LeadContext, ScoringOutput } from '@medicalcor/types';
 
 /**
@@ -34,35 +28,13 @@ import type { LeadContext, ScoringOutput } from '@medicalcor/types';
 // =============================================================================
 
 function getClients() {
-  const hubspotToken = process.env.HUBSPOT_ACCESS_TOKEN;
-  const openaiApiKey = process.env.OPENAI_API_KEY;
-  const vapiApiKey = process.env.VAPI_API_KEY;
-  const databaseUrl = process.env.DATABASE_URL;
-
-  const hubspot = hubspotToken ? createHubSpotClient({ accessToken: hubspotToken }) : null;
-
-  const openai = openaiApiKey ? createOpenAIClient({ apiKey: openaiApiKey }) : null;
-
-  const vapi = vapiApiKey
-    ? createVapiClient({
-        apiKey: vapiApiKey,
-        assistantId: process.env.VAPI_ASSISTANT_ID,
-        phoneNumberId: process.env.VAPI_PHONE_NUMBER_ID,
-      })
-    : null;
-
-  const scoring = createScoringService({
-    openaiApiKey: openaiApiKey ?? '',
-    fallbackEnabled: true,
+  return createIntegrationClients({
+    source: 'voice-transcription',
+    includeOpenAI: true,
+    includeVapi: true,
+    includeScoring: true,
+    includeTriage: true,
   });
-
-  const triage = createTriageService();
-
-  const eventStore = databaseUrl
-    ? createEventStore({ source: 'voice-transcription', connectionString: databaseUrl })
-    : createInMemoryEventStore('voice-transcription');
-
-  return { hubspot, openai, vapi, scoring, triage, eventStore };
 }
 
 // =============================================================================

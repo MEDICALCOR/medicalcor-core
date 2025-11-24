@@ -11,7 +11,12 @@ export interface StripeClientConfig {
     maxRetries: number;
     baseDelayMs: number;
   };
+  /** Request timeout in milliseconds (default: 30000) */
+  timeoutMs?: number;
 }
+
+/** Default timeout for Stripe API requests (30 seconds) */
+const DEFAULT_TIMEOUT_MS = 30000;
 
 export interface DailyRevenueResult {
   amount: number; // in smallest currency unit (bani for RON)
@@ -192,33 +197,49 @@ export class StripeClient {
   }
 
   /**
-   * Make authenticated request to Stripe API
+   * Make authenticated request to Stripe API with timeout support
    */
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.baseUrl}${path}`;
+    const timeoutMs = this.config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
     const makeRequest = async () => {
-      const existingHeaders = (options.headers as Record<string, string> | undefined) ?? {};
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          Authorization: `Bearer ${this.config.secretKey}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-          ...existingHeaders,
-        },
-      });
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-      if (response.status === 429) {
-        const retryAfter = response.headers.get('Retry-After');
-        throw new RateLimitError(parseInt(retryAfter ?? '60', 10));
+      try {
+        const existingHeaders = (options.headers as Record<string, string> | undefined) ?? {};
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal,
+          headers: {
+            Authorization: `Bearer ${this.config.secretKey}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+            ...existingHeaders,
+          },
+        });
+
+        if (response.status === 429) {
+          const retryAfter = response.headers.get('Retry-After');
+          throw new RateLimitError(parseInt(retryAfter ?? '60', 10));
+        }
+
+        if (!response.ok) {
+          const errorBody = await response.text();
+          throw new ExternalServiceError('Stripe', `${response.status}: ${errorBody}`);
+        }
+
+        return response.json() as Promise<T>;
+      } catch (error) {
+        // Convert AbortError to ExternalServiceError for consistent handling
+        if (error instanceof Error && error.name === 'AbortError') {
+          throw new ExternalServiceError('Stripe', `Request timeout after ${timeoutMs}ms`);
+        }
+        throw error;
+      } finally {
+        clearTimeout(timeoutId);
       }
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        throw new ExternalServiceError('Stripe', `${response.status}: ${errorBody}`);
-      }
-
-      return response.json() as Promise<T>;
     };
 
     return withRetry(makeRequest, {
@@ -228,6 +249,8 @@ export class StripeClient {
         if (error instanceof RateLimitError) return true;
         if (error instanceof ExternalServiceError && error.message.includes('502')) return true;
         if (error instanceof ExternalServiceError && error.message.includes('503')) return true;
+        // Retry on timeout errors
+        if (error instanceof ExternalServiceError && error.message.includes('timeout')) return true;
         return false;
       },
     });
