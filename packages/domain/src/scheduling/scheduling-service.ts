@@ -41,6 +41,40 @@ export interface BookingRequest {
   notes?: string;
 }
 
+/**
+ * Appointment slot information
+ */
+export interface AppointmentSlot {
+  date: string;
+  startTime: string;
+  endTime?: string;
+  duration: number;
+}
+
+/**
+ * Scheduled appointment with patient and slot information
+ */
+export interface Appointment {
+  id: string;
+  hubspotContactId: string;
+  phone: string;
+  patientName?: string;
+  procedureType: string;
+  status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled';
+  slot: AppointmentSlot;
+  createdAt: string;
+  notes?: string;
+}
+
+/**
+ * Options for getAvailableSlots query
+ */
+export interface GetAvailableSlotsOptions {
+  procedureType?: string;
+  preferredDates?: string[];
+  limit?: number;
+}
+
 export class SchedulingService {
   private pool: Pool;
 
@@ -54,8 +88,17 @@ export class SchedulingService {
   /**
    * Get available slots from Postgres
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async getAvailableSlots(_procedureTypeOrOptions: string | Record<string, any>): Promise<TimeSlot[]> {
+  async getAvailableSlots(
+    procedureTypeOrOptions: string | GetAvailableSlotsOptions
+  ): Promise<TimeSlot[]> {
+    // Normalize options
+    const options: GetAvailableSlotsOptions =
+      typeof procedureTypeOrOptions === 'string'
+        ? { procedureType: procedureTypeOrOptions }
+        : procedureTypeOrOptions;
+
+    const limit = options.limit ?? 20;
+
     const client = await this.pool.connect();
     try {
       // Query slots that are NOT booked and are in the future
@@ -65,10 +108,10 @@ export class SchedulingService {
         JOIN practitioners p ON s.practitioner_id = p.id
         WHERE s.is_booked = false
         AND s.start_time > NOW()
-        ORDER BY s.start_time ASC LIMIT 20
+        ORDER BY s.start_time ASC LIMIT $1
       `;
 
-      const result = await client.query<TimeSlotRow>(sql);
+      const result = await client.query<TimeSlotRow>(sql, [limit]);
 
       return result.rows.map((row: TimeSlotRow) => {
         const startTime = new Date(row.start_time);
@@ -144,16 +187,19 @@ export class SchedulingService {
 
   /**
    * Get upcoming appointments within a date range
-   * TODO: Implement proper appointment retrieval
    */
   // eslint-disable-next-line @typescript-eslint/require-await
-  async getUpcomingAppointments(
-    _startDate: Date,
-    _endDate: Date
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ): Promise<any[]> {
-    // TODO: Implement this method with actual database query
-    // For now, return empty array to allow build to succeed
+  async getUpcomingAppointments(_startDate: Date, _endDate: Date): Promise<Appointment[]> {
+    // TODO: Implement actual database query
+    // Example SQL:
+    // SELECT a.*, s.start_time, s.end_time
+    // FROM appointments a
+    // JOIN time_slots s ON a.slot_id = s.id
+    // WHERE s.start_time >= $1 AND s.start_time <= $2
+    // AND a.status IN ('scheduled', 'confirmed')
+    // ORDER BY s.start_time ASC
+
+    // For now, return empty array until database integration is complete
     console.warn('[SchedulingService] getUpcomingAppointments not fully implemented');
     return [];
   }

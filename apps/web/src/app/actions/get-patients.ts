@@ -19,10 +19,7 @@ import {
   type LeadSource,
   type HubSpotContact,
 } from '@medicalcor/types';
-import {
-  requirePermission,
-  AuthorizationError,
-} from '@/lib/auth/server-action-auth';
+import { requirePermission, AuthorizationError } from '@/lib/auth/server-action-auth';
 
 /**
  * Server Actions for Patient/Lead Data Fetching
@@ -976,8 +973,7 @@ export async function getAnalyticsDataAction(
     // Count appointments per day
     const appointmentsByDay = new Map<string, number>();
     for (const apt of allAppointments) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-      const dateStr: string = apt.slot?.date ?? '';
+      const dateStr = apt.slot.date;
       appointmentsByDay.set(dateStr, (appointmentsByDay.get(dateStr) ?? 0) + 1);
     }
 
