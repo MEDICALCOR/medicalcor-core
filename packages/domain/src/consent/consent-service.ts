@@ -104,15 +104,32 @@ export class ConsentService {
 
   constructor(options?: ConsentServiceOptions) {
     this.config = { ...DEFAULT_CONFIG, ...options?.config };
-    // Use provided repository or fall back to in-memory (dev only)
-    this.repository = options?.repository ?? new InMemoryConsentRepository();
     this.logger = createLogger({ name: 'consent-service' });
 
+    // CRITICAL SECURITY CHECK: In production, a persistent repository is REQUIRED
+    // Using in-memory storage for GDPR consent data is a compliance violation
+    const isProduction = process.env.NODE_ENV === 'production';
+
     if (!options?.repository) {
+      if (isProduction) {
+        // FAIL FAST in production - this is a critical configuration error
+        // GDPR consent data MUST be persisted to survive restarts
+        const errorMessage =
+          'CRITICAL: ConsentService requires a persistent repository in production. ' +
+          'In-memory storage would cause GDPR compliance violations as consent records ' +
+          'would be lost on restart. Please configure PostgresConsentRepository.';
+        this.logger.fatal(errorMessage);
+        throw new Error(errorMessage);
+      }
+
+      // Only allow in-memory for development/testing
       this.logger.warn(
         'ConsentService initialized with in-memory repository. ' +
           'This is NOT suitable for production - consent data will be lost on restart!'
       );
+      this.repository = new InMemoryConsentRepository();
+    } else {
+      this.repository = options.repository;
     }
   }
 

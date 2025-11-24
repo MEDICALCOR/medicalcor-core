@@ -12,6 +12,11 @@ services:
     environment:
       - NODE_ENV=production
       - LOG_LEVEL=warn
+      # SECURITY: Use authenticated Redis URL in production
+      # Password is read from Docker secret at runtime
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+    secrets:
+      - redis_password
     deploy:
       replicas: 2
       resources:
@@ -38,7 +43,22 @@ services:
         limits:
           cpus: '0.5'
           memory: 256M
-    command: redis-server --appendonly yes --maxmemory 200mb --maxmemory-policy allkeys-lru
+    # SECURITY: Redis requires authentication in production
+    # Password is loaded from Docker secrets for security
+    command: >
+      sh -c 'redis-server
+      --appendonly yes
+      --maxmemory 200mb
+      --maxmemory-policy allkeys-lru
+      --requirepass "$$(cat /run/secrets/redis_password)"'
+    secrets:
+      - redis_password
+    healthcheck:
+      # Use REDISCLI_AUTH env var for authenticated health checks
+      test: ["CMD", "sh", "-c", "REDISCLI_AUTH=$$(cat /run/secrets/redis_password) redis-cli ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   postgres:
     deploy:
@@ -53,4 +73,6 @@ services:
 
 secrets:
   db_password:
+    external: true
+  redis_password:
     external: true

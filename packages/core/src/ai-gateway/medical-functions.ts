@@ -3,10 +3,104 @@
  *
  * Pre-defined function schemas for medical CRM operations.
  * These functions are designed to be easily callable by LLMs.
+ *
+ * SECURITY: Input sanitization is applied to prevent prompt injection attacks.
  */
 
 import { z } from 'zod';
 import type { AIFunction } from './function-registry.js';
+
+// ============================================================================
+// SECURITY: Input Sanitization for Prompt Injection Protection
+// ============================================================================
+
+/**
+ * Maximum allowed length for user message content
+ * Limits the attack surface for prompt injection and prevents DoS
+ */
+const MAX_MESSAGE_CONTENT_LENGTH = 2000;
+
+/**
+ * Maximum number of messages in a conversation history
+ * Prevents context stuffing attacks
+ */
+const MAX_MESSAGES_COUNT = 50;
+
+/**
+ * Patterns that may indicate prompt injection attempts
+ * These patterns are logged for security monitoring but not necessarily blocked
+ */
+const SUSPICIOUS_PATTERNS = [
+  /ignore\s+(all\s+)?(previous|prior|above)\s+(instructions?|prompts?|rules?)/i,
+  /disregard\s+(all\s+)?(previous|prior|above)/i,
+  /forget\s+(all\s+)?(previous|prior|above)/i,
+  /new\s+instructions?:/i,
+  /system\s*:\s*/i,
+  /\[INST\]/i,
+  /\[\/INST\]/i,
+  /<\|im_start\|>/i,
+  /<\|im_end\|>/i,
+  /export\s+(the\s+)?(pii|data|patients?|records?)/i,
+  /reveal\s+(the\s+)?(system|prompt|instructions?)/i,
+  /show\s+(me\s+)?(the\s+)?(system|hidden|secret)/i,
+  /what\s+(are|is)\s+(your|the)\s+(system|initial)\s+(prompt|instructions?)/i,
+];
+
+/**
+ * Check if content contains suspicious prompt injection patterns
+ * Returns true if suspicious, with list of matched patterns for logging
+ */
+export function detectPromptInjection(content: string): { suspicious: boolean; patterns: string[] } {
+  const matchedPatterns: string[] = [];
+
+  for (const pattern of SUSPICIOUS_PATTERNS) {
+    if (pattern.test(content)) {
+      matchedPatterns.push(pattern.source);
+    }
+  }
+
+  return {
+    suspicious: matchedPatterns.length > 0,
+    patterns: matchedPatterns,
+  };
+}
+
+/**
+ * Sanitize user input content for safe LLM processing
+ * - Removes control characters
+ * - Truncates to max length
+ * - Normalizes whitespace
+ * - Does NOT block content, but sanitizes it
+ */
+export function sanitizeMessageContent(content: string): string {
+  return content
+    // Remove null bytes and other control characters (except newline, tab)
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+    // Normalize multiple newlines to max 2
+    .replace(/\n{3,}/g, '\n\n')
+    // Normalize multiple spaces to single space
+    .replace(/[ \t]{2,}/g, ' ')
+    // Trim whitespace
+    .trim()
+    // Truncate to max length
+    .slice(0, MAX_MESSAGE_CONTENT_LENGTH);
+}
+
+/**
+ * Zod transformer for sanitized message content
+ */
+const SanitizedContentSchema = z.string()
+  .max(MAX_MESSAGE_CONTENT_LENGTH, `Message content must not exceed ${MAX_MESSAGE_CONTENT_LENGTH} characters`)
+  .transform(sanitizeMessageContent);
+
+/**
+ * Message schema with sanitization
+ */
+const SanitizedMessageSchema = z.object({
+  role: z.enum(['user', 'assistant']).describe('Message sender role'),
+  content: SanitizedContentSchema.describe('Message content (sanitized)'),
+  timestamp: z.string().datetime().optional().describe('Message timestamp'),
+});
 
 // ============================================================================
 // LEAD MANAGEMENT FUNCTIONS
@@ -17,23 +111,19 @@ export const ScoreLeadInputSchema = z.object({
   channel: z
     .enum(['whatsapp', 'voice', 'web', 'referral'])
     .describe('Channel through which the lead was acquired'),
+  // SECURITY: Messages are sanitized and limited to prevent prompt injection and DoS
   messages: z
-    .array(
-      z.object({
-        role: z.enum(['user', 'assistant']).describe('Message sender role'),
-        content: z.string().describe('Message content'),
-        timestamp: z.string().datetime().optional().describe('Message timestamp'),
-      })
-    )
+    .array(SanitizedMessageSchema)
+    .max(MAX_MESSAGES_COUNT, `Maximum ${MAX_MESSAGES_COUNT} messages allowed`)
     .optional()
-    .describe('Conversation history with the lead'),
+    .describe('Conversation history with the lead (sanitized, max 50 messages)'),
   utmParams: z
     .object({
-      source: z.string().optional(),
-      medium: z.string().optional(),
-      campaign: z.string().optional(),
-      content: z.string().optional(),
-      term: z.string().optional(),
+      source: z.string().max(256).optional(),
+      medium: z.string().max(256).optional(),
+      campaign: z.string().max(256).optional(),
+      content: z.string().max(256).optional(),
+      term: z.string().max(256).optional(),
     })
     .optional()
     .describe('UTM tracking parameters'),
