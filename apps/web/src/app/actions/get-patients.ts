@@ -65,8 +65,9 @@ function getStripeClient(): StripeClient | MockStripeClient {
 }
 
 function getSchedulingService(): SchedulingService {
+  const connectionString = process.env.DATABASE_URL ?? '';
   schedulingService ??= new SchedulingService({
-    timezone: 'Europe/Bucharest',
+    connectionString,
   });
   return schedulingService;
 }
@@ -975,7 +976,8 @@ export async function getAnalyticsDataAction(
     // Count appointments per day
     const appointmentsByDay = new Map<string, number>();
     for (const apt of allAppointments) {
-      const dateStr = apt.slot.date;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      const dateStr: string = apt.slot?.date ?? '';
       appointmentsByDay.set(dateStr, (appointmentsByDay.get(dateStr) ?? 0) + 1);
     }
 

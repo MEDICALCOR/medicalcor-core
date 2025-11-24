@@ -50,6 +50,7 @@ function verifyApiKey(providedKey: string, validKeys: string[]): boolean {
  * API Authentication Plugin
  * Adds API key authentication to protected routes
  */
+// eslint-disable-next-line @typescript-eslint/require-await
 export const apiAuthPlugin: FastifyPluginAsync<ApiAuthConfig> = async (fastify, options) => {
   const headerName = options.headerName ?? 'x-api-key';
   const protectedPaths = options.protectedPaths ?? ['/workflows'];
@@ -63,9 +64,9 @@ export const apiAuthPlugin: FastifyPluginAsync<ApiAuthConfig> = async (fastify, 
     }
   }
 
-  // Warn if no API keys configured in production
-  if (apiKeys.length === 0 && process.env['NODE_ENV'] === 'production') {
-    fastify.log.error('API_SECRET_KEY not configured - workflow endpoints are unprotected!');
+  // SECURITY: API keys REQUIRED in ALL environments - no bypasses
+  if (apiKeys.length === 0) {
+    fastify.log.error('API_SECRET_KEY not configured - workflow endpoints will reject all requests!');
   }
 
   fastify.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -76,16 +77,9 @@ export const apiAuthPlugin: FastifyPluginAsync<ApiAuthConfig> = async (fastify, 
       return; // Not a protected path, allow through
     }
 
-    // Skip auth in development if no keys configured
+    // SECURITY: API key REQUIRED in ALL environments - no development bypass
     if (apiKeys.length === 0) {
-      if (process.env['NODE_ENV'] !== 'production') {
-        fastify.log.warn(
-          { url: request.url },
-          'API_SECRET_KEY not configured - allowing request in development'
-        );
-        return;
-      }
-      // In production without keys, reject
+      fastify.log.error({ url: request.url }, 'API_SECRET_KEY not configured - rejecting request');
       return reply.status(500).send({ error: 'Server configuration error' });
     }
 

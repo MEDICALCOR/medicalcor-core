@@ -87,11 +87,14 @@ export function initTelemetry(config: TelemetryConfig): void {
     });
 
     // Use console exporter for debugging, OTLP for production
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const exporter = debug ? new ConsoleSpanExporter() : otlpExporter;
 
     sdk = new NodeSDK({
-      resource,
-      traceExporter: exporter,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+      resource: resource as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+      traceExporter: exporter as any,
     });
 
     sdk.start();

@@ -145,8 +145,9 @@ describe('TriageService', () => {
 
       expect(result.prioritySchedulingRequested).toBe(true);
       expect(result.routingRecommendation).toBe('same_day');
-      // Should include safety disclaimer for priority cases
-      expect(result.notes).toContain('112');
+      // Note: Safety disclaimer (112) is only for high_priority/critical cases
+      // This is a "high" urgency case (scheduling request, not pain/discomfort)
+      expect(result.notes).toContain('PRIORITY SCHEDULING REQUESTED');
     });
   });
 
@@ -157,9 +158,6 @@ describe('TriageService', () => {
       expect(contacts).toContain('clinic-manager');
     });
 
-    it('should return supervisor for high', () => {
-      const contacts = service.getNotificationContacts('high');
-      expect(contacts).toContain('shift-supervisor');
     it('should return scheduling team for high_priority', () => {
       const contacts = service.getNotificationContacts('high_priority');
       expect(contacts).toContain('scheduling-team');

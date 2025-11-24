@@ -93,7 +93,11 @@ const DEFAULT_CONFIG: ConsentConfig = {
 
 export interface ConsentServiceOptions {
   config?: Partial<ConsentConfig>;
-  repository?: ConsentRepository;
+  /**
+   * REQUIRED: Persistent repository for consent storage
+   * GDPR COMPLIANCE: In-memory storage is NOT acceptable for production
+   */
+  repository: ConsentRepository;
 }
 
 export class ConsentService {
@@ -101,17 +105,31 @@ export class ConsentService {
   private repository: ConsentRepository;
   private logger: Logger;
 
-  constructor(options?: ConsentServiceOptions) {
-    this.config = { ...DEFAULT_CONFIG, ...options?.config };
-    // Use provided repository or fall back to in-memory (dev only)
-    this.repository = options?.repository ?? new InMemoryConsentRepository();
+  constructor(options: ConsentServiceOptions) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (!options?.repository) {
+      throw new Error(
+        'GDPR COMPLIANCE ERROR: ConsentService requires a persistent repository. ' +
+          'In-memory storage is NOT acceptable for consent records. ' +
+          'Please provide a PostgresConsentRepository or equivalent persistent storage.'
+      );
+    }
+
+    this.config = { ...DEFAULT_CONFIG, ...options.config };
+    this.repository = options.repository;
     this.logger = createLogger({ name: 'consent-service' });
 
-    if (!options?.repository) {
-      this.logger.warn(
-        'ConsentService initialized with in-memory repository. ' +
-          'This is NOT suitable for production - consent data will be lost on restart!'
-      );
+    // Warn if using in-memory repository (only allowed in tests)
+    if (this.repository instanceof InMemoryConsentRepository) {
+      if (process.env.NODE_ENV === 'test') {
+        this.logger.warn('ConsentService using in-memory repository for testing');
+      } else {
+        throw new Error(
+          'GDPR COMPLIANCE ERROR: InMemoryConsentRepository is NOT suitable for production. ' +
+            'Consent records must be persisted to a database for GDPR compliance. ' +
+            'Set NODE_ENV=test if running tests.'
+        );
+      }
     }
   }
 
@@ -459,18 +477,19 @@ Sie können Ihre Zustimmung jederzeit widerrufen, indem Sie "STOP" antworten.`,
 
 /**
  * Create a consent service instance
- * @param options - Configuration and repository options
+ * @param options - Configuration and repository options (repository REQUIRED)
  * @returns ConsentService instance
  *
  * @example
- * // Production with PostgreSQL
+ * // Production with PostgreSQL (REQUIRED for GDPR compliance)
  * const repository = new PostgresConsentRepository(db);
  * const service = createConsentService({ repository });
  *
  * @example
- * // Development with in-memory (not for production!)
- * const service = createConsentService();
+ * // Testing only (NODE_ENV=test)
+ * const repository = new InMemoryConsentRepository();
+ * const service = createConsentService({ repository });
  */
-export function createConsentService(options?: ConsentServiceOptions): ConsentService {
+export function createConsentService(options: ConsentServiceOptions): ConsentService {
   return new ConsentService(options);
 }

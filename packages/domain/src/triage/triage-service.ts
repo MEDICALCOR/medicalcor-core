@@ -7,19 +7,16 @@ import type { LeadScore, LeadChannel } from '@medicalcor/types';
  */
 
 export interface TriageResult {
-  urgencyLevel: 'critical' | 'high' | 'normal' | 'low';
+  urgencyLevel: 'critical' | 'high_priority' | 'high' | 'normal' | 'low';
   routingRecommendation:
     | 'immediate_callback'
+    | 'next_available_slot'
     | 'same_day'
     | 'next_business_day'
     | 'nurture_sequence';
   medicalFlags: string[];
   suggestedOwner?: string;
   escalationRequired: boolean;
-  urgencyLevel: 'high_priority' | 'high' | 'normal' | 'low';
-  routingRecommendation: 'next_available_slot' | 'same_day' | 'next_business_day' | 'nurture_sequence';
-  medicalFlags: string[];
-  suggestedOwner?: string;
   prioritySchedulingRequested: boolean;
   notes: string;
 }
@@ -35,7 +32,6 @@ export interface TriageInput {
 }
 
 export interface TriageConfig {
-  criticalKeywords: string[];
   medicalEmergencyKeywords: string[];
   prioritySchedulingKeywords: string[];
   priorityKeywords: string[];
@@ -74,6 +70,7 @@ const DEFAULT_CONFIG: TriageConfig = {
     implants: 'dr-implant-team',
     general: 'reception-team',
     priority: 'scheduling-team',
+    emergency: 'on-call-doctor',
   },
 };
 
@@ -103,6 +100,7 @@ export class TriageService {
     const medicalFlags: string[] = [];
     let urgencyLevel: TriageResult['urgencyLevel'] = 'normal';
     let escalationRequired = false;
+    let prioritySchedulingRequested = false;
 
     // Check for medical emergency keywords
     const hasEmergency = this.config.medicalEmergencyKeywords.some((k) => lowerContent.includes(k));
@@ -112,34 +110,26 @@ export class TriageService {
       medicalFlags.push('medical_emergency_detected');
     }
 
-    // Check for critical symptoms
-    const criticalSymptoms = this.config.criticalKeywords.filter((k) => lowerContent.includes(k));
-    if (criticalSymptoms.length > 0) {
-      if (urgencyLevel !== 'critical') {
-        urgencyLevel = 'high';
-      }
-      medicalFlags.push(...criticalSymptoms.map((s) => `symptom:${s.replace(/\s+/g, '_')}`));
+    // Check for priority keywords (pain/discomfort indicating high purchase intent)
+    const prioritySymptoms = this.config.priorityKeywords.filter((k) => lowerContent.includes(k));
+    if (prioritySymptoms.length > 0 && urgencyLevel !== 'critical') {
+      urgencyLevel = 'high_priority';
+      prioritySchedulingRequested = true;
+      medicalFlags.push('priority_scheduling_requested');
+      medicalFlags.push(...prioritySymptoms.map((s) => `symptom:${s.replace(/\s+/g, '_')}`));
     }
 
-    // Check for priority scheduling request
-    const prioritySchedulingRequested = this.config.prioritySchedulingKeywords.some((k) =>
+    // Check for priority scheduling request keywords
+    const hasPriorityRequest = this.config.prioritySchedulingKeywords.some((k) =>
       lowerContent.includes(k)
     );
-    if (prioritySchedulingRequested) {
+    if (hasPriorityRequest && !prioritySchedulingRequested) {
+      prioritySchedulingRequested = true;
       medicalFlags.push('priority_scheduling_requested');
       // Boost urgency if priority scheduling is explicitly requested
       if (urgencyLevel === 'normal') {
         urgencyLevel = 'high';
       }
-    let prioritySchedulingRequested = false;
-
-    // Check for priority keywords (pain/discomfort indicating high purchase intent)
-    const prioritySymptoms = this.config.priorityKeywords.filter(k => lowerContent.includes(k));
-    if (prioritySymptoms.length > 0) {
-      urgencyLevel = 'high_priority';
-      prioritySchedulingRequested = true;
-      medicalFlags.push('priority_scheduling_requested');
-      medicalFlags.push(...prioritySymptoms.map(s => `symptom:${s.replace(/\s+/g, '_')}`));
     }
 
     // Score-based urgency adjustment
@@ -171,15 +161,8 @@ export class TriageService {
     // Determine owner
     const suggestedOwner = this.determineSuggestedOwner(procedureInterest, urgencyLevel);
 
-    // Build notes
-    const notes = this.buildTriageNotes(
-      input,
-      medicalFlags,
-      urgencyLevel,
-      prioritySchedulingRequested
-    );
     // Build notes (includes safety disclaimer)
-    const notes = this.buildTriageNotes(input, medicalFlags, urgencyLevel);
+    const notes = this.buildTriageNotes(input, medicalFlags, urgencyLevel, prioritySchedulingRequested);
 
     return {
       urgencyLevel,
@@ -194,7 +177,6 @@ export class TriageService {
 
   /**
    * Determine routing based on urgency, score, and priority scheduling request
-   * Determine routing based on urgency and score
    * Priority scheduling routes to next available slot during business hours
    */
   private determineRouting(
@@ -203,6 +185,11 @@ export class TriageService {
     channel: LeadChannel,
     prioritySchedulingRequested: boolean
   ): TriageResult['routingRecommendation'] {
+    // Critical cases get immediate callback
+    if (urgencyLevel === 'critical') {
+      return 'immediate_callback';
+    }
+
     // High priority (pain/discomfort) gets next available slot during business hours
     if (urgencyLevel === 'high_priority') {
       return 'next_available_slot';
@@ -225,24 +212,27 @@ export class TriageService {
   }
 
   /**
-   * Determine suggested owner based on procedure interest
+   * Determine suggested owner based on procedure interest and urgency
    */
   private determineSuggestedOwner(
     procedureInterest?: string[],
     urgencyLevel?: TriageResult['urgencyLevel']
   ): string {
+    // Critical cases go to on-call doctor
     if (urgencyLevel === 'critical') {
-      return this.config.defaultOwners.emergency ?? 'on-call-doctor';
+      return this.config.defaultOwners['emergency'] ?? 'on-call-doctor';
+    }
+
     // Priority scheduling goes to scheduling team for fast appointment booking
     if (urgencyLevel === 'high_priority') {
       return this.config.defaultOwners['priority'] ?? 'scheduling-team';
     }
 
     if (procedureInterest?.some((p) => ['implant', 'all-on-x', 'All-on-X'].includes(p))) {
-      return this.config.defaultOwners.implants ?? 'dr-implant-team';
+      return this.config.defaultOwners['implants'] ?? 'dr-implant-team';
     }
 
-    return this.config.defaultOwners.general ?? 'reception-team';
+    return this.config.defaultOwners['general'] ?? 'reception-team';
   }
 
   /**
@@ -278,8 +268,10 @@ export class TriageService {
     }
 
     // Add safety disclaimer for priority cases
-    if (urgencyLevel === 'high_priority') {
-      parts.push(`Note: Patient reported discomfort. Schedule priority appointment during business hours. Reminder: For life-threatening emergencies, advise calling 112.`);
+    if (urgencyLevel === 'high_priority' || urgencyLevel === 'critical') {
+      parts.push(
+        'Note: Patient reported discomfort. Schedule priority appointment during business hours. Reminder: For life-threatening emergencies, advise calling 112.'
+      );
     }
 
     return parts.join(' | ');
@@ -293,16 +285,13 @@ export class TriageService {
   }
 
   /**
-   * Get notification contacts for urgent cases
-   * Returns list of team members to notify based on urgency level
-   */
-  getNotificationContacts(urgencyLevel: TriageResult['urgencyLevel']): string[] {
-    if (urgencyLevel === 'critical') {
-      return ['on-call-doctor', 'clinic-manager'];
    * Get notification contacts for priority cases
    * NOTE: These are for scheduling coordination, not medical escalation
    */
   getNotificationContacts(urgencyLevel: TriageResult['urgencyLevel']): string[] {
+    if (urgencyLevel === 'critical') {
+      return ['on-call-doctor', 'clinic-manager'];
+    }
     if (urgencyLevel === 'high_priority') {
       return ['scheduling-team', 'reception-lead'];
     }

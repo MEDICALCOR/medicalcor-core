@@ -10,24 +10,42 @@ import type {
 
 interface UseWebSocketOptions {
   url: string;
+  /**
+   * Authentication token for WebSocket connection
+   * SECURITY: Required for all connections
+   */
+  authToken?: string;
   reconnectInterval?: number;
   maxReconnectAttempts?: number;
   onOpen?: () => void;
   onClose?: () => void;
   onError?: (error: Event) => void;
+  onAuthError?: () => void;
 }
 
 const DEFAULT_RECONNECT_INTERVAL = 3000;
 const MAX_RECONNECT_ATTEMPTS = 10;
 
+/**
+ * Build authenticated WebSocket URL
+ * Adds token as query parameter for authentication
+ */
+function buildAuthenticatedUrl(baseUrl: string, token: string): string {
+  const url = new URL(baseUrl);
+  url.searchParams.set('token', token);
+  return url.toString();
+}
+
 export function useWebSocket(options: UseWebSocketOptions) {
   const {
     url,
+    authToken,
     reconnectInterval = DEFAULT_RECONNECT_INTERVAL,
     maxReconnectAttempts = MAX_RECONNECT_ATTEMPTS,
     onOpen,
     onClose,
     onError,
+    onAuthError,
   } = options;
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -47,6 +65,17 @@ export function useWebSocket(options: UseWebSocketOptions) {
   }, []);
 
   const connect = useCallback(() => {
+    // SECURITY: Require authentication token
+    if (!authToken) {
+      console.error('[WebSocket] Authentication token required - connection rejected');
+      setConnectionState((prev) => ({
+        ...prev,
+        status: 'error',
+      }));
+      onAuthError?.();
+      return;
+    }
+
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       return;
     }
@@ -57,7 +86,9 @@ export function useWebSocket(options: UseWebSocketOptions) {
     }));
 
     try {
-      const ws = new WebSocket(url);
+      // Build authenticated URL with token
+      const authenticatedUrl = buildAuthenticatedUrl(url, authToken);
+      const ws = new WebSocket(authenticatedUrl);
 
       ws.onopen = () => {
         setConnectionState({
@@ -68,15 +99,22 @@ export function useWebSocket(options: UseWebSocketOptions) {
         onOpen?.();
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
         setConnectionState((prev) => ({
           ...prev,
           status: 'disconnected',
         }));
         onClose?.();
 
-        // Auto-reconnect logic
-        if (connectionState.reconnectAttempts < maxReconnectAttempts) {
+        // Check for authentication failure (4401 = Unauthorized)
+        if (event.code === 4401) {
+          console.error('[WebSocket] Authentication failed');
+          onAuthError?.();
+          return; // Don't reconnect on auth failure
+        }
+
+        // Auto-reconnect logic (only if we have a valid token)
+        if (authToken && connectionState.reconnectAttempts < maxReconnectAttempts) {
           const delay = reconnectInterval * Math.pow(1.5, connectionState.reconnectAttempts);
           reconnectTimeoutRef.current = setTimeout(() => {
             setConnectionState((prev) => ({
@@ -100,6 +138,14 @@ export function useWebSocket(options: UseWebSocketOptions) {
         try {
           const realtimeEvent = JSON.parse(event.data) as RealtimeEvent;
 
+          // Handle authentication errors from server
+          if (realtimeEvent.type === 'auth_error') {
+            console.error('[WebSocket] Server rejected authentication');
+            ws.close(4401, 'Authentication failed');
+            onAuthError?.();
+            return;
+          }
+
           // Notify specific handlers
           const specificHandlers = handlersRef.current.get(realtimeEvent.type);
           specificHandlers?.forEach((handler) => handler(realtimeEvent));
@@ -121,11 +167,13 @@ export function useWebSocket(options: UseWebSocketOptions) {
     }
   }, [
     url,
+    authToken,
     reconnectInterval,
     maxReconnectAttempts,
     onOpen,
     onClose,
     onError,
+    onAuthError,
     connectionState.reconnectAttempts,
   ]);
 
@@ -181,5 +229,6 @@ export function useWebSocket(options: UseWebSocketOptions) {
     subscribe,
     send,
     isConnected: connectionState.status === 'connected',
+    isAuthenticated: !!authToken,
   };
 }

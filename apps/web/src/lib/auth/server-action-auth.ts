@@ -67,28 +67,57 @@ export async function getCurrentUser() {
 
 /**
  * Check if current user can access a specific patient
- * For IDOR protection
+ * For IDOR protection - validates patient belongs to user's clinic
  */
-export async function canAccessPatient(_patientId: string): Promise<boolean> {
+export async function canAccessPatient(patientId: string): Promise<boolean> {
   const session = await auth();
 
   if (!session?.user) {
     return false;
   }
 
-  // Admins and doctors can access all patients
-  if (hasRole(session.user.role, ['admin', 'doctor'])) {
+  if (!patientId) {
+    return false;
+  }
+
+  // Admins can access all patients across all clinics
+  if (session.user.role === 'admin') {
     return true;
   }
 
-  // Receptionists can access patients at their clinic
-  if (session.user.role === 'receptionist' && session.user.clinicId) {
-    // In production: check if patient belongs to user's clinic
-    // For now, allow access
-    return true;
+  // For doctors and receptionists, must verify patient belongs to their clinic
+  if (!session.user.clinicId) {
+    // User has no clinic assigned - deny access
+    return false;
   }
 
-  return false;
+  // CRITICAL: Verify patient belongs to user's clinic
+  // This function MUST be implemented with actual database lookup
+  const patientClinicId = await getPatientClinicId(patientId);
+
+  if (!patientClinicId) {
+    // Patient not found
+    return false;
+  }
+
+  return patientClinicId === session.user.clinicId;
+}
+
+/**
+ * Get the clinic ID for a patient
+ * CRITICAL: This must query the actual database in production
+ */
+// eslint-disable-next-line @typescript-eslint/require-await
+async function getPatientClinicId(patientId: string): Promise<string | null> {
+  // TODO: Replace with actual database query
+  // Example: return await db.patient.findUnique({ where: { id: patientId } })?.clinicId
+  //
+  // For now, we DENY access until database integration is complete
+  // This is safer than allowing access without verification
+  console.warn(
+    `[SECURITY] getPatientClinicId called for ${patientId} but database integration not complete. Denying access.`
+  );
+  return null;
 }
 
 /**

@@ -201,6 +201,8 @@ export const handleVoiceCall = task({
             notificationContacts,
             correlationId,
           });
+        }
+
         // Create priority task for HOT leads or high_priority scheduling requests
         if (scoreResult.classification === 'HOT' || triageResult.urgencyLevel === 'high_priority') {
           await hubspot.createTask({
@@ -372,6 +374,10 @@ export const handleCallCompleted = task({
             contactId: hubspotContactId,
             subject: `${triageResult.urgencyLevel === 'critical' ? 'URGENT' : 'HIGH PRIORITY'} VOICE LEAD: ${normalizedPhone} - ${scoreResult.classification}`,
             body: `Call Duration: ${duration}s\n\n${triageResult.notes}\n\nSummary: ${summary ?? 'N/A'}${contactsInfo}`,
+            priority: triageResult.urgencyLevel === 'critical' ? 'HIGH' : 'MEDIUM',
+          });
+        }
+
         // Create task for HOT leads or priority scheduling requests
         if (scoreResult.classification === 'HOT' || triageResult.prioritySchedulingRequested) {
           await hubspot.createTask({

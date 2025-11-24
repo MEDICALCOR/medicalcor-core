@@ -1,6 +1,9 @@
 /**
  * NextAuth.js Configuration
  * Provides authentication for the MedicalCor Cortex web application
+ *
+ * SECURITY: This file requires proper database connection.
+ * Mock users have been REMOVED - authentication will fail until database is configured.
  */
 
 import type { NextAuthConfig } from 'next-auth';
@@ -19,6 +22,11 @@ export interface AuthUser {
   clinicId?: string;
 }
 
+// Database user type (includes hashed password)
+interface DatabaseUser extends AuthUser {
+  hashedPassword: string;
+}
+
 // Credentials validation schema
 const CredentialsSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -26,55 +34,77 @@ const CredentialsSchema = z.object({
 });
 
 /**
- * Mock user database for development
- * In production, replace with actual database lookup
+ * Validate user credentials against database
+ * SECURITY: Uses bcrypt for password comparison
  */
-const MOCK_USERS: Record<string, AuthUser & { password: string }> = {
-  'admin@medicalcor.ro': {
-    id: 'user_admin_001',
-    email: 'admin@medicalcor.ro',
-    name: 'Admin User',
-    role: 'admin',
-    password: 'admin123456', // In production, use hashed passwords
-  },
-  'doctor@medicalcor.ro': {
-    id: 'user_doctor_001',
-    email: 'doctor@medicalcor.ro',
-    name: 'Dr. Elena Popescu',
-    role: 'doctor',
-    clinicId: 'clinic_001',
-    password: 'doctor123456',
-  },
-  'reception@medicalcor.ro': {
-    id: 'user_reception_001',
-    email: 'reception@medicalcor.ro',
-    name: 'Ana Receptionist',
-    role: 'receptionist',
-    clinicId: 'clinic_001',
-    password: 'reception123456',
-  },
-};
+async function validateCredentials(email: string, password: string): Promise<AuthUser | null> {
+  // Get user from database
+  const user = await getUserByEmail(email);
 
-/**
- * Validate user credentials
- * In production, replace with database lookup and bcrypt comparison
- */
-function validateCredentials(email: string, password: string): AuthUser | null {
-  const user = MOCK_USERS[email];
-
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!user) {
     return null;
   }
 
-  // In production: use bcrypt.compare(password, user.hashedPassword)
-  if (user.password !== password) {
+  // Verify password with bcrypt
+  const isValid = await verifyPassword(password, user.hashedPassword);
+
+  if (!isValid) {
     return null;
   }
 
   // Return user without password
-  const { password: _, ...authUser } = user;
+  const { hashedPassword: _, ...authUser } = user;
   return authUser;
+}
+
+/**
+ * Get user from database by email
+ * CRITICAL: This must query the actual database
+ */
+// eslint-disable-next-line @typescript-eslint/require-await
+async function getUserByEmail(email: string): Promise<DatabaseUser | null> {
+  // TODO: Implement actual database query
+  // Example with Prisma:
+  // return await prisma.user.findUnique({
+  //   where: { email },
+  //   select: {
+  //     id: true,
+  //     email: true,
+  //     name: true,
+  //     role: true,
+  //     clinicId: true,
+  //     hashedPassword: true,
+  //   },
+  // });
+
+  // Check if database URL is configured
+  if (!process.env.DATABASE_URL) {
+    console.error('[AUTH] DATABASE_URL not configured - authentication disabled');
+    return null;
+  }
+
+  // SECURITY: No mock users - database integration required
+  console.error(
+    `[AUTH] Database query not implemented for user: ${email}. Authentication disabled until database integration is complete.`
+  );
+  return null;
+}
+
+/**
+ * Verify password against bcrypt hash
+ * CRITICAL: Must use proper bcrypt comparison
+ */
+// eslint-disable-next-line @typescript-eslint/require-await
+async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
+  // TODO: Implement with bcrypt
+  // import bcrypt from 'bcrypt';
+  // return await bcrypt.compare(password, hashedPassword);
+
+  // SECURITY: No plain-text comparison - bcrypt required
+  console.error('[AUTH] bcrypt password verification not implemented');
+  void password;
+  void hashedPassword;
+  return false;
 }
 
 export const authConfig: NextAuthConfig = {
@@ -136,7 +166,7 @@ export const authConfig: NextAuthConfig = {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
       },
-      authorize(credentials) {
+      async authorize(credentials) {
         const parsed = CredentialsSchema.safeParse(credentials);
 
         if (!parsed.success) {
@@ -144,7 +174,7 @@ export const authConfig: NextAuthConfig = {
         }
 
         const { email, password } = parsed.data;
-        const user = validateCredentials(email, password);
+        const user = await validateCredentials(email, password);
 
         return user;
       },
