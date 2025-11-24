@@ -176,43 +176,31 @@ export const handleVoiceCall = task({
           correlationId,
         });
 
-        // Create high-priority task for HOT leads or critical/high urgency
+        // Create priority task for HOT leads or high_priority scheduling requests
         if (
           scoreResult.classification === 'HOT' ||
-          triageResult.urgencyLevel === 'critical' ||
+          triageResult.urgencyLevel === 'high_priority' ||
           triageResult.urgencyLevel === 'high'
         ) {
-          // Get notification contacts for urgent cases
+          // Get notification contacts for priority cases
           const notificationContacts = triage.getNotificationContacts(triageResult.urgencyLevel);
           const contactsInfo =
             notificationContacts.length > 0 ? `\n\nNotify: ${notificationContacts.join(', ')}` : '';
 
           await hubspot.createTask({
             contactId: hubspotContactId,
-            subject: `${triageResult.urgencyLevel === 'critical' ? 'URGENT' : triageResult.urgencyLevel === 'high' ? 'HIGH PRIORITY' : 'HOT'} VOICE LEAD: ${normalizedPhone}`,
-            body: `${triageResult.notes}\n\nSuggested Action: ${scoreResult.suggestedAction}${contactsInfo}`,
-            priority: triageResult.urgencyLevel === 'critical' ? 'HIGH' : 'MEDIUM',
+            subject: `${triageResult.urgencyLevel === 'high_priority' ? 'PRIORITY REQUEST' : 'HIGH PRIORITY'} - Voice Lead: ${normalizedPhone}`,
+            body: `${triageResult.urgencyLevel === 'high_priority' ? 'Patient reported discomfort. Wants quick appointment.\n\n' : ''}${triageResult.notes}\n\nSuggested Action: ${scoreResult.suggestedAction}${contactsInfo}`,
+            priority: triageResult.urgencyLevel === 'high_priority' ? 'HIGH' : 'MEDIUM',
             dueDate:
-              triageResult.routingRecommendation === 'immediate_callback'
-                ? new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
+              triageResult.routingRecommendation === 'next_available_slot'
+                ? new Date(Date.now() + 30 * 60 * 1000) // 30 minutes during business hours
                 : new Date(Date.now() + 60 * 60 * 1000), // 1 hour
           });
-          logger.info('High-priority task created for voice lead', {
+          logger.info('Priority task created for voice lead', {
             notificationContacts,
             correlationId,
           });
-        // Create priority task for HOT leads or high_priority scheduling requests
-        if (scoreResult.classification === 'HOT' || triageResult.urgencyLevel === 'high_priority') {
-          await hubspot.createTask({
-            contactId: hubspotContactId,
-            subject: `PRIORITY REQUEST - Voice Lead: ${normalizedPhone}`,
-            body: `Patient reported discomfort. Wants quick appointment.\n\n${triageResult.notes}\n\nSuggested Action: ${scoreResult.suggestedAction}`,
-            priority: triageResult.urgencyLevel === 'high_priority' ? 'HIGH' : 'MEDIUM',
-            dueDate: triageResult.routingRecommendation === 'next_available_slot'
-              ? new Date(Date.now() + 30 * 60 * 1000) // 30 minutes during business hours
-              : new Date(Date.now() + 60 * 60 * 1000), // 1 hour
-          });
-          logger.info('Priority task created for voice lead', { correlationId });
         }
       } catch (err) {
         logger.error('Failed to process voice call transcript', { err, correlationId });
@@ -357,28 +345,22 @@ export const handleCallCompleted = task({
           last_call_summary: summary,
         });
 
-        // Create task for HOT leads or escalation required
+        // Create task for HOT leads or priority scheduling requests
         if (
           scoreResult.classification === 'HOT' ||
-          triageResult.escalationRequired ||
+          triageResult.prioritySchedulingRequested ||
           triageResult.urgencyLevel === 'high'
         ) {
-          // Get notification contacts for urgent cases
+          // Get notification contacts for priority cases
           const notificationContacts = triage.getNotificationContacts(triageResult.urgencyLevel);
           const contactsInfo =
             notificationContacts.length > 0 ? `\n\nNotify: ${notificationContacts.join(', ')}` : '';
 
           await hubspot.createTask({
             contactId: hubspotContactId,
-            subject: `${triageResult.urgencyLevel === 'critical' ? 'URGENT' : 'HIGH PRIORITY'} VOICE LEAD: ${normalizedPhone} - ${scoreResult.classification}`,
-            body: `Call Duration: ${duration}s\n\n${triageResult.notes}\n\nSummary: ${summary ?? 'N/A'}${contactsInfo}`,
-        // Create task for HOT leads or priority scheduling requests
-        if (scoreResult.classification === 'HOT' || triageResult.prioritySchedulingRequested) {
-          await hubspot.createTask({
-            contactId: hubspotContactId,
-            subject: `PRIORITY REQUEST - Voice Lead: ${normalizedPhone}`,
-            body: `Patient reported discomfort. Wants quick appointment.\n\nCall Duration: ${duration}s\n\n${triageResult.notes}\n\nSummary: ${summary ?? 'N/A'}`,
-            priority: 'HIGH',
+            subject: `${triageResult.urgencyLevel === 'high_priority' ? 'PRIORITY REQUEST' : 'HIGH PRIORITY'} - Voice Lead: ${normalizedPhone}`,
+            body: `${triageResult.urgencyLevel === 'high_priority' ? 'Patient reported discomfort. Wants quick appointment.\n\n' : ''}Call Duration: ${duration}s\n\n${triageResult.notes}\n\nSummary: ${summary ?? 'N/A'}${contactsInfo}`,
+            priority: triageResult.urgencyLevel === 'high_priority' ? 'HIGH' : 'MEDIUM',
           });
         }
 
