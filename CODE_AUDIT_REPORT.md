@@ -17,7 +17,7 @@ This comprehensive code audit of the MedicalCor Core medical CRM platform identi
 | Severity     | Count | Resolved | Immediate Action Required |
 | ------------ | ----- | -------- | ------------------------- |
 | **CRITICAL** | 15    | 7 ✅     | Yes - Block deployment    |
-| **HIGH**     | 31    | 2 ✅     | Yes - This sprint         |
+| **HIGH**     | 31    | 3 ✅     | Yes - This sprint         |
 | **MEDIUM**   | 37    | 1 ✅     | Short-term - Next sprint  |
 | **LOW**      | 15    | 0        | Medium-term backlog       |
 
@@ -27,6 +27,7 @@ This comprehensive code audit of the MedicalCor Core medical CRM platform identi
 - ✅ **SEC-002:** All server actions protected with authorization (Nov 24, 2025)
 - ✅ **SEC-003:** API key authentication for workflow endpoints (already implemented, documented Nov 24)
 - ✅ **SEC-004:** Booking webhook authentication with signature verification (Nov 24, 2025)
+- ✅ **SEC-005:** IDOR protection in patient pages (already implemented, confirmed Nov 24)
 - ✅ **SEC-006:** Twilio webhook signature verification (already implemented, confirmed Nov 24)
 - ✅ **SEC-007:** WhatsApp signature bypass removed (already fixed, confirmed Nov 24)
 - ✅ **SEC-008:** Stripe webhook signature verification (already implemented, confirmed Nov 24)
@@ -157,12 +158,19 @@ medicalcor-core/
   - `POST /webhooks/booking/text-selection` - WhatsApp signature required (lines 320-327)
 - **Security:** Attackers can no longer trigger fake bookings, spam the system, or manipulate patient data without valid credentials.
 
-#### SEC-005: IDOR Vulnerability in Patient Pages
+#### SEC-005: IDOR Vulnerability in Patient Pages ✅ RESOLVED
 
+- **Severity:** HIGH → **Status: RESOLVED (Already Implemented)**
 - **File:** `apps/web/src/app/patients/[id]/page.tsx`
-- **Lines:** 33-37
-- **Description:** Patient ID in URL can be changed to access any patient's data.
-- **Impact:** Unauthorized access to medical records.
+- **Description:** ~~Patient ID in URL could be changed to access any patient's data.~~ **RESOLVED:** Full IDOR protection with clinic-level access control.
+- **Implementation:**
+  - ✅ Calls `getPatientByIdAction(id)` with built-in IDOR protection (line 110)
+  - ✅ Server action uses `requirePatientAccess(patientId)` to verify clinic membership
+  - ✅ Catches `AuthorizationError` and shows access denied UI (lines 111-134)
+  - ✅ Custom `AccessDenied` component with clear messaging (lines 34-63)
+  - ✅ Prevents users from accessing patients in other clinics
+- **Security:** Users can only view patients within their assigned clinic. Attempts to access other patients result in "Acces Interzis" (Access Denied) message with ShieldAlert icon.
+- **Related:** Part of SEC-002 resolution - all server actions have authorization checks.
 
 ### 1.2 CRITICAL: Webhook Security
 
