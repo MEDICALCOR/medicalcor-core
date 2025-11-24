@@ -111,10 +111,10 @@ async function buildApp() {
   };
   await fastify.register(rateLimitPlugin, rateLimitConfig);
 
-  // API Key authentication for protected endpoints (workflows)
+  // API Key authentication for protected endpoints (workflows and booking webhooks)
   await fastify.register(apiAuthPlugin, {
     apiKeys: process.env.API_SECRET_KEY ? [process.env.API_SECRET_KEY] : [],
-    protectedPaths: ['/workflows'],
+    protectedPaths: ['/workflows', '/webhooks/booking'],
   });
 
   // Parse URL-encoded bodies (for Twilio webhooks)

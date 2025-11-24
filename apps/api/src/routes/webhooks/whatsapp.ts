@@ -178,8 +178,8 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
         }
       }
 
-      // Trigger all message handlers (fire and forget for fast response)
-      for (const { message, metadata, contact } of messageTasks) {
+      // Trigger all message handlers in parallel using Promise.allSettled
+      const messagePromises = messageTasks.map(({ message, metadata, contact }) => {
         const messagePayload = {
           message: {
             id: message.id,
@@ -200,7 +200,7 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
             },
           }),
         };
-        tasks
+        return tasks
           .trigger('whatsapp-message-handler', messagePayload, {
             idempotencyKey: IdempotencyKeys.whatsAppMessage(message.id),
           })
@@ -209,11 +209,12 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
               { err, messageId: message.id },
               'Failed to trigger WhatsApp message handler'
             );
+            throw err; // Re-throw so Promise.allSettled captures it
           });
-      }
+      });
 
-      // Trigger all status handlers
-      for (const status of statusTasks) {
+      // Trigger all status handlers in parallel using Promise.allSettled
+      const statusPromises = statusTasks.map((status) => {
         const statusPayload = {
           messageId: status.messageId,
           status: status.status,
@@ -222,7 +223,7 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
           correlationId,
           ...(status.errors && { errors: status.errors }),
         };
-        tasks
+        return tasks
           .trigger('whatsapp-status-handler', statusPayload, {
             idempotencyKey: IdempotencyKeys.whatsAppStatus(status.messageId, status.status),
           })
@@ -231,8 +232,12 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
               { err, messageId: status.messageId },
               'Failed to trigger WhatsApp status handler'
             );
+            throw err; // Re-throw so Promise.allSettled captures it
           });
-      }
+      });
+
+      // Execute all triggers in parallel (don't await - fire and forget for fast response)
+      void Promise.allSettled([...messagePromises, ...statusPromises]);
 
       // Always respond 200 immediately to acknowledge receipt
       // WhatsApp expects quick acknowledgment (<15s)
