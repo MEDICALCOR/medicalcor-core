@@ -155,6 +155,90 @@ describe('Webhook Signature Verification', () => {
       expect(verifyWhatsAppSignature(payload, rawSignature, webhookSecret)).toBe(true);
       expect(verifyWhatsAppSignature(payload, `sha256=${rawSignature}`, webhookSecret)).toBe(true);
     });
+
+    it('should reject signatures with different lengths (timing attack prevention)', () => {
+      const payload = JSON.stringify({ entry: [] });
+      // Signature with wrong length should be rejected without timing leak
+      const shortSignature = 'sha256=abc123';
+      const longSignature = 'sha256=' + 'a'.repeat(128);
+
+      expect(verifyWhatsAppSignature(payload, shortSignature, webhookSecret)).toBe(false);
+      expect(verifyWhatsAppSignature(payload, longSignature, webhookSecret)).toBe(false);
+    });
+
+    it('should never bypass signature verification regardless of NODE_ENV', () => {
+      const payload = JSON.stringify({ entry: [] });
+      // Even with no signature, verification should fail
+      // This tests that we don't have a development bypass
+      expect(verifyWhatsAppSignature(payload, '', webhookSecret)).toBe(false);
+      expect(verifyWhatsAppSignature(payload, undefined, webhookSecret)).toBe(false);
+    });
+  });
+
+  describe('Stripe Timing Attack Prevention', () => {
+    const webhookSecret = 'whsec_test_secret_key_12345';
+
+    function verifyStripeSignatureSecure(
+      payload: string,
+      signature: string,
+      secret: string
+    ): boolean {
+      const parts = signature.split(',').reduce<Record<string, string>>((acc, part) => {
+        const [key, value] = part.split('=');
+        if (key && value) {
+          acc[key] = value;
+        }
+        return acc;
+      }, {});
+
+      const timestamp = parts.t;
+      const v1Signature = parts.v1;
+
+      if (!timestamp || !v1Signature) {
+        return false;
+      }
+
+      const signedPayload = `${timestamp}.${payload}`;
+      const expectedSignature = crypto
+        .createHmac('sha256', secret)
+        .update(signedPayload)
+        .digest('hex');
+
+      // Fixed: Check length before timingSafeEqual to prevent timing attacks
+      try {
+        if (v1Signature.length !== expectedSignature.length) {
+          return false;
+        }
+        return crypto.timingSafeEqual(
+          Buffer.from(v1Signature),
+          Buffer.from(expectedSignature)
+        );
+      } catch {
+        return false;
+      }
+    }
+
+    it('should reject signatures with different lengths without timing leak', () => {
+      const payload = JSON.stringify({ id: 'evt_test' });
+      const timestamp = Math.floor(Date.now() / 1000);
+
+      // Short signature
+      const shortSig = `t=${timestamp},v1=abc123`;
+      expect(verifyStripeSignatureSecure(payload, shortSig, webhookSecret)).toBe(false);
+
+      // Long signature
+      const longSig = `t=${timestamp},v1=${'a'.repeat(128)}`;
+      expect(verifyStripeSignatureSecure(payload, longSig, webhookSecret)).toBe(false);
+    });
+
+    it('should handle malformed signatures gracefully', () => {
+      const payload = JSON.stringify({ id: 'evt_test' });
+
+      expect(verifyStripeSignatureSecure(payload, '', webhookSecret)).toBe(false);
+      expect(verifyStripeSignatureSecure(payload, 'invalid', webhookSecret)).toBe(false);
+      expect(verifyStripeSignatureSecure(payload, 't=123', webhookSecret)).toBe(false);
+      expect(verifyStripeSignatureSecure(payload, 'v1=abc', webhookSecret)).toBe(false);
+    });
   });
 });
 

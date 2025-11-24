@@ -44,8 +44,15 @@ function verifyStripeSignature(payload: string, signature: string, secret: strin
   const signedPayload = `${timestamp}.${payload}`;
   const expectedSignature = crypto.createHmac('sha256', secret).update(signedPayload).digest('hex');
 
-  // Constant-time comparison
-  return crypto.timingSafeEqual(Buffer.from(v1Signature), Buffer.from(expectedSignature));
+  // Constant-time comparison (with length check to prevent timing attacks via exceptions)
+  try {
+    if (v1Signature.length !== expectedSignature.length) {
+      return false;
+    }
+    return crypto.timingSafeEqual(Buffer.from(v1Signature), Buffer.from(expectedSignature));
+  } catch {
+    return false;
+  }
 }
 
 export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {

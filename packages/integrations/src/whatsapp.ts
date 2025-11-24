@@ -1,5 +1,49 @@
-import { withRetry, ExternalServiceError, WebhookSignatureError } from '@medicalcor/core';
+import { withRetry, ExternalServiceError, WebhookSignatureError, RateLimitError } from '@medicalcor/core';
 import crypto from 'crypto';
+import { z } from 'zod';
+
+/**
+ * Input validation schemas for WhatsApp client
+ */
+const PhoneSchema = z.string().min(10).max(15).regex(/^\+?[1-9]\d{9,14}$/, 'Invalid phone number format');
+
+const SendTextOptionsSchema = z.object({
+  to: PhoneSchema,
+  text: z.string().min(1).max(4096, 'Message text too long (max 4096 chars)'),
+  previewUrl: z.boolean().optional(),
+});
+
+const TemplateComponentSchema = z.object({
+  type: z.enum(['header', 'body', 'button']),
+  parameters: z.array(z.object({
+    type: z.enum(['text', 'image', 'document', 'video']),
+    text: z.string().optional(),
+    image: z.object({ link: z.string().url() }).optional(),
+    document: z.object({ link: z.string().url(), filename: z.string().optional() }).optional(),
+    video: z.object({ link: z.string().url() }).optional(),
+  })).optional(),
+  sub_type: z.enum(['quick_reply', 'url']).optional(),
+  index: z.string().optional(),
+});
+
+const SendTemplateOptionsSchema = z.object({
+  to: PhoneSchema,
+  templateName: z.string().min(1).max(512).regex(/^[a-z0-9_]+$/, 'Template name must be lowercase alphanumeric with underscores'),
+  language: z.string().min(2).max(5).optional(),
+  components: z.array(TemplateComponentSchema).optional(),
+});
+
+const WhatsAppClientConfigSchema = z.object({
+  apiKey: z.string().min(1, 'API key is required'),
+  phoneNumberId: z.string().min(1, 'Phone number ID is required'),
+  businessAccountId: z.string().optional(),
+  webhookSecret: z.string().optional(),
+  baseUrl: z.string().url().optional(),
+  retryConfig: z.object({
+    maxRetries: z.number().int().min(0).max(10),
+    baseDelayMs: z.number().int().min(100).max(30000),
+  }).optional(),
+});
 
 /**
  * 360dialog WhatsApp Business API Client
@@ -59,15 +103,19 @@ export class WhatsAppClient {
   private baseUrl: string;
 
   constructor(config: WhatsAppClientConfig) {
-    this.config = config;
-    this.baseUrl = config.baseUrl ?? 'https://waba.360dialog.io/v1';
+    // Validate config at construction time
+    const validatedConfig = WhatsAppClientConfigSchema.parse(config);
+    this.config = validatedConfig;
+    this.baseUrl = validatedConfig.baseUrl ?? 'https://waba.360dialog.io/v1';
   }
 
   /**
    * Send a text message
    */
   async sendText(options: SendTextOptions): Promise<MessageResponse> {
-    const { to, text, previewUrl = false } = options;
+    // Validate input
+    const validated = SendTextOptionsSchema.parse(options);
+    const { to, text, previewUrl = false } = validated;
 
     return this.request<MessageResponse>('/messages', {
       method: 'POST',
@@ -88,7 +136,9 @@ export class WhatsAppClient {
    * Send a template message
    */
   async sendTemplate(options: SendTemplateOptions): Promise<MessageResponse> {
-    const { to, templateName, language = 'ro', components } = options;
+    // Validate input
+    const validated = SendTemplateOptionsSchema.parse(options);
+    const { to, templateName, language = 'ro', components } = validated;
 
     return this.request<MessageResponse>('/messages', {
       method: 'POST',
@@ -331,6 +381,7 @@ export class WhatsAppClient {
    */
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.baseUrl}${path}`;
+    const timeoutMs = 30000; // 30 second timeout
 
     const makeRequest = async () => {
       const existingHeaders =
@@ -338,25 +389,40 @@ export class WhatsAppClient {
           ? Object.fromEntries(options.headers.entries())
           : (options.headers as Record<string, string> | undefined);
 
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          'D360-API-KEY': this.config.apiKey,
-          'Content-Type': 'application/json',
-          ...existingHeaders,
-        },
-      });
+      // Create abort controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-      if (response.status === 429) {
-        throw new RateLimitError(60);
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal,
+          headers: {
+            'D360-API-KEY': this.config.apiKey,
+            'Content-Type': 'application/json',
+            ...existingHeaders,
+          },
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.status === 429) {
+          throw new RateLimitError(60);
+        }
+
+        if (!response.ok) {
+          const errorBody = await response.text();
+          throw new ExternalServiceError('WhatsApp', `${response.status}: ${errorBody}`);
+        }
+
+        return response.json() as Promise<T>;
+      } catch (error) {
+        clearTimeout(timeoutId);
+        if (error instanceof Error && error.name === 'AbortError') {
+          throw new ExternalServiceError('WhatsApp', `Request timeout after ${timeoutMs}ms`);
+        }
+        throw error;
       }
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        throw new ExternalServiceError('WhatsApp', `${response.status}: ${errorBody}`);
-      }
-
-      return response.json() as Promise<T>;
     };
 
     return withRetry(makeRequest, {
@@ -369,13 +435,6 @@ export class WhatsAppClient {
         return false;
       },
     });
-  }
-}
-
-class RateLimitError extends Error {
-  constructor(public retryAfter: number) {
-    super(`Rate limited. Retry after ${retryAfter} seconds`);
-    this.name = 'RateLimitError';
   }
 }
 

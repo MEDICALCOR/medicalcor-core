@@ -1,4 +1,5 @@
-import { withRetry, ExternalServiceError } from '@medicalcor/core';
+import { withRetry, ExternalServiceError, RateLimitError } from '@medicalcor/core';
+import { z } from 'zod';
 import type {
   HubSpotContact,
   HubSpotContactInput,
@@ -6,6 +7,46 @@ import type {
   HubSpotSearchResponse,
   HubSpotTask,
 } from '@medicalcor/types';
+
+/**
+ * Input validation schemas for HubSpot client
+ */
+const HubSpotClientConfigSchema = z.object({
+  accessToken: z.string().min(1, 'Access token is required'),
+  portalId: z.string().optional(),
+  baseUrl: z.string().url().optional(),
+  retryConfig: z.object({
+    maxRetries: z.number().int().min(0).max(10),
+    baseDelayMs: z.number().int().min(100).max(30000),
+  }).optional(),
+});
+
+const PhoneSchema = z.string().min(10).max(20);
+
+const SyncContactSchema = z.object({
+  phone: PhoneSchema,
+  name: z.string().max(256).optional(),
+  email: z.string().email().optional(),
+  properties: z.record(z.string()).optional(),
+});
+
+const TimelineEventInputSchema = z.object({
+  contactId: z.string().min(1),
+  message: z.string().min(1).max(65535),
+  direction: z.enum(['IN', 'OUT']),
+  channel: z.enum(['whatsapp', 'voice', 'email', 'web']),
+  messageId: z.string().optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
+
+const TaskInputSchema = z.object({
+  contactId: z.string().min(1),
+  subject: z.string().min(1).max(512),
+  body: z.string().max(65535).optional(),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
+  dueDate: z.date().optional(),
+  ownerId: z.string().optional(),
+});
 
 /**
  * HubSpot CRM Integration Client
@@ -45,8 +86,10 @@ export class HubSpotClient {
   private baseUrl: string;
 
   constructor(config: HubSpotClientConfig) {
-    this.config = config;
-    this.baseUrl = config.baseUrl ?? 'https://api.hubapi.com';
+    // Validate config at construction time
+    const validatedConfig = HubSpotClientConfigSchema.parse(config);
+    this.config = validatedConfig;
+    this.baseUrl = validatedConfig.baseUrl ?? 'https://api.hubapi.com';
   }
 
   /**
@@ -58,7 +101,9 @@ export class HubSpotClient {
     email?: string;
     properties?: Record<string, string>;
   }): Promise<HubSpotContact> {
-    const { phone, name, email, properties } = data;
+    // Validate input
+    const validated = SyncContactSchema.parse(data);
+    const { phone, name, email, properties } = validated;
 
     // First, search for existing contact by phone
     const existingContacts = await this.searchContactsByPhone(phone);
@@ -274,7 +319,9 @@ export class HubSpotClient {
    * Create a task associated with a contact
    */
   async createTask(input: TaskInput): Promise<HubSpotTask> {
-    const { contactId, subject, body, priority, dueDate, ownerId } = input;
+    // Validate input
+    const validated = TaskInputSchema.parse(input);
+    const { contactId, subject, body, priority, dueDate, ownerId } = validated;
 
     const taskData: HubSpotTask = {
       properties: {
@@ -365,6 +412,7 @@ export class HubSpotClient {
    */
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.baseUrl}${path}`;
+    const timeoutMs = 30000; // 30 second timeout
 
     const makeRequest = async () => {
       let customHeaders: Record<string, string> = {};
@@ -377,27 +425,42 @@ export class HubSpotClient {
         customHeaders = options.headers as Record<string, string>;
       }
 
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          Authorization: `Bearer ${this.config.accessToken}`,
-          'Content-Type': 'application/json',
-          ...customHeaders,
-        },
-      });
+      // Create abort controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-      if (response.status === 429) {
-        // Rate limited - extract retry-after header
-        const retryAfter = parseInt(response.headers.get('Retry-After') ?? '5', 10);
-        throw new RateLimitError(retryAfter);
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal,
+          headers: {
+            Authorization: `Bearer ${this.config.accessToken}`,
+            'Content-Type': 'application/json',
+            ...customHeaders,
+          },
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.status === 429) {
+          // Rate limited - extract retry-after header
+          const retryAfter = parseInt(response.headers.get('Retry-After') ?? '5', 10);
+          throw new RateLimitError(retryAfter);
+        }
+
+        if (!response.ok) {
+          const errorBody = await response.text();
+          throw new ExternalServiceError('HubSpot', `${response.status}: ${errorBody}`);
+        }
+
+        return response.json() as Promise<T>;
+      } catch (error) {
+        clearTimeout(timeoutId);
+        if (error instanceof Error && error.name === 'AbortError') {
+          throw new ExternalServiceError('HubSpot', `Request timeout after ${timeoutMs}ms`);
+        }
+        throw error;
       }
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        throw new ExternalServiceError('HubSpot', `${response.status}: ${errorBody}`);
-      }
-
-      return response.json() as Promise<T>;
     };
 
     return withRetry(makeRequest, {
@@ -410,13 +473,6 @@ export class HubSpotClient {
         return false;
       },
     });
-  }
-}
-
-class RateLimitError extends Error {
-  constructor(public retryAfter: number) {
-    super(`Rate limited. Retry after ${retryAfter} seconds`);
-    this.name = 'RateLimitError';
   }
 }
 

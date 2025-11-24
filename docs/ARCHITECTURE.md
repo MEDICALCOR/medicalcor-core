@@ -209,22 +209,42 @@ classDiagram
 ## Security Considerations
 
 ### Webhook Security
-- HMAC signature verification for WhatsApp
-- Twilio signature validation
+- HMAC signature verification for WhatsApp (timing-safe comparison)
+- Twilio signature validation via official library
 - Stripe signature verification with timing-safe comparison
+- Vapi webhook verification with HMAC-SHA256
 - All webhooks return 200 quickly, process async
+- No signature bypass in any environment (development or production)
+
+### Rate Limiting
+- IP-based rate limiting per webhook type
+- Configurable limits (WhatsApp: 200/min, Stripe: 50/min, etc.)
+- Redis-backed for distributed deployments
+- Rate limit headers in responses
+
+### Input Validation
+- Zod schema validation on all webhook payloads
+- Phone number format validation (E.164)
+- Request timeout enforcement (30 seconds)
+- Bounded array sizes to prevent memory exhaustion
 
 ### Data Protection (GDPR)
 - PII redaction in logs (phone, email, message content)
 - Consent tracking in database
 - Data processor registry maintained
 - 2-year consent expiry with renewal flow
+- Automated consent audit via cron job
 
 ### Secrets Management
 - Zod validation on boot
 - Production requires all secrets
 - Development allows partial config
 - Secrets logged as "configured/missing" only
+
+### Error Handling
+- React Error Boundaries for graceful UI failures
+- Structured error responses with correlation IDs
+- No stack traces in production responses
 
 ## Infrastructure
 

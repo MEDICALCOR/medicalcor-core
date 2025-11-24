@@ -158,6 +158,12 @@ export interface ReferralInput {
 }
 
 /**
+ * Maximum number of messages to keep in history
+ * Prevents unbounded memory growth and keeps AI prompts focused
+ */
+const MAX_MESSAGE_HISTORY = 20;
+
+/**
  * LeadContext Builder
  *
  * Fluent builder for creating LeadContext objects with consistent
@@ -398,6 +404,7 @@ export class LeadContextBuilder {
 
   /**
    * Add a message to the conversation history
+   * Automatically caps history to MAX_MESSAGE_HISTORY (keeping most recent)
    */
   addMessage(role: MessageRole, content: string, timestamp?: string): this {
     this.context.messageHistory.push({
@@ -405,14 +412,25 @@ export class LeadContextBuilder {
       content,
       timestamp: timestamp ?? new Date().toISOString(),
     });
+
+    // Cap the array to prevent unbounded growth
+    if (this.context.messageHistory.length > MAX_MESSAGE_HISTORY) {
+      this.context.messageHistory = this.context.messageHistory.slice(-MAX_MESSAGE_HISTORY);
+    }
+
     return this;
   }
 
   /**
    * Set entire message history at once
+   * Automatically caps to MAX_MESSAGE_HISTORY (keeping most recent)
    */
   withMessageHistory(messages: MessageEntry[]): this {
-    this.context.messageHistory = messages;
+    // Cap the array to prevent unbounded growth
+    this.context.messageHistory =
+      messages.length > MAX_MESSAGE_HISTORY
+        ? messages.slice(-MAX_MESSAGE_HISTORY)
+        : messages;
     return this;
   }
 

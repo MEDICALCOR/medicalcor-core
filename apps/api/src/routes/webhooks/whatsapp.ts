@@ -15,10 +15,13 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
   function verifySignature(payload: string, signature: string | undefined): boolean {
     const secret = process.env['WHATSAPP_WEBHOOK_SECRET'];
     if (!secret) {
-      // Skip verification in development
+      // SECURITY: Never bypass signature verification
+      // In development, log a warning but still reject unsigned requests
       if (process.env['NODE_ENV'] !== 'production') {
-        fastify.log.warn('WHATSAPP_WEBHOOK_SECRET not configured, skipping signature verification');
-        return true;
+        fastify.log.warn(
+          'WHATSAPP_WEBHOOK_SECRET not configured - webhook requests will be rejected. ' +
+          'Set this environment variable to accept webhooks.'
+        );
       }
       return false;
     }
