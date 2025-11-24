@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { useWebSocket } from './use-websocket';
 import type {
   ConnectionState,
@@ -39,6 +40,8 @@ interface RealtimeContextValue {
   // Connection state
   connectionState: ConnectionState;
   isConnected: boolean;
+  isAuthenticated: boolean;
+  authError: string | null;
   connect: () => void;
   disconnect: () => void;
 
@@ -78,19 +81,51 @@ function formatTimeAgo(date: Date): string {
 }
 
 export function RealtimeProvider({ children, wsUrl }: RealtimeProviderProps) {
+  const { data: session, status: sessionStatus } = useSession();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [urgencies, setUrgencies] = useState<Urgency[]>([]);
   const [readUrgencies, setReadUrgencies] = useState<Set<string>>(new Set());
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // Use environment variable or provided URL
   const url = wsUrl ?? process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:3001/ws';
 
+  // SECURITY: Get auth token from session for WebSocket authentication
+  // The token is derived from the session - in production, use a dedicated WS token endpoint
+  const authToken = useMemo(() => {
+    if (sessionStatus !== 'authenticated' || !session?.user) {
+      return undefined;
+    }
+    // Use session user ID as token base - server should validate against session store
+    // In production, implement a proper token exchange mechanism
+    return btoa(JSON.stringify({
+      userId: session.user.id,
+      email: session.user.email,
+      timestamp: Date.now(),
+    }));
+  }, [session, sessionStatus]);
+
   const { connectionState, isConnected, connect, disconnect, subscribe } = useWebSocket({
     url,
+    authToken,
     onOpen: () => {
+      setAuthError(null);
       // Request initial state when connected
     },
+    onAuthError: (message) => {
+      setAuthError(message);
+      console.error('[Realtime] WebSocket authentication failed:', message);
+    },
   });
+
+  // Only auto-connect when authenticated
+  useEffect(() => {
+    if (sessionStatus === 'authenticated' && authToken) {
+      connect();
+    } else if (sessionStatus === 'unauthenticated') {
+      disconnect();
+    }
+  }, [sessionStatus, authToken, connect, disconnect]);
 
   // Handle new lead events
   useEffect(() => {
@@ -174,10 +209,14 @@ export function RealtimeProvider({ children, wsUrl }: RealtimeProviderProps) {
     [urgencies, readUrgencies]
   );
 
+  const isAuthenticated = sessionStatus === 'authenticated' && !!authToken;
+
   const value = useMemo<RealtimeContextValue>(
     () => ({
       connectionState,
       isConnected,
+      isAuthenticated,
+      authError,
       connect,
       disconnect,
       subscribe,
@@ -191,6 +230,8 @@ export function RealtimeProvider({ children, wsUrl }: RealtimeProviderProps) {
     [
       connectionState,
       isConnected,
+      isAuthenticated,
+      authError,
       connect,
       disconnect,
       subscribe,
@@ -227,6 +268,6 @@ export function useRealtimeUrgencies() {
 }
 
 export function useRealtimeConnection() {
-  const { connectionState, isConnected, connect, disconnect } = useRealtime();
-  return { connectionState, isConnected, connect, disconnect };
+  const { connectionState, isConnected, isAuthenticated, authError, connect, disconnect } = useRealtime();
+  return { connectionState, isConnected, isAuthenticated, authError, connect, disconnect };
 }
