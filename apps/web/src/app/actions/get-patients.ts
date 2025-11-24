@@ -537,7 +537,7 @@ export async function getTriageLeadsAction(): Promise<TriageColumn[]> {
         source: mapLeadSource(contact.properties.lead_source),
         time: formatRelativeTime(contact.createdAt),
         score: score > 0 ? score : undefined,
-        confidence: score > 0 ? 0.7 + Math.random() * 0.25 : undefined, // Simulated confidence
+        confidence: undefined, // Requires AI scoring integration
         reasoning:
           score >= 4
             ? 'High intent detected from conversation'
@@ -893,99 +893,156 @@ export async function getAnalyticsDataAction(
     // Fetch revenue
     const dailyRevenue = await getDailyRevenueAmount(stripe);
 
-    // Build metrics
+    // Get appointments count from SchedulingService
+    const scheduling = getSchedulingService();
+    const appointmentsCount = await getTodayAppointmentsCount(scheduling);
+
+    // Build metrics - using real data only, 0 for unavailable metrics
     const metrics: AnalyticsMetrics = {
       totalLeads,
       totalLeadsChange: Math.round(totalLeadsChange * 10) / 10,
       hotLeads: hotLeadsCount,
       hotLeadsChange: Math.round(hotLeadsChange * 10) / 10,
-      appointmentsScheduled: Math.floor(totalLeads * 0.4), // Estimated
-      appointmentsChange: 5.2,
+      appointmentsScheduled: appointmentsCount,
+      appointmentsChange: 0, // Requires historical appointment data
       conversionRate: Math.round(conversionRate * 10) / 10,
       conversionRateChange: Math.round(conversionRateChange * 10) / 10,
-      avgResponseTime: 8, // Would need messaging data
-      avgResponseTimeChange: -2.1,
+      avgResponseTime: 0, // Requires messaging service integration
+      avgResponseTimeChange: 0,
       revenue: dailyRevenue ?? 0,
-      revenueChange: 12.5,
+      revenueChange: 0, // Requires historical Stripe data comparison
     };
 
-    // Generate time series data
+    // Fetch time series data from HubSpot contacts created per day
     const leadsOverTime: TimeSeriesPoint[] = [];
     const appointmentsOverTime: TimeSeriesPoint[] = [];
+
+    // Aggregate leads by creation date from HubSpot
+    const leadsWithDates = await hubspot.searchContacts({
+      filterGroups: [
+        {
+          filters: [
+            { propertyName: 'lifecyclestage', operator: 'EQ', value: 'lead' },
+            { propertyName: 'createdate', operator: 'GTE', value: startDate.getTime().toString() },
+          ],
+        },
+      ],
+      properties: ['createdate'],
+      limit: 1000,
+    });
+
+    // Count leads per day
+    const leadsByDay = new Map<string, number>();
+    for (const contact of leadsWithDates.results) {
+      const dateStr = new Date(contact.createdAt).toISOString().split('T')[0] ?? '';
+      leadsByDay.set(dateStr, (leadsByDay.get(dateStr) ?? 0) + 1);
+    }
+
+    // Build time series
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
       const dateStr = date.toISOString().split('T')[0] ?? '';
       leadsOverTime.push({
         date: dateStr,
-        value: Math.floor(Math.random() * 20) + 5,
+        value: leadsByDay.get(dateStr) ?? 0,
       });
+      // Appointments need scheduling service integration
       appointmentsOverTime.push({
         date: dateStr,
-        value: Math.floor(Math.random() * 10) + 2,
+        value: 0, // Real data requires SchedulingService aggregation
       });
     }
 
-    // Leads by source
-    const leadsBySource: LeadsBySource[] = [
-      { source: 'WhatsApp', count: Math.floor(totalLeads * 0.45), color: '#25D366' },
-      { source: 'Voice', count: Math.floor(totalLeads * 0.25), color: '#3B82F6' },
-      { source: 'Web', count: Math.floor(totalLeads * 0.2), color: '#8B5CF6' },
-      { source: 'Referral', count: Math.floor(totalLeads * 0.1), color: '#F59E0B' },
-    ];
+    // Fetch leads by source from HubSpot
+    const sourceColors: Record<string, string> = {
+      whatsapp: '#25D366',
+      voice: '#3B82F6',
+      web_form: '#8B5CF6',
+      referral: '#F59E0B',
+      facebook: '#1877F2',
+      google: '#EA4335',
+      manual: '#6B7280',
+    };
 
-    // Conversion funnel
+    const leadsWithSource = await hubspot.searchContacts({
+      filterGroups: [
+        {
+          filters: [
+            { propertyName: 'lifecyclestage', operator: 'EQ', value: 'lead' },
+            { propertyName: 'createdate', operator: 'GTE', value: startDate.getTime().toString() },
+          ],
+        },
+      ],
+      properties: ['lead_source'],
+      limit: 1000,
+    });
+
+    // Count by source
+    const sourceCount = new Map<string, number>();
+    for (const contact of leadsWithSource.results) {
+      const source = mapLeadSource(contact.properties.lead_source);
+      sourceCount.set(source, (sourceCount.get(source) ?? 0) + 1);
+    }
+
+    const leadsBySource: LeadsBySource[] = Array.from(sourceCount.entries())
+      .map(([source, count]) => ({
+        source: source.charAt(0).toUpperCase() + source.slice(1).replace('_', ' '),
+        count,
+        color: sourceColors[source] ?? '#6B7280',
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    // Conversion funnel - based on actual HubSpot data
     const conversionFunnel: ConversionFunnelStep[] = [
       { name: 'Lead-uri noi', count: totalLeads, percentage: 100 },
-      { name: 'Calificați', count: Math.floor(totalLeads * 0.7), percentage: 70 },
-      { name: 'Contactați', count: Math.floor(totalLeads * 0.5), percentage: 50 },
-      { name: 'Consultație programată', count: Math.floor(totalLeads * 0.35), percentage: 35 },
-      { name: 'Consultație efectuată', count: Math.floor(totalLeads * 0.25), percentage: 25 },
       {
-        name: 'Procedură rezervată',
+        name: 'Calificați (HOT)',
+        count: hotLeadsCount,
+        percentage: totalLeads > 0 ? Math.round((hotLeadsCount / totalLeads) * 100) : 0,
+      },
+      {
+        name: 'Clienți',
         count: customersCount,
         percentage: Math.round(conversionRate),
       },
     ];
 
-    // Top procedures
-    const topProcedures: TopProcedure[] = [
-      { procedure: 'Implant dentar', count: Math.floor(totalLeads * 0.3), revenue: 15000 },
-      { procedure: 'All-on-X', count: Math.floor(totalLeads * 0.15), revenue: 45000 },
-      { procedure: 'Consultație', count: Math.floor(totalLeads * 0.25), revenue: 2500 },
-      { procedure: 'Cleaning', count: Math.floor(totalLeads * 0.2), revenue: 3000 },
-      { procedure: 'Extraction', count: Math.floor(totalLeads * 0.1), revenue: 2000 },
-    ];
+    // Top procedures - requires procedure_interest aggregation from HubSpot
+    const leadsWithProcedure = await hubspot.searchContacts({
+      filterGroups: [
+        {
+          filters: [
+            { propertyName: 'procedure_interest', operator: 'NEQ', value: '' },
+            { propertyName: 'createdate', operator: 'GTE', value: startDate.getTime().toString() },
+          ],
+        },
+      ],
+      properties: ['procedure_interest'],
+      limit: 1000,
+    });
 
-    // Operator performance (mock for now)
-    const operatorPerformance: OperatorPerformance[] = [
-      {
-        id: '1',
-        name: 'Ana Maria',
-        leadsHandled: 45,
-        conversions: 12,
-        conversionRate: 26.7,
-        avgResponseTime: 5.2,
-        satisfaction: 4.8,
-      },
-      {
-        id: '2',
-        name: 'Ion Popescu',
-        leadsHandled: 38,
-        conversions: 9,
-        conversionRate: 23.7,
-        avgResponseTime: 7.1,
-        satisfaction: 4.5,
-      },
-      {
-        id: '3',
-        name: 'Maria Ionescu',
-        leadsHandled: 32,
-        conversions: 10,
-        conversionRate: 31.3,
-        avgResponseTime: 4.8,
-        satisfaction: 4.9,
-      },
-    ];
+    const procedureCount = new Map<string, number>();
+    for (const contact of leadsWithProcedure.results) {
+      const procedures = contact.properties.procedure_interest?.split(',') ?? [];
+      for (const proc of procedures) {
+        const trimmed = proc.trim();
+        if (trimmed) {
+          procedureCount.set(trimmed, (procedureCount.get(trimmed) ?? 0) + 1);
+        }
+      }
+    }
+
+    const topProcedures: TopProcedure[] = Array.from(procedureCount.entries())
+      .map(([procedure, count]) => ({
+        procedure,
+        count,
+        revenue: 0, // Revenue requires Stripe integration per procedure
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    // Operator performance - requires user assignment tracking (not yet implemented)
+    const operatorPerformance: OperatorPerformance[] = [];
 
     return {
       metrics,
@@ -1108,10 +1165,10 @@ export async function getConversationsAction(): Promise<Conversation[]> {
         phone: maskPhone(contact.properties.phone ?? '+40700000000'),
         channel,
         status: convStatus,
-        unreadCount: Math.floor(Math.random() * 3), // Would need actual message data
+        unreadCount: 0, // Requires WhatsApp/messaging service integration
         lastMessage: {
-          content: 'Bună ziua, vă mulțumesc pentru informații.',
-          direction: Math.random() > 0.5 ? 'IN' : ('OUT' as const),
+          content: '', // No message data available without messaging service
+          direction: 'IN' as const,
           timestamp: new Date(contact.updatedAt),
         },
         updatedAt: new Date(contact.updatedAt),
@@ -1127,49 +1184,17 @@ export async function getConversationsAction(): Promise<Conversation[]> {
 
 /**
  * Fetches messages for a conversation
- * Note: This would need integration with actual messaging service (WhatsApp, etc.)
+ * Requires WhatsApp Business API or database integration to store message history.
+ * Currently returns empty array until messaging storage is implemented.
  */
-export async function getMessagesAction(conversationId: string): Promise<Message[]> {
-  // Simulate async operation (in production, this would fetch from database/WhatsApp API)
-  await Promise.resolve();
+export async function getMessagesAction(_conversationId: string): Promise<Message[]> {
+  // Real implementation requires:
+  // 1. WhatsApp Business API integration to fetch message history
+  // 2. Or a database table to store incoming/outgoing messages
+  // Currently no messaging storage is configured
 
-  try {
-    // For now, return mock messages since we don't have direct WhatsApp message storage
-    // In production, this would fetch from a messages table or WhatsApp Business API
-    const messages: Message[] = [
-      {
-        id: `${conversationId}-1`,
-        conversationId,
-        content: 'Bună ziua! Sunt interesat de serviciile dvs. pentru implant dentar.',
-        direction: 'IN',
-        status: 'read',
-        timestamp: new Date(Date.now() - 3600000 * 2),
-        senderName: 'Pacient',
-      },
-      {
-        id: `${conversationId}-2`,
-        conversationId,
-        content:
-          'Bună ziua! Vă mulțumim pentru interes. Vom programa o consultație pentru evaluare. Ce date vă sunt convenabile?',
-        direction: 'OUT',
-        status: 'delivered',
-        timestamp: new Date(Date.now() - 3600000),
-        senderName: 'Operator',
-      },
-      {
-        id: `${conversationId}-3`,
-        conversationId,
-        content: 'Săptămâna viitoare, de preferință dimineața.',
-        direction: 'IN',
-        status: 'read',
-        timestamp: new Date(Date.now() - 1800000),
-        senderName: 'Pacient',
-      },
-    ];
+  await Promise.resolve(); // Async operation placeholder
 
-    return messages;
-  } catch (error) {
-    console.error('[getMessagesAction] Failed to fetch messages:', error);
-    return [];
-  }
+  // Return empty array - no message data available without messaging service integration
+  return [];
 }
