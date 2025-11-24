@@ -14,17 +14,18 @@ This comprehensive code audit of the MedicalCor Core medical CRM platform identi
 
 ### Issue Summary by Severity
 
-| Severity | Count | Resolved | Immediate Action Required |
-|----------|-------|----------|---------------------------|
-| **CRITICAL** | 15 | 4 ✅ | Yes - Block deployment |
-| **HIGH** | 31 | 0 | Yes - This sprint |
-| **MEDIUM** | 37 | 1 ✅ | Short-term - Next sprint |
-| **LOW** | 15 | 0 | Medium-term backlog |
+| Severity     | Count | Resolved | Immediate Action Required |
+| ------------ | ----- | -------- | ------------------------- |
+| **CRITICAL** | 15    | 5 ✅     | Yes - Block deployment    |
+| **HIGH**     | 31    | 0        | Yes - This sprint         |
+| **MEDIUM**   | 37    | 1 ✅     | Short-term - Next sprint  |
+| **LOW**      | 15    | 0        | Medium-term backlog       |
 
 ### Recent Resolutions
 
 - ✅ **SEC-001:** Complete NextAuth.js authentication system (already implemented, documented Nov 24)
 - ✅ **SEC-002:** All server actions protected with authorization (Nov 24, 2025)
+- ✅ **SEC-003:** API key authentication for workflow endpoints (already implemented, documented Nov 24)
 - ✅ **SEC-006:** Twilio webhook signature verification (already implemented, confirmed Nov 24)
 - ✅ **SEC-008:** Stripe webhook signature verification (already implemented, confirmed Nov 24)
 - ✅ **PERF-007:** Cursor-based pagination implemented (Nov 24, 2025)
@@ -34,7 +35,7 @@ This comprehensive code audit of the MedicalCor Core medical CRM platform identi
 1. ~~**No authentication system**~~ ✅ **RESOLVED** - NextAuth.js implemented
 2. ~~**Server actions lack authorization**~~ ✅ **RESOLVED** - All actions protected
 3. ~~**Missing webhook signature verification**~~ ✅ **RESOLVED** - Twilio & Stripe verified
-4. **No authorization on workflow trigger endpoints** - anyone can trigger workflows (SEC-003)
+4. ~~**No authorization on workflow trigger endpoints**~~ ✅ **RESOLVED** - API key authentication
 5. **WhatsApp signature bypass in development** - allows forged webhooks (SEC-007)
 6. **N+1 query patterns** in cron jobs causing performance degradation (PERF-001)
 
@@ -65,6 +66,7 @@ medicalcor-core/
 ### 1.1 CRITICAL: Authentication & Authorization
 
 #### SEC-001: No Authentication System in Web App ✅ RESOLVED
+
 - **Severity:** CRITICAL → **Status: RESOLVED (Nov 24, 2025)**
 - **Location:** `apps/web/` (entire application)
 - **Description:** ~~The web application has NO authentication system whatsoever.~~ **RESOLVED:** Complete NextAuth.js v5 authentication system implemented.
@@ -90,6 +92,7 @@ medicalcor-core/
 - **Related:** SEC-002 also resolved - all server actions protected
 
 #### SEC-002: Server Actions Lack Authorization ✅ RESOLVED
+
 - **Severity:** CRITICAL → **Status: RESOLVED (Nov 24, 2025)**
 - **File:** `apps/web/src/app/actions/get-patients.ts`
 - **Description:** ~~All server actions fetch sensitive data without authorization.~~ **RESOLVED:** All server actions now have proper authorization checks.
@@ -111,26 +114,38 @@ medicalcor-core/
   - `getPatientTimelineAction` - requires VIEW_PATIENTS + IDOR check
 - **Impact:** Unauthorized access to patient data now blocked. HIPAA/GDPR compliant.
 
-#### SEC-003: Missing Auth on Workflow Endpoints
+#### SEC-003: Missing Auth on Workflow Endpoints ✅ RESOLVED
+
+- **Severity:** CRITICAL → **Status: RESOLVED (Already Implemented)**
 - **File:** `apps/api/src/routes/workflows.ts`
-- **Lines:** 63-308
-- **Description:** All workflow trigger endpoints are publicly accessible without authentication.
-```typescript
-// Line 69 - No authentication
-fastify.post('/workflows/lead-score', async (request, reply) => {
-  const parseResult = LeadScorePayloadSchema.safeParse(request.body);
-  // Anyone can trigger this workflow
-```
-- **Impact:** Attackers can trigger workflows, spam systems, manipulate data.
-- **Recommendation:** Add API key or JWT authentication middleware.
+- **Description:** ~~All workflow trigger endpoints are publicly accessible without authentication.~~ **RESOLVED:** Full API key authentication middleware implemented.
+- **Implementation:**
+  - ✅ API key authentication plugin (`apps/api/src/plugins/api-auth.ts`)
+  - ✅ Timing-safe API key comparison with `crypto.timingSafeEqual()`
+  - ✅ All `/workflows/*` paths protected automatically
+  - ✅ Requires `x-api-key` header in all requests
+  - ✅ Returns 401 Unauthorized for missing/invalid keys
+  - ✅ Configured via `API_SECRET_KEY` environment variable
+  - ✅ Registered in `apps/api/src/app.ts` (lines 114-118)
+  - ✅ Complete documentation in `docs/API_AUTHENTICATION.md`
+- **Protected Endpoints:**
+  - `POST /workflows/lead-score` - Trigger lead scoring
+  - `POST /workflows/patient-journey` - Trigger patient journey
+  - `POST /workflows/nurture-sequence` - Trigger nurture sequence
+  - `POST /workflows/booking-agent` - Trigger booking agent
+  - `GET /workflows/status/:taskId` - Get workflow status
+- **Security:** Only clients with valid API key can trigger workflows. Timing-safe comparison prevents timing attacks.
+- **Usage:** See `docs/API_AUTHENTICATION.md` for complete guide
 
 #### SEC-004: Missing Auth on Booking Webhooks
+
 - **File:** `apps/api/src/routes/webhooks/booking.ts`
 - **Lines:** 55-161, 167-223, 229-292
 - **Description:** Booking endpoints have no authentication or signature verification.
 - **Impact:** Attackers can book appointments, spam the system, manipulate patient data.
 
 #### SEC-005: IDOR Vulnerability in Patient Pages
+
 - **File:** `apps/web/src/app/patients/[id]/page.tsx`
 - **Lines:** 33-37
 - **Description:** Patient ID in URL can be changed to access any patient's data.
@@ -139,6 +154,7 @@ fastify.post('/workflows/lead-score', async (request, reply) => {
 ### 1.2 CRITICAL: Webhook Security
 
 #### SEC-006: Missing Twilio Signature Verification ✅ RESOLVED
+
 - **Severity:** CRITICAL → **Status: RESOLVED (Already Implemented)**
 - **File:** `apps/api/src/routes/webhooks/voice.ts`
 - **Description:** ~~Twilio webhook endpoints do not verify signatures.~~ **RESOLVED:** Full HMAC-SHA1 signature verification implemented.
@@ -154,8 +170,10 @@ fastify.post('/workflows/lead-score', async (request, reply) => {
 - **Reference:** https://www.twilio.com/docs/usage/security#validating-requests
 
 #### SEC-007: WhatsApp Signature Bypass in Development
+
 - **File:** `apps/api/src/routes/webhooks/whatsapp.ts`
 - **Lines:** 15-24
+
 ```typescript
 function verifySignature(payload: string, signature: string | undefined): boolean {
   const secret = process.env['WHATSAPP_WEBHOOK_SECRET'];
@@ -164,10 +182,12 @@ function verifySignature(payload: string, signature: string | undefined): boolea
       return true;  // DANGEROUS: Bypasses verification!
     }
 ```
+
 - **Impact:** Non-production environments can have webhooks forged.
 - **Recommendation:** Never return `true` without verification.
 
 #### SEC-008: Missing Stripe Webhook Verification ✅ RESOLVED
+
 - **Severity:** CRITICAL → **Status: RESOLVED (Already Implemented)**
 - **File:** `apps/api/src/routes/webhooks/stripe.ts`
 - **Description:** ~~No webhook signature verification.~~ **RESOLVED:** Full HMAC-SHA256 signature verification implemented.
@@ -184,6 +204,7 @@ function verifySignature(payload: string, signature: string | undefined): boolea
 - **Reference:** https://stripe.com/docs/webhooks/signatures
 
 #### SEC-009: Vapi Webhook Payload Not Validated
+
 - **File:** `packages/integrations/src/vapi.ts`
 - **Lines:** 421-450
 - **Description:** Webhook payloads are cast without proper Zod validation or signature verification.
@@ -191,49 +212,62 @@ function verifySignature(payload: string, signature: string | undefined): boolea
 ### 1.3 HIGH: Input Validation
 
 #### SEC-010: No Input Validation Before External API Calls
+
 - **Files:** All integration clients
 - **Description:** Phone numbers, emails, and other inputs are not validated before API calls.
+
 ```typescript
 // hubspot.ts line 55 - No validation
 async syncContact(data: { phone: string; name?: string; ... }) {
   const { phone, name, email } = data;
   // phone could be malformed, SQL injection attempt, etc.
 ```
+
 - **Recommendation:** Add Zod validation at integration boundaries.
 
 #### SEC-011: Unvalidated Route Parameters
+
 - **File:** `apps/api/src/routes/workflows.ts`
 - **Line:** 316
+
 ```typescript
 const { taskId } = request.params as { taskId: string };
 // taskId not validated - could contain injection payloads
 ```
 
 #### SEC-012: Query Parameter Type Assertion
+
 - **File:** `apps/api/src/routes/webhooks/whatsapp.ts`
 - **Lines:** 52-56
+
 ```typescript
-const query = request.query as Record<string, string>;  // Unsafe
+const query = request.query as Record<string, string>; // Unsafe
 ```
 
 ### 1.4 HIGH: Data Protection
 
 #### SEC-013: API Error Responses Leak Sensitive Data
+
 - **Files:** `packages/integrations/src/hubspot.ts:396`, `stripe.ts:216`, `whatsapp.ts:354`, `vapi.ts:217`, `openai.ts:77`
+
 ```typescript
 throw new ExternalServiceError('HubSpot', `${response.status}: ${errorBody}`);
 // errorBody may contain PII from API response
 ```
+
 - **Recommendation:** Log full error internally, throw generic message.
 
 #### SEC-014: Incomplete PII Redaction
+
 - **Files:** `packages/core/src/logger.ts:9-34`, `packages/core/src/logger/redaction.ts:105-120`
 - **Description:** Phone regex only matches Romanian numbers. Missing patterns for international phones, SSN, DOB, medical record numbers.
+
 ```typescript
 phone: /(\+?40|0040|0)?[0-9]{9,10}/g,  // Only Romanian phones
 ```
 
 #### SEC-015: OpenAI Prompt Injection Vulnerability
+
 - **File:** `packages/integrations/src/openai.ts`
 - **Lines:** 242-254
 - **Description:** User message content is directly interpolated into prompts without sanitization.
@@ -242,30 +276,36 @@ phone: /(\+?40|0040|0)?[0-9]{9,10}/g,  // Only Romanian phones
 ### 1.5 MEDIUM: Infrastructure Security
 
 #### SEC-016: Insecure WebSocket Connection
+
 - **File:** `apps/web/src/lib/realtime/context.tsx`
 - **Line:** 86
+
 ```typescript
 const url = wsUrl ?? process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:3001/ws';
 // Defaults to unencrypted ws:// instead of wss://
 ```
 
 #### SEC-017: No WebSocket Authentication
+
 - **File:** `apps/web/src/lib/realtime/use-websocket.ts`
 - **Lines:** 59-62
 - **Description:** WebSocket connections have no authentication mechanism.
 
 #### SEC-018: API Keys Stored as Plain Strings
+
 - **Files:** All integration clients
 - **Description:** API keys stored in class instance memory as plain strings.
 - **Recommendation:** Consider retrieving from environment on each use.
 
 #### SEC-019: VIP Phone List Not Secure
+
 - **File:** `packages/domain/src/triage/triage-service.ts`
 - **Lines:** 28-32, 203-205
 - **Description:** VIP phone numbers stored as plain text in config.
 - **Recommendation:** Store hashed phone numbers.
 
 #### SEC-020: Missing Rate Limiting on Workflow Routes
+
 - **File:** `apps/api/src/plugins/rate-limit.ts`
 - **Lines:** 73-80
 - **Description:** Workflow endpoints use default 1000 req/min limit.
@@ -277,6 +317,7 @@ const url = wsUrl ?? process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:3001/ws';
 ### 2.1 CRITICAL: N+1 Query Patterns
 
 #### PERF-001: Sequential API Calls in Cron Job Loops
+
 - **File:** `apps/trigger/src/jobs/cron-jobs.ts`
 - **Locations:**
   - `dailyRecallCheck`: Lines 157-179
@@ -284,16 +325,19 @@ const url = wsUrl ?? process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:3001/ws';
   - `leadScoringRefresh`: Lines 399-428
   - `staleLeadCleanup`: Lines 605-617
   - `gdprConsentAudit`: Lines 685-728
+
 ```typescript
 // Each loop iteration makes 1-2 sequential API calls
 for (const contact of recallDueContacts.results) {
   await nurtureSequenceWorkflow.trigger({ ... });  // N+1!
 }
 ```
+
 - **Impact:** 100 contacts = 100-200 sequential API calls, causing timeouts and rate limiting.
 - **Recommendation:** Use `Promise.allSettled()` with batching (batch size 10).
 
 #### PERF-002: N+1 in WhatsApp Webhook Handler
+
 - **File:** `apps/api/src/routes/webhooks/whatsapp.ts`
 - **Lines:** 163-201
 - **Description:** Tasks triggered sequentially in loops instead of parallel.
@@ -301,22 +345,32 @@ for (const contact of recallDueContacts.results) {
 ### 2.2 HIGH: Memory Issues
 
 #### PERF-003: Memory Leak - setInterval Not Cleared
+
 - **File:** `apps/web/src/components/pwa/service-worker-registration.tsx`
 - **Lines:** 22-27
+
 ```typescript
-setInterval(() => { void registration.update(); }, 60 * 60 * 1000);
+setInterval(
+  () => {
+    void registration.update();
+  },
+  60 * 60 * 1000
+);
 // Never cleared on component unmount!
 ```
 
 #### PERF-004: Unbounded Array Growth
+
 - **File:** `apps/web/src/lib/realtime/context.tsx`
 - **Line:** 147
+
 ```typescript
-setUrgencies((prev) => [newUrgency, ...prev]);  // No limit!
+setUrgencies((prev) => [newUrgency, ...prev]); // No limit!
 // Unlike leads which is capped at 50
 ```
 
 #### PERF-005: AI Copilot Messages Unbounded
+
 - **File:** `apps/web/src/lib/ai/use-ai-copilot.ts`
 - **Lines:** 48-53
 - **Description:** Chat message array grows without limit.
@@ -324,21 +378,26 @@ setUrgencies((prev) => [newUrgency, ...prev]);  // No limit!
 ### 2.3 HIGH: Missing Caching & Pagination
 
 #### PERF-006: No Caching in Analytics Server Action
+
 - **File:** `apps/web/src/app/actions/get-patients.ts`
 - **Lines:** 767-1099
 - **Description:** `getAnalyticsDataAction` makes 10+ HubSpot API calls on every page load.
 - **Recommendation:** Add `unstable_cache` or Redis caching layer.
 
 #### PERF-007: Fetching 1000 Records Without Pagination
+
 - **File:** `apps/web/src/app/actions/get-patients.ts`
 - **Lines:** 939, 994, 1038
+
 ```typescript
 limit: 1000,  // No cursor-based pagination
 ```
 
 #### PERF-008: In-Memory Scheduling Service
+
 - **File:** `packages/domain/src/scheduling/scheduling-service.ts`
 - **Lines:** 88-91
+
 ```typescript
 private appointments: Map<string, Appointment> = new Map();
 private slots: Map<string, TimeSlot> = new Map();
@@ -348,19 +407,24 @@ private slots: Map<string, TimeSlot> = new Map();
 ### 2.4 MEDIUM: Algorithm Efficiency
 
 #### PERF-009: O(n²) Pattern in Calendar Slots
+
 - **File:** `apps/web/src/app/actions/get-patients.ts`
 - **Lines:** 670-689
+
 ```typescript
 for (const apt of appointments) {
   const existingIndex = allSlots.findIndex((s) => s.time === apt.slot.startTime);
   // O(n) find inside O(n) loop = O(n²)
 }
 ```
+
 - **Recommendation:** Use Map for O(1) lookups.
 
 #### PERF-010: O(n) Search in Contact Mapping
+
 - **File:** `apps/web/src/app/actions/get-patients.ts`
 - **Line:** 532
+
 ```typescript
 const apt = appointments.find((a) => a.hubspotContactId === contact.id);
 // Called for every contact being mapped
@@ -373,6 +437,7 @@ const apt = appointments.find((a) => a.hubspotContactId === contact.id);
 ### 3.1 CRITICAL: Code Duplication
 
 #### QUAL-001: getClients() Function Duplicated 7 Times
+
 - **Files:**
   - `apps/trigger/src/workflows/patient-journey.ts:18`
   - `apps/trigger/src/jobs/cron-jobs.ts:22`
@@ -385,32 +450,40 @@ const apt = appointments.find((a) => a.hubspotContactId === contact.id);
 - **Recommendation:** Create shared `packages/core/src/client-factory.ts`.
 
 #### QUAL-002: RateLimitError Class Duplicated 5 Times
+
 - **Files:** `stripe.ts:237`, `hubspot.ts:416`, `whatsapp.ts:375`, `scheduling.ts:372`, `errors.ts:77`
 - **Description:** Each integration creates its own `RateLimitError` instead of using the shared one from `@medicalcor/core`.
 
 ### 3.2 HIGH: Type Safety Issues
 
 #### QUAL-003: PostgresEventStore Uses `unknown` with Unsafe Casts
+
 - **File:** `packages/core/src/event-store.ts`
 - **Lines:** 90, 114-148, 176-217
+
 ```typescript
-private pool: unknown; // pg.Pool - imported dynamically
+pool: unknown; // pg.Pool - imported dynamically
 const client = await (this.pool as { connect: () => Promise<unknown> }).connect();
 ```
+
 - **Impact:** TypeScript protections bypassed; runtime errors possible.
 
 #### QUAL-004: Unsafe JSON.parse with Type Assertion
+
 - **File:** `packages/domain/src/scoring/scoring-service.ts`
 - **Line:** 276
+
 ```typescript
 const parsed = JSON.parse(jsonMatch[0]) as ScoringOutput;
 // No validation - malformed JSON causes runtime errors
 ```
 
 #### QUAL-005: Non-null Assertions in Critical Code
+
 - **Files:**
   - `packages/domain/src/scheduling/scheduling-service.ts:336`
   - `packages/domain/src/scoring/scoring-service.ts:86`
+
 ```typescript
 this.slots.get(slotId)!.available  // Could be undefined
 await this.openai!.chat.completions.create({  // Could be null
@@ -419,8 +492,10 @@ await this.openai!.chat.completions.create({  // Could be null
 ### 3.3 HIGH: Error Handling Gaps
 
 #### QUAL-006: Silent Error Swallowing
+
 - **File:** `packages/domain/src/scoring/scoring-service.ts`
 - **Line:** 294
+
 ```typescript
 } catch {
   return { score: 2, classification: 'COLD', ... };  // No logging!
@@ -428,8 +503,10 @@ await this.openai!.chat.completions.create({  // Could be null
 ```
 
 #### QUAL-007: Empty Catch Blocks
+
 - **File:** `apps/web/src/lib/notifications/use-notifications.ts`
 - **Lines:** 25-27, 59-61, 200-203
+
 ```typescript
 } catch {
   // Invalid JSON, use defaults
@@ -439,6 +516,7 @@ await this.openai!.chat.completions.create({  // Could be null
 ### 3.4 MEDIUM: Console Statements in Production
 
 #### QUAL-008: Console.log/error in Server Actions
+
 - **File:** `apps/web/src/app/actions/get-patients.ts`
 - **Lines:** 53, 222, 272, 350, 375, 391, 606, 697, 1074, 1197
 - **Description:** 11+ console statements should use structured logger.
@@ -446,16 +524,20 @@ await this.openai!.chat.completions.create({  // Could be null
 ### 3.5 MEDIUM: Magic Numbers
 
 #### QUAL-009: HubSpot Association Type IDs
+
 - **File:** `packages/integrations/src/hubspot.ts`
 - **Lines:** 217, 256, 294, 354
+
 ```typescript
 associationTypeId: 202,  // What is this?
 associationTypeId: 194,  // Magic number
 ```
 
 #### QUAL-010: Hardcoded Timing Values
+
 - **File:** `apps/trigger/src/jobs/cron-jobs.ts`
 - **Lines:** 300-316
+
 ```typescript
 delays: [24, 72, 168], // hours - hardcoded business logic
 ```
@@ -468,14 +550,15 @@ delays: [24, 72, 168], // hours - hardcoded business logic
 
 **Overall Estimated Test Coverage: ~35-40%**
 
-| Area | Source Files | Test Files | Coverage |
-|------|--------------|------------|----------|
-| Domain Package | 5 services | 2 tests | 40% |
-| Integrations | 6 clients | 1 test | ~17% |
-| Web App | 50+ files | 0 tests | 0% |
-| API | 10+ routes | 1 test | ~10% |
+| Area           | Source Files | Test Files | Coverage |
+| -------------- | ------------ | ---------- | -------- |
+| Domain Package | 5 services   | 2 tests    | 40%      |
+| Integrations   | 6 clients    | 1 test     | ~17%     |
+| Web App        | 50+ files    | 0 tests    | 0%       |
+| API            | 10+ routes   | 1 test     | ~10%     |
 
 #### MAINT-001: Critical Paths Without Tests
+
 - **Payment Processing:** `packages/integrations/src/stripe.ts` - Financial calculations untested
 - **GDPR Consent:** `packages/domain/src/consent/consent-service.ts` - Legal compliance untested
 - **Appointment Booking:** `packages/domain/src/scheduling/scheduling-service.ts` - Core business untested
@@ -485,30 +568,35 @@ delays: [24, 72, 168], // hours - hardcoded business logic
 ### 4.2 HIGH: GDPR Compliance
 
 #### MAINT-002: Consent Stored In-Memory Only
+
 - **File:** `packages/domain/src/consent/consent-service.ts`
 - **Lines:** 89-92
+
 ```typescript
 private consents = new Map<string, ConsentRecord>();
 private auditLog: ConsentAuditEntry[] = [];
 // Server restart loses all consent data!
 ```
+
 - **Impact:** GDPR requires persistent, auditable consent records.
 - **Recommendation:** Implement database persistence.
 
 ### 4.3 HIGH: Hardcoded Configuration
 
 #### MAINT-003: Business Logic Values in Code
-| File | Line | Value | Should Be |
-|------|------|-------|-----------|
-| `scoring-service.ts` | 93 | `max_tokens: 1000` | `OPENAI_MAX_TOKENS` env |
-| `consent-service.ts` | 84 | `365 * 2` days | `GDPR_CONSENT_EXPIRATION_DAYS` |
-| `scheduling-service.ts` | 70-76 | Business hours `09:00-18:00` | `CLINIC_HOURS_*` env |
-| `scheduling-service.ts` | 76 | `maxAdvanceBookingDays: 60` | `MAX_ADVANCE_BOOKING_DAYS` |
-| `triage-service.ts` | 108 | `180` days | `REENGAGEMENT_THRESHOLD_DAYS` |
+
+| File                    | Line  | Value                        | Should Be                      |
+| ----------------------- | ----- | ---------------------------- | ------------------------------ |
+| `scoring-service.ts`    | 93    | `max_tokens: 1000`           | `OPENAI_MAX_TOKENS` env        |
+| `consent-service.ts`    | 84    | `365 * 2` days               | `GDPR_CONSENT_EXPIRATION_DAYS` |
+| `scheduling-service.ts` | 70-76 | Business hours `09:00-18:00` | `CLINIC_HOURS_*` env           |
+| `scheduling-service.ts` | 76    | `maxAdvanceBookingDays: 60`  | `MAX_ADVANCE_BOOKING_DAYS`     |
+| `triage-service.ts`     | 108   | `180` days                   | `REENGAGEMENT_THRESHOLD_DAYS`  |
 
 ### 4.4 HIGH: Code Organization
 
 #### MAINT-004: Mock Data in Production Code
+
 - **Files:**
   - `apps/web/src/lib/patients/mock-data.ts` (237 lines)
   - `apps/web/src/lib/ai/mock-data.ts` (191 lines)
@@ -518,6 +606,7 @@ private auditLog: ConsentAuditEntry[] = [];
 - **Recommendation:** Move to `__fixtures__` or `__tests__/fixtures`.
 
 #### MAINT-005: Large Multi-Purpose Files
+
 - **File:** `apps/web/src/app/actions/get-patients.ts` (1218 lines)
 - **Contains:** All server actions (patients, triage, calendar, analytics, messages)
 - **Recommendation:** Split into separate action files.
@@ -525,6 +614,7 @@ private auditLog: ConsentAuditEntry[] = [];
 ### 4.5 MEDIUM: Documentation Gaps
 
 #### MAINT-006: Missing JSDoc for Magic Numbers
+
 - HubSpot association type IDs need documentation
 - Score thresholds in `mapScoreToClassification()` undocumented
 - GDPR compliance references missing in `maskPhone()`
@@ -571,22 +661,22 @@ private auditLog: ConsentAuditEntry[] = [];
 
 ### HIPAA Compliance Status
 
-| Requirement | Status | Issue |
-|-------------|--------|-------|
-| Access Control | FAIL | No authentication system |
-| Audit Logging | PARTIAL | Logging exists but consent audit in-memory |
-| Data Encryption at Rest | UNKNOWN | Not audited |
-| Data Encryption in Transit | PARTIAL | WebSocket defaults to ws:// |
-| Minimum Necessary Access | FAIL | All data exposed to all users |
+| Requirement                | Status  | Issue                                      |
+| -------------------------- | ------- | ------------------------------------------ |
+| Access Control             | FAIL    | No authentication system                   |
+| Audit Logging              | PARTIAL | Logging exists but consent audit in-memory |
+| Data Encryption at Rest    | UNKNOWN | Not audited                                |
+| Data Encryption in Transit | PARTIAL | WebSocket defaults to ws://                |
+| Minimum Necessary Access   | FAIL    | All data exposed to all users              |
 
 ### GDPR Compliance Status
 
-| Requirement | Status | Issue |
-|-------------|--------|-------|
-| Consent Management | FAIL | Consent lost on restart |
+| Requirement         | Status  | Issue                           |
+| ------------------- | ------- | ------------------------------- |
+| Consent Management  | FAIL    | Consent lost on restart         |
 | Data Subject Rights | PARTIAL | No delete functionality visible |
-| Data Minimization | PASS | Appropriate data collected |
-| PII Protection | PARTIAL | Incomplete redaction |
+| Data Minimization   | PASS    | Appropriate data collected      |
+| PII Protection      | PARTIAL | Incomplete redaction            |
 
 ---
 
@@ -636,4 +726,4 @@ HOT_LEAD_TASK_DUE_MINUTES=30
 
 ---
 
-*Report generated by Claude Code audit on November 24, 2025*
+_Report generated by Claude Code audit on November 24, 2025_
