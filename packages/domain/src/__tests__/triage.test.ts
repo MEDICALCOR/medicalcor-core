@@ -104,23 +104,62 @@ describe('TriageService', () => {
       expect(result.notes).toContain('HOT');
       expect(result.notes).toContain('voice');
       expect(result.notes).toContain('All-on-X');
+      expect(result.notes).toContain('PRIORITY SCHEDULING REQUESTED');
+    });
+
+    it('should detect priority scheduling request', () => {
+      const result = service.assess({
+        leadScore: 'WARM',
+        channel: 'whatsapp',
+        messageContent: 'Vreau o programare cat mai repede posibil',
+        hasExistingRelationship: false,
+      });
+
+      expect(result.prioritySchedulingRequested).toBe(true);
+      expect(result.medicalFlags).toContain('priority_scheduling_requested');
+      expect(result.urgencyLevel).toBe('high');
+      expect(result.routingRecommendation).toBe('same_day');
+    });
+
+    it('should not flag priority scheduling for normal requests', () => {
+      const result = service.assess({
+        leadScore: 'WARM',
+        channel: 'whatsapp',
+        messageContent: 'Vreau informatii despre implanturi',
+        hasExistingRelationship: false,
+      });
+
+      expect(result.prioritySchedulingRequested).toBe(false);
+      expect(result.medicalFlags).not.toContain('priority_scheduling_requested');
+    });
+
+    it('should route priority scheduling requests to same_day', () => {
+      const result = service.assess({
+        leadScore: 'COLD',
+        channel: 'web',
+        messageContent: 'Am nevoie de o programare imediat pentru consultatie',
+        hasExistingRelationship: false,
+      });
+
+      expect(result.prioritySchedulingRequested).toBe(true);
+      expect(result.routingRecommendation).toBe('same_day');
     });
   });
 
-  describe('getEscalationContacts', () => {
+  describe('getNotificationContacts', () => {
     it('should return doctor and manager for critical', () => {
-      const contacts = service.getEscalationContacts('critical');
+      const contacts = service.getNotificationContacts('critical');
       expect(contacts).toContain('on-call-doctor');
       expect(contacts).toContain('clinic-manager');
     });
 
     it('should return supervisor for high', () => {
-      const contacts = service.getEscalationContacts('high');
+      const contacts = service.getNotificationContacts('high');
       expect(contacts).toContain('shift-supervisor');
     });
 
     it('should return empty for normal', () => {
-      const contacts = service.getEscalationContacts('normal');
+      const contacts = service.getNotificationContacts('normal');
       expect(contacts).toHaveLength(0);
     });
   });

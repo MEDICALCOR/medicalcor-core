@@ -1,10 +1,14 @@
 /**
- * AI Scoring schemas for lead qualification
+ * Advanced AI Scoring schemas for lead qualification
+ *
+ * NOTE: These schemas are for future advanced scoring features.
+ * The current active ScoringOutput type is defined in lead.schema.ts
+ * which uses a simpler 1-5 score scale compatible with the ScoringService.
  */
-import { z } from "zod";
+import { z } from 'zod';
 
-import { TimestampSchema, UUIDSchema } from "./common.js";
-import { LeadPrioritySchema } from "./lead.js";
+import { TimestampSchema, UUIDSchema } from './common.js';
+import { LeadPrioritySchema } from './lead.js';
 
 /**
  * Scoring dimension - individual aspect of lead quality
@@ -21,12 +25,12 @@ export const ScoringDimensionSchema = z.object({
  */
 export const RecommendedActionSchema = z.object({
   type: z.enum([
-    "schedule_callback",
-    "send_info",
-    "escalate_to_human",
-    "nurture_sequence",
-    "mark_lost",
-    "immediate_contact",
+    'schedule_callback',
+    'send_info',
+    'escalate_to_human',
+    'nurture_sequence',
+    'mark_lost',
+    'immediate_contact',
   ]),
   priority: LeadPrioritySchema,
   description: z.string(),
@@ -34,9 +38,10 @@ export const RecommendedActionSchema = z.object({
 });
 
 /**
- * Complete AI Scoring Output
+ * Advanced AI Scoring Output (0-100 scale with dimensions)
+ * For future advanced multi-dimensional scoring features
  */
-export const ScoringOutputSchema = z.object({
+export const AdvancedScoringOutputSchema = z.object({
   id: UUIDSchema,
   leadId: UUIDSchema,
 
@@ -76,5 +81,5 @@ export const ScoringRequestSchema = z.object({
 
 export type ScoringDimension = z.infer<typeof ScoringDimensionSchema>;
 export type RecommendedAction = z.infer<typeof RecommendedActionSchema>;
-export type ScoringOutput = z.infer<typeof ScoringOutputSchema>;
+export type AdvancedScoringOutput = z.infer<typeof AdvancedScoringOutputSchema>;
 export type ScoringRequest = z.infer<typeof ScoringRequestSchema>;
