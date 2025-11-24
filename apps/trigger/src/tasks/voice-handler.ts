@@ -100,71 +100,74 @@ export const handleVoiceCall = task({
         logger.info('Call logged to timeline', { contactId: hubspotContactId, correlationId });
 
         // AI scoring on transcript
-        const leadContext: LeadContext = {
-          phone: normalizedPhone,
-          channel: 'voice',
-          firstTouchTimestamp: new Date().toISOString(),
-          language: 'ro',
-          messageHistory: [
-            { role: 'user', content: transcript, timestamp: new Date().toISOString() },
-          ],
-          hubspotContactId,
-        };
+        if (!scoring || !triage) {
+          logger.warn('Scoring or triage service not available', { correlationId });
+        } else {
+          const leadContext: LeadContext = {
+            phone: normalizedPhone,
+            channel: 'voice',
+            firstTouchTimestamp: new Date().toISOString(),
+            language: 'ro',
+            messageHistory: [
+              { role: 'user', content: transcript, timestamp: new Date().toISOString() },
+            ],
+            hubspotContactId,
+          };
 
-        scoreResult = await scoring.scoreMessage(leadContext);
-        logger.info('Voice lead scored', {
-          score: scoreResult.score,
-          classification: scoreResult.classification,
-          correlationId,
-        });
+          scoreResult = await scoring.scoreMessage(leadContext);
+          logger.info('Voice lead scored', {
+            score: scoreResult.score,
+            classification: scoreResult.classification,
+            correlationId,
+          });
 
-        // Perform triage assessment
-        const triageResult = triage.assess({
-          leadScore: scoreResult.classification,
-          channel: 'voice',
-          messageContent: transcript,
-          procedureInterest: scoreResult.procedureInterest ?? [],
-          hasExistingRelationship: false,
-        });
+          // Perform triage assessment
+          const triageResult = triage.assess({
+            leadScore: scoreResult.classification,
+            channel: 'voice',
+            messageContent: transcript,
+            procedureInterest: scoreResult.procedureInterest ?? [],
+            hasExistingRelationship: false,
+          });
 
-        logger.info('Triage assessment completed', {
-          urgencyLevel: triageResult.urgencyLevel,
-          routing: triageResult.routingRecommendation,
-          correlationId,
-        });
+          logger.info('Triage assessment completed', {
+            urgencyLevel: triageResult.urgencyLevel,
+            routing: triageResult.routingRecommendation,
+            correlationId,
+          });
 
-        // Analyze sentiment if OpenAI available
-        let sentiment: string | undefined;
-        if (openai) {
-          try {
-            const sentimentResult = await openai.analyzeSentiment(transcript);
-            sentiment = sentimentResult.sentiment;
-            logger.info('Sentiment analyzed', { sentiment, correlationId });
-          } catch (err) {
-            logger.warn('Failed to analyze sentiment', { err, correlationId });
+          // Analyze sentiment if OpenAI available
+          let sentiment: string | undefined;
+          if (openai) {
+            try {
+              const sentimentResult = await openai.analyzeSentiment(transcript);
+              sentiment = sentimentResult.sentiment;
+              logger.info('Sentiment analyzed', { sentiment, correlationId });
+            } catch (err) {
+              logger.warn('Failed to analyze sentiment', { err, correlationId });
+            }
           }
-        }
 
-        // Update contact with score and sentiment
-        await hubspot.updateContact(hubspotContactId, {
-          lead_score: String(scoreResult.score),
-          lead_status: scoreResult.classification,
-          last_call_sentiment: sentiment,
-          urgency_level: triageResult.urgencyLevel,
-        });
-        logger.info('Contact updated with voice scoring', {
-          contactId: hubspotContactId,
-          correlationId,
-        });
+          // Update contact with score and sentiment
+          await hubspot.updateContact(hubspotContactId, {
+            lead_score: String(scoreResult.score),
+            lead_status: scoreResult.classification,
+            last_call_sentiment: sentiment,
+            urgency_level: triageResult.urgencyLevel,
+          });
+          logger.info('Contact updated with voice scoring', {
+            contactId: hubspotContactId,
+            correlationId,
+          });
 
-        // Create priority task for HOT leads or high_priority scheduling requests
-        if (
-          scoreResult.classification === 'HOT' ||
-          triageResult.urgencyLevel === 'high_priority' ||
-          triageResult.urgencyLevel === 'high'
-        ) {
-          // Get notification contacts for priority cases
-          const notificationContacts = triage.getNotificationContacts(triageResult.urgencyLevel);
+          // Create priority task for HOT leads or high_priority scheduling requests
+          if (
+            scoreResult.classification === 'HOT' ||
+            triageResult.urgencyLevel === 'high_priority' ||
+            triageResult.urgencyLevel === 'high'
+          ) {
+            // Get notification contacts for priority cases
+            const notificationContacts = triage.getNotificationContacts(triageResult.urgencyLevel);
           const contactsInfo =
             notificationContacts.length > 0 ? `\n\nNotify: ${notificationContacts.join(', ')}` : '';
 
@@ -178,10 +181,11 @@ export const handleVoiceCall = task({
                 ? new Date(Date.now() + 30 * 60 * 1000) // 30 minutes during business hours
                 : new Date(Date.now() + 60 * 60 * 1000), // 1 hour
           });
-          logger.info('Priority task created for voice lead', {
-            notificationContacts,
-            correlationId,
-          });
+            logger.info('Priority task created for voice lead', {
+              notificationContacts,
+              correlationId,
+            });
+          }
         }
       } catch (err) {
         logger.error('Failed to process voice call transcript', { err, correlationId });
@@ -294,7 +298,7 @@ export const handleCallCompleted = task({
 
     // Score the lead if we have transcript content
     let scoreResult;
-    if (transcript && hubspot && hubspotContactId) {
+    if (transcript && hubspot && hubspotContactId && scoring && triage) {
       try {
         const leadContext: LeadContext = {
           phone: normalizedPhone,

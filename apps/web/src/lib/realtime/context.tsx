@@ -93,7 +93,13 @@ export function RealtimeProvider({ children, wsUrl }: RealtimeProviderProps) {
   // SECURITY: Get auth token from session for WebSocket authentication
   // The token is derived from the session - in production, use a dedicated WS token endpoint
   const authToken = useMemo(() => {
-    if (sessionStatus !== 'authenticated' || !session?.user) {
+    // When authenticated, session and session.user are guaranteed to exist
+    if (sessionStatus !== 'authenticated') {
+      return undefined;
+    }
+    // TypeScript doesn't know that session is non-null when authenticated, so we assert it
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (!session) {
       return undefined;
     }
     // Use session user ID as token base - server should validate against session store

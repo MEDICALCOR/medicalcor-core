@@ -1,4 +1,4 @@
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import {
   FunctionRegistry,
@@ -6,7 +6,6 @@ import {
   AIRequestSchema,
   ALL_MEDICAL_FUNCTIONS,
   FUNCTION_INPUT_SCHEMAS,
-  type AIFunction,
   type AIFunctionCategory,
   type FunctionContext,
 } from '@medicalcor/core';
@@ -37,9 +36,10 @@ function initializeFunctionRegistry(): void {
     const inputSchema = FUNCTION_INPUT_SCHEMAS[fn.name as keyof typeof FUNCTION_INPUT_SCHEMAS];
     if (!inputSchema) continue;
 
+    // Type assertion needed because TypeScript can't verify schema matches function type at compile time
     registry.register(
-      fn,
-      inputSchema,
+      fn as any,
+      inputSchema as any,
       async (args, context) => {
         // Placeholder implementation - each function would be connected
         // to the actual domain service in production
@@ -78,8 +78,6 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get('/ai/functions', {
     schema: {
-      description: 'Get available AI functions for LLM tool calling',
-      tags: ['AI Gateway'],
       querystring: {
         type: 'object',
         properties: {
@@ -188,8 +186,6 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { name: string } }>('/ai/functions/:name', {
     schema: {
-      description: 'Get details for a specific AI function',
-      tags: ['AI Gateway'],
       params: {
         type: 'object',
         properties: {
@@ -227,8 +223,6 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post('/ai/execute', {
     schema: {
-      description: 'Execute AI function calls',
-      tags: ['AI Gateway'],
       body: {
         type: 'object',
         oneOf: [
@@ -316,17 +310,12 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
    * Get OpenAI-compatible tool definitions.
    * Use these with OpenAI's function calling API.
    */
-  fastify.get('/ai/openai/tools', {
-    schema: {
-      description: 'Get OpenAI-compatible tool definitions',
-      tags: ['AI Gateway'],
-    },
-    handler: async (_request, reply) => {
-      return reply.send({
-        tools: router.getOpenAITools(),
-        model_compatibility: ['gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-3.5-turbo'],
-        usage: {
-          example: `
+  fastify.get('/ai/openai/tools', async (_request: FastifyRequest, reply: FastifyReply) => {
+    return reply.send({
+      tools: router.getOpenAITools(),
+      model_compatibility: ['gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-3.5-turbo'],
+      usage: {
+        example: `
 // Use with OpenAI SDK
 const response = await openai.chat.completions.create({
   model: "gpt-4o",
@@ -337,7 +326,6 @@ const response = await openai.chat.completions.create({
           `.trim(),
         },
       });
-    },
   });
 
   /**
@@ -346,17 +334,12 @@ const response = await openai.chat.completions.create({
    * Get Anthropic/Claude-compatible tool definitions.
    * Use these with Anthropic's tool use API.
    */
-  fastify.get('/ai/anthropic/tools', {
-    schema: {
-      description: 'Get Anthropic/Claude-compatible tool definitions',
-      tags: ['AI Gateway'],
-    },
-    handler: async (_request, reply) => {
-      return reply.send({
-        tools: router.getAnthropicTools(),
-        model_compatibility: ['claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku', 'claude-sonnet-4-5'],
-        usage: {
-          example: `
+  fastify.get('/ai/anthropic/tools', async (_request: FastifyRequest, reply: FastifyReply) => {
+    return reply.send({
+      tools: router.getAnthropicTools(),
+      model_compatibility: ['claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku', 'claude-sonnet-4-5'],
+      usage: {
+        example: `
 // Use with Anthropic SDK
 const response = await anthropic.messages.create({
   model: "claude-sonnet-4-5-20250929",
@@ -367,7 +350,6 @@ const response = await anthropic.messages.create({
           `.trim(),
         },
       });
-    },
   });
 
   /**
@@ -375,16 +357,10 @@ const response = await anthropic.messages.create({
    *
    * Get function categories with counts
    */
-  fastify.get('/ai/categories', {
-    schema: {
-      description: 'Get function categories',
-      tags: ['AI Gateway'],
-    },
-    handler: async (_request, reply) => {
-      return reply.send({
-        categories: registry.getCategorySummary(),
-      });
-    },
+  fastify.get('/ai/categories', async (_request: FastifyRequest, reply: FastifyReply) => {
+    return reply.send({
+      categories: registry.getCategorySummary(),
+    });
   });
 
   /**
@@ -392,69 +368,62 @@ const response = await anthropic.messages.create({
    *
    * Get the full OpenAPI schema for the AI Gateway
    */
-  fastify.get('/ai/schema', {
-    schema: {
-      description: 'Get OpenAPI schema for AI Gateway',
-      tags: ['AI Gateway'],
-    },
-    handler: async (_request, reply) => {
-      const functions = registry.getAllFunctions();
+  fastify.get('/ai/schema', async (_request: FastifyRequest, reply: FastifyReply) => {
+    const functions = registry.getAllFunctions();
 
-      return reply.send({
-        openapi: '3.1.0',
-        info: {
-          title: 'MedicalCor AI Gateway',
-          version: '1.0.0',
-          description: 'AI-First API Gateway for medical CRM operations',
-        },
-        paths: {
-          '/ai/execute': {
-            post: {
-              summary: 'Execute AI function calls',
-              operationId: 'executeAIFunctions',
-              requestBody: {
-                content: {
-                  'application/json': {
-                    schema: { $ref: '#/components/schemas/AIRequest' },
-                  },
+    return reply.send({
+      openapi: '3.1.0',
+      info: {
+        title: 'MedicalCor AI Gateway',
+        version: '1.0.0',
+        description: 'AI-First API Gateway for medical CRM operations',
+      },
+      paths: {
+        '/ai/execute': {
+          post: {
+            summary: 'Execute AI function calls',
+            operationId: 'executeAIFunctions',
+            requestBody: {
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/AIRequest' },
                 },
               },
             },
           },
         },
-        components: {
-          schemas: {
-            AIRequest: {
-              oneOf: [
-                {
-                  type: 'object',
-                  properties: {
-                    type: { const: 'natural' },
-                    query: { type: 'string' },
-                  },
+      },
+      components: {
+        schemas: {
+          AIRequest: {
+            oneOf: [
+              {
+                type: 'object',
+                properties: {
+                  type: { const: 'natural' },
+                  query: { type: 'string' },
                 },
-                {
-                  type: 'object',
-                  properties: {
-                    type: { const: 'function_call' },
-                    calls: { type: 'array' },
-                  },
+              },
+              {
+                type: 'object',
+                properties: {
+                  type: { const: 'function_call' },
+                  calls: { type: 'array' },
                 },
-              ],
-            },
-            ...Object.fromEntries(
-              functions.map((fn) => [
-                `${fn.name}_input`,
-                {
-                  type: 'object',
-                  description: fn.description,
-                  ...fn.parameters,
-                },
-              ])
-            ),
+              },
+            ],
           },
+          ...Object.fromEntries(
+            functions.map((fn) => [
+              `${fn.name}_input`,
+              {
+                description: fn.description,
+                ...fn.parameters,
+              },
+            ])
+          ),
         },
-      });
-    },
+      },
+    });
   });
 };

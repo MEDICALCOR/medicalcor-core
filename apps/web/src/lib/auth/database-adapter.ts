@@ -1,25 +1,25 @@
 /**
  * Database Authentication Adapter
  * Integrates the @medicalcor/core auth system with NextAuth.js
+ *
+ * NOTE: Uses dynamic imports to avoid Edge Runtime issues with Node.js crypto.
+ * Auth services are only loaded when actually called (server-side), not at import time.
  */
 
-import {
-  AuthService,
-  createDatabaseClient,
-  type SafeUser,
-  type AuthContext,
-} from '@medicalcor/core';
+import type { SafeUser, AuthContext, AuthService } from '@medicalcor/core';
 
 // Lazy-loaded auth service singleton
 let authServiceInstance: AuthService | null = null;
 
 /**
  * Get or create the AuthService singleton
+ * Uses dynamic import to avoid Edge Runtime issues
  */
-function getAuthService(): AuthService {
+async function getAuthService(): Promise<AuthService> {
   if (!authServiceInstance) {
+    const { AuthService: AuthServiceClass, createDatabaseClient } = await import('@medicalcor/core');
     const db = createDatabaseClient();
-    authServiceInstance = new AuthService(db);
+    authServiceInstance = new AuthServiceClass(db);
   }
   return authServiceInstance;
 }
@@ -39,7 +39,7 @@ export async function validateCredentials(
   if (dbUrl) {
     // Use database authentication
     try {
-      const authService = getAuthService();
+      const authService = await getAuthService();
       const result = await authService.login(email, password, context);
 
       if (result.success && result.user) {
@@ -48,7 +48,7 @@ export async function validateCredentials(
 
       // Log the error for debugging (without exposing to user)
       if (result.error) {
-        console.log(`[Auth] Login failed for ${email}: ${result.error}`);
+        console.warn(`[Auth] Login failed for ${email}: ${result.error}`);
       }
 
       return null;
@@ -146,7 +146,7 @@ function loadUsersFromEnv(): EnvUser[] {
         passwordHash,
         name,
         role,
-        clinicId: clinicId || undefined,
+        clinicId: clinicId ?? undefined,
       });
     }
   }
@@ -162,7 +162,7 @@ export async function getUserById(id: string): Promise<SafeUser | null> {
 
   if (dbUrl) {
     try {
-      const authService = getAuthService();
+      const authService = await getAuthService();
       return await authService.getUser(id);
     } catch (error) {
       console.error('[Auth] Failed to get user by ID:', error);
@@ -202,13 +202,13 @@ export async function logAuthEvent(
 
   if (!dbUrl) {
     // No database, just log to console
-    console.log(`[Auth Event] ${eventType} for ${email ?? userId ?? 'unknown'}`);
+    console.warn(`[Auth Event] ${eventType} for ${email ?? userId ?? 'unknown'}`);
     return;
   }
 
   try {
+    const { createDatabaseClient, AuthEventRepository } = await import('@medicalcor/core');
     const db = createDatabaseClient();
-    const { AuthEventRepository } = await import('@medicalcor/core');
     const eventRepo = new AuthEventRepository(db);
 
     await eventRepo.log({
@@ -235,7 +235,7 @@ export function isDatabaseAuthAvailable(): boolean {
  * Get auth service for advanced operations
  * Returns null if database is not configured
  */
-export function getAuthServiceInstance(): AuthService | null {
+export async function getAuthServiceInstance(): Promise<AuthService | null> {
   if (!process.env.DATABASE_URL) {
     return null;
   }

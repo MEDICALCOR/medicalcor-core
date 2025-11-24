@@ -31,7 +31,6 @@ const CredentialsSchema = z.object({
 
 // Log auth configuration on startup
 const authMode = process.env.DATABASE_URL ? 'database' : 'environment variables';
-// eslint-disable-next-line no-console
 console.warn(`[Auth] Authentication configured using ${authMode}`);
 
 export const authConfig: NextAuthConfig = {
@@ -104,10 +103,10 @@ export const authConfig: NextAuthConfig = {
 
         // Extract request context for audit logging
         const context = {
-          ipAddress: request?.headers?.get?.('x-forwarded-for')?.split(',')[0]?.trim() ||
-                     request?.headers?.get?.('x-real-ip') ||
+          ipAddress: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+                     request.headers.get('x-real-ip') ??
                      'unknown',
-          userAgent: request?.headers?.get?.('user-agent') || undefined,
+          userAgent: request.headers.get('user-agent') ?? undefined,
         };
 
         const user = await validateCredentials(email, password, context);

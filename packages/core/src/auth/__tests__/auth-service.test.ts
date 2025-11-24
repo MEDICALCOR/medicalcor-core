@@ -9,7 +9,7 @@ import { UserRepository } from '../user-repository.js';
 import { SessionRepository } from '../session-repository.js';
 import { AuthEventRepository } from '../auth-event-repository.js';
 import { LoginAttemptRepository } from '../login-attempt-repository.js';
-import type { DatabasePool, QueryResult } from '../../database.js';
+import type { DatabasePool } from '../../database.js';
 import type { User } from '../types.js';
 
 // Mock database
@@ -307,9 +307,9 @@ describe('AuthEventRepository', () => {
       const result = await repo.getSuspiciousActivity(since);
 
       expect(result).toHaveLength(1);
-      expect(result[0].email).toBe('victim@example.com');
-      expect(result[0].failedAttempts).toBe(10);
-      expect(result[0].uniqueIps).toBe(5);
+      expect(result[0]?.email).toBe('victim@example.com');
+      expect(result[0]?.failedAttempts).toBe(10);
+      expect(result[0]?.uniqueIps).toBe(5);
     });
   });
 });

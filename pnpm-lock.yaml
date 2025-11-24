@@ -383,6 +383,9 @@ importers:
       '@medicalcor/core':
         specifier: workspace:*
         version: link:../core
+      '@medicalcor/domain':
+        specifier: workspace:*
+        version: link:../domain
       '@medicalcor/types':
         specifier: workspace:*
         version: link:../types

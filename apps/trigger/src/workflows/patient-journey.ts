@@ -401,6 +401,16 @@ export const bookingAgentWorkflow = task({
     // ============================================
     logger.info('Fetching available slots', { procedureType, correlationId });
 
+    if (!scheduling) {
+      logger.error('Scheduling service not available', { correlationId });
+      return {
+        success: false,
+        error: 'Scheduling service not configured',
+        hubspotContactId,
+        procedureType,
+      };
+    }
+
     let availableSlots: TimeSlot[];
     try {
       const slotsOptions: { procedureType: string; limit: number; preferredDates?: string[] } = {
@@ -607,7 +617,7 @@ export const bookingAgentWorkflow = task({
     // ============================================
     // Step 4: Send confirmation message
     // ============================================
-    if (whatsapp) {
+    if (whatsapp && templateCatalog) {
       try {
         // Use appointment confirmation template
         const dateStr = templateCatalog.formatDateForTemplate(appointment.scheduledAt, language);

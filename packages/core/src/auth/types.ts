@@ -39,16 +39,16 @@ export interface User {
   passwordHash: string;
   name: string;
   role: UserRole;
-  clinicId?: string;
+  clinicId?: string | undefined;
   status: UserStatus;
   emailVerified: boolean;
-  emailVerifiedAt?: Date;
+  emailVerifiedAt?: Date | undefined;
   failedLoginAttempts: number;
-  lockedUntil?: Date;
-  passwordChangedAt?: Date;
+  lockedUntil?: Date | undefined;
+  passwordChangedAt?: Date | undefined;
   mustChangePassword: boolean;
-  lastLoginAt?: Date;
-  lastLoginIp?: string;
+  lastLoginAt?: Date | undefined;
+  lastLoginIp?: string | undefined;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -61,10 +61,10 @@ export interface SafeUser {
   email: string;
   name: string;
   role: UserRole;
-  clinicId?: string;
+  clinicId?: string | undefined;
   status: UserStatus;
   emailVerified: boolean;
-  lastLoginAt?: Date;
+  lastLoginAt?: Date | undefined;
   createdAt: Date;
 }
 
@@ -76,22 +76,22 @@ export interface CreateUserData {
   password: string;
   name: string;
   role: UserRole;
-  clinicId?: string;
-  status?: UserStatus;
-  emailVerified?: boolean;
+  clinicId?: string | undefined;
+  status?: UserStatus | undefined;
+  emailVerified?: boolean | undefined;
 }
 
 /**
  * User update data
  */
 export interface UpdateUserData {
-  email?: string;
-  name?: string;
-  role?: UserRole;
-  clinicId?: string | null;
-  status?: UserStatus;
-  emailVerified?: boolean;
-  mustChangePassword?: boolean;
+  email?: string | undefined;
+  name?: string | undefined;
+  role?: UserRole | undefined;
+  clinicId?: string | null | undefined;
+  status?: UserStatus | undefined;
+  emailVerified?: boolean | undefined;
+  mustChangePassword?: boolean | undefined;
 }
 
 /**
@@ -101,12 +101,12 @@ export interface Session {
   id: string;
   userId: string;
   tokenHash: string;
-  ipAddress?: string;
-  userAgent?: string;
-  deviceInfo?: Record<string, unknown>;
+  ipAddress?: string | undefined;
+  userAgent?: string | undefined;
+  deviceInfo?: Record<string, unknown> | undefined;
   expiresAt: Date;
-  revokedAt?: Date;
-  revokedReason?: string;
+  revokedAt?: Date | undefined;
+  revokedReason?: string | undefined;
   lastActivityAt: Date;
   createdAt: Date;
 }
@@ -117,9 +117,9 @@ export interface Session {
 export interface CreateSessionData {
   userId: string;
   tokenHash: string;
-  ipAddress?: string;
-  userAgent?: string;
-  deviceInfo?: Record<string, unknown>;
+  ipAddress?: string | undefined;
+  userAgent?: string | undefined;
+  deviceInfo?: Record<string, unknown> | undefined;
   expiresAt: Date;
 }
 
@@ -128,14 +128,14 @@ export interface CreateSessionData {
  */
 export interface AuthEvent {
   id: string;
-  userId?: string;
-  email?: string;
+  userId?: string | undefined;
+  email?: string | undefined;
   eventType: AuthEventType;
   result: AuthEventResult;
-  ipAddress?: string;
-  userAgent?: string;
-  sessionId?: string;
-  details?: Record<string, unknown>;
+  ipAddress?: string | undefined;
+  userAgent?: string | undefined;
+  sessionId?: string | undefined;
+  details?: Record<string, unknown> | undefined;
   createdAt: Date;
 }
 
@@ -143,14 +143,14 @@ export interface AuthEvent {
  * Auth event creation data
  */
 export interface CreateAuthEventData {
-  userId?: string;
-  email?: string;
+  userId?: string | undefined;
+  email?: string | undefined;
   eventType: AuthEventType;
   result: AuthEventResult;
-  ipAddress?: string;
-  userAgent?: string;
-  sessionId?: string;
-  details?: Record<string, unknown>;
+  ipAddress?: string | undefined;
+  userAgent?: string | undefined;
+  sessionId?: string | undefined;
+  details?: Record<string, unknown> | undefined;
 }
 
 /**
@@ -161,7 +161,7 @@ export interface LoginAttempt {
   email: string;
   ipAddress: string;
   success: boolean;
-  failureReason?: string;
+  failureReason?: string | undefined;
   createdAt: Date;
 }
 
@@ -173,7 +173,7 @@ export interface PasswordResetToken {
   userId: string;
   tokenHash: string;
   expiresAt: Date;
-  usedAt?: Date;
+  usedAt?: Date | undefined;
   createdAt: Date;
 }
 
@@ -188,7 +188,7 @@ export interface RefreshToken {
   familyId: string;
   generation: number;
   expiresAt: Date;
-  revokedAt?: Date;
+  revokedAt?: Date | undefined;
   createdAt: Date;
 }
 
@@ -198,17 +198,17 @@ export interface RefreshToken {
 export interface RateLimitResult {
   allowed: boolean;
   remainingAttempts: number;
-  resetAt?: Date;
-  reason?: string;
+  resetAt?: Date | undefined;
+  reason?: string | undefined;
 }
 
 /**
  * Authentication context for requests
  */
 export interface AuthContext {
-  ipAddress?: string;
-  userAgent?: string;
-  sessionId?: string;
+  ipAddress?: string | undefined;
+  userAgent?: string | undefined;
+  sessionId?: string | undefined;
 }
 
 /**
@@ -216,12 +216,12 @@ export interface AuthContext {
  */
 export interface LoginResult {
   success: boolean;
-  user?: SafeUser;
-  session?: Session;
-  accessToken?: string;
-  refreshToken?: string;
-  error?: string;
-  lockedUntil?: Date;
+  user?: SafeUser | undefined;
+  session?: Session | undefined;
+  accessToken?: string | undefined;
+  refreshToken?: string | undefined;
+  error?: string | undefined;
+  lockedUntil?: Date | undefined;
 }
 
 /**

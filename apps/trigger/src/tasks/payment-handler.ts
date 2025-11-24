@@ -155,7 +155,7 @@ export const handlePaymentSucceeded = task({
     }
 
     // Step 3: Send WhatsApp confirmation if phone available
-    if (whatsapp && metadata?.phone) {
+    if (whatsapp && metadata?.phone && templateCatalog) {
       try {
         const phoneResult = normalizeRomanianPhone(metadata.phone);
         normalizedPhone = phoneResult.normalized;

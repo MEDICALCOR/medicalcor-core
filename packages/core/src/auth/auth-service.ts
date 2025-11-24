@@ -11,7 +11,6 @@ import { SessionRepository } from './session-repository.js';
 import { AuthEventRepository } from './auth-event-repository.js';
 import { LoginAttemptRepository, RATE_LIMIT_CONFIG } from './login-attempt-repository.js';
 import type {
-  User,
   SafeUser,
   CreateUserData,
   UpdateUserData,
@@ -225,7 +224,9 @@ export class AuthService {
         const activeSessions = await this.sessionRepo.getActiveForUser(user.id);
         if (activeSessions.length > 0) {
           const oldest = activeSessions[activeSessions.length - 1];
-          await this.sessionRepo.revoke(oldest.id, 'max_sessions_exceeded');
+          if (oldest) {
+            await this.sessionRepo.revoke(oldest.id, 'max_sessions_exceeded');
+          }
         }
       }
     }

@@ -111,8 +111,12 @@ export class UserRepository {
       ]
     );
 
+    const row = result.rows[0];
+    if (!row) {
+      throw new Error('Failed to create user');
+    }
     logger.info({ email: data.email, role: data.role }, 'User created');
-    return mapRowToUser(result.rows[0]);
+    return mapRowToUser(row);
   }
 
   /**
@@ -221,10 +225,16 @@ export class UserRepository {
     );
 
     const row = result.rows[0];
-    return {
+    if (!row) {
+      throw new Error('Failed to increment login attempts');
+    }
+    const response: { attempts: number; lockedUntil?: Date } = {
       attempts: row.failed_login_attempts as number,
-      lockedUntil: row.locked_until ? new Date(row.locked_until as string) : undefined,
     };
+    if (row.locked_until) {
+      response.lockedUntil = new Date(row.locked_until as string);
+    }
+    return response;
   }
 
   /**
@@ -340,7 +350,7 @@ export class UserRepository {
 
     return {
       users: dataResult.rows.map((row) => toSafeUser(mapRowToUser(row))),
-      total: parseInt(countResult.rows[0].count as string, 10),
+      total: parseInt((countResult.rows[0]?.count as string) ?? '0', 10),
     };
   }
 

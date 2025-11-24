@@ -7,7 +7,7 @@
  * - Async execution with correlation tracking
  */
 
-import { z, type ZodSchema } from 'zod';
+import type { ZodSchema } from 'zod';
 import type { EventStore, StoredEvent, EventPublisher } from '../event-store.js';
 
 // ============================================================================
@@ -23,35 +23,35 @@ export interface Command<TPayload = unknown> {
 export interface CommandMetadata {
   commandId: string;
   correlationId: string;
-  causationId?: string;
-  userId?: string;
-  tenantId?: string;
+  causationId?: string | undefined;
+  userId?: string | undefined;
+  tenantId?: string | undefined;
   timestamp: Date;
-  version?: number;
+  version?: number | undefined;
 }
 
 export interface CommandResult<TResult = unknown> {
   success: boolean;
   commandId: string;
-  aggregateId?: string;
-  version?: number;
-  result?: TResult;
-  events?: StoredEvent[];
+  aggregateId?: string | undefined;
+  version?: number | undefined;
+  result?: TResult | undefined;
+  events?: StoredEvent[] | undefined;
   error?: {
     code: string;
     message: string;
     details?: unknown;
-  };
+  } | undefined;
   executionTimeMs: number;
 }
 
 export interface CommandContext {
   correlationId: string;
-  causationId?: string;
-  userId?: string;
-  tenantId?: string;
+  causationId?: string | undefined;
+  userId?: string | undefined;
+  tenantId?: string | undefined;
   eventStore: EventStore;
-  eventPublisher?: EventPublisher;
+  eventPublisher?: EventPublisher | undefined;
 }
 
 export type CommandHandler<TPayload, TResult> = (
@@ -71,7 +71,7 @@ export type CommandMiddleware = (
 
 interface RegisteredHandler {
   handler: CommandHandler<unknown, unknown>;
-  schema?: ZodSchema;
+  schema?: ZodSchema | undefined;
 }
 
 export class CommandBus {
@@ -280,7 +280,7 @@ export function retryMiddleware(options: {
   retryableErrors: string[];
   backoffMs: number;
 }): CommandMiddleware {
-  return async (command, context, next) => {
+  return async (_command, _context, next) => {
     let lastError: CommandResult | undefined;
 
     for (let attempt = 0; attempt <= options.maxRetries; attempt++) {

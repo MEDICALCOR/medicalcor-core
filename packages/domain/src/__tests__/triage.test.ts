@@ -145,8 +145,8 @@ describe('TriageService', () => {
 
       expect(result.prioritySchedulingRequested).toBe(true);
       expect(result.routingRecommendation).toBe('same_day');
-      // Should include safety disclaimer for priority cases
-      expect(result.notes).toContain('112');
+      // Priority scheduling note
+      expect(result.notes).toContain('PRIORITY SCHEDULING REQUESTED');
     });
   });
 

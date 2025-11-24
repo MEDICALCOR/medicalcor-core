@@ -65,7 +65,7 @@ export interface AIFunctionCall {
 }
 
 export interface AIFunctionResult {
-  callId?: string;
+  callId?: string | undefined;
   function: string;
   success: boolean;
   result?: unknown;
@@ -73,25 +73,25 @@ export interface AIFunctionResult {
     code: string;
     message: string;
     details?: unknown;
-  };
+  } | undefined;
   executionTimeMs: number;
-  traceId?: string;
+  traceId?: string | undefined;
 }
 
 type FunctionHandler<T, R> = (args: T, context: FunctionContext) => Promise<R>;
 
 export interface FunctionContext {
   correlationId: string;
-  userId?: string;
-  tenantId?: string;
-  traceId?: string;
-  spanId?: string;
+  userId?: string | undefined;
+  tenantId?: string | undefined;
+  traceId?: string | undefined;
+  spanId?: string | undefined;
 }
 
 interface RegisteredFunction {
   definition: AIFunction;
   inputSchema: ZodSchema;
-  outputSchema?: ZodSchema;
+  outputSchema?: ZodSchema | undefined;
   handler: FunctionHandler<unknown, unknown>;
 }
 
@@ -318,7 +318,7 @@ export const functionRegistry = new FunctionRegistry();
 /**
  * Decorator for registering functions
  */
-export function RegisterFunction(definition: AIFunction, inputSchema: ZodSchema) {
+export function RegisterFunction(_definition: AIFunction, _inputSchema: ZodSchema) {
   return function <T extends { new (...args: unknown[]): unknown }>(
     target: T,
     _context: ClassDecoratorContext
@@ -332,7 +332,7 @@ export function RegisterFunction(definition: AIFunction, inputSchema: ZodSchema)
  */
 export function zodToJsonSchema(schema: ZodSchema): JSONSchemaProperty {
   // Basic implementation - in production use zod-to-json-schema library
-  const def = schema._def;
+  const def = schema._def as any;
 
   if (!def) {
     return { type: 'unknown', description: '' };
@@ -360,17 +360,17 @@ export function zodToJsonSchema(schema: ZodSchema): JSONSchemaProperty {
       return {
         type: 'array',
         description: def.description ?? '',
-        items: zodToJsonSchema(def.type),
+        items: zodToJsonSchema(def.type as ZodSchema),
       };
     case 'ZodObject': {
-      const shape = def.shape();
+      const shape = typeof def.shape === 'function' ? def.shape() : def.shape;
       const properties: Record<string, JSONSchemaProperty> = {};
       const required: string[] = [];
 
       for (const [key, value] of Object.entries(shape)) {
         properties[key] = zodToJsonSchema(value as ZodSchema);
         // Check if field is optional
-        const fieldDef = (value as ZodSchema)._def;
+        const fieldDef = (value as any)._def;
         if (fieldDef?.typeName !== 'ZodOptional') {
           required.push(key);
         }
@@ -387,14 +387,14 @@ export function zodToJsonSchema(schema: ZodSchema): JSONSchemaProperty {
       return {
         type: 'string',
         description: def.description ?? '',
-        enum: def.values,
+        enum: def.values as string[],
       };
     case 'ZodOptional':
-      return zodToJsonSchema(def.innerType);
+      return zodToJsonSchema(def.innerType as ZodSchema);
     case 'ZodDefault':
       return {
-        ...zodToJsonSchema(def.innerType),
-        default: def.defaultValue(),
+        ...zodToJsonSchema(def.innerType as ZodSchema),
+        default: typeof def.defaultValue === 'function' ? def.defaultValue() : def.defaultValue,
       };
     default:
       return {

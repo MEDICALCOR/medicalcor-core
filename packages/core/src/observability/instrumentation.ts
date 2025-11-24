@@ -6,15 +6,65 @@
  * - Database queries
  * - External service calls
  * - Command/Query execution
+ *
+ * NOTE: Telemetry imports are lazy-loaded to avoid Edge Runtime issues.
+ * The instrumentation functions will work in both Edge and Node.js environments.
  */
 
-import { getTracer, withSpan, SpanKind, addSpanAttributes } from '../telemetry.js';
+import type { Tracer, SpanKind } from '../telemetry.js';
 import {
   httpRequestsTotal,
   httpRequestDuration,
   externalServiceRequests,
   externalServiceDuration,
 } from './metrics.js';
+
+// ============================================================================
+// LAZY TELEMETRY IMPORTS (Edge Runtime Compatible)
+// ============================================================================
+
+/**
+ * Lazy-load telemetry functions to avoid Edge Runtime errors
+ * These are only loaded when actually called, not at module initialization
+ */
+let telemetryModule: typeof import('../telemetry.js') | null = null;
+
+async function getTelemetryModule() {
+  if (!telemetryModule) {
+    // Dynamic import only loads when called, avoiding Edge Runtime issues
+    telemetryModule = await import('../telemetry.js');
+  }
+  return telemetryModule;
+}
+
+/**
+ * Get a tracer with lazy loading
+ */
+async function getTracerLazy(name: string, version?: string): Promise<Tracer> {
+  const telemetry = await getTelemetryModule();
+  return telemetry.getTracer(name, version);
+}
+
+/**
+ * Add span attributes with lazy loading
+ */
+async function addSpanAttributesLazy(attributes: Record<string, string | number | boolean>): Promise<void> {
+  const telemetry = await getTelemetryModule();
+  return telemetry.addSpanAttributes(attributes);
+}
+
+/**
+ * Execute within span with lazy loading
+ */
+async function withSpanLazy<T>(
+  tracer: Tracer,
+  name: string,
+  fn: (span: any) => Promise<T>,
+  options?: { kind?: SpanKind }
+): Promise<T> {
+  const telemetry = await getTelemetryModule();
+  return telemetry.withSpan(tracer, name, fn, options);
+}
 
 // ============================================================================
 // REQUEST CONTEXT
@@ -81,13 +131,15 @@ export function instrumentFastify(
       method: request.method,
     };
 
-    // Add tracing attributes
-    addSpanAttributes({
+    // Add tracing attributes (lazy loaded)
+    await addSpanAttributesLazy({
       'http.method': request.method,
       'http.url': request.url,
       'http.route': request.routeOptions?.url ?? request.url,
       'http.user_agent': request.headers['user-agent'] ?? '',
       'correlation_id': correlationId,
+    }).catch(() => {
+      // Silently fail if telemetry is not available (e.g., Edge Runtime)
     });
   });
 
@@ -104,10 +156,12 @@ export function instrumentFastify(
     httpRequestsTotal.inc({ method, path, status });
     httpRequestDuration.observe(duration, { method, path });
 
-    // Add span attributes
-    addSpanAttributes({
+    // Add span attributes (lazy loaded)
+    await addSpanAttributesLazy({
       'http.status_code': reply.statusCode,
       'http.response_time_ms': duration * 1000,
+    }).catch(() => {
+      // Silently fail if telemetry is not available (e.g., Edge Runtime)
     });
   });
 
@@ -116,10 +170,12 @@ export function instrumentFastify(
   fastify.addHook('onError', async (request: any, _reply: any, error: Error) => {
     if (!request.observability) return;
 
-    addSpanAttributes({
+    await addSpanAttributesLazy({
       'error': true,
       'error.type': error.name,
       'error.message': error.message,
+    }).catch(() => {
+      // Silently fail if telemetry is not available (e.g., Edge Runtime)
     });
   });
 }
@@ -141,8 +197,6 @@ export function instrumentExternalCall<TArgs extends unknown[], TResult>(
   fn: (...args: TArgs) => Promise<TResult>,
   options: ExternalCallOptions
 ): (...args: TArgs) => Promise<TResult> {
-  const tracer = getTracer('external-services');
-
   return async (...args: TArgs): Promise<TResult> => {
     const timer = externalServiceDuration.startTimer({
       service: options.service,
@@ -150,26 +204,44 @@ export function instrumentExternalCall<TArgs extends unknown[], TResult>(
     });
 
     try {
-      const result = await withSpan(
-        tracer,
-        `${options.service}.${options.operation}`,
-        async (span) => {
-          span.setAttribute('external.service', options.service);
-          span.setAttribute('external.operation', options.operation);
+      // Try to load telemetry for tracing, but continue without it if unavailable
+      let result: TResult;
 
-          if (options.timeout) {
-            return Promise.race([
-              fn(...args),
-              new Promise<never>((_, reject) =>
-                setTimeout(() => reject(new Error('Timeout')), options.timeout)
-              ),
-            ]);
-          }
+      try {
+        const tracer = await getTracerLazy('external-services');
+        result = await withSpanLazy(
+          tracer,
+          `${options.service}.${options.operation}`,
+          async (span) => {
+            span.setAttribute('external.service', options.service);
+            span.setAttribute('external.operation', options.operation);
 
-          return fn(...args);
-        },
-        { kind: SpanKind.CLIENT }
-      );
+            if (options.timeout) {
+              return Promise.race([
+                fn(...args),
+                new Promise<never>((_, reject) =>
+                  setTimeout(() => reject(new Error('Timeout')), options.timeout)
+                ),
+              ]);
+            }
+
+            return fn(...args);
+          },
+          { kind: (await getTelemetryModule()).SpanKind.CLIENT }
+        );
+      } catch {
+        // Telemetry not available (e.g., Edge Runtime), execute without tracing
+        if (options.timeout) {
+          result = await Promise.race([
+            fn(...args),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('Timeout')), options.timeout)
+            ),
+          ]);
+        } else {
+          result = await fn(...args);
+        }
+      }
 
       externalServiceRequests.inc({
         service: options.service,
@@ -206,26 +278,31 @@ export function instrumentDatabase<T extends DatabaseClient>(
   client: T,
   dbName = 'postgres'
 ): T {
-  const tracer = getTracer('database');
-
   const originalQuery = client.query.bind(client);
 
   client.query = async (sql: string, params?: unknown[]): Promise<unknown> => {
     const operation = sql.trim().split(/\s+/)[0]?.toUpperCase() ?? 'QUERY';
 
-    return withSpan(
-      tracer,
-      `db.${operation}`,
-      async (span) => {
-        span.setAttribute('db.system', dbName);
-        span.setAttribute('db.operation', operation);
-        span.setAttribute('db.statement', sql.slice(0, 100)); // Truncate for safety
+    try {
+      // Try to use telemetry if available
+      const tracer = await getTracerLazy('database');
+      return await withSpanLazy(
+        tracer,
+        `db.${operation}`,
+        async (span) => {
+          span.setAttribute('db.system', dbName);
+          span.setAttribute('db.operation', operation);
+          span.setAttribute('db.statement', sql.slice(0, 100)); // Truncate for safety
 
-        const result = await originalQuery(sql, params);
-        return result;
-      },
-      { kind: SpanKind.CLIENT }
-    );
+          const result = await originalQuery(sql, params);
+          return result;
+        },
+        { kind: (await getTelemetryModule()).SpanKind.CLIENT }
+      );
+    } catch {
+      // Telemetry not available, execute query without tracing
+      return originalQuery(sql, params);
+    }
   };
 
   return client;

@@ -1,12 +1,12 @@
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import {
   diagnostics,
   getPrometheusMetrics,
   getMetricsJSON,
   lookupTrace,
   searchTraces,
-  createHealthIndicator,
-} from '@medicalcor/core';
+} from '@medicalcor/core/observability/diagnostics';
+import { createHealthIndicator } from '@medicalcor/core/observability/instrumentation';
 
 /**
  * Diagnostics Routes
@@ -48,8 +48,6 @@ export const diagnosticsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get('/metrics', {
     schema: {
-      description: 'Prometheus metrics endpoint',
-      tags: ['Diagnostics'],
       response: {
         200: {
           type: 'string',
@@ -57,7 +55,7 @@ export const diagnosticsRoutes: FastifyPluginAsync = async (fastify) => {
         },
       },
     },
-    handler: async (_request, reply) => {
+    handler: async (_request: FastifyRequest, reply: FastifyReply) => {
       reply.header('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
       return reply.send(getPrometheusMetrics());
     },
@@ -68,14 +66,8 @@ export const diagnosticsRoutes: FastifyPluginAsync = async (fastify) => {
    *
    * JSON format metrics for debugging
    */
-  fastify.get('/metrics/json', {
-    schema: {
-      description: 'Metrics in JSON format',
-      tags: ['Diagnostics'],
-    },
-    handler: async (_request, reply) => {
-      return reply.send(getMetricsJSON());
-    },
+  fastify.get('/metrics/json', async (_request: FastifyRequest, reply: FastifyReply) => {
+    return reply.send(getMetricsJSON());
   });
 
   /**
@@ -83,25 +75,19 @@ export const diagnosticsRoutes: FastifyPluginAsync = async (fastify) => {
    *
    * Full diagnostic snapshot (target: <100ms)
    */
-  fastify.get('/diagnostics', {
-    schema: {
-      description: 'Get diagnostic snapshot for debugging',
-      tags: ['Diagnostics'],
-    },
-    handler: async (_request, reply) => {
-      const startTime = performance.now();
-      const snapshot = await diagnostics.getSnapshot();
-      const executionTimeMs = performance.now() - startTime;
+  fastify.get('/diagnostics', async (_request: FastifyRequest, reply: FastifyReply) => {
+    const startTime = performance.now();
+    const snapshot = await diagnostics.getSnapshot();
+    const executionTimeMs = performance.now() - startTime;
 
-      return reply.send({
-        ...snapshot,
-        _meta: {
-          executionTimeMs,
-          target: '100ms',
-          withinTarget: executionTimeMs < 100,
-        },
-      });
-    },
+    return reply.send({
+      ...snapshot,
+      _meta: {
+        executionTimeMs,
+        target: '100ms',
+        withinTarget: executionTimeMs < 100,
+      },
+    });
   });
 
   /**
@@ -109,21 +95,15 @@ export const diagnosticsRoutes: FastifyPluginAsync = async (fastify) => {
    *
    * Quick health check (target: <10ms)
    */
-  fastify.get('/diagnostics/quick', {
-    schema: {
-      description: 'Quick health check for load balancers',
-      tags: ['Diagnostics'],
-    },
-    handler: async (_request, reply) => {
-      const startTime = performance.now();
-      const health = diagnostics.getQuickHealth();
-      const executionTimeMs = performance.now() - startTime;
+  fastify.get('/diagnostics/quick', async (_request: FastifyRequest, reply: FastifyReply) => {
+    const startTime = performance.now();
+    const health = diagnostics.getQuickHealth();
+    const executionTimeMs = performance.now() - startTime;
 
-      return reply.send({
-        ...health,
-        executionTimeMs,
-      });
-    },
+    return reply.send({
+      ...health,
+      executionTimeMs,
+    });
   });
 
   /**
@@ -133,8 +113,6 @@ export const diagnosticsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { traceId: string } }>('/diagnostics/traces/:traceId', {
     schema: {
-      description: 'Lookup a specific trace by ID',
-      tags: ['Diagnostics'],
       params: {
         type: 'object',
         properties: {
@@ -172,8 +150,6 @@ export const diagnosticsRoutes: FastifyPluginAsync = async (fastify) => {
     };
   }>('/diagnostics/traces', {
     schema: {
-      description: 'Search traces with filters',
-      tags: ['Diagnostics'],
       querystring: {
         type: 'object',
         properties: {
@@ -187,12 +163,18 @@ export const diagnosticsRoutes: FastifyPluginAsync = async (fastify) => {
     handler: async (request, reply) => {
       const { correlationId, minDurationMs, status, limit } = request.query;
 
+      const filters: {
+        correlationId?: string;
+        minDurationMs?: number;
+        status?: 'ok' | 'error';
+      } = {};
+
+      if (correlationId) filters.correlationId = correlationId;
+      if (minDurationMs) filters.minDurationMs = parseInt(minDurationMs, 10);
+      if (status) filters.status = status;
+
       const traces = searchTraces(
-        {
-          correlationId,
-          minDurationMs: minDurationMs ? parseInt(minDurationMs, 10) : undefined,
-          status,
-        },
+        filters,
         limit ? parseInt(limit, 10) : 100
       );
 
@@ -208,23 +190,17 @@ export const diagnosticsRoutes: FastifyPluginAsync = async (fastify) => {
    *
    * Detailed health check with all indicators
    */
-  fastify.get('/diagnostics/health', {
-    schema: {
-      description: 'Detailed health check',
-      tags: ['Diagnostics'],
-    },
-    handler: async (_request, reply) => {
-      const snapshot = await diagnostics.getSnapshot();
-      const health = snapshot.health;
+  fastify.get('/diagnostics/health', async (_request: FastifyRequest, reply: FastifyReply) => {
+    const snapshot = await diagnostics.getSnapshot();
+    const health = snapshot.health;
 
-      const statusCode = health.overall === 'healthy' ? 200 : health.overall === 'degraded' ? 200 : 503;
+    const statusCode = health.overall === 'healthy' ? 200 : health.overall === 'degraded' ? 200 : 503;
 
-      return reply.status(statusCode).send({
-        status: health.overall,
-        checks: health.checks,
-        timestamp: snapshot.timestamp,
-      });
-    },
+    return reply.status(statusCode).send({
+      status: health.overall,
+      checks: health.checks,
+      timestamp: snapshot.timestamp,
+    });
   });
 
   /**
@@ -232,19 +208,13 @@ export const diagnosticsRoutes: FastifyPluginAsync = async (fastify) => {
    *
    * System resource information
    */
-  fastify.get('/diagnostics/system', {
-    schema: {
-      description: 'System resource information',
-      tags: ['Diagnostics'],
-    },
-    handler: async (_request, reply) => {
-      const snapshot = await diagnostics.getSnapshot();
+  fastify.get('/diagnostics/system', async (_request: FastifyRequest, reply: FastifyReply) => {
+    const snapshot = await diagnostics.getSnapshot();
 
-      return reply.send({
-        system: snapshot.system,
-        uptimeMs: snapshot.uptimeMs,
-        timestamp: snapshot.timestamp,
-      });
-    },
+    return reply.send({
+      system: snapshot.system,
+      uptimeMs: snapshot.uptimeMs,
+      timestamp: snapshot.timestamp,
+    });
   });
 };

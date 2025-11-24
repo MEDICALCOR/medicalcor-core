@@ -151,7 +151,7 @@ export const processPostCall = task({
     let scoreResult = null;
     let triageResult = null;
 
-    if (analysis) {
+    if (analysis && scoring) {
       try {
         // Build lead context from transcript
         const leadContext: LeadContext = {
@@ -191,22 +191,29 @@ export const processPostCall = task({
         });
 
         // Triage assessment
-        triageResult = triage.assess({
-          leadScore: scoreResult.classification,
-          channel: 'voice',
-          messageContent: analysis.fullTranscript,
-          procedureInterest: scoreResult.procedureInterest ?? [],
-          hasExistingRelationship: false,
-        });
+        if (triage) {
+          triageResult = triage.assess({
+            leadScore: scoreResult.classification,
+            channel: 'voice',
+            messageContent: analysis.fullTranscript,
+            procedureInterest: scoreResult.procedureInterest ?? [],
+            hasExistingRelationship: false,
+          });
 
-        logger.info('Triage completed', {
-          urgencyLevel: triageResult.urgencyLevel,
-          routing: triageResult.routingRecommendation,
-          correlationId,
-        });
+          logger.info('Triage completed', {
+            urgencyLevel: triageResult.urgencyLevel,
+            routing: triageResult.routingRecommendation,
+            correlationId,
+          });
+        } else {
+          logger.warn('Triage service not available', { correlationId });
+        }
+
       } catch (err) {
         logger.error('Failed to score lead', { err, callId, correlationId });
       }
+    } else if (analysis && !scoring) {
+      logger.warn('Scoring service not available', { correlationId });
     }
 
     // Step 5: Sync to HubSpot
@@ -267,7 +274,8 @@ export const processPostCall = task({
             summary?.urgencyLevel === 'high' ||
             triageResult?.urgencyLevel === 'high_priority' ||
             triageResult?.urgencyLevel === 'high') &&
-          triageResult
+          triageResult &&
+          triage
         ) {
           // Get notification contacts for priority cases
           const notificationContacts = triage.getNotificationContacts(triageResult.urgencyLevel);

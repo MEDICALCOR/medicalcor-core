@@ -136,7 +136,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
 
           // Handle authentication error from server
           if (realtimeEvent.type === 'auth_error') {
-            const errorMsg = (realtimeEvent.data as { message?: string })?.message ?? 'Authentication failed';
+            const errorMsg = (realtimeEvent.data as { message?: string } | undefined)?.message ?? 'Authentication failed';
             console.error('[WebSocket] Authentication failed:', errorMsg);
             onAuthError?.(errorMsg);
             ws.close();

@@ -25,10 +25,6 @@ import {
   createOpenAIClient,
   type OpenAIClient,
 } from './openai.js';
-import { CircuitBreakerRegistry, CircuitState, type CircuitBreakerStats } from '@medicalcor/core';
-import { createHubSpotClient, type HubSpotClient } from './hubspot.js';
-import { createWhatsAppClient, type WhatsAppClient } from './whatsapp.js';
-import { createOpenAIClient, type OpenAIClient } from './openai.js';
 import {
   createSchedulingService,
   createMockSchedulingService,
@@ -124,7 +120,6 @@ export interface IntegrationClients {
   eventStore: EventStore;
   /** Returns true if all required clients are available */
   isConfigured: (required: ClientName[]) => boolean;
-  isConfigured: (required: ('hubspot' | 'whatsapp' | 'openai' | 'scheduling')[]) => boolean;
   /** Get circuit breaker statistics for all services */
   getCircuitBreakerStats: () => CircuitBreakerStats[];
   /** Check if a specific service circuit is open */
@@ -295,9 +290,6 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
 
   // Helper to check if required clients are configured
   const isConfigured = (required: ClientName[]): boolean => {
-  const isConfigured = (
-    required: ('hubspot' | 'whatsapp' | 'openai' | 'scheduling')[]
-  ): boolean => {
     for (const client of required) {
       switch (client) {
         case 'hubspot':

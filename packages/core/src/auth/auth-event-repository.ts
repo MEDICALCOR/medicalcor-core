@@ -52,7 +52,7 @@ export class AuthEventRepository {
       ]
     );
 
-    const event = mapRowToAuthEvent(result.rows[0]);
+    const event = mapRowToAuthEvent(result.rows[0]!);
 
     // Log to structured logger as well for observability
     logger.info(
@@ -103,7 +103,7 @@ export class AuthEventRepository {
 
     return {
       events: dataResult.rows.map(mapRowToAuthEvent),
-      total: parseInt(countResult.rows[0].count as string, 10),
+      total: parseInt(countResult.rows[0]!.count as string, 10),
     };
   }
 
