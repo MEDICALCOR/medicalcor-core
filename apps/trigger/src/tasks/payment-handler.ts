@@ -75,53 +75,43 @@ export const handlePaymentSucceeded = task({
       correlationId,
     });
 
-    // Step 1: Find or create HubSpot contact
+    // Step 1: Find or create HubSpot contact (using atomic upsert to prevent race conditions)
+    // IMPORTANT: We use upsertContactByEmail/Phone which is atomic and prevents duplicate
+    // contacts when multiple webhook events arrive simultaneously (e.g., payment_intent.succeeded
+    // and charge.succeeded both trying to create the same contact)
     let hubspotContactId: string | undefined;
     let normalizedPhone: string | undefined;
 
     if (hubspot) {
       try {
-        // Try to find by email first
-        if (customerEmail) {
-          const contact = await hubspot.findContactByEmail(customerEmail);
-          if (contact) {
-            hubspotContactId = contact.id;
-            logger.info('Found contact by email', { contactId: hubspotContactId, correlationId });
-          }
-        }
-
-        // If not found by email, try by phone
-        if (!hubspotContactId && metadata?.phone) {
+        // Normalize phone if available
+        if (metadata?.phone) {
           const phoneResult = normalizeRomanianPhone(metadata.phone);
           normalizedPhone = phoneResult.normalized;
-          const contacts = await hubspot.searchContactsByPhone(normalizedPhone);
-          const firstContact = contacts[0];
-          if (firstContact) {
-            hubspotContactId = firstContact.id;
-            logger.info('Found contact by phone', { contactId: hubspotContactId, correlationId });
-          }
         }
 
-        // If still not found, create new contact
-        if (!hubspotContactId && (customerEmail || metadata?.phone)) {
-          if (metadata?.phone) {
-            const phoneResult = normalizeRomanianPhone(metadata.phone);
-            normalizedPhone = phoneResult.normalized;
-          }
-
-          const newContact = await hubspot.syncContact({
-            phone: normalizedPhone ?? '',
-            ...(customerEmail && { email: customerEmail }),
-            ...(customerName && { name: customerName }),
-            properties: {
-              lead_source: 'stripe_payment',
-            },
+        // Use atomic upsert operations instead of check-then-act pattern
+        // This prevents race conditions when concurrent webhooks try to create contacts
+        if (customerEmail) {
+          // Prefer email-based upsert as email is more unique
+          const contact = await hubspot.upsertContactByEmail(customerEmail, {
+            ...(customerName ? { firstname: customerName } : {}),
+            ...(normalizedPhone ? { phone: normalizedPhone } : {}),
+            lead_source: 'stripe_payment',
           });
-          hubspotContactId = newContact.id;
-          logger.info('Created new contact', { contactId: hubspotContactId, correlationId });
+          hubspotContactId = contact.id;
+          logger.info('Upserted contact by email', { contactId: hubspotContactId, correlationId });
+        } else if (normalizedPhone) {
+          // Fallback to phone-based upsert
+          const contact = await hubspot.upsertContactByPhone(normalizedPhone, {
+            ...(customerName ? { firstname: customerName } : {}),
+            lead_source: 'stripe_payment',
+          });
+          hubspotContactId = contact.id;
+          logger.info('Upserted contact by phone', { contactId: hubspotContactId, correlationId });
         }
       } catch (err) {
-        logger.error('Failed to find/create HubSpot contact', { err, correlationId });
+        logger.error('Failed to upsert HubSpot contact', { err, correlationId });
       }
     } else {
       logger.warn('HubSpot client not configured', { correlationId });

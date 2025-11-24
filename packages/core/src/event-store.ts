@@ -2,6 +2,23 @@ import { v4 as uuidv4 } from 'uuid';
 import { createLogger, type Logger } from './logger.js';
 
 /**
+ * Error thrown when there is a version conflict during event append
+ * This indicates a concurrent modification to the same aggregate
+ */
+export class ConcurrencyError extends Error {
+  public readonly code = 'CONCURRENCY_ERROR';
+  public readonly aggregateId?: string;
+  public readonly expectedVersion?: number;
+
+  constructor(message: string, aggregateId?: string, expectedVersion?: number) {
+    super(message);
+    this.name = 'ConcurrencyError';
+    this.aggregateId = aggregateId;
+    this.expectedVersion = expectedVersion;
+  }
+}
+
+/**
  * Event Store - Durable event persistence and publishing
  * Provides event sourcing capabilities for domain events
  */
@@ -149,6 +166,12 @@ export class PostgresEventStore implements EventStoreRepository {
         CREATE INDEX IF NOT EXISTS idx_events_aggregate_id ON ${this.tableName} (aggregate_id);
         CREATE INDEX IF NOT EXISTS idx_events_type ON ${this.tableName} (type);
         CREATE INDEX IF NOT EXISTS idx_events_timestamp ON ${this.tableName} (timestamp);
+
+        -- CRITICAL: Unique constraint to prevent concurrent version conflicts
+        -- This ensures event sourcing integrity by preventing duplicate (aggregate_id, version) pairs
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_events_aggregate_version
+        ON ${this.tableName} (aggregate_id, version)
+        WHERE aggregate_id IS NOT NULL AND version IS NOT NULL;
       `);
     } finally {
       (client as { release: () => void }).release();
@@ -180,6 +203,19 @@ export class PostgresEventStore implements EventStoreRepository {
           event.metadata.source,
         ]
       );
+    } catch (error: unknown) {
+      // Handle PostgreSQL unique violation error (code 23505)
+      // This occurs when two concurrent operations try to write the same (aggregate_id, version)
+      const pgError = error as { code?: string; constraint?: string };
+      if (pgError.code === '23505' && pgError.constraint?.includes('aggregate_version')) {
+        throw new ConcurrencyError(
+          `Event version conflict: aggregate ${event.aggregateId} already has version ${event.version}. ` +
+            'Another process may have modified this aggregate concurrently.',
+          event.aggregateId,
+          event.version
+        );
+      }
+      throw error;
     } finally {
       (client as { release: () => void }).release();
     }

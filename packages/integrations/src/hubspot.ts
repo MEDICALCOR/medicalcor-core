@@ -380,6 +380,64 @@ export class HubSpotClient {
   }
 
   /**
+   * Upsert contact by email (atomic operation - race-condition safe)
+   *
+   * Uses HubSpot's native upsert API with idProperty to prevent duplicate creation
+   * when multiple concurrent requests try to create the same contact.
+   *
+   * @param email - The email to use as the unique identifier
+   * @param properties - Contact properties to set/update
+   * @returns The created or updated contact
+   */
+  async upsertContactByEmail(
+    email: string,
+    properties: Record<string, string>
+  ): Promise<HubSpotContact> {
+    // HubSpot's upsert API: POST /crm/v3/objects/contacts with idProperty query param
+    // This is atomic - it will either create or update in a single operation
+    return this.request<HubSpotContact>(
+      '/crm/v3/objects/contacts?idProperty=email',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          properties: {
+            email,
+            ...properties,
+          },
+        }),
+      }
+    );
+  }
+
+  /**
+   * Upsert contact by phone (atomic operation - race-condition safe)
+   *
+   * Uses HubSpot's native upsert API with idProperty to prevent duplicate creation
+   * when multiple concurrent requests try to create the same contact.
+   *
+   * @param phone - The phone number to use as the unique identifier
+   * @param properties - Contact properties to set/update
+   * @returns The created or updated contact
+   */
+  async upsertContactByPhone(
+    phone: string,
+    properties: Record<string, string>
+  ): Promise<HubSpotContact> {
+    return this.request<HubSpotContact>(
+      '/crm/v3/objects/contacts?idProperty=phone',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          properties: {
+            phone,
+            ...properties,
+          },
+        }),
+      }
+    );
+  }
+
+  /**
    * Log payment to timeline
    */
   async logPaymentToTimeline(input: {
