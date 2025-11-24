@@ -1,5 +1,13 @@
 'use client';
 
+/**
+ * @deprecated SECURITY: Mock data generators are deprecated and should not be used.
+ * Use server actions from '@/app/actions/get-patients' instead, which fetch real data
+ * from HubSpot with proper authorization checks.
+ *
+ * These functions will be removed in a future version.
+ */
+
 import type {
   PatientDetail,
   PatientAppointment,
@@ -9,7 +17,15 @@ import type {
   PatientProcedure,
 } from './types';
 
+/**
+ * @deprecated Use getPatientByIdAction() from '@/app/actions/get-patients' instead.
+ * This function generates fake data and has no authorization checks.
+ */
 export function generateMockPatientDetail(id: string): PatientDetail {
+  console.warn(
+    '[DEPRECATED] generateMockPatientDetail() is deprecated. ' +
+    'Use getPatientByIdAction() from "@/app/actions/get-patients" instead.'
+  );
   const appointments: PatientAppointment[] = [
     {
       id: 'apt-1',

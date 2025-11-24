@@ -1,7 +1,5 @@
-'use client';
-
-import { use, useMemo } from 'react';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import {
   ArrowLeft,
   Activity,
@@ -12,10 +10,11 @@ import {
   AlertTriangle,
   Pill,
   DollarSign,
+  ShieldAlert,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   PatientHeader,
@@ -24,17 +23,123 @@ import {
   PatientDocuments,
   PatientNotes,
 } from '@/components/patients';
-import { generateMockPatientDetail } from '@/lib/patients';
+import { getPatientByIdAction, type PatientDetailData } from '@/app/actions/get-patients';
+import { AuthorizationError } from '@/lib/auth/server-action-auth';
+import type { PatientDetail } from '@/lib/patients/types';
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export default function PatientDetailPage({ params }: PageProps) {
-  const { id } = use(params);
+function AccessDenied() {
+  return (
+    <Card className="border-destructive">
+      <CardHeader>
+        <div className="flex items-center gap-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
+            <ShieldAlert className="h-8 w-8 text-destructive" />
+          </div>
+          <div>
+            <CardTitle className="text-destructive">Acces Interzis</CardTitle>
+            <CardDescription>
+              Nu aveți permisiunea de a accesa acest pacient.
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-muted-foreground">
+          Contactați administratorul pentru a solicita acces.
+        </p>
+        <Link href="/patients">
+          <Button variant="outline" className="mt-4">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Înapoi la pacienți
+          </Button>
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
 
-  // In a real app, this would fetch from API
-  const patient = useMemo(() => generateMockPatientDetail(id), [id]);
+/**
+ * Convert HubSpot contact data to PatientDetail format
+ * Note: HubSpot doesn't store detailed medical data, so we use empty defaults
+ */
+function toPatientDetail(data: PatientDetailData): PatientDetail {
+  const name = [data.firstName, data.lastName].filter(Boolean).join(' ') || data.phone;
+  return {
+    id: data.id,
+    firstName: data.firstName,
+    lastName: data.lastName,
+    contact: {
+      phone: data.phone,
+      email: data.email,
+      preferredChannel: 'phone',
+    },
+    status: data.lifecycleStage === 'customer' ? 'patient' : 'lead',
+    source: data.source === 'facebook' ? 'facebook' : data.source === 'google' ? 'google' : data.source === 'referral' ? 'referral' : 'website',
+    tags: data.procedureInterest ?? [],
+    createdAt: new Date(data.createdAt),
+    updatedAt: new Date(data.updatedAt),
+    // Medical info - HubSpot doesn't store this, use empty defaults
+    medicalHistory: undefined,
+    allergies: [],
+    currentMedications: [],
+    // Related data - would come from separate data sources
+    appointments: [],
+    documents: [],
+    activities: [],
+    notes: [],
+    procedures: [],
+    // Stats
+    totalSpent: 0,
+    appointmentCount: 0,
+    assignedTo: undefined,
+  };
+}
+
+export default async function PatientDetailPage({ params }: PageProps) {
+  const { id } = await params;
+
+  let patientData: PatientDetailData | null = null;
+  let accessDenied = false;
+
+  try {
+    // Fetch patient data with IDOR protection
+    patientData = await getPatientByIdAction(id);
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      accessDenied = true;
+    } else {
+      console.error('[PatientDetailPage] Error fetching patient:', error);
+    }
+  }
+
+  // Handle access denied
+  if (accessDenied) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/patients">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Înapoi la pacienți
+            </Link>
+          </Button>
+        </div>
+        <AccessDenied />
+      </div>
+    );
+  }
+
+  // Handle patient not found
+  if (!patientData) {
+    notFound();
+  }
+
+  // Convert to PatientDetail format for components
+  const patient = toPatientDetail(patientData);
 
   return (
     <div className="space-y-6">
@@ -255,6 +360,29 @@ export default function PatientDetailPage({ params }: PageProps) {
               </CardContent>
             </Card>
           )}
+
+          {/* HubSpot Info Card */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Informații HubSpot</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Lead Score</span>
+                <span className="font-medium">{patientData.leadScore ?? 0}/5</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Clasificare</span>
+                <Badge variant={patientData.classification === 'HOT' ? 'hot' : patientData.classification === 'WARM' ? 'warm' : 'cold'}>
+                  {patientData.classification}
+                </Badge>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">HubSpot ID</span>
+                <span className="font-mono text-xs">{patientData.hubspotContactId}</span>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

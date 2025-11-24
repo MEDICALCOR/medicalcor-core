@@ -10,11 +10,21 @@ import type {
 
 interface UseWebSocketOptions {
   url: string;
+  /**
+   * Authentication token to send with WebSocket connection.
+   * SECURITY: Required for authenticated connections.
+   * Token is passed via query parameter and validated server-side.
+   */
+  authToken?: string;
   reconnectInterval?: number;
   maxReconnectAttempts?: number;
   onOpen?: () => void;
   onClose?: () => void;
   onError?: (error: Event) => void;
+  /**
+   * Called when authentication fails
+   */
+  onAuthError?: (message: string) => void;
 }
 
 const DEFAULT_RECONNECT_INTERVAL = 3000;
@@ -23,11 +33,13 @@ const MAX_RECONNECT_ATTEMPTS = 10;
 export function useWebSocket(options: UseWebSocketOptions) {
   const {
     url,
+    authToken,
     reconnectInterval = DEFAULT_RECONNECT_INTERVAL,
     maxReconnectAttempts = MAX_RECONNECT_ATTEMPTS,
     onOpen,
     onClose,
     onError,
+    onAuthError,
   } = options;
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -51,15 +63,37 @@ export function useWebSocket(options: UseWebSocketOptions) {
       return;
     }
 
+    // SECURITY: Require authentication token for WebSocket connections
+    if (!authToken) {
+      console.error('[WebSocket] Authentication token required for connection');
+      onAuthError?.('Authentication token required');
+      setConnectionState((prev) => ({
+        ...prev,
+        status: 'error',
+      }));
+      return;
+    }
+
     setConnectionState((prev) => ({
       ...prev,
       status: 'connecting',
     }));
 
     try {
-      const ws = new WebSocket(url);
+      // Build URL with authentication token as query parameter
+      // Server must validate this token before accepting messages
+      const wsUrl = new URL(url);
+      wsUrl.searchParams.set('token', authToken);
+      const ws = new WebSocket(wsUrl.toString());
 
       ws.onopen = () => {
+        // Send authentication message after connection
+        // This provides an additional layer of auth validation
+        ws.send(JSON.stringify({
+          type: 'auth',
+          token: authToken,
+        }));
+
         setConnectionState({
           status: 'connected',
           lastConnected: new Date(),
@@ -100,6 +134,15 @@ export function useWebSocket(options: UseWebSocketOptions) {
         try {
           const realtimeEvent = JSON.parse(event.data) as RealtimeEvent;
 
+          // Handle authentication error from server
+          if (realtimeEvent.type === 'auth_error') {
+            const errorMsg = (realtimeEvent.data as { message?: string })?.message ?? 'Authentication failed';
+            console.error('[WebSocket] Authentication failed:', errorMsg);
+            onAuthError?.(errorMsg);
+            ws.close();
+            return;
+          }
+
           // Notify specific handlers
           const specificHandlers = handlersRef.current.get(realtimeEvent.type);
           specificHandlers?.forEach((handler) => handler(realtimeEvent));
@@ -121,11 +164,13 @@ export function useWebSocket(options: UseWebSocketOptions) {
     }
   }, [
     url,
+    authToken,
     reconnectInterval,
     maxReconnectAttempts,
     onOpen,
     onClose,
     onError,
+    onAuthError,
     connectionState.reconnectAttempts,
   ]);
 

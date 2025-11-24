@@ -109,16 +109,6 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
-
-          {/* Demo credentials hint for development */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mt-6 rounded-md bg-gray-50 dark:bg-gray-800 p-3 text-xs text-gray-600 dark:text-gray-400">
-              <p className="font-medium mb-1">Demo Credentials:</p>
-              <p>Admin: admin@medicalcor.ro / admin123456</p>
-              <p>Doctor: doctor@medicalcor.ro / doctor123456</p>
-              <p>Reception: reception@medicalcor.ro / reception123456</p>
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>

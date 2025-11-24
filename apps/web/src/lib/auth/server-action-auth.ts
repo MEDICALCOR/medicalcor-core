@@ -67,28 +67,63 @@ export async function getCurrentUser() {
 
 /**
  * Check if current user can access a specific patient
- * For IDOR protection
+ * For IDOR protection - validates clinic membership for non-admin users
  */
-export async function canAccessPatient(_patientId: string): Promise<boolean> {
+export async function canAccessPatient(patientId: string): Promise<boolean> {
   const session = await auth();
 
   if (!session?.user) {
     return false;
   }
 
-  // Admins and doctors can access all patients
-  if (hasRole(session.user.role, ['admin', 'doctor'])) {
+  // Admins can access all patients
+  if (session.user.role === 'admin') {
     return true;
   }
 
-  // Receptionists can access patients at their clinic
-  if (session.user.role === 'receptionist' && session.user.clinicId) {
-    // In production: check if patient belongs to user's clinic
-    // For now, allow access
-    return true;
+  // Doctors and receptionists must have a clinic assignment
+  if (!session.user.clinicId) {
+    return false;
   }
 
-  return false;
+  // Verify patient belongs to user's clinic via HubSpot
+  try {
+    const { HubSpotClient } = await import('@medicalcor/integrations');
+    const accessToken = process.env.HUBSPOT_ACCESS_TOKEN;
+
+    if (!accessToken) {
+      console.error('[canAccessPatient] HUBSPOT_ACCESS_TOKEN not configured');
+      return false;
+    }
+
+    const hubspot = new HubSpotClient({ accessToken });
+    const contact = await hubspot.getContact(patientId);
+
+    // Check if patient's clinic_id matches user's clinic
+    const patientClinicId = contact.properties.clinic_id;
+
+    // If patient has no clinic assigned, deny access for non-admins
+    if (!patientClinicId) {
+      return false;
+    }
+
+    return patientClinicId === session.user.clinicId;
+  } catch (error) {
+    console.error('[canAccessPatient] Failed to verify patient access:', error);
+    // Fail closed - deny access on error
+    return false;
+  }
+}
+
+/**
+ * Require access to a specific patient
+ * Throws AuthorizationError if access denied
+ */
+export async function requirePatientAccess(patientId: string): Promise<void> {
+  const hasAccess = await canAccessPatient(patientId);
+  if (!hasAccess) {
+    throw new AuthorizationError('You do not have access to this patient');
+  }
 }
 
 /**
