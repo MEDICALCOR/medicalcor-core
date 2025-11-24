@@ -144,7 +144,7 @@ export function RealtimeProvider({ children, wsUrl }: RealtimeProviderProps) {
         createdAt: new Date(event.timestamp),
       };
 
-      setUrgencies((prev) => [newUrgency, ...prev]);
+      setUrgencies((prev) => [newUrgency, ...prev].slice(0, 100)); // Cap to prevent unbounded growth
     });
 
     return unsubscribe;

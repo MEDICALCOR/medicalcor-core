@@ -74,3 +74,10 @@ export {
   type StripeClientConfig,
   type DailyRevenueResult,
 } from './stripe.js';
+
+export {
+  createIntegrationClients,
+  getOpenAIApiKey,
+  type ClientsConfig,
+  type IntegrationClients,
+} from './clients-factory.js';

@@ -1,4 +1,4 @@
-import { withRetry, ExternalServiceError, WebhookSignatureError } from '@medicalcor/core';
+import { withRetry, ExternalServiceError, WebhookSignatureError, RateLimitError } from '@medicalcor/core';
 import crypto from 'crypto';
 
 /**
@@ -369,13 +369,6 @@ export class WhatsAppClient {
         return false;
       },
     });
-  }
-}
-
-class RateLimitError extends Error {
-  constructor(public retryAfter: number) {
-    super(`Rate limited. Retry after ${retryAfter} seconds`);
-    this.name = 'RateLimitError';
   }
 }
 

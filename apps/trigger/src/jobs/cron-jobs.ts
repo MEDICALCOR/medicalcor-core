@@ -1,12 +1,7 @@
 import { schedules, logger } from '@trigger.dev/sdk/v3';
 import crypto from 'crypto';
 import { createEventStore, createInMemoryEventStore } from '@medicalcor/core';
-import {
-  createHubSpotClient,
-  createWhatsAppClient,
-  createSchedulingService,
-  createMockSchedulingService,
-} from '@medicalcor/integrations';
+import { createIntegrationClients } from '@medicalcor/integrations';
 import { nurtureSequenceWorkflow } from '../workflows/patient-journey.js';
 import { scoreLeadWorkflow } from '../workflows/lead-scoring.js';
 
@@ -20,33 +15,70 @@ import { scoreLeadWorkflow } from '../workflows/lead-scoring.js';
 // ============================================
 
 function getClients() {
-  const hubspotToken = process.env.HUBSPOT_ACCESS_TOKEN;
-  const whatsappApiKey = process.env.WHATSAPP_API_KEY;
-  const whatsappPhoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  const schedulingApiUrl = process.env.SCHEDULING_SERVICE_URL;
-  const schedulingApiKey = process.env.SCHEDULING_SERVICE_TOKEN;
   const databaseUrl = process.env.DATABASE_URL;
 
-  const hubspot = hubspotToken ? createHubSpotClient({ accessToken: hubspotToken }) : null;
-
-  const whatsapp =
-    whatsappApiKey && whatsappPhoneNumberId
-      ? createWhatsAppClient({
-          apiKey: whatsappApiKey,
-          phoneNumberId: whatsappPhoneNumberId,
-        })
-      : null;
-
-  const scheduling =
-    schedulingApiUrl && schedulingApiKey
-      ? createSchedulingService({ apiUrl: schedulingApiUrl, apiKey: schedulingApiKey })
-      : createMockSchedulingService();
+  // Use shared client factory
+  const clients = createIntegrationClients({
+    source: 'cron-jobs',
+    includeScheduling: true,
+  });
 
   const eventStore = databaseUrl
     ? createEventStore({ source: 'cron-jobs', connectionString: databaseUrl })
     : createInMemoryEventStore('cron-jobs');
 
-  return { hubspot, whatsapp, scheduling, eventStore };
+  return {
+    hubspot: clients.hubspot,
+    whatsapp: clients.whatsapp,
+    scheduling: clients.scheduling,
+    eventStore,
+  };
+}
+
+// ============================================
+// Batch Processing Constants
+// ============================================
+
+/**
+ * Batch size for parallel API calls
+ * Prevents overwhelming external services while improving throughput
+ */
+const BATCH_SIZE = 10;
+
+/**
+ * Process items in batches using Promise.allSettled for resilience
+ * @param items - Array of items to process
+ * @param processor - Async function to process each item
+ * @returns Object with success count and errors array
+ */
+async function processBatch<T>(
+  items: T[],
+  processor: (item: T) => Promise<void>,
+  logger: { info: (msg: string, meta?: Record<string, unknown>) => void }
+): Promise<{ successes: number; errors: Array<{ item: T; error: unknown }> }> {
+  let successes = 0;
+  const errors: Array<{ item: T; error: unknown }> = [];
+
+  for (let i = 0; i < items.length; i += BATCH_SIZE) {
+    const batch = items.slice(i, i + BATCH_SIZE);
+    const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+    const totalBatches = Math.ceil(items.length / BATCH_SIZE);
+
+    logger.info(`Processing batch ${batchNum}/${totalBatches}`, { batchSize: batch.length });
+
+    const results = await Promise.allSettled(batch.map(processor));
+
+    for (let j = 0; j < results.length; j++) {
+      const result = results[j];
+      if (result && result.status === 'fulfilled') {
+        successes++;
+      } else if (result && result.status === 'rejected') {
+        errors.push({ item: batch[j] as T, error: result.reason });
+      }
+    }
+  }
+
+  return { successes, errors };
 }
 
 // ============================================
@@ -153,29 +185,39 @@ export const dailyRecallCheck = schedules.task({
 
       logger.info(`Found ${recallDueContacts.total} contacts due for recall`, { correlationId });
 
-      // Trigger recall sequence for each contact
-      for (const contact of recallDueContacts.results) {
+      // Filter contacts with valid phone numbers
+      const contactsWithPhone = recallDueContacts.results.filter((contact) => {
         if (!contact.properties.phone) {
           logger.warn('Contact missing phone, skipping', { contactId: contact.id, correlationId });
-          continue;
+          return false;
         }
+        return true;
+      });
 
-        try {
+      // Process contacts in batches for better performance
+      const batchResult = await processBatch(
+        contactsWithPhone,
+        async (contact) => {
           await nurtureSequenceWorkflow.trigger({
-            phone: contact.properties.phone,
+            phone: contact.properties.phone as string,
             hubspotContactId: contact.id,
             sequenceType: 'recall',
             correlationId: `${correlationId}_${contact.id}`,
           });
-          contactsProcessed++;
-        } catch (error) {
-          logger.error('Failed to trigger recall sequence', {
-            contactId: contact.id,
-            error,
-            correlationId,
-          });
-          errors++;
-        }
+        },
+        logger
+      );
+
+      contactsProcessed = batchResult.successes;
+      errors = batchResult.errors.length;
+
+      // Log individual errors for debugging
+      for (const { item, error } of batchResult.errors) {
+        logger.error('Failed to trigger recall sequence', {
+          contactId: item.id,
+          error,
+          correlationId,
+        });
       }
 
       // Emit job completion event
@@ -262,22 +304,43 @@ export const appointmentReminders = schedules.task({
         correlationId,
       });
 
-      for (const contact of upcomingAppointments.results) {
+      // Filter contacts with valid data
+      const validContacts = upcomingAppointments.results.filter((contact) => {
         const props = contact.properties as Record<string, string | undefined>;
-        if (!props.phone || !props.next_appointment_date) {
-          continue;
-        }
+        return props.phone && props.next_appointment_date;
+      });
 
-        const appointmentDate = props.next_appointment_date;
-        const hsLang = props.hs_language;
-        const language: 'ro' | 'en' | 'de' =
-          hsLang === 'ro' || hsLang === 'en' || hsLang === 'de' ? hsLang : 'ro';
+      // Separate contacts into 24h and 2h reminder groups
+      const contacts24h = validContacts.filter((contact) => {
+        const props = contact.properties as Record<string, string | undefined>;
+        return (
+          isIn24Hours(props.next_appointment_date as string) &&
+          props.reminder_24h_sent !== 'true'
+        );
+      });
 
-        try {
-          // Send 24h reminder if not sent
-          if (isIn24Hours(appointmentDate) && props.reminder_24h_sent !== 'true') {
+      const contacts2h = validContacts.filter((contact) => {
+        const props = contact.properties as Record<string, string | undefined>;
+        return (
+          isIn2Hours(props.next_appointment_date as string) &&
+          props.reminder_2h_sent !== 'true'
+        );
+      });
+
+      // Process 24h reminders in batches
+      if (contacts24h.length > 0) {
+        logger.info(`Processing ${contacts24h.length} 24h reminders`, { correlationId });
+        const batch24hResult = await processBatch(
+          contacts24h,
+          async (contact) => {
+            const props = contact.properties as Record<string, string | undefined>;
+            const appointmentDate = props.next_appointment_date as string;
+            const hsLang = props.hs_language;
+            const language: 'ro' | 'en' | 'de' =
+              hsLang === 'ro' || hsLang === 'en' || hsLang === 'de' ? hsLang : 'ro';
+
             await whatsapp.sendTemplate({
-              to: props.phone,
+              to: props.phone as string,
               templateName: 'appointment_reminder_24h',
               language: language === 'ro' ? 'ro' : language === 'de' ? 'de' : 'en',
               components: [
@@ -292,18 +355,35 @@ export const appointmentReminders = schedules.task({
               ],
             });
 
-            // Mark reminder as sent
             if (hubspot) {
               await hubspot.updateContact(contact.id, { reminder_24h_sent: 'true' });
             }
-            reminders24hSent++;
             logger.info('Sent 24h reminder', { contactId: contact.id, correlationId });
-          }
+          },
+          logger
+        );
+        reminders24hSent = batch24hResult.successes;
+        errors += batch24hResult.errors.length;
 
-          // Send 2h reminder if not sent
-          if (isIn2Hours(appointmentDate) && props.reminder_2h_sent !== 'true') {
+        for (const { item, error } of batch24hResult.errors) {
+          logger.error('Failed to send 24h reminder', { contactId: item.id, error, correlationId });
+        }
+      }
+
+      // Process 2h reminders in batches
+      if (contacts2h.length > 0) {
+        logger.info(`Processing ${contacts2h.length} 2h reminders`, { correlationId });
+        const batch2hResult = await processBatch(
+          contacts2h,
+          async (contact) => {
+            const props = contact.properties as Record<string, string | undefined>;
+            const appointmentDate = props.next_appointment_date as string;
+            const hsLang = props.hs_language;
+            const language: 'ro' | 'en' | 'de' =
+              hsLang === 'ro' || hsLang === 'en' || hsLang === 'de' ? hsLang : 'ro';
+
             await whatsapp.sendTemplate({
-              to: props.phone,
+              to: props.phone as string,
               templateName: 'appointment_reminder_2h',
               language: language === 'ro' ? 'ro' : language === 'de' ? 'de' : 'en',
               components: [
@@ -314,16 +394,18 @@ export const appointmentReminders = schedules.task({
               ],
             });
 
-            // Mark reminder as sent
             if (hubspot) {
               await hubspot.updateContact(contact.id, { reminder_2h_sent: 'true' });
             }
-            reminders2hSent++;
             logger.info('Sent 2h reminder', { contactId: contact.id, correlationId });
-          }
-        } catch (error) {
-          logger.error('Failed to send reminder', { contactId: contact.id, error, correlationId });
-          errors++;
+          },
+          logger
+        );
+        reminders2hSent = batch2hResult.successes;
+        errors += batch2hResult.errors.length;
+
+        for (const { item, error } of batch2hResult.errors) {
+          logger.error('Failed to send 2h reminder', { contactId: item.id, error, correlationId });
         }
       }
 
@@ -396,19 +478,25 @@ export const leadScoringRefresh = schedules.task({
 
       logger.info(`Found ${staleLeads.total} stale leads to re-score`, { correlationId });
 
-      for (const lead of staleLeads.results) {
+      // Filter leads with valid phone numbers
+      const leadsWithPhone = staleLeads.results.filter((lead) => {
         const leadProps = lead.properties as Record<string, string | undefined>;
         if (!leadProps.phone) {
           logger.warn('Lead missing phone, skipping', { leadId: lead.id, correlationId });
-          continue;
+          return false;
         }
+        return true;
+      });
 
-        try {
-          // Use last message content if available, otherwise generic re-score message
+      // Process leads in batches for better performance
+      const batchResult = await processBatch(
+        leadsWithPhone,
+        async (lead) => {
+          const leadProps = lead.properties as Record<string, string | undefined>;
           const message = leadProps.last_message_content ?? 'Follow-up re-scoring';
 
           await scoreLeadWorkflow.trigger({
-            phone: leadProps.phone,
+            phone: leadProps.phone as string,
             hubspotContactId: lead.id,
             message,
             channel: 'whatsapp',
@@ -419,12 +507,16 @@ export const leadScoringRefresh = schedules.task({
           await hubspot.updateContact(lead.id, {
             lead_score_updated: new Date().toISOString(),
           });
+        },
+        logger
+      );
 
-          leadsRefreshed++;
-        } catch (error) {
-          logger.error('Failed to re-score lead', { leadId: lead.id, error, correlationId });
-          errors++;
-        }
+      leadsRefreshed = batchResult.successes;
+      errors = batchResult.errors.length;
+
+      // Log individual errors for debugging
+      for (const { item, error } of batchResult.errors) {
+        logger.error('Failed to re-score lead', { leadId: item.id, error, correlationId });
       }
 
       // Emit job completion event
@@ -602,18 +694,25 @@ export const staleLeadCleanup = schedules.task({
 
       logger.info(`Found ${staleLeads.total} stale leads to archive`, { correlationId });
 
-      for (const lead of staleLeads.results) {
-        try {
+      // Process leads in batches for better performance
+      const batchResult = await processBatch(
+        staleLeads.results,
+        async (lead) => {
           await hubspot.updateContact(lead.id, {
             lead_status: 'archived',
             archived_date: new Date().toISOString(),
             archived_reason: 'No activity for 90+ days',
           });
-          leadsArchived++;
-        } catch (error) {
-          logger.error('Failed to archive lead', { leadId: lead.id, error, correlationId });
-          errors++;
-        }
+        },
+        logger
+      );
+
+      leadsArchived = batchResult.successes;
+      errors = batchResult.errors.length;
+
+      // Log individual errors for debugging
+      for (const { item, error } of batchResult.errors) {
+        logger.error('Failed to archive lead', { leadId: item.id, error, correlationId });
       }
 
       // Emit job completion event
@@ -682,14 +781,19 @@ export const gdprConsentAudit = schedules.task({
         correlationId,
       });
 
-      for (const contact of expiringConsent.results) {
+      // Filter contacts that need consent renewal
+      const contactsNeedingRenewal = expiringConsent.results.filter((contact) => {
         const contactProps = contact.properties as Record<string, string | undefined>;
         // Skip if no phone or if consent renewal was already sent
-        if (!contactProps.phone || contactProps.consent_renewal_sent) {
-          continue;
-        }
+        return contactProps.phone && !contactProps.consent_renewal_sent;
+      });
 
-        try {
+      // Process contacts in batches for better performance
+      const batchResult = await processBatch(
+        contactsNeedingRenewal,
+        async (contact) => {
+          const contactProps = contact.properties as Record<string, string | undefined>;
+
           // Send consent renewal request via WhatsApp
           if (whatsapp) {
             const contactLang = contactProps.hs_language;
@@ -698,7 +802,7 @@ export const gdprConsentAudit = schedules.task({
                 ? contactLang
                 : 'ro';
             await whatsapp.sendTemplate({
-              to: contactProps.phone,
+              to: contactProps.phone as string,
               templateName: 'consent_renewal',
               language: language === 'ro' ? 'ro' : language === 'de' ? 'de' : 'en',
               components: [
@@ -715,16 +819,21 @@ export const gdprConsentAudit = schedules.task({
             consent_renewal_sent: new Date().toISOString(),
           });
 
-          consentRenewalsSent++;
           logger.info('Sent consent renewal', { contactId: contact.id, correlationId });
-        } catch (error) {
-          logger.error('Failed to send consent renewal', {
-            contactId: contact.id,
-            error,
-            correlationId,
-          });
-          errors++;
-        }
+        },
+        logger
+      );
+
+      consentRenewalsSent = batchResult.successes;
+      errors = batchResult.errors.length;
+
+      // Log individual errors for debugging
+      for (const { item, error } of batchResult.errors) {
+        logger.error('Failed to send consent renewal', {
+          contactId: item.id,
+          error,
+          correlationId,
+        });
       }
 
       // Emit job completion event

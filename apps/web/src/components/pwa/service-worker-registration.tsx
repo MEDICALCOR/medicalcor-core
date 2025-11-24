@@ -14,28 +14,42 @@ export function ServiceWorkerRegistration() {
       return;
     }
 
+    // Track resources for cleanup
+    let updateIntervalId: ReturnType<typeof setInterval> | null = null;
+    let installPromptTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    let registration: ServiceWorkerRegistration | null = null;
+    let newWorker: ServiceWorker | null = null;
+
+    // Handler for update found event
+    const handleUpdateFound = () => {
+      newWorker = registration?.installing ?? null;
+      if (newWorker) {
+        newWorker.addEventListener('statechange', handleStateChange);
+      }
+    };
+
+    // Handler for worker state change
+    const handleStateChange = () => {
+      if (newWorker?.state === 'installed' && navigator.serviceWorker.controller) {
+        setShowUpdatePrompt(true);
+      }
+    };
+
     // Register service worker
     navigator.serviceWorker
       .register('/sw.js')
-      .then((registration) => {
+      .then((reg) => {
+        registration = reg;
+
         // Check for updates periodically
-        setInterval(
+        updateIntervalId = setInterval(
           () => {
-            void registration.update();
+            void registration?.update();
           },
           60 * 60 * 1000
         ); // Every hour
 
-        registration.addEventListener('updatefound', () => {
-          const newWorker = registration.installing;
-          if (newWorker) {
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                setShowUpdatePrompt(true);
-              }
-            });
-          }
-        });
+        registration.addEventListener('updatefound', handleUpdateFound);
       })
       .catch((error: unknown) => {
         console.error('SW registration failed:', error);
@@ -46,13 +60,33 @@ export function ServiceWorkerRegistration() {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       // Show install prompt after a delay
-      setTimeout(() => setShowInstallPrompt(true), 30000); // 30 seconds
+      installPromptTimeoutId = setTimeout(() => setShowInstallPrompt(true), 30000); // 30 seconds
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
+    // Cleanup function - prevent memory leaks
     return () => {
+      // Clear interval
+      if (updateIntervalId) {
+        clearInterval(updateIntervalId);
+      }
+
+      // Clear timeout
+      if (installPromptTimeoutId) {
+        clearTimeout(installPromptTimeoutId);
+      }
+
+      // Remove event listeners
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+      if (registration) {
+        registration.removeEventListener('updatefound', handleUpdateFound);
+      }
+
+      if (newWorker) {
+        newWorker.removeEventListener('statechange', handleStateChange);
+      }
     };
   }, []);
 
