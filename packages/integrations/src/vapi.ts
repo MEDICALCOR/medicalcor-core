@@ -272,8 +272,14 @@ export class VapiClient {
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        throw new ExternalServiceError('Vapi', `Failed to create outbound call: ${error}`);
+        const errorBody = await response.text();
+        // Log full error internally (may contain PII) but don't expose in exception
+        console.error('[Vapi] Failed to create outbound call:', {
+          status: response.status,
+          errorBody, // May contain PII - only for internal logs
+        });
+        // Throw generic error without PII
+        throw new ExternalServiceError('Vapi', `Failed to create outbound call (status ${response.status})`);
       }
 
       return response.json() as Promise<VapiCall>;
@@ -293,8 +299,15 @@ export class VapiClient {
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        throw new ExternalServiceError('Vapi', `Failed to get call: ${error}`);
+        const errorBody = await response.text();
+        // Log full error internally (may contain PII) but don't expose in exception
+        console.error('[Vapi] Failed to get call:', {
+          status: response.status,
+          callId: input.callId,
+          errorBody, // May contain PII - only for internal logs
+        });
+        // Throw generic error without PII
+        throw new ExternalServiceError('Vapi', `Failed to get call (status ${response.status})`);
       }
 
       return response.json() as Promise<VapiCall>;
@@ -321,8 +334,14 @@ export class VapiClient {
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        throw new ExternalServiceError('Vapi', `Failed to list calls: ${error}`);
+        const errorBody = await response.text();
+        // Log full error internally (may contain PII) but don't expose in exception
+        console.error('[Vapi] Failed to list calls:', {
+          status: response.status,
+          errorBody, // May contain PII - only for internal logs
+        });
+        // Throw generic error without PII
+        throw new ExternalServiceError('Vapi', `Failed to list calls (status ${response.status})`);
       }
 
       return response.json() as Promise<VapiCall[]>;
@@ -342,8 +361,15 @@ export class VapiClient {
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        throw new ExternalServiceError('Vapi', `Failed to get transcript: ${error}`);
+        const errorBody = await response.text();
+        // Log full error internally (may contain PII) but don't expose in exception
+        console.error('[Vapi] Failed to get transcript:', {
+          status: response.status,
+          callId,
+          errorBody, // May contain PII - only for internal logs
+        });
+        // Throw generic error without PII
+        throw new ExternalServiceError('Vapi', `Failed to get transcript (status ${response.status})`);
       }
 
       return response.json() as Promise<VapiTranscript>;
@@ -363,8 +389,15 @@ export class VapiClient {
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        throw new ExternalServiceError('Vapi', `Failed to end call: ${error}`);
+        const errorBody = await response.text();
+        // Log full error internally (may contain PII) but don't expose in exception
+        console.error('[Vapi] Failed to end call:', {
+          status: response.status,
+          callId,
+          errorBody, // May contain PII - only for internal logs
+        });
+        // Throw generic error without PII
+        throw new ExternalServiceError('Vapi', `Failed to end call (status ${response.status})`);
       }
     };
 

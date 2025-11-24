@@ -456,7 +456,15 @@ export class HubSpotClient {
 
         if (!response.ok) {
           const errorBody = await response.text();
-          throw new ExternalServiceError('HubSpot', `${response.status}: ${errorBody}`);
+          // Log full error internally (may contain PII) but don't expose in exception
+          console.error('[HubSpot] API error:', {
+            status: response.status,
+            statusText: response.statusText,
+            url: path,
+            errorBody, // May contain PII - only for internal logs
+          });
+          // Throw generic error without PII
+          throw new ExternalServiceError('HubSpot', `Request failed with status ${response.status}`);
         }
 
         return (await response.json()) as T;
