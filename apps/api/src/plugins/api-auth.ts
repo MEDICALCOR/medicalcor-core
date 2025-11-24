@@ -57,15 +57,17 @@ export const apiAuthPlugin: FastifyPluginAsync<ApiAuthConfig> = async (fastify, 
   // Get API keys from config or environment
   let apiKeys = options.apiKeys;
   if (!apiKeys.length) {
-    const envKey = process.env['API_SECRET_KEY'];
+    const envKey = process.env.API_SECRET_KEY;
     if (envKey) {
       apiKeys = [envKey];
     }
   }
 
-  // Warn if no API keys configured in production
-  if (apiKeys.length === 0 && process.env['NODE_ENV'] === 'production') {
-    fastify.log.error('API_SECRET_KEY not configured - workflow endpoints are unprotected!');
+  // Error if no API keys configured (REQUIRED in all environments)
+  if (apiKeys.length === 0) {
+    fastify.log.error(
+      'CRITICAL: API_SECRET_KEY not configured - workflow endpoints will reject all requests!'
+    );
   }
 
   fastify.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -76,16 +78,12 @@ export const apiAuthPlugin: FastifyPluginAsync<ApiAuthConfig> = async (fastify, 
       return; // Not a protected path, allow through
     }
 
-    // Skip auth in development if no keys configured
+    // API key is REQUIRED in all environments - no bypass allowed
     if (apiKeys.length === 0) {
-      if (process.env['NODE_ENV'] !== 'production') {
-        fastify.log.warn(
-          { url: request.url },
-          'API_SECRET_KEY not configured - allowing request in development'
-        );
-        return;
-      }
-      // In production without keys, reject
+      fastify.log.error(
+        { url: request.url },
+        'CRITICAL: API_SECRET_KEY not configured - rejecting request'
+      );
       return reply.status(500).send({ error: 'Server configuration error' });
     }
 
@@ -111,6 +109,8 @@ export const apiAuthPlugin: FastifyPluginAsync<ApiAuthConfig> = async (fastify, 
 
     // API key is valid - request will proceed
   });
+
+  return Promise.resolve();
 };
 
 export default apiAuthPlugin;
