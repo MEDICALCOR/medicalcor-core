@@ -2,7 +2,7 @@ import { task, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { createIntegrationClients } from '@medicalcor/integrations';
-import type { LeadContext, ScoringOutput } from '@medicalcor/types';
+import type { AIScoringContext, ScoringOutput } from '@medicalcor/types';
 
 /**
  * Lead Scoring Workflow
@@ -167,7 +167,7 @@ async function buildLeadContext(
     messageHistory?: { role: 'user' | 'assistant'; content: string; timestamp: string }[];
   },
   hubspot: ReturnType<typeof getClients>['hubspot']
-): Promise<LeadContext> {
+): Promise<AIScoringContext> {
   const { phone, hubspotContactId, message, channel, messageHistory } = params;
 
   // Fetch HubSpot data if available
@@ -206,7 +206,7 @@ async function buildLeadContext(
       : detectLanguage(message);
 
   // Build context with enrichment from HubSpot
-  const context: LeadContext = {
+  const context: AIScoringContext = {
     phone,
     channel,
     firstTouchTimestamp: new Date().toISOString(),

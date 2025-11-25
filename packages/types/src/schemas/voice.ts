@@ -6,9 +6,18 @@ import { z } from "zod";
 import { E164PhoneSchema, TimestampSchema, UUIDSchema } from "./common.js";
 
 /**
- * Voice call direction
+ * Voice call direction (Twilio-compatible values)
+ * - inbound: Incoming call to the Twilio number
+ * - outbound: Generic outbound call
+ * - outbound-api: Outbound call initiated via REST API
+ * - outbound-dial: Outbound call initiated via TwiML <Dial>
  */
-export const CallDirectionSchema = z.enum(["inbound", "outbound"]);
+export const CallDirectionSchema = z.enum([
+  "inbound",
+  "outbound",
+  "outbound-api",
+  "outbound-dial",
+]);
 
 /**
  * Voice call status
@@ -105,8 +114,64 @@ export const VoiceEventSchema = z.object({
   raw: z.record(z.unknown()).optional(),
 });
 
+// =============================================================================
+// Twilio Webhook Schemas
+// =============================================================================
+
 /**
- * Twilio webhook payload (StatusCallback)
+ * Base Twilio webhook parameters (present in all webhooks)
+ */
+export const TwilioBaseSchema = z.object({
+  AccountSid: z.string(),
+  ApiVersion: z.string(),
+});
+
+/**
+ * Full Twilio Voice webhook (incoming call)
+ * Contains all geo-location fields from Twilio
+ */
+export const VoiceWebhookSchema = TwilioBaseSchema.extend({
+  CallSid: z.string(),
+  CallStatus: CallStatusSchema,
+  Called: z.string(),
+  CalledCity: z.string().optional(),
+  CalledCountry: z.string().optional(),
+  CalledState: z.string().optional(),
+  CalledZip: z.string().optional(),
+  Caller: z.string(),
+  CallerCity: z.string().optional(),
+  CallerCountry: z.string().optional(),
+  CallerState: z.string().optional(),
+  CallerZip: z.string().optional(),
+  Direction: CallDirectionSchema,
+  From: z.string(),
+  FromCity: z.string().optional(),
+  FromCountry: z.string().optional(),
+  FromState: z.string().optional(),
+  FromZip: z.string().optional(),
+  To: z.string(),
+  ToCity: z.string().optional(),
+  ToCountry: z.string().optional(),
+  ToState: z.string().optional(),
+  ToZip: z.string().optional(),
+});
+
+/**
+ * Twilio status callback webhook (call progress updates)
+ */
+export const CallStatusCallbackSchema = VoiceWebhookSchema.extend({
+  CallDuration: z.string().optional(),
+  Duration: z.string().optional(),
+  Timestamp: z.string().optional(),
+  CallbackSource: z.string().optional(),
+  SequenceNumber: z.string().optional(),
+  RecordingUrl: z.string().optional(),
+  RecordingSid: z.string().optional(),
+  RecordingDuration: z.string().optional(),
+});
+
+/**
+ * Simple Twilio status callback (subset for quick parsing)
  */
 export const TwilioStatusCallbackSchema = z.object({
   AccountSid: z.string(),
@@ -179,6 +244,9 @@ export type VoiceEventType = z.infer<typeof VoiceEventTypeSchema>;
 export type TranscriptSegment = z.infer<typeof TranscriptSegmentSchema>;
 export type RecordingMetadata = z.infer<typeof RecordingMetadataSchema>;
 export type VoiceEvent = z.infer<typeof VoiceEventSchema>;
+export type TwilioBase = z.infer<typeof TwilioBaseSchema>;
+export type VoiceWebhook = z.infer<typeof VoiceWebhookSchema>;
+export type CallStatusCallback = z.infer<typeof CallStatusCallbackSchema>;
 export type TwilioStatusCallback = z.infer<typeof TwilioStatusCallbackSchema>;
 export type InitiateCall = z.infer<typeof InitiateCallSchema>;
 export type CallSummary = z.infer<typeof CallSummarySchema>;

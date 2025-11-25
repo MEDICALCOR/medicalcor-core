@@ -2,7 +2,7 @@
  * Advanced AI Scoring schemas for lead qualification
  *
  * NOTE: These schemas are for future advanced scoring features.
- * The current active ScoringOutput type is defined in lead.schema.ts
+ * The current active ScoringOutput type is defined in schemas/lead.ts
  * which uses a simpler 1-5 score scale compatible with the ScoringService.
  */
 import { z } from 'zod';

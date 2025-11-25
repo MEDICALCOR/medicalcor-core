@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { LeadChannelSchema, LeadScoreSchema } from './lead.schema.js';
+import { LeadSourceSchema, LeadScoreSchema } from './schemas/lead.js';
+
+// Use LeadSourceSchema as the canonical source for channels
+const LeadChannelSchema = LeadSourceSchema;
 
 /**
  * Domain Event Schemas

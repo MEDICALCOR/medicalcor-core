@@ -77,11 +77,9 @@ export const WhatsAppInteractiveSchema = z.object({
  */
 export const WhatsAppContactSchema = z.object({
   wa_id: z.string(),
-  profile: z
-    .object({
-      name: z.string(),
-    })
-    .optional(),
+  profile: z.object({
+    name: z.string(),
+  }),
 });
 
 /**
@@ -132,14 +130,19 @@ export const WhatsAppStatusSchema = z.object({
 });
 
 /**
+ * Webhook metadata (phone number info)
+ */
+export const WhatsAppMetadataSchema = z.object({
+  display_phone_number: z.string(),
+  phone_number_id: z.string(),
+});
+
+/**
  * Webhook entry value
  */
 export const WhatsAppValueSchema = z.object({
   messaging_product: z.literal("whatsapp"),
-  metadata: z.object({
-    display_phone_number: z.string(),
-    phone_number_id: z.string(),
-  }),
+  metadata: WhatsAppMetadataSchema,
   contacts: z.array(WhatsAppContactSchema).optional(),
   messages: z.array(WhatsAppMessageSchema).optional(),
   statuses: z.array(WhatsAppStatusSchema).optional(),
@@ -203,8 +206,17 @@ export const NormalizedWhatsAppMessageSchema = z.object({
 });
 
 export type WhatsAppMessageType = z.infer<typeof WhatsAppMessageTypeSchema>;
+export type WhatsAppText = z.infer<typeof WhatsAppTextSchema>;
+export type WhatsAppMedia = z.infer<typeof WhatsAppMediaSchema>;
+export type WhatsAppLocation = z.infer<typeof WhatsAppLocationSchema>;
+export type WhatsAppInteractive = z.infer<typeof WhatsAppInteractiveSchema>;
+export type WhatsAppContact = z.infer<typeof WhatsAppContactSchema>;
 export type WhatsAppMessage = z.infer<typeof WhatsAppMessageSchema>;
 export type WhatsAppStatus = z.infer<typeof WhatsAppStatusSchema>;
+export type WhatsAppMetadata = z.infer<typeof WhatsAppMetadataSchema>;
+export type WhatsAppValue = z.infer<typeof WhatsAppValueSchema>;
+export type WhatsAppChange = z.infer<typeof WhatsAppChangeSchema>;
+export type WhatsAppEntry = z.infer<typeof WhatsAppEntrySchema>;
 export type WhatsAppWebhook = z.infer<typeof WhatsAppWebhookSchema>;
 export type WhatsAppSendMessage = z.infer<typeof WhatsAppSendMessageSchema>;
 export type NormalizedWhatsAppMessage = z.infer<typeof NormalizedWhatsAppMessageSchema>;

@@ -9,7 +9,7 @@ import {
   type VapiCallSummary,
 } from '@medicalcor/integrations';
 import type { TriageResult } from '@medicalcor/domain';
-import type { LeadContext, ScoringOutput } from '@medicalcor/types';
+import type { AIScoringContext, ScoringOutput } from '@medicalcor/types';
 
 /**
  * Voice Transcription Processing Workflow
@@ -154,7 +154,7 @@ export const processPostCall = task({
     if (analysis && scoring) {
       try {
         // Build lead context from transcript
-        const leadContext: LeadContext = {
+        const leadContext: AIScoringContext = {
           phone: normalizedPhone,
           channel: 'voice',
           firstTouchTimestamp: transcript?.startedAt ?? new Date().toISOString(),
