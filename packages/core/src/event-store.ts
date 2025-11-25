@@ -7,8 +7,8 @@ import { createLogger, type Logger } from './logger.js';
  */
 export class ConcurrencyError extends Error {
   public readonly code = 'CONCURRENCY_ERROR';
-  public readonly aggregateId?: string;
-  public readonly expectedVersion?: number;
+  public readonly aggregateId: string | undefined;
+  public readonly expectedVersion: number | undefined;
 
   constructor(message: string, aggregateId?: string, expectedVersion?: number) {
     super(message);
