@@ -302,7 +302,8 @@ Sources: ${ragResult.sources.map((s) => s.title).join(', ')}
       general: 'No specific context available for this query.',
     };
 
-    return fallbacks[context.useCase] ?? fallbacks.general;
+    const generalFallback = 'No specific context available for this query.';
+    return fallbacks[context.useCase] ?? fallbacks.general ?? generalFallback;
   }
 
   /**
