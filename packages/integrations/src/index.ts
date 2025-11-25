@@ -84,3 +84,17 @@ export {
   type ClientName,
   type EventStore,
 } from './clients-factory.js';
+
+// RAG - Embedding Service
+export {
+  EmbeddingService,
+  createEmbeddingService,
+  chunkText,
+  prepareTextForEmbedding,
+  EmbeddingConfigSchema,
+  type EmbeddingConfig,
+  type EmbeddingResult,
+  type BatchEmbeddingResult,
+  type EmbeddingInput,
+  type ChunkOptions,
+} from './embeddings.js';

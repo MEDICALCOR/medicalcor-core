@@ -49,6 +49,57 @@ const OpenAIEnvSchema = z.object({
   OPENAI_MODEL: z.string().default('gpt-4o'),
 });
 
+// RAG (Retrieval-Augmented Generation) config
+const RAGEnvSchema = z.object({
+  /** Enable RAG for AI scoring and reply generation */
+  RAG_ENABLED: z
+    .enum(['true', 'false'])
+    .optional()
+    .default('true')
+    .transform((v) => v === 'true'),
+  /** Embedding model: text-embedding-3-small (cost-effective) or text-embedding-3-large (highest quality) */
+  RAG_EMBEDDING_MODEL: z
+    .enum(['text-embedding-3-small', 'text-embedding-3-large', 'text-embedding-ada-002'])
+    .optional()
+    .default('text-embedding-3-small'),
+  /** Embedding dimensions (1536 for small, up to 3072 for large) */
+  RAG_EMBEDDING_DIMENSIONS: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : 1536)),
+  /** Number of results to retrieve (top-K) */
+  RAG_RETRIEVAL_TOP_K: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : 5)),
+  /** Minimum similarity threshold (0-1) */
+  RAG_SIMILARITY_THRESHOLD: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseFloat(v) : 0.7)),
+  /** Maximum context tokens to include in prompts */
+  RAG_MAX_CONTEXT_TOKENS: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : 2000)),
+  /** Weight for semantic search in hybrid mode (0-1) */
+  RAG_SEMANTIC_WEIGHT: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseFloat(v) : 0.7)),
+  /** Weight for keyword search in hybrid mode (0-1) */
+  RAG_KEYWORD_WEIGHT: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseFloat(v) : 0.3)),
+  /** Enable query logging for analytics */
+  RAG_LOG_QUERIES: z
+    .enum(['true', 'false'])
+    .optional()
+    .default('true')
+    .transform((v) => v === 'true'),
+});
+
 // Trigger.dev config
 const TriggerEnvSchema = z.object({
   TRIGGER_SECRET_KEY: z.string().optional(),
@@ -127,6 +178,7 @@ export const ApiEnvSchema = ServerEnvSchema.merge(WhatsAppEnvSchema)
   .merge(StripeEnvSchema)
   .merge(HubSpotEnvSchema)
   .merge(OpenAIEnvSchema)
+  .merge(RAGEnvSchema)
   .merge(TriggerEnvSchema)
   .merge(DatabaseEnvSchema)
   .merge(RedisEnvSchema)

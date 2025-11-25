@@ -322,3 +322,41 @@ export {
   type ScheduleConfig,
   type RestoreOptions,
 } from './infrastructure/backup-service.js';
+
+// RAG - Retrieval-Augmented Generation
+export {
+  // Knowledge Base Repository
+  KnowledgeBaseRepository,
+  createKnowledgeBaseRepository,
+  // Vector Search Service
+  VectorSearchService,
+  createVectorSearchService,
+  // RAG Pipeline
+  RAGPipeline,
+  createRAGPipeline,
+  buildRAGEnhancedPrompt,
+  DEFAULT_RAG_CONFIG,
+  // Types
+  type KnowledgeEntry,
+  type CreateKnowledgeEntry,
+  type KnowledgeSourceType,
+  type Language,
+  type SearchType,
+  type SearchFilters,
+  type SearchOptions,
+  type SearchResult,
+  type SearchResponse,
+  type RAGContext,
+  type RAGResult,
+  type RAGConfig,
+  type MessageEmbedding,
+  type RAGQueryLogEntry,
+  type IKnowledgeBaseRepository,
+  type ListOptions,
+  type PaginatedResult,
+  type SearchQueryOptions,
+  type HybridSearchOptions,
+  type VectorSearchConfig,
+  type RAGPromptOptions,
+  type IEmbeddingService,
+} from './rag/index.js';
