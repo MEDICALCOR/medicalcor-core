@@ -117,8 +117,13 @@ const DatabaseEnvSchema = z.object({
 // Redis config with TLS support
 const RedisEnvSchema = z.object({
   REDIS_URL: z.string().optional(),
+  /** Redis password (alternative to embedding in URL) - REQUIRED in production */
+  REDIS_PASSWORD: z.string().optional(),
   /** Enable TLS for Redis connection (auto-detected from rediss:// URL) */
-  REDIS_TLS: z.enum(['true', 'false']).optional().transform((v) => v === 'true'),
+  REDIS_TLS: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => v === 'true'),
   /** CA certificate for Redis TLS */
   REDIS_CA_CERT: z.string().optional(),
   /** Client certificate for Redis mTLS */
@@ -142,27 +147,54 @@ const BackupEnvSchema = z.object({
   /** Encryption key for backups */
   BACKUP_ENCRYPTION_KEY: z.string().optional(),
   /** Enable scheduled backups */
-  BACKUP_SCHEDULE_ENABLED: z.enum(['true', 'false']).optional().transform((v) => v === 'true'),
+  BACKUP_SCHEDULE_ENABLED: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => v === 'true'),
   /** Full backup frequency: hourly, daily, weekly, monthly */
   BACKUP_FULL_FREQUENCY: z.enum(['hourly', 'daily', 'weekly', 'monthly']).optional(),
   /** Incremental backup frequency */
   BACKUP_INCREMENTAL_FREQUENCY: z.enum(['hourly', 'daily', 'weekly', 'monthly']).optional(),
   /** Hourly retention count */
-  BACKUP_RETENTION_HOURLY: z.string().optional().transform((v) => (v ? parseInt(v, 10) : undefined)),
+  BACKUP_RETENTION_HOURLY: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : undefined)),
   /** Daily retention count */
-  BACKUP_RETENTION_DAILY: z.string().optional().transform((v) => (v ? parseInt(v, 10) : undefined)),
+  BACKUP_RETENTION_DAILY: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : undefined)),
   /** Weekly retention count */
-  BACKUP_RETENTION_WEEKLY: z.string().optional().transform((v) => (v ? parseInt(v, 10) : undefined)),
+  BACKUP_RETENTION_WEEKLY: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : undefined)),
   /** Monthly retention count */
-  BACKUP_RETENTION_MONTHLY: z.string().optional().transform((v) => (v ? parseInt(v, 10) : undefined)),
+  BACKUP_RETENTION_MONTHLY: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : undefined)),
   /** Minimum backups to keep */
-  BACKUP_MINIMUM_KEEP: z.string().optional().transform((v) => (v ? parseInt(v, 10) : undefined)),
+  BACKUP_MINIMUM_KEEP: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : undefined)),
   /** Enable backup compression */
-  BACKUP_COMPRESSION: z.enum(['true', 'false']).optional().transform((v) => v !== 'false'),
+  BACKUP_COMPRESSION: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => v !== 'false'),
   /** Enable backup verification */
-  BACKUP_VERIFY: z.enum(['true', 'false']).optional().transform((v) => v !== 'false'),
+  BACKUP_VERIFY: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => v !== 'false'),
   /** Preferred backup hour (0-23) */
-  BACKUP_PREFERRED_HOUR: z.string().optional().transform((v) => (v ? parseInt(v, 10) : undefined)),
+  BACKUP_PREFERRED_HOUR: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : undefined)),
   /** Backup timezone */
   BACKUP_TIMEZONE: z.string().optional(),
 });

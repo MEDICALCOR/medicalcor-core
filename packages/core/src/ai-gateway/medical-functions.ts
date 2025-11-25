@@ -828,6 +828,11 @@ export const LeadScoringOutputSchema = z
     urgencyIndicators: z.array(z.string()).optional().describe('Urgency signals detected'),
     budgetMentioned: z.boolean().optional().describe('Whether budget was discussed'),
     procedureInterest: z.array(z.string()).optional().describe('Procedures mentioned'),
+    // Internal tracking fields added by function executor
+    leadId: z.string().optional().describe('Internal lead identifier'),
+    timestamp: z.string().optional().describe('Internal timestamp'),
+    _reasoningValidated: z.boolean().optional().describe('Internal validation flag'),
+    _reasoningWarnings: z.array(z.string()).optional().describe('Internal validation warnings'),
   })
   .strict();
 

@@ -315,6 +315,11 @@ export function chunkText(
 ): string[] {
   const { maxChunkSize, overlap, separator } = options;
 
+  // Handle empty text case
+  if (!text || text.length === 0) {
+    return [];
+  }
+
   if (text.length <= maxChunkSize) {
     return [text];
   }

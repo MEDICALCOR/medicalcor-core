@@ -36,7 +36,7 @@ describe('FunctionExecutor', () => {
         classification: 'WARM',
         confidence: 0.8,
         reasoning: 'Mock scoring result',
-        suggestedAction: 'Follow up',
+        suggestedAction: 'send_follow_up',
       },
       executionTimeMs: 1,
     }));
@@ -113,7 +113,7 @@ describe('FunctionExecutor', () => {
           classification: 'HOT',
           confidence: 0.95,
           reasoning: 'High purchase intent detected',
-          suggestedAction: 'Contact immediately',
+          suggestedAction: 'schedule_appointment',
         }),
       };
 
@@ -145,7 +145,7 @@ describe('FunctionExecutor', () => {
           classification: 'HOT',
           confidence: 0.9,
           reasoning: 'Implant interest',
-          suggestedAction: 'Follow up',
+          suggestedAction: 'send_follow_up',
         }),
       };
 
@@ -204,9 +204,25 @@ describe('FunctionExecutor', () => {
         cancelAppointment: vi.fn(),
       };
 
+      // Mock consent service to allow scheduling (GDPR requirement)
+      const mockConsentService = {
+        checkConsent: vi.fn().mockResolvedValue({
+          consents: [
+            {
+              type: 'data_processing',
+              status: 'granted',
+              recordedAt: new Date().toISOString(),
+              source: 'test',
+            },
+          ],
+        }),
+        recordConsent: vi.fn(),
+      };
+
       const executorWithScheduling = createFunctionExecutor({
         ...deps,
         schedulingService: mockSchedulingService,
+        consentService: mockConsentService,
       });
 
       const result = await executorWithScheduling.execute(

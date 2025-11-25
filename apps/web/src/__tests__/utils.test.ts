@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cn, getScoreColor, getClassificationColor } from '@/lib/utils';
+import { cn, getScoreColor, getClassificationColor } from '../lib/utils';
 
 describe('utils', () => {
   describe('cn', () => {

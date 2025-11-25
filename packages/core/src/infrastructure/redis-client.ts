@@ -9,7 +9,11 @@
  * - Circuit breaker integration
  */
 
-import { CircuitBreaker, CircuitBreakerRegistry, CircuitState } from '../circuit-breaker.js';
+import {
+  type CircuitBreaker,
+  CircuitBreakerRegistry,
+  type CircuitState,
+} from '../circuit-breaker.js';
 
 export interface RedisConfig {
   /** Redis URL (supports redis:// and rediss:// protocols) */
@@ -78,14 +82,21 @@ interface RedisConnection {
   ping: () => Promise<string>;
   quit: () => Promise<string>;
   get: (key: string) => Promise<string | null>;
-  set: (key: string, value: string, options?: { EX?: number; PX?: number; NX?: boolean; XX?: boolean }) => Promise<string | null>;
+  set: (
+    key: string,
+    value: string,
+    options?: { EX?: number; PX?: number; NX?: boolean; XX?: boolean }
+  ) => Promise<string | null>;
   del: (...keys: string[]) => Promise<number>;
   exists: (...keys: string[]) => Promise<number>;
   expire: (key: string, seconds: number) => Promise<number>;
   ttl: (key: string) => Promise<number>;
   keys: (pattern: string) => Promise<string[]>;
   info: (section?: string) => Promise<string>;
-  scan: (cursor: number, options?: { MATCH?: string; COUNT?: number }) => Promise<[string, string[]]>;
+  scan: (
+    cursor: number,
+    options?: { MATCH?: string; COUNT?: number }
+  ) => Promise<[string, string[]]>;
   hget: (key: string, field: string) => Promise<string | null>;
   hset: (key: string, field: string, value: string) => Promise<number>;
   hgetall: (key: string) => Promise<Record<string, string>>;
@@ -99,7 +110,12 @@ interface RedisConnection {
   smembers: (key: string) => Promise<string[]>;
   srem: (key: string, ...members: string[]) => Promise<number>;
   zadd: (key: string, score: number, member: string) => Promise<number>;
-  zrange: (key: string, start: number, stop: number, options?: { WITHSCORES?: boolean }) => Promise<string[]>;
+  zrange: (
+    key: string,
+    start: number,
+    stop: number,
+    options?: { WITHSCORES?: boolean }
+  ) => Promise<string[]>;
   zrem: (key: string, ...members: string[]) => Promise<number>;
   publish: (channel: string, message: string) => Promise<number>;
   subscribe: (channel: string, callback: (message: string) => void) => Promise<void>;
@@ -127,7 +143,12 @@ export class SecureRedisClient {
     const urlHasTls = config.url.startsWith('rediss://');
 
     // Build tlsOptions without undefined values for exactOptionalPropertyTypes
-    const tlsOptionsBase: { rejectUnauthorized?: boolean; ca?: string; cert?: string; key?: string } = {
+    const tlsOptionsBase: {
+      rejectUnauthorized?: boolean;
+      ca?: string;
+      cert?: string;
+      key?: string;
+    } = {
       rejectUnauthorized: config.tlsOptions?.rejectUnauthorized ?? isProduction,
     };
     if (config.tlsOptions?.ca) tlsOptionsBase.ca = config.tlsOptions.ca;
@@ -173,7 +194,9 @@ export class SecureRedisClient {
       });
       this.circuitBreaker = registry.get('redis', {
         onOpen: (name) => {
-          console.error(`[Redis] Circuit breaker OPEN for ${name} - Redis operations will fail fast`);
+          console.error(
+            `[Redis] Circuit breaker OPEN for ${name} - Redis operations will fail fast`
+          );
         },
         onClose: (name) => {
           console.info(`[Redis] Circuit breaker CLOSED for ${name} - Redis operations resumed`);
@@ -195,7 +218,11 @@ export class SecureRedisClient {
       }
 
       // ioredis exports Redis class - need to cast through unknown for ESM compatibility
-      const Redis = (ioredisModule as unknown as { default: new (url: string, opts: Record<string, unknown>) => RedisConnection }).default;
+      const Redis = (
+        ioredisModule as unknown as {
+          default: new (url: string, opts: Record<string, unknown>) => RedisConnection;
+        }
+      ).default;
       const connectionOptions: Record<string, unknown> = {
         connectTimeout: this.config.connectTimeout,
         commandTimeout: this.config.commandTimeout,
@@ -238,10 +265,14 @@ export class SecureRedisClient {
         this.startHealthMonitoring();
       }
 
-      console.info(`[Redis] Connected successfully (TLS: ${this.config.tls ? 'enabled' : 'disabled'})`);
+      console.info(
+        `[Redis] Connected successfully (TLS: ${this.config.tls ? 'enabled' : 'disabled'})`
+      );
     } catch (error) {
       this.healthStatus.connected = false;
-      throw new Error(`Failed to connect to Redis: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to connect to Redis: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -331,7 +362,11 @@ export class SecureRedisClient {
     });
   }
 
-  async set(key: string, value: string, options?: { ttlSeconds?: number; nx?: boolean; xx?: boolean }): Promise<boolean> {
+  async set(
+    key: string,
+    value: string,
+    options?: { ttlSeconds?: number; nx?: boolean; xx?: boolean }
+  ): Promise<boolean> {
     return this.executeCommand(async () => {
       const conn = this.ensureConnection();
       const setOptions: { EX?: number; NX?: boolean; XX?: boolean } = {};
@@ -579,23 +614,23 @@ export class SecureRedisClient {
       const baseHealthStatus: RedisHealthStatus = {
         connected: true,
         latencyMs,
-        maxMemory: memoryData['maxmemory_human'] || 'unlimited',
-        connectedClients: parseInt(clientsData['connected_clients'] || '0', 10),
-        uptimeSeconds: parseInt(serverData['uptime_in_seconds'] || '0', 10),
+        maxMemory: memoryData.maxmemory_human ?? 'unlimited',
+        connectedClients: parseInt(clientsData.connected_clients ?? '0', 10),
+        uptimeSeconds: parseInt(serverData.uptime_in_seconds ?? '0', 10),
         lastCheck: new Date(),
         tlsEnabled: this.config.tls,
       };
 
       // Conditionally add optional fields
-      if (memoryData['used_memory_human']) {
-        baseHealthStatus.usedMemory = memoryData['used_memory_human'];
+      if (memoryData.used_memory_human) {
+        baseHealthStatus.usedMemory = memoryData.used_memory_human;
       }
-      if (serverData['redis_version']) {
-        baseHealthStatus.version = serverData['redis_version'];
+      if (serverData.redis_version) {
+        baseHealthStatus.version = serverData.redis_version;
       }
 
       this.healthStatus = baseHealthStatus;
-    } catch (error) {
+    } catch (_error) {
       this.healthStatus = {
         connected: false,
         latencyMs: Date.now() - startTime,
@@ -636,12 +671,35 @@ export function createSecureRedisClient(config: RedisConfig): SecureRedisClient 
 
 /**
  * Create Redis client from environment
+ *
+ * Supports multiple authentication methods:
+ * 1. REDIS_URL with embedded password (redis://:password@host:port)
+ * 2. Separate REDIS_PASSWORD env var (combined with REDIS_URL)
+ *
+ * In production, REDIS_PASSWORD is REQUIRED for security.
  */
 export function createRedisClientFromEnv(): SecureRedisClient | null {
-  const redisUrl = process.env.REDIS_URL;
+  let redisUrl = process.env.REDIS_URL;
   if (!redisUrl) return null;
 
   const isProduction = process.env.NODE_ENV === 'production';
+  const redisPassword = process.env.REDIS_PASSWORD;
+
+  // SECURITY: Validate password is provided in production
+  if (isProduction && !redisPassword && !redisUrl.includes(':@')) {
+    // Check if password is embedded in URL (redis://:password@host format)
+    const hasEmbeddedPassword = /redis[s]?:\/\/:[^@]+@/.test(redisUrl);
+    if (!hasEmbeddedPassword) {
+      console.error('[Redis] CRITICAL: REDIS_PASSWORD is required in production for security');
+      throw new Error('REDIS_PASSWORD is required in production');
+    }
+  }
+
+  // Inject password into URL if provided separately
+  if (redisPassword && !redisUrl.includes(':@')) {
+    // Insert password into URL: redis://host:port -> redis://:password@host:port
+    redisUrl = redisUrl.replace(/^(rediss?:\/\/)/, `$1:${redisPassword}@`);
+  }
 
   // In production, upgrade to TLS if not already using rediss://
   let url = redisUrl;
@@ -651,7 +709,9 @@ export function createRedisClientFromEnv(): SecureRedisClient | null {
       url = redisUrl.replace('redis://', 'rediss://');
       console.warn('[Redis] Upgrading connection to TLS for production');
     } else {
-      console.warn('[Redis] WARNING: Using unencrypted Redis connection in production. Set REDIS_TLS=true for TLS.');
+      console.warn(
+        '[Redis] WARNING: Using unencrypted Redis connection in production. Set REDIS_TLS=true for TLS.'
+      );
     }
   }
 

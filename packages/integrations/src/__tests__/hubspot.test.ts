@@ -7,11 +7,6 @@ import {
   createRateLimitedHandler,
   createFailingHandler,
 } from '../__mocks__/setup.js';
-  testFixtures,
-  createRateLimitedHandler,
-  createFailingHandler,
-} from '../__mocks__/handlers.js';
-import { server } from '../__mocks__/server.js';
 
 // Note: server lifecycle (listen, resetHandlers, close) is managed by vitest.setup.ts
 
