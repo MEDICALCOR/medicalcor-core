@@ -187,6 +187,11 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
             timestamp: message.timestamp,
             type: message.type,
             ...(message.text && { text: message.text }),
+            // Include media fields for image/document/video/audio messages
+            ...(message.image && { image: message.image }),
+            ...(message.document && { document: message.document }),
+            ...(message.video && { video: message.video }),
+            ...(message.audio && { audio: message.audio }),
           },
           metadata: {
             display_phone_number: metadata.display_phone_number,

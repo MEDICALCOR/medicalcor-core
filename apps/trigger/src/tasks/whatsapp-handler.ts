@@ -1,7 +1,8 @@
-import { task, logger } from '@trigger.dev/sdk/v3';
+import { task, logger, tasks } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
 import { normalizeRomanianPhone, LeadContextBuilder } from '@medicalcor/core';
 import { createIntegrationClients } from '@medicalcor/integrations';
+import type { VisionAnalysisIntent } from './vision-analysis.js';
 
 /**
  * WhatsApp Message Handler Task
@@ -16,6 +17,15 @@ import { createIntegrationClients } from '@medicalcor/integrations';
  * 6. Emit domain event
  */
 
+// Media schema for image/document/video/audio messages
+const MediaSchema = z.object({
+  id: z.string(),
+  mime_type: z.string().optional(),
+  sha256: z.string().optional(),
+  caption: z.string().optional(),
+  filename: z.string().optional(),
+});
+
 export const WhatsAppMessagePayloadSchema = z.object({
   message: z.object({
     id: z.string(),
@@ -23,6 +33,11 @@ export const WhatsAppMessagePayloadSchema = z.object({
     timestamp: z.string(),
     type: z.string(),
     text: z.object({ body: z.string() }).optional(),
+    // Media message types for Vision AI
+    image: MediaSchema.optional(),
+    document: MediaSchema.optional(),
+    video: MediaSchema.optional(),
+    audio: MediaSchema.optional(),
   }),
   metadata: z.object({
     display_phone_number: z.string(),
@@ -217,6 +232,138 @@ export const handleWhatsAppMessage = task({
           // Continue processing for initial messages but log the consent status
           logger.warn('Processing message without explicit consent - consent requested', {
             correlationId,
+          });
+        }
+      }
+    }
+
+    // Step 3.6: Handle Image Messages - Vision AI Analysis
+    if (message.type === 'image' && message.image) {
+      logger.info('Image message detected, triggering Vision AI analysis', {
+        mediaId: message.image.id,
+        mimeType: message.image.mime_type,
+        correlationId,
+      });
+
+      try {
+        // Get media URL from WhatsApp
+        // Note: In production, you need to call WhatsApp API to get the actual download URL
+        // For now, we'll construct a proxy URL that the vision task can use
+        const mediaUrl = `https://graph.facebook.com/v18.0/${message.image.id}`;
+
+        // Determine intent based on mime type or caption
+        const caption = message.image.caption?.toLowerCase() ?? '';
+        let intent: VisionAnalysisIntent = 'document';
+
+        if (
+          caption.includes('reteta') ||
+          caption.includes('prescri') ||
+          caption.includes('medica')
+        ) {
+          intent = 'prescription';
+        } else if (
+          caption.includes('analize') ||
+          caption.includes('rezultat') ||
+          caption.includes('laborator')
+        ) {
+          intent = 'lab_result';
+        } else if (
+          caption.includes('piele') ||
+          caption.includes('dermat') ||
+          caption.includes('alunita')
+        ) {
+          intent = 'dermatology';
+        } else if (
+          caption.includes('radiografie') ||
+          caption.includes('xray') ||
+          caption.includes('rx')
+        ) {
+          intent = 'xray';
+        } else if (
+          caption.includes('dent') ||
+          caption.includes('panoram') ||
+          caption.includes('ct')
+        ) {
+          intent = 'dental_scan';
+        } else if (message.image.mime_type?.includes('pdf')) {
+          intent = 'document';
+        } else {
+          // Default to document for images without specific context
+          intent = 'other';
+        }
+
+        // Trigger Vision AI analysis task
+        const visionResult = await tasks.triggerAndWait('analyze-medical-image', {
+          imageUrl: mediaUrl,
+          patientId: normalizedPhone,
+          intent,
+          correlationId,
+          hubspotContactId,
+          language: 'ro',
+        });
+
+        logger.info('Vision AI analysis completed', {
+          success: visionResult.ok,
+          intent,
+          correlationId,
+        });
+
+        // Send analysis result to patient
+        if (whatsapp && visionResult.ok && visionResult.output) {
+          const analysisOutput = visionResult.output as {
+            summary?: string;
+            medications?: { name: string; dosage?: string }[];
+            abnormalValues?: { metric: string; value: string; status: string }[];
+          };
+
+          let responseMessage = 'Am analizat documentul. ';
+
+          if (analysisOutput.summary) {
+            responseMessage += `Iată ce am găsit:\n\n${analysisOutput.summary}\n\n`;
+          }
+
+          if (analysisOutput.medications && analysisOutput.medications.length > 0) {
+            responseMessage += 'Medicamente identificate:\n';
+            for (const med of analysisOutput.medications) {
+              responseMessage += `• ${med.name}${med.dosage ? ` - ${med.dosage}` : ''}\n`;
+            }
+            responseMessage += '\n';
+          }
+
+          if (analysisOutput.abnormalValues && analysisOutput.abnormalValues.length > 0) {
+            responseMessage += '⚠️ Valori în afara intervalului normal:\n';
+            for (const val of analysisOutput.abnormalValues) {
+              responseMessage += `• ${val.metric}: ${val.value} (${val.status})\n`;
+            }
+            responseMessage += '\n';
+          }
+
+          responseMessage += 'Confirmați că aceste informații sunt corecte?';
+
+          await whatsapp.sendText({
+            to: normalizedPhone,
+            text: responseMessage,
+          });
+
+          logger.info('Sent vision analysis result to patient', { correlationId });
+        }
+
+        // Return early for image messages - skip regular scoring flow
+        return {
+          success: true,
+          messageId: message.id,
+          normalizedPhone,
+          hubspotContactId,
+          messageType: 'image',
+          visionAnalysisTriggered: true,
+        };
+      } catch (err) {
+        logger.error('Vision AI analysis failed', { err, correlationId });
+        // Continue with regular flow if vision fails
+        if (whatsapp) {
+          await whatsapp.sendText({
+            to: normalizedPhone,
+            text: 'Am primit imaginea, dar nu am putut-o analiza automat. Un specialist va reveni cu un răspuns.',
           });
         }
       }

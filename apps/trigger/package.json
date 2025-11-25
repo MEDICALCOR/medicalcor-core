@@ -21,6 +21,7 @@
     "@medicalcor/integrations": "workspace:*",
     "@medicalcor/types": "workspace:*",
     "@trigger.dev/sdk": "^3.1.0",
+    "openai": "^4.70.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
