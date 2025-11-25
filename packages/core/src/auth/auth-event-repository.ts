@@ -36,7 +36,7 @@ export class AuthEventRepository {
    * Log an authentication event
    */
   async log(data: CreateAuthEventData): Promise<AuthEvent> {
-    const result = await this.db.query<Record<string, unknown>>(
+    const result = await this.db.query(
       `INSERT INTO auth_events (user_id, email, event_type, result, ip_address, user_agent, session_id, details)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
@@ -91,11 +91,8 @@ export class AuthEventRepository {
     }
 
     const [countResult, dataResult] = await Promise.all([
-      this.db.query<Record<string, unknown>>(
-        `SELECT COUNT(*) as count FROM auth_events ${whereClause}`,
-        values
-      ),
-      this.db.query<Record<string, unknown>>(
+      this.db.query(`SELECT COUNT(*) as count FROM auth_events ${whereClause}`, values),
+      this.db.query(
         `SELECT * FROM auth_events ${whereClause} ORDER BY created_at DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
         [...values, limit, offset]
       ),
@@ -111,7 +108,7 @@ export class AuthEventRepository {
    * Get recent login history for a user
    */
   async getLoginHistory(userId: string, limit = 10): Promise<AuthEvent[]> {
-    const result = await this.db.query<Record<string, unknown>>(
+    const result = await this.db.query(
       `SELECT * FROM auth_events
        WHERE user_id = $1 AND event_type IN ('login_success', 'login_failure')
        ORDER BY created_at DESC
@@ -126,7 +123,7 @@ export class AuthEventRepository {
    * Get failed login attempts for an email (for security alerts)
    */
   async getFailedLoginsForEmail(email: string, since: Date): Promise<AuthEvent[]> {
-    const result = await this.db.query<Record<string, unknown>>(
+    const result = await this.db.query(
       `SELECT * FROM auth_events
        WHERE email = $1 AND event_type = 'login_failure' AND created_at > $2
        ORDER BY created_at DESC`,
@@ -162,7 +159,7 @@ export class AuthEventRepository {
       values.push(eventTypes);
     }
 
-    const result = await this.db.query<Record<string, unknown>>(
+    const result = await this.db.query(
       `SELECT * FROM auth_events ${whereClause} ORDER BY created_at DESC LIMIT $${values.length + 1}`,
       [...values, limit]
     );
@@ -174,7 +171,7 @@ export class AuthEventRepository {
    * Count events by type in a time window
    */
   async countByType(since: Date): Promise<Record<AuthEventType, number>> {
-    const result = await this.db.query<Record<string, unknown>>(
+    const result = await this.db.query(
       `SELECT event_type, COUNT(*) as count
        FROM auth_events
        WHERE created_at > $1
@@ -194,13 +191,13 @@ export class AuthEventRepository {
    * Get suspicious activity (multiple failed logins from different IPs)
    */
   async getSuspiciousActivity(since: Date): Promise<
-    Array<{
+    {
       email: string;
       failedAttempts: number;
       uniqueIps: number;
-    }>
+    }[]
   > {
-    const result = await this.db.query<Record<string, unknown>>(
+    const result = await this.db.query(
       `SELECT
          email,
          COUNT(*) as failed_attempts,
@@ -226,10 +223,9 @@ export class AuthEventRepository {
    * Delete old events (data retention)
    */
   async deleteOlderThan(date: Date): Promise<number> {
-    const result = await this.db.query(
-      'DELETE FROM auth_events WHERE created_at < $1',
-      [date.toISOString()]
-    );
+    const result = await this.db.query('DELETE FROM auth_events WHERE created_at < $1', [
+      date.toISOString(),
+    ]);
 
     const count = result.rowCount ?? 0;
     if (count > 0) {

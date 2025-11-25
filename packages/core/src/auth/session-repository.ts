@@ -37,7 +37,7 @@ export class SessionRepository {
    * Create a new session
    */
   async create(data: CreateSessionData): Promise<Session> {
-    const result = await this.db.query<Record<string, unknown>>(
+    const result = await this.db.query(
       `INSERT INTO sessions (user_id, token_hash, ip_address, user_agent, device_info, expires_at)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
@@ -63,10 +63,7 @@ export class SessionRepository {
    * Find session by ID
    */
   async findById(id: string): Promise<Session | null> {
-    const result = await this.db.query<Record<string, unknown>>(
-      'SELECT * FROM sessions WHERE id = $1',
-      [id]
-    );
+    const result = await this.db.query('SELECT * FROM sessions WHERE id = $1', [id]);
     return result.rows[0] ? mapRowToSession(result.rows[0]) : null;
   }
 
@@ -74,10 +71,7 @@ export class SessionRepository {
    * Find session by token hash
    */
   async findByTokenHash(tokenHash: string): Promise<Session | null> {
-    const result = await this.db.query<Record<string, unknown>>(
-      'SELECT * FROM sessions WHERE token_hash = $1',
-      [tokenHash]
-    );
+    const result = await this.db.query('SELECT * FROM sessions WHERE token_hash = $1', [tokenHash]);
     return result.rows[0] ? mapRowToSession(result.rows[0]) : null;
   }
 
@@ -85,7 +79,7 @@ export class SessionRepository {
    * Validate session (exists, not expired, not revoked)
    */
   async validate(tokenHash: string): Promise<Session | null> {
-    const result = await this.db.query<Record<string, unknown>>(
+    const result = await this.db.query(
       `SELECT * FROM sessions
        WHERE token_hash = $1
          AND expires_at > CURRENT_TIMESTAMP
@@ -99,10 +93,9 @@ export class SessionRepository {
    * Update last activity timestamp
    */
   async updateActivity(id: string): Promise<void> {
-    await this.db.query(
-      'UPDATE sessions SET last_activity_at = CURRENT_TIMESTAMP WHERE id = $1',
-      [id]
-    );
+    await this.db.query('UPDATE sessions SET last_activity_at = CURRENT_TIMESTAMP WHERE id = $1', [
+      id,
+    ]);
   }
 
   /**
@@ -160,7 +153,7 @@ export class SessionRepository {
    * Get active sessions for a user
    */
   async getActiveForUser(userId: string): Promise<Session[]> {
-    const result = await this.db.query<Record<string, unknown>>(
+    const result = await this.db.query(
       `SELECT * FROM sessions
        WHERE user_id = $1
          AND expires_at > CURRENT_TIMESTAMP
@@ -176,7 +169,7 @@ export class SessionRepository {
    * Count active sessions for a user
    */
   async countActiveForUser(userId: string): Promise<number> {
-    const result = await this.db.query<Record<string, unknown>>(
+    const result = await this.db.query(
       `SELECT COUNT(*) as count FROM sessions
        WHERE user_id = $1
          AND expires_at > CURRENT_TIMESTAMP
@@ -184,7 +177,7 @@ export class SessionRepository {
       [userId]
     );
 
-    return parseInt((result.rows[0]?.count as string) ?? '0', 10);
+    return parseInt((result.rows[0]?.count ?? '0') as string, 10);
   }
 
   /**
@@ -211,7 +204,7 @@ export class SessionRepository {
     expired: number;
     revoked: number;
   }> {
-    const result = await this.db.query<Record<string, unknown>>(`
+    const result = await this.db.query(`
       SELECT
         COUNT(*) as total,
         COUNT(*) FILTER (WHERE expires_at > CURRENT_TIMESTAMP AND revoked_at IS NULL) as active,

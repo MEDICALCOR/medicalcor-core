@@ -69,11 +69,13 @@ export interface AIFunctionResult {
   function: string;
   success: boolean;
   result?: unknown;
-  error?: {
-    code: string;
-    message: string;
-    details?: unknown;
-  } | undefined;
+  error?:
+    | {
+        code: string;
+        message: string;
+        details?: unknown;
+      }
+    | undefined;
   executionTimeMs: number;
   traceId?: string | undefined;
 }
@@ -99,8 +101,8 @@ interface RegisteredFunction {
  * Central registry for AI-callable functions
  */
 export class FunctionRegistry {
-  private functions: Map<string, RegisteredFunction> = new Map();
-  private categories: Map<AIFunctionCategory, Set<string>> = new Map();
+  private functions = new Map<string, RegisteredFunction>();
+  private categories = new Map<AIFunctionCategory, Set<string>>();
 
   /**
    * Register a new function for AI calling
@@ -132,10 +134,7 @@ export class FunctionRegistry {
   /**
    * Execute a function by name with arguments
    */
-  async execute(
-    call: AIFunctionCall,
-    context: FunctionContext
-  ): Promise<AIFunctionResult> {
+  async execute(call: AIFunctionCall, context: FunctionContext): Promise<AIFunctionResult> {
     const startTime = Date.now();
     const fn = this.functions.get(call.function);
 
@@ -245,14 +244,14 @@ export class FunctionRegistry {
   /**
    * Get OpenAI-compatible tools array
    */
-  getOpenAITools(): Array<{
+  getOpenAITools(): {
     type: 'function';
     function: {
       name: string;
       description: string;
       parameters: AIFunction['parameters'];
     };
-  }> {
+  }[] {
     return this.getAllFunctions().map((fn) => ({
       type: 'function' as const,
       function: {
@@ -266,7 +265,7 @@ export class FunctionRegistry {
   /**
    * Get Claude/Anthropic-compatible tools array
    */
-  getAnthropicTools(): Array<{
+  getAnthropicTools(): {
     name: string;
     description: string;
     input_schema: {
@@ -274,7 +273,7 @@ export class FunctionRegistry {
       properties: Record<string, JSONSchemaProperty>;
       required: string[];
     };
-  }> {
+  }[] {
     return this.getAllFunctions().map((fn) => ({
       name: fn.name,
       description: fn.description,
@@ -299,11 +298,11 @@ export class FunctionRegistry {
   /**
    * Get categories with function counts
    */
-  getCategorySummary(): Array<{
+  getCategorySummary(): {
     category: AIFunctionCategory;
     count: number;
     functions: string[];
-  }> {
+  }[] {
     return Array.from(this.categories.entries()).map(([category, names]) => ({
       category,
       count: names.size,
@@ -319,7 +318,7 @@ export const functionRegistry = new FunctionRegistry();
  * Decorator for registering functions
  */
 export function RegisterFunction(_definition: AIFunction, _inputSchema: ZodSchema) {
-  return function <T extends { new (...args: unknown[]): unknown }>(
+  return function <T extends new (...args: unknown[]) => unknown>(
     target: T,
     _context: ClassDecoratorContext
   ) {
@@ -330,8 +329,10 @@ export function RegisterFunction(_definition: AIFunction, _inputSchema: ZodSchem
 /**
  * Helper to convert Zod schema to JSON Schema for function parameters
  */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any */
 export function zodToJsonSchema(schema: ZodSchema): JSONSchemaProperty {
   // Basic implementation - in production use zod-to-json-schema library
+  // Note: Accessing _def is a Zod internal pattern
   const def = schema._def as any;
 
   if (!def) {
@@ -403,3 +404,4 @@ export function zodToJsonSchema(schema: ZodSchema): JSONSchemaProperty {
       };
   }
 }
+/* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any */

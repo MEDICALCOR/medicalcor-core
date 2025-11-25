@@ -141,7 +141,7 @@ export class PasswordResetService {
   ): Promise<{ valid: boolean; userId?: string; email?: string; error?: string }> {
     const tokenHash = createHash('sha256').update(token).digest('hex');
 
-    const result = await this.db.query<Record<string, unknown>>(
+    const result = await this.db.query(
       `SELECT prt.*, u.email
        FROM password_reset_tokens prt
        JOIN users u ON u.id = prt.user_id
@@ -228,7 +228,7 @@ export class PasswordResetService {
    * Get recent tokens for a user
    */
   private async getRecentTokensForUser(userId: string): Promise<PasswordResetToken[]> {
-    const result = await this.db.query<Record<string, unknown>>(
+    const result = await this.db.query(
       `SELECT * FROM password_reset_tokens
        WHERE user_id = $1
        ORDER BY created_at DESC

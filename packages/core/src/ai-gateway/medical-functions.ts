@@ -50,7 +50,10 @@ const SUSPICIOUS_PATTERNS = [
  * Check if content contains suspicious prompt injection patterns
  * Returns true if suspicious, with list of matched patterns for logging
  */
-export function detectPromptInjection(content: string): { suspicious: boolean; patterns: string[] } {
+export function detectPromptInjection(content: string): {
+  suspicious: boolean;
+  patterns: string[];
+} {
   const matchedPatterns: string[] = [];
 
   for (const pattern of SUSPICIOUS_PATTERNS) {
@@ -73,24 +76,31 @@ export function detectPromptInjection(content: string): { suspicious: boolean; p
  * - Does NOT block content, but sanitizes it
  */
 export function sanitizeMessageContent(content: string): string {
-  return content
-    // Remove null bytes and other control characters (except newline, tab)
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
-    // Normalize multiple newlines to max 2
-    .replace(/\n{3,}/g, '\n\n')
-    // Normalize multiple spaces to single space
-    .replace(/[ \t]{2,}/g, ' ')
-    // Trim whitespace
-    .trim()
-    // Truncate to max length
-    .slice(0, MAX_MESSAGE_CONTENT_LENGTH);
+  return (
+    content
+      // Remove null bytes and other control characters (except newline, tab)
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+      // Normalize multiple newlines to max 2
+      .replace(/\n{3,}/g, '\n\n')
+      // Normalize multiple spaces to single space
+      .replace(/[ \t]{2,}/g, ' ')
+      // Trim whitespace
+      .trim()
+      // Truncate to max length
+      .slice(0, MAX_MESSAGE_CONTENT_LENGTH)
+  );
 }
 
 /**
  * Zod transformer for sanitized message content
  */
-const SanitizedContentSchema = z.string()
-  .max(MAX_MESSAGE_CONTENT_LENGTH, `Message content must not exceed ${MAX_MESSAGE_CONTENT_LENGTH} characters`)
+const SanitizedContentSchema = z
+  .string()
+  .max(
+    MAX_MESSAGE_CONTENT_LENGTH,
+    `Message content must not exceed ${MAX_MESSAGE_CONTENT_LENGTH} characters`
+  )
   .transform(sanitizeMessageContent);
 
 /**
@@ -107,7 +117,10 @@ const SanitizedMessageSchema = z.object({
 // ============================================================================
 
 export const ScoreLeadInputSchema = z.object({
-  phone: z.string().describe('Lead phone number in E.164 format'),
+  phone: z
+    .string()
+    .regex(/^\+[1-9]\d{1,14}$/, 'Phone must be in E.164 format')
+    .describe('Lead phone number in E.164 format'),
   channel: z
     .enum(['whatsapp', 'voice', 'web', 'referral'])
     .describe('Channel through which the lead was acquired'),
@@ -181,8 +194,7 @@ export const ScoreLeadFunction: AIFunction = {
   },
   returns: {
     type: 'object',
-    description:
-      'Scoring result with classification, score, confidence, and recommended action',
+    description: 'Scoring result with classification, score, confidence, and recommended action',
   },
   category: 'leads',
   examples: [
@@ -272,7 +284,11 @@ export const UpdatePatientFunction: AIFunction = {
           lastName: { type: 'string', description: 'Last name' },
           email: { type: 'string', description: 'Email address', format: 'email' },
           phone: { type: 'string', description: 'Phone number' },
-          dateOfBirth: { type: 'string', description: 'Date of birth (YYYY-MM-DD)', format: 'date' },
+          dateOfBirth: {
+            type: 'string',
+            description: 'Date of birth (YYYY-MM-DD)',
+            format: 'date',
+          },
           notes: { type: 'string', description: 'Clinical notes' },
           tags: {
             type: 'array',
@@ -431,13 +447,13 @@ export const CancelAppointmentFunction: AIFunction = {
 // ============================================================================
 
 export const SendWhatsAppInputSchema = z.object({
-  to: z.string().describe('Recipient phone number in E.164 format'),
-  message: z.string().describe('Message text to send'),
+  to: z
+    .string()
+    .regex(/^\+[1-9]\d{1,14}$/, 'Phone must be in E.164 format')
+    .describe('Recipient phone number in E.164 format'),
+  message: z.string().optional().describe('Message text to send (required for free-form messages)'),
   templateName: z.string().optional().describe('WhatsApp template name (for template messages)'),
-  templateParams: z
-    .record(z.string())
-    .optional()
-    .describe('Template parameter values'),
+  templateParams: z.record(z.string()).optional().describe('Template parameter values'),
 });
 
 export const SendWhatsAppFunction: AIFunction = {
@@ -455,8 +471,7 @@ export const SendWhatsAppFunction: AIFunction = {
       message: { type: 'string', description: 'Message text (for non-template messages)' },
       templateName: {
         type: 'string',
-        description:
-          'Pre-approved template name (e.g., appointment_reminder, welcome_message)',
+        description: 'Pre-approved template name (e.g., appointment_reminder, welcome_message)',
       },
       templateParams: {
         type: 'object',
@@ -508,8 +523,7 @@ export const RecordConsentInputSchema = z.object({
 
 export const RecordConsentFunction: AIFunction = {
   name: 'record_consent',
-  description:
-    'Record patient consent for GDPR compliance. All consent changes are audited.',
+  description: 'Record patient consent for GDPR compliance. All consent changes are audited.',
   parameters: {
     type: 'object',
     properties: {
@@ -537,7 +551,10 @@ export const RecordConsentFunction: AIFunction = {
         description: 'Consent status',
         enum: ['granted', 'denied', 'withdrawn'],
       },
-      source: { type: 'string', description: 'Consent collection source (e.g., whatsapp, web_form)' },
+      source: {
+        type: 'string',
+        description: 'Consent collection source (e.g., whatsapp, web_form)',
+      },
       ipAddress: { type: 'string', description: 'Client IP address for audit trail' },
     },
     required: ['patientId', 'phone', 'consentType', 'status', 'source'],

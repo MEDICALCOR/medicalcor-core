@@ -5,7 +5,11 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { FunctionExecutor, createFunctionExecutor, type FunctionExecutorDeps } from '../function-executor.js';
+import {
+  FunctionExecutor,
+  createFunctionExecutor,
+  type FunctionExecutorDeps,
+} from '../function-executor.js';
 import { createInMemoryEventStore } from '../../event-store.js';
 import { createCommandBus } from '../../cqrs/command-bus.js';
 import { createQueryBus } from '../../cqrs/query-bus.js';
@@ -22,6 +26,52 @@ describe('FunctionExecutor', () => {
     const commandBus = createCommandBus(eventStore);
     const queryBus = createQueryBus();
     const projectionManager = createProjectionManager();
+
+    // Register mock command handlers for fallback testing
+    commandBus.register('ScoreLead', async (command) => ({
+      success: true,
+      commandId: command.metadata.commandId,
+      result: {
+        score: 3,
+        classification: 'WARM',
+        confidence: 0.8,
+        reasoning: 'Mock scoring result',
+        suggestedAction: 'Follow up',
+      },
+      executionTimeMs: 1,
+    }));
+
+    commandBus.register('ScheduleAppointment', async (command) => ({
+      success: true,
+      commandId: command.metadata.commandId,
+      result: {
+        appointmentId: 'apt-mock-123',
+        status: 'confirmed',
+        dateTime: '2024-12-15T10:00:00Z',
+      },
+      executionTimeMs: 1,
+    }));
+
+    commandBus.register('SendWhatsAppMessage', async (command) => ({
+      success: true,
+      commandId: command.metadata.commandId,
+      result: {
+        messageId: 'msg-mock-123',
+        status: 'sent',
+        timestamp: new Date().toISOString(),
+      },
+      executionTimeMs: 1,
+    }));
+
+    commandBus.register('RecordConsent', async (command) => ({
+      success: true,
+      commandId: command.metadata.commandId,
+      result: {
+        consentId: 'cons-mock-123',
+        recordedAt: new Date().toISOString(),
+      },
+      executionTimeMs: 1,
+    }));
 
     deps = {
       eventStore,
@@ -46,9 +96,7 @@ describe('FunctionExecutor', () => {
         {
           phone: '+40721234567',
           channel: 'whatsapp',
-          messages: [
-            { role: 'user', content: 'Bună, sunt interesat de implant dentar' },
-          ],
+          messages: [{ role: 'user', content: 'Bună, sunt interesat de implant dentar' }],
         },
         context
       );
@@ -79,9 +127,7 @@ describe('FunctionExecutor', () => {
         {
           phone: '+40721234567',
           channel: 'whatsapp',
-          messages: [
-            { role: 'user', content: 'Vreau all-on-4, cat costa?' },
-          ],
+          messages: [{ role: 'user', content: 'Vreau all-on-4, cat costa?' }],
         },
         context
       );

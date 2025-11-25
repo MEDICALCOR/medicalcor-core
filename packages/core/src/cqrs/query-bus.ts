@@ -35,11 +35,13 @@ export interface QueryResult<TData = unknown> {
   queryId: string;
   data?: TData | undefined;
   pagination?: PaginationInfo | undefined;
-  error?: {
-    code: string;
-    message: string;
-    details?: unknown;
-  } | undefined;
+  error?:
+    | {
+        code: string;
+        message: string;
+        details?: unknown;
+      }
+    | undefined;
   cached: boolean;
   executionTimeMs: number;
 }
@@ -96,7 +98,7 @@ export class QueryBus {
   private middleware: QueryMiddleware[] = [];
   private cache = new Map<string, CacheEntry>();
 
-  constructor(private defaultCacheTtlMs: number = 60000) {}
+  constructor(private defaultCacheTtlMs = 60000) {}
 
   /**
    * Register a query handler
@@ -224,6 +226,7 @@ export class QueryBus {
   /**
    * Helper to create and execute a query
    */
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
   async query<TParams, TData>(
     type: string,
     params: TParams,
@@ -310,9 +313,9 @@ export class QueryBus {
 /**
  * Logging middleware for queries
  */
-export function queryLoggingMiddleware(
-  logger: { info: (obj: unknown, msg: string) => void }
-): QueryMiddleware {
+export function queryLoggingMiddleware(logger: {
+  info: (obj: unknown, msg: string) => void;
+}): QueryMiddleware {
   return async (query, context, next) => {
     logger.info(
       {
@@ -398,11 +401,7 @@ export function defineQuery<TParams>(type: string, schema: ZodSchema<TParams>) {
 /**
  * Calculate pagination info
  */
-export function calculatePagination(
-  page: number,
-  pageSize: number,
-  total: number
-): PaginationInfo {
+export function calculatePagination(page: number, pageSize: number, total: number): PaginationInfo {
   const totalPages = Math.ceil(total / pageSize);
   return {
     page,

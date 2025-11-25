@@ -13,28 +13,16 @@ import {
   createInMemoryEventStore,
   createDatabaseClient,
 } from '@medicalcor/core';
-import {
-  createHubSpotClient,
-  type HubSpotClient,
-} from './hubspot.js';
-import {
-  createWhatsAppClient,
-  type WhatsAppClient,
-} from './whatsapp.js';
-import {
-  createOpenAIClient,
-  type OpenAIClient,
-} from './openai.js';
+import { createHubSpotClient, type HubSpotClient } from './hubspot.js';
+import { createWhatsAppClient, type WhatsAppClient } from './whatsapp.js';
+import { createOpenAIClient, type OpenAIClient } from './openai.js';
 import {
   createSchedulingService,
   createMockSchedulingService,
   type SchedulingService,
   type MockSchedulingService,
 } from './scheduling.js';
-import {
-  createVapiClient,
-  type VapiClient,
-} from './vapi.js';
+import { createVapiClient, type VapiClient } from './vapi.js';
 import { createTemplateCatalogService, type TemplateCatalogService } from './whatsapp.js';
 import {
   createScoringService,
@@ -47,9 +35,9 @@ import {
 } from '@medicalcor/domain';
 
 /**
- * Event store type that matches our domain events
+ * Event store interface that matches our domain events
  */
-export type EventStore = {
+export interface EventStore {
   emit: (input: {
     type: string;
     correlationId: string;
@@ -57,7 +45,7 @@ export type EventStore = {
     aggregateId?: string;
     aggregateType?: string;
   }) => Promise<unknown>;
-};
+}
 
 /**
  * Circuit breaker configuration for integrations
@@ -102,7 +90,17 @@ export interface ClientsConfig {
 }
 
 /** Supported client names for configuration checks */
-export type ClientName = 'hubspot' | 'whatsapp' | 'openai' | 'scheduling' | 'vapi' | 'scoring' | 'triage' | 'consent' | 'templateCatalog' | 'eventStore';
+export type ClientName =
+  | 'hubspot'
+  | 'whatsapp'
+  | 'openai'
+  | 'scheduling'
+  | 'vapi'
+  | 'scoring'
+  | 'triage'
+  | 'consent'
+  | 'templateCatalog'
+  | 'eventStore';
 
 /**
  * Result of client initialization
@@ -246,9 +244,7 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
           phoneNumberId: process.env.VAPI_PHONE_NUMBER_ID,
         })
       : null;
-    vapi = vapiRaw && cbEnabled
-      ? wrapClientWithCircuitBreaker(vapiRaw, 'vapi')
-      : vapiRaw;
+    vapi = vapiRaw && cbEnabled ? wrapClientWithCircuitBreaker(vapiRaw, 'vapi') : vapiRaw;
   }
 
   // Scoring service (optional)

@@ -49,7 +49,7 @@ export class LoginAttemptRepository {
     success: boolean;
     failureReason?: string;
   }): Promise<LoginAttempt> {
-    const result = await this.db.query<Record<string, unknown>>(
+    const result = await this.db.query(
       `INSERT INTO login_attempts (email, ip_address, success, failure_reason)
        VALUES ($1, $2, $3, $4)
        RETURNING *`,
@@ -70,20 +70,20 @@ export class LoginAttemptRepository {
     const windowStart = new Date(Date.now() - RATE_LIMIT_CONFIG.windowMinutes * 60 * 1000);
 
     // Check failed attempts for this email
-    const emailResult = await this.db.query<Record<string, unknown>>(
+    const emailResult = await this.db.query(
       `SELECT COUNT(*) as count FROM login_attempts
        WHERE LOWER(email) = LOWER($1) AND success = FALSE AND created_at > $2`,
       [email, windowStart.toISOString()]
     );
-    const emailFailedCount = parseInt((emailResult.rows[0]?.count as string) ?? '0', 10);
+    const emailFailedCount = parseInt((emailResult.rows[0]?.count ?? '0') as string, 10);
 
     // Check failed attempts from this IP
-    const ipResult = await this.db.query<Record<string, unknown>>(
+    const ipResult = await this.db.query(
       `SELECT COUNT(*) as count FROM login_attempts
        WHERE ip_address = $1 AND success = FALSE AND created_at > $2`,
       [ipAddress, windowStart.toISOString()]
     );
-    const ipFailedCount = parseInt((ipResult.rows[0]?.count as string) ?? '0', 10);
+    const ipFailedCount = parseInt((ipResult.rows[0]?.count ?? '0') as string, 10);
 
     // Calculate reset time
     const resetAt = new Date(Date.now() + RATE_LIMIT_CONFIG.lockoutMinutes * 60 * 1000);
@@ -112,8 +112,7 @@ export class LoginAttemptRepository {
 
     return {
       allowed: true,
-      remainingAttempts:
-        RATE_LIMIT_CONFIG.maxFailedAttemptsPerEmail - emailFailedCount,
+      remainingAttempts: RATE_LIMIT_CONFIG.maxFailedAttemptsPerEmail - emailFailedCount,
     };
   }
 
@@ -121,7 +120,7 @@ export class LoginAttemptRepository {
    * Get recent attempts for an email
    */
   async getRecentForEmail(email: string, limit = 10): Promise<LoginAttempt[]> {
-    const result = await this.db.query<Record<string, unknown>>(
+    const result = await this.db.query(
       `SELECT * FROM login_attempts
        WHERE LOWER(email) = LOWER($1)
        ORDER BY created_at DESC
@@ -136,7 +135,7 @@ export class LoginAttemptRepository {
    * Get recent attempts from an IP
    */
   async getRecentForIp(ipAddress: string, limit = 10): Promise<LoginAttempt[]> {
-    const result = await this.db.query<Record<string, unknown>>(
+    const result = await this.db.query(
       `SELECT * FROM login_attempts
        WHERE ip_address = $1
        ORDER BY created_at DESC
@@ -150,15 +149,18 @@ export class LoginAttemptRepository {
   /**
    * Get IPs with high failure rates (potential attackers)
    */
-  async getSuspiciousIps(since: Date, minFailures = 10): Promise<
-    Array<{
+  async getSuspiciousIps(
+    since: Date,
+    minFailures = 10
+  ): Promise<
+    {
       ipAddress: string;
       totalAttempts: number;
       failedAttempts: number;
       uniqueEmails: number;
-    }>
+    }[]
   > {
-    const result = await this.db.query<Record<string, unknown>>(
+    const result = await this.db.query(
       `SELECT
          ip_address,
          COUNT(*) as total_attempts,
@@ -190,7 +192,7 @@ export class LoginAttemptRepository {
     uniqueEmails: number;
     uniqueIps: number;
   }> {
-    const result = await this.db.query<Record<string, unknown>>(
+    const result = await this.db.query(
       `SELECT
          COUNT(*) as total,
          COUNT(*) FILTER (WHERE success = TRUE) as successful,
@@ -225,10 +227,9 @@ export class LoginAttemptRepository {
    * Clean up old attempts (data retention)
    */
   async deleteOlderThan(date: Date): Promise<number> {
-    const result = await this.db.query(
-      'DELETE FROM login_attempts WHERE created_at < $1',
-      [date.toISOString()]
-    );
+    const result = await this.db.query('DELETE FROM login_attempts WHERE created_at < $1', [
+      date.toISOString(),
+    ]);
 
     const count = result.rowCount ?? 0;
     if (count > 0) {
