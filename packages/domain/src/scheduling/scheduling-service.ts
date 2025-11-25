@@ -1,10 +1,45 @@
 import { Pool } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
+import type { ConsentService, ConsentType } from '../consent/consent-service.js';
+
+/**
+ * Error thrown when booking is blocked due to missing consent
+ * GDPR COMPLIANCE: Appointments cannot be scheduled without valid data processing consent
+ */
+export class ConsentRequiredError extends Error {
+  public readonly code = 'CONSENT_REQUIRED';
+  public readonly missingConsents: ConsentType[];
+
+  constructor(missingConsents: ConsentType[]) {
+    super(
+      `Cannot book appointment: Missing required consent(s): ${missingConsents.join(', ')}. ` +
+        'Patient must provide consent before scheduling.'
+    );
+    this.name = 'ConsentRequiredError';
+    this.missingConsents = missingConsents;
+  }
+}
 
 // Configuration interface
 export interface SchedulingConfig {
   connectionString?: string;
   timezone?: string;
+  /**
+   * ConsentService instance for GDPR compliance checks
+   * If provided, bookAppointment will verify consent before scheduling
+   * RECOMMENDED for production to ensure GDPR compliance
+   */
+  consentService?: ConsentService;
+  /**
+   * Consent types required before booking an appointment
+   * Default: ['data_processing', 'appointment_reminders']
+   */
+  requiredConsents?: ConsentType[];
+  /**
+   * Whether to enforce consent checking (default: true in production)
+   * Set to false only for testing or legacy integrations
+   */
+  enforceConsent?: boolean;
 }
 
 // Database row types
@@ -42,8 +77,17 @@ export interface BookingRequest {
   notes?: string;
 }
 
+/**
+ * Default consent types required for scheduling appointments
+ * These ensure GDPR compliance for medical data processing
+ */
+const DEFAULT_REQUIRED_CONSENTS: ConsentType[] = ['data_processing', 'appointment_reminders'];
+
 export class SchedulingService {
   private pool: Pool | null;
+  private consentService: ConsentService | null;
+  private requiredConsents: ConsentType[];
+  private enforceConsent: boolean;
 
   constructor(config: SchedulingConfig) {
     // Note: timezone is accepted for future use but currently not utilized
@@ -54,6 +98,46 @@ export class SchedulingService {
           max: 10,
         })
       : null;
+
+    // Initialize consent configuration
+    this.consentService = config.consentService ?? null;
+    this.requiredConsents = config.requiredConsents ?? DEFAULT_REQUIRED_CONSENTS;
+
+    // Enforce consent by default in production
+    const isProduction = process.env.NODE_ENV === 'production';
+    this.enforceConsent = config.enforceConsent ?? isProduction;
+
+    // Warn if consent service is not configured in production
+    if (isProduction && !this.consentService) {
+      console.warn(
+        '[SchedulingService] WARNING: ConsentService not configured in production. ' +
+          'Appointments can be booked without consent verification. ' +
+          'This may violate GDPR requirements for medical data processing.'
+      );
+    }
+  }
+
+  /**
+   * Verify that a contact has all required consents for booking
+   * @returns Promise resolving to true if consents are valid, or throws ConsentRequiredError
+   */
+  private async verifyConsent(hubspotContactId: string): Promise<void> {
+    if (!this.consentService || !this.enforceConsent) {
+      return; // Consent checking not enforced
+    }
+
+    const missingConsents: ConsentType[] = [];
+
+    for (const consentType of this.requiredConsents) {
+      const hasConsent = await this.consentService.hasValidConsent(hubspotContactId, consentType);
+      if (!hasConsent) {
+        missingConsents.push(consentType);
+      }
+    }
+
+    if (missingConsents.length > 0) {
+      throw new ConsentRequiredError(missingConsents);
+    }
   }
 
   /**
@@ -109,12 +193,24 @@ export class SchedulingService {
   }
 
   /**
-   * Book an appointment with Transaction Safety
+   * Book an appointment with Transaction Safety and GDPR Consent Verification
+   *
+   * SECURITY AUDIT: This method now enforces consent checking before booking
+   * to ensure GDPR compliance for medical data processing.
+   *
+   * @throws {ConsentRequiredError} If patient hasn't provided required consents
+   * @throws {Error} If slot is not found, already booked, or database error
    */
   async bookAppointment(request: BookingRequest): Promise<{ id: string; status: string }> {
     if (!this.pool) {
       throw new Error('Database connection not configured - connectionString is required');
     }
+
+    // STEP 0: VERIFY CONSENT BEFORE BOOKING (GDPR Compliance)
+    // This check MUST happen before any database transaction
+    // to prevent booking appointments for patients without consent
+    await this.verifyConsent(request.hubspotContactId);
+
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
@@ -168,7 +264,7 @@ export class SchedulingService {
     startDate: Date,
     endDate: Date
   ): Promise<
-    Array<{
+    {
       id: string;
       slot: { date: string; startTime: string; duration: number };
       patientName?: string;
@@ -176,7 +272,7 @@ export class SchedulingService {
       hubspotContactId: string;
       phone: string;
       createdAt: string;
-    }>
+    }[]
   > {
     if (!this.pool) {
       // Return empty array if no database connection configured

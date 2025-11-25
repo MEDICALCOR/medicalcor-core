@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { withRetry, ExternalServiceError } from '@medicalcor/core';
+import { withRetry, ExternalServiceError, CircuitBreaker, createLogger } from '@medicalcor/core';
 
 /**
  * Vapi.ai Voice AI Integration Client
@@ -21,6 +21,22 @@ export interface VapiClientConfig {
         baseDelayMs: number;
       }
     | undefined;
+  /**
+   * Circuit breaker configuration to prevent cascading failures
+   * If not provided, defaults are used:
+   * - failureThreshold: 5 (failures before opening circuit)
+   * - resetTimeoutMs: 30000 (30 seconds before attempting recovery)
+   * - successThreshold: 2 (successful calls needed to close circuit)
+   */
+  circuitBreakerConfig?: {
+    failureThreshold?: number;
+    resetTimeoutMs?: number;
+    successThreshold?: number;
+    /** Called when circuit opens (service unavailable) */
+    onOpen?: (error: Error) => void;
+    /** Called when circuit closes (service recovered) */
+    onClose?: () => void;
+  };
 }
 
 export const VapiCallStatusSchema = z.enum([
@@ -62,14 +78,18 @@ export const VapiCallSchema = z.object({
   assistantId: z.string(),
   status: VapiCallStatusSchema,
   type: z.enum(['inbound', 'outbound']),
-  phoneNumber: z.object({
-    id: z.string(),
-    number: z.string(),
-  }).optional(),
-  customer: z.object({
-    number: z.string(),
-    name: z.string().optional(),
-  }).optional(),
+  phoneNumber: z
+    .object({
+      id: z.string(),
+      number: z.string(),
+    })
+    .optional(),
+  customer: z
+    .object({
+      number: z.string(),
+      name: z.string().optional(),
+    })
+    .optional(),
   startedAt: z.string().optional(),
   endedAt: z.string().optional(),
   endedReason: VapiEndedReasonSchema.optional(),
@@ -192,6 +212,8 @@ export interface ListCallsInput {
 export class VapiClient {
   private config: VapiClientConfig;
   private baseUrl: string;
+  private circuitBreaker: CircuitBreaker;
+  private logger = createLogger({ name: 'vapi-client' });
 
   // Procedure keywords for dental clinic
   private readonly PROCEDURE_KEYWORDS = [
@@ -246,6 +268,44 @@ export class VapiClient {
   constructor(config: VapiClientConfig) {
     this.config = config;
     this.baseUrl = config.baseUrl ?? 'https://api.vapi.ai';
+
+    // Initialize circuit breaker for fail-fast behavior
+    // This prevents cascading failures when Vapi service is unavailable
+    this.circuitBreaker = new CircuitBreaker({
+      name: 'vapi-api',
+      failureThreshold: config.circuitBreakerConfig?.failureThreshold ?? 5,
+      resetTimeoutMs: config.circuitBreakerConfig?.resetTimeoutMs ?? 30000, // 30 seconds
+      successThreshold: config.circuitBreakerConfig?.successThreshold ?? 2,
+      failureWindowMs: 60000, // 1 minute sliding window
+      onOpen: (name, error) => {
+        this.logger.error(
+          { service: name, error: error.message },
+          'Circuit breaker OPENED - Vapi service unavailable, failing fast'
+        );
+        config.circuitBreakerConfig?.onOpen?.(error);
+      },
+      onClose: (name) => {
+        this.logger.info({ service: name }, 'Circuit breaker CLOSED - Vapi service recovered');
+        config.circuitBreakerConfig?.onClose?.();
+      },
+      onStateChange: (name, from, to) => {
+        this.logger.info({ service: name, from, to }, 'Circuit breaker state changed');
+      },
+    });
+  }
+
+  /**
+   * Get circuit breaker statistics for monitoring
+   */
+  getCircuitBreakerStats() {
+    return this.circuitBreaker.getStats();
+  }
+
+  /**
+   * Check if the service is available (circuit not open)
+   */
+  isServiceAvailable(): boolean {
+    return this.circuitBreaker.isAllowingRequests();
   }
 
   // =============================================================================
@@ -254,70 +314,81 @@ export class VapiClient {
 
   /**
    * Create an outbound call
+   * Uses circuit breaker to fail fast when Vapi service is unavailable
    */
   async createOutboundCall(input: CreateOutboundCallInput): Promise<VapiCall> {
-    const makeRequest = async () => {
-      const response = await fetch(`${this.baseUrl}/call`, {
-        method: 'POST',
-        headers: this.getHeaders(),
-        body: JSON.stringify({
-          assistantId: input.assistantId ?? this.config.assistantId,
-          phoneNumberId: this.config.phoneNumberId,
-          customer: {
-            number: input.phoneNumber,
-            name: input.name,
-          },
-          metadata: input.metadata,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        // Log full error internally (may contain PII) but don't expose in exception
-        console.error('[Vapi] Failed to create outbound call:', {
-          status: response.status,
-          errorBody, // May contain PII - only for internal logs
+    // Circuit breaker wraps the entire retry logic
+    // If circuit is open, fails immediately without attempting the request
+    return this.circuitBreaker.execute(async () => {
+      const makeRequest = async () => {
+        const response = await fetch(`${this.baseUrl}/call`, {
+          method: 'POST',
+          headers: this.getHeaders(),
+          body: JSON.stringify({
+            assistantId: input.assistantId ?? this.config.assistantId,
+            phoneNumberId: this.config.phoneNumberId,
+            customer: {
+              number: input.phoneNumber,
+              name: input.name,
+            },
+            metadata: input.metadata,
+          }),
         });
-        // Throw generic error without PII
-        throw new ExternalServiceError('Vapi', `Failed to create outbound call (status ${response.status})`);
-      }
 
-      return response.json() as Promise<VapiCall>;
-    };
+        if (!response.ok) {
+          const errorBody = await response.text();
+          // Log full error internally (may contain PII) but don't expose in exception
+          this.logger.error(
+            { status: response.status, errorBody },
+            '[Vapi] Failed to create outbound call'
+          );
+          // Throw generic error without PII
+          throw new ExternalServiceError(
+            'Vapi',
+            `Failed to create outbound call (status ${response.status})`
+          );
+        }
 
-    return withRetry(makeRequest, this.getRetryConfig());
+        return response.json() as Promise<VapiCall>;
+      };
+
+      return withRetry(makeRequest, this.getRetryConfig());
+    });
   }
 
   /**
    * Get call details
+   * Uses circuit breaker to fail fast when Vapi service is unavailable
    */
   async getCall(input: GetCallInput): Promise<VapiCall> {
-    const makeRequest = async () => {
-      const response = await fetch(`${this.baseUrl}/call/${input.callId}`, {
-        method: 'GET',
-        headers: this.getHeaders(),
-      });
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        // Log full error internally (may contain PII) but don't expose in exception
-        console.error('[Vapi] Failed to get call:', {
-          status: response.status,
-          callId: input.callId,
-          errorBody, // May contain PII - only for internal logs
+    return this.circuitBreaker.execute(async () => {
+      const makeRequest = async () => {
+        const response = await fetch(`${this.baseUrl}/call/${input.callId}`, {
+          method: 'GET',
+          headers: this.getHeaders(),
         });
-        // Throw generic error without PII
-        throw new ExternalServiceError('Vapi', `Failed to get call (status ${response.status})`);
-      }
 
-      return response.json() as Promise<VapiCall>;
-    };
+        if (!response.ok) {
+          const errorBody = await response.text();
+          // Log full error internally (may contain PII) but don't expose in exception
+          this.logger.error(
+            { status: response.status, callId: input.callId, errorBody },
+            '[Vapi] Failed to get call'
+          );
+          // Throw generic error without PII
+          throw new ExternalServiceError('Vapi', `Failed to get call (status ${response.status})`);
+        }
 
-    return withRetry(makeRequest, this.getRetryConfig());
+        return response.json() as Promise<VapiCall>;
+      };
+
+      return withRetry(makeRequest, this.getRetryConfig());
+    });
   }
 
   /**
    * List calls with optional filters
+   * Uses circuit breaker to fail fast when Vapi service is unavailable
    */
   async listCalls(input?: ListCallsInput): Promise<VapiCall[]> {
     const params = new URLSearchParams();
@@ -326,82 +397,91 @@ export class VapiClient {
     if (input?.createdAtGte) params.append('createdAtGte', input.createdAtGte);
     if (input?.createdAtLte) params.append('createdAtLte', input.createdAtLte);
 
-    const makeRequest = async () => {
-      const url = `${this.baseUrl}/call${params.toString() ? `?${params.toString()}` : ''}`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: this.getHeaders(),
-      });
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        // Log full error internally (may contain PII) but don't expose in exception
-        console.error('[Vapi] Failed to list calls:', {
-          status: response.status,
-          errorBody, // May contain PII - only for internal logs
+    return this.circuitBreaker.execute(async () => {
+      const makeRequest = async () => {
+        const url = `${this.baseUrl}/call${params.toString() ? `?${params.toString()}` : ''}`;
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: this.getHeaders(),
         });
-        // Throw generic error without PII
-        throw new ExternalServiceError('Vapi', `Failed to list calls (status ${response.status})`);
-      }
 
-      return response.json() as Promise<VapiCall[]>;
-    };
+        if (!response.ok) {
+          const errorBody = await response.text();
+          // Log full error internally (may contain PII) but don't expose in exception
+          this.logger.error({ status: response.status, errorBody }, '[Vapi] Failed to list calls');
+          // Throw generic error without PII
+          throw new ExternalServiceError(
+            'Vapi',
+            `Failed to list calls (status ${response.status})`
+          );
+        }
 
-    return withRetry(makeRequest, this.getRetryConfig());
+        return response.json() as Promise<VapiCall[]>;
+      };
+
+      return withRetry(makeRequest, this.getRetryConfig());
+    });
   }
 
   /**
    * Get call transcript
+   * Uses circuit breaker to fail fast when Vapi service is unavailable
    */
   async getTranscript(callId: string): Promise<VapiTranscript> {
-    const makeRequest = async () => {
-      const response = await fetch(`${this.baseUrl}/call/${callId}/transcript`, {
-        method: 'GET',
-        headers: this.getHeaders(),
-      });
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        // Log full error internally (may contain PII) but don't expose in exception
-        console.error('[Vapi] Failed to get transcript:', {
-          status: response.status,
-          callId,
-          errorBody, // May contain PII - only for internal logs
+    return this.circuitBreaker.execute(async () => {
+      const makeRequest = async () => {
+        const response = await fetch(`${this.baseUrl}/call/${callId}/transcript`, {
+          method: 'GET',
+          headers: this.getHeaders(),
         });
-        // Throw generic error without PII
-        throw new ExternalServiceError('Vapi', `Failed to get transcript (status ${response.status})`);
-      }
 
-      return response.json() as Promise<VapiTranscript>;
-    };
+        if (!response.ok) {
+          const errorBody = await response.text();
+          // Log full error internally (may contain PII) but don't expose in exception
+          this.logger.error(
+            { status: response.status, callId, errorBody },
+            '[Vapi] Failed to get transcript'
+          );
+          // Throw generic error without PII
+          throw new ExternalServiceError(
+            'Vapi',
+            `Failed to get transcript (status ${response.status})`
+          );
+        }
 
-    return withRetry(makeRequest, this.getRetryConfig());
+        return response.json() as Promise<VapiTranscript>;
+      };
+
+      return withRetry(makeRequest, this.getRetryConfig());
+    });
   }
 
   /**
    * End an active call
+   * Uses circuit breaker to fail fast when Vapi service is unavailable
    */
   async endCall(callId: string): Promise<void> {
-    const makeRequest = async () => {
-      const response = await fetch(`${this.baseUrl}/call/${callId}`, {
-        method: 'DELETE',
-        headers: this.getHeaders(),
-      });
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        // Log full error internally (may contain PII) but don't expose in exception
-        console.error('[Vapi] Failed to end call:', {
-          status: response.status,
-          callId,
-          errorBody, // May contain PII - only for internal logs
+    return this.circuitBreaker.execute(async () => {
+      const makeRequest = async () => {
+        const response = await fetch(`${this.baseUrl}/call/${callId}`, {
+          method: 'DELETE',
+          headers: this.getHeaders(),
         });
-        // Throw generic error without PII
-        throw new ExternalServiceError('Vapi', `Failed to end call (status ${response.status})`);
-      }
-    };
 
-    return withRetry(makeRequest, this.getRetryConfig());
+        if (!response.ok) {
+          const errorBody = await response.text();
+          // Log full error internally (may contain PII) but don't expose in exception
+          this.logger.error(
+            { status: response.status, callId, errorBody },
+            '[Vapi] Failed to end call'
+          );
+          // Throw generic error without PII
+          throw new ExternalServiceError('Vapi', `Failed to end call (status ${response.status})`);
+        }
+      };
+
+      return withRetry(makeRequest, this.getRetryConfig());
+    });
   }
 
   // =============================================================================

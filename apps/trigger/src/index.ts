@@ -42,3 +42,11 @@ export {
   staleLeadCleanup,
   gdprConsentAudit,
 } from './jobs/cron-jobs.js';
+
+// Database Backup (Disaster Recovery)
+export {
+  scheduledDatabaseBackup,
+  manualDatabaseBackup,
+  checkBackupStatus,
+  type ManualBackupPayload,
+} from './tasks/database-backup.js';

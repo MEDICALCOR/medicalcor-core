@@ -1,9 +1,19 @@
 import crypto from 'crypto';
-import { withRetry, ExternalServiceError, RateLimitError, WebhookSignatureError } from '@medicalcor/core';
+import {
+  withRetry,
+  ExternalServiceError,
+  RateLimitError,
+  WebhookSignatureError,
+  CircuitBreaker,
+  createLogger,
+} from '@medicalcor/core';
 
 /**
  * Stripe Integration Client
  * Handles payment data retrieval for dashboard statistics
+ *
+ * SECURITY AUDIT: Now includes Circuit Breaker pattern to prevent
+ * cascading failures when Stripe service is unavailable
  */
 
 export interface StripeClientConfig {
@@ -15,6 +25,22 @@ export interface StripeClientConfig {
   };
   /** Request timeout in milliseconds (default: 30000) */
   timeoutMs?: number;
+  /**
+   * Circuit breaker configuration to prevent cascading failures
+   * If not provided, defaults are used:
+   * - failureThreshold: 5 (failures before opening circuit)
+   * - resetTimeoutMs: 30000 (30 seconds before attempting recovery)
+   * - successThreshold: 2 (successful calls needed to close circuit)
+   */
+  circuitBreakerConfig?: {
+    failureThreshold?: number;
+    resetTimeoutMs?: number;
+    successThreshold?: number;
+    /** Called when circuit opens (service unavailable) */
+    onOpen?: (error: Error) => void;
+    /** Called when circuit closes (service recovered) */
+    onClose?: () => void;
+  };
 }
 
 /** Default timeout for Stripe API requests (30 seconds) */
@@ -56,9 +82,49 @@ export interface ChargeListResponse {
 export class StripeClient {
   private config: StripeClientConfig;
   private baseUrl = 'https://api.stripe.com/v1';
+  private circuitBreaker: CircuitBreaker;
+  private logger = createLogger({ name: 'stripe-client' });
 
   constructor(config: StripeClientConfig) {
     this.config = config;
+
+    // Initialize circuit breaker for fail-fast behavior
+    // This prevents cascading failures when Stripe service is unavailable
+    this.circuitBreaker = new CircuitBreaker({
+      name: 'stripe-api',
+      failureThreshold: config.circuitBreakerConfig?.failureThreshold ?? 5,
+      resetTimeoutMs: config.circuitBreakerConfig?.resetTimeoutMs ?? 30000, // 30 seconds
+      successThreshold: config.circuitBreakerConfig?.successThreshold ?? 2,
+      failureWindowMs: 60000, // 1 minute sliding window
+      onOpen: (name, error) => {
+        this.logger.error(
+          { service: name, error: error.message },
+          'Circuit breaker OPENED - Stripe service unavailable, failing fast'
+        );
+        config.circuitBreakerConfig?.onOpen?.(error);
+      },
+      onClose: (name) => {
+        this.logger.info({ service: name }, 'Circuit breaker CLOSED - Stripe service recovered');
+        config.circuitBreakerConfig?.onClose?.();
+      },
+      onStateChange: (name, from, to) => {
+        this.logger.info({ service: name, from, to }, 'Circuit breaker state changed');
+      },
+    });
+  }
+
+  /**
+   * Get circuit breaker statistics for monitoring
+   */
+  getCircuitBreakerStats() {
+    return this.circuitBreaker.getStats();
+  }
+
+  /**
+   * Check if the service is available (circuit not open)
+   */
+  isServiceAvailable(): boolean {
+    return this.circuitBreaker.isAllowingRequests();
   }
 
   /**
@@ -263,69 +329,76 @@ export class StripeClient {
 
   /**
    * Make authenticated request to Stripe API with timeout support
+   * Uses circuit breaker to fail fast when Stripe service is unavailable
    */
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     const timeoutMs = this.config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
-    const makeRequest = async () => {
-      // Create AbortController for timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    // Circuit breaker wraps the entire retry logic
+    // If circuit is open, fails immediately without attempting the request
+    return this.circuitBreaker.execute(async () => {
+      const makeRequest = async () => {
+        // Create AbortController for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-      try {
-        const existingHeaders = (options.headers as Record<string, string> | undefined) ?? {};
-        const response = await fetch(url, {
-          ...options,
-          signal: controller.signal,
-          headers: {
-            Authorization: `Bearer ${this.config.secretKey}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
-            ...existingHeaders,
-          },
-        });
-
-        if (response.status === 429) {
-          const retryAfter = response.headers.get('Retry-After');
-          throw new RateLimitError(parseInt(retryAfter ?? '60', 10));
-        }
-
-        if (!response.ok) {
-          const errorBody = await response.text();
-          // Log full error internally (may contain PII) but don't expose in exception
-          console.error('[Stripe] API error:', {
-            status: response.status,
-            statusText: response.statusText,
-            url: path,
-            errorBody, // May contain PII - only for internal logs
+        try {
+          const existingHeaders = (options.headers as Record<string, string> | undefined) ?? {};
+          const response = await fetch(url, {
+            ...options,
+            signal: controller.signal,
+            headers: {
+              Authorization: `Bearer ${this.config.secretKey}`,
+              'Content-Type': 'application/x-www-form-urlencoded',
+              ...existingHeaders,
+            },
           });
-          // Throw generic error without PII
-          throw new ExternalServiceError('Stripe', `Request failed with status ${response.status}`);
-        }
 
-        return response.json() as Promise<T>;
-      } catch (error) {
-        // Convert AbortError to ExternalServiceError for consistent handling
-        if (error instanceof Error && error.name === 'AbortError') {
-          throw new ExternalServiceError('Stripe', `Request timeout after ${timeoutMs}ms`);
-        }
-        throw error;
-      } finally {
-        clearTimeout(timeoutId);
-      }
-    };
+          if (response.status === 429) {
+            const retryAfter = response.headers.get('Retry-After');
+            throw new RateLimitError(parseInt(retryAfter ?? '60', 10));
+          }
 
-    return withRetry(makeRequest, {
-      maxRetries: this.config.retryConfig?.maxRetries ?? 3,
-      baseDelayMs: this.config.retryConfig?.baseDelayMs ?? 1000,
-      shouldRetry: (error) => {
-        if (error instanceof RateLimitError) return true;
-        if (error instanceof ExternalServiceError && error.message.includes('502')) return true;
-        if (error instanceof ExternalServiceError && error.message.includes('503')) return true;
-        // Retry on timeout errors
-        if (error instanceof ExternalServiceError && error.message.includes('timeout')) return true;
-        return false;
-      },
+          if (!response.ok) {
+            const errorBody = await response.text();
+            // Log full error internally (may contain PII) but don't expose in exception
+            this.logger.error(
+              { status: response.status, statusText: response.statusText, url: path, errorBody },
+              '[Stripe] API error'
+            );
+            // Throw generic error without PII
+            throw new ExternalServiceError(
+              'Stripe',
+              `Request failed with status ${response.status}`
+            );
+          }
+
+          return await (response.json() as Promise<T>);
+        } catch (error) {
+          // Convert AbortError to ExternalServiceError for consistent handling
+          if (error instanceof Error && error.name === 'AbortError') {
+            throw new ExternalServiceError('Stripe', `Request timeout after ${timeoutMs}ms`);
+          }
+          throw error;
+        } finally {
+          clearTimeout(timeoutId);
+        }
+      };
+
+      return withRetry(makeRequest, {
+        maxRetries: this.config.retryConfig?.maxRetries ?? 3,
+        baseDelayMs: this.config.retryConfig?.baseDelayMs ?? 1000,
+        shouldRetry: (error) => {
+          if (error instanceof RateLimitError) return true;
+          if (error instanceof ExternalServiceError && error.message.includes('502')) return true;
+          if (error instanceof ExternalServiceError && error.message.includes('503')) return true;
+          // Retry on timeout errors
+          if (error instanceof ExternalServiceError && error.message.includes('timeout'))
+            return true;
+          return false;
+        },
+      });
     });
   }
 }
