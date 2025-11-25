@@ -46,9 +46,9 @@ export async function validateCredentials(
         return result.user;
       }
 
-      // Log the error for debugging (without exposing to user)
+      // Log auth failure without PII (SECURITY: never log email addresses)
       if (result.error) {
-        console.warn(`[Auth] Login failed for ${email}: ${result.error}`);
+        console.warn(`[Auth] Login failed: ${result.error}`);
       }
 
       return null;
@@ -201,8 +201,8 @@ export async function logAuthEvent(
   const dbUrl = process.env.DATABASE_URL;
 
   if (!dbUrl) {
-    // No database, just log to console
-    console.warn(`[Auth Event] ${eventType} for ${email ?? userId ?? 'unknown'}`);
+    // No database - log event type only (SECURITY: never log PII like email)
+    console.warn(`[Auth Event] ${eventType}`);
     return;
   }
 

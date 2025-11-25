@@ -63,11 +63,29 @@ class PostgresPool implements DatabasePool {
 
     try {
       const pg = await import('pg');
+
+      // SECURITY: Enforce SSL/TLS for all database connections in production
+      // This ensures data in transit is encrypted (HIPAA/GDPR compliance)
+      const isProduction = process.env.NODE_ENV === 'production';
+      const sslConfig = isProduction
+        ? {
+            // In production, require valid SSL certificates
+            rejectUnauthorized: true,
+          }
+        : process.env.DATABASE_SSL === 'true'
+          ? {
+              // In development, allow self-signed certs if SSL is explicitly enabled
+              rejectUnauthorized: false,
+            }
+          : undefined;
+
       this.pool = new pg.default.Pool({
         connectionString: this.config.connectionString,
         max: this.config.maxConnections ?? 10,
         idleTimeoutMillis: this.config.idleTimeoutMs ?? 30000,
         connectionTimeoutMillis: this.config.connectionTimeoutMs ?? 5000,
+        // SECURITY: SSL configuration for encrypted connections
+        ssl: sslConfig,
       });
 
       // Test connection
