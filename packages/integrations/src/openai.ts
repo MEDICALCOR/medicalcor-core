@@ -21,14 +21,36 @@ const ChatCompletionOptionsSchema = z.object({
 
 const AIReplyOptionsSchema = z.object({
   context: z.object({
-    currentMessage: z.string().min(1),
-    messageHistory: z.array(z.object({
-      role: z.enum(['user', 'assistant']),
-      content: z.string(),
-      timestamp: z.string(),
-    })).optional(),
     phone: z.string().min(10).max(20),
+    channel: z.enum(['whatsapp', 'voice', 'web', 'referral']),
+    firstTouchTimestamp: z.string(),
+    phoneIsValid: z.boolean(),
+    messageHistory: z.array(
+      z.object({
+        role: z.enum(['user', 'assistant']),
+        content: z.string(),
+        timestamp: z.string(),
+      })
+    ),
+    metadata: z.record(z.unknown()),
     name: z.string().max(256).optional(),
+    originalPhone: z.string().optional(),
+    language: z.enum(['ro', 'en', 'de']).optional(),
+    utm: z
+      .object({
+        utm_source: z.string().optional(),
+        utm_medium: z.string().optional(),
+        utm_campaign: z.string().optional(),
+        utm_term: z.string().optional(),
+        utm_content: z.string().optional(),
+        gclid: z.string().optional(),
+        fbclid: z.string().optional(),
+      })
+      .optional(),
+    hubspotContactId: z.string().optional(),
+    hubspotDealId: z.string().optional(),
+    email: z.string().email().optional(),
+    correlationId: z.string().optional(),
   }),
   tone: z.enum(['professional', 'friendly', 'empathetic']).optional(),
   maxLength: z.number().int().min(10).max(1000).optional(),
@@ -41,10 +63,12 @@ const OpenAIClientConfigSchema = z.object({
   organization: z.string().optional(),
   maxTokens: z.number().int().min(1).max(128000).optional(),
   temperature: z.number().min(0).max(2).optional(),
-  retryConfig: z.object({
-    maxRetries: z.number().int().min(0).max(10),
-    baseDelayMs: z.number().int().min(100).max(30000),
-  }).optional(),
+  retryConfig: z
+    .object({
+      maxRetries: z.number().int().min(0).max(10),
+      baseDelayMs: z.number().int().min(100).max(30000),
+    })
+    .optional(),
 });
 
 /**
@@ -54,14 +78,16 @@ const OpenAIClientConfigSchema = z.object({
 
 export interface OpenAIClientConfig {
   apiKey: string;
-  model?: string;
-  organization?: string;
-  maxTokens?: number;
-  temperature?: number;
-  retryConfig?: {
-    maxRetries: number;
-    baseDelayMs: number;
-  };
+  model?: string | undefined;
+  organization?: string | undefined;
+  maxTokens?: number | undefined;
+  temperature?: number | undefined;
+  retryConfig?:
+    | {
+        maxRetries: number;
+        baseDelayMs: number;
+      }
+    | undefined;
 }
 
 export interface ChatMessage {
@@ -107,6 +133,7 @@ export class OpenAIClient {
   private sanitizeUserInput(input: string, maxLength = 10000): string {
     // Remove control characters and zero-width spaces
     let sanitized = input
+      // eslint-disable-next-line no-control-regex -- intentionally removing control characters for security
       .replace(/[\x00-\x1F\x7F]/g, '') // Control characters
       .replace(/[\u200B-\u200D\uFEFF]/g, '') // Zero-width characters
       .trim();
@@ -424,9 +451,7 @@ Do not make up specific prices or availability - direct to staff for details.`;
         })
         .join('\n') ?? '';
 
-    const lastMessageContent = lastMessage
-      ? this.sanitizeUserInput(lastMessage.content, 500)
-      : '';
+    const lastMessageContent = lastMessage ? this.sanitizeUserInput(lastMessage.content, 500) : '';
 
     return `Generate a helpful reply to this conversation:
 
