@@ -20,6 +20,21 @@ import {
   type HubSpotContact,
   type PaginatedResponse,
   type HubSpotSearchRequest,
+  // Server Actions types
+  type TriageLead,
+  type TriageColumn,
+  type CalendarSlot,
+  type AnalyticsMetrics,
+  type TimeSeriesPoint,
+  type LeadsBySource,
+  type ConversionFunnelStep,
+  type TopProcedure,
+  type OperatorPerformance,
+  type AnalyticsData,
+  type Conversation,
+  type Message,
+  type PatientDetailData,
+  type PatientTimelineEvent,
 } from '@medicalcor/types';
 import {
   requirePermission,
@@ -490,24 +505,8 @@ async function getDailyRevenueAmount(
 // TRIAGE PAGE SERVER ACTIONS
 // ============================================================================
 
-export interface TriageLead {
-  id: string;
-  phone: string;
-  source: LeadSource;
-  time: string;
-  message?: string;
-  score?: number;
-  confidence?: number;
-  reasoning?: string;
-  procedureInterest?: string[];
-  appointment?: string;
-}
-
-export interface TriageColumn {
-  id: 'new' | 'hot' | 'warm' | 'cold' | 'scheduled';
-  title: string;
-  leads: TriageLead[];
-}
+// Types re-exported from @medicalcor/types for backwards compatibility
+export type { TriageLead, TriageColumn } from '@medicalcor/types';
 
 /**
  * Fetches leads for Triage board, grouped by classification/status
@@ -714,14 +713,8 @@ export async function getTriageLeadsAction(): Promise<TriageColumn[]> {
 // CALENDAR PAGE SERVER ACTIONS
 // ============================================================================
 
-export interface CalendarSlot {
-  id: string;
-  time: string;
-  duration: number;
-  available: boolean;
-  patient?: string;
-  procedure?: string;
-}
+// Types re-exported from @medicalcor/types for backwards compatibility
+export type { CalendarSlot } from '@medicalcor/types';
 
 /**
  * Fetches calendar slots for a specific date
@@ -800,63 +793,16 @@ export async function getCalendarSlotsAction(dateStr: string): Promise<CalendarS
 // ANALYTICS PAGE SERVER ACTIONS
 // ============================================================================
 
-export interface AnalyticsMetrics {
-  totalLeads: number;
-  totalLeadsChange: number;
-  hotLeads: number;
-  hotLeadsChange: number;
-  appointmentsScheduled: number;
-  appointmentsChange: number;
-  conversionRate: number;
-  conversionRateChange: number;
-  avgResponseTime: number;
-  avgResponseTimeChange: number;
-  revenue: number;
-  revenueChange: number;
-}
-
-export interface TimeSeriesPoint {
-  date: string;
-  value: number;
-}
-
-export interface LeadsBySource {
-  source: string;
-  count: number;
-  color: string;
-}
-
-export interface ConversionFunnelStep {
-  name: string;
-  count: number;
-  percentage: number;
-}
-
-export interface TopProcedure {
-  procedure: string;
-  count: number;
-  revenue: number;
-}
-
-export interface OperatorPerformance {
-  id: string;
-  name: string;
-  leadsHandled: number;
-  conversions: number;
-  conversionRate: number;
-  avgResponseTime: number;
-  satisfaction: number;
-}
-
-export interface AnalyticsData {
-  metrics: AnalyticsMetrics;
-  leadsOverTime: TimeSeriesPoint[];
-  appointmentsOverTime: TimeSeriesPoint[];
-  leadsBySource: LeadsBySource[];
-  conversionFunnel: ConversionFunnelStep[];
-  topProcedures: TopProcedure[];
-  operatorPerformance: OperatorPerformance[];
-}
+// Types re-exported from @medicalcor/types for backwards compatibility
+export type {
+  AnalyticsMetrics,
+  TimeSeriesPoint,
+  LeadsBySource,
+  ConversionFunnelStep,
+  TopProcedure,
+  OperatorPerformance,
+  AnalyticsData,
+} from '@medicalcor/types';
 
 /**
  * Fetches analytics data from HubSpot
@@ -1198,30 +1144,8 @@ export async function getAnalyticsDataAction(
 // MESSAGES PAGE SERVER ACTIONS
 // ============================================================================
 
-export interface Conversation {
-  id: string;
-  patientName: string;
-  phone: string;
-  channel: 'whatsapp' | 'sms' | 'email';
-  status: 'active' | 'waiting' | 'resolved' | 'archived';
-  unreadCount: number;
-  lastMessage: {
-    content: string;
-    direction: 'IN' | 'OUT';
-    timestamp: Date;
-  };
-  updatedAt: Date;
-}
-
-export interface Message {
-  id: string;
-  conversationId: string;
-  content: string;
-  direction: 'IN' | 'OUT';
-  status: 'sent' | 'delivered' | 'read';
-  timestamp: Date;
-  senderName?: string;
-}
+// Types re-exported from @medicalcor/types for backwards compatibility
+export type { Conversation, Message } from '@medicalcor/types';
 
 /**
  * Fetches conversations list from HubSpot contacts (legacy non-paginated version)
@@ -1350,22 +1274,8 @@ export async function getMessagesAction(_conversationId: string): Promise<Messag
 // PATIENT DETAIL SERVER ACTIONS
 // ============================================================================
 
-export interface PatientDetailData {
-  id: string;
-  firstName: string;
-  lastName: string;
-  phone: string;
-  email?: string;
-  lifecycleStage?: string;
-  leadScore?: number;
-  classification: LeadClassification;
-  source: LeadSource;
-  procedureInterest?: string[];
-  language?: string;
-  createdAt: string;
-  updatedAt: string;
-  hubspotContactId: string;
-}
+// Types re-exported from @medicalcor/types for backwards compatibility
+export type { PatientDetailData } from '@medicalcor/types';
 
 /**
  * Fetches a single patient/contact by ID from HubSpot
@@ -1418,17 +1328,13 @@ export async function getPatientByIdAction(patientId: string): Promise<PatientDe
   }
 }
 
+// PatientTimelineEvent re-exported from @medicalcor/types for backwards compatibility
+export type { PatientTimelineEvent } from '@medicalcor/types';
+
 /**
  * Fetches patient timeline events from HubSpot
  * @requires VIEW_PATIENTS permission + patient access check
  */
-export interface PatientTimelineEvent {
-  id: string;
-  type: string;
-  timestamp: string;
-  data: Record<string, unknown>;
-}
-
 export async function getPatientTimelineAction(patientId: string): Promise<PatientTimelineEvent[]> {
   try {
     await requirePermission('VIEW_PATIENTS');

@@ -166,3 +166,52 @@ export {
   type CursorPagination,
   type PaginatedResponse,
 } from './schemas/common.js';
+
+// Server Actions schemas (Triage, Calendar, Analytics, Messages, Patient Detail)
+export {
+  // Triage schemas
+  TriageLeadSchema,
+  TriageColumnIdSchema,
+  TriageColumnSchema,
+  type TriageLead,
+  type TriageColumnId,
+  type TriageColumn,
+  // Calendar schemas
+  CalendarSlotSchema,
+  type CalendarSlot,
+  // Analytics schemas
+  AnalyticsMetricsSchema,
+  TimeSeriesPointSchema,
+  LeadsBySourceSchema,
+  ConversionFunnelStepSchema,
+  TopProcedureSchema,
+  OperatorPerformanceSchema,
+  AnalyticsDataSchema,
+  type AnalyticsMetrics,
+  type TimeSeriesPoint,
+  type LeadsBySource,
+  type ConversionFunnelStep,
+  type TopProcedure,
+  type OperatorPerformance,
+  type AnalyticsData,
+  // Messages schemas
+  ConversationChannelSchema,
+  ConversationStatusSchema,
+  MessageDirectionSchema,
+  MessageDeliveryStatusSchema,
+  LastMessageSchema,
+  ConversationSchema,
+  MessageSchema,
+  type ConversationChannel,
+  type ConversationStatus,
+  type MessageDirection,
+  type MessageDeliveryStatus,
+  type LastMessage,
+  type Conversation,
+  type Message,
+  // Patient detail schemas
+  PatientDetailDataSchema,
+  PatientTimelineEventSchema,
+  type PatientDetailData,
+  type PatientTimelineEvent,
+} from './server-actions.schema.js';
