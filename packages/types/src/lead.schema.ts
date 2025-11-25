@@ -1,56 +1,58 @@
-import { z } from 'zod';
-
 /**
  * Lead and Scoring Domain Schemas
+ *
+ * @deprecated Import from '@medicalcor/types' or './schemas/lead.js' instead.
+ * This file re-exports from the consolidated schema for backward compatibility.
  */
 
-// Lead source channels
-export const LeadChannelSchema = z.enum(['whatsapp', 'voice', 'web', 'referral']);
+// Re-export all lead schemas from the Single Source of Truth
+export {
+  // Lead source/channel
+  LeadSourceSchema,
+  LeadChannelSchema,
+  // Lead status and priority
+  LeadStatusSchema,
+  LeadPrioritySchema,
+  // AI scoring
+  LeadScoreSchema,
+  LeadClassificationSchema,
+  UTMParamsSchema,
+  AIScoringContextSchema,
+  ScoringOutputSchema,
+  // Patient data
+  PatientDemographicsSchema,
+  MedicalContextSchema,
+  ConversationEntrySchema,
+  // Full domain model
+  LeadContextSchema,
+  CreateLeadContextSchema,
+  UpdateLeadContextSchema,
+  // Types
+  type LeadSource,
+  type LeadChannel,
+  type LeadStatus,
+  type LeadPriority,
+  type LeadScore,
+  type LeadClassification,
+  type UTMParams,
+  type AIScoringContext,
+  type ScoringOutput,
+  type PatientDemographics,
+  type MedicalContext,
+  type ConversationEntry,
+  type LeadContext,
+  type CreateLeadContext,
+  type UpdateLeadContext,
+} from './schemas/lead.js';
 
-// Lead score levels
-export const LeadScoreSchema = z.enum(['HOT', 'WARM', 'COLD', 'UNQUALIFIED']);
+// Legacy schemas for backward compatibility
+import { z } from 'zod';
+import { LeadChannelSchema as LeadChannelSchemaSource } from './schemas/lead.js';
 
-// UTM parameters
-export const UTMParamsSchema = z.object({
-  utm_source: z.string().optional(),
-  utm_medium: z.string().optional(),
-  utm_campaign: z.string().optional(),
-  utm_term: z.string().optional(),
-  utm_content: z.string().optional(),
-  gclid: z.string().optional(),
-  fbclid: z.string().optional(),
-});
-
-// Lead context for AI scoring
-export const LeadContextSchema = z.object({
-  phone: z.string(),
-  name: z.string().optional(),
-  channel: LeadChannelSchema,
-  firstTouchTimestamp: z.string(),
-  language: z.enum(['ro', 'en', 'de']).optional(),
-  messageHistory: z.array(z.object({
-    role: z.enum(['user', 'assistant']),
-    content: z.string(),
-    timestamp: z.string(),
-  })).optional(),
-  utm: UTMParamsSchema.optional(),
-  hubspotContactId: z.string().optional(),
-});
-
-// AI Scoring output
-export const ScoringOutputSchema = z.object({
-  score: z.number().min(1).max(5),
-  classification: LeadScoreSchema,
-  confidence: z.number().min(0).max(1),
-  reasoning: z.string(),
-  suggestedAction: z.string(),
-  detectedIntent: z.string().optional(),
-  urgencyIndicators: z.array(z.string()).optional(),
-  budgetMentioned: z.boolean().optional(),
-  procedureInterest: z.array(z.string()).optional(),
-});
-
-// Domain event base
+/**
+ * Domain event base - kept for backward compatibility with existing code
+ * @deprecated Use EventBaseSchema from events.schema.ts instead
+ */
 export const DomainEventBaseSchema = z.object({
   id: z.string().uuid(),
   type: z.string(),
@@ -59,50 +61,52 @@ export const DomainEventBaseSchema = z.object({
   idempotencyKey: z.string(),
 });
 
-// Domain events
+/**
+ * @deprecated Use LeadCreatedEventSchema from events.schema.ts instead
+ */
 export const LeadCreatedEventSchema = DomainEventBaseSchema.extend({
   type: z.literal('lead.created'),
   payload: z.object({
     phone: z.string(),
-    channel: LeadChannelSchema,
+    channel: LeadChannelSchemaSource,
     hubspotContactId: z.string().optional(),
   }),
 });
 
+/**
+ * @deprecated Use LeadScoredEventSchema from events.schema.ts instead
+ */
 export const LeadScoredEventSchema = DomainEventBaseSchema.extend({
   type: z.literal('lead.scored'),
   payload: z.object({
     phone: z.string(),
     score: z.number(),
-    classification: LeadScoreSchema,
+    classification: z.enum(['HOT', 'WARM', 'COLD', 'UNQUALIFIED']),
   }),
 });
 
+/**
+ * @deprecated Use MessageReceivedEventSchema from events.schema.ts instead
+ */
 export const MessageReceivedEventSchema = DomainEventBaseSchema.extend({
   type: z.literal('message.received'),
   payload: z.object({
     phone: z.string(),
-    channel: LeadChannelSchema,
+    channel: LeadChannelSchemaSource,
     messageId: z.string(),
     content: z.string(),
   }),
 });
 
-// Union of all domain events
+/**
+ * @deprecated Use DomainEventSchema from events.schema.ts instead
+ */
 export const DomainEventSchema = z.discriminatedUnion('type', [
   LeadCreatedEventSchema,
   LeadScoredEventSchema,
   MessageReceivedEventSchema,
 ]);
 
-// Inferred types
-export type LeadChannel = z.infer<typeof LeadChannelSchema>;
-export type LeadScore = z.infer<typeof LeadScoreSchema>;
-export type UTMParams = z.infer<typeof UTMParamsSchema>;
-export type LeadContext = z.infer<typeof LeadContextSchema>;
-export type ScoringOutput = z.infer<typeof ScoringOutputSchema>;
+// Legacy types
 export type DomainEventBase = z.infer<typeof DomainEventBaseSchema>;
-export type LeadCreatedEvent = z.infer<typeof LeadCreatedEventSchema>;
-export type LeadScoredEvent = z.infer<typeof LeadScoredEventSchema>;
-export type MessageReceivedEvent = z.infer<typeof MessageReceivedEventSchema>;
 export type DomainEvent = z.infer<typeof DomainEventSchema>;

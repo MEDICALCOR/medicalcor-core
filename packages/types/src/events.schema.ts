@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { LeadSourceSchema, LeadScoreSchema } from './schemas/lead.js';
+import { CallDirectionSchema } from './schemas/voice.js';
 
 // Use LeadSourceSchema as the canonical source for channels
 const LeadChannelSchema = LeadSourceSchema;
@@ -57,7 +58,7 @@ export const VoiceCallInitiatedEventSchema = EventBaseSchema.extend({
     callSid: z.string(),
     from: z.string(),
     to: z.string(),
-    direction: z.enum(['inbound', 'outbound-api', 'outbound-dial']),
+    direction: CallDirectionSchema,
   }),
 });
 
