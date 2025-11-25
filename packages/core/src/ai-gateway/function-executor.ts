@@ -19,7 +19,13 @@ import type { CommandBus } from '../cqrs/command-bus.js';
 import type { QueryBus } from '../cqrs/query-bus.js';
 import type { ProjectionManager } from '../cqrs/projections.js';
 import type { FunctionContext, AIFunctionResult } from './function-registry.js';
-import { FUNCTION_INPUT_SCHEMAS } from './medical-functions.js';
+import type { ZodSchema } from 'zod';
+import {
+  FUNCTION_INPUT_SCHEMAS,
+  FUNCTION_OUTPUT_SCHEMAS,
+  validateAndSanitizeAIOutput,
+  validateAIReasoning,
+} from './medical-functions.js';
 
 // ============================================================================
 // DEPENDENCY INTERFACES
@@ -90,7 +96,8 @@ export interface SchedulingServicePort {
     doctorId?: string;
     serviceType?: string;
     duration?: number;
-  }): Promise<{
+  }): Promise<
+    {
       slotId: string;
       startTime: string;
       endTime: string;
@@ -143,11 +150,7 @@ export interface ConsentServicePort {
     recordedAt: string;
   }>;
 
-  checkConsent(params: {
-    patientId?: string;
-    phone?: string;
-    consentTypes?: string[];
-  }): Promise<{
+  checkConsent(params: { patientId?: string; phone?: string; consentTypes?: string[] }): Promise<{
     consents: {
       type: string;
       status: 'granted' | 'denied' | 'withdrawn';
@@ -258,10 +261,74 @@ export class FunctionExecutor {
       // Execute the handler
       const result = await handler(args, context);
 
+      // =========================================================================
+      // CRITICAL: Validate AI output before showing to medical staff
+      // This prevents hallucinated data, dangerous recommendations, and
+      // unverified medical claims from being shown to doctors
+      // =========================================================================
+      const outputSchema = FUNCTION_OUTPUT_SCHEMAS[
+        functionName as keyof typeof FUNCTION_OUTPUT_SCHEMAS
+      ] as ZodSchema | undefined;
+      const outputValidation = validateAndSanitizeAIOutput(functionName, result, outputSchema);
+
+      // Log any validation issues for monitoring and audit
+      if (outputValidation.errors.length > 0 || outputValidation.warnings.length > 0) {
+        // Note: In production, this would emit to monitoring/alerting systems
+        console.warn('[AI Output Validation]', {
+          functionName,
+          traceId: context.traceId,
+          correlationId: context.correlationId,
+          errors: outputValidation.errors,
+          warnings: outputValidation.warnings,
+        });
+
+        // Emit audit event for AI output validation issues
+        await this.deps.eventStore.emit({
+          type: 'AIOutputValidationIssue',
+          correlationId: context.correlationId,
+          payload: {
+            functionName,
+            traceId: context.traceId,
+            errors: outputValidation.errors,
+            warnings: outputValidation.warnings,
+            severity: outputValidation.errors.length > 0 ? 'error' : 'warning',
+            timestamp: new Date().toISOString(),
+          },
+        });
+      }
+
+      // If critical validation errors, return error instead of potentially dangerous output
+      if (!outputValidation.valid) {
+        return {
+          function: functionName,
+          success: false,
+          error: {
+            code: 'AI_OUTPUT_VALIDATION_FAILED',
+            message: 'AI output failed safety validation and cannot be shown to medical staff',
+            details: {
+              errors: outputValidation.errors,
+              warnings: outputValidation.warnings,
+            },
+          },
+          executionTimeMs: Date.now() - startTime,
+          traceId: context.traceId,
+        };
+      }
+
+      // Include validation metadata in the result for transparency
+      const validatedResult = outputValidation.sanitized as Record<string, unknown> | null;
+      if (validatedResult && typeof validatedResult === 'object') {
+        validatedResult._outputValidated = true;
+        if (outputValidation.warnings.length > 0) {
+          validatedResult._validationWarnings = outputValidation.warnings;
+        }
+      }
+
       return {
         function: functionName,
         success: true,
-        result,
+        // Return sanitized output, not raw result
+        result: validatedResult,
         executionTimeMs: Date.now() - startTime,
         traceId: context.traceId,
       };
@@ -319,6 +386,31 @@ export class FunctionExecutor {
         throw new Error(result.error?.message ?? 'Failed to score lead');
       }
 
+      // Validate command bus result reasoning before returning
+      if (result.result && typeof result.result === 'object' && 'reasoning' in result.result) {
+        const reasoningValidation = validateAIReasoning((result.result as any).reasoning);
+        if (!reasoningValidation.valid) {
+          // Log critical validation failure
+          await this.deps.eventStore.emit({
+            type: 'AIReasoningValidationFailed',
+            correlationId: context.correlationId,
+            payload: {
+              function: 'score_lead',
+              issues: reasoningValidation.issues,
+              severity: reasoningValidation.severity,
+              source: 'command_bus',
+            },
+          });
+          throw new Error('AI reasoning failed medical safety validation');
+        }
+        // Return with sanitized reasoning
+        return {
+          ...result.result,
+          reasoning: reasoningValidation.sanitizedReasoning,
+          _reasoningValidated: true,
+        };
+      }
+
       return result.result;
     }
 
@@ -333,7 +425,41 @@ export class FunctionExecutor {
       utm: args.utmParams,
     });
 
-    // Emit event for audit trail
+    // =========================================================================
+    // CRITICAL: Validate AI reasoning before it's shown to doctors
+    // This prevents hallucinated diagnoses, medication recommendations,
+    // and other dangerous medical content from reaching staff
+    // =========================================================================
+    const reasoningValidation = validateAIReasoning(scoringResult.reasoning);
+
+    if (!reasoningValidation.valid) {
+      // Log critical validation failure for security monitoring
+      await this.deps.eventStore.emit({
+        type: 'AIReasoningValidationFailed',
+        correlationId: context.correlationId,
+        aggregateId: args.phone,
+        aggregateType: 'Lead',
+        payload: {
+          phone: args.phone,
+          channel: args.channel,
+          issues: reasoningValidation.issues,
+          severity: reasoningValidation.severity,
+          originalReasoning: scoringResult.reasoning,
+          source: 'scoring_service',
+        },
+      });
+
+      // Return error - do not expose potentially dangerous AI reasoning
+      throw new Error(
+        'AI reasoning failed medical safety validation. ' +
+          `Issues detected: ${reasoningValidation.issues.join('; ')}`
+      );
+    }
+
+    // Use sanitized reasoning (may have warnings attached)
+    const sanitizedReasoning = reasoningValidation.sanitizedReasoning;
+
+    // Emit event for audit trail with sanitized reasoning
     await this.deps.eventStore.emit({
       type: 'LeadScored',
       correlationId: context.correlationId,
@@ -345,15 +471,22 @@ export class FunctionExecutor {
         score: scoringResult.score,
         classification: scoringResult.classification,
         confidence: scoringResult.confidence,
-        reasoning: scoringResult.reasoning,
+        reasoning: sanitizedReasoning,
+        reasoningValidated: true,
+        reasoningWarnings:
+          reasoningValidation.issues.length > 0 ? reasoningValidation.issues : undefined,
         source: 'ai-gateway',
       },
     });
 
     return {
       ...scoringResult,
+      reasoning: sanitizedReasoning,
       leadId: args.phone,
       timestamp: new Date().toISOString(),
+      _reasoningValidated: true,
+      _reasoningWarnings:
+        reasoningValidation.issues.length > 0 ? reasoningValidation.issues : undefined,
     };
   }
 
@@ -361,10 +494,7 @@ export class FunctionExecutor {
   // PATIENT FUNCTIONS
   // ============================================================================
 
-  private async handleGetPatient(
-    args: any,
-    context: FunctionContext
-  ): Promise<unknown> {
+  private async handleGetPatient(args: any, context: FunctionContext): Promise<unknown> {
     // Try HubSpot service first
     if (this.deps.hubspotService) {
       const contact = await this.deps.hubspotService.getContact({
@@ -400,10 +530,7 @@ export class FunctionExecutor {
     return result.data;
   }
 
-  private async handleUpdatePatient(
-    args: any,
-    context: FunctionContext
-  ): Promise<unknown> {
+  private async handleUpdatePatient(args: any, context: FunctionContext): Promise<unknown> {
     // Use command bus for updates
     const result = await this.deps.commandBus.send(
       'UpdatePatient',
@@ -438,10 +565,101 @@ export class FunctionExecutor {
   // APPOINTMENT FUNCTIONS
   // ============================================================================
 
-  private async handleScheduleAppointment(
-    args: any,
+  /**
+   * CRITICAL: Validates patient has required consent before scheduling
+   * Medical appointments REQUIRE data_processing consent for GDPR compliance
+   */
+  private async validateAppointmentConsent(
+    patientId: string,
+    phone: string | undefined,
     context: FunctionContext
-  ): Promise<unknown> {
+  ): Promise<{ valid: boolean; missing: string[]; error?: string }> {
+    // Required consent types for medical appointments
+    const requiredConsents = ['data_processing'];
+
+    if (!this.deps.consentService) {
+      // Fallback to query bus
+      const result = await this.deps.queryBus.query(
+        'CheckConsent',
+        { patientId, phone, consentTypes: requiredConsents },
+        { correlationId: context.correlationId }
+      );
+
+      if (!result.success || !result.data) {
+        // CRITICAL: If we cannot verify consent, we must NOT proceed
+        // This is a fail-safe for GDPR compliance
+        return {
+          valid: false,
+          missing: requiredConsents,
+          error:
+            'Unable to verify consent status. Cannot schedule appointment without consent verification.',
+        };
+      }
+
+      const consents = (result.data as { consents: { type: string; status: string }[] }).consents;
+      const grantedTypes = consents.filter((c) => c.status === 'granted').map((c) => c.type);
+
+      const missing = requiredConsents.filter((t) => !grantedTypes.includes(t));
+      return { valid: missing.length === 0, missing };
+    }
+
+    // Use consent service directly
+    const consentResult = await this.deps.consentService.checkConsent({
+      patientId,
+      ...(phone ? { phone } : {}),
+      consentTypes: requiredConsents,
+    });
+
+    const grantedTypes = consentResult.consents
+      .filter((c) => c.status === 'granted')
+      .map((c) => c.type);
+
+    const missing = requiredConsents.filter((t) => !grantedTypes.includes(t));
+    return { valid: missing.length === 0, missing };
+  }
+
+  private async handleScheduleAppointment(args: any, context: FunctionContext): Promise<unknown> {
+    // =========================================================================
+    // CRITICAL GDPR CHECK: Validate consent BEFORE scheduling any appointment
+    // Medical appointments cannot be scheduled without explicit data processing consent
+    // This is non-negotiable for healthcare GDPR compliance
+    // =========================================================================
+    const consentCheck = await this.validateAppointmentConsent(args.patientId, args.phone, context);
+
+    if (!consentCheck.valid) {
+      // Emit consent violation event for audit trail
+      await this.deps.eventStore.emit({
+        type: 'AppointmentConsentViolation',
+        correlationId: context.correlationId,
+        aggregateId: args.patientId,
+        aggregateType: 'Consent',
+        payload: {
+          patientId: args.patientId,
+          phone: args.phone,
+          missingConsents: consentCheck.missing,
+          attemptedAction: 'schedule_appointment',
+          serviceType: args.serviceType,
+          source: 'ai-gateway',
+          blockedAt: new Date().toISOString(),
+        },
+      });
+
+      // Return structured error for the AI to communicate to the patient
+      return {
+        success: false,
+        blocked: true,
+        reason: 'CONSENT_REQUIRED',
+        message:
+          `Cannot schedule appointment: Patient has not provided required consent for data processing. ` +
+          `Missing consents: ${consentCheck.missing.join(', ')}`,
+        missingConsents: consentCheck.missing,
+        action: 'request_consent',
+        consentPrompt:
+          'Before scheduling your appointment, we need your consent to process your personal and medical data. ' +
+          'This is required by GDPR regulations. Would you like to provide consent now?',
+      };
+    }
+
     if (!this.deps.schedulingService) {
       // Use command bus as fallback
       const result = await this.deps.commandBus.send('ScheduleAppointment', args, {
@@ -466,7 +684,7 @@ export class FunctionExecutor {
       urgency: args.urgency,
     });
 
-    // Emit event
+    // Emit event with consent verification metadata
     await this.deps.eventStore.emit({
       type: 'AppointmentScheduled',
       correlationId: context.correlationId,
@@ -480,16 +698,15 @@ export class FunctionExecutor {
         doctor: appointment.doctor,
         location: appointment.location,
         source: 'ai-gateway',
+        consentVerified: true,
+        consentVerifiedAt: new Date().toISOString(),
       },
     });
 
     return appointment;
   }
 
-  private async handleGetAvailableSlots(
-    args: any,
-    context: FunctionContext
-  ): Promise<unknown> {
+  private async handleGetAvailableSlots(args: any, context: FunctionContext): Promise<unknown> {
     if (!this.deps.schedulingService) {
       // Use query bus as fallback
       const result = await this.deps.queryBus.query('GetAvailableSlots', args, {
@@ -517,10 +734,7 @@ export class FunctionExecutor {
     };
   }
 
-  private async handleCancelAppointment(
-    args: any,
-    context: FunctionContext
-  ): Promise<unknown> {
+  private async handleCancelAppointment(args: any, context: FunctionContext): Promise<unknown> {
     if (!this.deps.schedulingService) {
       const result = await this.deps.commandBus.send('CancelAppointment', args, {
         correlationId: context.correlationId,
@@ -566,10 +780,7 @@ export class FunctionExecutor {
   // MESSAGING FUNCTIONS
   // ============================================================================
 
-  private async handleSendWhatsApp(
-    args: any,
-    context: FunctionContext
-  ): Promise<unknown> {
+  private async handleSendWhatsApp(args: any, context: FunctionContext): Promise<unknown> {
     if (!this.deps.whatsappService) {
       // Use command bus as fallback
       const result = await this.deps.commandBus.send('SendWhatsAppMessage', args, {
@@ -612,10 +823,7 @@ export class FunctionExecutor {
   // CONSENT FUNCTIONS
   // ============================================================================
 
-  private async handleRecordConsent(
-    args: any,
-    context: FunctionContext
-  ): Promise<unknown> {
+  private async handleRecordConsent(args: any, context: FunctionContext): Promise<unknown> {
     if (!this.deps.consentService) {
       const result = await this.deps.commandBus.send('RecordConsent', args, {
         correlationId: context.correlationId,
@@ -661,10 +869,7 @@ export class FunctionExecutor {
     };
   }
 
-  private async handleCheckConsent(
-    args: any,
-    context: FunctionContext
-  ): Promise<unknown> {
+  private async handleCheckConsent(args: any, context: FunctionContext): Promise<unknown> {
     if (!this.deps.consentService) {
       const result = await this.deps.queryBus.query('CheckConsent', args, {
         correlationId: context.correlationId,
@@ -684,10 +889,7 @@ export class FunctionExecutor {
   // ANALYTICS FUNCTIONS
   // ============================================================================
 
-  private async handleGetLeadAnalytics(
-    args: any,
-    context: FunctionContext
-  ): Promise<unknown> {
+  private async handleGetLeadAnalytics(args: any, context: FunctionContext): Promise<unknown> {
     // Get analytics from projection manager
     const leadStats = this.deps.projectionManager.get('lead-stats');
     const dailyMetrics = this.deps.projectionManager.get('daily-metrics');
@@ -733,10 +935,7 @@ export class FunctionExecutor {
   // WORKFLOW FUNCTIONS
   // ============================================================================
 
-  private async handleTriggerWorkflow(
-    args: any,
-    context: FunctionContext
-  ): Promise<unknown> {
+  private async handleTriggerWorkflow(args: any, context: FunctionContext): Promise<unknown> {
     if (!this.deps.workflowService) {
       const result = await this.deps.commandBus.send('TriggerWorkflow', args, {
         correlationId: context.correlationId,
@@ -771,10 +970,7 @@ export class FunctionExecutor {
     return workflowResult;
   }
 
-  private async handleGetWorkflowStatus(
-    args: any,
-    context: FunctionContext
-  ): Promise<unknown> {
+  private async handleGetWorkflowStatus(args: any, context: FunctionContext): Promise<unknown> {
     if (!this.deps.workflowService) {
       const result = await this.deps.queryBus.query(
         'GetWorkflowStatus',

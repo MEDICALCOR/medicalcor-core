@@ -709,6 +709,257 @@ export const GetWorkflowStatusFunction: AIFunction = {
 };
 
 // ============================================================================
+// OUTPUT VALIDATION SCHEMAS - CRITICAL FOR MEDICAL SAFETY
+// ============================================================================
+
+/**
+ * CRITICAL: Output validation for AI responses shown to medical staff
+ *
+ * These schemas ensure AI outputs are validated before being shown to doctors.
+ * This prevents:
+ * 1. Hallucinated medical recommendations
+ * 2. Fabricated patient data
+ * 3. Invalid confidence scores
+ * 4. Dangerous or inappropriate suggestions
+ */
+
+/**
+ * Dangerous medical terms that should NEVER appear in AI reasoning
+ * These could indicate hallucinated diagnoses or recommendations
+ */
+const DANGEROUS_MEDICAL_TERMS = [
+  // Diagnoses AI should not make
+  /\b(diagnos(?:e|is|ed|ing)|malignant|cancer|tumor|carcinoma)\b/i,
+  /\b(prescri(?:be|ption|bed)|medica(?:te|tion|ment))\b/i,
+  /\b(dosage|mg\/kg|milligrams?)\b/i,
+  // Treatment recommendations AI should not make
+  /\b(surger(?:y|ical)|operat(?:e|ion|ing))\b/i,
+  /\b(emergency|life.?threatening|critical\s+condition)\b/i,
+  // Claims of medical certainty
+  /\b(definitely|certainly|100%|guaranteed)\s+(has|have|is|are|will)\b/i,
+];
+
+/**
+ * Patterns that indicate AI is making claims beyond its scope
+ */
+const OVERREACH_PATTERNS = [
+  /\b(I\s+(?:recommend|prescribe|diagnose|advise\s+treatment))\b/i,
+  /\b(you\s+(?:must|need\s+to|should)\s+(?:take|stop|start)\s+(?:medication|medicine|drugs?))\b/i,
+  /\b(based\s+on\s+(?:my|our)\s+(?:medical|clinical)\s+(?:expertise|knowledge|training))\b/i,
+];
+
+/**
+ * Validate AI reasoning text for medical safety
+ * Returns validation result with any detected issues
+ */
+export function validateAIReasoning(reasoning: string): {
+  valid: boolean;
+  issues: string[];
+  sanitizedReasoning: string;
+  severity: 'none' | 'warning' | 'critical';
+} {
+  const issues: string[] = [];
+  let severity: 'none' | 'warning' | 'critical' = 'none';
+
+  // Check for dangerous medical terms
+  for (const pattern of DANGEROUS_MEDICAL_TERMS) {
+    if (pattern.test(reasoning)) {
+      issues.push(`Contains potentially dangerous medical term: ${pattern.source}`);
+      severity = 'critical';
+    }
+  }
+
+  // Check for overreach patterns
+  for (const pattern of OVERREACH_PATTERNS) {
+    if (pattern.test(reasoning)) {
+      issues.push(`AI appears to be overreaching medical scope: ${pattern.source}`);
+      severity = severity === 'critical' ? 'critical' : 'warning';
+    }
+  }
+
+  // Sanitize the reasoning - add disclaimer if issues found
+  let sanitizedReasoning = reasoning;
+  if (issues.length > 0) {
+    sanitizedReasoning =
+      `[AI REASONING - UNVERIFIED]\n${reasoning}\n\n` +
+      `[NOTICE: This AI-generated reasoning has not been verified by medical staff. ` +
+      `${issues.length} potential issue(s) detected. Please verify before clinical use.]`;
+  }
+
+  return {
+    valid: severity !== 'critical',
+    issues,
+    sanitizedReasoning,
+    severity,
+  };
+}
+
+/**
+ * Lead scoring output schema with validation
+ * Ensures AI doesn't hallucinate scores or classifications
+ */
+export const LeadScoringOutputSchema = z
+  .object({
+    score: z.number().min(0).max(100).describe('Lead score from 0-100'),
+    classification: z.enum(['HOT', 'WARM', 'COLD', 'UNQUALIFIED']).describe('Lead classification'),
+    confidence: z.number().min(0).max(1).describe('Confidence level 0-1'),
+    reasoning: z
+      .string()
+      .max(1000)
+      .describe('Explanation for the score')
+      .refine(
+        (val) => {
+          const validation = validateAIReasoning(val);
+          return validation.valid;
+        },
+        { message: 'Reasoning contains potentially dangerous medical content' }
+      ),
+    suggestedAction: z
+      .enum([
+        'schedule_appointment',
+        'send_follow_up',
+        'nurture_sequence',
+        'transfer_to_human',
+        'mark_unqualified',
+        'request_more_info',
+      ])
+      .describe('Recommended next action'),
+    detectedIntent: z.string().optional().describe('Detected user intent'),
+    urgencyIndicators: z.array(z.string()).optional().describe('Urgency signals detected'),
+    budgetMentioned: z.boolean().optional().describe('Whether budget was discussed'),
+    procedureInterest: z.array(z.string()).optional().describe('Procedures mentioned'),
+  })
+  .strict();
+
+/**
+ * Patient data output schema - prevents hallucinated patient information
+ */
+export const PatientDataOutputSchema = z
+  .object({
+    patientId: z.string().describe('Patient identifier'),
+    found: z.boolean().describe('Whether patient was found'),
+    // All fields optional - prevents AI from fabricating missing data
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+    email: z.string().email().optional(),
+    phone: z.string().optional(),
+    dateOfBirth: z.string().optional(),
+    createdAt: z.string().optional(),
+    updatedAt: z.string().optional(),
+    source: z.string().optional(),
+    retrievedAt: z.string().datetime().optional(),
+    // Explicit marker that data came from verified source
+    dataSource: z.enum(['hubspot', 'database', 'cache']).optional(),
+  })
+  .strict();
+
+/**
+ * Appointment scheduling output schema
+ */
+export const AppointmentOutputSchema = z
+  .object({
+    appointmentId: z.string().describe('Appointment identifier'),
+    status: z.enum(['confirmed', 'pending', 'waitlist', 'failed']).describe('Booking status'),
+    dateTime: z.string().datetime().optional().describe('Scheduled date/time'),
+    doctor: z
+      .object({
+        id: z.string(),
+        name: z.string(),
+      })
+      .optional(),
+    location: z.string().optional(),
+    // Consent verification metadata
+    consentVerified: z.boolean().optional(),
+    consentVerifiedAt: z.string().datetime().optional(),
+  })
+  .strict();
+
+/**
+ * Consent-blocked response schema
+ */
+export const ConsentBlockedOutputSchema = z
+  .object({
+    success: z.literal(false),
+    blocked: z.literal(true),
+    reason: z.literal('CONSENT_REQUIRED'),
+    message: z.string(),
+    missingConsents: z.array(z.string()),
+    action: z.literal('request_consent'),
+    consentPrompt: z.string(),
+  })
+  .strict();
+
+/**
+ * Wrapper function to validate and sanitize AI output before showing to doctors
+ */
+export function validateAndSanitizeAIOutput<T>(
+  _functionName: string,
+  output: unknown,
+  schema?: z.ZodSchema<T>
+): {
+  valid: boolean;
+  data: T | null;
+  sanitized: unknown;
+  errors: string[];
+  warnings: string[];
+} {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // If no schema provided, just do basic safety checks
+  if (!schema) {
+    // Check if output contains reasoning that needs validation
+    if (typeof output === 'object' && output !== null && 'reasoning' in output) {
+      const reasoning = (output as { reasoning: string }).reasoning;
+      if (typeof reasoning === 'string') {
+        const validation = validateAIReasoning(reasoning);
+        if (!validation.valid) {
+          errors.push(...validation.issues);
+        } else if (validation.issues.length > 0) {
+          warnings.push(...validation.issues);
+        }
+        // Sanitize the reasoning in the output
+        return {
+          valid: validation.valid,
+          data: null,
+          sanitized: { ...output, reasoning: validation.sanitizedReasoning },
+          errors,
+          warnings,
+        };
+      }
+    }
+    return { valid: true, data: null, sanitized: output, errors, warnings };
+  }
+
+  // Validate against schema
+  const result = schema.safeParse(output);
+  if (!result.success) {
+    return {
+      valid: false,
+      data: null,
+      sanitized: output,
+      errors: result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`),
+      warnings,
+    };
+  }
+
+  return {
+    valid: true,
+    data: result.data,
+    sanitized: result.data,
+    errors,
+    warnings,
+  };
+}
+
+// Export output schemas for function registration
+export const FUNCTION_OUTPUT_SCHEMAS = {
+  score_lead: LeadScoringOutputSchema,
+  get_patient: PatientDataOutputSchema,
+  schedule_appointment: z.union([AppointmentOutputSchema, ConsentBlockedOutputSchema]),
+} as const;
+
+// ============================================================================
 // ALL FUNCTIONS EXPORT
 // ============================================================================
 
