@@ -137,7 +137,7 @@ describe('WhatsApp Message Handler Integration', () => {
         fallbackEnabled: true,
       });
 
-      const leadContext = LeadContextBuilder.fromWhatsApp({
+      const leadContextBuilder = LeadContextBuilder.fromWhatsApp({
         from: '+40721000003',
         message: {
           id: 'msg_456',
@@ -145,17 +145,21 @@ describe('WhatsApp Message Handler Integration', () => {
           type: 'text',
         },
         metadata: { phone_number_id: '123', display_phone_number: '+40212000000' },
-      })
-        .withCorrelationId(correlationId)
-        .buildForScoring();
+      }).withCorrelationId(correlationId);
+
+      // Build scoring context (simpler structure for scoring)
+      const scoringContext = leadContextBuilder.buildForScoring();
+
+      // Build full context for reply generation (includes phoneIsValid and metadata)
+      const fullContext = leadContextBuilder.build();
 
       // Score the lead
-      const scoreResult = await scoring.scoreMessage(leadContext);
+      const scoreResult = await scoring.scoreMessage(scoringContext);
 
       // Generate AI reply for non-HOT leads
       if (scoreResult.classification !== 'HOT') {
         const reply = await openai.generateReply({
-          context: leadContext,
+          context: fullContext,
           tone: 'friendly',
           language: 'ro',
         });

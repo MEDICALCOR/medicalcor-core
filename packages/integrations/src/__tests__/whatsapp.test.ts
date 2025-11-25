@@ -1,6 +1,5 @@
-import { describe, it, expect, beforeAll, afterEach, afterAll, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { setupServer } from 'msw/node';
 import {
   WhatsAppClient,
   createWhatsAppClient,
@@ -8,21 +7,10 @@ import {
   createTemplateCatalogService,
   TEMPLATE_CATALOG,
 } from '../whatsapp.js';
-import { handlers, createRateLimitedHandler, createFailingHandler } from '../__mocks__/handlers.js';
+import { createRateLimitedHandler, createFailingHandler } from '../__mocks__/handlers.js';
+import { server } from '../__mocks__/server.js';
 
-const server = setupServer(...handlers);
-
-beforeAll(() => {
-  server.listen({ onUnhandledRequest: 'warn' });
-});
-
-afterEach(() => {
-  server.resetHandlers();
-});
-
-afterAll(() => {
-  server.close();
-});
+// Note: server lifecycle (listen, resetHandlers, close) is managed by vitest.setup.ts
 
 describe('WhatsAppClient', () => {
   const config = {
@@ -364,7 +352,7 @@ describe('WhatsAppClient', () => {
     it('should handle 429 rate limit errors', async () => {
       const client = new WhatsAppClient({
         ...config,
-        retryConfig: { maxRetries: 3, baseDelayMs: 10 },
+        retryConfig: { maxRetries: 3, baseDelayMs: 100 },
       });
 
       server.use(createRateLimitedHandler('https://waba.360dialog.io/v1/messages', 'post', 1));
@@ -380,7 +368,7 @@ describe('WhatsAppClient', () => {
     it('should handle 502/503 errors with retry', async () => {
       const client = new WhatsAppClient({
         ...config,
-        retryConfig: { maxRetries: 3, baseDelayMs: 10 },
+        retryConfig: { maxRetries: 3, baseDelayMs: 100 },
       });
 
       server.use(createFailingHandler('https://waba.360dialog.io/v1/messages', 'post', 2, 503));
@@ -394,13 +382,14 @@ describe('WhatsAppClient', () => {
     });
 
     it('should throw ExternalServiceError for API errors', async () => {
-      const client = new WhatsAppClient(config);
-
+      // Override handler for this test
       server.use(
         http.post('https://waba.360dialog.io/v1/messages', () => {
           return HttpResponse.json({ message: 'Invalid phone' }, { status: 400 });
         })
       );
+
+      const client = new WhatsAppClient(config);
 
       await expect(
         client.sendText({
