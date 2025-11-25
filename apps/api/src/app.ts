@@ -1,6 +1,8 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import swagger from '@fastify/swagger';
+import swaggerUi from '@fastify/swagger-ui';
 import {
   createLogger,
   generateCorrelationId,
@@ -8,7 +10,14 @@ import {
   getMissingSecrets,
   logSecretsStatus,
 } from '@medicalcor/core';
-import { healthRoutes, webhookRoutes, workflowRoutes, aiRoutes, diagnosticsRoutes } from './routes/index.js';
+import {
+  healthRoutes,
+  webhookRoutes,
+  workflowRoutes,
+  aiRoutes,
+  diagnosticsRoutes,
+} from './routes/index.js';
+import { chatgptPluginRoutes } from './routes/chatgpt-plugin.js';
 import { instrumentFastify } from '@medicalcor/core/observability/instrumentation';
 import { rateLimitPlugin, type RateLimitConfig } from './plugins/rate-limit.js';
 import { apiAuthPlugin } from './plugins/api-auth.js';
@@ -70,7 +79,10 @@ function parseCorsOrigins(): string[] | false {
   }
 
   // Parse comma-separated origins and validate each
-  const origins = corsOrigin.split(',').map((o) => o.trim()).filter(Boolean);
+  const origins = corsOrigin
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
 
   // Validate each origin is a valid URL
   for (const origin of origins) {
@@ -106,7 +118,10 @@ function parseTrustedProxies(): boolean | string | string[] {
   if (trustedProxies === 'false') return false;
 
   // Parse comma-separated proxy list
-  return trustedProxies.split(',').map((p) => p.trim()).filter(Boolean);
+  return trustedProxies
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean);
 }
 
 async function buildApp() {
@@ -163,6 +178,100 @@ async function buildApp() {
     hidePoweredBy: true,
     // Prevent XSS attacks
     xssFilter: true,
+  });
+
+  // OpenAPI/Swagger Documentation
+  await fastify.register(swagger, {
+    openapi: {
+      openapi: '3.1.0',
+      info: {
+        title: 'MedicalCor API',
+        version: '1.0.0',
+        description: `
+MedicalCor API - Medical CRM & Patient Communication Platform
+
+This API provides:
+- **Webhook Gateway**: Receive events from WhatsApp, Twilio, Stripe, and booking systems
+- **AI Function Gateway**: Execute AI functions for lead scoring, reply generation, and patient management
+- **RAG Search**: Semantic and hybrid search over medical knowledge base
+- **Workflow Triggers**: Initiate durable workflows for patient journey automation
+- **Health & Diagnostics**: System monitoring and observability
+
+## Authentication
+Most endpoints require API key authentication via \`X-API-Key\` header.
+
+## Rate Limits
+- Global: 1000 req/min
+- Webhooks: 100-200 req/min per provider
+- AI Execute: 100 req/min
+        `.trim(),
+        contact: {
+          name: 'MedicalCor Support',
+          email: 'support@medicalcor.io',
+        },
+        license: {
+          name: 'Proprietary',
+          url: 'https://medicalcor.io/terms',
+        },
+      },
+      servers: [
+        {
+          url: process.env.API_BASE_URL ?? 'http://localhost:3000',
+          description:
+            process.env.NODE_ENV === 'production' ? 'Production server' : 'Development server',
+        },
+      ],
+      tags: [
+        { name: 'Health', description: 'Health checks and readiness probes' },
+        { name: 'Webhooks', description: 'External service webhook endpoints' },
+        { name: 'Workflows', description: 'Trigger durable workflows' },
+        { name: 'AI', description: 'AI function discovery and execution' },
+        { name: 'Diagnostics', description: 'System diagnostics and metrics' },
+        { name: 'Backup', description: 'Backup management operations' },
+        { name: 'ChatGPT Plugin', description: 'ChatGPT plugin integration endpoints' },
+      ],
+      components: {
+        securitySchemes: {
+          ApiKeyAuth: {
+            type: 'apiKey',
+            in: 'header',
+            name: 'X-API-Key',
+            description: 'API key for authenticated endpoints',
+          },
+        },
+      },
+    },
+  });
+
+  // Swagger UI - Interactive API Documentation
+  await fastify.register(swaggerUi, {
+    routePrefix: '/docs',
+    uiConfig: {
+      docExpansion: 'list',
+      deepLinking: true,
+      displayRequestDuration: true,
+      filter: true,
+      showExtensions: true,
+      showCommonExtensions: true,
+      syntaxHighlight: {
+        activate: true,
+        theme: 'monokai',
+      },
+    },
+    uiHooks: {
+      onRequest: function (_request, _reply, next) {
+        next();
+      },
+      preHandler: function (_request, _reply, next) {
+        next();
+      },
+    },
+    staticCSP: true,
+    transformStaticCSP: (header) => header,
+    transformSpecification: (swaggerObject) => {
+      return swaggerObject;
+    },
+    transformSpecificationClone: true,
   });
 
   // SECURITY: CORS configuration with validated origins
@@ -222,6 +331,7 @@ async function buildApp() {
   await fastify.register(workflowRoutes);
   await fastify.register(aiRoutes);
   await fastify.register(diagnosticsRoutes);
+  await fastify.register(chatgptPluginRoutes);
 
   // Global error handler
   fastify.setErrorHandler((error, request, reply) => {
