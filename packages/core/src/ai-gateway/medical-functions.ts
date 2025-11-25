@@ -117,7 +117,10 @@ const SanitizedMessageSchema = z.object({
 // ============================================================================
 
 export const ScoreLeadInputSchema = z.object({
-  phone: z.string().describe('Lead phone number in E.164 format'),
+  phone: z
+    .string()
+    .regex(/^\+[1-9]\d{1,14}$/, 'Phone must be in E.164 format')
+    .describe('Lead phone number in E.164 format'),
   channel: z
     .enum(['whatsapp', 'voice', 'web', 'referral'])
     .describe('Channel through which the lead was acquired'),
@@ -444,8 +447,11 @@ export const CancelAppointmentFunction: AIFunction = {
 // ============================================================================
 
 export const SendWhatsAppInputSchema = z.object({
-  to: z.string().describe('Recipient phone number in E.164 format'),
-  message: z.string().describe('Message text to send'),
+  to: z
+    .string()
+    .regex(/^\+[1-9]\d{1,14}$/, 'Phone must be in E.164 format')
+    .describe('Recipient phone number in E.164 format'),
+  message: z.string().optional().describe('Message text to send (required for free-form messages)'),
   templateName: z.string().optional().describe('WhatsApp template name (for template messages)'),
   templateParams: z.record(z.string()).optional().describe('Template parameter values'),
 });

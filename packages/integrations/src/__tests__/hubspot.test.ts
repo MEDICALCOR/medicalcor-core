@@ -1,27 +1,14 @@
-import { describe, it, expect, beforeAll, afterEach, afterAll, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { setupServer } from 'msw/node';
 import { HubSpotClient, createHubSpotClient } from '../hubspot.js';
 import {
-  handlers,
   testFixtures,
   createRateLimitedHandler,
   createFailingHandler,
 } from '../__mocks__/handlers.js';
+import { server } from '../__mocks__/server.js';
 
-const server = setupServer(...handlers);
-
-beforeAll(() => {
-  server.listen({ onUnhandledRequest: 'warn' });
-});
-
-afterEach(() => {
-  server.resetHandlers();
-});
-
-afterAll(() => {
-  server.close();
-});
+// Note: server lifecycle (listen, resetHandlers, close) is managed by vitest.setup.ts
 
 describe('HubSpotClient', () => {
   const config = {
@@ -362,8 +349,6 @@ describe('HubSpotClient', () => {
 
   describe('findContactByEmail', () => {
     it('should return contact when found', async () => {
-      const client = new HubSpotClient(config);
-
       // Override handler for this test
       server.use(
         http.post('https://api.hubapi.com/crm/v3/objects/contacts/search', async ({ request }) => {
@@ -389,6 +374,7 @@ describe('HubSpotClient', () => {
         })
       );
 
+      const client = new HubSpotClient(config);
       const result = await client.findContactByEmail('found@example.com');
 
       expect(result).not.toBeNull();
@@ -406,8 +392,6 @@ describe('HubSpotClient', () => {
 
   describe('upsertContactByEmail', () => {
     it('should upsert contact by email', async () => {
-      const client = new HubSpotClient(config);
-
       // Override handler for upsert
       server.use(
         http.post('https://api.hubapi.com/crm/v3/objects/contacts', async ({ request }) => {
@@ -426,6 +410,7 @@ describe('HubSpotClient', () => {
         })
       );
 
+      const client = new HubSpotClient(config);
       const result = await client.upsertContactByEmail('test@example.com', {
         firstname: 'Test',
         lead_source: 'web',
@@ -438,8 +423,6 @@ describe('HubSpotClient', () => {
 
   describe('upsertContactByPhone', () => {
     it('should upsert contact by phone', async () => {
-      const client = new HubSpotClient(config);
-
       // Override handler for upsert
       server.use(
         http.post('https://api.hubapi.com/crm/v3/objects/contacts', async ({ request }) => {
@@ -458,6 +441,7 @@ describe('HubSpotClient', () => {
         })
       );
 
+      const client = new HubSpotClient(config);
       const result = await client.upsertContactByPhone('+40721123456', {
         firstname: 'Test',
         lead_source: 'whatsapp',
@@ -486,48 +470,87 @@ describe('HubSpotClient', () => {
 
   describe('error handling', () => {
     it('should handle 429 rate limit errors', async () => {
-      const client = new HubSpotClient({
-        ...config,
-        retryConfig: { maxRetries: 1, baseDelayMs: 10 },
-      });
+      let callCount = 0;
 
+      // Custom handler that fails twice with 429, then succeeds with valid response
       server.use(
-        createRateLimitedHandler('https://api.hubapi.com/crm/v3/objects/contacts/search', 'post', 1)
+        http.post('https://api.hubapi.com/crm/v3/objects/contacts/search', () => {
+          callCount++;
+          if (callCount <= 2) {
+            return new HttpResponse(null, {
+              status: 429,
+              headers: { 'Retry-After': '1' },
+            });
+          }
+          return HttpResponse.json({
+            total: 1,
+            results: [
+              {
+                id: 'hs_contact_ratelimit',
+                properties: { phone: '+40721000001' },
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              },
+            ],
+          });
+        })
       );
 
-      // Should eventually succeed after retry
+      const client = new HubSpotClient({
+        ...config,
+        retryConfig: { maxRetries: 2, baseDelayMs: 100 },
+      });
+
+      // Should eventually succeed after retry (handler fails twice, so needs 3 attempts)
       const results = await client.searchContactsByPhone('+40721000001');
       expect(results).toBeDefined();
+      expect(results.length).toBeGreaterThan(0);
     });
 
     it('should handle 502/503 errors with retry', async () => {
+      let callCount = 0;
+
+      // Custom handler that fails twice with 503, then succeeds with valid response
+      server.use(
+        http.post('https://api.hubapi.com/crm/v3/objects/contacts/search', () => {
+          callCount++;
+          if (callCount <= 2) {
+            return new HttpResponse(null, { status: 503 });
+          }
+          return HttpResponse.json({
+            total: 1,
+            results: [
+              {
+                id: 'hs_contact_retry',
+                properties: { phone: '+40721000001' },
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              },
+            ],
+          });
+        })
+      );
+
       const client = new HubSpotClient({
         ...config,
-        retryConfig: { maxRetries: 3, baseDelayMs: 10 },
+        retryConfig: { maxRetries: 3, baseDelayMs: 100 },
       });
-
-      server.use(
-        createFailingHandler(
-          'https://api.hubapi.com/crm/v3/objects/contacts/search',
-          'post',
-          2,
-          503
-        )
-      );
 
       // Should eventually succeed after retries
       const results = await client.searchContactsByPhone('+40721000001');
       expect(results).toBeDefined();
+      expect(results.length).toBeGreaterThan(0);
     });
 
     it('should throw ExternalServiceError for API errors', async () => {
-      const client = new HubSpotClient(config);
-
+      // Override handler for this test
       server.use(
         http.post('https://api.hubapi.com/crm/v3/objects/contacts/search', () => {
           return HttpResponse.json({ message: 'Forbidden' }, { status: 403 });
         })
       );
+
+      const client = new HubSpotClient(config);
 
       await expect(client.searchContactsByPhone('+40721000001')).rejects.toThrow(
         'Request failed with status 403'
