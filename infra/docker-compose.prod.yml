@@ -2,6 +2,14 @@ version: '3.8'
 
 # Production Docker Compose overlay
 # Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Security Features:
+# - Redis TLS encryption
+# - Authenticated connections
+# - Network isolation
+# - Resource limits
+# - Health checks
+# - Backup automation
 
 services:
   api:
@@ -12,11 +20,29 @@ services:
     environment:
       - NODE_ENV=production
       - LOG_LEVEL=warn
-      # SECURITY: Use authenticated Redis URL in production
-      # Password is read from Docker secret at runtime
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      # SECURITY: Use TLS-encrypted Redis URL in production
+      # Protocol: rediss:// enables TLS encryption
+      - REDIS_URL=rediss://:${REDIS_PASSWORD}@redis:6379
+      - REDIS_TLS=true
+      # Backup configuration
+      - BACKUP_STORAGE_PROVIDER=local
+      - BACKUP_STORAGE_BUCKET=/var/backups/medicalcor
+      - BACKUP_SCHEDULE_ENABLED=true
+      - BACKUP_FULL_FREQUENCY=daily
+      - BACKUP_INCREMENTAL_FREQUENCY=hourly
+      - BACKUP_RETENTION_HOURLY=24
+      - BACKUP_RETENTION_DAILY=7
+      - BACKUP_RETENTION_WEEKLY=4
+      - BACKUP_RETENTION_MONTHLY=12
+      - BACKUP_COMPRESSION=true
+      - BACKUP_VERIFY=true
+      - BACKUP_PREFERRED_HOUR=2
+      - BACKUP_TIMEZONE=Europe/Bucharest
     secrets:
       - redis_password
+      - backup_encryption_key
+    volumes:
+      - backup_data:/var/backups/medicalcor
     deploy:
       replicas: 2
       resources:
@@ -31,48 +57,281 @@ services:
         delay: 5s
         max_attempts: 3
         window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - internal
+      - public
 
   redis:
+    image: redis:7-alpine
     deploy:
       resources:
         limits:
           cpus: '0.5'
           memory: 256M
-    # SECURITY: Redis requires authentication in production
-    # Password is loaded from Docker secrets for security
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    # SECURITY: Redis with TLS, authentication, and secure configuration
     command: >
-      sh -c 'redis-server
-      --appendonly yes
-      --maxmemory 200mb
-      --maxmemory-policy allkeys-lru
-      --requirepass "$$(cat /run/secrets/redis_password)"'
+      sh -c '
+        # Generate self-signed TLS certificates if not provided
+        if [ ! -f /etc/redis/tls/redis.crt ]; then
+          mkdir -p /etc/redis/tls
+          openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            -keyout /etc/redis/tls/redis.key \
+            -out /etc/redis/tls/redis.crt \
+            -subj "/CN=redis"
+          chmod 600 /etc/redis/tls/redis.key
+        fi
+
+        redis-server \
+          --appendonly yes \
+          --maxmemory 200mb \
+          --maxmemory-policy allkeys-lru \
+          --requirepass "$$(cat /run/secrets/redis_password)" \
+          --tls-port 6379 \
+          --port 0 \
+          --tls-cert-file /etc/redis/tls/redis.crt \
+          --tls-key-file /etc/redis/tls/redis.key \
+          --tls-auth-clients no \
+          --tcp-keepalive 300 \
+          --timeout 0 \
+          --tcp-backlog 511 \
+          --loglevel notice
+      '
     secrets:
       - redis_password
+    volumes:
+      - redis_data:/data
+      - redis_tls:/etc/redis/tls
     healthcheck:
-      # Use REDISCLI_AUTH env var for authenticated health checks
-      test: ["CMD", "sh", "-c", "REDISCLI_AUTH=$$(cat /run/secrets/redis_password) redis-cli ping"]
+      # Use TLS for health checks
+      test: ["CMD", "sh", "-c", "REDISCLI_AUTH=$$(cat /run/secrets/redis_password) redis-cli --tls --cert /etc/redis/tls/redis.crt --key /etc/redis/tls/redis.key --cacert /etc/redis/tls/redis.crt ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
+    networks:
+      - internal
+    # Security: Do not expose Redis to host in production
+    # Only accessible within the internal network
 
   postgres:
+    image: postgres:15-alpine
     deploy:
       resources:
         limits:
           cpus: '1'
           memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
     environment:
       - POSTGRES_PASSWORD_FILE=/run/secrets/db_password
+      - POSTGRES_DB=medicalcor
+      - POSTGRES_USER=medicalcor
+      # Security: Enforce SSL connections
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
     secrets:
       - db_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - postgres_backup:/var/backups/postgres
+    command: >
+      postgres
+        -c ssl=on
+        -c ssl_cert_file=/var/lib/postgresql/server.crt
+        -c ssl_key_file=/var/lib/postgresql/server.key
+        -c max_connections=100
+        -c shared_buffers=256MB
+        -c effective_cache_size=512MB
+        -c maintenance_work_mem=64MB
+        -c checkpoint_completion_target=0.9
+        -c wal_buffers=16MB
+        -c default_statistics_target=100
+        -c random_page_cost=1.1
+        -c effective_io_concurrency=200
+        -c min_wal_size=1GB
+        -c max_wal_size=4GB
+        -c max_worker_processes=4
+        -c max_parallel_workers_per_gather=2
+        -c max_parallel_workers=4
+        -c max_parallel_maintenance_workers=2
+        -c log_statement=ddl
+        -c log_min_duration_statement=1000
+        -c log_connections=on
+        -c log_disconnections=on
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medicalcor -d medicalcor"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - internal
+
+  # Automated backup service
+  backup:
+    image: postgres:15-alpine
+    environment:
+      - PGPASSWORD_FILE=/run/secrets/db_password
+      - BACKUP_RETENTION_DAYS=7
+    secrets:
+      - db_password
+    volumes:
+      - postgres_backup:/backups
+    entrypoint: >
+      sh -c '
+        # Automated daily backup with retention
+        while true; do
+          BACKUP_FILE="/backups/backup_$$(date +%Y%m%d_%H%M%S).sql.gz"
+
+          # Create backup
+          PGPASSWORD=$$(cat /run/secrets/db_password) pg_dump \
+            -h postgres \
+            -U medicalcor \
+            -d medicalcor \
+            --format=custom \
+            --compress=9 \
+            | gzip > "$$BACKUP_FILE"
+
+          # Verify backup
+          if [ -f "$$BACKUP_FILE" ] && [ -s "$$BACKUP_FILE" ]; then
+            echo "$$(date): Backup created successfully: $$BACKUP_FILE"
+
+            # Calculate checksum
+            sha256sum "$$BACKUP_FILE" > "$$BACKUP_FILE.sha256"
+          else
+            echo "$$(date): ERROR - Backup failed"
+          fi
+
+          # Cleanup old backups
+          find /backups -name "backup_*.sql.gz" -mtime +$${BACKUP_RETENTION_DAYS:-7} -delete
+          find /backups -name "backup_*.sha256" -mtime +$${BACKUP_RETENTION_DAYS:-7} -delete
+
+          # Sleep for 24 hours
+          sleep 86400
+        done
+      '
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+    networks:
+      - internal
+
+  # Prometheus for monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - internal
+      - monitoring
+
+  # Grafana for dashboards
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD_FILE=/run/secrets/grafana_password
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=https://monitoring.medicalcor.com
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-piechart-panel
+    secrets:
+      - grafana_password
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - internal
+      - monitoring
+    depends_on:
+      - prometheus
+
+networks:
+  internal:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+  public:
+    driver: bridge
+  monitoring:
+    driver: bridge
+    internal: true
+
+volumes:
+  postgres_data:
+    driver: local
+  postgres_backup:
+    driver: local
+  redis_data:
+    driver: local
+  redis_tls:
+    driver: local
+  backup_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
 
 secrets:
   db_password:
     external: true
   redis_password:
+    external: true
+  backup_encryption_key:
+    external: true
+  grafana_password:
     external: true

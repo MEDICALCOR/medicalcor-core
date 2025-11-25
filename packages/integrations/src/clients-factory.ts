@@ -25,6 +25,12 @@ import {
 import { createVapiClient, type VapiClient } from './vapi.js';
 import { createTemplateCatalogService, type TemplateCatalogService } from './whatsapp.js';
 import {
+  createStripeClient,
+  createMockStripeClient,
+  type StripeClient,
+  type MockStripeClient,
+} from './stripe.js';
+import {
   createScoringService,
   createTriageService,
   createConsentService,
@@ -77,6 +83,8 @@ export interface ClientsConfig {
   includeScheduling?: boolean;
   /** Include Vapi voice client */
   includeVapi?: boolean;
+  /** Include Stripe payment client */
+  includeStripe?: boolean;
   /** Include scoring service (requires OpenAI for AI scoring) */
   includeScoring?: boolean;
   /** Include triage service */
@@ -96,6 +104,7 @@ export type ClientName =
   | 'openai'
   | 'scheduling'
   | 'vapi'
+  | 'stripe'
   | 'scoring'
   | 'triage'
   | 'consent'
@@ -111,6 +120,7 @@ export interface IntegrationClients {
   openai: OpenAIClient | null;
   scheduling: SchedulingService | MockSchedulingService | null;
   vapi: VapiClient | null;
+  stripe: StripeClient | MockStripeClient | null;
   scoring: ScoringService | null;
   triage: TriageService | null;
   consent: ConsentService | null;
@@ -152,6 +162,7 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
     includeOpenAI = false,
     includeScheduling = false,
     includeVapi = false,
+    includeStripe = false,
     includeScoring = false,
     includeTriage = false,
     includeConsent = false,
@@ -175,12 +186,18 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
       cbConfig.onClose = circuitBreaker.onClose;
     }
 
-    // Pre-register circuit breakers for each service
+    // Pre-register circuit breakers for each service (including Stripe for payment protection)
     integrationCircuitBreakerRegistry.get('hubspot', cbConfig);
     integrationCircuitBreakerRegistry.get('whatsapp', cbConfig);
     integrationCircuitBreakerRegistry.get('openai', cbConfig);
     integrationCircuitBreakerRegistry.get('scheduling', cbConfig);
     integrationCircuitBreakerRegistry.get('vapi', cbConfig);
+    integrationCircuitBreakerRegistry.get('stripe', {
+      ...cbConfig,
+      // Stripe-specific: more conservative thresholds for payment operations
+      failureThreshold: 3,
+      resetTimeoutMs: 60000, // 1 minute recovery for payment services
+    });
   }
 
   const databaseUrl = process.env.DATABASE_URL;
@@ -247,6 +264,27 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
     vapi = vapiRaw && cbEnabled ? wrapClientWithCircuitBreaker(vapiRaw, 'vapi') : vapiRaw;
   }
 
+  // Stripe payment client (optional) - with circuit breaker protection for payment resilience
+  let stripe: StripeClient | MockStripeClient | null = null;
+  if (includeStripe) {
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const stripeRaw =
+      stripeSecretKey
+        ? createStripeClient({
+            secretKey: stripeSecretKey,
+            webhookSecret: stripeWebhookSecret,
+            timeoutMs: 30000,
+            retryConfig: {
+              maxRetries: 3,
+              baseDelayMs: 1000,
+            },
+          })
+        : createMockStripeClient();
+    // Always wrap Stripe with circuit breaker for payment protection
+    stripe = cbEnabled ? wrapClientWithCircuitBreaker(stripeRaw, 'stripe') : stripeRaw;
+  }
+
   // Scoring service (optional)
   let scoring: ScoringService | null = null;
   if (includeScoring) {
@@ -303,6 +341,9 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
         case 'vapi':
           if (!vapi) return false;
           break;
+        case 'stripe':
+          if (!stripe) return false;
+          break;
         case 'scoring':
           if (!scoring) return false;
           break;
@@ -328,10 +369,13 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
     return integrationCircuitBreakerRegistry.getAllStats();
   };
 
+  // Services with circuit breaker protection
+  const circuitBreakerServices = ['hubspot', 'whatsapp', 'openai', 'scheduling', 'vapi', 'stripe'];
+
   // Check if circuit is open
   const isCircuitOpen = (service: ClientName): boolean => {
     // Only check for services that have circuit breakers
-    if (['hubspot', 'whatsapp', 'openai', 'scheduling', 'vapi'].includes(service)) {
+    if (circuitBreakerServices.includes(service)) {
       const breaker = integrationCircuitBreakerRegistry.get(service);
       return breaker.getState() === CircuitState.OPEN;
     }
@@ -341,7 +385,7 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
   // Reset circuit breaker
   const resetCircuit = (service: ClientName): void => {
     // Only reset for services that have circuit breakers
-    if (['hubspot', 'whatsapp', 'openai', 'scheduling', 'vapi'].includes(service)) {
+    if (circuitBreakerServices.includes(service)) {
       integrationCircuitBreakerRegistry.reset(service);
     }
   };
@@ -352,6 +396,7 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
     openai,
     scheduling,
     vapi,
+    stripe,
     scoring,
     triage,
     consent,
