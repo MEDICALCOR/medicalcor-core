@@ -126,15 +126,18 @@ export class SecureRedisClient {
     const isProduction = process.env.NODE_ENV === 'production';
     const urlHasTls = config.url.startsWith('rediss://');
 
+    // Build tlsOptions without undefined values for exactOptionalPropertyTypes
+    const tlsOptionsBase: { rejectUnauthorized?: boolean; ca?: string; cert?: string; key?: string } = {
+      rejectUnauthorized: config.tlsOptions?.rejectUnauthorized ?? isProduction,
+    };
+    if (config.tlsOptions?.ca) tlsOptionsBase.ca = config.tlsOptions.ca;
+    if (config.tlsOptions?.cert) tlsOptionsBase.cert = config.tlsOptions.cert;
+    if (config.tlsOptions?.key) tlsOptionsBase.key = config.tlsOptions.key;
+
     this.config = {
       url: config.url,
       tls: config.tls ?? urlHasTls,
-      tlsOptions: {
-        rejectUnauthorized: config.tlsOptions?.rejectUnauthorized ?? isProduction,
-        ca: config.tlsOptions?.ca,
-        cert: config.tlsOptions?.cert,
-        key: config.tlsOptions?.key,
-      },
+      tlsOptions: tlsOptionsBase,
       connectTimeout: config.connectTimeout ?? 10000,
       commandTimeout: config.commandTimeout ?? 5000,
       maxRetries: config.maxRetries ?? 3,
@@ -191,7 +194,8 @@ export class SecureRedisClient {
         throw new Error('ioredis module not available. Install with: npm install ioredis');
       }
 
-      const Redis = ioredisModule.default;
+      // ioredis exports Redis class - need to cast through unknown for ESM compatibility
+      const Redis = (ioredisModule as unknown as { default: new (url: string, opts: Record<string, unknown>) => RedisConnection }).default;
       const connectionOptions: Record<string, unknown> = {
         connectTimeout: this.config.connectTimeout,
         commandTimeout: this.config.commandTimeout,
@@ -571,17 +575,26 @@ export class SecureRedisClient {
       const memoryData = parseInfo(memoryInfo);
       const clientsData = parseInfo(clientsInfo);
 
-      this.healthStatus = {
+      // Build healthStatus without undefined values for exactOptionalPropertyTypes
+      const baseHealthStatus: RedisHealthStatus = {
         connected: true,
         latencyMs,
-        usedMemory: memoryData['used_memory_human'],
         maxMemory: memoryData['maxmemory_human'] || 'unlimited',
         connectedClients: parseInt(clientsData['connected_clients'] || '0', 10),
         uptimeSeconds: parseInt(serverData['uptime_in_seconds'] || '0', 10),
         lastCheck: new Date(),
         tlsEnabled: this.config.tls,
-        version: serverData['redis_version'],
       };
+
+      // Conditionally add optional fields
+      if (memoryData['used_memory_human']) {
+        baseHealthStatus.usedMemory = memoryData['used_memory_human'];
+      }
+      if (serverData['redis_version']) {
+        baseHealthStatus.version = serverData['redis_version'];
+      }
+
+      this.healthStatus = baseHealthStatus;
     } catch (error) {
       this.healthStatus = {
         connected: false,
@@ -642,13 +655,18 @@ export function createRedisClientFromEnv(): SecureRedisClient | null {
     }
   }
 
+  // Build tlsOptions without undefined values for exactOptionalPropertyTypes
+  const tlsOptions: { rejectUnauthorized?: boolean; ca?: string } = {
+    rejectUnauthorized: isProduction,
+  };
+  if (process.env.REDIS_CA_CERT) {
+    tlsOptions.ca = process.env.REDIS_CA_CERT;
+  }
+
   return createSecureRedisClient({
     url,
     tls: url.startsWith('rediss://'),
-    tlsOptions: {
-      rejectUnauthorized: isProduction,
-      ca: process.env.REDIS_CA_CERT,
-    },
+    tlsOptions,
     enableCircuitBreaker: true,
     healthMonitoring: true,
   });
