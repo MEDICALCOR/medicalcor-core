@@ -66,7 +66,7 @@ export class VectorSearchService {
     });
 
     const searchResults: SearchResult[] = results.map((r) => ({
-      id: r.id!,
+      id: r.id ?? '',
       sourceType: r.sourceType,
       title: r.title,
       content: r.content,
@@ -112,7 +112,7 @@ export class VectorSearchService {
     });
 
     const searchResults: SearchResult[] = results.map((r) => ({
-      id: r.id!,
+      id: r.id ?? '',
       sourceType: r.sourceType,
       title: r.title,
       content: r.content,

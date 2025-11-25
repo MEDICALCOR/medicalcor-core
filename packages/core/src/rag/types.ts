@@ -141,12 +141,12 @@ export type RAGContext = z.infer<typeof RAGContextSchema>;
 
 export interface RAGResult {
   retrievedContext: string;
-  sources: Array<{
+  sources: {
     id: string;
     title: string;
     sourceType: KnowledgeSourceType;
     similarity: number;
-  }>;
+  }[];
   searchLatencyMs: number;
   embeddingLatencyMs: number;
   totalLatencyMs: number;

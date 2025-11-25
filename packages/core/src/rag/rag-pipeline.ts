@@ -1,12 +1,5 @@
 import type { Pool } from 'pg';
-import type {
-  RAGContext,
-  RAGResult,
-  RAGConfig,
-  SearchResult,
-  RAGQueryLogEntry,
-  Language,
-} from './types.js';
+import type { RAGContext, RAGResult, RAGConfig, SearchResult, RAGQueryLogEntry } from './types.js';
 import { VectorSearchService } from './vector-search-service.js';
 
 /**
@@ -57,11 +50,7 @@ export class RAGPipeline {
   private pool: Pool;
   private config: RAGConfig;
 
-  constructor(
-    pool: Pool,
-    embeddingService: IEmbeddingService,
-    config: Partial<RAGConfig> = {}
-  ) {
+  constructor(pool: Pool, embeddingService: IEmbeddingService, config: Partial<RAGConfig> = {}) {
     this.pool = pool;
     this.embeddingService = embeddingService;
     this.searchService = new VectorSearchService(pool);
@@ -117,7 +106,7 @@ export class RAGPipeline {
         searchLatencyMs,
         totalLatencyMs: Date.now() - startTime,
         correlationId: context.correlationId ?? null,
-        useCase: context.useCase ?? null,
+        useCase: context.useCase,
       };
       await this.logQuery(logEntry);
     }
@@ -203,9 +192,7 @@ Sources: ${ragResult.sources.map((s) => s.title).join(', ')}
 
     // Add recent conversation context if enabled
     if (this.config.includeConversationContext && context.conversationHistory?.length) {
-      const recentHistory = context.conversationHistory.slice(
-        -this.config.maxConversationHistory
-      );
+      const recentHistory = context.conversationHistory.slice(-this.config.maxConversationHistory);
 
       // Extract key topics from conversation
       const conversationContext = recentHistory
@@ -224,12 +211,8 @@ Sources: ${ragResult.sources.map((s) => s.title).join(', ')}
   /**
    * Perform search based on use case
    */
-  private async performSearch(
-    queryEmbedding: number[],
-    query: string,
-    context: RAGContext
-  ) {
-    const language = context.language as Language | undefined;
+  private async performSearch(queryEmbedding: number[], query: string, context: RAGContext) {
+    const language = context.language;
 
     switch (context.useCase) {
       case 'scoring':
@@ -241,12 +224,7 @@ Sources: ${ragResult.sources.map((s) => s.title).join(', ')}
         );
 
       case 'reply_generation':
-        return this.searchService.searchForReply(
-          queryEmbedding,
-          query,
-          context.clinicId,
-          language
-        );
+        return this.searchService.searchForReply(queryEmbedding, query, context.clinicId, language);
 
       default:
         return this.searchService.hybridSearch(queryEmbedding, query, {
@@ -324,7 +302,7 @@ Sources: ${ragResult.sources.map((s) => s.title).join(', ')}
       general: 'No specific context available for this query.',
     };
 
-    return fallbacks[context.useCase] ?? fallbacks.general!;
+    return fallbacks[context.useCase] ?? fallbacks.general;
   }
 
   /**

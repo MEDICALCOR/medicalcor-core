@@ -25,7 +25,7 @@ export interface IKnowledgeBaseRepository {
   findByContentHash(hash: string): Promise<KnowledgeEntry | null>;
   update(id: string, updates: Partial<KnowledgeEntry>): Promise<KnowledgeEntry | null>;
   updateEmbedding(id: string, embedding: number[]): Promise<void>;
-  updateEmbeddingsBatch(updates: Array<{ id: string; embedding: number[] }>): Promise<void>;
+  updateEmbeddingsBatch(updates: { id: string; embedding: number[] }[]): Promise<void>;
   delete(id: string): Promise<boolean>;
   softDelete(id: string): Promise<boolean>;
   list(options?: ListOptions): Promise<PaginatedResult<KnowledgeEntry>>;
@@ -33,12 +33,14 @@ export interface IKnowledgeBaseRepository {
   search(
     queryEmbedding: number[],
     options?: SearchQueryOptions
-  ): Promise<Array<KnowledgeEntry & { similarity: number }>>;
+  ): Promise<(KnowledgeEntry & { similarity: number })[]>;
   hybridSearch(
     queryEmbedding: number[],
     queryText: string,
     options?: HybridSearchOptions
-  ): Promise<Array<KnowledgeEntry & { semanticScore: number; keywordScore: number; combinedScore: number }>>;
+  ): Promise<
+    (KnowledgeEntry & { semanticScore: number; keywordScore: number; combinedScore: number })[]
+  >;
 }
 
 export interface ListOptions {
@@ -103,21 +105,21 @@ export class KnowledgeBaseRepository implements IKnowledgeBaseRepository {
       entry.title,
       entry.content,
       contentHash,
-      entry.chunkIndex ?? 0,
-      entry.chunkTotal ?? 1,
+      entry.chunkIndex,
+      entry.chunkTotal,
       entry.parentId ?? null,
       entry.embedding ? this.vectorToString(entry.embedding) : null,
       entry.clinicId ?? null,
-      entry.language ?? 'ro',
-      entry.tags ?? [],
-      JSON.stringify(entry.metadata ?? {}),
-      entry.version ?? 1,
-      entry.isActive ?? true,
+      entry.language,
+      entry.tags,
+      JSON.stringify(entry.metadata),
+      entry.version,
+      entry.isActive,
       entry.createdBy ?? null,
     ];
 
     const result = await this.pool.query(query, values);
-    return this.mapRowToEntry(result.rows[0]);
+    return this.mapRowToEntry(result.rows[0] as Record<string, unknown>);
   }
 
   /**
@@ -154,21 +156,21 @@ export class KnowledgeBaseRepository implements IKnowledgeBaseRepository {
           entry.title,
           entry.content,
           contentHash,
-          entry.chunkIndex ?? 0,
-          entry.chunkTotal ?? 1,
+          entry.chunkIndex,
+          entry.chunkTotal,
           entry.parentId ?? null,
           entry.embedding ? this.vectorToString(entry.embedding) : null,
           entry.clinicId ?? null,
-          entry.language ?? 'ro',
-          entry.tags ?? [],
-          JSON.stringify(entry.metadata ?? {}),
-          entry.version ?? 1,
-          entry.isActive ?? true,
+          entry.language,
+          entry.tags,
+          JSON.stringify(entry.metadata),
+          entry.version,
+          entry.isActive,
           entry.createdBy ?? null,
         ];
 
         const result = await client.query(query, values);
-        results.push(this.mapRowToEntry(result.rows[0]));
+        results.push(this.mapRowToEntry(result.rows[0] as Record<string, unknown>));
       }
 
       await client.query('COMMIT');
@@ -187,7 +189,8 @@ export class KnowledgeBaseRepository implements IKnowledgeBaseRepository {
   async findById(id: string): Promise<KnowledgeEntry | null> {
     const query = 'SELECT * FROM knowledge_base WHERE id = $1';
     const result = await this.pool.query(query, [id]);
-    return result.rows[0] ? this.mapRowToEntry(result.rows[0]) : null;
+    const row = result.rows[0] as Record<string, unknown> | undefined;
+    return row ? this.mapRowToEntry(row) : null;
   }
 
   /**
@@ -196,7 +199,8 @@ export class KnowledgeBaseRepository implements IKnowledgeBaseRepository {
   async findByContentHash(hash: string): Promise<KnowledgeEntry | null> {
     const query = 'SELECT * FROM knowledge_base WHERE content_hash = $1 AND chunk_index = 0';
     const result = await this.pool.query(query, [hash]);
-    return result.rows[0] ? this.mapRowToEntry(result.rows[0]) : null;
+    const row = result.rows[0] as Record<string, unknown> | undefined;
+    return row ? this.mapRowToEntry(row) : null;
   }
 
   /**
@@ -248,7 +252,8 @@ export class KnowledgeBaseRepository implements IKnowledgeBaseRepository {
     `;
 
     const result = await this.pool.query(query, values);
-    return result.rows[0] ? this.mapRowToEntry(result.rows[0]) : null;
+    const row = result.rows[0] as Record<string, unknown> | undefined;
+    return row ? this.mapRowToEntry(row) : null;
   }
 
   /**
@@ -266,7 +271,7 @@ export class KnowledgeBaseRepository implements IKnowledgeBaseRepository {
   /**
    * Batch update embeddings
    */
-  async updateEmbeddingsBatch(updates: Array<{ id: string; embedding: number[] }>): Promise<void> {
+  async updateEmbeddingsBatch(updates: { id: string; embedding: number[] }[]): Promise<void> {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
@@ -324,10 +329,9 @@ export class KnowledgeBaseRepository implements IKnowledgeBaseRepository {
     const values: unknown[] = [];
     let paramIndex = 1;
 
-    if (isActive !== undefined) {
-      conditions.push(`is_active = $${paramIndex++}`);
-      values.push(isActive);
-    }
+    // isActive always has a value (default: true)
+    conditions.push(`is_active = $${paramIndex++}`);
+    values.push(isActive);
 
     if (sourceType) {
       conditions.push(`source_type = $${paramIndex++}`);
@@ -351,7 +355,8 @@ export class KnowledgeBaseRepository implements IKnowledgeBaseRepository {
     // Get total count
     const countQuery = `SELECT COUNT(*) FROM knowledge_base ${whereClause}`;
     const countResult = await this.pool.query(countQuery, values);
-    const total = parseInt(countResult.rows[0].count, 10);
+    const countRow = countResult.rows[0] as { count: string };
+    const total = parseInt(countRow.count, 10);
 
     // Get items
     const listQuery = `
@@ -364,7 +369,7 @@ export class KnowledgeBaseRepository implements IKnowledgeBaseRepository {
     const listResult = await this.pool.query(listQuery, [...values, pageSize, offset]);
 
     return {
-      items: listResult.rows.map((row) => this.mapRowToEntry(row)),
+      items: (listResult.rows as Record<string, unknown>[]).map((row) => this.mapRowToEntry(row)),
       total,
       page,
       pageSize,
@@ -383,7 +388,7 @@ export class KnowledgeBaseRepository implements IKnowledgeBaseRepository {
       LIMIT $1
     `;
     const result = await this.pool.query(query, [limit]);
-    return result.rows.map((row) => this.mapRowToEntry(row));
+    return (result.rows as Record<string, unknown>[]).map((row) => this.mapRowToEntry(row));
   }
 
   /**
@@ -392,7 +397,7 @@ export class KnowledgeBaseRepository implements IKnowledgeBaseRepository {
   async search(
     queryEmbedding: number[],
     options: SearchQueryOptions = {}
-  ): Promise<Array<KnowledgeEntry & { similarity: number }>> {
+  ): Promise<(KnowledgeEntry & { similarity: number })[]> {
     const { topK = 5, similarityThreshold = 0.7, filters = {} } = options;
 
     const query = `
@@ -425,7 +430,7 @@ export class KnowledgeBaseRepository implements IKnowledgeBaseRepository {
 
     const result = await this.pool.query(query, values);
 
-    return result.rows.map((row) => ({
+    return (result.rows as (Record<string, unknown> & { similarity: string })[]).map((row) => ({
       ...this.mapRowToEntry(row),
       similarity: parseFloat(row.similarity),
     }));
@@ -439,7 +444,7 @@ export class KnowledgeBaseRepository implements IKnowledgeBaseRepository {
     queryText: string,
     options: HybridSearchOptions = {}
   ): Promise<
-    Array<KnowledgeEntry & { semanticScore: number; keywordScore: number; combinedScore: number }>
+    (KnowledgeEntry & { semanticScore: number; keywordScore: number; combinedScore: number })[]
   > {
     const {
       topK = 5,
@@ -472,21 +477,35 @@ export class KnowledgeBaseRepository implements IKnowledgeBaseRepository {
       filters.clinicId ?? null,
     ];
 
-    const result = await this.pool.query(query, values);
+    interface HybridSearchRow {
+      id: string;
+      source_type: KnowledgeSourceType;
+      source_id: string | null;
+      title: string;
+      content: string;
+      clinic_id: string | null;
+      metadata: Record<string, unknown> | null;
+      semantic_score: string;
+      keyword_score: string;
+      combined_score: string;
+    }
 
-    return result.rows
+    const result = await this.pool.query(query, values);
+    const rows = result.rows as HybridSearchRow[];
+
+    return rows
       .filter((row) => parseFloat(row.semantic_score) >= similarityThreshold)
       .map((row) => ({
         id: row.id,
         sourceType: row.source_type,
-        sourceId: row.source_id,
+        sourceId: row.source_id ?? undefined,
         title: row.title,
         content: row.content,
         contentHash: '',
         chunkIndex: 0,
         chunkTotal: 1,
         embedding: undefined,
-        clinicId: row.clinic_id,
+        clinicId: row.clinic_id ?? undefined,
         language: 'ro' as Language,
         tags: [],
         metadata: row.metadata ?? {},
@@ -557,7 +576,7 @@ export class KnowledgeBaseRepository implements IKnowledgeBaseRepository {
 
   private parseVector(vectorString: string): number[] {
     // pgvector returns vectors as '[1,2,3,...]'
-    const cleaned = vectorString.replace(/[\[\]]/g, '');
+    const cleaned = vectorString.replace(/[[\]]/g, '');
     return cleaned.split(',').map((n) => parseFloat(n));
   }
 }
