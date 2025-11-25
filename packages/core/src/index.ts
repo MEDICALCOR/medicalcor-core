@@ -293,3 +293,32 @@ export {
   type LoginResult,
   type PasswordValidationResult,
 } from './auth/index.js';
+
+// Infrastructure - Redis with TLS
+export {
+  SecureRedisClient,
+  createSecureRedisClient,
+  createRedisClientFromEnv,
+  type RedisConfig,
+  type RedisHealthStatus,
+  type RedisStats,
+} from './infrastructure/redis-client.js';
+
+// Infrastructure - Backup Service
+export {
+  BackupService,
+  createBackupService,
+  createBackupServiceFromEnv,
+  type BackupConfig,
+  type BackupMetadata,
+  type BackupProgress,
+  type BackupType,
+  type BackupStatus,
+  type BackupFrequency,
+  type StorageProvider,
+  type StorageConfig,
+  type EncryptionConfig,
+  type RetentionPolicy,
+  type ScheduleConfig,
+  type RestoreOptions,
+} from './infrastructure/backup-service.js';
