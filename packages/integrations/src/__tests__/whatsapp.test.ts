@@ -1,6 +1,5 @@
-import { describe, it, expect, beforeAll, afterEach, afterAll, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { setupServer } from 'msw/node';
 import {
   WhatsAppClient,
   createWhatsAppClient,
@@ -8,21 +7,7 @@ import {
   createTemplateCatalogService,
   TEMPLATE_CATALOG,
 } from '../whatsapp.js';
-import { handlers, createRateLimitedHandler, createFailingHandler } from '../__mocks__/handlers.js';
-
-const server = setupServer(...handlers);
-
-beforeAll(() => {
-  server.listen({ onUnhandledRequest: 'warn' });
-});
-
-afterEach(() => {
-  server.resetHandlers();
-});
-
-afterAll(() => {
-  server.close();
-});
+import { server, createRateLimitedHandler, createFailingHandler } from '../__mocks__/setup.js';
 
 describe('WhatsAppClient', () => {
   const config = {

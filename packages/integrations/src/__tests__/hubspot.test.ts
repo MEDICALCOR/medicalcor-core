@@ -1,27 +1,12 @@
-import { describe, it, expect, beforeAll, afterEach, afterAll, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { setupServer } from 'msw/node';
 import { HubSpotClient, createHubSpotClient } from '../hubspot.js';
 import {
-  handlers,
+  server,
   testFixtures,
   createRateLimitedHandler,
   createFailingHandler,
-} from '../__mocks__/handlers.js';
-
-const server = setupServer(...handlers);
-
-beforeAll(() => {
-  server.listen({ onUnhandledRequest: 'warn' });
-});
-
-afterEach(() => {
-  server.resetHandlers();
-});
-
-afterAll(() => {
-  server.close();
-});
+} from '../__mocks__/setup.js';
 
 describe('HubSpotClient', () => {
   const config = {
