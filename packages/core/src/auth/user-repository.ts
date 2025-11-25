@@ -72,10 +72,7 @@ export class UserRepository {
    * Find user by ID
    */
   async findById(id: string): Promise<User | null> {
-    const result = await this.db.query<Record<string, unknown>>(
-      'SELECT * FROM users WHERE id = $1',
-      [id]
-    );
+    const result = await this.db.query('SELECT * FROM users WHERE id = $1', [id]);
     return result.rows[0] ? mapRowToUser(result.rows[0]) : null;
   }
 
@@ -83,10 +80,9 @@ export class UserRepository {
    * Find user by email (case-insensitive)
    */
   async findByEmail(email: string): Promise<User | null> {
-    const result = await this.db.query<Record<string, unknown>>(
-      'SELECT * FROM users WHERE LOWER(email) = LOWER($1)',
-      [email]
-    );
+    const result = await this.db.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [
+      email,
+    ]);
     return result.rows[0] ? mapRowToUser(result.rows[0]) : null;
   }
 
@@ -96,7 +92,7 @@ export class UserRepository {
   async create(data: CreateUserData): Promise<User> {
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_COST);
 
-    const result = await this.db.query<Record<string, unknown>>(
+    const result = await this.db.query(
       `INSERT INTO users (email, password_hash, name, role, clinic_id, status, email_verified)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
@@ -165,7 +161,7 @@ export class UserRepository {
 
     values.push(id);
 
-    const result = await this.db.query<Record<string, unknown>>(
+    const result = await this.db.query(
       `UPDATE users SET ${setClauses.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
       values
     );
@@ -212,7 +208,7 @@ export class UserRepository {
    * Increment failed login attempts
    */
   async incrementFailedAttempts(id: string): Promise<{ attempts: number; lockedUntil?: Date }> {
-    const result = await this.db.query<Record<string, unknown>>(
+    const result = await this.db.query(
       `UPDATE users SET
         failed_login_attempts = failed_login_attempts + 1,
         locked_until = CASE
@@ -261,10 +257,7 @@ export class UserRepository {
    * Check if account is locked
    */
   async isAccountLocked(id: string): Promise<{ locked: boolean; until?: Date }> {
-    const result = await this.db.query<Record<string, unknown>>(
-      `SELECT locked_until FROM users WHERE id = $1`,
-      [id]
-    );
+    const result = await this.db.query(`SELECT locked_until FROM users WHERE id = $1`, [id]);
 
     if (!result.rows[0]) {
       return { locked: false };
@@ -338,11 +331,8 @@ export class UserRepository {
     const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
     const [countResult, dataResult] = await Promise.all([
-      this.db.query<Record<string, unknown>>(
-        `SELECT COUNT(*) as count FROM users ${whereClause}`,
-        values
-      ),
-      this.db.query<Record<string, unknown>>(
+      this.db.query(`SELECT COUNT(*) as count FROM users ${whereClause}`, values),
+      this.db.query(
         `SELECT * FROM users ${whereClause} ORDER BY created_at DESC LIMIT $${paramIndex++} OFFSET $${paramIndex}`,
         [...values, limit, offset]
       ),
@@ -350,7 +340,7 @@ export class UserRepository {
 
     return {
       users: dataResult.rows.map((row) => toSafeUser(mapRowToUser(row))),
-      total: parseInt((countResult.rows[0]?.count as string) ?? '0', 10),
+      total: parseInt((countResult.rows[0]?.count ?? '0') as string, 10),
     };
   }
 
@@ -358,7 +348,7 @@ export class UserRepository {
    * Search users by name or email
    */
   async search(query: string, limit = 20): Promise<SafeUser[]> {
-    const result = await this.db.query<Record<string, unknown>>(
+    const result = await this.db.query(
       `SELECT * FROM users
        WHERE LOWER(name) LIKE $1 OR LOWER(email) LIKE $1
        ORDER BY name ASC
@@ -373,7 +363,7 @@ export class UserRepository {
    * Count users by status
    */
   async countByStatus(): Promise<Record<UserStatus, number>> {
-    const result = await this.db.query<Record<string, unknown>>(
+    const result = await this.db.query(
       `SELECT status, COUNT(*) as count FROM users GROUP BY status`
     );
 

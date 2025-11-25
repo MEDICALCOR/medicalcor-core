@@ -37,11 +37,13 @@ export interface CommandResult<TResult = unknown> {
   version?: number | undefined;
   result?: TResult | undefined;
   events?: StoredEvent[] | undefined;
-  error?: {
-    code: string;
-    message: string;
-    details?: unknown;
-  } | undefined;
+  error?:
+    | {
+        code: string;
+        message: string;
+        details?: unknown;
+      }
+    | undefined;
   executionTimeMs: number;
 }
 
@@ -111,9 +113,7 @@ export class CommandBus {
   /**
    * Dispatch a command for execution
    */
-  async dispatch<TPayload, TResult>(
-    command: Command<TPayload>
-  ): Promise<CommandResult<TResult>> {
+  async dispatch<TPayload, TResult>(command: Command<TPayload>): Promise<CommandResult<TResult>> {
     const startTime = Date.now();
     const registration = this.handlers.get(command.type);
 
@@ -187,6 +187,7 @@ export class CommandBus {
   /**
    * Helper to create and dispatch a command
    */
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
   async send<TPayload, TResult>(
     type: string,
     payload: TPayload,
@@ -231,9 +232,10 @@ export class CommandBus {
 /**
  * Logging middleware
  */
-export function loggingMiddleware(
-  logger: { info: (obj: unknown, msg: string) => void; error: (obj: unknown, msg: string) => void }
-): CommandMiddleware {
+export function loggingMiddleware(logger: {
+  info: (obj: unknown, msg: string) => void;
+  error: (obj: unknown, msg: string) => void;
+}): CommandMiddleware {
   return async (command, context, next) => {
     logger.info(
       {
@@ -310,9 +312,7 @@ export function retryMiddleware(options: {
 /**
  * Idempotency middleware
  */
-export function idempotencyMiddleware(
-  cache: Map<string, CommandResult>
-): CommandMiddleware {
+export function idempotencyMiddleware(cache: Map<string, CommandResult>): CommandMiddleware {
   return async (command, _context, next) => {
     const key = `${command.type}:${command.metadata.commandId}`;
 
@@ -341,10 +341,7 @@ export function defineCommand<TPayload>(type: string, schema: ZodSchema<TPayload
   return {
     type,
     schema,
-    create(
-      payload: TPayload,
-      metadata: Partial<CommandMetadata> = {}
-    ): Command<TPayload> {
+    create(payload: TPayload, metadata: Partial<CommandMetadata> = {}): Command<TPayload> {
       return {
         type,
         payload,

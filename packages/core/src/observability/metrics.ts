@@ -62,7 +62,7 @@ export class Counter {
     this.values.clear();
   }
 
-  getAll(): Array<{ labels: Record<string, string>; value: number }> {
+  getAll(): { labels: Record<string, string>; value: number }[] {
     return Array.from(this.values.entries()).map(([key, value]) => ({
       labels: this.keyToLabels(key),
       value,
@@ -112,7 +112,7 @@ export class Gauge {
     return this.values.get(this.labelsToKey(labels)) ?? 0;
   }
 
-  getAll(): Array<{ labels: Record<string, string>; value: number }> {
+  getAll(): { labels: Record<string, string>; value: number }[] {
     return Array.from(this.values.entries()).map(([key, value]) => ({
       labels: this.keyToLabels(key),
       value,
@@ -153,7 +153,7 @@ export class Histogram {
 
     // Initialize if needed
     if (!this.counts.has(key)) {
-      this.counts.set(key, new Array(this.buckets.length).fill(0));
+      this.counts.set(key, new Array<number>(this.buckets.length).fill(0));
       this.sums.set(key, 0);
       this.totalCounts.set(key, 0);
     }
@@ -183,12 +183,12 @@ export class Histogram {
     };
   }
 
-  getAll(): Array<{
+  getAll(): {
     labels: Record<string, string>;
-    buckets: Array<{ le: number; count: number }>;
+    buckets: { le: number; count: number }[];
     sum: number;
     count: number;
-  }> {
+  }[] {
     return Array.from(this.counts.keys()).map((key) => ({
       labels: this.keyToLabels(key),
       buckets: this.buckets.map((le, i) => ({
@@ -242,12 +242,7 @@ export class MetricsRegistry {
   /**
    * Create or get a histogram
    */
-  histogram(
-    name: string,
-    help: string,
-    labels: string[] = [],
-    buckets?: number[]
-  ): Histogram {
+  histogram(name: string, help: string, labels: string[] = [], buckets?: number[]): Histogram {
     if (!this.histograms.has(name)) {
       this.histograms.set(name, new Histogram(name, help, labels, buckets));
     }
@@ -304,19 +299,13 @@ export class MetricsRegistry {
   toJSON(): Record<string, unknown> {
     return {
       counters: Object.fromEntries(
-        Array.from(this.counters.entries()).map(([name, counter]) => [
-          name,
-          counter.getAll(),
-        ])
+        Array.from(this.counters.entries()).map(([name, counter]) => [name, counter.getAll()])
       ),
       gauges: Object.fromEntries(
         Array.from(this.gauges.entries()).map(([name, gauge]) => [name, gauge.getAll()])
       ),
       histograms: Object.fromEntries(
-        Array.from(this.histograms.entries()).map(([name, histogram]) => [
-          name,
-          histogram.getAll(),
-        ])
+        Array.from(this.histograms.entries()).map(([name, histogram]) => [name, histogram.getAll()])
       ),
     };
   }
@@ -470,11 +459,9 @@ export const activeConnections = globalMetrics.gauge(
   ['type'] // 'database', 'redis', 'websocket'
 );
 
-export const queueSize = globalMetrics.gauge(
-  'medicalcor_queue_size',
-  'Size of internal queues',
-  ['queue']
-);
+export const queueSize = globalMetrics.gauge('medicalcor_queue_size', 'Size of internal queues', [
+  'queue',
+]);
 
 // AI Gateway Metrics
 export const aiFunctionCalls = globalMetrics.counter(

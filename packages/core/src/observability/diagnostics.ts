@@ -79,11 +79,11 @@ export interface PerformanceSnapshot {
       avgLatencyMs: number;
     }
   >;
-  slowestEndpoints: Array<{
+  slowestEndpoints: {
     path: string;
     avgLatencyMs: number;
     requests: number;
-  }>;
+  }[];
 }
 
 export interface HealthSnapshot {
@@ -176,8 +176,7 @@ export class DiagnosticsCollector {
 
     for (const { labels, value } of httpRequestsTotal.getAll()) {
       totalRequests += value;
-      requestsByStatus[labels.status!] =
-        (requestsByStatus[labels.status!] ?? 0) + value;
+      requestsByStatus[labels.status!] = (requestsByStatus[labels.status!] ?? 0) + value;
       requestsByPath[labels.path!] = (requestsByPath[labels.path!] ?? 0) + value;
     }
 
@@ -186,8 +185,7 @@ export class DiagnosticsCollector {
     const p50 = sorted[Math.floor(sorted.length * 0.5)] ?? 0;
     const p95 = sorted[Math.floor(sorted.length * 0.95)] ?? 0;
     const p99 = sorted[Math.floor(sorted.length * 0.99)] ?? 0;
-    const avg =
-      sorted.length > 0 ? sorted.reduce((a, b) => a + b, 0) / sorted.length : 0;
+    const avg = sorted.length > 0 ? sorted.reduce((a, b) => a + b, 0) / sorted.length : 0;
 
     return {
       totalRequests,
@@ -232,8 +230,7 @@ export class DiagnosticsCollector {
     return {
       leadsCreated: leadsCreatedTotal,
       leadsConverted: leadsConvertedTotal,
-      conversionRate:
-        leadsCreatedTotal > 0 ? leadsConvertedTotal / leadsCreatedTotal : 0,
+      conversionRate: leadsCreatedTotal > 0 ? leadsConvertedTotal / leadsCreatedTotal : 0,
       commandsExecuted: commandsTotal,
       commandSuccessRate: commandsTotal > 0 ? commandsSuccess / commandsTotal : 1,
       queriesExecuted: queriesTotal,
@@ -250,20 +247,18 @@ export class DiagnosticsCollector {
 
     for (const { labels, value } of externalServiceRequests.getAll()) {
       const service = labels.service!;
-      if (!externalServiceHealth[service]) {
-        externalServiceHealth[service] = {
-          requests: 0,
-          successRate: 0,
-          avgLatencyMs: 0,
-        };
-      }
-      externalServiceHealth[service]!.requests += value;
+      externalServiceHealth[service] ??= {
+        requests: 0,
+        successRate: 0,
+        avgLatencyMs: 0,
+      };
+      externalServiceHealth[service].requests += value;
       if (labels.status === 'success') {
-        externalServiceHealth[service]!.successRate =
-          (externalServiceHealth[service]!.successRate *
-            (externalServiceHealth[service]!.requests - value) +
+        externalServiceHealth[service].successRate =
+          (externalServiceHealth[service].successRate *
+            (externalServiceHealth[service].requests - value) +
             value) /
-          externalServiceHealth[service]!.requests;
+          externalServiceHealth[service].requests;
       }
     }
 
@@ -271,11 +266,9 @@ export class DiagnosticsCollector {
     const pathLatencies: Record<string, { total: number; count: number }> = {};
     for (const { labels, sum, count } of httpRequestDuration.getAll()) {
       const path = labels.path!;
-      if (!pathLatencies[path]) {
-        pathLatencies[path] = { total: 0, count: 0 };
-      }
-      pathLatencies[path]!.total += sum;
-      pathLatencies[path]!.count += count;
+      pathLatencies[path] ??= { total: 0, count: 0 };
+      pathLatencies[path].total += sum;
+      pathLatencies[path].count += count;
     }
 
     const slowestEndpoints = Object.entries(pathLatencies)
@@ -358,7 +351,7 @@ const maxTraces = 1000;
 export function recordTrace(trace: TraceLookup): void {
   if (traceBuffer.size >= maxTraces) {
     // Remove oldest entry
-    const firstKey = traceBuffer.keys().next().value as string;
+    const firstKey = traceBuffer.keys().next().value!;
     traceBuffer.delete(firstKey);
   }
   traceBuffer.set(trace.traceId, trace);
