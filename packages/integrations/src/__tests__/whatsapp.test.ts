@@ -7,6 +7,7 @@ import {
   createTemplateCatalogService,
   TEMPLATE_CATALOG,
 } from '../whatsapp.js';
+import { server, createRateLimitedHandler, createFailingHandler } from '../__mocks__/setup.js';
 import { createRateLimitedHandler, createFailingHandler } from '../__mocks__/handlers.js';
 import { server } from '../__mocks__/server.js';
 

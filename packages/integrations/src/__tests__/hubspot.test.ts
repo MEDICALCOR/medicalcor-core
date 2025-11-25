@@ -2,6 +2,11 @@ import { describe, it, expect, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { HubSpotClient, createHubSpotClient } from '../hubspot.js';
 import {
+  server,
+  testFixtures,
+  createRateLimitedHandler,
+  createFailingHandler,
+} from '../__mocks__/setup.js';
   testFixtures,
   createRateLimitedHandler,
   createFailingHandler,
