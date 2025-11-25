@@ -1,11 +1,13 @@
 /**
- * AI-First API Gateway
+ * AI-First API Gateway (Quantum Leap Architecture)
  *
  * Makes the API 10x easier for LLMs to use with:
  * - OpenAI-compatible function calling format
  * - Anthropic/Claude-compatible tool schemas
  * - Natural language intent detection
  * - Multi-step workflow execution
+ * - Conversation context management
+ * - Function execution with dependency injection
  */
 
 export {
@@ -63,4 +65,34 @@ export {
   GetLeadAnalyticsInputSchema,
   TriggerWorkflowInputSchema,
   GetWorkflowStatusInputSchema,
+  // Security utilities
+  detectPromptInjection,
+  sanitizeMessageContent,
 } from './medical-functions.js';
+
+// Function Executor - Connects AI functions to domain services
+export {
+  FunctionExecutor,
+  createFunctionExecutor,
+  type FunctionExecutorDeps,
+  type ScoringServicePort,
+  type HubSpotServicePort,
+  type WhatsAppServicePort,
+  type SchedulingServicePort,
+  type ConsentServicePort,
+  type WorkflowServicePort,
+} from './function-executor.js';
+
+// Conversation Context - Session and entity management
+export {
+  ConversationContextManager,
+  conversationContext,
+  createConversationContextManager,
+  ConversationMessageSchema,
+  ExtractedEntitySchema,
+  ConversationStateSchema,
+  type ConversationMessage,
+  type ExtractedEntity,
+  type ConversationState,
+  type ConversationContextConfig,
+} from './conversation-context.js';
