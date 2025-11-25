@@ -269,17 +269,22 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
   if (includeStripe) {
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
     const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    // Build Stripe config without undefined values for exactOptionalPropertyTypes
+    const stripeConfig: Parameters<typeof createStripeClient>[0] = {
+      secretKey: stripeSecretKey ?? '',
+      timeoutMs: 30000,
+      retryConfig: {
+        maxRetries: 3,
+        baseDelayMs: 1000,
+      },
+    };
+    if (stripeWebhookSecret) {
+      stripeConfig.webhookSecret = stripeWebhookSecret;
+    }
+
     const stripeRaw =
       stripeSecretKey
-        ? createStripeClient({
-            secretKey: stripeSecretKey,
-            webhookSecret: stripeWebhookSecret,
-            timeoutMs: 30000,
-            retryConfig: {
-              maxRetries: 3,
-              baseDelayMs: 1000,
-            },
-          })
+        ? createStripeClient(stripeConfig)
         : createMockStripeClient();
     // Always wrap Stripe with circuit breaker for payment protection
     stripe = cbEnabled ? wrapClientWithCircuitBreaker(stripeRaw, 'stripe') : stripeRaw;

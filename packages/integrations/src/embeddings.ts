@@ -214,10 +214,10 @@ export class EmbeddingService {
    */
   findMostSimilar(
     queryEmbedding: number[],
-    candidates: Array<{ id: string; embedding: number[] }>,
+    candidates: { id: string; embedding: number[] }[],
     topK = 5,
     threshold = 0
-  ): Array<{ id: string; similarity: number }> {
+  ): { id: string; similarity: number }[] {
     const scored = candidates.map((candidate) => ({
       id: candidate.id,
       similarity: this.cosineSimilarity(queryEmbedding, candidate.embedding),

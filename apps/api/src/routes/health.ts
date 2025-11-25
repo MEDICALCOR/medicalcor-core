@@ -119,7 +119,8 @@ async function checkRedis(): Promise<HealthCheckResult> {
       return { status: 'ok', message: 'ioredis module not available' };
     }
 
-    const Redis = ioredisModule.default;
+    // ioredis exports Redis class - need to cast through unknown for ESM compatibility
+    const Redis = (ioredisModule as unknown as { default: new (url: string, opts: Record<string, unknown>) => { ping: () => Promise<string>; info: (section: string) => Promise<string>; quit: () => Promise<void> } }).default;
 
     // Detect TLS from URL
     const isTls = redisUrl.startsWith('rediss://');
@@ -216,7 +217,7 @@ function getCircuitBreakerStatus(): {
 /**
  * Get memory usage statistics
  */
-function getMemoryStats(): HealthResponse['memory'] {
+function getMemoryStats(): { heapUsed: number; heapTotal: number; external: number; rss: number } {
   const mem = process.memoryUsage();
   return {
     heapUsed: Math.round(mem.heapUsed / 1024 / 1024), // MB
@@ -226,33 +227,8 @@ function getMemoryStats(): HealthResponse['memory'] {
   };
 }
 
-/**
- * Check external service dependency
- */
-async function checkExternalService(
-  name: string,
-  checkFn: () => Promise<boolean>,
-  critical: boolean
-): Promise<DependencyHealth> {
-  const startTime = Date.now();
-  try {
-    const isHealthy = await checkFn();
-    return {
-      name,
-      status: isHealthy ? 'healthy' : 'degraded',
-      latencyMs: Date.now() - startTime,
-      critical,
-    };
-  } catch (error) {
-    return {
-      name,
-      status: 'unhealthy',
-      latencyMs: Date.now() - startTime,
-      message: error instanceof Error ? error.message : 'Unknown error',
-      critical,
-    };
-  }
-}
+// checkExternalService is reserved for future external dependency checks
+// Currently not used but kept for extensibility
 
 /**
  * Health check routes
@@ -269,8 +245,6 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
    * Returns 200 if the service is operational.
    */
   fastify.get<{ Reply: HealthResponse }>('/health', async (_request, reply) => {
-    const startTime = Date.now();
-
     // Run all health checks in parallel
     const [databaseCheck, redisCheck] = await Promise.all([checkDatabase(), checkRedis()]);
     const triggerCheck = checkTrigger();
@@ -333,39 +307,41 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
     const [databaseCheck, redisCheck] = await Promise.all([checkDatabase(), checkRedis()]);
     const triggerCheck = checkTrigger();
 
-    // Build dependency list
-    const dependencies: DependencyHealth[] = [
-      {
-        name: 'postgresql',
-        status: databaseCheck.status === 'ok' ? 'healthy' : 'unhealthy',
-        latencyMs: databaseCheck.latencyMs,
-        message: databaseCheck.message,
-        critical: true,
-      },
-      {
-        name: 'redis',
-        status:
-          redisCheck.status === 'ok'
-            ? 'healthy'
-            : redisCheck.message?.includes('not configured')
-              ? 'not_configured'
-              : 'unhealthy',
-        latencyMs: redisCheck.latencyMs,
-        message: redisCheck.message,
-        critical: false,
-      },
-      {
-        name: 'trigger.dev',
-        status:
-          triggerCheck.status === 'ok'
-            ? triggerCheck.message === 'configured'
-              ? 'healthy'
-              : 'not_configured'
+    // Build dependency list - conditionally add optional properties for exactOptionalPropertyTypes
+    const postgresqlDep: DependencyHealth = {
+      name: 'postgresql',
+      status: databaseCheck.status === 'ok' ? 'healthy' : 'unhealthy',
+      critical: true,
+    };
+    if (databaseCheck.latencyMs !== undefined) postgresqlDep.latencyMs = databaseCheck.latencyMs;
+    if (databaseCheck.message) postgresqlDep.message = databaseCheck.message;
+
+    const redisDep: DependencyHealth = {
+      name: 'redis',
+      status:
+        redisCheck.status === 'ok'
+          ? 'healthy'
+          : redisCheck.message?.includes('not configured')
+            ? 'not_configured'
             : 'unhealthy',
-        message: triggerCheck.message,
-        critical: false,
-      },
-    ];
+      critical: false,
+    };
+    if (redisCheck.latencyMs !== undefined) redisDep.latencyMs = redisCheck.latencyMs;
+    if (redisCheck.message) redisDep.message = redisCheck.message;
+
+    const triggerDep: DependencyHealth = {
+      name: 'trigger.dev',
+      status:
+        triggerCheck.status === 'ok'
+          ? triggerCheck.message === 'configured'
+            ? 'healthy'
+            : 'not_configured'
+          : 'unhealthy',
+      critical: false,
+    };
+    if (triggerCheck.message) triggerDep.message = triggerCheck.message;
+
+    const dependencies: DependencyHealth[] = [postgresqlDep, redisDep, triggerDep];
 
     // Check circuit breakers as pseudo-dependencies
     const circuitBreakers = getCircuitBreakerStatus();

@@ -3,7 +3,6 @@ import {
   createBackupServiceFromEnv,
   type BackupMetadata,
   type BackupType,
-  type BackupProgress,
 } from '@medicalcor/core';
 
 /**
@@ -113,13 +112,21 @@ export const backupRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Querystring: ListBackupsQuery }>('/backup/list', async (request) => {
     const { type, status, limit, fromDate, toDate } = request.query;
 
-    const backups = backupService.listBackups({
-      type: type as BackupType | undefined,
-      status: status as BackupMetadata['status'] | undefined,
-      limit: limit ? parseInt(String(limit), 10) : undefined,
-      fromDate: fromDate ? new Date(fromDate) : undefined,
-      toDate: toDate ? new Date(toDate) : undefined,
-    });
+    // Build filter object without undefined values for exactOptionalPropertyTypes
+    const filters: {
+      type?: BackupType;
+      status?: BackupMetadata['status'];
+      limit?: number;
+      fromDate?: Date;
+      toDate?: Date;
+    } = {};
+    if (type) filters.type = type as BackupType;
+    if (status) filters.status = status as BackupMetadata['status'];
+    if (limit) filters.limit = parseInt(String(limit), 10);
+    if (fromDate) filters.fromDate = new Date(fromDate);
+    if (toDate) filters.toDate = new Date(toDate);
+
+    const backups = backupService.listBackups(filters);
 
     return {
       timestamp: new Date().toISOString(),
@@ -318,13 +325,16 @@ export const backupRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     try {
-      await backupService.restore({
+      // Build restore options without undefined values for exactOptionalPropertyTypes
+      const restoreOptions: Parameters<typeof backupService.restore>[0] = {
         backupId,
-        targetDatabaseUrl,
-        tables,
         verifyFirst,
         dropExisting,
-      });
+      };
+      if (targetDatabaseUrl) restoreOptions.targetDatabaseUrl = targetDatabaseUrl;
+      if (tables) restoreOptions.tables = tables;
+
+      await backupService.restore(restoreOptions);
 
       return {
         success: true,

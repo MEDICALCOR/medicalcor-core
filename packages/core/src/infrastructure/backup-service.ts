@@ -189,8 +189,8 @@ export class BackupService extends EventEmitter {
   constructor(config: BackupConfig) {
     super();
 
-    // Apply defaults
-    this.config = {
+    // Apply defaults - build config without undefined values for exactOptionalPropertyTypes
+    const baseConfig = {
       ...config,
       compression: config.compression ?? true,
       compressionAlgorithm: config.compressionAlgorithm ?? 'gzip',
@@ -203,13 +203,20 @@ export class BackupService extends EventEmitter {
         minimumBackups: config.retention.minimumBackups ?? 3,
         ...config.retention,
       },
-      encryption: config.encryption
-        ? {
-            algorithm: 'aes-256-gcm',
-            ...config.encryption,
-          }
-        : undefined,
     };
+
+    // Only add encryption if provided
+    if (config.encryption) {
+      this.config = {
+        ...baseConfig,
+        encryption: {
+          algorithm: 'aes-256-gcm',
+          ...config.encryption,
+        },
+      };
+    } else {
+      this.config = baseConfig;
+    }
 
     // Validate encryption config
     if (this.config.encryption?.enabled) {
@@ -340,8 +347,8 @@ export class BackupService extends EventEmitter {
         verificationStatus = await this.verifyBackup(backupId, storageLocation);
       }
 
-      // Create metadata
-      const metadata: BackupMetadata = {
+      // Create metadata - build without undefined values for exactOptionalPropertyTypes
+      const baseMetadata: BackupMetadata = {
         id: backupId,
         type,
         status: verificationStatus === 'passed' ? 'verified' : 'completed',
@@ -356,12 +363,16 @@ export class BackupService extends EventEmitter {
         compressionRatio: this.config.compression ? dumpResult.sizeBytes / compressedSize : 1,
         tables: dbInfo.tables,
         rowCounts: dumpResult.rowCounts,
-        walPosition: dumpResult.walPosition,
         storageLocation,
-        verifiedAt: verificationStatus ? new Date() : undefined,
-        verificationStatus,
         durationMs: Date.now() - startTime,
-        tags,
+      };
+
+      // Conditionally add optional fields
+      const metadata: BackupMetadata = {
+        ...baseMetadata,
+        ...(dumpResult.walPosition && { walPosition: dumpResult.walPosition }),
+        ...(verificationStatus && { verifiedAt: new Date(), verificationStatus }),
+        ...(tags && { tags }),
       };
 
       // Save metadata
@@ -384,8 +395,8 @@ export class BackupService extends EventEmitter {
       this.emit('backup:progress', { ...progress });
       this.emit('backup:failed', error as Error, backupId);
 
-      // Save failed backup metadata
-      const failedMetadata: BackupMetadata = {
+      // Save failed backup metadata - build without undefined values for exactOptionalPropertyTypes
+      const baseFailedMetadata: BackupMetadata = {
         id: backupId,
         type,
         status: 'failed',
@@ -401,7 +412,10 @@ export class BackupService extends EventEmitter {
         storageLocation: '',
         errorMessage: progress.message,
         durationMs: Date.now() - startTime,
-        tags,
+      };
+      const failedMetadata: BackupMetadata = {
+        ...baseFailedMetadata,
+        ...(tags && { tags }),
       };
       this.backups.set(backupId, failedMetadata);
       await this.saveBackupCatalog();
@@ -795,7 +809,7 @@ export class BackupService extends EventEmitter {
             Bucket: this.config.storage.bucket,
             Key: filename,
             Body: data,
-            StorageClass: this.config.storage.storageClass ?? 'STANDARD',
+            StorageClass: (this.config.storage.storageClass ?? 'STANDARD') as 'STANDARD' | 'GLACIER' | 'DEEP_ARCHIVE' | 'INTELLIGENT_TIERING',
             ContentType: 'application/octet-stream',
           })
         );
@@ -1123,29 +1137,29 @@ export function createBackupServiceFromEnv(): BackupService | null {
   const storageProvider = (process.env.BACKUP_STORAGE_PROVIDER as StorageProvider) ?? 'local';
   const storageBucket = process.env.BACKUP_STORAGE_BUCKET ?? '/var/backups/medicalcor';
 
-  return createBackupService({
+  // Build storage config without undefined values for exactOptionalPropertyTypes
+  const storageConfig: StorageConfig = {
+    provider: storageProvider,
+    bucket: storageBucket,
+    prefix: process.env.BACKUP_STORAGE_PREFIX ?? 'backups/',
+  };
+  if (process.env.BACKUP_STORAGE_REGION) {
+    storageConfig.region = process.env.BACKUP_STORAGE_REGION;
+  }
+  if (process.env.BACKUP_STORAGE_ENDPOINT) {
+    storageConfig.endpoint = process.env.BACKUP_STORAGE_ENDPOINT;
+  }
+  if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+    storageConfig.credentials = {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    };
+  }
+
+  // Build base config
+  const baseConfig: Parameters<typeof createBackupService>[0] = {
     databaseUrl,
-    redisUrl: process.env.REDIS_URL,
-    storage: {
-      provider: storageProvider,
-      bucket: storageBucket,
-      region: process.env.BACKUP_STORAGE_REGION,
-      endpoint: process.env.BACKUP_STORAGE_ENDPOINT,
-      credentials:
-        process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
-          ? {
-              accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-              secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-            }
-          : undefined,
-      prefix: process.env.BACKUP_STORAGE_PREFIX ?? 'backups/',
-    },
-    encryption: process.env.BACKUP_ENCRYPTION_KEY
-      ? {
-          enabled: true,
-          key: process.env.BACKUP_ENCRYPTION_KEY,
-        }
-      : undefined,
+    storage: storageConfig,
     retention: {
       hourlyRetention: parseInt(process.env.BACKUP_RETENTION_HOURLY ?? '24', 10),
       dailyRetention: parseInt(process.env.BACKUP_RETENTION_DAILY ?? '7', 10),
@@ -1153,19 +1167,36 @@ export function createBackupServiceFromEnv(): BackupService | null {
       monthlyRetention: parseInt(process.env.BACKUP_RETENTION_MONTHLY ?? '12', 10),
       minimumBackups: parseInt(process.env.BACKUP_MINIMUM_KEEP ?? '3', 10),
     },
-    schedule:
-      process.env.BACKUP_SCHEDULE_ENABLED === 'true'
-        ? {
-            enabled: true,
-            fullBackupFrequency: (process.env.BACKUP_FULL_FREQUENCY as BackupFrequency) ?? 'daily',
-            incrementalFrequency: process.env.BACKUP_INCREMENTAL_FREQUENCY as BackupFrequency | undefined,
-            preferredHour: parseInt(process.env.BACKUP_PREFERRED_HOUR ?? '2', 10),
-            timezone: process.env.BACKUP_TIMEZONE ?? 'UTC',
-          }
-        : undefined,
     compression: process.env.BACKUP_COMPRESSION !== 'false',
     verifyBackups: process.env.BACKUP_VERIFY !== 'false',
-  });
+  };
+
+  // Conditionally add optional fields
+  if (process.env.REDIS_URL) {
+    baseConfig.redisUrl = process.env.REDIS_URL;
+  }
+
+  if (process.env.BACKUP_ENCRYPTION_KEY) {
+    baseConfig.encryption = {
+      enabled: true,
+      key: process.env.BACKUP_ENCRYPTION_KEY,
+    };
+  }
+
+  if (process.env.BACKUP_SCHEDULE_ENABLED === 'true') {
+    const scheduleConfig: ScheduleConfig = {
+      enabled: true,
+      fullBackupFrequency: (process.env.BACKUP_FULL_FREQUENCY as BackupFrequency) ?? 'daily',
+      preferredHour: parseInt(process.env.BACKUP_PREFERRED_HOUR ?? '2', 10),
+      timezone: process.env.BACKUP_TIMEZONE ?? 'UTC',
+    };
+    if (process.env.BACKUP_INCREMENTAL_FREQUENCY) {
+      scheduleConfig.incrementalFrequency = process.env.BACKUP_INCREMENTAL_FREQUENCY as BackupFrequency;
+    }
+    baseConfig.schedule = scheduleConfig;
+  }
+
+  return createBackupService(baseConfig);
 }
 
 export default BackupService;

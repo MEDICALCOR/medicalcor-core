@@ -144,7 +144,7 @@ describe('Event Store Concurrency [CRITICAL]', () => {
     // Only first event should be stored
     const events = eventStore.getAll();
     expect(events).toHaveLength(1);
-    expect(events[0].metadata.correlationId).toBe('corr-1');
+    expect(events[0]!.metadata.correlationId).toBe('corr-1');
   });
 
   it('should track idempotency keys', async () => {
@@ -194,7 +194,8 @@ describe('Payment Idempotency [CRITICAL]', () => {
     it('should generate same idempotency key for payment_intent.succeeded and charge.succeeded', () => {
       // Simulating the getCanonicalPaymentId function logic
       const paymentIntentId = 'pi_3ABC123';
-      const chargeId = 'ch_XYZ789';
+      // Note: In real implementation, chargeId (e.g., 'ch_XYZ789') would be used
+      // to look up the payment_intent from the charge object
 
       // For payment_intent.succeeded, we use the payment_intent id directly
       const paymentIntentKey = IdempotencyKeys.paymentSucceeded(paymentIntentId);
