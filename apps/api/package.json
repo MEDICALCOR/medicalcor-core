@@ -21,6 +21,8 @@
     "@fastify/helmet": "^12.0.1",
     "@fastify/rate-limit": "^10.3.0",
     "@fastify/sensible": "^6.0.0",
+    "@fastify/swagger": "^9.6.1",
+    "@fastify/swagger-ui": "^5.2.3",
     "@medicalcor/core": "workspace:*",
     "@medicalcor/types": "workspace:*",
     "@trigger.dev/sdk": "^3.1.0",
