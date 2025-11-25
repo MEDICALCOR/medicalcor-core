@@ -11,6 +11,24 @@ import {
 } from '@medicalcor/core';
 
 /**
+ * SECURITY: Validate and sanitize user/tenant IDs from headers
+ * These should only be trusted after API key authentication passes
+ */
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function validateUserId(header: string | string[] | undefined): string | undefined {
+  if (typeof header !== 'string') return undefined;
+  // Only accept valid UUID format to prevent injection attacks
+  return UUID_REGEX.test(header) ? header : undefined;
+}
+
+function validateTenantId(header: string | string[] | undefined): string | undefined {
+  if (typeof header !== 'string') return undefined;
+  // Only accept valid UUID format to prevent injection attacks
+  return UUID_REGEX.test(header) ? header : undefined;
+}
+
+/**
  * AI-First API Gateway Routes
  *
  * Provides LLM-friendly endpoints for:
@@ -220,8 +238,18 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
    * - Natural language requests (AI determines which function to call)
    * - Direct function calls (LLM specifies function and arguments)
    * - Multi-step workflows (sequence of dependent function calls)
+   *
+   * SECURITY: This endpoint requires API key authentication (enforced by apiAuthPlugin)
+   * and validates all user/tenant IDs to prevent spoofing attacks.
    */
   fastify.post('/ai/execute', {
+    // SECURITY: Strict rate limiting for compute-heavy AI execution
+    config: {
+      rateLimit: {
+        max: 50, // Maximum 50 AI executions per minute per IP
+        timeWindow: '1 minute',
+      },
+    },
     schema: {
       body: {
         type: 'object',
@@ -276,11 +304,24 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
         });
       }
 
+      // SECURITY: Validate user/tenant IDs to prevent spoofing
+      // These are only trusted because API key auth has passed (enforced by apiAuthPlugin)
+      const userId = validateUserId(request.headers['x-user-id']);
+      const tenantId = validateTenantId(request.headers['x-tenant-id']);
+
+      // SECURITY: Require user context for all AI executions
+      if (!userId) {
+        return reply.status(401).send({
+          code: 'USER_CONTEXT_REQUIRED',
+          message: 'Valid x-user-id header is required for AI execution',
+        });
+      }
+
       const context: FunctionContext = {
         correlationId,
         traceId,
-        userId: request.headers['x-user-id'] as string | undefined,
-        tenantId: request.headers['x-tenant-id'] as string | undefined,
+        userId,
+        tenantId,
       };
 
       try {

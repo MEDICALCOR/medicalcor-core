@@ -50,7 +50,70 @@ function validateEnvironment(): void {
   }
 }
 
+/**
+ * SECURITY: Parse and validate CORS origins
+ * Only allows specific origins, never wildcard in production
+ */
+function parseCorsOrigins(): string[] | false {
+  const corsOrigin = process.env.CORS_ORIGIN;
+
+  // No CORS configured - disabled (most secure default)
+  if (!corsOrigin) return false;
+
+  // SECURITY: Never allow wildcard in production
+  if (corsOrigin === '*') {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('SECURITY: CORS_ORIGIN cannot be "*" in production');
+    }
+    // In development, allow all origins for convenience
+    return ['*'];
+  }
+
+  // Parse comma-separated origins and validate each
+  const origins = corsOrigin.split(',').map((o) => o.trim()).filter(Boolean);
+
+  // Validate each origin is a valid URL
+  for (const origin of origins) {
+    try {
+      new URL(origin);
+    } catch {
+      throw new Error(`SECURITY: Invalid CORS origin: ${origin}`);
+    }
+  }
+
+  return origins;
+}
+
+/**
+ * SECURITY: Parse trusted proxy configuration
+ * Only trust specific IPs/ranges, never all proxies in production
+ */
+function parseTrustedProxies(): boolean | string | string[] {
+  const trustedProxies = process.env.TRUSTED_PROXIES;
+
+  if (process.env.NODE_ENV !== 'production') {
+    // In development, trust all proxies for convenience
+    return true;
+  }
+
+  // SECURITY: In production, require explicit proxy configuration
+  if (!trustedProxies) {
+    // Default to common cloud providers' IP ranges or loopback
+    return ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'];
+  }
+
+  if (trustedProxies === 'true') return true;
+  if (trustedProxies === 'false') return false;
+
+  // Parse comma-separated proxy list
+  return trustedProxies.split(',').map((p) => p.trim()).filter(Boolean);
+}
+
 async function buildApp() {
+  // SECURITY: Validate CORS configuration before starting
+  const corsOrigins = parseCorsOrigins();
+  const trustedProxies = parseTrustedProxies();
+
   const fastify = Fastify({
     logger: {
       level: process.env.LOG_LEVEL ?? 'info',
@@ -72,8 +135,8 @@ async function buildApp() {
         },
       },
     },
-    // Trust proxy headers (for load balancers)
-    trustProxy: true,
+    // SECURITY: Only trust specified proxy headers to prevent IP spoofing
+    trustProxy: trustedProxies,
   });
 
   // Add correlation ID to all requests
@@ -83,15 +146,30 @@ async function buildApp() {
     request.headers['x-correlation-id'] = correlationId;
   });
 
-  // Security headers
+  // SECURITY: Comprehensive security headers
   await fastify.register(helmet, {
-    contentSecurityPolicy: false, // Disable CSP for API
+    contentSecurityPolicy: false, // Disable CSP for API (not serving HTML)
+    // HSTS - Strict Transport Security (force HTTPS)
+    strictTransportSecurity: {
+      maxAge: 31536000, // 1 year
+      includeSubDomains: true,
+      preload: true,
+    },
+    // Prevent clickjacking
+    frameguard: { action: 'deny' },
+    // Prevent MIME type sniffing
+    noSniff: true,
+    // Hide X-Powered-By header
+    hidePoweredBy: true,
+    // Prevent XSS attacks
+    xssFilter: true,
   });
 
-  // CORS configuration
+  // SECURITY: CORS configuration with validated origins
   await fastify.register(cors, {
-    origin: process.env.CORS_ORIGIN ?? false,
+    origin: corsOrigins,
     methods: ['GET', 'POST'],
+    credentials: true, // Allow cookies for authenticated requests
   });
 
   // Rate limiting configuration
@@ -111,10 +189,11 @@ async function buildApp() {
   };
   await fastify.register(rateLimitPlugin, rateLimitConfig);
 
-  // API Key authentication for protected endpoints (workflows and booking webhooks)
+  // API Key authentication for protected endpoints
+  // SECURITY: All execution endpoints require API key authentication
   await fastify.register(apiAuthPlugin, {
     apiKeys: process.env.API_SECRET_KEY ? [process.env.API_SECRET_KEY] : [],
-    protectedPaths: ['/workflows', '/webhooks/booking'],
+    protectedPaths: ['/workflows', '/webhooks/booking', '/ai/execute'],
   });
 
   // Parse URL-encoded bodies (for Twilio webhooks)
