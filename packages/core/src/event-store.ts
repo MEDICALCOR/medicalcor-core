@@ -78,12 +78,40 @@ interface PostgresRow {
 
 /**
  * In-memory event store implementation (for development/testing)
+ *
+ * IMPORTANT: This implementation includes version conflict checking to match
+ * the production PostgresEventStore behavior. This ensures tests catch
+ * concurrency issues during development.
  */
 export class InMemoryEventStore implements EventStoreRepository {
   private events: StoredEvent[] = [];
+  private idempotencyKeys = new Set<string>();
 
   append(event: StoredEvent): Promise<void> {
+    // Check idempotency key - silently skip duplicate events (same as PostgreSQL ON CONFLICT DO NOTHING)
+    if (this.idempotencyKeys.has(event.metadata.idempotencyKey)) {
+      return Promise.resolve();
+    }
+
+    // CRITICAL: Version conflict checking for event sourcing integrity
+    // This mirrors the PostgreSQL unique constraint on (aggregate_id, version)
+    if (event.aggregateId !== undefined && event.version !== undefined) {
+      const existingEvent = this.events.find(
+        (e) => e.aggregateId === event.aggregateId && e.version === event.version
+      );
+
+      if (existingEvent) {
+        throw new ConcurrencyError(
+          `Event version conflict: aggregate ${event.aggregateId} already has version ${event.version}. ` +
+            'Another process may have modified this aggregate concurrently.',
+          event.aggregateId,
+          event.version
+        );
+      }
+    }
+
     this.events.push(event);
+    this.idempotencyKeys.add(event.metadata.idempotencyKey);
     return Promise.resolve();
   }
 
@@ -111,6 +139,14 @@ export class InMemoryEventStore implements EventStoreRepository {
 
   clear(): void {
     this.events = [];
+    this.idempotencyKeys.clear();
+  }
+
+  /**
+   * Check if an idempotency key has been used (for testing)
+   */
+  hasIdempotencyKey(key: string): boolean {
+    return this.idempotencyKeys.has(key);
   }
 }
 

@@ -13,7 +13,32 @@ import crypto from 'crypto';
 /**
  * Stripe webhook routes
  * Handles payment events from Stripe
+ *
+ * IMPORTANT: Stripe sends BOTH payment_intent.succeeded AND charge.succeeded
+ * events for the same payment. We use the payment_intent ID as the canonical
+ * identifier to prevent double-processing.
  */
+
+/**
+ * Extract the canonical payment ID from a Stripe event object.
+ * For charges, this extracts the payment_intent ID to prevent double-processing
+ * when Stripe sends both payment_intent.succeeded and charge.succeeded events.
+ *
+ * @param eventType - The Stripe event type
+ * @param paymentData - The event data object
+ * @returns The canonical payment ID (payment_intent ID preferred)
+ */
+function getCanonicalPaymentId(
+  eventType: string,
+  paymentData: { id: string; payment_intent?: string | null }
+): string {
+  // For charge events, prefer the payment_intent ID if available
+  // This ensures the same idempotency key for both charge.succeeded and payment_intent.succeeded
+  if (eventType.startsWith('charge.') && paymentData.payment_intent) {
+    return paymentData.payment_intent;
+  }
+  return paymentData.id;
+}
 
 /**
  * Verify Stripe webhook signature
@@ -127,10 +152,22 @@ export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
           const receiptEmail = 'receipt_email' in paymentData ? paymentData.receipt_email : null;
           const metadata = 'metadata' in paymentData ? paymentData.metadata : undefined;
 
+          // CRITICAL: Use canonical payment ID to prevent double-processing
+          // Stripe sends BOTH payment_intent.succeeded AND charge.succeeded for the same payment
+          // By using the payment_intent ID as canonical, both events generate the same idempotency key
+          const paymentIntentId =
+            'payment_intent' in paymentData ? paymentData.payment_intent : null;
+          const canonicalPaymentId = getCanonicalPaymentId(event.type, {
+            id: paymentData.id,
+            payment_intent: typeof paymentIntentId === 'string' ? paymentIntentId : null,
+          });
+
           fastify.log.info(
             {
               correlationId,
-              paymentId: paymentData.id,
+              eventType: event.type,
+              rawPaymentId: paymentData.id,
+              canonicalPaymentId,
               amount,
               customer,
             },
@@ -139,7 +176,9 @@ export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
 
           // Forward to Trigger.dev for processing
           const successPayload = {
-            paymentId: paymentData.id,
+            paymentId: canonicalPaymentId,
+            rawPaymentId: paymentData.id,
+            eventType: event.type,
             amount: typeof amount === 'number' ? amount : 0,
             currency: typeof currency === 'string' ? currency : 'eur',
             customerId: typeof customer === 'string' ? customer : null,
@@ -148,14 +187,18 @@ export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
             correlationId,
           };
 
-          tasks.trigger('payment-succeeded-handler', successPayload, {
-            idempotencyKey: IdempotencyKeys.paymentSucceeded(paymentData.id),
-          }).catch((err: unknown) => {
-            fastify.log.error(
-              { err, paymentId: paymentData.id, correlationId },
-              'Failed to trigger payment succeeded handler'
-            );
-          });
+          // Use canonical payment ID for idempotency - ensures both payment_intent.succeeded
+          // and charge.succeeded events for the same payment use the same idempotency key
+          tasks
+            .trigger('payment-succeeded-handler', successPayload, {
+              idempotencyKey: IdempotencyKeys.paymentSucceeded(canonicalPaymentId),
+            })
+            .catch((err: unknown) => {
+              fastify.log.error(
+                { err, paymentId: canonicalPaymentId, correlationId },
+                'Failed to trigger payment succeeded handler'
+              );
+            });
           break;
         }
 
@@ -172,10 +215,20 @@ export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
             'failure_message' in paymentData ? paymentData.failure_message : null;
           const metadata = 'metadata' in paymentData ? paymentData.metadata : undefined;
 
+          // CRITICAL: Use canonical payment ID to prevent double-processing
+          const paymentIntentId =
+            'payment_intent' in paymentData ? paymentData.payment_intent : null;
+          const canonicalPaymentId = getCanonicalPaymentId(event.type, {
+            id: paymentData.id,
+            payment_intent: typeof paymentIntentId === 'string' ? paymentIntentId : null,
+          });
+
           fastify.log.warn(
             {
               correlationId,
-              paymentId: paymentData.id,
+              eventType: event.type,
+              rawPaymentId: paymentData.id,
+              canonicalPaymentId,
               customer,
             },
             'Payment failed'
@@ -196,7 +249,9 @@ export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
 
           // Forward to Trigger.dev for processing
           const failedPayload = {
-            paymentId: paymentData.id,
+            paymentId: canonicalPaymentId,
+            rawPaymentId: paymentData.id,
+            eventType: event.type,
             amount: typeof amount === 'number' ? amount : 0,
             currency: typeof currency === 'string' ? currency : 'eur',
             customerId: typeof customer === 'string' ? customer : null,
@@ -207,14 +262,17 @@ export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
             correlationId,
           };
 
-          tasks.trigger('payment-failed-handler', failedPayload, {
-            idempotencyKey: IdempotencyKeys.paymentFailed(paymentData.id),
-          }).catch((err: unknown) => {
-            fastify.log.error(
-              { err, paymentId: paymentData.id, correlationId },
-              'Failed to trigger payment failed handler'
-            );
-          });
+          // Use canonical payment ID for idempotency
+          tasks
+            .trigger('payment-failed-handler', failedPayload, {
+              idempotencyKey: IdempotencyKeys.paymentFailed(canonicalPaymentId),
+            })
+            .catch((err: unknown) => {
+              fastify.log.error(
+                { err, paymentId: canonicalPaymentId, correlationId },
+                'Failed to trigger payment failed handler'
+              );
+            });
           break;
         }
 
@@ -248,14 +306,16 @@ export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
               correlationId,
             };
 
-            tasks.trigger('payment-succeeded-handler', checkoutPayload, {
-              idempotencyKey: IdempotencyKeys.paymentSucceeded(session.id),
-            }).catch((err: unknown) => {
-              fastify.log.error(
-                { err, sessionId: session.id, correlationId },
-                'Failed to trigger payment handler for checkout session'
-              );
-            });
+            tasks
+              .trigger('payment-succeeded-handler', checkoutPayload, {
+                idempotencyKey: IdempotencyKeys.paymentSucceeded(session.id),
+              })
+              .catch((err: unknown) => {
+                fastify.log.error(
+                  { err, sessionId: session.id, correlationId },
+                  'Failed to trigger payment handler for checkout session'
+                );
+              });
           }
           break;
         }
@@ -288,14 +348,16 @@ export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
               correlationId,
             };
 
-            tasks.trigger('payment-succeeded-handler', invoicePayload, {
-              idempotencyKey: IdempotencyKeys.paymentSucceeded(invoice.id),
-            }).catch((err: unknown) => {
-              fastify.log.error(
-                { err, invoiceId: invoice.id, correlationId },
-                'Failed to trigger payment handler for invoice'
-              );
-            });
+            tasks
+              .trigger('payment-succeeded-handler', invoicePayload, {
+                idempotencyKey: IdempotencyKeys.paymentSucceeded(invoice.id),
+              })
+              .catch((err: unknown) => {
+                fastify.log.error(
+                  { err, invoiceId: invoice.id, correlationId },
+                  'Failed to trigger payment handler for invoice'
+                );
+              });
           }
           break;
         }
@@ -306,19 +368,29 @@ export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
             const customerEmail = 'receipt_email' in charge ? charge.receipt_email : null;
             const metadata = 'metadata' in charge ? charge.metadata : undefined;
 
+            // Use canonical payment ID (payment_intent if available)
+            const paymentIntentId = 'payment_intent' in charge ? charge.payment_intent : null;
+            const canonicalPaymentId = getCanonicalPaymentId(event.type, {
+              id: charge.id,
+              payment_intent: typeof paymentIntentId === 'string' ? paymentIntentId : null,
+            });
+
             fastify.log.info(
               {
                 correlationId,
                 chargeId: charge.id,
+                canonicalPaymentId,
                 amountRefunded: charge.amount_refunded,
               },
               'Charge refunded'
             );
 
             // Forward to Trigger.dev for processing
+            // Use canonical payment ID for the refund ID to link it to the original payment
             const refundPayload = {
-              refundId: `refund_${charge.id}`,
-              paymentId: charge.id,
+              refundId: `refund_${canonicalPaymentId}`,
+              paymentId: canonicalPaymentId,
+              chargeId: charge.id,
               amount: typeof charge.amount_refunded === 'number' ? charge.amount_refunded : 0,
               currency: typeof charge.currency === 'string' ? charge.currency : 'eur',
               reason:
@@ -328,14 +400,16 @@ export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
               correlationId,
             };
 
-            tasks.trigger('refund-handler', refundPayload, {
-              idempotencyKey: IdempotencyKeys.refund(`refund_${charge.id}`),
-            }).catch((err: unknown) => {
-              fastify.log.error(
-                { err, chargeId: charge.id, correlationId },
-                'Failed to trigger refund handler'
-              );
-            });
+            tasks
+              .trigger('refund-handler', refundPayload, {
+                idempotencyKey: IdempotencyKeys.refund(`refund_${canonicalPaymentId}`),
+              })
+              .catch((err: unknown) => {
+                fastify.log.error(
+                  { err, chargeId: charge.id, canonicalPaymentId, correlationId },
+                  'Failed to trigger refund handler'
+                );
+              });
           }
           break;
         }
