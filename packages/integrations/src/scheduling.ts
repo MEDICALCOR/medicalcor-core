@@ -46,10 +46,12 @@ const SchedulingServiceConfigSchema = z.object({
   apiKey: z.string().min(1),
   clinicId: z.string().optional(),
   defaultTimezone: z.string().optional(),
-  retryConfig: z.object({
-    maxRetries: z.number().int().min(0).max(10),
-    baseDelayMs: z.number().int().min(100).max(30000),
-  }).optional(),
+  retryConfig: z
+    .object({
+      maxRetries: z.number().int().min(0).max(10),
+      baseDelayMs: z.number().int().min(100).max(30000),
+    })
+    .optional(),
 });
 
 /**
@@ -63,12 +65,14 @@ const SchedulingServiceConfigSchema = z.object({
 export interface SchedulingServiceConfig {
   apiUrl: string;
   apiKey: string;
-  clinicId?: string;
-  defaultTimezone?: string;
-  retryConfig?: {
-    maxRetries: number;
-    baseDelayMs: number;
-  };
+  clinicId?: string | undefined;
+  defaultTimezone?: string | undefined;
+  retryConfig?:
+    | {
+        maxRetries: number;
+        baseDelayMs: number;
+      }
+    | undefined;
 }
 
 export interface TimeSlot {
@@ -420,7 +424,10 @@ export class SchedulingService {
           errorBody, // May contain PII - only for internal logs
         });
         // Throw generic error without PII
-        throw new ExternalServiceError('SchedulingService', `Request failed with status ${response.status}`);
+        throw new ExternalServiceError(
+          'SchedulingService',
+          `Request failed with status ${response.status}`
+        );
       }
 
       return response.json() as Promise<T>;
