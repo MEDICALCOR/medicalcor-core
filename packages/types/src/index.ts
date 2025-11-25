@@ -1,7 +1,99 @@
-// WhatsApp schemas
+/**
+ * MedicalCor Types Package
+ *
+ * Central type definitions and Zod schemas for the MedicalCor platform.
+ * All schemas are consolidated in the schemas/ directory as the Single Source of Truth.
+ */
+
+// =============================================================================
+// Consolidated Schemas (Single Source of Truth)
+// =============================================================================
 export {
-  WhatsAppContactSchema,
+  // Common/Validation
+  PhoneNumberSchema,
+  E164PhoneSchema,
+  EmailSchema,
+  UUIDSchema,
+  TimestampSchema,
+  CorrelationIdSchema,
+  PaginationSchema,
+  CursorPaginationSchema,
+  PaginatedResponseSchema,
+  type PhoneNumber,
+  type E164Phone,
+  type Email,
+  type UUID,
+  type Timestamp,
+  type CorrelationId,
+  type Pagination,
+  type CursorPagination,
+  type PaginatedResponse,
+
+  // Lead/Patient
+  LeadSourceSchema,
+  LeadChannelSchema,
+  LeadStatusSchema,
+  LeadPrioritySchema,
+  LeadScoreSchema,
+  LeadClassificationSchema,
+  UTMParamsSchema,
+  AIScoringContextSchema,
+  ScoringOutputSchema,
+  PatientDemographicsSchema,
+  MedicalContextSchema,
+  ConversationEntrySchema,
+  LeadContextSchema,
+  CreateLeadContextSchema,
+  UpdateLeadContextSchema,
+  type LeadSource,
+  type LeadChannel,
+  type LeadStatus,
+  type LeadPriority,
+  type LeadScore,
+  type LeadClassification,
+  type UTMParams,
+  type AIScoringContext,
+  type ScoringOutput,
+  type PatientDemographics,
+  type MedicalContext,
+  type ConversationEntry,
+  type LeadContext,
+  type CreateLeadContext,
+  type UpdateLeadContext,
+
+  // Voice/Telephony
+  CallDirectionSchema,
+  CallStatusSchema,
+  VoiceEventTypeSchema,
+  TranscriptSegmentSchema,
+  RecordingMetadataSchema,
+  VoiceEventSchema,
+  TwilioBaseSchema,
+  VoiceWebhookSchema,
+  CallStatusCallbackSchema,
+  TwilioStatusCallbackSchema,
+  InitiateCallSchema,
+  CallSummarySchema,
+  type CallDirection,
+  type CallStatus,
+  type VoiceEventType,
+  type TranscriptSegment,
+  type RecordingMetadata,
+  type VoiceEvent,
+  type TwilioBase,
+  type VoiceWebhook,
+  type CallStatusCallback,
+  type TwilioStatusCallback,
+  type InitiateCall,
+  type CallSummary,
+
+  // WhatsApp
+  WhatsAppMessageTypeSchema,
   WhatsAppTextSchema,
+  WhatsAppMediaSchema,
+  WhatsAppLocationSchema,
+  WhatsAppInteractiveSchema,
+  WhatsAppContactSchema,
   WhatsAppMessageSchema,
   WhatsAppStatusSchema,
   WhatsAppMetadataSchema,
@@ -9,8 +101,14 @@ export {
   WhatsAppChangeSchema,
   WhatsAppEntrySchema,
   WhatsAppWebhookSchema,
-  type WhatsAppContact,
+  WhatsAppSendMessageSchema,
+  NormalizedWhatsAppMessageSchema,
+  type WhatsAppMessageType,
   type WhatsAppText,
+  type WhatsAppMedia,
+  type WhatsAppLocation,
+  type WhatsAppInteractive,
+  type WhatsAppContact,
   type WhatsAppMessage,
   type WhatsAppStatus,
   type WhatsAppMetadata,
@@ -18,38 +116,23 @@ export {
   type WhatsAppChange,
   type WhatsAppEntry,
   type WhatsAppWebhook,
-} from './whatsapp.schema.js';
+  type WhatsAppSendMessage,
+  type NormalizedWhatsAppMessage,
 
-// Voice schemas
-export {
-  CallDirectionSchema,
-  CallStatusSchema,
-  TwilioBaseSchema,
-  VoiceWebhookSchema,
-  CallStatusCallbackSchema,
-  VoiceEventSchema,
-  type CallDirection,
-  type CallStatus,
-  type VoiceWebhook,
-  type CallStatusCallback,
-  type VoiceEvent,
-} from './voice.schema.js';
+  // Advanced Scoring
+  ScoringDimensionSchema,
+  RecommendedActionSchema,
+  AdvancedScoringOutputSchema,
+  ScoringRequestSchema,
+  type ScoringDimension,
+  type RecommendedAction,
+  type AdvancedScoringOutput,
+  type ScoringRequest,
+} from './schemas/index.js';
 
-// Lead and scoring schemas
-export {
-  LeadChannelSchema,
-  LeadScoreSchema,
-  UTMParamsSchema,
-  LeadContextSchema,
-  ScoringOutputSchema,
-  type LeadChannel,
-  type LeadScore,
-  type UTMParams,
-  type LeadContext,
-  type ScoringOutput,
-} from './lead.schema.js';
-
-// Stripe schemas
+// =============================================================================
+// Stripe Schemas
+// =============================================================================
 export {
   StripeEventTypeSchema,
   PaymentIntentSchema,
@@ -69,7 +152,9 @@ export {
   type PaymentEvent,
 } from './stripe.schema.js';
 
-// HubSpot schemas
+// =============================================================================
+// HubSpot Schemas
+// =============================================================================
 export {
   HubSpotContactPropertiesSchema,
   HubSpotContactSchema,
@@ -91,23 +176,23 @@ export {
   type HubSpotTask,
 } from './hubspot.schema.js';
 
-// Patient/Lead schemas for Dashboard
+// =============================================================================
+// Patient/Dashboard Schemas
+// =============================================================================
 export {
   PatientStatusSchema,
-  LeadClassificationSchema,
-  LeadSourceSchema,
   PatientListItemSchema,
   RecentLeadSchema,
   DashboardStatsSchema,
   type PatientStatus,
-  type LeadClassification,
-  type LeadSource,
   type PatientListItem,
   type RecentLead,
   type DashboardStats,
 } from './patient.schema.js';
 
-// Domain events schemas
+// =============================================================================
+// Domain Events Schemas
+// =============================================================================
 export {
   EventBaseSchema,
   WhatsAppMessageReceivedEventSchema,
@@ -145,29 +230,9 @@ export {
   type DomainEvent,
 } from './events.schema.js';
 
-// Common schemas (pagination, validation)
-export {
-  PhoneNumberSchema,
-  E164PhoneSchema,
-  EmailSchema,
-  UUIDSchema,
-  TimestampSchema,
-  CorrelationIdSchema,
-  PaginationSchema,
-  CursorPaginationSchema,
-  PaginatedResponseSchema,
-  type PhoneNumber,
-  type E164Phone,
-  type Email,
-  type UUID,
-  type Timestamp,
-  type CorrelationId,
-  type Pagination,
-  type CursorPagination,
-  type PaginatedResponse,
-} from './schemas/common.js';
-
-// Server Actions schemas (Triage, Calendar, Analytics, Messages, Patient Detail)
+// =============================================================================
+// Server Actions Schemas (Triage, Calendar, Analytics, Messages, Patient Detail)
+// =============================================================================
 export {
   // Triage schemas
   TriageLeadSchema,

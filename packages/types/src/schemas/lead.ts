@@ -6,16 +6,26 @@ import { z } from "zod";
 import { E164PhoneSchema, EmailSchema, TimestampSchema, UUIDSchema } from "./common.js";
 
 /**
- * Lead source channel
+ * Lead source/channel - unified enum covering all acquisition channels
+ * Consolidated from: schemas/lead.ts, patient.schema.ts, lead.schema.ts
  */
 export const LeadSourceSchema = z.enum([
   "whatsapp",
   "voice",
   "web_form",
+  "web", // Alias for web_form (backward compatibility)
   "hubspot",
-  "manual",
+  "facebook",
+  "google",
   "referral",
+  "manual",
 ]);
+
+/**
+ * Lead channel for AI scoring (simplified subset)
+ * @deprecated Use LeadSourceSchema instead
+ */
+export const LeadChannelSchema = LeadSourceSchema;
 
 /**
  * Lead status in the pipeline
@@ -134,12 +144,87 @@ export const UpdateLeadContextSchema = LeadContextSchema.partial().omit({
   createdAt: true,
 });
 
+// =============================================================================
+// AI Scoring Schemas (consolidated from lead.schema.ts)
+// =============================================================================
+
+/**
+ * Lead score classification levels
+ */
+export const LeadScoreSchema = z.enum(["HOT", "WARM", "COLD", "UNQUALIFIED"]);
+
+/**
+ * Lead classification (alias for LeadScoreSchema)
+ */
+export const LeadClassificationSchema = LeadScoreSchema;
+
+/**
+ * UTM tracking parameters
+ */
+export const UTMParamsSchema = z.object({
+  utm_source: z.string().optional(),
+  utm_medium: z.string().optional(),
+  utm_campaign: z.string().optional(),
+  utm_term: z.string().optional(),
+  utm_content: z.string().optional(),
+  gclid: z.string().optional(),
+  fbclid: z.string().optional(),
+});
+
+/**
+ * Simplified lead context for AI scoring operations
+ * Use LeadContextSchema for the full domain model
+ */
+export const AIScoringContextSchema = z.object({
+  phone: z.string(),
+  name: z.string().optional(),
+  channel: LeadSourceSchema,
+  firstTouchTimestamp: z.string(),
+  language: z.enum(["ro", "en", "de"]).optional(),
+  messageHistory: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant"]),
+        content: z.string(),
+        timestamp: z.string(),
+      })
+    )
+    .optional(),
+  utm: UTMParamsSchema.optional(),
+  hubspotContactId: z.string().optional(),
+});
+
+/**
+ * AI Scoring output schema
+ */
+export const ScoringOutputSchema = z.object({
+  score: z.number().min(1).max(5),
+  classification: LeadScoreSchema,
+  confidence: z.number().min(0).max(1),
+  reasoning: z.string(),
+  suggestedAction: z.string(),
+  detectedIntent: z.string().optional(),
+  urgencyIndicators: z.array(z.string()).optional(),
+  budgetMentioned: z.boolean().optional(),
+  procedureInterest: z.array(z.string()).optional(),
+});
+
+// =============================================================================
+// Type exports
+// =============================================================================
+
 export type LeadSource = z.infer<typeof LeadSourceSchema>;
+export type LeadChannel = LeadSource; // Backward compatibility alias
 export type LeadStatus = z.infer<typeof LeadStatusSchema>;
 export type LeadPriority = z.infer<typeof LeadPrioritySchema>;
+export type LeadScore = z.infer<typeof LeadScoreSchema>;
+export type LeadClassification = LeadScore; // Alias
 export type PatientDemographics = z.infer<typeof PatientDemographicsSchema>;
 export type MedicalContext = z.infer<typeof MedicalContextSchema>;
 export type ConversationEntry = z.infer<typeof ConversationEntrySchema>;
 export type LeadContext = z.infer<typeof LeadContextSchema>;
 export type CreateLeadContext = z.infer<typeof CreateLeadContextSchema>;
 export type UpdateLeadContext = z.infer<typeof UpdateLeadContextSchema>;
+export type UTMParams = z.infer<typeof UTMParamsSchema>;
+export type AIScoringContext = z.infer<typeof AIScoringContextSchema>;
+export type ScoringOutput = z.infer<typeof ScoringOutputSchema>;

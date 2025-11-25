@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import { z } from 'zod';
 import { withRetry, ExternalServiceError } from '@medicalcor/core';
-import type { LeadContext, ScoringOutput } from '@medicalcor/types';
+import type { AIScoringContext, ScoringOutput } from '@medicalcor/types';
 
 /**
  * Input validation schemas for OpenAI client
@@ -104,7 +104,7 @@ export interface ChatCompletionOptions {
 }
 
 export interface AIReplyOptions {
-  context: LeadContext;
+  context: AIScoringContext;
   tone?: 'professional' | 'friendly' | 'empathetic';
   maxLength?: number;
   language?: 'ro' | 'en' | 'de';
@@ -193,7 +193,7 @@ export class OpenAIClient {
   /**
    * Score a lead using AI
    */
-  async scoreMessage(context: LeadContext): Promise<ScoringOutput> {
+  async scoreMessage(context: AIScoringContext): Promise<ScoringOutput> {
     const systemPrompt = this.buildScoringSystemPrompt();
     const userPrompt = this.buildScoringUserPrompt(context);
 
@@ -359,10 +359,10 @@ ALWAYS respond in this exact JSON format:
   /**
    * Build user prompt for scoring
    */
-  private buildScoringUserPrompt(context: LeadContext): string {
+  private buildScoringUserPrompt(context: AIScoringContext): string {
     const messages =
       context.messageHistory
-        ?.map((m) => {
+        ?.map((m: { role: string; content: string }) => {
           // Sanitize each message to prevent injection
           const sanitizedContent = this.sanitizeUserInput(m.content, 1000);
           return `${m.role.toUpperCase()}: ${sanitizedContent}`;
@@ -439,12 +439,12 @@ Do not make up specific prices or availability - direct to staff for details.`;
   /**
    * Build user prompt for reply generation
    */
-  private buildReplyUserPrompt(context: LeadContext): string {
+  private buildReplyUserPrompt(context: AIScoringContext): string {
     const lastMessage = context.messageHistory?.[context.messageHistory.length - 1];
     const history =
       context.messageHistory
         ?.slice(-5)
-        .map((m) => {
+        .map((m: { role: string; content: string }) => {
           // Sanitize each message to prevent injection
           const sanitizedContent = this.sanitizeUserInput(m.content, 500);
           return `${m.role}: ${sanitizedContent}`;

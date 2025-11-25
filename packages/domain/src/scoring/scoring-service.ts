@@ -1,4 +1,4 @@
-import type { LeadContext, ScoringOutput, LeadScore } from '@medicalcor/types';
+import type { AIScoringContext, ScoringOutput, LeadScore } from '@medicalcor/types';
 
 /**
  * AI Scoring Service
@@ -59,7 +59,7 @@ export class ScoringService {
   /**
    * Score a lead based on message content and context
    */
-  async scoreMessage(context: LeadContext): Promise<ScoringOutput> {
+  async scoreMessage(context: AIScoringContext): Promise<ScoringOutput> {
     // Try AI scoring first
     if (this.openai && this.config.openaiApiKey) {
       try {
@@ -79,7 +79,7 @@ export class ScoringService {
   /**
    * AI-powered scoring using GPT-4o
    */
-  private async aiScore(context: LeadContext): Promise<ScoringOutput> {
+  private async aiScore(context: AIScoringContext): Promise<ScoringOutput> {
     const systemPrompt = this.buildSystemPrompt();
     const userPrompt = this.buildUserPrompt(context);
 
@@ -104,9 +104,9 @@ export class ScoringService {
   /**
    * Rule-based scoring fallback
    */
-  ruleBasedScore(context: LeadContext): ScoringOutput {
+  ruleBasedScore(context: AIScoringContext): ScoringOutput {
     const lastMessage = context.messageHistory?.[context.messageHistory.length - 1]?.content ?? '';
-    const allMessages = context.messageHistory?.map(m => m.content).join(' ') ?? lastMessage;
+    const allMessages = context.messageHistory?.map((m: { content: string }) => m.content).join(' ') ?? lastMessage;
     const lowerContent = allMessages.toLowerCase();
 
     let score = 1;
@@ -246,8 +246,8 @@ RESPONSE FORMAT (JSON):
   /**
    * Build user prompt with context
    */
-  private buildUserPrompt(context: LeadContext): string {
-    const messages = context.messageHistory?.map(m =>
+  private buildUserPrompt(context: AIScoringContext): string {
+    const messages = context.messageHistory?.map((m: { role: string; content: string }) =>
       `${m.role.toUpperCase()}: ${m.content}`
     ).join('\n') ?? '';
 

@@ -1,28 +1,18 @@
 import { z } from 'zod';
+import { LeadSourceSchema, LeadClassificationSchema } from './schemas/lead.js';
 
 /**
  * Patient/Lead Schemas for Dashboard Display
  *
  * These schemas are optimized for UI display and are mapped from HubSpot contacts.
  * HubSpot remains the Single Source of Truth for all patient/lead data.
+ *
+ * Note: LeadSourceSchema and LeadClassificationSchema are imported from schemas/lead.ts
+ * which is the Single Source of Truth for these enums.
  */
 
 // Statusul pacientului mapat pe stările din CRM (HubSpot lifecycle stages)
 export const PatientStatusSchema = z.enum(['lead', 'active', 'inactive', 'archived']);
-
-// Lead classification based on AI scoring
-export const LeadClassificationSchema = z.enum(['HOT', 'WARM', 'COLD']);
-
-// Lead source channel
-export const LeadSourceSchema = z.enum([
-  'whatsapp',
-  'voice',
-  'web_form',
-  'facebook',
-  'google',
-  'referral',
-  'manual',
-]);
 
 // Schema pentru listare pacienți/leads (optimizată pentru Dashboard UI)
 export const PatientListItemSchema = z.object({
@@ -64,10 +54,12 @@ export const DashboardStatsSchema = z.object({
   dailyRevenue: z.number().optional(),
 });
 
+// Re-export consolidated types for backward compatibility
+export { LeadClassificationSchema, LeadSourceSchema };
+export type { LeadClassification, LeadSource } from './schemas/lead.js';
+
 // Inferred TypeScript types
 export type PatientStatus = z.infer<typeof PatientStatusSchema>;
-export type LeadClassification = z.infer<typeof LeadClassificationSchema>;
-export type LeadSource = z.infer<typeof LeadSourceSchema>;
 export type PatientListItem = z.infer<typeof PatientListItemSchema>;
 export type RecentLead = z.infer<typeof RecentLeadSchema>;
 export type DashboardStats = z.infer<typeof DashboardStatsSchema>;

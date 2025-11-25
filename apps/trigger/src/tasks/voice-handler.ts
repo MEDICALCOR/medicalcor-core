@@ -2,7 +2,7 @@ import { task, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
 import { normalizeRomanianPhone } from '@medicalcor/core';
 import { createIntegrationClients } from '@medicalcor/integrations';
-import type { LeadContext } from '@medicalcor/types';
+import type { AIScoringContext } from '@medicalcor/types';
 
 /**
  * Voice Call Handler Task
@@ -103,7 +103,7 @@ export const handleVoiceCall = task({
         if (!scoring || !triage) {
           logger.warn('Scoring or triage service not available', { correlationId });
         } else {
-          const leadContext: LeadContext = {
+          const leadContext: AIScoringContext = {
             phone: normalizedPhone,
             channel: 'voice',
             firstTouchTimestamp: new Date().toISOString(),
@@ -300,7 +300,7 @@ export const handleCallCompleted = task({
     let scoreResult;
     if (transcript && hubspot && hubspotContactId && scoring && triage) {
       try {
-        const leadContext: LeadContext = {
+        const leadContext: AIScoringContext = {
           phone: normalizedPhone,
           channel: 'voice',
           firstTouchTimestamp: new Date().toISOString(),
