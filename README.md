@@ -30,9 +30,13 @@ AI-powered lead management system for dental clinics with omnichannel communicat
 
 - **AI-Powered Lead Scoring** - GPT-4o analyzes conversations to score leads (1-5) with automatic HOT/WARM/COLD classification
 - **Omnichannel Communication** - WhatsApp, Voice, Email, and Web support via unified inbox
+- **Voice AI Integration** - Vapi.ai integration for intelligent voice calls with transcript analysis and lead qualification
+- **Vector Search** - OpenAI embeddings for semantic search and intelligent document retrieval
+- **Payment Processing** - Stripe integration for revenue tracking and payment analytics
 - **Durable Workflows** - Trigger.dev ensures reliable background processing with automatic retries
 - **GDPR Compliance** - Built-in consent management with audit trails
 - **Event Sourcing** - Complete audit trail for compliance and debugging
+- **PWA Support** - Progressive Web App with offline capabilities
 
 ## Architecture
 
@@ -41,13 +45,14 @@ medicalcor-core/
 ├── apps/
 │   ├── api/                 # Fastify Server (Webhook Gateway)
 │   ├── trigger/             # Trigger.dev Workers
-│   └── web/                 # Next.js Admin Dashboard
+│   └── web/                 # Next.js Admin Dashboard (PWA)
 ├── packages/
 │   ├── core/                # Shared Business Logic (logger, errors, utils)
 │   ├── types/               # Shared Zod Schemas
-│   ├── integrations/        # External Services (HubSpot, WhatsApp, OpenAI)
-│   └── domain/              # Domain Logic (scoring, triage, scheduling)
-└── infra/                   # Infrastructure configs
+│   ├── integrations/        # External Services (HubSpot, WhatsApp, OpenAI, Vapi, Stripe)
+│   ├── domain/              # Domain Logic (scoring, triage, scheduling, consent)
+│   └── infra/               # Infrastructure utilities (migrations, deployment, env)
+└── infra/                   # Infrastructure configs (Docker, CI/CD)
 ```
 
 ## Quick Start
@@ -79,13 +84,14 @@ curl http://localhost:3000/health
 
 | Package | Description |
 |---------|-------------|
-| `@medicalcor/api` | Fastify webhook gateway |
-| `@medicalcor/trigger` | Trigger.dev workflows and jobs |
-| `@medicalcor/web` | Next.js admin dashboard |
-| `@medicalcor/core` | Logger, errors, utilities, env validation |
+| `@medicalcor/api` | Fastify webhook gateway with rate limiting and CORS |
+| `@medicalcor/trigger` | Trigger.dev workflows and background jobs |
+| `@medicalcor/web` | Next.js admin dashboard (PWA with offline support) |
+| `@medicalcor/core` | Logger, errors, utilities, retry logic, env validation |
 | `@medicalcor/types` | Zod schemas for all domains |
-| `@medicalcor/domain` | Scoring, triage, scheduling services |
-| `@medicalcor/integrations` | HubSpot, WhatsApp, OpenAI clients |
+| `@medicalcor/domain` | Scoring, triage, scheduling, consent, language services |
+| `@medicalcor/integrations` | HubSpot, WhatsApp, OpenAI, Vapi, Stripe, Embeddings |
+| `@medicalcor/infra` | Infrastructure utilities, migrations, deployment configs |
 
 ## Documentation
 
@@ -127,14 +133,20 @@ curl http://localhost:3000/health
 - **Runtime**: Node.js 20+
 - **Package Manager**: pnpm 9+
 - **Build System**: Turborepo
-- **Language**: TypeScript (strict mode)
+- **Language**: TypeScript 5.6 (strict mode)
 - **API Framework**: Fastify 5
-- **Web Framework**: Next.js 15
+- **Web Framework**: Next.js 15 with React 19
+- **UI Components**: Radix UI + Tailwind CSS
+- **State Management**: React Query (TanStack Query)
+- **Authentication**: NextAuth.js v5
 - **Validation**: Zod
 - **Background Jobs**: Trigger.dev
 - **Database**: PostgreSQL 15
 - **Cache**: Redis 7
-- **Testing**: Vitest + MSW + Playwright
+- **AI/ML**: OpenAI GPT-4o, Text Embeddings
+- **Voice AI**: Vapi.ai
+- **Payments**: Stripe
+- **Testing**: Vitest + MSW + Testing Library
 - **Observability**: OpenTelemetry
 
 ## Commands
