@@ -66,11 +66,7 @@ export class AuthService {
   /**
    * Authenticate user with email and password
    */
-  async login(
-    email: string,
-    password: string,
-    context?: AuthContext
-  ): Promise<LoginResult> {
+  async login(email: string, password: string, context?: AuthContext): Promise<LoginResult> {
     const ipAddress = context?.ipAddress ?? 'unknown';
     const userAgent = context?.userAgent;
 
@@ -331,7 +327,7 @@ export class AuthService {
     }
 
     const user = await this.userRepo.findById(session.userId);
-    if (!user || user.status !== 'active') {
+    if (user?.status !== 'active') {
       return null;
     }
 
@@ -671,7 +667,9 @@ export class AuthService {
     }
 
     if (PASSWORD_POLICY.requireSpecial) {
-      const specialRegex = new RegExp(`[${PASSWORD_POLICY.specialChars.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}]`);
+      const specialRegex = new RegExp(
+        `[${PASSWORD_POLICY.specialChars.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}]`
+      );
       if (!specialRegex.test(password)) {
         errors.push('Password must contain at least one special character');
       }

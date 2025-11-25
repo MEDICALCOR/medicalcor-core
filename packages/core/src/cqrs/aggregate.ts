@@ -7,7 +7,7 @@
  * - Uncommitted event tracking
  */
 
-import type { StoredEvent } from '../event-store.js';
+import type { StoredEvent, EventStore as EventStoreInterface } from '../event-store.js';
 
 // ============================================================================
 // CORE TYPES
@@ -40,7 +40,7 @@ export type EventApplier<TState, TEvent> = (state: TState, event: TEvent) => TSt
 export abstract class AggregateRoot<TState extends AggregateState = AggregateState> {
   protected state: TState;
   protected uncommittedEvents: DomainEvent[] = [];
-  protected eventAppliers: Map<string, EventApplier<TState, unknown>> = new Map();
+  protected eventAppliers = new Map<string, EventApplier<TState, unknown>>();
 
   constructor(
     protected readonly aggregateType: string,
@@ -99,13 +99,13 @@ export abstract class AggregateRoot<TState extends AggregateState = AggregateSta
   /**
    * Raise a new domain event
    */
-  protected raise<TPayload>(
+  protected raise(
     type: string,
-    payload: TPayload,
+    payload: unknown,
     correlationId?: string,
     causationId?: string
   ): void {
-    const event: DomainEvent<TPayload> = {
+    const event: DomainEvent = {
       type,
       payload,
       aggregateId: this.state.id,
@@ -123,10 +123,7 @@ export abstract class AggregateRoot<TState extends AggregateState = AggregateSta
   /**
    * Register an event applier
    */
-  protected on<TPayload>(
-    eventType: string,
-    applier: EventApplier<TState, TPayload>
-  ): void {
+  protected on<TPayload>(eventType: string, applier: EventApplier<TState, TPayload>): void {
     this.eventAppliers.set(eventType, applier as EventApplier<TState, unknown>);
   }
 
@@ -192,11 +189,12 @@ export interface AggregateRepository<T extends AggregateRoot> {
   exists(id: string): Promise<boolean>;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export abstract class EventSourcedRepository<T extends AggregateRoot<any>>
   implements AggregateRepository<T>
 {
   constructor(
-    protected readonly eventStore: import('../event-store.js').EventStore,
+    protected readonly eventStore: EventStoreInterface,
     protected readonly aggregateType: string
   ) {}
 
@@ -227,7 +225,7 @@ export abstract class EventSourcedRepository<T extends AggregateRoot<any>>
 
       if (event.aggregateId) emitParams.aggregateId = event.aggregateId;
       if (event.aggregateType) emitParams.aggregateType = event.aggregateType;
-      if (event.version !== undefined) emitParams.version = event.version;
+      if (typeof event.version === 'number') emitParams.version = event.version;
       if (event.causationId) emitParams.causationId = event.causationId;
 
       await this.eventStore.emit(emitParams);
@@ -325,23 +323,16 @@ export class LeadAggregate extends AggregateRoot<LeadState> {
       }
     );
 
-    this.on(
-      'LeadQualified',
-      (state, payload: { classification: string }): LeadState => {
-        const newState: LeadState = {
-          ...state,
-          status: 'qualified' as const,
-        };
-        if (payload.classification) {
-          newState.classification = payload.classification as
-            | 'HOT'
-            | 'WARM'
-            | 'COLD'
-            | 'UNQUALIFIED';
-        }
-        return newState;
+    this.on('LeadQualified', (state, payload: { classification: string }): LeadState => {
+      const newState: LeadState = {
+        ...state,
+        status: 'qualified' as const,
+      };
+      if (payload.classification) {
+        newState.classification = payload.classification as 'HOT' | 'WARM' | 'COLD' | 'UNQUALIFIED';
       }
-    );
+      return newState;
+    });
 
     this.on('LeadAssigned', (state, payload: { assignedTo: string }) => ({
       ...state,
@@ -377,11 +368,7 @@ export class LeadAggregate extends AggregateRoot<LeadState> {
   /**
    * Score the lead
    */
-  score(
-    score: number,
-    classification: LeadState['classification'],
-    correlationId?: string
-  ): void {
+  score(score: number, classification: LeadState['classification'], correlationId?: string): void {
     if (this.state.status === 'lost' || this.state.status === 'converted') {
       throw new Error('Cannot score a closed lead');
     }
@@ -445,7 +432,7 @@ export class LeadAggregate extends AggregateRoot<LeadState> {
 // ============================================================================
 
 export class LeadRepository extends EventSourcedRepository<LeadAggregate> {
-  constructor(eventStore: import('../event-store.js').EventStore) {
+  constructor(eventStore: EventStoreInterface) {
     super(eventStore, 'Lead');
   }
 

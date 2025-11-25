@@ -1,5 +1,10 @@
 import crypto from 'crypto';
-import { withRetry, ExternalServiceError, RateLimitError, WebhookSignatureError } from '@medicalcor/core';
+import {
+  withRetry,
+  ExternalServiceError,
+  RateLimitError,
+  WebhookSignatureError,
+} from '@medicalcor/core';
 
 /**
  * Stripe Integration Client
@@ -303,7 +308,7 @@ export class StripeClient {
           throw new ExternalServiceError('Stripe', `Request failed with status ${response.status}`);
         }
 
-        return response.json() as Promise<T>;
+        return (await response.json()) as T;
       } catch (error) {
         // Convert AbortError to ExternalServiceError for consistent handling
         if (error instanceof Error && error.name === 'AbortError') {

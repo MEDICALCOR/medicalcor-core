@@ -11,7 +11,12 @@
 
 import { z } from 'zod';
 import { defineQuery, type QueryHandler } from './query-bus.js';
-import type { ProjectionManager, LeadStatsState, PatientActivityState, DailyMetricsState } from './projections.js';
+import type {
+  ProjectionManager,
+  LeadStatsState,
+  PatientActivityState,
+  DailyMetricsState,
+} from './projections.js';
 import type { EventStore } from '../event-store.js';
 
 // ============================================================================
@@ -176,7 +181,10 @@ export const GetLeadAnalyticsQuery = defineQuery(
   z.object({
     startDate: z.string(),
     endDate: z.string(),
-    groupBy: z.enum(['day', 'week', 'month', 'channel', 'classification']).optional().default('day'),
+    groupBy: z
+      .enum(['day', 'week', 'month', 'channel', 'classification'])
+      .optional()
+      .default('day'),
     channel: z.enum(['whatsapp', 'voice', 'web', 'referral']).optional(),
   })
 );
@@ -223,11 +231,11 @@ export interface QueryHandlerDeps {
 export function createGetLeadStatsHandler(
   deps: QueryHandlerDeps
 ): QueryHandler<z.infer<typeof GetLeadStatsQuery.schema>, LeadStatsState> {
-  return async (query, _context) => {
+  return (query, _context) => {
     const projection = deps.projectionManager.get<LeadStatsState>('lead-stats');
 
     if (!projection) {
-      return {
+      return Promise.resolve({
         success: false,
         queryId: query.metadata.queryId,
         error: {
@@ -236,16 +244,16 @@ export function createGetLeadStatsHandler(
         },
         cached: false,
         executionTimeMs: 0,
-      };
+      });
     }
 
-    return {
+    return Promise.resolve({
       success: true,
       queryId: query.metadata.queryId,
       data: projection.state,
       cached: false,
       executionTimeMs: 0,
-    };
+    });
   };
 }
 
@@ -282,7 +290,7 @@ export function createGetLeadByPhoneHandler(
     };
 
     for (const event of events) {
-      const payload = event.payload as Record<string, unknown>;
+      const payload = event.payload;
       switch (event.type) {
         case 'LeadCreated':
           Object.assign(leadState, payload, {
@@ -342,17 +350,15 @@ export function createGetLeadByPhoneHandler(
 /**
  * Get Lead Analytics query handler
  */
-export function createGetLeadAnalyticsHandler(
-  deps: QueryHandlerDeps
-): QueryHandler<
+export function createGetLeadAnalyticsHandler(deps: QueryHandlerDeps): QueryHandler<
   z.infer<typeof GetLeadAnalyticsQuery.schema>,
   {
     summary: LeadStatsState;
-    dailyMetrics: Array<{ date: string; [key: string]: unknown }>;
+    dailyMetrics: { date: string; [key: string]: unknown }[];
     groupedData: Record<string, number>;
   }
 > {
-  return async (query, _context) => {
+  return (query, _context) => {
     const { startDate, endDate, groupBy, channel: _channel } = query.params;
 
     // Get lead stats projection
@@ -360,7 +366,7 @@ export function createGetLeadAnalyticsHandler(
     const dailyMetrics = deps.projectionManager.get<DailyMetricsState>('daily-metrics');
 
     if (!leadStats || !dailyMetrics) {
-      return {
+      return Promise.resolve({
         success: false,
         queryId: query.metadata.queryId,
         error: {
@@ -369,11 +375,11 @@ export function createGetLeadAnalyticsHandler(
         },
         cached: false,
         executionTimeMs: 0,
-      };
+      });
     }
 
     // Filter daily metrics by date range
-    const filteredMetrics: Array<{ date: string; [key: string]: unknown }> = [];
+    const filteredMetrics: { date: string; [key: string]: unknown }[] = [];
     for (const [dateKey, metrics] of dailyMetrics.state.metrics) {
       if (dateKey >= startDate && dateKey <= endDate) {
         filteredMetrics.push({ ...metrics, date: dateKey });
@@ -395,11 +401,12 @@ export function createGetLeadAnalyticsHandler(
       default:
         // Already have daily metrics
         for (const metric of filteredMetrics) {
-          groupedData[metric.date] = (metric as Record<string, unknown>).newLeads as number ?? 0;
+          groupedData[metric.date] =
+            ((metric as Record<string, unknown>).newLeads as number | undefined) ?? 0;
         }
     }
 
-    return {
+    return Promise.resolve({
       success: true,
       queryId: query.metadata.queryId,
       data: {
@@ -409,24 +416,22 @@ export function createGetLeadAnalyticsHandler(
       },
       cached: false,
       executionTimeMs: 0,
-    };
+    });
   };
 }
 
 /**
  * Check Consent query handler
  */
-export function createCheckConsentHandler(
-  deps: QueryHandlerDeps
-): QueryHandler<
+export function createCheckConsentHandler(deps: QueryHandlerDeps): QueryHandler<
   z.infer<typeof CheckConsentQuery.schema>,
   {
-    consents: Array<{
+    consents: {
       type: string;
       status: string;
       recordedAt: string;
       source: string;
-    }>;
+    }[];
   }
 > {
   return async (query, _context) => {
@@ -451,10 +456,7 @@ export function createCheckConsentHandler(
     const consentEvents = events.filter((e) => e.type === 'ConsentRecorded');
 
     // Build current consent state
-    const consentMap = new Map<
-      string,
-      { status: string; recordedAt: string; source: string }
-    >();
+    const consentMap = new Map<string, { status: string; recordedAt: string; source: string }>();
 
     for (const event of consentEvents) {
       const payload = event.payload as {
@@ -493,32 +495,30 @@ export function createCheckConsentHandler(
 /**
  * Get Available Slots query handler
  */
-export function createGetAvailableSlotsHandler(
-  _deps: QueryHandlerDeps
-): QueryHandler<
+export function createGetAvailableSlotsHandler(_deps: QueryHandlerDeps): QueryHandler<
   z.infer<typeof GetAvailableSlotsQuery.schema>,
   {
-    slots: Array<{
+    slots: {
       slotId: string;
       startTime: string;
       endTime: string;
       doctorId: string;
       available: boolean;
-    }>;
+    }[];
   }
 > {
-  return async (query, _context) => {
+  return (query, _context) => {
     const { startDate, endDate, doctorId, duration } = query.params;
 
     // In production, this would query an actual scheduling system
     // For now, generate sample slots
-    const slots: Array<{
+    const slots: {
       slotId: string;
       startTime: string;
       endTime: string;
       doctorId: string;
       available: boolean;
-    }> = [];
+    }[] = [];
 
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -558,13 +558,13 @@ export function createGetAvailableSlotsHandler(
       }
     }
 
-    return {
+    return Promise.resolve({
       success: true,
       queryId: query.metadata.queryId,
       data: { slots: slots.filter((s) => s.available) },
       cached: false,
       executionTimeMs: 0,
-    };
+    });
   };
 }
 
@@ -574,11 +574,11 @@ export function createGetAvailableSlotsHandler(
 export function createGetPatientActivityHandler(
   deps: QueryHandlerDeps
 ): QueryHandler<z.infer<typeof GetPatientHistoryQuery.schema>, PatientActivityState> {
-  return async (query, _context) => {
+  return (query, _context) => {
     const projection = deps.projectionManager.get<PatientActivityState>('patient-activity');
 
     if (!projection) {
-      return {
+      return Promise.resolve({
         success: false,
         queryId: query.metadata.queryId,
         error: {
@@ -587,7 +587,7 @@ export function createGetPatientActivityHandler(
         },
         cached: false,
         executionTimeMs: 0,
-      };
+      });
     }
 
     // Filter activities for the specific patient
@@ -595,7 +595,7 @@ export function createGetPatientActivityHandler(
       (a) => a.patientId === query.params.patientId
     );
 
-    return {
+    return Promise.resolve({
       success: true,
       queryId: query.metadata.queryId,
       data: {
@@ -604,7 +604,7 @@ export function createGetPatientActivityHandler(
       },
       cached: false,
       executionTimeMs: 0,
-    };
+    });
   };
 }
 
@@ -628,7 +628,10 @@ export function createQueryHandlers(deps: QueryHandlerDeps): QueryHandlerRegistr
       ['GetLeadAnalytics', createGetLeadAnalyticsHandler(deps) as QueryHandler<unknown, unknown>],
       ['CheckConsent', createCheckConsentHandler(deps) as QueryHandler<unknown, unknown>],
       ['GetAvailableSlots', createGetAvailableSlotsHandler(deps) as QueryHandler<unknown, unknown>],
-      ['GetPatientHistory', createGetPatientActivityHandler(deps) as QueryHandler<unknown, unknown>],
+      [
+        'GetPatientHistory',
+        createGetPatientActivityHandler(deps) as QueryHandler<unknown, unknown>,
+      ],
     ]),
     schemas: new Map<string, z.ZodSchema>([
       ['GetLeadStats', GetLeadStatsQuery.schema],

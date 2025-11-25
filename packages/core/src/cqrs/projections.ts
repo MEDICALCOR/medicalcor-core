@@ -47,7 +47,7 @@ export class ProjectionBuilder<TState> {
   /**
    * Register handler for an event type
    */
-  on(eventType: string, handler: ProjectionHandler<TState>): ProjectionBuilder<TState> {
+  on(eventType: string, handler: ProjectionHandler<TState>): this {
     this.handlers.set(eventType, handler);
     return this;
   }
@@ -185,24 +185,20 @@ export interface LeadStatsState {
   convertedLeads: number;
 }
 
-export const LeadStatsProjection = defineProjection<LeadStatsState>(
-  'lead-stats',
-  1,
-  {
-    totalLeads: 0,
-    leadsByChannel: {},
-    leadsByClassification: {},
-    leadsByStatus: {},
-    averageScore: 0,
-    totalScore: 0,
-    scoredLeads: 0,
-    conversionRate: 0,
-    convertedLeads: 0,
-  }
-)
+export const LeadStatsProjection = defineProjection<LeadStatsState>('lead-stats', 1, {
+  totalLeads: 0,
+  leadsByChannel: {},
+  leadsByClassification: {},
+  leadsByStatus: {},
+  averageScore: 0,
+  totalScore: 0,
+  scoredLeads: 0,
+  conversionRate: 0,
+  convertedLeads: 0,
+})
   .on('LeadCreated', (state, event) => {
     const payload = event.payload as { channel: string };
-    const channel = payload.channel as string;
+    const channel = payload.channel;
     return {
       ...state,
       totalLeads: state.totalLeads + 1,
@@ -218,7 +214,7 @@ export const LeadStatsProjection = defineProjection<LeadStatsState>(
   })
   .on('LeadScored', (state, event) => {
     const payload = event.payload as { score: number; classification: string };
-    const classification = payload.classification as string;
+    const classification = payload.classification;
     const newTotalScore = state.totalScore + payload.score;
     const newScoredLeads = state.scoredLeads + 1;
     return {
@@ -234,7 +230,7 @@ export const LeadStatsProjection = defineProjection<LeadStatsState>(
   })
   .on('LeadQualified', (state, event) => {
     const payload = event.payload as { classification: string };
-    const classification = payload.classification as string;
+    const classification = payload.classification;
     return {
       ...state,
       leadsByStatus: {
@@ -274,12 +270,12 @@ export const LeadStatsProjection = defineProjection<LeadStatsState>(
  * Patient Activity Projection
  */
 export interface PatientActivityState {
-  recentActivities: Array<{
+  recentActivities: {
     patientId: string;
     type: string;
     timestamp: Date;
     details: unknown;
-  }>;
+  }[];
   appointmentsScheduled: number;
   appointmentsCancelled: number;
   messagesReceived: number;
@@ -391,11 +387,9 @@ function ensureMetricEntry(
   return state.metrics.get(date)!;
 }
 
-export const DailyMetricsProjection = defineProjection<DailyMetricsState>(
-  'daily-metrics',
-  1,
-  { metrics: new Map() }
-)
+export const DailyMetricsProjection = defineProjection<DailyMetricsState>('daily-metrics', 1, {
+  metrics: new Map(),
+})
   .on('LeadCreated', (state, event) => {
     const date = getDateKey(new Date(event.metadata.timestamp));
     const metrics = new Map(state.metrics);

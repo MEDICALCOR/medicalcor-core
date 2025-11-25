@@ -52,19 +52,19 @@ export interface ReplayResult {
   projectionName: string;
   eventsProcessed: number;
   eventsSkipped: number;
-  errors: Array<{
+  errors: {
     eventId: string;
     eventType: string;
     error: string;
-  }>;
+  }[];
   startTime: Date;
   endTime: Date;
   durationMs: number;
-  checkpoints: Array<{
+  checkpoints: {
     eventId: string;
     timestamp: Date;
     eventsProcessed: number;
-  }>;
+  }[];
 }
 
 // ============================================================================
@@ -211,7 +211,10 @@ export class EventReplayService {
           result.eventsProcessed++;
 
           // Log progress
-          if (fullConfig.logProgress && result.eventsProcessed % fullConfig.progressInterval === 0) {
+          if (
+            fullConfig.logProgress &&
+            result.eventsProcessed % fullConfig.progressInterval === 0
+          ) {
             this.logger.info(
               {
                 projectionName,
@@ -373,18 +376,16 @@ export class ProjectionMigrator {
   /**
    * Migrate a projection state from one version to another
    */
-  async migrateState<TState>(
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
+  migrateState<TState>(
     projectionName: string,
     currentState: unknown,
     fromVersion: number,
     toVersion: number
-  ): Promise<TState> {
+  ): TState {
     const migrations = this.migrations.get(projectionName);
     if (!migrations) {
-      this.logger.warn(
-        { projectionName, fromVersion, toVersion },
-        'No migrations registered'
-      );
+      this.logger.warn({ projectionName, fromVersion, toVersion }, 'No migrations registered');
       return currentState as TState;
     }
 
@@ -417,9 +418,7 @@ export class ProjectionMigrator {
     const migrations = this.migrations.get(projectionName);
     if (!migrations) return false;
 
-    return migrations.some(
-      (m) => m.fromVersion >= currentVersion && m.toVersion <= targetVersion
-    );
+    return migrations.some((m) => m.fromVersion >= currentVersion && m.toVersion <= targetVersion);
   }
 }
 
@@ -446,7 +445,7 @@ export class LiveProjectionUpdater {
     projectionManager: ProjectionManager,
     eventSubscriber: EventSubscriber
   ): () => void {
-    const unsubscribe = eventSubscriber.subscribe(async (event) => {
+    const unsubscribe = eventSubscriber.subscribe((event) => {
       try {
         projectionManager.apply(event);
         this.logger.debug(
@@ -459,6 +458,7 @@ export class LiveProjectionUpdater {
           'Failed to apply event to projections'
         );
       }
+      return Promise.resolve();
     });
 
     this.subscriptions.push(unsubscribe);

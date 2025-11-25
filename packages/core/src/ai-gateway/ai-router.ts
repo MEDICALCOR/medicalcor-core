@@ -62,7 +62,10 @@ export const AIRequestSchema = z.discriminatedUnion('type', [
         arguments: z.record(z.unknown()),
         dependsOn: z.array(z.string()).optional().describe('Step IDs this step depends on'),
         stepId: z.string().describe('Unique step identifier'),
-        transformInput: z.string().optional().describe('JSONPath expression to transform input from previous steps'),
+        transformInput: z
+          .string()
+          .optional()
+          .describe('JSONPath expression to transform input from previous steps'),
       })
     ),
   }),
@@ -76,10 +79,12 @@ export interface AIResponse {
   type: AIRequest['type'];
   results: AIFunctionResult[];
   totalExecutionTimeMs: number;
-  suggestedFollowUp?: {
-    message: string;
-    functions: string[];
-  } | undefined;
+  suggestedFollowUp?:
+    | {
+        message: string;
+        functions: string[];
+      }
+    | undefined;
   traceId?: string | undefined;
 }
 
@@ -94,11 +99,11 @@ export interface DetectedIntent {
   reasoning?: string;
 }
 
-const INTENT_PATTERNS: Array<{
+const INTENT_PATTERNS: {
   patterns: RegExp[];
   function: string;
   argExtractors: Record<string, (match: RegExpMatchArray, query: string) => unknown>;
-}> = [
+}[] = [
   {
     patterns: [
       /scor(?:e|ează|ui|ează-mi)\s+lead/i,
@@ -109,7 +114,7 @@ const INTENT_PATTERNS: Array<{
     function: 'score_lead',
     argExtractors: {
       phone: (_match, query) => {
-        const phoneMatch = query.match(/\+?\d{10,14}/);
+        const phoneMatch = /\+?\d{10,14}/.exec(query);
         return phoneMatch?.[0];
       },
       channel: (_match, query) => {
@@ -132,7 +137,7 @@ const INTENT_PATTERNS: Array<{
     argExtractors: {
       preferredDate: (_match, query) => {
         // Extract date patterns like "2024-12-15" or "mâine" or "săptămâna viitoare"
-        const dateMatch = query.match(/\d{4}-\d{2}-\d{2}/);
+        const dateMatch = /\d{4}-\d{2}-\d{2}/.exec(query);
         if (dateMatch) return dateMatch[0];
 
         if (/mâine/i.test(query)) {
@@ -162,12 +167,12 @@ const INTENT_PATTERNS: Array<{
     function: 'send_whatsapp',
     argExtractors: {
       to: (_match, query) => {
-        const phoneMatch = query.match(/\+?\d{10,14}/);
+        const phoneMatch = /\+?\d{10,14}/.exec(query);
         return phoneMatch?.[0];
       },
       message: (_match, query) => {
         // Try to extract quoted message
-        const quotedMatch = query.match(/[„"']([^„"']+)[„"']/);
+        const quotedMatch = /[„"']([^„"']+)[„"']/.exec(query);
         return quotedMatch?.[1];
       },
     },
@@ -181,17 +186,13 @@ const INTENT_PATTERNS: Array<{
     function: 'cancel_appointment',
     argExtractors: {
       appointmentId: (_match, query) => {
-        const idMatch = query.match(/apt-\w+|[a-f0-9-]{36}/i);
+        const idMatch = /apt-\w+|[a-f0-9-]{36}/i.exec(query);
         return idMatch?.[0];
       },
     },
   },
   {
-    patterns: [
-      /consimțământ|consent/i,
-      /acord\s+gdpr/i,
-      /înregistrează\s+acord/i,
-    ],
+    patterns: [/consimțământ|consent/i, /acord\s+gdpr/i, /înregistrează\s+acord/i],
     function: 'record_consent',
     argExtractors: {
       status: (_match, query) => {
@@ -202,11 +203,7 @@ const INTENT_PATTERNS: Array<{
     },
   },
   {
-    patterns: [
-      /analitice|analytics|statistici|raport/i,
-      /câți\s+lead/i,
-      /conversii|conversion/i,
-    ],
+    patterns: [/analitice|analytics|statistici|raport/i, /câți\s+lead/i, /conversii|conversion/i],
     function: 'get_lead_analytics',
     argExtractors: {
       groupBy: (_match, query) => {
@@ -229,11 +226,11 @@ const INTENT_PATTERNS: Array<{
     function: 'get_patient',
     argExtractors: {
       phone: (_match, query) => {
-        const phoneMatch = query.match(/\+?\d{10,14}/);
+        const phoneMatch = /\+?\d{10,14}/.exec(query);
         return phoneMatch?.[0];
       },
       email: (_match, query) => {
-        const emailMatch = query.match(/[\w.-]+@[\w.-]+\.\w+/);
+        const emailMatch = /[\w.-]+@[\w.-]+\.\w+/.exec(query);
         return emailMatch?.[0];
       },
     },
@@ -256,11 +253,7 @@ const INTENT_PATTERNS: Array<{
     },
   },
   {
-    patterns: [
-      /declanșează\s+workflow/i,
-      /trigger\s+workflow/i,
-      /pornește\s+proces/i,
-    ],
+    patterns: [/declanșează\s+workflow/i, /trigger\s+workflow/i, /pornește\s+proces/i],
     function: 'trigger_workflow',
     argExtractors: {
       workflow: (_match, query) => {
@@ -277,10 +270,7 @@ const INTENT_PATTERNS: Array<{
 /**
  * Detect intent from natural language query
  */
-export function detectIntent(
-  query: string,
-  availableFunctions: AIFunction[]
-): DetectedIntent[] {
+export function detectIntent(query: string, availableFunctions: AIFunction[]): DetectedIntent[] {
   const detectedIntents: DetectedIntent[] = [];
   const availableFunctionNames = new Set(availableFunctions.map((f) => f.name));
 
@@ -409,7 +399,10 @@ export class AIRouter {
         totalExecutionTimeMs: Date.now() - startTime,
         suggestedFollowUp: {
           message: 'Try being more specific or use a direct function call',
-          functions: this.registry.getAllFunctions().slice(0, 5).map((f) => f.name),
+          functions: this.registry
+            .getAllFunctions()
+            .slice(0, 5)
+            .map((f) => f.name),
         },
       };
     }
@@ -551,7 +544,11 @@ export class AIRouter {
    * Transform step input based on previous results
    */
   private transformStepInput(
-    step: { arguments: Record<string, unknown>; dependsOn?: string[] | undefined; transformInput?: string | undefined },
+    step: {
+      arguments: Record<string, unknown>;
+      dependsOn?: string[] | undefined;
+      transformInput?: string | undefined;
+    },
     previousResults: Map<string, AIFunctionResult>
   ): Record<string, unknown> {
     const args = { ...step.arguments };

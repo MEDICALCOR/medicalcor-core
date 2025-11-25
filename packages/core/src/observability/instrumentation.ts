@@ -27,13 +27,12 @@ import {
  * Lazy-load telemetry functions to avoid Edge Runtime errors
  * These are only loaded when actually called, not at module initialization
  */
-let telemetryModule: typeof import('../telemetry.js') | null = null;
+import type * as TelemetryModule from '../telemetry.js';
+
+let telemetryModule: typeof TelemetryModule | null = null;
 
 async function getTelemetryModule() {
-  if (!telemetryModule) {
-    // Dynamic import only loads when called, avoiding Edge Runtime issues
-    telemetryModule = await import('../telemetry.js');
-  }
+  telemetryModule ??= await import('../telemetry.js');
   return telemetryModule;
 }
 
@@ -48,7 +47,9 @@ async function getTracerLazy(name: string, version?: string): Promise<Tracer> {
 /**
  * Add span attributes with lazy loading
  */
-async function addSpanAttributesLazy(attributes: Record<string, string | number | boolean>): Promise<void> {
+async function addSpanAttributesLazy(
+  attributes: Record<string, string | number | boolean>
+): Promise<void> {
   const telemetry = await getTelemetryModule();
   return telemetry.addSpanAttributes(attributes);
 }
@@ -104,6 +105,7 @@ type FastifyLike = any;
  * Instrument a Fastify instance with tracing and metrics
  * Uses generic types to avoid requiring Fastify as a dependency
  */
+/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unnecessary-condition */
 export function instrumentFastify(
   fastify: FastifyLike,
   options: InstrumentationOptions = {}
@@ -118,8 +120,7 @@ export function instrumentFastify(
       return;
     }
 
-    const correlationId =
-      (request.headers['x-correlation-id'] as string) ?? crypto.randomUUID();
+    const correlationId = (request.headers['x-correlation-id'] as string) ?? crypto.randomUUID();
     const traceId = (request.headers['x-trace-id'] as string) ?? crypto.randomUUID();
 
     request.observability = {
@@ -137,7 +138,7 @@ export function instrumentFastify(
       'http.url': request.url,
       'http.route': request.routeOptions?.url ?? request.url,
       'http.user_agent': request.headers['user-agent'] ?? '',
-      'correlation_id': correlationId,
+      correlation_id: correlationId,
     }).catch(() => {
       // Silently fail if telemetry is not available (e.g., Edge Runtime)
     });
@@ -171,7 +172,7 @@ export function instrumentFastify(
     if (!request.observability) return;
 
     await addSpanAttributesLazy({
-      'error': true,
+      error: true,
       'error.type': error.name,
       'error.message': error.message,
     }).catch(() => {
@@ -179,6 +180,7 @@ export function instrumentFastify(
     });
   });
 }
+/* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unnecessary-condition */
 
 // ============================================================================
 // EXTERNAL SERVICE WRAPPER
@@ -213,7 +215,9 @@ export function instrumentExternalCall<TArgs extends unknown[], TResult>(
           tracer,
           `${options.service}.${options.operation}`,
           async (span) => {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
             span.setAttribute('external.service', options.service);
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
             span.setAttribute('external.operation', options.operation);
 
             if (options.timeout) {
@@ -274,10 +278,7 @@ export interface DatabaseClient {
 /**
  * Wrap database client with tracing
  */
-export function instrumentDatabase<T extends DatabaseClient>(
-  client: T,
-  dbName = 'postgres'
-): T {
+export function instrumentDatabase<T extends DatabaseClient>(client: T, dbName = 'postgres'): T {
   const originalQuery = client.query.bind(client);
 
   client.query = async (sql: string, params?: unknown[]): Promise<unknown> => {
@@ -290,8 +291,11 @@ export function instrumentDatabase<T extends DatabaseClient>(
         tracer,
         `db.${operation}`,
         async (span) => {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           span.setAttribute('db.system', dbName);
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           span.setAttribute('db.operation', operation);
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           span.setAttribute('db.statement', sql.slice(0, 100)); // Truncate for safety
 
           const result = await originalQuery(sql, params);
@@ -312,7 +316,12 @@ export function instrumentDatabase<T extends DatabaseClient>(
 // COMMAND/QUERY INSTRUMENTATION MIDDLEWARE
 // ============================================================================
 
-import type { CommandMiddleware, Command, CommandResult, CommandContext } from '../cqrs/command-bus.js';
+import type {
+  CommandMiddleware,
+  Command,
+  CommandResult,
+  CommandContext,
+} from '../cqrs/command-bus.js';
 import type { QueryMiddleware, Query, QueryResult, QueryContext } from '../cqrs/query-bus.js';
 import { commandsExecuted, commandDuration, queriesExecuted, queryDuration } from './metrics.js';
 
