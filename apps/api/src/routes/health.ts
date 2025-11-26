@@ -488,14 +488,45 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
    * POST /health/circuit-breakers/:service/reset
    *
    * Manually reset a circuit breaker (admin only).
+   * SECURITY FIX: Requires API key authentication to prevent DoS attacks.
+   * Without authentication, attackers could repeatedly reset circuit breakers
+   * during service outages, causing cascading failures (e.g., double-charging via Stripe).
    */
   fastify.post<{ Params: { service: string } }>(
     '/health/circuit-breakers/:service/reset',
     async (request, reply) => {
+      // SECURITY: Require API key authentication for circuit breaker reset
+      const apiKey = request.headers['x-api-key'] as string | undefined;
+      const expectedApiKey = process.env.API_SECRET_KEY;
+
+      if (!expectedApiKey) {
+        fastify.log.error('API_SECRET_KEY not configured - circuit breaker reset is disabled');
+        return reply.status(503).send({
+          success: false,
+          message: 'Circuit breaker reset is not available (API key not configured)',
+        });
+      }
+
+      if (!apiKey || apiKey !== expectedApiKey) {
+        fastify.log.warn(
+          { ip: request.ip, service: request.params.service },
+          'Unauthorized circuit breaker reset attempt'
+        );
+        return reply.status(401).send({
+          success: false,
+          message: 'Unauthorized: Valid X-API-Key header required',
+        });
+      }
+
       const { service } = request.params;
 
       try {
         globalCircuitBreakerRegistry.reset(service);
+        // Log successful reset for audit trail
+        fastify.log.info(
+          { service, ip: request.ip },
+          'Circuit breaker reset by authenticated request'
+        );
         return {
           success: true,
           message: `Circuit breaker for ${service} has been reset`,

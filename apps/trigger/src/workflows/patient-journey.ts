@@ -629,36 +629,104 @@ export const bookingAgentWorkflow = task({
     }
 
     // ============================================
-    // Step 3: Book the selected slot
+    // Step 3: Book the selected slot (with race condition handling)
     // ============================================
     logger.info('Booking selected slot', { slotId: selectedSlot.id, correlationId });
 
     let appointment: Appointment;
-    try {
-      const bookingInput: {
-        slotId: string;
-        patientPhone: string;
-        procedureType: string;
-        hubspotContactId?: string;
-        metadata?: Record<string, unknown>;
-        patientName?: string;
-        patientEmail?: string;
-      } = {
-        slotId: selectedSlot.id,
-        patientPhone: phone,
-        procedureType,
-        hubspotContactId,
-        metadata: { correlationId },
-      };
-      if (patientName) {
-        bookingInput.patientName = patientName;
+    const MAX_BOOKING_RETRIES = 3;
+    let bookingAttempt = 0;
+    let lastBookingError: unknown;
+
+    // RACE CONDITION FIX: Retry booking if slot was taken by another user
+    // The database uses FOR UPDATE locking, but we may still get "Slot already booked"
+    // if another transaction committed between our slot check and booking attempt
+    while (bookingAttempt < MAX_BOOKING_RETRIES) {
+      bookingAttempt++;
+      try {
+        const bookingInput: {
+          slotId: string;
+          patientPhone: string;
+          procedureType: string;
+          hubspotContactId?: string;
+          metadata?: Record<string, unknown>;
+          patientName?: string;
+          patientEmail?: string;
+        } = {
+          slotId: selectedSlot.id,
+          patientPhone: phone,
+          procedureType,
+          hubspotContactId,
+          metadata: { correlationId },
+        };
+        if (patientName) {
+          bookingInput.patientName = patientName;
+        }
+        if (patientEmail) {
+          bookingInput.patientEmail = patientEmail;
+        }
+        appointment = await scheduling.bookAppointment(bookingInput);
+        break; // Success - exit the retry loop
+      } catch (error) {
+        lastBookingError = error;
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        // Check if this is a race condition error (slot already booked)
+        if (errorMessage.includes('Slot already booked') || errorMessage.includes('Slot not found')) {
+          logger.warn('Slot no longer available due to race condition, fetching fresh slots', {
+            slotId: selectedSlot.id,
+            attempt: bookingAttempt,
+            correlationId,
+          });
+
+          if (bookingAttempt < MAX_BOOKING_RETRIES) {
+            // Fetch fresh available slots
+            try {
+              const freshSlots = await scheduling.getAvailableSlots({
+                procedureType,
+                limit: 5,
+              });
+
+              if (freshSlots.length > 0) {
+                // Pick the first available slot and retry
+                selectedSlot = freshSlots[0]!;
+                logger.info('Retrying with new slot', {
+                  newSlotId: selectedSlot.id,
+                  attempt: bookingAttempt,
+                  correlationId,
+                });
+                continue; // Retry with new slot
+              } else {
+                logger.warn('No alternative slots available', { correlationId });
+                break; // Exit loop - no slots to try
+              }
+            } catch (fetchError) {
+              logger.error('Failed to fetch alternative slots', {
+                error: fetchError,
+                correlationId,
+              });
+              break; // Exit loop on fetch error
+            }
+          }
+        } else {
+          // Non-race-condition error - don't retry
+          logger.error('Failed to book appointment', {
+            error,
+            slotId: selectedSlot.id,
+            correlationId,
+          });
+          break;
+        }
       }
-      if (patientEmail) {
-        bookingInput.patientEmail = patientEmail;
-      }
-      appointment = await scheduling.bookAppointment(bookingInput);
-    } catch (error) {
-      logger.error('Failed to book appointment', { error, slotId: selectedSlot.id, correlationId });
+    }
+
+    // Check if booking was successful
+    if (!appointment!) {
+      logger.error('All booking attempts failed', {
+        attempts: bookingAttempt,
+        lastError: lastBookingError,
+        correlationId,
+      });
 
       if (whatsapp) {
         await whatsapp.sendText({
@@ -669,10 +737,11 @@ export const bookingAgentWorkflow = task({
 
       return {
         success: false,
-        error: 'Failed to book appointment',
+        error: 'Failed to book appointment after retries',
         hubspotContactId,
         procedureType,
         slotId: selectedSlot.id,
+        attempts: bookingAttempt,
       };
     }
 

@@ -89,8 +89,14 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
     const signature = request.headers['x-hub-signature-256'] as string | undefined;
 
     try {
-      // Verify HMAC signature (timing-safe)
-      const rawBody = JSON.stringify(request.body);
+      // SECURITY FIX: Use raw body for signature verification, NOT re-serialized JSON
+      // The signature is computed against the exact bytes received, not a re-serialized version
+      // JSON.stringify(request.body) could produce different output due to key ordering/whitespace
+      const rawBody = (request as unknown as { rawBody?: string }).rawBody;
+      if (!rawBody) {
+        fastify.log.error({ correlationId }, 'Raw body not available for signature verification');
+        throw new WebhookSignatureError('Raw body not available');
+      }
       if (!verifySignature(rawBody, signature)) {
         fastify.log.warn({ correlationId }, 'WhatsApp webhook signature verification failed');
         throw new WebhookSignatureError('Invalid WhatsApp webhook signature');
