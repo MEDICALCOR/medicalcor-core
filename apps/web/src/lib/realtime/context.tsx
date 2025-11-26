@@ -1,8 +1,9 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useWebSocket } from './use-websocket';
+import { RingBuffer, REALTIME_MEMORY_LIMITS } from './ring-buffer';
 import type {
   ConnectionState,
   LeadCreatedPayload,
@@ -82,10 +83,20 @@ function formatTimeAgo(date: Date): string {
 
 export function RealtimeProvider({ children, wsUrl }: RealtimeProviderProps) {
   const { data: session, status: sessionStatus } = useSession();
+
+  // Use Ring Buffers for memory-bounded storage
+  // This prevents infinite memory growth when tab is open for 8+ hours
+  const leadsBufferRef = useRef(new RingBuffer<Lead>(REALTIME_MEMORY_LIMITS.LEADS));
+  const urgenciesBufferRef = useRef(new RingBuffer<Urgency>(REALTIME_MEMORY_LIMITS.URGENCIES));
+
+  // State that triggers re-renders (derived from buffers)
   const [leads, setLeads] = useState<Lead[]>([]);
   const [urgencies, setUrgencies] = useState<Urgency[]>([]);
   const [readUrgencies, setReadUrgencies] = useState<Set<string>>(new Set());
   const [authError, setAuthError] = useState<string | null>(null);
+
+  // Cleanup interval ref for proper cleanup
+  const cleanupIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Use environment variable or provided URL
   const url = wsUrl ?? process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:3001/ws';
@@ -151,7 +162,7 @@ export function RealtimeProvider({ children, wsUrl }: RealtimeProviderProps) {
     }
   }, [sessionStatus, authToken, connect, disconnect]);
 
-  // Handle new lead events
+  // Handle new lead events - using Ring Buffer for memory safety
   useEffect(() => {
     const unsubscribe = subscribe<LeadCreatedPayload>('lead.created', (event) => {
       const newLead: Lead = {
@@ -162,35 +173,38 @@ export function RealtimeProvider({ children, wsUrl }: RealtimeProviderProps) {
         message: event.data.message,
       };
 
-      setLeads((prev) => [newLead, ...prev].slice(0, 50)); // Keep max 50 leads
+      // Add to ring buffer (automatically evicts oldest if at capacity)
+      leadsBufferRef.current.push(newLead);
+      // Update state from buffer (newest first for display)
+      setLeads(leadsBufferRef.current.toArrayReversed());
     });
 
     return unsubscribe;
   }, [subscribe]);
 
-  // Handle lead scored events
+  // Handle lead scored events - update in ring buffer
   useEffect(() => {
     const unsubscribe = subscribe<LeadScoredPayload>('lead.scored', (event) => {
-      setLeads((prev) =>
-        prev.map((lead) =>
-          lead.id === event.data.leadId
-            ? {
-                ...lead,
-                score: event.data.score,
-                classification: event.data.classification,
-                confidence: event.data.confidence,
-                reasoning: event.data.reasoning,
-                procedureInterest: event.data.procedureInterest,
-              }
-            : lead
-        )
+      // Update lead in buffer
+      leadsBufferRef.current.update(
+        (lead) => lead.id === event.data.leadId,
+        (lead) => ({
+          ...lead,
+          score: event.data.score,
+          classification: event.data.classification,
+          confidence: event.data.confidence,
+          reasoning: event.data.reasoning,
+          procedureInterest: event.data.procedureInterest,
+        })
       );
+      // Update state from buffer
+      setLeads(leadsBufferRef.current.toArrayReversed());
     });
 
     return unsubscribe;
   }, [subscribe]);
 
-  // Handle urgency events
+  // Handle urgency events - using Ring Buffer for memory safety
   useEffect(() => {
     const unsubscribe = subscribe<UrgencyPayload>('urgency.new', (event) => {
       const newUrgency: Urgency = {
@@ -203,20 +217,65 @@ export function RealtimeProvider({ children, wsUrl }: RealtimeProviderProps) {
         createdAt: new Date(event.timestamp),
       };
 
-      setUrgencies((prev) => [newUrgency, ...prev].slice(0, 100)); // Cap to prevent unbounded growth
+      // Add to ring buffer (automatically evicts oldest if at capacity)
+      urgenciesBufferRef.current.push(newUrgency);
+      // Update state from buffer (newest first for display)
+      setUrgencies(urgenciesBufferRef.current.toArrayReversed());
     });
 
     return unsubscribe;
   }, [subscribe]);
 
-  // Handle urgency resolved
+  // Handle urgency resolved - remove from buffer
   useEffect(() => {
     const unsubscribe = subscribe<{ id: string }>('urgency.resolved', (event) => {
-      setUrgencies((prev) => prev.filter((u) => u.id !== event.data.id));
+      // Remove from ring buffer
+      urgenciesBufferRef.current.remove((u) => u.id === event.data.id);
+      // Update state from buffer
+      setUrgencies(urgenciesBufferRef.current.toArrayReversed());
     });
 
     return unsubscribe;
   }, [subscribe]);
+
+  // Periodic cleanup of read urgencies to prevent memory leaks
+  // This cleans up the readUrgencies Set which could grow unbounded
+  useEffect(() => {
+    cleanupIntervalRef.current = setInterval(() => {
+      const now = Date.now();
+      const maxAge = REALTIME_MEMORY_LIMITS.READ_URGENCY_MAX_AGE_MS;
+
+      // Clean up read urgencies that are no longer in the buffer
+      setReadUrgencies((prev) => {
+        const currentUrgencyIds = new Set(urgenciesBufferRef.current.map((u) => u.id));
+        const cleaned = new Set<string>();
+
+        for (const id of prev) {
+          // Keep only if urgency still exists in buffer
+          if (currentUrgencyIds.has(id)) {
+            cleaned.add(id);
+          }
+        }
+
+        // Also clean up old urgencies from buffer that were read
+        const cutoffTime = new Date(now - maxAge);
+        urgenciesBufferRef.current.remove(
+          (u) => prev.has(u.id) && u.createdAt < cutoffTime
+        );
+
+        return cleaned;
+      });
+
+      // Update urgencies state after cleanup
+      setUrgencies(urgenciesBufferRef.current.toArrayReversed());
+    }, REALTIME_MEMORY_LIMITS.CLEANUP_INTERVAL_MS);
+
+    return () => {
+      if (cleanupIntervalRef.current) {
+        clearInterval(cleanupIntervalRef.current);
+      }
+    };
+  }, []);
 
   const markUrgencyRead = useCallback((id: string) => {
     setReadUrgencies((prev) => new Set([...prev, id]));

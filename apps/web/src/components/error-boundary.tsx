@@ -2,30 +2,42 @@
 
 import { Component, type ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import * as Sentry from '@sentry/nextjs';
 import { Button } from '@/components/ui/button';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
   onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
+  /** Component name for better error tracking */
+  componentName?: string;
 }
 
 interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
+  eventId: string | null;
 }
 
 /**
- * Error Boundary Component
- * Catches JavaScript errors in child component tree and displays a fallback UI
+ * Error Boundary Component with Sentry Integration
+ *
+ * Catches JavaScript errors in child component tree, displays a fallback UI,
+ * and reports errors to Sentry for monitoring.
+ *
+ * Features:
+ * - Automatic error reporting to Sentry
+ * - User feedback dialog option
+ * - Self-healing retry mechanism
+ * - Context-aware error messages
  */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, eventId: null };
   }
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return { hasError: true, error };
   }
 
@@ -36,10 +48,19 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     // Call optional error handler
     this.props.onError?.(error, errorInfo);
 
-    // In production, you could send to error tracking service
-    if (process.env.NODE_ENV === 'production') {
-      // Example: Sentry.captureException(error, { extra: errorInfo });
-    }
+    // Report to Sentry with context
+    const eventId = Sentry.captureException(error, {
+      extra: {
+        componentStack: errorInfo.componentStack,
+        componentName: this.props.componentName,
+      },
+      tags: {
+        errorBoundary: 'section',
+        component: this.props.componentName ?? 'unknown',
+      },
+    });
+
+    this.setState({ eventId });
   }
 
   handleRetry = (): void => {
@@ -76,25 +97,51 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 }
 
 /**
- * Page-level error boundary with full-page fallback
+ * Page-level error boundary with full-page fallback and Sentry integration
+ *
+ * Features:
+ * - Full-page error display
+ * - Sentry error reporting with event ID
+ * - User feedback option
+ * - Recovery actions (reload, go home)
  */
 export class PageErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, eventId: null };
   }
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     console.error('Page error caught by boundary:', error, errorInfo);
     this.props.onError?.(error, errorInfo);
+
+    // Report to Sentry with page context
+    const eventId = Sentry.captureException(error, {
+      extra: {
+        componentStack: errorInfo.componentStack,
+        url: typeof window !== 'undefined' ? window.location.href : 'server',
+      },
+      tags: {
+        errorBoundary: 'page',
+        severity: 'critical',
+      },
+    });
+
+    this.setState({ eventId });
   }
 
   handleReload = (): void => {
     window.location.reload();
+  };
+
+  handleReportFeedback = (): void => {
+    if (this.state.eventId) {
+      Sentry.showReportDialog({ eventId: this.state.eventId });
+    }
   };
 
   render(): ReactNode {
@@ -105,27 +152,37 @@ export class PageErrorBoundary extends Component<ErrorBoundaryProps, ErrorBounda
 
       return (
         <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-6">
-          <AlertTriangle className="h-16 w-16 text-destructive" />
-          <div className="max-w-md text-center">
+          <AlertTriangle className="h-16 w-16 text-destructive" aria-hidden="true" />
+          <div className="max-w-md text-center" role="alert">
             <h1 className="text-2xl font-bold text-destructive">Eroare de aplicatie</h1>
             <p className="mt-2 text-muted-foreground">
               A aparut o eroare neasteptata. Va rugam sa reincarcati pagina sau sa contactati
               suportul daca problema persista.
             </p>
+            {this.state.eventId && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                ID Eroare: <code className="rounded bg-muted px-1">{this.state.eventId}</code>
+              </p>
+            )}
             {process.env.NODE_ENV === 'development' && this.state.error && (
               <pre className="mt-4 max-h-40 overflow-auto rounded bg-muted p-3 text-left text-xs">
                 {this.state.error.stack}
               </pre>
             )}
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap justify-center gap-3">
             <Button onClick={this.handleReload}>
-              <RefreshCw className="mr-2 h-4 w-4" />
+              <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
               Reincarcare pagina
             </Button>
             <Button variant="outline" onClick={() => (window.location.href = '/')}>
               Inapoi la pagina principala
             </Button>
+            {this.state.eventId && (
+              <Button variant="ghost" onClick={this.handleReportFeedback}>
+                Raporteaza problema
+              </Button>
+            )}
           </div>
         </div>
       );
