@@ -29,6 +29,7 @@ jobs:
   changes:
     name: Detect Changes
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       pull-requests: read
     outputs:
@@ -67,6 +68,7 @@ jobs:
   dependency-review:
     name: Dependency Review
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: github.event_name == 'pull_request'
     permissions:
       contents: read
@@ -88,6 +90,7 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [changes]
     if: needs.changes.outputs.src == 'true' || github.ref == 'refs/heads/main'
     steps:
@@ -120,6 +123,7 @@ jobs:
   typecheck:
     name: Type Check
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [changes]
     if: needs.changes.outputs.src == 'true' || github.ref == 'refs/heads/main'
     steps:
@@ -149,6 +153,7 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [changes]
     if: needs.changes.outputs.src == 'true' || github.ref == 'refs/heads/main'
     steps:
@@ -185,6 +190,7 @@ jobs:
   e2e:
     name: E2E Tests (${{ matrix.shard }}/${{ matrix.total-shards }})
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [changes, test]
     if: needs.changes.outputs.src == 'true' || github.ref == 'refs/heads/main'
     strategy:
@@ -251,6 +257,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [lint, typecheck, test, e2e]
     steps:
       - name: Checkout
@@ -288,6 +295,7 @@ jobs:
   docker:
     name: Docker Build
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: [build]
     if: github.ref == 'refs/heads/main'
     permissions:
@@ -339,6 +347,7 @@ jobs:
   security:
     name: Security Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [changes]
     if: needs.changes.outputs.src == 'true' || needs.changes.outputs.deps == 'true' || github.ref == 'refs/heads/main'
     permissions:
@@ -420,6 +429,7 @@ jobs:
   secrets-scan:
     name: Secrets Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -437,6 +447,7 @@ jobs:
   license-check:
     name: License Compliance
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [changes]
     if: needs.changes.outputs.deps == 'true' || github.ref == 'refs/heads/main'
     steps:
@@ -471,6 +482,7 @@ jobs:
   scorecard:
     name: OpenSSF Scorecard
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: github.ref == 'refs/heads/main'
     permissions:
       security-events: write
@@ -499,6 +511,7 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: [lint, typecheck, test, e2e, build, security, secrets-scan]
     if: always()
     steps:

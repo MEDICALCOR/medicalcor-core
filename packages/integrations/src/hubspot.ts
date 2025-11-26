@@ -541,8 +541,29 @@ export class HubSpotClient {
 
         if (response.status === 429) {
           // Rate limited - extract retry-after header
-          const retryAfter = parseInt(response.headers.get('Retry-After') ?? '5', 10);
-          throw new RateLimitError(retryAfter);
+          // CRITICAL FIX: Handle both seconds and HTTP-date formats per RFC 7231
+          const retryAfterHeader = response.headers.get('Retry-After');
+          let retryAfterSeconds = 5; // Default fallback
+
+          if (retryAfterHeader) {
+            // Try parsing as seconds first (most common)
+            const parsedSeconds = parseInt(retryAfterHeader, 10);
+            if (!isNaN(parsedSeconds) && parsedSeconds > 0) {
+              // Clamp to reasonable range (1 second to 1 hour)
+              retryAfterSeconds = Math.min(Math.max(parsedSeconds, 1), 3600);
+            } else {
+              // Try parsing as HTTP-date (e.g., "Fri, 31 Dec 1999 23:59:59 GMT")
+              const retryDate = new Date(retryAfterHeader);
+              if (!isNaN(retryDate.getTime())) {
+                const diffMs = retryDate.getTime() - Date.now();
+                const diffSeconds = Math.ceil(diffMs / 1000);
+                // Clamp to reasonable range
+                retryAfterSeconds = Math.min(Math.max(diffSeconds, 1), 3600);
+              }
+            }
+          }
+
+          throw new RateLimitError(retryAfterSeconds);
         }
 
         if (!response.ok) {

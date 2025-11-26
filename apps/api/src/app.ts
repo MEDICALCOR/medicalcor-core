@@ -129,7 +129,16 @@ async function buildApp() {
   const corsOrigins = parseCorsOrigins();
   const trustedProxies = parseTrustedProxies();
 
+  // SECURITY: Configure body size limits to prevent DoS attacks
+  // Default limits prevent memory exhaustion from large payloads
+  const MAX_BODY_SIZE = parseInt(process.env.MAX_BODY_SIZE ?? '1048576', 10); // 1MB default
+  const MAX_PARAM_LENGTH = parseInt(process.env.MAX_PARAM_LENGTH ?? '100', 10);
+
   const fastify = Fastify({
+    // SECURITY: Limit body size to prevent memory exhaustion attacks
+    bodyLimit: MAX_BODY_SIZE,
+    // SECURITY: Limit URL parameters length
+    maxParamLength: MAX_PARAM_LENGTH,
     logger: {
       level: process.env.LOG_LEVEL ?? 'info',
       // Use custom serializers for PII redaction

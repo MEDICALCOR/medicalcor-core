@@ -299,9 +299,10 @@ export function retryMiddleware(options: {
       lastError = result;
 
       if (attempt < options.maxRetries) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, options.backoffMs * Math.pow(2, attempt))
-        );
+        // CRITICAL FIX: Cap delay to prevent overflow for large attempt counts
+        const maxDelayMs = 30000; // 30 seconds max
+        const delay = Math.min(options.backoffMs * Math.pow(2, attempt), maxDelayMs);
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
 

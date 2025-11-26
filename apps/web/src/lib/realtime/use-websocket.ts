@@ -1,12 +1,47 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { z } from 'zod';
 import type {
   ConnectionState,
   RealtimeEvent,
   RealtimeEventHandler,
   RealtimeEventType,
 } from './types';
+
+/**
+ * SECURITY FIX: Zod schema for validating incoming WebSocket messages
+ * Prevents processing of malformed or malicious payloads
+ */
+const RealtimeEventSchema = z.object({
+  id: z.string().max(100),
+  type: z.enum([
+    'lead.created',
+    'lead.updated',
+    'lead.scored',
+    'lead.assigned',
+    'message.received',
+    'message.sent',
+    'call.started',
+    'call.ended',
+    'appointment.created',
+    'appointment.updated',
+    'appointment.cancelled',
+    'task.created',
+    'task.completed',
+    'urgency.new',
+    'urgency.resolved',
+    'auth_success',
+    'auth_error',
+  ]),
+  timestamp: z.string(),
+  data: z.unknown(),
+});
+
+/**
+ * Maximum message size to process (prevents memory exhaustion)
+ */
+const MAX_MESSAGE_SIZE = 1024 * 1024; // 1MB
 
 interface UseWebSocketOptions {
   url: string;
@@ -145,7 +180,22 @@ export function useWebSocket(options: UseWebSocketOptions) {
 
       ws.onmessage = (event: MessageEvent<string>) => {
         try {
-          const realtimeEvent = JSON.parse(event.data) as RealtimeEvent;
+          // SECURITY: Check message size before parsing
+          if (typeof event.data === 'string' && event.data.length > MAX_MESSAGE_SIZE) {
+            console.warn('[WebSocket] Message too large, ignoring');
+            return;
+          }
+
+          const rawData: unknown = JSON.parse(event.data);
+
+          // SECURITY: Validate message structure with Zod schema
+          const parseResult = RealtimeEventSchema.safeParse(rawData);
+          if (!parseResult.success) {
+            console.warn('[WebSocket] Invalid message format:', parseResult.error.issues);
+            return;
+          }
+
+          const realtimeEvent = parseResult.data as RealtimeEvent;
 
           // Handle authentication success from server
           if (realtimeEvent.type === 'auth_success') {
