@@ -46,6 +46,7 @@ export const authConfig: NextAuthConfig = {
       const isPublicPath =
         nextUrl.pathname === '/login' ||
         nextUrl.pathname === '/offline' ||
+        nextUrl.pathname === '/crm' || // Temporary for CRM demo testing
         nextUrl.pathname.startsWith('/api/auth');
 
       if (isPublicPath) {
@@ -103,9 +104,10 @@ export const authConfig: NextAuthConfig = {
 
         // Extract request context for audit logging
         const context = {
-          ipAddress: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-                     request.headers.get('x-real-ip') ??
-                     'unknown',
+          ipAddress:
+            request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+            request.headers.get('x-real-ip') ??
+            'unknown',
           userAgent: request.headers.get('user-agent') ?? undefined,
         };
 
