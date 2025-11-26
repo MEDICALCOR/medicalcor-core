@@ -1,132 +1,151 @@
 # Script Demo Video - MedicalCor Core
 
 **Durată:** 3-4 minute
-**Format:** Prezentare tehnică pentru dezvoltatori
-**Ton:** Direct, profesional, convingător
+**Format:** Prezentare pentru dezvoltatori și stakeholderi tehnici
+**Ton:** Orientat spre beneficii, profesional, convingător
 
 ---
 
-## SECȚIUNEA 1: Intro (0:00 - 0:20)
+## SECȚIUNEA 1: Problema și Soluția (0:00 - 0:25)
 
 **[ECRAN: Logo MedicalCor Core]**
 
 > „Salut, sunt [NUME], developer pe proiectul **MedicalCor Core**.
 >
-> MedicalCor este o platformă CRM pentru clinici medicale care folosește AI pentru a califica automat pacienții, centralizează comunicarea multi-canal și gestionează conformitatea GDPR — într-o arhitectură modernă, extensibilă.
+> Clinicile medicale pierd pacienți pentru că nu răspund suficient de rapid, nu prioritizează corect urgențele, și jonglează între prea multe canale de comunicare.
 >
-> Hai să vă arăt ce am construit."
+> **MedicalCor rezolvă asta**: califică automat pacienții cu AI, centralizează toate conversațiile, și automatizează follow-up-ul — fără să pierzi conformitatea GDPR.
+>
+> Rezultatul? Timp de răspuns redus, mai puține lead-uri pierdute, echipă mai eficientă."
 
 ---
 
-## SECȚIUNEA 2: Funcționalități (0:20 - 1:40)
+## SECȚIUNEA 2: Beneficii Cheie (0:25 - 1:40)
 
-### 2.1 Calificare Automată cu AI (0:20 - 0:45)
+### 2.1 Prioritizare Instantanee cu AI (0:25 - 0:50)
 
 **[ECRAN: Flux animat — mesaj intră → analiză AI → scor afișat]**
 
-> „Funcționalitatea centrală: **lead scoring automat**.
+> „**Problema**: recepția petrece timp prețios citind fiecare mesaj pentru a decide cine e urgent.
 >
-> Un mesaj intră pe WhatsApp. Sistemul îl trimite la GPT-4o, care analizează intenția și returnează un scor: HOT, WARM sau COLD.
+> **Soluția**: AI-ul analizează mesajele în sub 3 secunde și clasifică automat: HOT, WARM sau COLD.
 >
-> Dacă pacientul menționează durere sau urgență, scorul crește automat. Avem și un fallback pe reguli, pentru cazurile în care API-ul OpenAI nu răspunde."
+> Un pacient care scrie 'mă doare măseaua, e urgent' primește scor HOT instant. Recepția primește notificare prioritară. Pacientul primește confirmare automată.
+>
+> **Beneficiu**: zero lead-uri urgente ratate, timp de răspuns sub 5 minute pentru cazuri critice."
 
-### 2.2 Inbox Unificat (0:45 - 1:05)
+### 2.2 Un Singur Inbox, Zero Mesaje Pierdute (0:50 - 1:10)
 
 **[ECRAN: Dashboard inbox — conversații demo]**
 
-> „Toată comunicarea — WhatsApp, apeluri, email — ajunge într-un singur loc.
+> „**Problema**: echipa verifică WhatsApp, email, apeluri — în aplicații separate. Mesaje se pierd.
 >
-> Recepția vede conversațiile în timp real și poate răspunde direct. Nu mai există tab-uri separate, nu mai există mesaje pierdute."
+> **Soluția**: tot ce intră — WhatsApp, apeluri, email — ajunge într-un singur loc, în timp real.
+>
+> **Beneficiu**: productivitate crescută, vizibilitate completă, niciun pacient uitat."
 
-### 2.3 Workflow-uri Automate (1:05 - 1:25)
+### 2.3 Follow-up Automat, Conversie Mai Mare (1:10 - 1:25)
 
 **[ECRAN: Diagramă simplificată — scor → acțiune]**
 
-> „Pe baza scorului, sistemul acționează singur:
+> „**Problema**: lead-urile WARM sunt ignorate pentru că echipa se concentrează pe urgențe.
 >
-> - Scor HOT: se creează task prioritar în CRM, notificare imediată
-> - Scor WARM: se declanșează o secvență de nurturing
-> - Programări: reminder automat la 24h și 2h înainte
+> **Soluția**: sistemul trimite automat secvențe de nurturing personalizate:
+> - Lead HOT → task prioritar în CRM, deadline 30 minute
+> - Lead WARM → secvență automată pe 14 zile
+> - Programări → remindere la 24h și 2h
 >
-> Fiecare mesaj trimis este condiționat de consimțământul GDPR al pacientului."
+> **Beneficiu**: conversie mai mare fără efort manual suplimentar."
 
-### 2.4 Audit și Conformitate (1:25 - 1:40)
+### 2.4 Conformitate Fără Efort (1:25 - 1:40)
 
 **[ECRAN: Pagină audit log — date anonimizate]**
 
-> „Avem event sourcing complet. Fiecare acțiune este logată, consimțământul se verifică automat, iar datele personale sunt redactate din log-uri. Gata de audit oricând."
+> „**Problema**: GDPR înseamnă risc legal și audit-uri stresante.
+>
+> **Soluția**: consimțământul se verifică automat înainte de fiecare mesaj. Audit trail complet. Datele personale redactate din log-uri.
+>
+> **Beneficiu**: gata de audit oricând, zero risc de amenzi."
 
 ---
 
-## SECȚIUNEA 3: Arhitectură (1:40 - 2:20)
+## SECȚIUNEA 3: Fundație Tehnică Solidă (1:40 - 2:20)
 
 **[ECRAN: Diagramă arhitectură — 3 layere]**
 
-> „Arhitectura este împărțită în trei componente principale."
+> „Pentru developeri: arhitectura e construită pentru scalabilitate și fiabilitate."
 
 ### Backend (1:45 - 2:00)
 
 **[ECRAN: Stack backend]**
 
-> „**API Gateway** cu Fastify și TypeScript strict. Validare cu Zod pe toate inputurile.
+> „**Fastify + TypeScript** — performanță de 2x față de Express, type safety complet.
 >
-> **Workflow engine** cu Trigger.dev — durabil, cu retry automat, ideal pentru operații critice.
+> **Trigger.dev** pentru workflow-uri — durabil, cu retry automat. Dacă cade serverul, job-ul continuă de unde a rămas. Zero mesaje pierdute.
 >
-> **Storage**: PostgreSQL pentru date, Redis pentru cache și rate limiting."
+> **PostgreSQL + Redis** — scalabil, battle-tested."
 
 ### Frontend (2:00 - 2:10)
 
 **[ECRAN: Stack frontend]**
 
-> „Dashboard-ul rulează pe **Next.js 15** cu **React 19**. Componente din Radix UI, stilizare cu Tailwind. Autentificare prin NextAuth."
+> „**Next.js 15 + React 19** — cel mai recent stack, performanță optimă.
+>
+> Dashboard responsive, componente Radix UI, autentificare securizată."
 
 ### Integrări (2:10 - 2:20)
 
 **[ECRAN: Logo-uri — HubSpot, Twilio, Stripe, OpenAI]**
 
-> „Integrări funcționale: **HubSpot** pentru CRM, **Twilio** pentru voce, **Stripe** pentru plăți, **OpenAI** pentru AI. Toate cu webhook-uri semnate și verificate."
+> „Integrări production-ready: **HubSpot**, **Twilio**, **Stripe**, **OpenAI**.
+>
+> Toate cu webhook-uri semnate criptografic — zero vulnerabilități la spoofing."
 
 ---
 
-## SECȚIUNEA 4: Status Proiect (2:20 - 3:00)
+## SECȚIUNEA 4: Status și Oportunitate (2:20 - 3:00)
 
 **[ECRAN: Checklist status]**
 
-> „Suntem în versiunea 0.1, dezvoltare activă."
+> „Suntem în versiunea 0.1 — momentul ideal să te alături."
 
-### Funcțional acum (2:25 - 2:40)
+### Ce e Gata (2:25 - 2:40)
 
-> „Ce merge:
+> „Funcțional acum:
 >
-> - Lead scoring AI cu fallback
+> - Lead scoring AI cu fallback automat
 > - Integrare completă WhatsApp
 > - Workflow-uri durabile, testate
 > - Dashboard funcțional
-> - Health checks pentru deploy Kubernetes
-> - Documentație tehnică actualizată"
+> - Deployment-ready pentru Kubernetes
+> - Documentație tehnică completă"
 
-### În plan (2:40 - 3:00)
+### Oportunități de Contribuție (2:40 - 3:00)
 
 **[ECRAN: Roadmap vizual]**
 
-> „Ce urmează:
+> „Ce construim next:
 >
-> - Dashboard analytics extins
-> - Integrare calendar pentru booking online
-> - Modul telemedicină
-> - Teste de load și optimizări de performanță"
+> - Analytics dashboard — metrici de conversie, performanță echipă
+> - Booking online — integrare calendar
+> - Telemedicină — consultații video integrate
+>
+> Fiecare feature e o oportunitate să ai impact real într-un produs healthcare."
 
 ---
 
-## SECȚIUNEA 5: Cum Poți Contribui (3:00 - 3:25)
+## SECȚIUNEA 5: De Ce Să Te Alături (3:00 - 3:30)
 
 **[ECRAN: Call to action]**
 
-> „Proiectul este deschis pentru colaborare.
+> „**De ce MedicalCor?**
 >
-> Căutăm developeri cu experiență în **TypeScript**, **Node.js**, **React** sau **sisteme distribuite**. Dacă te pasionează healthcare tech, cu atât mai bine.
+> - **Impact real**: ajuți clinici să trateze pacienți mai eficient
+> - **Stack modern**: TypeScript, Next.js 15, Trigger.dev — tehnologii de viitor
+> - **Cod curat**: arhitectură modulară, documentație completă, onboarding rapid
+> - **Comunitate**: colaborare deschisă, feedback direct, contribuții vizibile
 >
-> Documentația e completă, codul e curat, onboarding-ul e rapid.
+> Căutăm developeri cu experiență în **TypeScript**, **Node.js**, **React** sau **sisteme distribuite**.
 >
 > **Scrie-mi dacă vrei să contribui.** Link în descriere.
 >
@@ -142,122 +161,141 @@
 
 ---
 
-## MODUL A: Demo Live — Walkthrough Interfață (3:00)
+## MODUL A: Demo Live — Experiența Utilizatorului (3:00)
 
 **[ECRAN: Browser cu dashboard-ul deschis]**
 
-> „Hai să parcurgem interfața pas cu pas."
+> „Să vedem cum arată o zi de lucru cu MedicalCor."
 
-### A.1 Autentificare și Dashboard Principal (0:00 - 0:30)
+### A.1 Start Rapid: Dashboard-ul Principal (0:00 - 0:30)
 
 **[ECRAN: Pagina de login → redirect la dashboard]**
 
-> „Login-ul folosește NextAuth cu suport pentru multiple provideri. După autentificare, ajungi pe dashboard-ul principal.
+> „Dimineața, recepția deschide dashboard-ul și vede instant:
 >
-> Aici vezi: lead-uri noi, conversații active, programări de azi, și metrici de performanță. Totul actualizat în timp real."
+> - Câte lead-uri noi au intrat peste noapte
+> - Conversații care așteaptă răspuns
+> - Programările de azi
+> - Metrici de performanță
+>
+> **Beneficiu**: în 5 secunde știi exact ce ai de făcut. Zero timp pierdut verificând multiple aplicații."
 
-### A.2 Inbox și Conversații (0:30 - 1:15)
+### A.2 Inbox Unificat: Răspuns Rapid (0:30 - 1:15)
 
 **[ECRAN: Navigare la Messages → selectare conversație]**
 
-> „În secțiunea Messages ai inbox-ul unificat.
+> „Un pacient a scris pe WhatsApp aseară. În inbox vezi:
 >
-> Lista din stânga arată toate conversațiile, sortate după ultima activitate. Poți filtra după canal: WhatsApp, Voice, Email.
+> - Mesajul, cu scorul AI deja calculat (HOT)
+> - Istoricul complet al conversației
+> - Detalii pacient: consimțământ GDPR, note, programări anterioare
 >
-> Când selectezi o conversație, vezi istoricul complet. În dreapta — detalii despre pacient: scor AI, consimțământ GDPR, note anterioare.
+> Răspunzi direct din platformă — fără să deschizi altă aplicație.
 >
-> Răspunsul se trimite direct din platformă. Pentru WhatsApp, mesajul pleacă prin 360dialog API."
+> **Beneficiu**: timp de răspuns redus dramatic, context complet la un click."
 
-### A.3 Managementul Pacienților (1:15 - 1:45)
+### A.3 Fișa Pacientului: Tot Ce Trebuie Să Știi (1:15 - 1:45)
 
 **[ECRAN: Navigare la Patients → detalii pacient]**
 
-> „Secțiunea Patients e directorul complet.
+> „Click pe pacient și vezi totul:
 >
-> Fiecare pacient are fișă: date de contact, istoric conversații, programări, documente atașate. Totul într-un singur loc.
+> - Date contact, istoric conversații, documente
+> - Programări trecute și viitoare
+> - Status lead și notițe echipă
 >
-> Poți adăuga note, schimba statusul, sau declanșa manual un workflow."
+> Poți declanșa manual un workflow sau schimba statusul cu un click.
+>
+> **Beneficiu**: zero căutări în multiple sisteme, informație centralizată."
 
-### A.4 Programări și Calendar (1:45 - 2:15)
+### A.4 Programări: Vizibilitate și Control (1:45 - 2:15)
 
 **[ECRAN: Navigare la Booking → calendar view]**
 
-> „În Booking vezi calendarul cu toate programările.
+> „Calendarul arată toate programările — pe zi sau săptămână.
 >
-> View săptămânal sau zilnic. Poți crea programări noi, reprograma, sau anula. Sistemul trimite automat remindere — dacă pacientul a dat consimțământ.
+> Creezi programări noi, reprogramezi, anulezi. Staff Schedule arată disponibilitatea fiecărui medic.
 >
-> Staff Schedule arată disponibilitatea fiecărui medic."
+> Sistemul trimite automat remindere (24h și 2h înainte) — doar dacă pacientul a dat consimțământ.
+>
+> **Beneficiu**: mai puține neprezentări, calendar mereu actualizat."
 
-### A.5 Settings și Configurare (2:15 - 3:00)
+### A.5 Configurare: Flexibilitate Totală (2:15 - 3:00)
 
 **[ECRAN: Navigare la Settings → tabs diferite]**
 
-> „În Settings configurezi totul:
+> „În Settings controlezi totul:
 >
-> - **Integrations**: conexiuni HubSpot, Twilio, Stripe — fiecare cu status și test button
-> - **WhatsApp**: template-uri de mesaje, numere configurate
-> - **Notifications**: ce alerte primești și pe ce canal
-> - **API Keys**: generare și revocare chei pentru integrări externe
+> - **Integrări**: HubSpot, Twilio, Stripe — cu status și test button
+> - **Template-uri WhatsApp**: personalizate pentru clinica ta
+> - **Notificări**: ce alerte primești și pe ce canal
+> - **API Keys**: pentru integrări externe
 >
-> Modificările se salvează instant, fără restart."
+> Modificările se salvează instant. Nu e nevoie de developer pentru configurări de bază.
+>
+> **Beneficiu**: adaptezi platforma la fluxul tău, nu invers."
 
 ---
 
-## MODUL B: Securitate și Protecția Datelor (2:30)
+## MODUL B: Securitate — Protecție și Încredere (2:30)
 
 **[ECRAN: Diagramă securitate]**
 
-> „Securitatea e construită în fiecare layer."
+> „Într-un mediu medical, securitatea nu e opțională — e fundația încrederii."
 
-### B.1 Autentificare și Autorizare (0:00 - 0:35)
+### B.1 Control Acces: Cine Vede Ce (0:00 - 0:35)
 
 **[ECRAN: Flux autentificare]**
 
-> „Autentificarea trece prin NextAuth cu suport OAuth.
+> „**Problema**: într-o clinică, nu toată lumea trebuie să vadă totul.
 >
-> Avem role-based access control: admin, doctor, receptionist. Fiecare rol vede doar ce îi e permis. Un receptionist nu poate accesa rapoarte financiare. Un doctor nu poate modifica setări de sistem.
+> **Soluția**: role-based access control — admin, doctor, receptionist. Fiecare vede doar ce îi e permis.
 >
-> Sesiunile expiră automat, tokens sunt rotite periodic."
+> Un receptionist nu poate accesa rapoarte financiare. Un doctor nu poate modifica setările de sistem.
+>
+> **Beneficiu**: separare clară a responsabilităților, risc redus de breșe interne."
 
-### B.2 Protecția Webhook-urilor (0:35 - 1:10)
+### B.2 Protecție Împotriva Atacurilor (0:35 - 1:10)
 
 **[ECRAN: Cod — verificare semnătură]**
 
-> „Fiecare webhook extern e verificat criptografic.
+> „**Problema**: sistemele expuse la internet sunt ținte pentru atacatori.
 >
-> WhatsApp: HMAC-SHA256 în header-ul `X-Hub-Signature-256`. Twilio: semnătură proprie în `X-Twilio-Signature`. Stripe și Vapi: la fel, fiecare cu schema lor.
+> **Soluția**: fiecare webhook extern e verificat criptografic (HMAC-SHA256). Dacă semnătura nu se potrivește, request-ul e respins instant.
 >
-> Dacă semnătura nu se potrivește, request-ul e respins instant. Zero procesare pentru request-uri nesemnate."
+> **Beneficiu**: zero procesare pentru request-uri false, imunitate la spoofing."
 
-### B.3 Rate Limiting și Protecție DDoS (1:10 - 1:40)
+### B.3 Stabilitate Sub Presiune (1:10 - 1:40)
 
 **[ECRAN: Configurare rate limits]**
 
-> „Rate limiting-ul e backed de Redis.
+> „**Problema**: un val de request-uri poate pune sistemul în genunchi.
 >
-> Limite diferite pe endpoint: WhatsApp 200 req/min, Voice 100 req/min, AI execution 50 req/min. Global: 1000 req/min per IP.
+> **Soluția**: rate limiting per endpoint și per IP. Circuit breaker automat dacă un serviciu extern e down.
 >
-> Depășești limita? Primești 429 cu header `Retry-After`. Circuit breaker-ul se deschide automat dacă un serviciu extern e down."
+> **Beneficiu**: sistemul rămâne stabil chiar și sub atacuri DDoS sau spike-uri de trafic."
 
-### B.4 Protecția Datelor Personale (1:40 - 2:10)
+### B.4 Protecția Datelor Pacienților (1:40 - 2:10)
 
 **[ECRAN: Log-uri cu date redactate]**
 
-> „PII-ul nu ajunge în log-uri.
+> „**Problema**: GDPR cere protecție strictă a datelor personale.
 >
-> Telefoane, email-uri, nume — toate sunt redactate automat. În loc de `+40722123456` vezi `+40***456`. Pino logger-ul face asta by default.
+> **Soluția**: telefoane, email-uri, nume — toate sunt redactate automat din log-uri. În loc de `+40722123456` vezi `+40***456`.
 >
-> În baza de date, datele sensibile pot fi criptate at rest. Backup-urile sunt encrypted."
+> Backup-uri criptate, date sensibile encrypted at rest.
+>
+> **Beneficiu**: conformitate GDPR by default, zero expunere accidentală de PII."
 
-### B.5 Validare și Sanitizare (2:10 - 2:30)
+### B.5 Validare Strictă: Nimic Nu Trece Neverificat (2:10 - 2:30)
 
 **[ECRAN: Schema Zod]**
 
-> „Fiecare input trece prin Zod.
+> „**Problema**: input-uri malițioase pot compromite sistemul.
 >
-> Schema definită, validare strictă, erori clare. Nimic nu intră în sistem fără să fie validat. Asta previne injection attacks și date malformate.
+> **Soluția**: fiecare input trece prin Zod — schema definită, validare strictă. Nimic nu intră în sistem fără verificare.
 >
-> Timeout pe toate call-urile externe: 30 secunde max."
+> **Beneficiu**: prevenire SQL injection, XSS, și alte atacuri. Zero surprize."
 
 ---
 
@@ -349,126 +387,161 @@
 
 ---
 
-## MODUL D: Cazuri de Utilizare (2:00)
+## MODUL D: Scenarii Reale — Valoare în Practică (2:00)
 
 **[ECRAN: Ilustrații scenarii]**
 
-> „Câteva scenarii concrete din practică."
+> „Să vedem cum MedicalCor transformă situații reale în rezultate concrete."
 
-### D.1 Pacient Nou pe WhatsApp (0:00 - 0:40)
+### D.1 Urgența Care Nu Se Pierde (0:00 - 0:40)
 
 **[ECRAN: Animație flux complet]**
 
-> „Scenariu: cineva scrie pe WhatsApp 'Bună, am o urgență dentară, mă doare măseaua'.
+> „**Situația**: Duminică seara, un pacient scrie pe WhatsApp 'Am o urgență, mă doare măseaua'.
 >
-> Ce se întâmplă:
-> 1. Mesajul intră prin webhook, semnătura se verifică
-> 2. AI-ul detectează: urgență, durere, procedură probabilă = extracție
-> 3. Scor: HOT (5/5)
-> 4. Se creează task prioritar în HubSpot cu deadline 30 minute
-> 5. Pacientul primește confirmare automată
-> 6. Recepția vede notificarea instant
+> **Fără MedicalCor**: mesajul e văzut luni dimineață, pacientul a sunat altă clinică.
 >
-> Timp total: sub 3 secunde."
+> **Cu MedicalCor**:
+> - AI-ul detectează urgența în 3 secunde → Scor HOT
+> - Task prioritar în CRM, deadline 30 minute
+> - Pacientul primește confirmare automată: 'Am primit mesajul, te contactăm în curând'
+> - Recepția primește notificare pe telefon
+>
+> **Rezultat**: pacientul se simte văzut, clinica nu pierde un caz urgent."
 
-### D.2 Secvență de Nurturing (0:40 - 1:15)
+### D.2 Lead-ul Cald Care Devine Pacient (0:40 - 1:15)
 
 **[ECRAN: Timeline mesaje]**
 
-> „Scenariu: lead WARM interesat de implanturi, dar fără urgență.
+> „**Situația**: cineva întreabă despre implanturi, dar nu e pregătit să programeze.
 >
-> Sistemul declanșează nurture sequence:
-> - Ziua 1: mesaj cu beneficiile implanturilor
-> - Ziua 3: detalii despre procedură
-> - Ziua 7: testimoniale pacienți
+> **Fără MedicalCor**: lead-ul e uitat, niciodată contactat din nou.
+>
+> **Cu MedicalCor**: nurture sequence automată pe 14 zile:
+> - Ziua 1: beneficiile implanturilor
+> - Ziua 3: detalii procedură, prețuri orientative
+> - Ziua 7: testimoniale pacienți mulțumiți
 > - Ziua 14: call-to-action pentru programare
 >
-> Fiecare mesaj verifică consimțământul înainte de trimitere. Dacă pacientul răspunde între timp, secvența se oprește și conversația devine live."
+> Dacă răspunde între timp, secvența se oprește, conversația devine live.
+>
+> **Rezultat**: lead-uri WARM convertite fără efort manual."
 
-### D.3 Reminder Programare (1:15 - 1:35)
+### D.3 Zero Neprezentări (1:15 - 1:35)
 
 **[ECRAN: Notificare reminder]**
 
-> „Scenariu: pacient programat mâine la 10:00.
+> „**Situația**: pacienți care uită de programare și nu se prezintă.
 >
-> - Cu 24h înainte: reminder cu data, ora, adresa
-> - Cu 2h înainte: reminder final
+> **Cu MedicalCor**:
+> - 24h înainte: reminder cu data, ora, adresa
+> - 2h înainte: reminder final
+> - Totul automat, doar pentru pacienți cu consimțământ
 >
-> Cron job-ul rulează la fiecare oră, verifică programările, trimite doar dacă există consimțământ activ."
+> **Rezultat**: mai puține neprezentări, calendar optimizat, venit protejat."
 
-### D.4 Apel Vocal cu Transcriere (1:35 - 2:00)
+### D.4 Apelul Cu Context Complet (1:35 - 2:00)
 
 **[ECRAN: Flux apel → transcriere]**
 
-> „Scenariu: pacient sună la clinică.
+> „**Situația**: pacient sună, recepția nu știe cine e și ce vrea.
 >
-> - Twilio rutează apelul
-> - Vapi AI poate prelua inițial (opțional)
-> - După apel: transcriere automată
-> - Se extrag keywords: proceduri menționate, urgență, date
-> - Rezumatul apare în fișa pacientului
+> **Cu MedicalCor**:
+> - Apelul e transcris automat
+> - Keywords extrase: proceduri menționate, urgență, date
+> - Rezumat în fișa pacientului
 >
-> Recepția are context complet fără să fi ascultat apelul."
+> **Rezultat**: recepția are context complet înainte de callback. Conversație mai eficientă, pacient impresionat."
 
 ---
 
-## MODUL E: FAQ Tehnic (2:00)
+## MODUL E: Întrebări Frecvente — Decizii Tehnice (2:00)
 
 **[ECRAN: Format Q&A]**
 
-> „Răspunsuri la întrebările frecvente."
+> „Răspunsuri la întrebările pe care le primim cel mai des."
 
-### E.1 De ce Fastify și nu Express? (0:00 - 0:25)
+### E.1 De ce e sistemul rapid? (0:00 - 0:25)
 
-> „Fastify e de ~2x mai rapid pe benchmarks. Are schema validation built-in, plugin system curat, și TypeScript support excelent. Pentru un API care procesează webhook-uri în volum mare, performanța contează."
+> „**Întrebare**: cât de repede procesează un mesaj?
+>
+> **Răspuns**: sub 3 secunde de la primire la scor. Fastify e de 2x mai rapid decât Express, TypeScript previne erori la runtime.
+>
+> **De ce contează**: un pacient urgent primește confirmare instant, nu după 5 minute."
 
-### E.2 De ce Trigger.dev pentru workflows? (0:25 - 0:50)
+### E.2 Ce se întâmplă dacă cade serverul? (0:25 - 0:50)
 
-> „Trigger.dev oferă durabilitate. Dacă un job eșuează, se reîncearcă automat. Dacă serverul cade, job-ul continuă de unde a rămas. Pentru operații critice — trimitere mesaje, actualizare CRM — nu vrem să pierdem nimic. E serverless, scalează singur."
+> „**Întrebare**: se pierd mesaje dacă e o problemă tehnică?
+>
+> **Răspuns**: nu. Trigger.dev oferă durabilitate — dacă un job eșuează, se reîncearcă automat. Dacă serverul cade, job-ul continuă de unde a rămas.
+>
+> **De ce contează**: zero mesaje pierdute, zero lead-uri ratate."
 
-### E.3 Cum scalează arhitectura? (0:50 - 1:15)
+### E.3 Poate gestiona volume mari? (0:50 - 1:15)
 
-> „API-ul e stateless — poți pune oricâte instanțe în spatele unui load balancer. Redis e shared pentru rate limiting. PostgreSQL suportă read replicas. Trigger.dev scalează automat în cloud. Kubernetes-ready din prima zi."
+> „**Întrebare**: ce se întâmplă dacă clinica crește?
+>
+> **Răspuns**: arhitectura e stateless — adaugi instanțe după nevoie. Redis, PostgreSQL, Trigger.dev — toate scalează orizontal. Kubernetes-ready din prima zi.
+>
+> **De ce contează**: platforma crește odată cu clinica, fără migrări dureroase."
 
-### E.4 Ce se întâmplă dacă OpenAI e down? (1:15 - 1:35)
+### E.4 Dacă OpenAI nu funcționează? (1:15 - 1:35)
 
-> „Fallback pe rule-based scoring. Keywords predefinite: 'durere', 'urgență', 'preț' — fiecare cu scor asociat. Nu e la fel de smart, dar sistemul continuă să funcționeze. Lead-urile nu se pierd."
+> „**Întrebare**: depindem complet de OpenAI?
+>
+> **Răspuns**: nu. Avem fallback pe reguli — keywords predefinite cu scoruri asociate. Nu e la fel de smart, dar sistemul continuă să funcționeze.
+>
+> **De ce contează**: uptime garantat chiar și când serviciile externe au probleme."
 
-### E.5 Cum gestionați GDPR? (1:35 - 2:00)
+### E.5 Cum stăm cu GDPR? (1:35 - 2:00)
 
-> „Consimțământul e stocat per tip: marketing, remindere, procesare date. Fiecare mesaj outbound verifică consimțământul relevant. Event sourcing înseamnă audit trail complet — cine, ce, când. Datele pot fi șterse la cerere. Log-urile nu conțin PII."
+> „**Întrebare**: suntem conformi GDPR?
+>
+> **Răspuns**: da. Consimțământ verificat înainte de fiecare mesaj, audit trail complet, date personale redactate din log-uri, drept la ștergere implementat.
+>
+> **De ce contează**: zero risc legal, audit-uri fără stres."
 
 ---
 
-## MODUL F: Comparație și Diferențiatori (1:30)
+## MODUL F: De Ce MedicalCor — Avantaj Competitiv (1:30)
 
 **[ECRAN: Tabel comparativ]**
 
-> „Ce face MedicalCor diferit?"
+> „Să vedem de ce MedicalCor e alegerea potrivită."
 
 ### F.1 vs. CRM-uri Generice (HubSpot, Salesforce) (0:00 - 0:30)
 
-> „CRM-urile generice nu înțeleg contextul medical. Nu știu ce e un implant, nu detectează urgența dintr-un mesaj. Trebuie customizare masivă.
+> „**Problema cu CRM-urile generice**: trebuie luni de customizare. Nu știu ce e un implant, nu detectează urgența, nu înțeleg GDPR medical.
 >
-> MedicalCor e construit pentru healthcare: proceduri dentare predefinite, scoring adaptat, conformitate GDPR/HIPAA din start."
-
-### F.2 vs. Soluții Medicale Existente (0:30 - 1:00)
-
-> „Majoritatea soluțiilor medicale sunt monolitice, closed-source, greu de integrat.
+> **Avantajul MedicalCor**: construit pentru healthcare din prima zi:
+> - Proceduri dentare predefinite
+> - Scoring adaptat pentru context medical
+> - Conformitate GDPR/HIPAA inclusă
 >
-> MedicalCor e modular: nu vrei AI scoring? Dezactivezi. Ai deja CRM? Integrezi doar inbox-ul. API-first design, documentație completă, webhook-uri standard."
+> **Rezultat**: funcțional în zile, nu luni."
 
-### F.3 Avantaje Cheie (1:00 - 1:30)
+### F.2 vs. Soluții Medicale Tradiționale (0:30 - 1:00)
+
+> „**Problema cu soluțiile existente**: monolitice, closed-source, greu de integrat cu ce ai deja.
+>
+> **Avantajul MedicalCor**: modular și flexibil:
+> - Nu vrei AI? Dezactivezi
+> - Ai deja CRM? Integrezi doar inbox-ul
+> - API-first, webhook-uri standard, documentație completă
+>
+> **Rezultat**: se integrează în ecosistemul tău, nu îl înlocuiește."
+
+### F.3 Avantajele Cheie (1:00 - 1:30)
 
 **[ECRAN: Lista bullet points]**
 
-> „Pe scurt, diferențiatorii:
+> „**De ce să alegi MedicalCor:**
 >
-> - **AI nativ**: scoring în timp real, nu batch processing
-> - **Multi-canal real**: WhatsApp, voce, email în același inbox
-> - **Durabilitate**: Trigger.dev garantează că nimic nu se pierde
-> - **Open architecture**: extensibil, integrabil, documentat
-> - **Compliance by design**: GDPR nu e un add-on, e în fundație
+> - **Rapiditate**: AI scoring în 3 secunde, nu batch processing
+> - **Centralizare**: WhatsApp, voce, email — un singur inbox
+> - **Fiabilitate**: zero mesaje pierdute, garantat de Trigger.dev
+> - **Flexibilitate**: extensibil, integrabil, open architecture
+> - **Conformitate**: GDPR nu e add-on, e fundație
 >
 > Nu reinventăm CRM-ul. Îl facem să funcționeze pentru clinici medicale."
 
@@ -551,5 +624,6 @@ Fiecare modul poate fi publicat separat:
 
 ---
 
-*Versiune: 3.0*
+*Versiune: 4.0*
 *Actualizat: Noiembrie 2024*
+*Ton: Orientat spre beneficii și valoare de business*
