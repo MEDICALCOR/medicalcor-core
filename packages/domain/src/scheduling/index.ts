@@ -1,5 +1,6 @@
 export {
   SchedulingService,
+  ConsentRequiredError,
   type TimeSlot,
   type BookingRequest,
   type SchedulingConfig,
