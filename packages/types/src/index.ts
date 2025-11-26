@@ -156,6 +156,7 @@ export {
 // HubSpot Schemas
 // =============================================================================
 export {
+  // Core HubSpot
   HubSpotContactPropertiesSchema,
   HubSpotContactSchema,
   HubSpotContactInputSchema,
@@ -165,6 +166,12 @@ export {
   HubSpotSearchResponseSchema,
   HubSpotTimelineEventSchema,
   HubSpotTaskSchema,
+  // CRM Retention enums
+  ChurnRiskSchema,
+  NPSCategorySchema,
+  LoyaltySegmentSchema,
+  FollowUpPrioritySchema,
+  // Types
   type HubSpotContactProperties,
   type HubSpotContact,
   type HubSpotContactInput,
@@ -174,6 +181,10 @@ export {
   type HubSpotSearchResponse,
   type HubSpotTimelineEvent,
   type HubSpotTask,
+  type ChurnRisk,
+  type NPSCategory,
+  type LoyaltySegment,
+  type FollowUpPriority,
 } from './hubspot.schema.js';
 
 // =============================================================================
@@ -280,3 +291,36 @@ export {
   type PatientDetailData,
   type PatientTimelineEvent,
 } from './server-actions.schema.js';
+
+// =============================================================================
+// CRM Dashboard Schemas (Retention, NPS, Loyalty)
+// =============================================================================
+export {
+  // Patient & Stats
+  CRMPatientSchema,
+  CRMDashboardStatsSchema,
+  CRMDashboardDataSchema,
+  // Alerts & Trends
+  ChurnRiskAlertSchema,
+  NPSTrendDataSchema,
+  RetentionTrendDataSchema,
+  LoyaltyDistributionSchema,
+  // Campaigns & Pricing
+  WhatsAppCampaignStatsSchema,
+  DynamicPricingRuleSchema,
+  // NPS Analysis
+  NPSFeedbackItemSchema,
+  NPSThemeSchema,
+  // Types
+  type CRMPatient,
+  type CRMDashboardStats,
+  type CRMDashboardData,
+  type ChurnRiskAlert,
+  type NPSTrendData,
+  type RetentionTrendData,
+  type LoyaltyDistribution,
+  type WhatsAppCampaignStats,
+  type DynamicPricingRule,
+  type NPSFeedbackItem,
+  type NPSTheme,
+} from './crm-dashboard.schema.js';

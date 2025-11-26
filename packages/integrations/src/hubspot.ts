@@ -170,6 +170,14 @@ export class HubSpotClient {
         'procedure_interest',
         'budget_range',
         'consent_marketing',
+        // CRM Retention properties
+        'retention_score',
+        'churn_risk',
+        'nps_score',
+        'nps_category',
+        'loyalty_segment',
+        'lifetime_value',
+        'follow_up_priority',
       ],
       limit: 10,
     };
@@ -247,6 +255,22 @@ export class HubSpotClient {
       'utm_source',
       'utm_medium',
       'utm_campaign',
+      // CRM Retention properties
+      'retention_score',
+      'churn_risk',
+      'nps_score',
+      'nps_category',
+      'nps_feedback',
+      'loyalty_segment',
+      'lifetime_value',
+      'days_inactive',
+      'canceled_appointments',
+      'follow_up_priority',
+      'last_nps_survey_date',
+      'last_appointment_date',
+      'last_treatment_date',
+      'total_treatments',
+      'active_discounts',
     ].join(',');
 
     return this.request<HubSpotContact>(
@@ -580,6 +604,258 @@ export class HubSpotClient {
         if (error instanceof ExternalServiceError && error.message.includes('503')) return true;
         return false;
       },
+    });
+  }
+
+  // ============================================
+  // CRM RETENTION & LOYALTY METHODS
+  // ============================================
+
+  /**
+   * Update retention metrics for a contact
+   */
+  async updateRetentionMetrics(
+    contactId: string,
+    metrics: {
+      retentionScore?: number;
+      churnRisk?: 'SCAZUT' | 'MEDIU' | 'RIDICAT' | 'FOARTE_RIDICAT';
+      daysInactive?: number;
+      followUpPriority?: 'URGENTA' | 'RIDICATA' | 'MEDIE' | 'SCAZUTA';
+    }
+  ): Promise<HubSpotContact> {
+    const properties: Record<string, string | undefined> = {};
+
+    if (metrics.retentionScore !== undefined) {
+      properties.retention_score = metrics.retentionScore.toString();
+    }
+    if (metrics.churnRisk) {
+      properties.churn_risk = metrics.churnRisk;
+    }
+    if (metrics.daysInactive !== undefined) {
+      properties.days_inactive = metrics.daysInactive.toString();
+    }
+    if (metrics.followUpPriority) {
+      properties.follow_up_priority = metrics.followUpPriority;
+    }
+
+    return this.updateContact(contactId, properties);
+  }
+
+  /**
+   * Update NPS score for a contact
+   */
+  async updateNPSScore(
+    contactId: string,
+    nps: {
+      score: number; // 0-10
+      feedback?: string;
+    }
+  ): Promise<HubSpotContact> {
+    // Calculate NPS category
+    let category: 'PROMOTOR' | 'PASIV' | 'DETRACTOR';
+    if (nps.score >= 9) {
+      category = 'PROMOTOR';
+    } else if (nps.score >= 7) {
+      category = 'PASIV';
+    } else {
+      category = 'DETRACTOR';
+    }
+
+    const properties: Record<string, string | undefined> = {
+      nps_score: nps.score.toString(),
+      nps_category: category,
+      last_nps_survey_date: new Date().toISOString(),
+    };
+
+    if (nps.feedback) {
+      properties.nps_feedback = nps.feedback;
+    }
+
+    return this.updateContact(contactId, properties);
+  }
+
+  /**
+   * Update loyalty segment for a contact
+   */
+  async updateLoyaltySegment(
+    contactId: string,
+    data: {
+      segment: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
+      lifetimeValue?: number;
+      activeDiscounts?: string[];
+    }
+  ): Promise<HubSpotContact> {
+    const properties: Record<string, string | undefined> = {
+      loyalty_segment: data.segment,
+    };
+
+    if (data.lifetimeValue !== undefined) {
+      properties.lifetime_value = data.lifetimeValue.toString();
+    }
+    if (data.activeDiscounts && data.activeDiscounts.length > 0) {
+      properties.active_discounts = data.activeDiscounts.join(';');
+    }
+
+    return this.updateContact(contactId, properties);
+  }
+
+  /**
+   * Search contacts at risk of churn
+   */
+  async getChurnRiskContacts(
+    riskLevel: 'RIDICAT' | 'FOARTE_RIDICAT' = 'RIDICAT'
+  ): Promise<HubSpotContact[]> {
+    const filterGroups = [
+      {
+        filters: [
+          {
+            propertyName: 'churn_risk',
+            operator: 'EQ' as const,
+            value: riskLevel,
+          },
+        ],
+      },
+    ];
+
+    if (riskLevel === 'RIDICAT') {
+      // Also include FOARTE_RIDICAT
+      filterGroups.push({
+        filters: [
+          {
+            propertyName: 'churn_risk',
+            operator: 'EQ' as const,
+            value: 'FOARTE_RIDICAT',
+          },
+        ],
+      });
+    }
+
+    return this.searchAllContacts({
+      filterGroups,
+      properties: [
+        'email',
+        'phone',
+        'firstname',
+        'lastname',
+        'retention_score',
+        'churn_risk',
+        'nps_score',
+        'nps_category',
+        'nps_feedback',
+        'loyalty_segment',
+        'lifetime_value',
+        'days_inactive',
+        'canceled_appointments',
+        'follow_up_priority',
+        'last_appointment_date',
+      ],
+    });
+  }
+
+  /**
+   * Get contacts by loyalty segment
+   */
+  async getContactsByLoyaltySegment(
+    segment: 'Bronze' | 'Silver' | 'Gold' | 'Platinum'
+  ): Promise<HubSpotContact[]> {
+    return this.searchAllContacts({
+      filterGroups: [
+        {
+          filters: [
+            {
+              propertyName: 'loyalty_segment',
+              operator: 'EQ',
+              value: segment,
+            },
+          ],
+        },
+      ],
+      properties: [
+        'email',
+        'phone',
+        'firstname',
+        'lastname',
+        'retention_score',
+        'nps_score',
+        'loyalty_segment',
+        'lifetime_value',
+        'active_discounts',
+      ],
+    });
+  }
+
+  /**
+   * Get NPS detractors for follow-up
+   */
+  async getNPSDetractors(): Promise<HubSpotContact[]> {
+    return this.searchAllContacts({
+      filterGroups: [
+        {
+          filters: [
+            {
+              propertyName: 'nps_category',
+              operator: 'EQ',
+              value: 'DETRACTOR',
+            },
+          ],
+        },
+      ],
+      properties: [
+        'email',
+        'phone',
+        'firstname',
+        'lastname',
+        'nps_score',
+        'nps_feedback',
+        'last_nps_survey_date',
+        'follow_up_priority',
+      ],
+    });
+  }
+
+  /**
+   * Record appointment cancellation
+   */
+  async recordAppointmentCancellation(contactId: string): Promise<HubSpotContact> {
+    // First get current count
+    const contact = await this.getContact(contactId);
+    const currentCount = parseInt(contact.properties.canceled_appointments ?? '0', 10);
+
+    return this.updateContact(contactId, {
+      canceled_appointments: (currentCount + 1).toString(),
+    });
+  }
+
+  /**
+   * Record treatment completion and update metrics
+   */
+  async recordTreatmentCompletion(
+    contactId: string,
+    treatmentValue: number
+  ): Promise<HubSpotContact> {
+    const contact = await this.getContact(contactId);
+    const currentLTV = parseInt(contact.properties.lifetime_value ?? '0', 10);
+    const currentTreatments = parseInt(contact.properties.total_treatments ?? '0', 10);
+
+    // Calculate new loyalty segment based on LTV
+    const newLTV = currentLTV + treatmentValue;
+    let newSegment: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
+    if (newLTV >= 30000) {
+      newSegment = 'Platinum';
+    } else if (newLTV >= 15000) {
+      newSegment = 'Gold';
+    } else if (newLTV >= 5000) {
+      newSegment = 'Silver';
+    } else {
+      newSegment = 'Bronze';
+    }
+
+    return this.updateContact(contactId, {
+      lifetime_value: newLTV.toString(),
+      total_treatments: (currentTreatments + 1).toString(),
+      last_treatment_date: new Date().toISOString(),
+      loyalty_segment: newSegment,
+      days_inactive: '0', // Reset inactivity
     });
   }
 }
