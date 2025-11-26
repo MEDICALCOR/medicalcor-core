@@ -305,6 +305,25 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
     protectedPaths: ['/workflows', '/webhooks/booking', '/ai/execute'],
   });
 
+  // SECURITY FIX: Custom JSON parser that preserves raw body for webhook signature verification
+  // This is critical for WhatsApp/Stripe webhooks where signatures are computed against raw bytes
+  fastify.addContentTypeParser(
+    'application/json',
+    { parseAs: 'string' },
+    (request, payload, done) => {
+      try {
+        const rawBody = payload as string;
+        // Store raw body on request for signature verification
+        // Using type assertion since Fastify's request type doesn't include rawBody
+        (request as unknown as { rawBody: string }).rawBody = rawBody;
+        const parsed = JSON.parse(rawBody);
+        done(null, parsed);
+      } catch (error) {
+        done(error as Error, undefined);
+      }
+    }
+  );
+
   // Parse URL-encoded bodies (for Twilio webhooks)
   fastify.addContentTypeParser(
     'application/x-www-form-urlencoded',
@@ -360,40 +379,15 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
   return fastify;
 }
 
-async function start() {
-  // Validate environment before starting
-  validateEnvironment();
+// SECURITY FIX: Removed duplicate start() function and void start() call.
+// This module is imported by index.ts which is the proper entry point.
+// Having both index.ts and app.ts register signal handlers caused a race condition
+// where both handlers would fire on SIGTERM/SIGINT, potentially causing double
+// shutdown attempts and process.exit() race conditions.
+//
+// The proper entry point (index.ts) handles:
+// - Signal handler registration (SIGTERM, SIGINT)
+// - Graceful shutdown orchestration
+// - Server startup
 
-  const app = await buildApp();
-
-  const port = parseInt(process.env.PORT ?? '3000', 10);
-  const host = process.env.HOST ?? '0.0.0.0';
-
-  try {
-    await app.listen({ port, host });
-    logger.info({ port, host, env: process.env.NODE_ENV ?? 'development' }, 'Server started');
-  } catch (error) {
-    logger.error({ error }, 'Failed to start server');
-    process.exit(1);
-  }
-
-  // Graceful shutdown
-  const shutdown = async (signal: string) => {
-    logger.info({ signal }, 'Received shutdown signal');
-    try {
-      await app.close();
-      logger.info('Server closed');
-      process.exit(0);
-    } catch (error) {
-      logger.error({ error }, 'Error during shutdown');
-      process.exit(1);
-    }
-  };
-
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
-}
-
-void start();
-
-export { buildApp };
+export { buildApp, validateEnvironment };

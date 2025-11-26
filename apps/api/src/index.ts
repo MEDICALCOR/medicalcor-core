@@ -6,17 +6,28 @@
 
 import { logger } from '@medicalcor/core';
 
-import { buildApp } from './app.js';
+import { buildApp, validateEnvironment } from './app.js';
 import { config } from './config.js';
 
 async function main(): Promise<void> {
+  // Validate environment and secrets before building the app
+  validateEnvironment();
+
   const app = await buildApp();
 
   // Graceful shutdown handlers
+  // SECURITY FIX: Use a flag to prevent race condition when multiple signals arrive
+  // (e.g., SIGINT followed quickly by SIGTERM)
+  let isShuttingDown = false;
   const signals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM'];
 
   for (const signal of signals) {
     process.on(signal, () => {
+      if (isShuttingDown) {
+        logger.info({ signal }, 'Shutdown already in progress, ignoring duplicate signal');
+        return;
+      }
+      isShuttingDown = true;
       logger.info({ signal }, 'Received shutdown signal');
       app
         .close()
