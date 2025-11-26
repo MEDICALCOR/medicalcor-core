@@ -446,6 +446,40 @@ export class SecureRedisClient {
     });
   }
 
+  // ============= Counter Commands =============
+
+  /**
+   * Atomically increment a key by a value
+   * SECURITY: Uses atomic INCRBY to prevent race conditions in rate limiting
+   */
+  async incrby(key: string, increment: number): Promise<number> {
+    return this.executeCommand(async () => {
+      const conn = this.ensureConnection();
+      return conn.incrby(this.prefixKey(key), increment);
+    });
+  }
+
+  /**
+   * Atomically increment a key and set expiration if key is new
+   * SECURITY: Prevents race conditions in rate limiters by using atomic operations
+   */
+  async incrbyWithExpire(key: string, increment: number, ttlSeconds: number): Promise<number> {
+    return this.executeCommand(async () => {
+      const conn = this.ensureConnection();
+      const prefixedKey = this.prefixKey(key);
+      // Use MULTI/EXEC for atomic increment + expire
+      const pipeline = conn.multi();
+      pipeline.incrby(prefixedKey, increment);
+      pipeline.expire(prefixedKey, ttlSeconds);
+      const results = await pipeline.exec();
+      // First result is from INCRBY, return the new value
+      if (results && results[0] && results[0][1] !== null) {
+        return results[0][1] as number;
+      }
+      return 0;
+    });
+  }
+
   // ============= List Commands =============
 
   async lpush(key: string, ...values: string[]): Promise<number> {

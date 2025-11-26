@@ -68,15 +68,47 @@ export const patientJourneyWorkflow = task({
     if (classification === 'HOT') {
       // Hot leads get priority scheduling attention
       if (hubspot) {
+        // IDEMPOTENCY: Generate unique key to prevent duplicate tasks on retry
+        const taskIdempotencyKey = crypto
+          .createHash('sha256')
+          .update(`task:hot_lead:${hubspotContactId}:${correlationId}`)
+          .digest('hex')
+          .slice(0, 16);
+
         try {
-          await hubspot.createTask({
-            contactId: hubspotContactId,
-            subject: `PRIORITY REQUEST: Patient wants quick appointment`,
-            body: `Lead score: ${initialScore}/5. Interested in: ${procedureInterest?.join(', ') ?? 'Unknown'}\n\nPatient reported interest/discomfort. Schedule priority appointment during business hours.`,
-            priority: 'HIGH',
-            dueDate: new Date(Date.now() + 30 * 60 * 1000), // Due in 30 minutes during business hours
-          });
-          logger.info('Created priority request task for hot lead', { correlationId });
+          // Check if task was already created (idempotency check via event store)
+          const existingEvents = await eventStore.getEventsByCorrelation(
+            `${correlationId}:task:${taskIdempotencyKey}`
+          );
+          const taskAlreadyCreated = existingEvents.some(
+            (e) => e.type === 'hubspot.task.created'
+          );
+
+          if (!taskAlreadyCreated) {
+            await hubspot.createTask({
+              contactId: hubspotContactId,
+              subject: `PRIORITY REQUEST: Patient wants quick appointment`,
+              body: `Lead score: ${initialScore}/5. Interested in: ${procedureInterest?.join(', ') ?? 'Unknown'}\n\nPatient reported interest/discomfort. Schedule priority appointment during business hours.`,
+              priority: 'HIGH',
+              dueDate: new Date(Date.now() + 30 * 60 * 1000), // Due in 30 minutes during business hours
+            });
+
+            // Record task creation for idempotency
+            await eventStore.emit({
+              type: 'hubspot.task.created',
+              correlationId: `${correlationId}:task:${taskIdempotencyKey}`,
+              aggregateId: hubspotContactId,
+              aggregateType: 'contact',
+              payload: { taskType: 'hot_lead_priority', idempotencyKey: taskIdempotencyKey },
+            });
+
+            logger.info('Created priority request task for hot lead', { correlationId });
+          } else {
+            logger.info('Skipping duplicate task creation (idempotent)', {
+              correlationId,
+              taskIdempotencyKey,
+            });
+          }
         } catch (error) {
           logger.error('Failed to create HubSpot task', { error, correlationId });
         }
