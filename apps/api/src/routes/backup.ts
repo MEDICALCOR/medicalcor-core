@@ -396,8 +396,28 @@ export const backupRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /backup/config
    *
    * Get current backup configuration
+   * SECURITY: Requires admin API key authentication to prevent info disclosure
    */
-  fastify.get('/backup/config', async () => {
+  fastify.get('/backup/config', {
+    onRequest: async (request, reply) => {
+      const apiKey = request.headers['x-api-key'];
+      const adminKey = process.env.ADMIN_API_KEY || process.env.API_SECRET_KEY;
+
+      if (!adminKey) {
+        return reply.status(503).send({
+          error: 'Service unavailable',
+          message: 'Admin authentication not configured',
+        });
+      }
+
+      if (!apiKey || apiKey !== adminKey) {
+        return reply.status(401).send({
+          error: 'Unauthorized',
+          message: 'Valid x-api-key header required for backup configuration',
+        });
+      }
+    },
+  }, async () => {
     return {
       timestamp: new Date().toISOString(),
       storage: {

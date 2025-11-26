@@ -37,7 +37,15 @@ The API supports Romanian (ro), English (en), and German (de) languages.`,
     type: 'service_http',
     authorization_type: 'bearer',
     verification_tokens: {
-      openai: process.env.CHATGPT_VERIFICATION_TOKEN ?? 'REPLACE_WITH_OPENAI_TOKEN',
+      // SECURITY: Token is required in production - never use placeholder values
+      openai: (() => {
+        const token = process.env.CHATGPT_VERIFICATION_TOKEN;
+        if (!token && process.env.NODE_ENV === 'production') {
+          throw new Error('SECURITY: CHATGPT_VERIFICATION_TOKEN is required in production');
+        }
+        // In development, use empty string (disabled) instead of predictable placeholder
+        return token ?? '';
+      })(),
     },
   },
   api: {

@@ -23,6 +23,7 @@ function getClients() {
     includeOpenAI: true,
     includeScoring: true,
     includeTriage: true,
+    includeConsent: true,
   });
 }
 
@@ -49,7 +50,7 @@ export const handleVoiceCall = task({
   },
   run: async (payload: VoiceCallPayload) => {
     const { callSid, from, to, direction, status, duration, transcript, correlationId } = payload;
-    const { hubspot, openai, scoring, triage, eventStore } = getClients();
+    const { hubspot, openai, scoring, triage, consent, eventStore } = getClients();
 
     logger.info('Processing voice call', {
       callSid,
@@ -89,6 +90,49 @@ export const handleVoiceCall = task({
     // Step 3: If call completed and we have transcript, process it
     let scoreResult;
     if (status === 'completed' && transcript && hubspot && hubspotContactId) {
+      // GDPR COMPLIANCE: Verify data processing consent before analyzing personal data
+      if (consent) {
+        try {
+          const consentCheck = await consent.hasRequiredConsents(hubspotContactId, [
+            'data_processing',
+            'voice_recording',
+          ]);
+          if (!consentCheck.valid) {
+            logger.warn('Missing GDPR consent for voice data processing', {
+              contactId: hubspotContactId,
+              missingConsents: consentCheck.missing,
+              correlationId,
+            });
+            // Skip AI processing but still log basic call metadata (legitimate interest)
+            await hubspot.logCallToTimeline({
+              contactId: hubspotContactId,
+              callSid,
+              duration: duration ? parseInt(duration, 10) : 0,
+              transcript: '[Transcript not processed - consent required]',
+            });
+            logger.info('Logged call without transcript processing due to missing consent', {
+              correlationId,
+            });
+            // Continue to emit event but skip scoring
+            return {
+              status: 'consent_required',
+              hubspotContactId,
+              missingConsents: consentCheck.missing,
+            };
+          }
+          logger.info('GDPR consent verified for voice processing', { correlationId });
+        } catch (err) {
+          logger.error('Failed to verify GDPR consent', { err, correlationId });
+          // In production, fail safe - do not process without consent verification
+          if (process.env.NODE_ENV === 'production') {
+            throw new Error('Cannot process voice data: consent verification failed');
+          }
+        }
+      } else if (process.env.NODE_ENV === 'production') {
+        logger.error('Consent service not configured in production', { correlationId });
+        throw new Error('Consent service required for GDPR compliance in production');
+      }
+
       try {
         // Log call to HubSpot timeline
         await hubspot.logCallToTimeline({

@@ -531,11 +531,9 @@ export class UserRateLimiter {
   }
 
   private async incrementCounter(key: string, ttlSeconds: number, amount = 1): Promise<number> {
-    // Use Redis INCR with EXPIRE
-    const current = await this.redis.get(key);
-    const newValue = (parseInt(current ?? '0', 10) || 0) + amount;
-    await this.redis.set(key, newValue.toString(), { ttlSeconds });
-    return newValue;
+    // SECURITY: Use atomic INCRBY with EXPIRE to prevent race conditions
+    // Previous implementation had TOCTOU bug: GET -> increment -> SET was non-atomic
+    return this.redis.incrbyWithExpire(key, amount, ttlSeconds);
   }
 
   private async decrementCounter(key: string): Promise<number> {
