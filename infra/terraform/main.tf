@@ -17,10 +17,17 @@ terraform {
     }
   }
 
-  # Remote state configuration (uncomment for production)
+  # Remote state configuration - SECURITY: Always use encrypted remote state in production
+  # The state bucket must be created manually first with encryption enabled:
+  #   gsutil mb -l europe-west3 -c STANDARD gs://medicalcor-terraform-state-${PROJECT_ID}
+  #   gsutil versioning set on gs://medicalcor-terraform-state-${PROJECT_ID}
+  #
+  # Uncomment and configure for production deployments:
   # backend "gcs" {
-  #   bucket = "medicalcor-terraform-state"
-  #   prefix = "core"
+  #   bucket  = "medicalcor-terraform-state"
+  #   prefix  = "core"
+  #   # Encryption is enabled by default for GCS (Google-managed keys)
+  #   # For CMEK, use the encryption_key parameter
   # }
 }
 

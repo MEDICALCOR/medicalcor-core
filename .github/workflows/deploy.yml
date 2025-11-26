@@ -1,12 +1,13 @@
 name: Deploy
 
 on:
-  push:
+  # SECURITY: Only deploy after CI workflow succeeds
+  # This ensures all tests, linting, and security scans pass before deployment
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
     branches: [main]
-    paths-ignore:
-      - '**.md'
-      - '.github/workflows/bulk-create-issues.yml'
-      - '.github/workflows/repo-meta.yml'
   workflow_dispatch:
     inputs:
       environment:
@@ -17,6 +18,11 @@ on:
         options:
           - staging
           - prod
+      skip_ci_check:
+        description: 'Skip CI check (emergency deploys only)'
+        required: false
+        default: 'false'
+        type: boolean
 
 env:
   NODE_VERSION: '20'
@@ -30,9 +36,35 @@ permissions:
 
 jobs:
   # =============================================================================
+  # CI Gate - Ensure CI passed before deployment
+  # =============================================================================
+  ci-gate:
+    name: Verify CI Passed
+    runs-on: ubuntu-latest
+    # For workflow_run: check that CI succeeded
+    # For workflow_dispatch: skip if explicitly requested (emergency only)
+    if: |
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.skip_ci_check == 'true')
+    steps:
+      - name: CI Check Passed
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_run" ]; then
+            echo "✅ CI workflow completed successfully"
+            echo "Workflow: ${{ github.event.workflow_run.name }}"
+            echo "Conclusion: ${{ github.event.workflow_run.conclusion }}"
+            echo "Commit: ${{ github.event.workflow_run.head_sha }}"
+          else
+            echo "⚠️ WARNING: CI check skipped via manual override"
+            echo "Triggered by: ${{ github.actor }}"
+            echo "This should only be used for emergency deployments"
+          fi
+
+  # =============================================================================
   # Build & Push Docker Image
   # =============================================================================
   build:
+    needs: [ci-gate]
     name: Build & Push
     runs-on: ubuntu-latest
     permissions:

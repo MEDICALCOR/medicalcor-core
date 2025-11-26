@@ -49,6 +49,31 @@ jobs:
           backlog_file = os.environ["BACKLOG_FILE"]
           dry_run = os.environ.get("DRY_RUN", "false").lower() == "true"
 
+          # SECURITY: Prevent path traversal attacks
+          # Validate that the file path is within the repository
+          import pathlib
+          repo_root = pathlib.Path.cwd().resolve()
+          requested_path = (repo_root / backlog_file).resolve()
+
+          # Ensure the resolved path is within the repo root
+          if not str(requested_path).startswith(str(repo_root)):
+              print(f"ERROR: Path traversal detected! '{backlog_file}' resolves outside repository")
+              raise SystemExit(1)
+
+          # Ensure it's a YAML file
+          if not requested_path.suffix.lower() in ['.yml', '.yaml']:
+              print(f"ERROR: Only .yml/.yaml files are allowed, got: {backlog_file}")
+              raise SystemExit(1)
+
+          # Ensure file exists
+          if not requested_path.exists():
+              print(f"ERROR: File not found: {backlog_file}")
+              raise SystemExit(1)
+
+          # Use the validated path
+          backlog_file = str(requested_path)
+          print(f"Validated backlog file path: {backlog_file}")
+
           owner, name = repo.split("/")
           api_base = "https://api.github.com"
           headers = {

@@ -13,7 +13,8 @@ interface UseWebSocketOptions {
   /**
    * Authentication token to send with WebSocket connection.
    * SECURITY: Required for authenticated connections.
-   * Token is passed via query parameter and validated server-side.
+   * Token is sent via WebSocket message after connection (NOT in URL query params).
+   * Server must validate this token before accepting any other messages.
    */
   authToken?: string;
   reconnectInterval?: number;
@@ -80,15 +81,14 @@ export function useWebSocket(options: UseWebSocketOptions) {
     }));
 
     try {
-      // Build URL with authentication token as query parameter
-      // Server must validate this token before accepting messages
-      const wsUrl = new URL(url);
-      wsUrl.searchParams.set('token', authToken);
-      const ws = new WebSocket(wsUrl.toString());
+      // SECURITY FIX: Do NOT pass token in query parameters
+      // Query params are logged in server access logs, browser history, and referrer headers
+      // Instead, authenticate via WebSocket message after connection established
+      const ws = new WebSocket(url);
 
       ws.onopen = () => {
-        // Send authentication message after connection
-        // This provides an additional layer of auth validation
+        // SECURITY: Send authentication via WebSocket message only
+        // This keeps the token out of URLs, logs, and browser history
         ws.send(JSON.stringify({
           type: 'auth',
           token: authToken,

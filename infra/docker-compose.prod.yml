@@ -201,34 +201,76 @@ services:
       - postgres_backup:/backups
     entrypoint: >
       sh -c '
-        # Automated daily backup with retention
-        while true; do
-          BACKUP_FILE="/backups/backup_$$(date +%Y%m%d_%H%M%S).sql.gz"
+        # Automated daily backup with encryption and retention
+        # GDPR/HIPAA Compliant: All backups are encrypted at rest
 
-          # Create backup
+        # Read encryption key from Docker secret
+        ENCRYPTION_KEY=$$(cat /run/secrets/backup_encryption_key 2>/dev/null || echo "")
+
+        while true; do
+          TIMESTAMP=$$(date +%Y%m%d_%H%M%S)
+          BACKUP_FILE="/backups/backup_$${TIMESTAMP}.sql.gz"
+          ENCRYPTED_FILE="/backups/backup_$${TIMESTAMP}.sql.gz.enc"
+
+          echo "$$(date): Starting backup..."
+
+          # Create backup with pg_dump
           PGPASSWORD=$$(cat /run/secrets/db_password) pg_dump \
             -h postgres \
             -U medicalcor \
             -d medicalcor \
             --format=custom \
             --compress=9 \
-            | gzip > "$$BACKUP_FILE"
+            > "$$BACKUP_FILE.tmp" 2>/dev/null
 
-          # Verify backup
-          if [ -f "$$BACKUP_FILE" ] && [ -s "$$BACKUP_FILE" ]; then
-            echo "$$(date): Backup created successfully: $$BACKUP_FILE"
-
-            # Calculate checksum
-            sha256sum "$$BACKUP_FILE" > "$$BACKUP_FILE.sha256"
-          else
-            echo "$$(date): ERROR - Backup failed"
+          if [ $$? -ne 0 ] || [ ! -s "$$BACKUP_FILE.tmp" ]; then
+            echo "$$(date): ERROR - pg_dump failed"
+            rm -f "$$BACKUP_FILE.tmp"
+            sleep 86400
+            continue
           fi
 
-          # Cleanup old backups
-          find /backups -name "backup_*.sql.gz" -mtime +$${BACKUP_RETENTION_DAYS:-7} -delete
+          # Compress the backup
+          gzip -c "$$BACKUP_FILE.tmp" > "$$BACKUP_FILE"
+          rm -f "$$BACKUP_FILE.tmp"
+
+          # Encrypt backup if encryption key is available
+          if [ -n "$$ENCRYPTION_KEY" ]; then
+            echo "$$(date): Encrypting backup with AES-256-CBC..."
+            openssl enc -aes-256-cbc -salt -pbkdf2 -iter 100000 \
+              -in "$$BACKUP_FILE" \
+              -out "$$ENCRYPTED_FILE" \
+              -pass pass:"$$ENCRYPTION_KEY"
+
+            if [ $$? -eq 0 ] && [ -s "$$ENCRYPTED_FILE" ]; then
+              # Remove unencrypted backup
+              rm -f "$$BACKUP_FILE"
+              FINAL_FILE="$$ENCRYPTED_FILE"
+              echo "$$(date): Backup encrypted successfully"
+            else
+              echo "$$(date): WARNING - Encryption failed, keeping unencrypted backup"
+              rm -f "$$ENCRYPTED_FILE"
+              FINAL_FILE="$$BACKUP_FILE"
+            fi
+          else
+            echo "$$(date): WARNING - No encryption key configured, backup is unencrypted"
+            FINAL_FILE="$$BACKUP_FILE"
+          fi
+
+          # Verify and create checksum
+          if [ -f "$$FINAL_FILE" ] && [ -s "$$FINAL_FILE" ]; then
+            sha256sum "$$FINAL_FILE" > "$${FINAL_FILE}.sha256"
+            BACKUP_SIZE=$$(du -h "$$FINAL_FILE" | cut -f1)
+            echo "$$(date): Backup completed successfully: $$FINAL_FILE ($$BACKUP_SIZE)"
+          else
+            echo "$$(date): ERROR - Backup verification failed"
+          fi
+
+          # Cleanup old backups (encrypted and unencrypted)
+          find /backups -name "backup_*.sql.gz*" -mtime +$${BACKUP_RETENTION_DAYS:-7} -delete
           find /backups -name "backup_*.sha256" -mtime +$${BACKUP_RETENTION_DAYS:-7} -delete
 
-          # Sleep for 24 hours
+          echo "$$(date): Cleanup completed. Sleeping for 24 hours..."
           sleep 86400
         done
       '

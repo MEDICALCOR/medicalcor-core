@@ -184,16 +184,16 @@ export const handleWhatsAppMessage = task({
         logger.error('Failed to record consent', { err, correlationId });
       }
     } else if (hubspotContactId && consent) {
-      // Check if we have valid consent for data processing
+      // GDPR Compliance: Check if we have valid consent for data processing
       const hasValidConsent = await consent.hasValidConsent(hubspotContactId, 'data_processing');
 
       if (!hasValidConsent) {
         // Check if this is first contact - we need to request consent
         const existingConsent = await consent.getConsent(hubspotContactId, 'data_processing');
 
-        if (!existingConsent || existingConsent.status === 'pending') {
-          // First contact or pending - send consent request
-          logger.info('No valid consent found, requesting consent', { correlationId });
+        if (!existingConsent) {
+          // First contact - send consent request and STOP processing
+          logger.info('No consent found, requesting consent and stopping processing', { correlationId });
 
           if (whatsapp) {
             const consentMessage = consent.generateConsentMessage('ro');
@@ -214,10 +214,47 @@ export const handleWhatsAppMessage = task({
             });
           }
 
-          // Continue processing for initial messages but log the consent status
-          logger.warn('Processing message without explicit consent - consent requested', {
-            correlationId,
-          });
+          // GDPR COMPLIANCE: Stop processing until consent is granted
+          return {
+            success: true,
+            messageId: message.id,
+            normalizedPhone,
+            hubspotContactId,
+            consentPending: true,
+            message: 'Processing stopped - awaiting consent',
+          };
+        } else if (existingConsent.status === 'pending') {
+          // Consent already requested but not yet granted - remind and STOP
+          logger.info('Consent pending, reminding user and stopping processing', { correlationId });
+
+          if (whatsapp) {
+            const reminderMessage =
+              'Vă rugăm să răspundeți cu "DA" pentru a continua conversația. Fără consimțământul dumneavoastră explicit, nu putem procesa mesajele.';
+            await whatsapp.sendText({ to: normalizedPhone, text: reminderMessage });
+          }
+
+          // GDPR COMPLIANCE: Stop processing until consent is granted
+          return {
+            success: true,
+            messageId: message.id,
+            normalizedPhone,
+            hubspotContactId,
+            consentPending: true,
+            message: 'Processing stopped - consent still pending',
+          };
+        } else if (existingConsent.status === 'denied' || existingConsent.status === 'withdrawn') {
+          // User denied or withdrew consent - absolutely no processing allowed
+          logger.warn('Consent denied/withdrawn, cannot process message', { correlationId });
+
+          // GDPR COMPLIANCE: Respect user's choice, do not process
+          return {
+            success: true,
+            messageId: message.id,
+            normalizedPhone,
+            hubspotContactId,
+            consentDenied: true,
+            message: 'Processing blocked - consent denied or withdrawn',
+          };
         }
       }
     }
