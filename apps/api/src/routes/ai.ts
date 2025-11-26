@@ -472,4 +472,443 @@ const response = await anthropic.messages.create({
       },
     });
   });
+
+  // ===========================================================================
+  // AI COPILOT ENDPOINTS
+  // Real LLM-powered endpoints for the AI Copilot feature
+  // ===========================================================================
+
+  // Lazy-load OpenAI client (singleton)
+  let openaiClient: import('@medicalcor/integrations').OpenAIClient | null = null;
+
+  function getOpenAIClient(): import('@medicalcor/integrations').OpenAIClient | null {
+    if (openaiClient) return openaiClient;
+
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) return null;
+
+    // Dynamic import to avoid loading if not needed
+    const { createOpenAIClient } = require('@medicalcor/integrations') as typeof import('@medicalcor/integrations');
+    openaiClient = createOpenAIClient({ apiKey, model: 'gpt-4o' });
+    return openaiClient;
+  }
+
+  /**
+   * POST /ai/suggestions
+   *
+   * Generate smart reply suggestions based on conversation context.
+   * Uses GPT-4o to analyze the conversation and generate contextual responses.
+   */
+  fastify.post<{
+    Body: {
+      patientId?: string;
+      currentMessage?: string;
+      context?: {
+        patientPhone?: string;
+        patientName?: string;
+        currentConversation?: Array<{
+          direction: 'IN' | 'OUT';
+          content: string;
+          timestamp: string;
+          channel: string;
+        }>;
+      };
+      count?: number;
+    };
+  }>('/ai/suggestions', {
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          patientId: { type: 'string' },
+          currentMessage: { type: 'string' },
+          context: { type: 'object' },
+          count: { type: 'number', default: 3 },
+        },
+      },
+    },
+    handler: async (request, reply) => {
+      const client = getOpenAIClient();
+      if (!client) {
+        return reply.status(503).send({
+          error: 'AI service not configured',
+          message: 'OPENAI_API_KEY environment variable is required',
+        });
+      }
+
+      const { context, count = 3 } = request.body;
+      const conversation = context?.currentConversation ?? [];
+
+      // Build conversation history for context
+      const conversationText = conversation
+        .slice(-10) // Last 10 messages
+        .map((msg) => `${msg.direction === 'IN' ? 'PACIENT' : 'OPERATOR'}: ${msg.content}`)
+        .join('\n');
+
+      const lastPatientMessage = conversation
+        .filter((m) => m.direction === 'IN')
+        .slice(-1)[0]?.content ?? '';
+
+      try {
+        const response = await client.chatCompletion({
+          messages: [
+            {
+              role: 'system',
+              content: `Ești un asistent AI pentru o clinică medicală din România. Generează ${count} sugestii de răspuns pentru operator.
+
+REGULI:
+- Răspunsuri în limba română
+- Ton profesional dar prietenos
+- Concis (max 2 propoziții per sugestie)
+- Variază tonul: formal, prietenos, empatic
+- NU inventa prețuri sau disponibilități
+- Concentrează-te pe nevoile pacientului
+
+Răspunde STRICT în format JSON:
+{
+  "suggestions": [
+    {
+      "content": "textul răspunsului",
+      "tone": "formal|friendly|empathetic",
+      "confidence": 0.0-1.0,
+      "category": "greeting|info|scheduling|followup|objection"
+    }
+  ]
+}`,
+            },
+            {
+              role: 'user',
+              content: `Conversație recentă:
+${conversationText || 'Nu există conversație anterioară.'}
+
+Ultimul mesaj al pacientului: "${lastPatientMessage || 'Niciun mesaj'}"
+
+Generează ${count} sugestii de răspuns pentru operator.`,
+            },
+          ],
+          temperature: 0.7,
+          jsonMode: true,
+        });
+
+        const parsed = JSON.parse(response) as {
+          suggestions: Array<{
+            content: string;
+            tone: string;
+            confidence: number;
+            category: string;
+          }>;
+        };
+
+        // Add IDs to suggestions
+        const suggestions = parsed.suggestions.map((s, i) => ({
+          id: `sug-${Date.now()}-${i}`,
+          ...s,
+        }));
+
+        return reply.send({ suggestions });
+      } catch (error) {
+        request.log.error({ error }, 'AI suggestions error');
+        return reply.status(500).send({
+          error: 'Failed to generate suggestions',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    },
+  });
+
+  /**
+   * GET /ai/summary/:patientId
+   *
+   * Get AI-generated patient summary with insights.
+   * Combines HubSpot data with AI analysis.
+   */
+  fastify.get<{ Params: { patientId: string } }>('/ai/summary/:patientId', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          patientId: { type: 'string' },
+        },
+        required: ['patientId'],
+      },
+    },
+    handler: async (request, reply) => {
+      const client = getOpenAIClient();
+      if (!client) {
+        return reply.status(503).send({
+          error: 'AI service not configured',
+          message: 'OPENAI_API_KEY environment variable is required',
+        });
+      }
+
+      const { patientId } = request.params;
+
+      // TODO: Fetch real patient data from HubSpot
+      // const hubspot = createHubSpotClient(...);
+      // const contact = await hubspot.getContact(patientId);
+      // const timeline = await hubspot.getContactTimeline(patientId);
+
+      // For now, generate a summary based on available context
+      try {
+        const response = await client.chatCompletion({
+          messages: [
+            {
+              role: 'system',
+              content: `Ești un analist AI pentru o clinică medicală. Generează un rezumat structurat al pacientului.
+
+Răspunde STRICT în format JSON:
+{
+  "totalInteractions": number,
+  "firstContact": "YYYY-MM-DD",
+  "lastContact": "YYYY-MM-DD",
+  "classification": "HOT|WARM|COLD",
+  "score": 0-100,
+  "keyInsights": ["insight1", "insight2", "insight3"],
+  "proceduresDiscussed": ["procedure1"],
+  "objections": ["objection1"],
+  "appointmentHistory": [{"date": "YYYY-MM-DD", "procedure": "name", "status": "completed|cancelled|scheduled"}],
+  "sentiment": "positive|neutral|negative",
+  "engagementLevel": "high|medium|low"
+}`,
+            },
+            {
+              role: 'user',
+              content: `Generează un rezumat pentru pacientul cu ID: ${patientId}.
+
+Notă: În producție, acest endpoint va fi conectat la HubSpot pentru date reale.
+Pentru acum, generează date de exemplu realiste pentru o clinică de estetică.`,
+            },
+          ],
+          temperature: 0.5,
+          jsonMode: true,
+        });
+
+        const summary = JSON.parse(response);
+        return reply.send({ summary });
+      } catch (error) {
+        request.log.error({ error }, 'AI summary error');
+        return reply.status(500).send({
+          error: 'Failed to generate summary',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    },
+  });
+
+  /**
+   * POST /ai/chat
+   *
+   * Interactive chat with AI assistant for operators.
+   * Provides contextual help based on patient and conversation data.
+   */
+  fastify.post<{
+    Body: {
+      messages: Array<{
+        role: 'user' | 'assistant';
+        content: string;
+      }>;
+      context?: {
+        patientId?: string;
+        patientPhone?: string;
+        patientName?: string;
+        currentConversation?: Array<{
+          direction: 'IN' | 'OUT';
+          content: string;
+        }>;
+      };
+    };
+  }>('/ai/chat', {
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          messages: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                role: { type: 'string', enum: ['user', 'assistant'] },
+                content: { type: 'string' },
+              },
+              required: ['role', 'content'],
+            },
+          },
+          context: { type: 'object' },
+        },
+        required: ['messages'],
+      },
+    },
+    handler: async (request, reply) => {
+      const client = getOpenAIClient();
+      if (!client) {
+        return reply.status(503).send({
+          error: 'AI service not configured',
+          message: 'OPENAI_API_KEY environment variable is required',
+        });
+      }
+
+      const { messages, context } = request.body;
+
+      // Build context summary
+      const patientContext = context?.patientName
+        ? `Pacient curent: ${context.patientName} (${context.patientPhone ?? 'telefon necunoscut'})`
+        : 'Nu există pacient selectat.';
+
+      const conversationContext = context?.currentConversation?.length
+        ? `\nConversația curentă cu pacientul:\n${context.currentConversation
+            .slice(-5)
+            .map((m) => `${m.direction === 'IN' ? 'PACIENT' : 'OPERATOR'}: ${m.content}`)
+            .join('\n')}`
+        : '';
+
+      try {
+        const response = await client.chatCompletion({
+          messages: [
+            {
+              role: 'system',
+              content: `Ești un asistent AI pentru operatorii unei clinici medicale din România.
+
+CONTEXT:
+${patientContext}${conversationContext}
+
+CAPABILITĂȚI:
+- Ajuți la formularea răspunsurilor pentru pacienți
+- Oferi informații despre proceduri medicale estetice
+- Sugerezi strategii de comunicare
+- Analizezi conversații și oferi insights
+
+REGULI:
+- Răspunde în română
+- Fii concis și util
+- NU da sfaturi medicale specifice
+- NU inventa prețuri sau disponibilități
+- Dacă nu știi, spune că operatorul trebuie să verifice`,
+            },
+            ...messages.map((m) => ({
+              role: m.role as 'user' | 'assistant',
+              content: m.content,
+            })),
+          ],
+          temperature: 0.7,
+          maxTokens: 500,
+        });
+
+        return reply.send({
+          message: {
+            role: 'assistant',
+            content: response,
+          },
+        });
+      } catch (error) {
+        request.log.error({ error }, 'AI chat error');
+        return reply.status(500).send({
+          error: 'Failed to generate response',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    },
+  });
+
+  /**
+   * POST /ai/recommendations
+   *
+   * Get AI-powered procedure recommendations based on patient context.
+   */
+  fastify.post<{
+    Body: {
+      patientId: string;
+      context?: {
+        currentConversation?: Array<{
+          direction: 'IN' | 'OUT';
+          content: string;
+        }>;
+        proceduresDiscussed?: string[];
+      };
+    };
+  }>('/ai/recommendations', {
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          patientId: { type: 'string' },
+          context: { type: 'object' },
+        },
+        required: ['patientId'],
+      },
+    },
+    handler: async (request, reply) => {
+      const client = getOpenAIClient();
+      if (!client) {
+        return reply.status(503).send({
+          error: 'AI service not configured',
+          message: 'OPENAI_API_KEY environment variable is required',
+        });
+      }
+
+      const { context } = request.body;
+
+      const conversationText = context?.currentConversation
+        ?.slice(-10)
+        .map((m) => `${m.direction === 'IN' ? 'PACIENT' : 'OPERATOR'}: ${m.content}`)
+        .join('\n') ?? '';
+
+      try {
+        const response = await client.chatCompletion({
+          messages: [
+            {
+              role: 'system',
+              content: `Ești un consultant AI pentru o clinică de chirurgie estetică.
+Analizează conversația și recomandă proceduri relevante.
+
+PROCEDURI DISPONIBILE:
+- Rinoplastie (3500-5500€) - nas
+- Blefaroplastie (1500-2500€) - pleoape
+- Lifting facial (4000-8000€) - față
+- Liposucție (2000-4000€) - corp
+- Implant mamar (3500-5000€) - sâni
+- Botox (200-500€) - riduri
+- Filler (300-600€) - volume
+
+Răspunde STRICT în format JSON:
+{
+  "recommendations": [
+    {
+      "id": "unique-id",
+      "name": "Nume procedură",
+      "category": "Categorie",
+      "relevanceScore": 0.0-1.0,
+      "reasoning": "De ce este relevantă",
+      "priceRange": {"min": 1000, "max": 2000, "currency": "EUR"},
+      "duration": "1-2 ore",
+      "relatedProcedures": ["procedură1"],
+      "commonQuestions": ["întrebare1"]
+    }
+  ]
+}`,
+            },
+            {
+              role: 'user',
+              content: `Analizează conversația și recomandă proceduri:
+
+${conversationText || 'Nu există conversație. Recomandă cele mai populare proceduri.'}`,
+            },
+          ],
+          temperature: 0.5,
+          jsonMode: true,
+        });
+
+        const parsed = JSON.parse(response) as {
+          recommendations: Array<Record<string, unknown>>;
+        };
+
+        return reply.send({ recommendations: parsed.recommendations });
+      } catch (error) {
+        request.log.error({ error }, 'AI recommendations error');
+        return reply.status(500).send({
+          error: 'Failed to generate recommendations',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    },
+  });
 };

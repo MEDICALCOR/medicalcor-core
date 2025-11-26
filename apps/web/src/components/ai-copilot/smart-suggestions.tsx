@@ -1,11 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Lightbulb, Copy, Check, Zap, RefreshCw, Loader2 } from 'lucide-react';
 import {
   type ChatContext,
   quickReplies,
-  generateMockSuggestions,
   type ResponseSuggestion,
 } from '@/lib/ai';
 import { Button } from '@/components/ui/button';
@@ -17,50 +16,71 @@ interface SmartSuggestionsProps {
   onSelect?: (content: string) => void;
 }
 
-const toneColors = {
+const toneColors: Record<string, string> = {
   formal: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
   friendly: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
   empathetic: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
   urgent: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
 };
 
-const toneLabels = {
+const toneLabels: Record<string, string> = {
   formal: 'Formal',
   friendly: 'Prietenos',
   empathetic: 'Empatic',
   urgent: 'Urgent',
 };
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '/api';
+
 export function SmartSuggestions({ context, onSelect }: SmartSuggestionsProps) {
   const [suggestions, setSuggestions] = useState<ResponseSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Generate suggestions based on context
-  useEffect(() => {
+  // Fetch suggestions from real AI API
+  const fetchSuggestions = useCallback(async () => {
     setIsLoading(true);
-    // Simulate API call
-    const timer = setTimeout(() => {
-      const lastMessage = context?.currentConversation?.slice(-1)[0];
-      const mockSuggestions = generateMockSuggestions({
-        currentMessage: lastMessage?.direction === 'IN' ? lastMessage.content : undefined,
+    try {
+      const response = await fetch(`${API_BASE}/ai/suggestions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientId: context?.patientId,
+          context: {
+            patientPhone: context?.patientPhone,
+            patientName: context?.patientName,
+            currentConversation: context?.currentConversation,
+          },
+          count: 3,
+        }),
       });
-      setSuggestions(mockSuggestions);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch suggestions');
+      }
+
+      const data = (await response.json()) as { suggestions: ResponseSuggestion[] };
+      setSuggestions(data.suggestions);
+    } catch (error) {
+      console.error('Failed to fetch AI suggestions:', error);
+      // Keep existing suggestions on error
+    } finally {
       setIsLoading(false);
+    }
+  }, [context?.patientId, context?.patientPhone, context?.patientName, context?.currentConversation]);
+
+  // Fetch suggestions when conversation changes
+  useEffect(() => {
+    // Debounce to avoid too many API calls
+    const timer = setTimeout(() => {
+      void fetchSuggestions();
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [context?.currentConversation]);
+  }, [fetchSuggestions]);
 
   const handleRefresh = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      const newSuggestions = generateMockSuggestions({
-        currentMessage: context?.currentConversation?.slice(-1)[0]?.content,
-      });
-      setSuggestions(newSuggestions);
-      setIsLoading(false);
-    }, 500);
+    void fetchSuggestions();
   };
 
   const handleCopy = async (content: string, id: string) => {

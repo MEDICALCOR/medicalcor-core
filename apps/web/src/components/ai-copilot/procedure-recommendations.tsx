@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   Sparkles,
   Euro,
@@ -13,7 +13,6 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import {
-  generateMockRecommendations,
   type ChatContext,
   type ProcedureRecommendation,
 } from '@/lib/ai';
@@ -25,28 +24,53 @@ interface ProcedureRecommendationsProps {
   context?: ChatContext;
 }
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '/api';
+
 export function ProcedureRecommendations({ context }: ProcedureRecommendationsProps) {
   const [recommendations, setRecommendations] = useState<ProcedureRecommendation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  useEffect(() => {
+  // Fetch recommendations from real AI API
+  const fetchRecommendations = useCallback(async () => {
     setIsLoading(true);
-    // Simulate API call
-    const timer = setTimeout(() => {
-      setRecommendations(generateMockRecommendations());
+    try {
+      const response = await fetch(`${API_BASE}/ai/recommendations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientId: context?.patientId ?? 'unknown',
+          context: {
+            currentConversation: context?.currentConversation,
+            proceduresDiscussed: [],
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch recommendations');
+      }
+
+      const data = (await response.json()) as { recommendations: ProcedureRecommendation[] };
+      setRecommendations(data.recommendations);
+    } catch (error) {
+      console.error('Failed to fetch AI recommendations:', error);
+      // Keep existing recommendations on error
+    } finally {
       setIsLoading(false);
+    }
+  }, [context?.patientId, context?.currentConversation]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void fetchRecommendations();
     }, 600);
 
     return () => clearTimeout(timer);
-  }, [context?.patientId]);
+  }, [fetchRecommendations]);
 
   const handleRefresh = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setRecommendations(generateMockRecommendations());
-      setIsLoading(false);
-    }, 600);
+    void fetchRecommendations();
   };
 
   const getRelevanceColor = (score: number) => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   User,
   TrendingUp,
@@ -13,7 +13,7 @@ import {
   Loader2,
   RefreshCw,
 } from 'lucide-react';
-import { generateMockSummary, type PatientHistorySummary } from '@/lib/ai';
+import { type PatientHistorySummary } from '@/lib/ai';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -22,11 +22,11 @@ interface PatientSummaryProps {
   patientId?: string;
 }
 
-const classificationVariants = {
+const classificationVariants: Record<string, 'hot' | 'warm' | 'cold'> = {
   HOT: 'hot',
   WARM: 'warm',
   COLD: 'cold',
-} as const;
+};
 
 const sentimentIcons = {
   positive: { icon: CheckCircle2, color: 'text-green-500' },
@@ -34,30 +34,40 @@ const sentimentIcons = {
   negative: { icon: XCircle, color: 'text-red-500' },
 };
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '/api';
+
 export function PatientSummary({ patientId }: PatientSummaryProps) {
   const [summary, setSummary] = useState<PatientHistorySummary | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
+  // Fetch summary from real AI API
+  const fetchSummary = useCallback(async () => {
     if (!patientId) return;
 
     setIsLoading(true);
-    // Simulate API call
-    const timer = setTimeout(() => {
-      setSummary(generateMockSummary(patientId));
-      setIsLoading(false);
-    }, 800);
+    try {
+      const response = await fetch(`${API_BASE}/ai/summary/${patientId}`);
 
-    return () => clearTimeout(timer);
+      if (!response.ok) {
+        throw new Error('Failed to fetch summary');
+      }
+
+      const data = (await response.json()) as { summary: PatientHistorySummary };
+      setSummary(data.summary);
+    } catch (error) {
+      console.error('Failed to fetch AI summary:', error);
+      setSummary(null);
+    } finally {
+      setIsLoading(false);
+    }
   }, [patientId]);
 
+  useEffect(() => {
+    void fetchSummary();
+  }, [fetchSummary]);
+
   const handleRefresh = () => {
-    if (!patientId) return;
-    setIsLoading(true);
-    setTimeout(() => {
-      setSummary(generateMockSummary(patientId));
-      setIsLoading(false);
-    }, 800);
+    void fetchSummary();
   };
 
   if (!patientId) {
