@@ -112,16 +112,101 @@ function logConsentDenied(
 const BATCH_SIZE = 10;
 
 /**
+ * Retry configuration for batch item processing
+ */
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  baseDelayMs: 1000,
+  maxDelayMs: 10000,
+};
+
+/**
+ * Execute a function with exponential backoff retry
+ * @param fn - Async function to execute
+ * @param maxRetries - Maximum retry attempts
+ * @param baseDelayMs - Initial delay in milliseconds
+ * @param maxDelayMs - Maximum delay cap in milliseconds
+ * @returns Result of the function
+ */
+async function withExponentialRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries = RETRY_CONFIG.maxRetries,
+  baseDelayMs = RETRY_CONFIG.baseDelayMs,
+  maxDelayMs = RETRY_CONFIG.maxDelayMs
+): Promise<T> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+
+      // Don't retry if it's the last attempt
+      if (attempt === maxRetries) {
+        break;
+      }
+
+      // Check if error is retryable
+      const isRetryable = isRetryableError(error);
+      if (!isRetryable) {
+        break;
+      }
+
+      // Calculate delay with exponential backoff and jitter
+      const exponentialDelay = baseDelayMs * Math.pow(2, attempt);
+      const jitter = Math.random() * 0.3 * exponentialDelay; // 30% jitter
+      const delay = Math.min(exponentialDelay + jitter, maxDelayMs);
+
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError;
+}
+
+/**
+ * Determine if an error is retryable
+ */
+function isRetryableError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    // Retry on network errors, rate limits, and server errors
+    if (message.includes('rate_limit') || message.includes('429')) return true;
+    if (message.includes('timeout')) return true;
+    if (message.includes('502') || message.includes('503') || message.includes('504')) return true;
+    if (message.includes('network') || message.includes('econnreset')) return true;
+    if (message.includes('socket hang up')) return true;
+  }
+  return false;
+}
+
+/**
  * Process items in batches using Promise.allSettled for resilience
+ * CRITICAL FIX: Now includes exponential backoff retry for individual items
+ *
  * @param items - Array of items to process
  * @param processor - Async function to process each item
+ * @param loggerInstance - Logger for batch progress
+ * @param options - Processing options
  * @returns Object with success count and errors array
  */
 async function processBatch<T>(
   items: T[],
   processor: (item: T) => Promise<void>,
-  logger: { info: (msg: string, meta?: Record<string, unknown>) => void }
+  loggerInstance: { info: (msg: string, meta?: Record<string, unknown>) => void },
+  options: {
+    enableRetry?: boolean;
+    maxRetries?: number;
+    baseDelayMs?: number;
+  } = {}
 ): Promise<{ successes: number; errors: { item: T; error: unknown }[] }> {
+  const {
+    enableRetry = true,
+    maxRetries = RETRY_CONFIG.maxRetries,
+    baseDelayMs = RETRY_CONFIG.baseDelayMs,
+  } = options;
+
   let successes = 0;
   const errors: { item: T; error: unknown }[] = [];
 
@@ -130,9 +215,16 @@ async function processBatch<T>(
     const batchNum = Math.floor(i / BATCH_SIZE) + 1;
     const totalBatches = Math.ceil(items.length / BATCH_SIZE);
 
-    logger.info(`Processing batch ${batchNum}/${totalBatches}`, { batchSize: batch.length });
+    loggerInstance.info(`Processing batch ${batchNum}/${totalBatches}`, {
+      batchSize: batch.length,
+    });
 
-    const results = await Promise.allSettled(batch.map(processor));
+    // Wrap processor with retry logic if enabled
+    const processWithRetry = enableRetry
+      ? (item: T) => withExponentialRetry(() => processor(item), maxRetries, baseDelayMs)
+      : processor;
+
+    const results = await Promise.allSettled(batch.map(processWithRetry));
 
     for (let j = 0; j < results.length; j++) {
       const result = results[j];

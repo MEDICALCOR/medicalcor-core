@@ -1,6 +1,11 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { ValidationError, toSafeErrorResponse, generateCorrelationId } from '@medicalcor/core';
+import {
+  ValidationError,
+  toSafeErrorResponse,
+  generateCorrelationId,
+  IdempotencyKeys,
+} from '@medicalcor/core';
 import { tasks } from '@trigger.dev/sdk/v3';
 
 /**
@@ -91,14 +96,21 @@ export const bookingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
         if (selectedId.startsWith('slot_')) {
           const slotId = selectedId.replace('slot_', '');
 
-          await tasks.trigger('booking-agent-workflow', {
-            phone,
-            hubspotContactId: hubspotContactId ?? '',
-            procedureType: procedureType ?? 'consultation',
-            language,
-            correlationId,
-            selectedSlotId: slotId,
-          });
+          // Idempotency: prevents duplicate bookings for the same slot selection
+          const idempotencyKey = IdempotencyKeys.bookingAgent(hubspotContactId ?? phone, slotId);
+
+          await tasks.trigger(
+            'booking-agent-workflow',
+            {
+              phone,
+              hubspotContactId: hubspotContactId ?? '',
+              procedureType: procedureType ?? 'consultation',
+              language,
+              correlationId,
+              selectedSlotId: slotId,
+            },
+            { idempotencyKey }
+          );
 
           fastify.log.info(
             { correlationId, slotId },
@@ -114,13 +126,24 @@ export const bookingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
 
         // Handle booking confirmation buttons
         if (selectedId === 'book_yes') {
-          await tasks.trigger('booking-agent-workflow', {
-            phone,
-            hubspotContactId: hubspotContactId ?? '',
-            procedureType: procedureType ?? 'consultation',
-            language,
-            correlationId,
-          });
+          // Idempotency for booking initiation (no slot selected yet)
+          const initIdempotencyKey = IdempotencyKeys.custom(
+            'booking-init',
+            hubspotContactId ?? phone,
+            correlationId
+          );
+
+          await tasks.trigger(
+            'booking-agent-workflow',
+            {
+              phone,
+              hubspotContactId: hubspotContactId ?? '',
+              procedureType: procedureType ?? 'consultation',
+              language,
+              correlationId,
+            },
+            { idempotencyKey: initIdempotencyKey }
+          );
 
           fastify.log.info({ correlationId }, 'Triggered booking workflow for booking request');
 
@@ -194,16 +217,23 @@ export const bookingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
 
       fastify.log.info({ correlationId, slotId, procedureType }, 'Direct booking request received');
 
-      const handle = await tasks.trigger('booking-agent-workflow', {
-        phone,
-        hubspotContactId,
-        procedureType,
-        patientName,
-        patientEmail,
-        language,
-        correlationId,
-        selectedSlotId: slotId,
-      });
+      // Idempotency: prevents duplicate direct bookings for the same slot
+      const directIdempotencyKey = IdempotencyKeys.bookingAgent(hubspotContactId, slotId);
+
+      const handle = await tasks.trigger(
+        'booking-agent-workflow',
+        {
+          phone,
+          hubspotContactId,
+          procedureType,
+          patientName,
+          patientEmail,
+          language,
+          correlationId,
+          selectedSlotId: slotId,
+        },
+        { idempotencyKey: directIdempotencyKey }
+      );
 
       fastify.log.info(
         { correlationId, slotId, taskId: handle.id },
@@ -265,14 +295,24 @@ export const bookingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
           });
         }
 
-        await tasks.trigger('booking-agent-workflow', {
-          phone,
-          hubspotContactId: hubspotContactId ?? '',
-          procedureType,
-          language,
-          correlationId,
-          selectedSlotId,
-        });
+        // Idempotency: prevents duplicate bookings for the same text selection
+        const textIdempotencyKey = IdempotencyKeys.bookingAgent(
+          hubspotContactId ?? phone,
+          selectedSlotId
+        );
+
+        await tasks.trigger(
+          'booking-agent-workflow',
+          {
+            phone,
+            hubspotContactId: hubspotContactId ?? '',
+            procedureType,
+            language,
+            correlationId,
+            selectedSlotId,
+          },
+          { idempotencyKey: textIdempotencyKey }
+        );
 
         fastify.log.info(
           { correlationId, selectedSlotId, selectedNumber },

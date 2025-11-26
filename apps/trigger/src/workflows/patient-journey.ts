@@ -481,13 +481,49 @@ export const bookingAgentWorkflow = task({
 
     if (selectedSlotId) {
       // Direct booking with pre-selected slot
+      // CRITICAL FIX: Re-validate slot availability before booking
+      // The slot might have been booked by another user since it was displayed
       selectedSlot = availableSlots.find((slot) => slot.id === selectedSlotId);
+
       if (!selectedSlot) {
-        logger.warn('Pre-selected slot not found or no longer available', {
+        logger.warn('Pre-selected slot not found in available slots - may have been booked', {
           selectedSlotId,
+          availableSlotsCount: availableSlots.length,
           correlationId,
         });
+
+        // Notify patient that the slot is no longer available
+        if (whatsapp) {
+          const slotUnavailableMessages: Record<string, string> = {
+            ro: 'Ne pare rău, intervalul selectat nu mai este disponibil. Vă rugăm să alegeți alt interval din lista de mai jos.',
+            en: 'Sorry, the selected time slot is no longer available. Please choose another time from the list below.',
+            de: 'Der ausgewählte Termin ist leider nicht mehr verfügbar. Bitte wählen Sie einen anderen Termin aus der Liste unten.',
+          };
+
+          try {
+            await whatsapp.sendText({
+              to: phone,
+              text: slotUnavailableMessages[language] ?? slotUnavailableMessages.ro ?? '',
+            });
+          } catch (notifyError) {
+            logger.error('Failed to send slot unavailable notification', {
+              error: notifyError,
+              correlationId,
+            });
+          }
+        }
+
         // Fall through to present available options
+      } else {
+        // Double-check the slot is still marked as available
+        // This provides an additional safety layer
+        if (!selectedSlot.available) {
+          logger.warn('Pre-selected slot exists but is marked as unavailable', {
+            selectedSlotId,
+            correlationId,
+          });
+          selectedSlot = undefined; // Reset to trigger slot selection
+        }
       }
     }
 
