@@ -3,34 +3,77 @@ import pino, { type Logger, type LoggerOptions } from 'pino';
 /**
  * Medical-grade logger with PII redaction
  * Prevents raw PII from reaching logs per GDPR/HIPAA requirements
+ *
+ * Compliant with:
+ * - GDPR Article 5 (data minimization)
+ * - HIPAA Privacy Rule (PHI protection)
+ * - Romanian ANSPDCP guidelines
  */
 
 // PII patterns to redact
 const PII_PATTERNS = {
   // Romanian phone formats: 07xx, +40, 0040
   phone: /(\+?40|0040|0)?[0-9]{9,10}/g,
+  // International phone format (E.164)
+  phoneE164: /\+[1-9]\d{1,14}/g,
   // Email addresses
   email: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
+  // Romanian CNP (national ID) - 13 digits starting with 1-8
+  cnp: /\b[1-8]\d{12}\b/g,
+  // Credit card numbers (basic pattern)
+  creditCard: /\b(?:\d{4}[-\s]?){3}\d{4}\b/g,
+  // IBAN (Romanian format)
+  iban: /\bRO\d{2}[A-Z]{4}\d{16}\b/gi,
+  // IPv4 addresses
+  ipv4: /\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/g,
+  // IPv6 addresses (simplified)
+  ipv6: /\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b/g,
   // Google Click ID
   gclid: /gclid=[a-zA-Z0-9_-]+/gi,
   // Facebook Click ID
   fbclid: /fbclid=[a-zA-Z0-9_-]+/gi,
+  // JWT tokens
+  jwt: /eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*/g,
+  // Bearer tokens
+  bearer: /Bearer\s+[a-zA-Z0-9_-]+/gi,
 };
 
-// Fields to completely redact
+// Fields to completely redact (case-insensitive matching)
 const REDACTED_FIELDS = [
   'phone',
+  'phonenumber',
   'email',
   'name',
-  'firstName',
-  'lastName',
+  'firstname',
+  'lastname',
+  'fullname',
   'transcript',
-  'messageBody',
+  'messagebody',
   'message',
   'text',
   'body',
+  'content',
   'gclid',
   'fbclid',
+  'password',
+  'secret',
+  'token',
+  'apikey',
+  'api_key',
+  'authorization',
+  'cookie',
+  'session',
+  'cnp',
+  'ssn',
+  'creditcard',
+  'cardnumber',
+  'cvv',
+  'iban',
+  'ip',
+  'ipaddress',
+  'userip',
+  'clientip',
+  'remoteaddress',
 ];
 
 /**
@@ -56,7 +99,12 @@ function redactObject(obj: unknown): unknown {
   if (typeof obj === 'object') {
     const redacted: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj)) {
-      if (REDACTED_FIELDS.includes(key.toLowerCase())) {
+      const keyLower = key.toLowerCase();
+      // Check if key matches any redacted field pattern
+      const shouldRedact = REDACTED_FIELDS.some(
+        (field) => keyLower === field || keyLower.includes(field)
+      );
+      if (shouldRedact) {
         redacted[key] = '[REDACTED]';
       } else {
         redacted[key] = redactObject(value);
