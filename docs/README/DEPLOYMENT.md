@@ -2,6 +2,8 @@
 
 Complete guide to deploying MedicalCor Core to production environments.
 
+> **Important**: Before deploying to production, complete the [Pre-Production Checklist](#pre-production-checklist) at the end of this document. The system handles sensitive medical data (PHI) and must comply with GDPR and HIPAA requirements.
+
 ## Table of Contents
 
 - [Overview](#overview)
@@ -15,6 +17,7 @@ Complete guide to deploying MedicalCor Core to production environments.
 - [Monitoring Setup](#monitoring-setup)
 - [Rollback Procedures](#rollback-procedures)
 - [Security Checklist](#security-checklist)
+- [Pre-Production Checklist](#pre-production-checklist)
 
 ---
 
@@ -578,6 +581,107 @@ curl http://localhost:3000/ready
 3. Ensure tasks are exported correctly
 
 See [Troubleshooting Guide](./TROUBLESHOOTING.md) for more solutions.
+
+---
+
+## Pre-Production Checklist
+
+Before deploying to production, verify all items in this checklist. This system handles Protected Health Information (PHI) and must comply with GDPR and HIPAA requirements.
+
+### Security Requirements
+
+| Requirement | Status | Notes |
+|-------------|--------|-------|
+| **Secrets Management** | | |
+| All secrets in Secret Manager (not in code/env files) | [ ] | Use GCP Secret Manager or AWS Secrets Manager |
+| Webhook secrets configured for all providers | [ ] | WhatsApp, Twilio, Stripe, Vapi |
+| API keys rotated from development values | [ ] | Generate new production keys |
+| Database credentials secured | [ ] | Not in docker-compose or Terraform state |
+| **Authentication** | | |
+| Web dashboard authentication enabled | [ ] | Configure NextAuth with proper providers |
+| API key authentication enforced | [ ] | No bypass in production environment |
+| Webhook signature verification enabled | [ ] | No dev-mode bypass |
+| **Network Security** | | |
+| TLS/SSL certificates configured | [ ] | All traffic encrypted in transit |
+| CORS configured for production domains only | [ ] | No wildcard (*) origins |
+| Rate limiting enabled on all endpoints | [ ] | Review limits for your traffic |
+| Security headers configured (Helmet.js) | [ ] | HSTS, CSP, X-Frame-Options |
+
+### Data Protection & Compliance
+
+| Requirement | Status | Notes |
+|-------------|--------|-------|
+| **GDPR** | | |
+| Consent management configured | [ ] | Persistent storage, not in-memory |
+| Consent audit trail enabled | [ ] | All consent changes logged |
+| Data retention policies defined | [ ] | Automatic cleanup of old data |
+| Right to erasure workflow tested | [ ] | Can delete patient data on request |
+| **HIPAA (if applicable)** | | |
+| PHI encryption at rest | [ ] | Database encryption enabled |
+| PHI encryption in transit | [ ] | TLS 1.3 for all connections |
+| Access logging enabled | [ ] | All PHI access logged |
+| BAA signed with all data processors | [ ] | HubSpot, Twilio, etc. |
+| **PII Protection** | | |
+| PII redaction enabled in logs | [ ] | Verify with test logs |
+| No PII in error messages | [ ] | Sanitize before sending to users |
+| Telemetry excludes sensitive data | [ ] | No phone/email in traces |
+
+### Infrastructure
+
+| Requirement | Status | Notes |
+|-------------|--------|-------|
+| **Database** | | |
+| PostgreSQL SSL enabled | [ ] | Verify with `?sslmode=require` |
+| Database backups configured | [ ] | Automated daily backups |
+| Backup restoration tested | [ ] | Verify you can restore |
+| Connection pooling configured | [ ] | Prevent connection exhaustion |
+| **Redis** | | |
+| Redis authentication enabled | [ ] | No default/empty password |
+| Redis TLS enabled (production) | [ ] | Use `rediss://` protocol |
+| Redis persistence configured | [ ] | AOF or RDB based on needs |
+| **Monitoring** | | |
+| Health check endpoints accessible | [ ] | `/health`, `/ready`, `/live` |
+| Prometheus metrics enabled | [ ] | `/metrics` endpoint |
+| Alerting configured | [ ] | PagerDuty/Slack integration |
+| Log aggregation configured | [ ] | Loki, CloudWatch, etc. |
+
+### Application
+
+| Requirement | Status | Notes |
+|-------------|--------|-------|
+| **Build & Deploy** | | |
+| Production build tested locally | [ ] | `NODE_ENV=production pnpm build` |
+| Environment variables validated | [ ] | All required vars set |
+| Docker image scanned for vulnerabilities | [ ] | Trivy or similar |
+| Dependency audit passed | [ ] | `pnpm audit --production` |
+| **Integrations** | | |
+| HubSpot webhook URL configured | [ ] | Production URL, not ngrok |
+| WhatsApp webhook URL configured | [ ] | Verified by 360dialog |
+| Stripe webhook URL configured | [ ] | Production endpoint |
+| Trigger.dev production deployment | [ ] | `pnpm deploy` in apps/trigger |
+| **Testing** | | |
+| Integration tests passing | [ ] | All webhook handlers tested |
+| Load testing completed | [ ] | Verify capacity for expected traffic |
+| Smoke tests defined | [ ] | Post-deployment verification |
+
+### Operations
+
+| Requirement | Status | Notes |
+|-------------|--------|-------|
+| Runbook documented | [ ] | Common operational tasks |
+| Incident response plan defined | [ ] | Who to contact, escalation |
+| Rollback procedure tested | [ ] | Can revert to previous version |
+| On-call rotation set up | [ ] | 24/7 coverage if needed |
+| Disaster recovery plan documented | [ ] | RTO/RPO defined |
+
+### Sign-off
+
+| Role | Name | Date | Signature |
+|------|------|------|-----------|
+| Engineering Lead | | | |
+| Security Officer | | | |
+| Compliance Officer | | | |
+| Operations Lead | | | |
 
 ---
 

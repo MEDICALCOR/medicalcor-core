@@ -9,6 +9,9 @@ Complete documentation for the MedicalCor Core API endpoints.
 - [Health Endpoints](#health-endpoints)
 - [Webhook Endpoints](#webhook-endpoints)
 - [Workflow Endpoints](#workflow-endpoints)
+- [Booking Endpoints](#booking-endpoints)
+- [Backup Endpoints](#backup-endpoints)
+- [ChatGPT Plugin Endpoints](#chatgpt-plugin-endpoints)
 - [Diagnostics Endpoints](#diagnostics-endpoints)
 - [Error Handling](#error-handling)
 - [Rate Limiting](#rate-limiting)
@@ -495,6 +498,311 @@ Execute AI function calls.
     "confidence": 0.92,
     "reasoning": "Urgent need expressed with high-value procedure interest",
     "suggestedAction": "Immediate callback from senior consultant"
+  }
+}
+```
+
+---
+
+## Booking Endpoints
+
+### POST /booking/slots
+
+Get available appointment slots for a specific date range.
+
+**Authentication**: API Key required
+
+**Headers**:
+| Header | Required | Description |
+|--------|----------|-------------|
+| `X-Api-Key` | Yes | API secret key |
+
+**Request Body**:
+
+```json
+{
+  "startDate": "2024-01-15",
+  "endDate": "2024-01-22",
+  "procedureType": "implant_consultation",
+  "duration": 60,
+  "doctorId": "doc_xxx"
+}
+```
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "data": {
+    "slots": [
+      {
+        "date": "2024-01-15",
+        "time": "09:00",
+        "available": true,
+        "doctorId": "doc_xxx",
+        "duration": 60
+      },
+      {
+        "date": "2024-01-15",
+        "time": "10:00",
+        "available": true,
+        "doctorId": "doc_xxx",
+        "duration": 60
+      }
+    ]
+  }
+}
+```
+
+---
+
+### POST /booking/appointments
+
+Create a new appointment.
+
+**Authentication**: API Key required
+
+**Request Body**:
+
+```json
+{
+  "patientPhone": "+15550001234",
+  "patientName": "John Doe",
+  "patientEmail": "john@example.com",
+  "date": "2024-01-15",
+  "time": "09:00",
+  "procedureType": "implant_consultation",
+  "duration": 60,
+  "doctorId": "doc_xxx",
+  "notes": "First consultation for implants",
+  "consentGiven": true
+}
+```
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "data": {
+    "appointmentId": "apt_xxx",
+    "status": "confirmed",
+    "confirmationSent": true
+  }
+}
+```
+
+**Status Codes**:
+- `200` - Appointment created successfully
+- `400` - Invalid request (missing consent, invalid date)
+- `409` - Slot no longer available
+- `429` - Rate limited
+
+---
+
+### DELETE /booking/appointments/:id
+
+Cancel an existing appointment.
+
+**Authentication**: API Key required
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "data": {
+    "appointmentId": "apt_xxx",
+    "status": "cancelled",
+    "notificationSent": true
+  }
+}
+```
+
+---
+
+## Backup Endpoints
+
+> **Note**: These endpoints are for internal use and require admin authentication.
+
+### POST /admin/backup
+
+Trigger a manual database backup.
+
+**Authentication**: Admin API Key required
+
+**Request Body**:
+
+```json
+{
+  "type": "full",
+  "destination": "gcs",
+  "encrypt": true
+}
+```
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "data": {
+    "backupId": "backup_xxx",
+    "status": "in_progress",
+    "estimatedDuration": 300
+  }
+}
+```
+
+---
+
+### GET /admin/backup/:id/status
+
+Get backup status.
+
+**Authentication**: Admin API Key required
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "data": {
+    "backupId": "backup_xxx",
+    "status": "completed",
+    "size": "1.2GB",
+    "duration": 180,
+    "location": "gs://medicalcor-backups/backup_xxx.enc"
+  }
+}
+```
+
+---
+
+### POST /admin/restore
+
+Restore from a backup.
+
+**Authentication**: Admin API Key required
+
+**Request Body**:
+
+```json
+{
+  "backupId": "backup_xxx",
+  "targetEnvironment": "staging",
+  "verify": true
+}
+```
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "data": {
+    "restoreId": "restore_xxx",
+    "status": "in_progress"
+  }
+}
+```
+
+---
+
+## ChatGPT Plugin Endpoints
+
+> **Note**: These endpoints power the ChatGPT plugin integration for appointment booking.
+
+### GET /.well-known/ai-plugin.json
+
+OpenAI plugin manifest.
+
+**Authentication**: None
+
+**Response**:
+
+```json
+{
+  "schema_version": "v1",
+  "name_for_human": "MedicalCor Booking",
+  "name_for_model": "medicalcor_booking",
+  "description_for_human": "Book dental appointments with MedicalCor clinics",
+  "description_for_model": "Plugin for booking dental appointments...",
+  "auth": {
+    "type": "none"
+  },
+  "api": {
+    "type": "openapi",
+    "url": "https://api.medicalcor.com/openapi.yaml"
+  }
+}
+```
+
+---
+
+### POST /chatgpt/search-slots
+
+Search for available appointment slots via ChatGPT.
+
+**Authentication**: ChatGPT verification token
+
+**Request Body**:
+
+```json
+{
+  "query": "I need an implant consultation next week",
+  "preferredDays": ["monday", "tuesday"],
+  "preferredTime": "morning"
+}
+```
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "data": {
+    "slots": [
+      {
+        "formatted": "Monday, January 15 at 9:00 AM",
+        "date": "2024-01-15",
+        "time": "09:00"
+      }
+    ],
+    "message": "I found 3 available slots for implant consultation next week."
+  }
+}
+```
+
+---
+
+### POST /chatgpt/book
+
+Book an appointment via ChatGPT.
+
+**Authentication**: ChatGPT verification token
+
+**Request Body**:
+
+```json
+{
+  "slotDate": "2024-01-15",
+  "slotTime": "09:00",
+  "patientName": "John Doe",
+  "patientPhone": "+15550001234",
+  "procedureType": "implant_consultation"
+}
+```
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Your appointment has been booked for Monday, January 15 at 9:00 AM. You will receive a confirmation via WhatsApp.",
+    "appointmentId": "apt_xxx"
   }
 }
 ```

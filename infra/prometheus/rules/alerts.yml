@@ -1,0 +1,167 @@
+# MedicalCor Prometheus Alert Rules
+# Documentation: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
+
+groups:
+  - name: medicalcor-api
+    interval: 30s
+    rules:
+      # High error rate alert
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total[5m]))
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+          service: api
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} over the last 5 minutes"
+
+      # Slow response times
+      - alert: SlowResponses
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          service: api
+        annotations:
+          summary: "Slow API responses detected"
+          description: "P95 latency is {{ $value }}s over the last 5 minutes"
+
+      # Service down
+      - alert: ServiceDown
+        expr: up{job="api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: api
+        annotations:
+          summary: "API service is down"
+          description: "API service has been down for more than 1 minute"
+
+      # Rate limit exhaustion
+      - alert: RateLimitExhausted
+        expr: |
+          sum(rate(rate_limit_hits_total[5m])) by (route)
+          /
+          sum(rate(http_requests_total[5m])) by (route)
+          > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: api
+        annotations:
+          summary: "High rate limit hit rate"
+          description: "Route {{ $labels.route }} is experiencing high rate limiting"
+
+  - name: medicalcor-ai
+    interval: 30s
+    rules:
+      # AI service degraded (high fallback rate)
+      - alert: AIServiceDegraded
+        expr: |
+          (
+            sum(rate(lead_scoring_fallback_total[10m]))
+            /
+            sum(rate(lead_scoring_total[10m]))
+          ) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          service: ai
+        annotations:
+          summary: "AI scoring using fallback frequently"
+          description: "{{ $value | humanizePercentage }} of scoring operations are using fallback"
+
+      # AI scoring latency
+      - alert: AIScoringSlow
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(lead_scoring_duration_seconds_bucket[5m])) by (le, model)
+          ) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: ai
+        annotations:
+          summary: "AI scoring is slow"
+          description: "P95 scoring latency for {{ $labels.model }} is {{ $value }}s"
+
+  - name: medicalcor-infrastructure
+    interval: 30s
+    rules:
+      # Redis down
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: "Redis is down"
+          description: "Redis service has been down for more than 1 minute"
+
+      # High memory usage (if node_exporter is available)
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes
+          ) / node_memory_MemTotal_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is above 90%"
+
+      # Disk space low (if node_exporter is available)
+      - alert: LowDiskSpace
+        expr: |
+          (
+            node_filesystem_avail_bytes{mountpoint="/"}
+            / node_filesystem_size_bytes{mountpoint="/"}
+          ) < 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "Low disk space"
+          description: "Less than 10% disk space available"
+
+  - name: medicalcor-business
+    interval: 60s
+    rules:
+      # No leads scored in the last hour (during business hours)
+      - alert: NoLeadsScored
+        expr: |
+          sum(increase(lead_scoring_total[1h])) == 0
+          and hour() >= 9 and hour() <= 18
+          and day_of_week() >= 1 and day_of_week() <= 5
+        for: 30m
+        labels:
+          severity: warning
+          service: business
+        annotations:
+          summary: "No leads scored recently"
+          description: "No leads have been scored in the last hour during business hours"
+
+      # High HOT lead volume (potential spam or anomaly)
+      - alert: UnusualHotLeadVolume
+        expr: |
+          sum(rate(lead_scoring_total{classification="HOT"}[1h])) * 3600 > 100
+        for: 30m
+        labels:
+          severity: warning
+          service: business
+        annotations:
+          summary: "Unusual volume of HOT leads"
+          description: "More than 100 HOT leads scored in the last hour"

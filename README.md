@@ -24,6 +24,22 @@
 
 ---
 
+> **Production Readiness Notice**
+>
+> This project is under active development. Before deploying to production, please review:
+> - [Security Guide](./docs/README/SECURITY.md) - Authentication, webhook security, data protection
+> - [Deployment Guide](./docs/README/DEPLOYMENT.md) - Production deployment checklist
+> - [Audit Reports](./COMPREHENSIVE_AUDIT_REPORT.md) - Known issues and remediation status
+>
+> Key requirements before production:
+> - Configure all webhook secrets (WhatsApp, Twilio, Stripe, Vapi)
+> - Set up proper authentication for web dashboard
+> - Enable TLS/SSL for all connections
+> - Review and test GDPR consent workflows
+> - Configure monitoring and alerting
+
+---
+
 AI-powered lead management system for dental clinics with omnichannel communication, intelligent lead scoring, and durable workflow processing.
 
 ## Features
@@ -113,6 +129,7 @@ curl http://localhost:3000/health
 | [Deployment](./docs/README/DEPLOYMENT.md) | Production deployment |
 | [Security](./docs/README/SECURITY.md) | Security architecture |
 | [Monitoring](./docs/README/MONITORING.md) | Observability setup |
+| [Workflows](./docs/README/WORKFLOWS.md) | Trigger.dev workflows |
 
 ### Reference
 

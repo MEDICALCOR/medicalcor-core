@@ -176,6 +176,7 @@ For detailed setup instructions, see [GETTING_STARTED.md](./GETTING_STARTED.md).
 | [Deployment](./DEPLOYMENT.md) | Production deployment instructions |
 | [Security](./SECURITY.md) | Security architecture and best practices |
 | [Monitoring](./MONITORING.md) | Observability and alerting setup |
+| [Workflows](./WORKFLOWS.md) | Trigger.dev workflows and scheduled jobs |
 
 ### Reference
 
