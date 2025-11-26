@@ -3,12 +3,7 @@
 import { z } from 'zod';
 import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
 import { requirePermission } from '@/lib/auth/server-action-auth';
-import type {
-  TriggerType,
-  Workflow,
-  WorkflowTemplate,
-  WorkflowStep,
-} from '@/lib/workflows/types';
+import type { TriggerType, Workflow, WorkflowTemplate, WorkflowStep } from '@/lib/workflows/types';
 
 /**
  * Server Actions for Workflow Management
@@ -21,9 +16,7 @@ import type {
 let db: DatabasePool | null = null;
 
 function getDatabase(): DatabasePool {
-  if (!db) {
-    db = createDatabaseClient();
-  }
+  db ??= createDatabaseClient();
   return db;
 }
 
@@ -242,7 +235,7 @@ export async function getWorkflowByIdAction(id: string): Promise<Workflow | null
     return null;
   }
 
-  return rowToWorkflow(result.rows[0]!);
+  return rowToWorkflow(result.rows[0]);
 }
 
 /**
@@ -289,7 +282,7 @@ export async function createWorkflowAction(
     ]
   );
 
-  return rowToWorkflow(result.rows[0]!);
+  return rowToWorkflow(result.rows[0]);
 }
 
 /**
@@ -361,7 +354,7 @@ export async function updateWorkflowAction(
     throw new Error('Workflow not found');
   }
 
-  return rowToWorkflow(result.rows[0]!);
+  return rowToWorkflow(result.rows[0]);
 }
 
 /**
@@ -398,7 +391,7 @@ export async function toggleWorkflowAction(id: string, isActive: boolean): Promi
     throw new Error('Workflow not found');
   }
 
-  return rowToWorkflow(result.rows[0]!);
+  return rowToWorkflow(result.rows[0]);
 }
 
 /**
@@ -411,10 +404,7 @@ export async function deleteWorkflowAction(id: string): Promise<boolean> {
 
   const database = getDatabase();
 
-  const result = await database.query(
-    `DELETE FROM workflows WHERE id = $1 RETURNING id`,
-    [id]
-  );
+  const result = await database.query(`DELETE FROM workflows WHERE id = $1 RETURNING id`, [id]);
 
   return result.rows.length > 0;
 }
@@ -459,7 +449,7 @@ export async function duplicateWorkflowAction(id: string): Promise<Workflow> {
     throw new Error('Source workflow not found');
   }
 
-  return rowToWorkflow(result.rows[0]!);
+  return rowToWorkflow(result.rows[0]);
 }
 
 /**
@@ -527,7 +517,7 @@ export async function createWorkflowFromTemplateAction(templateId: string): Prom
     throw new Error('Template not found');
   }
 
-  return rowToWorkflow(result.rows[0]!);
+  return rowToWorkflow(result.rows[0]);
 }
 
 // =============================================================================

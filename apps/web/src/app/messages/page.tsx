@@ -119,11 +119,18 @@ export default function MessagesPage() {
   }, []);
 
   // Prepare conversation context for AI Copilot
+  // Map email channel to whatsapp for copilot (email isn't supported by copilot)
+  const getChannelForCopilot = (channel: string | undefined): 'whatsapp' | 'sms' | 'voice' => {
+    if (channel === 'sms') return 'sms';
+    if (channel === 'voice') return 'voice';
+    return 'whatsapp'; // Default for whatsapp, email, or undefined
+  };
+
   const copilotConversation = messages.map((msg) => ({
-    direction: msg.direction as 'IN' | 'OUT',
+    direction: msg.direction,
     content: msg.content,
     timestamp: msg.timestamp.toISOString(),
-    channel: (selectedConversation?.channel ?? 'whatsapp') as 'whatsapp' | 'sms' | 'voice',
+    channel: getChannelForCopilot(selectedConversation?.channel),
   }));
 
   return (

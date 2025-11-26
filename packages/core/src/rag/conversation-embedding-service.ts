@@ -359,11 +359,11 @@ export class ConversationEmbeddingService {
       content: row.content,
       direction: row.direction,
       similarity: 1.0, // Direct retrieval, not similarity search
-      intent: row.intent,
-      sentiment: row.sentiment,
-      language: row.language,
-      timestamp: row.timestamp,
       metadata: row.metadata ?? {},
+      ...(row.intent !== undefined && { intent: row.intent }),
+      ...(row.sentiment !== undefined && { sentiment: row.sentiment }),
+      ...(row.language !== undefined && { language: row.language }),
+      ...(row.timestamp !== undefined && { timestamp: row.timestamp }),
     }));
   }
 
@@ -426,11 +426,11 @@ export class ConversationEmbeddingService {
       content: row.content,
       direction: row.direction,
       similarity: 1.0,
-      intent: row.intent,
-      sentiment: row.sentiment,
-      language: row.language,
-      timestamp: row.timestamp,
       metadata: row.metadata ?? {},
+      ...(row.intent !== undefined && { intent: row.intent }),
+      ...(row.sentiment !== undefined && { sentiment: row.sentiment }),
+      ...(row.language !== undefined && { language: row.language }),
+      ...(row.timestamp !== undefined && { timestamp: row.timestamp }),
     }));
   }
 
@@ -537,11 +537,11 @@ export class ConversationEmbeddingService {
       content: row.content,
       direction: row.direction,
       similarity: parseFloat(row.similarity),
-      intent: row.intent,
-      sentiment: row.sentiment,
-      language: row.language,
-      timestamp: row.timestamp,
       metadata: row.metadata ?? {},
+      ...(row.intent !== undefined && { intent: row.intent }),
+      ...(row.sentiment !== undefined && { sentiment: row.sentiment }),
+      ...(row.language !== undefined && { language: row.language }),
+      ...(row.timestamp !== undefined && { timestamp: row.timestamp }),
     }));
   }
 
@@ -623,21 +623,21 @@ export class ConversationEmbeddingService {
 
     return {
       id: row.id,
-      messageId: row.message_id,
       phone: row.phone,
-      correlationId: row.correlation_id,
       contentSanitized: row.content_sanitized,
       contentHash: row.content_hash,
-      embedding: row.embedding,
       direction: row.direction,
-      messageType: row.message_type,
-      intent: row.intent,
-      sentiment: row.sentiment,
-      language: row.language,
-      clinicId: row.clinic_id,
-      metadata: row.metadata,
-      messageTimestamp: row.message_timestamp,
-      createdAt: row.created_at,
+      messageType: row.message_type ?? 'text',
+      metadata: row.metadata ?? {},
+      ...(row.message_id !== undefined && { messageId: row.message_id }),
+      ...(row.correlation_id !== undefined && { correlationId: row.correlation_id }),
+      ...(row.embedding !== undefined && { embedding: row.embedding }),
+      ...(row.intent !== undefined && { intent: row.intent }),
+      ...(row.sentiment !== undefined && { sentiment: row.sentiment }),
+      ...(row.language !== undefined && { language: row.language }),
+      ...(row.clinic_id !== undefined && { clinicId: row.clinic_id }),
+      ...(row.message_timestamp !== undefined && { messageTimestamp: row.message_timestamp }),
+      ...(row.created_at !== undefined && { createdAt: row.created_at }),
     };
   }
 

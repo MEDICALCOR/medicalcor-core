@@ -305,7 +305,8 @@ export default function ImportPage() {
                 className="hidden"
                 id="file-upload"
               />
-              <label htmlFor="file-upload">
+              {}
+              <label htmlFor="file-upload" aria-label="Selectează fișier pentru import">
                 <Button asChild>
                   <span>
                     <Upload className="h-4 w-4 mr-2" />
