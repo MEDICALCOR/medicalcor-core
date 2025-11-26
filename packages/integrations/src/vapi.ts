@@ -15,6 +15,11 @@ export interface VapiClientConfig {
   assistantId?: string | undefined;
   phoneNumberId?: string | undefined;
   baseUrl?: string | undefined;
+  /**
+   * Request timeout in milliseconds
+   * CRITICAL FIX: Default 30000ms (30s) to prevent hanging requests
+   */
+  timeoutMs?: number | undefined;
   retryConfig?:
     | {
         maxRetries: number;
@@ -62,14 +67,18 @@ export const VapiCallSchema = z.object({
   assistantId: z.string(),
   status: VapiCallStatusSchema,
   type: z.enum(['inbound', 'outbound']),
-  phoneNumber: z.object({
-    id: z.string(),
-    number: z.string(),
-  }).optional(),
-  customer: z.object({
-    number: z.string(),
-    name: z.string().optional(),
-  }).optional(),
+  phoneNumber: z
+    .object({
+      id: z.string(),
+      number: z.string(),
+    })
+    .optional(),
+  customer: z
+    .object({
+      number: z.string(),
+      name: z.string().optional(),
+    })
+    .optional(),
   startedAt: z.string().optional(),
   endedAt: z.string().optional(),
   endedReason: VapiEndedReasonSchema.optional(),
@@ -248,18 +257,67 @@ export class VapiClient {
     this.baseUrl = config.baseUrl ?? 'https://api.vapi.ai';
   }
 
+  /**
+   * CRITICAL FIX: Make HTTP request with timeout
+   * Prevents requests from hanging indefinitely
+   */
+  private async requestWithTimeout<T>(url: string, options: RequestInit = {}): Promise<T> {
+    const timeoutMs = this.config.timeoutMs ?? 30000; // Default 30 second timeout
+
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          ...this.getHeaders(),
+          ...(options.headers as Record<string, string> | undefined),
+        },
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.error('[Vapi] API error:', {
+          status: response.status,
+          url,
+          errorBody,
+        });
+        throw new ExternalServiceError('Vapi', `Request failed with status ${response.status}`);
+      }
+
+      // Handle empty responses (e.g., DELETE)
+      const contentType = response.headers.get('content-type');
+      if (!contentType?.includes('application/json')) {
+        return undefined as T;
+      }
+
+      return (await response.json()) as T;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new ExternalServiceError('Vapi', `Request timeout after ${timeoutMs}ms`);
+      }
+      throw error;
+    }
+  }
+
   // =============================================================================
   // API Methods
   // =============================================================================
 
   /**
    * Create an outbound call
+   * CRITICAL FIX: Uses requestWithTimeout to prevent hanging
    */
   async createOutboundCall(input: CreateOutboundCallInput): Promise<VapiCall> {
     const makeRequest = async () => {
-      const response = await fetch(`${this.baseUrl}/call`, {
+      return this.requestWithTimeout<VapiCall>(`${this.baseUrl}/call`, {
         method: 'POST',
-        headers: this.getHeaders(),
         body: JSON.stringify({
           assistantId: input.assistantId ?? this.config.assistantId,
           phoneNumberId: this.config.phoneNumberId,
@@ -270,19 +328,6 @@ export class VapiClient {
           metadata: input.metadata,
         }),
       });
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        // Log full error internally (may contain PII) but don't expose in exception
-        console.error('[Vapi] Failed to create outbound call:', {
-          status: response.status,
-          errorBody, // May contain PII - only for internal logs
-        });
-        // Throw generic error without PII
-        throw new ExternalServiceError('Vapi', `Failed to create outbound call (status ${response.status})`);
-      }
-
-      return response.json() as Promise<VapiCall>;
     };
 
     return withRetry(makeRequest, this.getRetryConfig());
@@ -290,27 +335,13 @@ export class VapiClient {
 
   /**
    * Get call details
+   * CRITICAL FIX: Uses requestWithTimeout to prevent hanging
    */
   async getCall(input: GetCallInput): Promise<VapiCall> {
     const makeRequest = async () => {
-      const response = await fetch(`${this.baseUrl}/call/${input.callId}`, {
+      return this.requestWithTimeout<VapiCall>(`${this.baseUrl}/call/${input.callId}`, {
         method: 'GET',
-        headers: this.getHeaders(),
       });
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        // Log full error internally (may contain PII) but don't expose in exception
-        console.error('[Vapi] Failed to get call:', {
-          status: response.status,
-          callId: input.callId,
-          errorBody, // May contain PII - only for internal logs
-        });
-        // Throw generic error without PII
-        throw new ExternalServiceError('Vapi', `Failed to get call (status ${response.status})`);
-      }
-
-      return response.json() as Promise<VapiCall>;
     };
 
     return withRetry(makeRequest, this.getRetryConfig());
@@ -318,6 +349,7 @@ export class VapiClient {
 
   /**
    * List calls with optional filters
+   * CRITICAL FIX: Uses requestWithTimeout to prevent hanging
    */
   async listCalls(input?: ListCallsInput): Promise<VapiCall[]> {
     const params = new URLSearchParams();
@@ -328,23 +360,7 @@ export class VapiClient {
 
     const makeRequest = async () => {
       const url = `${this.baseUrl}/call${params.toString() ? `?${params.toString()}` : ''}`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: this.getHeaders(),
-      });
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        // Log full error internally (may contain PII) but don't expose in exception
-        console.error('[Vapi] Failed to list calls:', {
-          status: response.status,
-          errorBody, // May contain PII - only for internal logs
-        });
-        // Throw generic error without PII
-        throw new ExternalServiceError('Vapi', `Failed to list calls (status ${response.status})`);
-      }
-
-      return response.json() as Promise<VapiCall[]>;
+      return this.requestWithTimeout<VapiCall[]>(url, { method: 'GET' });
     };
 
     return withRetry(makeRequest, this.getRetryConfig());
@@ -352,27 +368,13 @@ export class VapiClient {
 
   /**
    * Get call transcript
+   * CRITICAL FIX: Uses requestWithTimeout to prevent hanging
    */
   async getTranscript(callId: string): Promise<VapiTranscript> {
     const makeRequest = async () => {
-      const response = await fetch(`${this.baseUrl}/call/${callId}/transcript`, {
+      return this.requestWithTimeout<VapiTranscript>(`${this.baseUrl}/call/${callId}/transcript`, {
         method: 'GET',
-        headers: this.getHeaders(),
       });
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        // Log full error internally (may contain PII) but don't expose in exception
-        console.error('[Vapi] Failed to get transcript:', {
-          status: response.status,
-          callId,
-          errorBody, // May contain PII - only for internal logs
-        });
-        // Throw generic error without PII
-        throw new ExternalServiceError('Vapi', `Failed to get transcript (status ${response.status})`);
-      }
-
-      return response.json() as Promise<VapiTranscript>;
     };
 
     return withRetry(makeRequest, this.getRetryConfig());
@@ -380,25 +382,13 @@ export class VapiClient {
 
   /**
    * End an active call
+   * CRITICAL FIX: Uses requestWithTimeout to prevent hanging
    */
   async endCall(callId: string): Promise<void> {
-    const makeRequest = async () => {
-      const response = await fetch(`${this.baseUrl}/call/${callId}`, {
+    const makeRequest = async (): Promise<void> => {
+      await this.requestWithTimeout<undefined>(`${this.baseUrl}/call/${callId}`, {
         method: 'DELETE',
-        headers: this.getHeaders(),
       });
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        // Log full error internally (may contain PII) but don't expose in exception
-        console.error('[Vapi] Failed to end call:', {
-          status: response.status,
-          callId,
-          errorBody, // May contain PII - only for internal logs
-        });
-        // Throw generic error without PII
-        throw new ExternalServiceError('Vapi', `Failed to end call (status ${response.status})`);
-      }
     };
 
     return withRetry(makeRequest, this.getRetryConfig());

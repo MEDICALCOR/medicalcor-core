@@ -180,12 +180,51 @@ export class HubSpotClient {
 
   /**
    * Search contacts with custom filters
+   * CRITICAL FIX: Supports pagination via 'after' cursor
    */
   async searchContacts(request: HubSpotSearchRequest): Promise<HubSpotSearchResponse> {
     return this.request<HubSpotSearchResponse>('/crm/v3/objects/contacts/search', {
       method: 'POST',
       body: JSON.stringify(request),
     });
+  }
+
+  /**
+   * Search ALL contacts with automatic pagination
+   * CRITICAL FIX: Prevents data loss when results exceed single page limit
+   *
+   * @param request - Search request (limit will be set to 100 per page)
+   * @param maxResults - Maximum total results to fetch (default 10000, prevents infinite loops)
+   * @returns All matching contacts
+   */
+  async searchAllContacts(
+    request: Omit<HubSpotSearchRequest, 'after'>,
+    maxResults = 10000
+  ): Promise<HubSpotContact[]> {
+    const allContacts: HubSpotContact[] = [];
+    let after: string | undefined;
+
+    do {
+      const pageRequest: HubSpotSearchRequest = {
+        ...request,
+        limit: Math.min(request.limit ?? 100, 100), // HubSpot max is 100
+        ...(after ? { after } : {}),
+      };
+
+      const response = await this.searchContacts(pageRequest);
+      allContacts.push(...response.results);
+
+      // Get pagination cursor for next page
+      after = response.paging?.next?.after;
+
+      // Safety check to prevent infinite loops
+      if (allContacts.length >= maxResults) {
+        console.warn(`[HubSpot] Reached maxResults limit (${maxResults}), stopping pagination`);
+        break;
+      }
+    } while (after);
+
+    return allContacts;
   }
 
   /**
@@ -395,18 +434,15 @@ export class HubSpotClient {
   ): Promise<HubSpotContact> {
     // HubSpot's upsert API: POST /crm/v3/objects/contacts with idProperty query param
     // This is atomic - it will either create or update in a single operation
-    return this.request<HubSpotContact>(
-      '/crm/v3/objects/contacts?idProperty=email',
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          properties: {
-            email,
-            ...properties,
-          },
-        }),
-      }
-    );
+    return this.request<HubSpotContact>('/crm/v3/objects/contacts?idProperty=email', {
+      method: 'POST',
+      body: JSON.stringify({
+        properties: {
+          email,
+          ...properties,
+        },
+      }),
+    });
   }
 
   /**
@@ -423,18 +459,15 @@ export class HubSpotClient {
     phone: string,
     properties: Record<string, string>
   ): Promise<HubSpotContact> {
-    return this.request<HubSpotContact>(
-      '/crm/v3/objects/contacts?idProperty=phone',
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          properties: {
-            phone,
-            ...properties,
-          },
-        }),
-      }
-    );
+    return this.request<HubSpotContact>('/crm/v3/objects/contacts?idProperty=phone', {
+      method: 'POST',
+      body: JSON.stringify({
+        properties: {
+          phone,
+          ...properties,
+        },
+      }),
+    });
   }
 
   /**
@@ -522,7 +555,10 @@ export class HubSpotClient {
             errorBody, // May contain PII - only for internal logs
           });
           // Throw generic error without PII
-          throw new ExternalServiceError('HubSpot', `Request failed with status ${response.status}`);
+          throw new ExternalServiceError(
+            'HubSpot',
+            `Request failed with status ${response.status}`
+          );
         }
 
         return (await response.json()) as T;
