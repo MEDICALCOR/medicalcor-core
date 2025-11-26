@@ -273,13 +273,14 @@ export function OnboardingWizard({
                   className="flex items-center justify-between p-4 border rounded-lg cursor-pointer hover:bg-muted/50"
                 >
                   <div>
-                    <h4 className="font-medium">{item.title}</h4>
-                    <p className="text-sm text-muted-foreground">{item.desc}</p>
+                    <span className="font-medium block">{item.title}</span>
+                    <span className="text-sm text-muted-foreground block">{item.desc}</span>
                   </div>
                   <input
                     type="checkbox"
                     className="h-5 w-5 rounded"
                     defaultChecked={item.default}
+                    aria-label={item.title}
                   />
                 </label>
               ))}

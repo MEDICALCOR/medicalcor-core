@@ -131,12 +131,14 @@ const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivEleme
 DialogFooter.displayName = 'DialogFooter';
 
 const DialogTitle = React.forwardRef<HTMLHeadingElement, React.HTMLAttributes<HTMLHeadingElement>>(
-  ({ className, ...props }, ref) => (
+  ({ className, children, ...props }, ref) => (
     <h2
       ref={ref}
       className={cn('text-lg font-semibold leading-none tracking-tight', className)}
       {...props}
-    />
+    >
+      {children}
+    </h2>
   )
 );
 DialogTitle.displayName = 'DialogTitle';

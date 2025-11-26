@@ -109,6 +109,7 @@ export function useFocusManagement(options: UseFocusManagementOptions) {
     }
 
     const nextItem = enabledItems[nextIndex];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive check for array bounds
     if (nextItem) {
       focusItem(nextItem.id);
     }
@@ -123,6 +124,7 @@ export function useFocusManagement(options: UseFocusManagementOptions) {
     }
 
     const prevItem = enabledItems[prevIndex];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive check for array bounds
     if (prevItem) {
       focusItem(prevItem.id);
     }
@@ -130,6 +132,7 @@ export function useFocusManagement(options: UseFocusManagementOptions) {
 
   const focusFirst = useCallback(() => {
     const firstItem = enabledItems[0];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive check for array bounds
     if (firstItem) {
       focusItem(firstItem.id);
     }
@@ -137,6 +140,7 @@ export function useFocusManagement(options: UseFocusManagementOptions) {
 
   const focusLast = useCallback(() => {
     const lastItem = enabledItems[enabledItems.length - 1];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive check for array bounds
     if (lastItem) {
       focusItem(lastItem.id);
     }
@@ -300,7 +304,7 @@ export function useFocusManagement(options: UseFocusManagementOptions) {
  * Required for medical app modals to prevent users from
  * accidentally navigating away.
  */
-export function useFocusTrap(containerRef: React.RefObject<HTMLElement>, isActive: boolean = true) {
+export function useFocusTrap(containerRef: React.RefObject<HTMLElement>, isActive = true) {
   const previousActiveElementRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -321,7 +325,9 @@ export function useFocusTrap(containerRef: React.RefObject<HTMLElement>, isActiv
       const focusableElements = getFocusableElements(containerRef.current);
       if (focusableElements.length === 0) return;
 
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion, @typescript-eslint/no-unnecessary-type-assertion -- we checked length > 0 above
       const firstElement = focusableElements[0]!;
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion, @typescript-eslint/no-unnecessary-type-assertion -- we checked length > 0 above
       const lastElement = focusableElements[focusableElements.length - 1]!;
 
       if (event.shiftKey) {

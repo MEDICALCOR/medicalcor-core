@@ -409,9 +409,9 @@ export class FineTuningExportService {
         conv.messages.push({
           role: row.direction === 'IN' ? 'user' : 'assistant',
           content: row.content,
-          intent: row.intent,
-          sentiment: row.sentiment,
           timestamp: row.timestamp,
+          ...(row.intent !== undefined && { intent: row.intent }),
+          ...(row.sentiment !== undefined && { sentiment: row.sentiment }),
         });
       }
     }

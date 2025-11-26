@@ -103,21 +103,34 @@ DropdownMenuContent.displayName = 'DropdownMenuContent';
 const DropdownMenuItem = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & { inset?: boolean }
->(({ className, inset, onClick, ...props }, ref) => {
+>(({ className, inset, onClick, onKeyDown, ...props }, ref) => {
   const { onOpenChange } = useDropdownMenu();
+
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    onClick?.(e);
+    onOpenChange(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    onKeyDown?.(e);
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick(e as unknown as React.MouseEvent<HTMLDivElement>);
+    }
+  };
 
   return (
     <div
       ref={ref}
+      role="menuitem"
+      tabIndex={0}
       className={cn(
         'relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         inset && 'pl-8',
         className
       )}
-      onClick={(e) => {
-        onClick?.(e);
-        onOpenChange(false);
-      }}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
       {...props}
     />
   );

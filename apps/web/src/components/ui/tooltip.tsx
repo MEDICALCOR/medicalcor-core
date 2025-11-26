@@ -32,16 +32,22 @@ const TooltipTrigger = React.forwardRef<
 
   const handleMouseEnter = () => context?.onOpenChange(true);
   const handleMouseLeave = () => context?.onOpenChange(false);
+  const handleFocus = () => context?.onOpenChange(true);
+  const handleBlur = () => context?.onOpenChange(false);
 
   if (asChild && React.isValidElement(children)) {
     return React.cloneElement(
       children as React.ReactElement<{
         onMouseEnter?: () => void;
         onMouseLeave?: () => void;
+        onFocus?: () => void;
+        onBlur?: () => void;
       }>,
       {
         onMouseEnter: handleMouseEnter,
         onMouseLeave: handleMouseLeave,
+        onFocus: handleFocus,
+        onBlur: handleBlur,
       }
     );
   }
@@ -49,9 +55,13 @@ const TooltipTrigger = React.forwardRef<
   return (
     <div
       ref={ref}
+      role="button"
+      tabIndex={0}
       className={className}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       {...props}
     >
       {children}

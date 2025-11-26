@@ -85,10 +85,12 @@ export default function WorkflowsPage() {
     setWorkflows((prev) => prev.map((wf) => (wf.id === id ? { ...wf, isActive } : wf)));
 
     // Server update
-    toggleWorkflowAction(id, isActive).catch((error) => {
+    toggleWorkflowAction(id, isActive).catch((error: unknown) => {
       console.error('[Workflows] Failed to toggle workflow:', error);
       // Revert on error
-      setWorkflows((prev) => prev.map((wf) => (wf.id === id ? { ...wf, isActive: !isActive } : wf)));
+      setWorkflows((prev) =>
+        prev.map((wf) => (wf.id === id ? { ...wf, isActive: !isActive } : wf))
+      );
     });
   }, []);
 
@@ -102,10 +104,10 @@ export default function WorkflowsPage() {
     setWorkflows((prev) => prev.filter((wf) => wf.id !== id));
 
     // Server delete
-    deleteWorkflowAction(id).catch((error) => {
+    deleteWorkflowAction(id).catch((error: unknown) => {
       console.error('[Workflows] Failed to delete workflow:', error);
       // Refetch on error
-      getWorkflowsAction().then(setWorkflows);
+      void getWorkflowsAction().then(setWorkflows);
     });
   }, []);
 
@@ -114,7 +116,7 @@ export default function WorkflowsPage() {
       .then((duplicated) => {
         setWorkflows((prev) => [duplicated, ...prev]);
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         console.error('[Workflows] Failed to duplicate workflow:', error);
       });
   }, []);
@@ -222,7 +224,9 @@ export default function WorkflowsPage() {
             <div className="text-center py-12 text-muted-foreground">
               <LayoutTemplate className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="text-lg font-medium">Nu există template-uri</p>
-              <p className="text-sm mt-1">Template-urile vor apărea aici după inițializarea bazei de date</p>
+              <p className="text-sm mt-1">
+                Template-urile vor apărea aici după inițializarea bazei de date
+              </p>
             </div>
           ) : (
             <WorkflowTemplates templates={templates} onUseTemplate={handleUseTemplate} />
