@@ -1,6 +1,62 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { globalCircuitBreakerRegistry } from '@medicalcor/core';
 
+/**
+ * MONITORING: Health check configuration with validation
+ * Timeouts are configurable via environment variables with sensible defaults
+ */
+interface HealthCheckConfig {
+  /** Database connection timeout in milliseconds (default: 5000, min: 1000, max: 30000) */
+  databaseTimeoutMs: number;
+  /** Redis connection timeout in milliseconds (default: 5000, min: 1000, max: 30000) */
+  redisTimeoutMs: number;
+}
+
+/**
+ * Parse and validate health check configuration from environment variables
+ */
+function getHealthCheckConfig(): HealthCheckConfig {
+  const MIN_TIMEOUT_MS = 1000; // 1 second minimum
+  const MAX_TIMEOUT_MS = 30000; // 30 seconds maximum
+  const DEFAULT_TIMEOUT_MS = 5000; // 5 seconds default
+
+  const parseTimeout = (envVar: string | undefined, name: string): number => {
+    if (!envVar) return DEFAULT_TIMEOUT_MS;
+
+    const parsed = parseInt(envVar, 10);
+    if (isNaN(parsed)) {
+      console.warn(
+        `[Health] Invalid ${name} timeout value "${envVar}", using default ${DEFAULT_TIMEOUT_MS}ms`
+      );
+      return DEFAULT_TIMEOUT_MS;
+    }
+
+    if (parsed < MIN_TIMEOUT_MS) {
+      console.warn(
+        `[Health] ${name} timeout ${parsed}ms is below minimum ${MIN_TIMEOUT_MS}ms, using minimum`
+      );
+      return MIN_TIMEOUT_MS;
+    }
+
+    if (parsed > MAX_TIMEOUT_MS) {
+      console.warn(
+        `[Health] ${name} timeout ${parsed}ms exceeds maximum ${MAX_TIMEOUT_MS}ms, using maximum`
+      );
+      return MAX_TIMEOUT_MS;
+    }
+
+    return parsed;
+  };
+
+  return {
+    databaseTimeoutMs: parseTimeout(process.env.HEALTH_CHECK_DB_TIMEOUT_MS, 'database'),
+    redisTimeoutMs: parseTimeout(process.env.HEALTH_CHECK_REDIS_TIMEOUT_MS, 'redis'),
+  };
+}
+
+// Initialize config once at module load
+const healthConfig = getHealthCheckConfig();
+
 interface HealthCheckResult {
   status: 'ok' | 'error' | 'degraded';
   message?: string;
@@ -60,7 +116,7 @@ async function checkDatabase(): Promise<HealthCheckResult> {
 
     const client = new pg.default.Client({
       connectionString: databaseUrl,
-      connectionTimeoutMillis: 5000,
+      connectionTimeoutMillis: healthConfig.databaseTimeoutMs,
     });
 
     await client.connect();
@@ -77,8 +133,11 @@ async function checkDatabase(): Promise<HealthCheckResult> {
     await client.end();
     const latencyMs = Date.now() - startTime;
 
-    const isReplica = results[1].rows[0]?.is_replica ?? false;
-    const activeConnections = parseInt(results[2].rows[0]?.active_connections ?? '0', 10);
+    // Type-safe access to query results
+    const replicaRow = results[1].rows[0] as { is_replica?: boolean } | undefined;
+    const connectionsRow = results[2].rows[0] as { active_connections?: string } | undefined;
+    const isReplica = replicaRow?.is_replica ?? false;
+    const activeConnections = parseInt(connectionsRow?.active_connections ?? '0', 10);
 
     return {
       status: 'ok',
@@ -120,13 +179,24 @@ async function checkRedis(): Promise<HealthCheckResult> {
     }
 
     // ioredis exports Redis class - need to cast through unknown for ESM compatibility
-    const Redis = (ioredisModule as unknown as { default: new (url: string, opts: Record<string, unknown>) => { ping: () => Promise<string>; info: (section: string) => Promise<string>; quit: () => Promise<void> } }).default;
+    const Redis = (
+      ioredisModule as unknown as {
+        default: new (
+          url: string,
+          opts: Record<string, unknown>
+        ) => {
+          ping: () => Promise<string>;
+          info: (section: string) => Promise<string>;
+          quit: () => Promise<void>;
+        };
+      }
+    ).default;
 
     // Detect TLS from URL
     const isTls = redisUrl.startsWith('rediss://');
 
     const redis = new Redis(redisUrl, {
-      connectTimeout: 5000,
+      connectTimeout: healthConfig.redisTimeoutMs,
       maxRetriesPerRequest: 1,
       enableReadyCheck: true,
       ...(isTls && {
@@ -154,7 +224,7 @@ async function checkRedis(): Promise<HealthCheckResult> {
     }
 
     // Parse memory info
-    const memoryMatch = infoResult.match(/used_memory_human:(\S+)/);
+    const memoryMatch = /used_memory_human:(\S+)/.exec(infoResult);
     const usedMemory = memoryMatch ? memoryMatch[1] : 'unknown';
 
     return {
@@ -205,9 +275,7 @@ function getCircuitBreakerStatus(): {
       state: stat.state,
       failures: stat.totalFailures,
       successRate:
-        stat.totalRequests > 0
-          ? Math.round((stat.totalSuccesses / stat.totalRequests) * 100)
-          : 100,
+        stat.totalRequests > 0 ? Math.round((stat.totalSuccesses / stat.totalRequests) * 100) : 100,
     }));
   } catch {
     return [];
@@ -257,8 +325,7 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
 
     // Determine overall health status
     const criticalServicesHealthy = databaseCheck.status === 'ok';
-    const optionalServicesHealthy =
-      redisCheck.status === 'ok' && triggerCheck.status === 'ok';
+    const optionalServicesHealthy = redisCheck.status === 'ok' && triggerCheck.status === 'ok';
 
     // Get circuit breaker status
     const circuitBreakers = getCircuitBreakerStatus();
@@ -357,9 +424,7 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
     }
 
     // Calculate overall health
-    const criticalUnhealthy = dependencies.some(
-      (d) => d.critical && d.status === 'unhealthy'
-    );
+    const criticalUnhealthy = dependencies.some((d) => d.critical && d.status === 'unhealthy');
     const anyUnhealthy = dependencies.some((d) => d.status === 'unhealthy');
 
     const status = criticalUnhealthy ? 'unhealthy' : anyUnhealthy ? 'degraded' : 'ok';
@@ -448,7 +513,7 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
    *
    * Get detailed circuit breaker status for all services.
    */
-  fastify.get('/health/circuit-breakers', async () => {
+  fastify.get('/health/circuit-breakers', () => {
     const stats = globalCircuitBreakerRegistry.getAllStats();
     const openCircuits = globalCircuitBreakerRegistry.getOpenCircuits();
 
@@ -467,12 +532,8 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
           stat.totalRequests > 0
             ? Math.round((stat.totalSuccesses / stat.totalRequests) * 1000) / 10
             : 100,
-        lastFailure: stat.lastFailureTime
-          ? new Date(stat.lastFailureTime).toISOString()
-          : null,
-        lastSuccess: stat.lastSuccessTime
-          ? new Date(stat.lastSuccessTime).toISOString()
-          : null,
+        lastFailure: stat.lastFailureTime ? new Date(stat.lastFailureTime).toISOString() : null,
+        lastSuccess: stat.lastSuccessTime ? new Date(stat.lastSuccessTime).toISOString() : null,
       })),
     };
   });

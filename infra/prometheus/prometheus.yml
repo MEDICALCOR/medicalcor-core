@@ -1,33 +1,75 @@
 # Prometheus configuration for MedicalCor monitoring
+#
+# IMPORTANT: This configuration is used for local development and staging.
+# Production deployments should use cloud-native monitoring (e.g., Cloud Monitoring, Datadog).
 
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
+  # MONITORING: Global scrape timeout prevents hung scrapes from blocking
+  scrape_timeout: 10s
 
   external_labels:
     monitor: 'medicalcor'
+    # Environment label for filtering in multi-environment deployments
+    environment: '${ENVIRONMENT:-development}'
 
 alerting:
   alertmanagers:
     - static_configs:
+        # NOTE: Configure alertmanager targets in production
+        # Example: ['alertmanager:9093']
         - targets: []
 
-rule_files: []
+rule_files:
+  # NOTE: Add alert rules files here
+  # Example: ['alerts/*.yml']
+  []
 
 scrape_configs:
   # Prometheus self-monitoring
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+    scrape_timeout: 5s
 
   # API service metrics
   - job_name: 'api'
     static_configs:
       - targets: ['api:3000']
+        labels:
+          service: 'medicalcor-api'
+          component: 'backend'
     metrics_path: /metrics
     scrape_interval: 10s
+    scrape_timeout: 5s
+    # Relabel to add job-specific labels
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+):\d+'
+        replacement: '${1}'
 
-  # Redis metrics (via redis_exporter)
+  # Redis metrics via redis_exporter
+  # NOTE: Redis itself doesn't expose Prometheus metrics.
+  # Use redis_exporter (https://github.com/oliver006/redis_exporter)
+  # Default redis_exporter port is 9121
   - job_name: 'redis'
     static_configs:
-      - targets: ['redis:6379']
+      - targets: ['redis-exporter:9121']
+        labels:
+          service: 'redis'
+          component: 'cache'
+    scrape_timeout: 5s
+
+  # Node exporter for system metrics (optional)
+  # Uncomment if node_exporter is deployed
+  # - job_name: 'node'
+  #   static_configs:
+  #     - targets: ['node-exporter:9100']
+  #       labels:
+  #         service: 'node'
+  #         component: 'infrastructure'
+  #   scrape_timeout: 5s
