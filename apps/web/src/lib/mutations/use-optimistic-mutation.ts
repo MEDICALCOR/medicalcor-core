@@ -24,7 +24,7 @@ import { useQueryClient } from '@tanstack/react-query';
  */
 
 export interface OptimisticUpdateConfig<TData, TVariables> {
-  queryKey: unknown[];
+  queryKey: readonly unknown[] | unknown[];
   updater: (oldData: TData | undefined, variables: TVariables) => TData;
 }
 
@@ -52,7 +52,7 @@ export interface UseOptimisticMutationOptions<TData, TError, TVariables, TContex
   ) => void;
 
   /** Invalidate these query keys after mutation */
-  invalidateKeys?: unknown[][];
+  invalidateKeys?: (readonly unknown[] | unknown[])[];
 
   /** Delay before showing loading state (prevents flicker for fast operations) */
   loadingDelay?: number;
@@ -276,12 +276,14 @@ export function useOptimisticToggle<T extends { id: string }>(options: {
 
   return useOptimisticMutation<T, Error, { id: string; newValue: boolean }>({
     mutationFn: ({ id, newValue }) => mutationFn(id, newValue),
-    optimisticUpdate: ({ id, newValue }) => ({
+    optimisticUpdate: (variables) => ({
       queryKey,
-      updater: (old: T[] | undefined) =>
-        (old ?? []).map((item) =>
-          item.id === id ? { ...item, [toggleKey]: newValue } : item
-        ) as unknown as T,
+      updater: (old: T | undefined, _vars: { id: string; newValue: boolean }) => {
+        const list = old as unknown as T[] | undefined;
+        return (list ?? []).map((item) =>
+          item.id === variables.id ? { ...item, [toggleKey]: variables.newValue } : item
+        ) as unknown as T;
+      },
     }),
     onSuccess: (data) => onSuccess?.(data),
     onError: (error) => onError?.(error),
@@ -309,12 +311,12 @@ export function useOptimisticList<T extends { id: string }>(options: {
       if (!createFn) throw new Error('createFn not provided');
       return createFn(data);
     },
-    optimisticUpdate: (data) => ({
+    optimisticUpdate: (variables) => ({
       queryKey,
-      updater: (old: T[] | undefined) => [
-        { ...data, id: `temp-${Date.now()}` } as T,
-        ...(old ?? []),
-      ] as unknown as T,
+      updater: (old: T | undefined) => {
+        const list = old as unknown as T[] | undefined;
+        return [{ ...variables, id: `temp-${Date.now()}` } as T, ...(list ?? [])] as unknown as T;
+      },
     }),
     onSuccess: (item) => onSuccess?.('create', item),
     onError: (error) => onError?.('create', error),
@@ -326,12 +328,14 @@ export function useOptimisticList<T extends { id: string }>(options: {
       if (!updateFn) throw new Error('updateFn not provided');
       return updateFn(id, data);
     },
-    optimisticUpdate: ({ id, data }) => ({
+    optimisticUpdate: (variables) => ({
       queryKey,
-      updater: (old: T[] | undefined) =>
-        (old ?? []).map((item) =>
-          item.id === id ? { ...item, ...data } : item
-        ) as unknown as T,
+      updater: (old: T | undefined) => {
+        const list = old as unknown as T[] | undefined;
+        return (list ?? []).map((item) =>
+          item.id === variables.id ? { ...item, ...variables.data } : item
+        ) as unknown as T;
+      },
     }),
     onSuccess: (item) => onSuccess?.('update', item),
     onError: (error) => onError?.('update', error),
@@ -345,8 +349,10 @@ export function useOptimisticList<T extends { id: string }>(options: {
     },
     optimisticUpdate: (id) => ({
       queryKey,
-      updater: (old: T[] | undefined) =>
-        (old ?? []).filter((item) => item.id !== id) as unknown as boolean,
+      updater: (old: boolean | undefined) => {
+        const list = old as unknown as T[] | undefined;
+        return (list ?? []).filter((item) => item.id !== id) as unknown as boolean;
+      },
     }),
     onSuccess: () => onSuccess?.('delete'),
     onError: (error) => onError?.('delete', error),

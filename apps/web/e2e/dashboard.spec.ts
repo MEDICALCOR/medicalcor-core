@@ -15,11 +15,9 @@ test.describe('Dashboard', () => {
     // Check for main dashboard elements
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
-    // Verify key metrics cards are present
-    await expect(page.locator('[data-testid="metrics-card"], .card')).toHaveCount(
-      { minimum: 1 },
-      { timeout: 10000 }
-    );
+    // Verify key metrics cards are present (at least one)
+    const cards = page.locator('[data-testid="metrics-card"], .card');
+    await expect(cards.first()).toBeVisible({ timeout: 10000 });
   });
 
   test('navigation sidebar works correctly', async ({ page }) => {
@@ -32,9 +30,9 @@ test.describe('Dashboard', () => {
     // Check for main navigation items
     const navItems = ['Pacienti', 'Workflows', 'Mesaje', 'Setari'];
     for (const item of navItems) {
-      await expect(
-        page.getByRole('link', { name: new RegExp(item, 'i') })
-      ).toBeVisible({ timeout: 5000 });
+      await expect(page.getByRole('link', { name: new RegExp(item, 'i') })).toBeVisible({
+        timeout: 5000,
+      });
     }
   });
 

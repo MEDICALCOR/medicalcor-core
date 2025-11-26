@@ -46,7 +46,7 @@ export function useWorkflowMutations(options?: {
    * The switch updates BEFORE server responds
    */
   const toggleActive = useOptimisticToggle<Workflow>({
-    queryKey: workflowKeys.all,
+    queryKey: [...workflowKeys.all],
     toggleKey: 'isActive',
     mutationFn: (id, newValue) => toggleWorkflowAction(id, newValue),
     onSuccess: (workflow) => onSuccess?.('toggle', workflow),
@@ -57,69 +57,72 @@ export function useWorkflowMutations(options?: {
    * Create new workflow
    * Appears at top of list immediately with temporary ID
    */
-  const create = useOptimisticMutation<
-    Workflow,
-    Error,
-    Parameters<typeof createWorkflowAction>[0]
-  >({
-    mutationFn: createWorkflowAction,
-    optimisticUpdate: (data) => ({
-      queryKey: workflowKeys.all,
-      updater: (old: Workflow[] | undefined) => {
-        const tempWorkflow: Workflow = {
-          id: `temp-${Date.now()}`,
-          name: data.name,
-          description: data.description,
-          trigger: {
-            id: `temp-trigger-${Date.now()}`,
-            type: data.triggerType,
-            config: data.triggerConfig ?? {},
-          },
-          steps: data.steps,
-          isActive: data.isActive ?? false,
-          executionCount: 0,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        return [tempWorkflow, ...(old ?? [])];
-      },
-    }),
-    onSuccess: (workflow) => onSuccess?.('create', workflow),
-    onError: (error) => onError?.('create', error),
-    invalidateKeys: [workflowKeys.all],
-  });
+  const create = useOptimisticMutation<Workflow, Error, Parameters<typeof createWorkflowAction>[0]>(
+    {
+      mutationFn: createWorkflowAction,
+      optimisticUpdate: (variables) => ({
+        queryKey: [...workflowKeys.all],
+        updater: (old: Workflow | undefined) => {
+          const list = old as unknown as Workflow[] | undefined;
+          const tempWorkflow: Workflow = {
+            id: `temp-${Date.now()}`,
+            name: variables.name,
+            description: variables.description,
+            trigger: {
+              id: `temp-trigger-${Date.now()}`,
+              type: variables.triggerType,
+              config: variables.triggerConfig ?? {},
+            },
+            steps: variables.steps,
+            isActive: variables.isActive,
+            executionCount: 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+          return [tempWorkflow, ...(list ?? [])] as unknown as Workflow;
+        },
+      }),
+      onSuccess: (workflow) => onSuccess?.('create', workflow),
+      onError: (error) => onError?.('create', error),
+      invalidateKeys: [[...workflowKeys.all]],
+    }
+  );
 
   /**
    * Update workflow
    * Changes reflect immediately in the UI
    */
-  const update = useOptimisticMutation<
-    Workflow,
-    Error,
-    Parameters<typeof updateWorkflowAction>[0]
-  >({
-    mutationFn: updateWorkflowAction,
-    optimisticUpdate: (data) => ({
-      queryKey: workflowKeys.all,
-      updater: (old: Workflow[] | undefined) =>
-        (old ?? []).map((w) =>
-          w.id === data.id
-            ? {
-                ...w,
-                ...data,
-                trigger: data.triggerType
-                  ? { ...w.trigger, type: data.triggerType, config: data.triggerConfig ?? w.trigger.config }
-                  : w.trigger,
-                steps: data.steps ?? w.steps,
-                updatedAt: new Date(),
-              }
-            : w
-        ),
-    }),
-    onSuccess: (workflow) => onSuccess?.('update', workflow),
-    onError: (error) => onError?.('update', error),
-    invalidateKeys: [workflowKeys.all],
-  });
+  const update = useOptimisticMutation<Workflow, Error, Parameters<typeof updateWorkflowAction>[0]>(
+    {
+      mutationFn: updateWorkflowAction,
+      optimisticUpdate: (variables) => ({
+        queryKey: [...workflowKeys.all],
+        updater: (old: Workflow | undefined) => {
+          const list = old as unknown as Workflow[] | undefined;
+          return (list ?? []).map((w) =>
+            w.id === variables.id
+              ? {
+                  ...w,
+                  ...variables,
+                  trigger: variables.triggerType
+                    ? {
+                        ...w.trigger,
+                        type: variables.triggerType,
+                        config: variables.triggerConfig ?? w.trigger.config,
+                      }
+                    : w.trigger,
+                  steps: variables.steps ?? w.steps,
+                  updatedAt: new Date(),
+                }
+              : w
+          ) as unknown as Workflow;
+        },
+      }),
+      onSuccess: (workflow) => onSuccess?.('update', workflow),
+      onError: (error) => onError?.('update', error),
+      invalidateKeys: [[...workflowKeys.all]],
+    }
+  );
 
   /**
    * Delete workflow
@@ -128,12 +131,15 @@ export function useWorkflowMutations(options?: {
   const remove = useOptimisticMutation<boolean, Error, string>({
     mutationFn: deleteWorkflowAction,
     optimisticUpdate: (id) => ({
-      queryKey: workflowKeys.all,
-      updater: (old: Workflow[] | undefined) => (old ?? []).filter((w) => w.id !== id),
+      queryKey: [...workflowKeys.all],
+      updater: (old: boolean | undefined) => {
+        const list = old as unknown as Workflow[] | undefined;
+        return (list ?? []).filter((w) => w.id !== id) as unknown as boolean;
+      },
     }),
     onSuccess: () => onSuccess?.('delete'),
     onError: (error) => onError?.('delete', error),
-    invalidateKeys: [workflowKeys.all],
+    invalidateKeys: [[...workflowKeys.all]],
   });
 
   /**
@@ -143,12 +149,13 @@ export function useWorkflowMutations(options?: {
   const duplicate = useOptimisticMutation<Workflow, Error, string>({
     mutationFn: duplicateWorkflowAction,
     optimisticUpdate: (id) => ({
-      queryKey: workflowKeys.all,
-      updater: (old: Workflow[] | undefined) => {
-        const source = (old ?? []).find((w) => w.id === id);
-        if (!source) return old ?? [];
+      queryKey: [...workflowKeys.all],
+      updater: (old: Workflow | undefined) => {
+        const list = old as unknown as Workflow[] | undefined;
+        const source = (list ?? []).find((w) => w.id === id);
+        if (!source) return (list ?? []) as unknown as Workflow;
 
-        const index = (old ?? []).findIndex((w) => w.id === id);
+        const index = (list ?? []).findIndex((w) => w.id === id);
         const tempDuplicate: Workflow = {
           ...source,
           id: `temp-${Date.now()}`,
@@ -159,14 +166,14 @@ export function useWorkflowMutations(options?: {
           updatedAt: new Date(),
         };
 
-        const result = [...(old ?? [])];
+        const result = [...(list ?? [])];
         result.splice(index + 1, 0, tempDuplicate);
-        return result;
+        return result as unknown as Workflow;
       },
     }),
     onSuccess: (workflow) => onSuccess?.('duplicate', workflow),
     onError: (error) => onError?.('duplicate', error),
-    invalidateKeys: [workflowKeys.all],
+    invalidateKeys: [[...workflowKeys.all]],
   });
 
   return {
