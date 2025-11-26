@@ -22,8 +22,8 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '2mb',
     },
-    // Enable instrumentation hook for Sentry
-    instrumentationHook: true,
+    // Note: instrumentationHook is no longer needed in Next.js 15+
+    // instrumentation.ts is now automatically loaded
   },
 };
 
