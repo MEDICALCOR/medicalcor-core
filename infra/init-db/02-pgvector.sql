@@ -120,7 +120,10 @@ CREATE TABLE IF NOT EXISTS message_embeddings (
 
     -- Timestamps
     message_timestamp TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+
+    -- Constraints
+    CONSTRAINT message_embeddings_content_hash_unique UNIQUE (content_hash)
 );
 
 -- Indexes for message embeddings
