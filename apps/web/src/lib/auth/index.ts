@@ -72,6 +72,9 @@ export const PERMISSIONS = {
 
   // Workflows
   TRIGGER_WORKFLOWS: ['admin', 'doctor', 'receptionist'] as UserRole[],
+  'workflows:read': ['admin', 'doctor', 'receptionist'] as UserRole[],
+  'workflows:write': ['admin', 'doctor'] as UserRole[],
+  'workflows:delete': ['admin'] as UserRole[],
 
   // Messages
   VIEW_MESSAGES: ['admin', 'doctor', 'receptionist'] as UserRole[],
