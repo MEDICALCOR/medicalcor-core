@@ -19,7 +19,9 @@ export type RealtimeEventType =
   | 'urgency.new'
   | 'urgency.resolved'
   | 'auth_success'
-  | 'auth_error';
+  | 'auth_error'
+  | 'ping'
+  | 'pong';
 
 export interface RealtimeEvent<T = unknown> {
   id: string;

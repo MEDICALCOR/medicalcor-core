@@ -234,3 +234,353 @@ export async function closeDatabasePool(): Promise<void> {
     globalPool = null;
   }
 }
+
+// =============================================================================
+// TRANSACTION MANAGEMENT - ACID Compliance
+// =============================================================================
+
+/**
+ * Transaction isolation levels
+ * Use SERIALIZABLE for critical financial operations
+ */
+export enum IsolationLevel {
+  READ_COMMITTED = 'READ COMMITTED',
+  REPEATABLE_READ = 'REPEATABLE READ',
+  SERIALIZABLE = 'SERIALIZABLE',
+}
+
+/**
+ * Transaction configuration options
+ */
+export interface TransactionOptions {
+  /** Isolation level for the transaction */
+  isolationLevel?: IsolationLevel;
+  /** Timeout in milliseconds (default: 30000) */
+  timeoutMs?: number;
+  /** Number of retry attempts on serialization failures (default: 3) */
+  maxRetries?: number;
+  /** Base delay for exponential backoff in ms (default: 100) */
+  retryBaseDelayMs?: number;
+}
+
+/**
+ * Transaction client interface with additional transaction methods
+ */
+export interface TransactionClient extends DatabaseClient {
+  /**
+   * Acquire a row lock using SELECT FOR UPDATE
+   * Prevents concurrent modifications to the same row
+   */
+  selectForUpdate<T = Record<string, unknown>>(
+    sql: string,
+    params?: unknown[]
+  ): Promise<QueryResult<T>>;
+
+  /**
+   * Acquire a row lock without waiting (NOWAIT)
+   * Throws immediately if lock cannot be acquired
+   */
+  selectForUpdateNowait<T = Record<string, unknown>>(
+    sql: string,
+    params?: unknown[]
+  ): Promise<QueryResult<T>>;
+
+  /**
+   * Acquire a row lock with skip locked (for job queues)
+   * Skips already locked rows instead of waiting
+   */
+  selectForUpdateSkipLocked<T = Record<string, unknown>>(
+    sql: string,
+    params?: unknown[]
+  ): Promise<QueryResult<T>>;
+}
+
+/**
+ * Error thrown when a transaction cannot be serialized (concurrent conflict)
+ */
+export class SerializationError extends Error {
+  public readonly code = 'SERIALIZATION_FAILURE';
+  public readonly isRetryable = true;
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'SerializationError';
+  }
+}
+
+/**
+ * Error thrown when a deadlock is detected
+ */
+export class DeadlockError extends Error {
+  public readonly code = 'DEADLOCK_DETECTED';
+  public readonly isRetryable = true;
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'DeadlockError';
+  }
+}
+
+/**
+ * Error thrown when a lock cannot be acquired (NOWAIT)
+ */
+export class LockNotAvailableError extends Error {
+  public readonly code = 'LOCK_NOT_AVAILABLE';
+  public readonly isRetryable = false;
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'LockNotAvailableError';
+  }
+}
+
+const DEFAULT_TRANSACTION_TIMEOUT = 30000;
+const DEFAULT_MAX_RETRIES = 3;
+const DEFAULT_RETRY_BASE_DELAY = 100;
+
+/**
+ * Execute a function within a database transaction with ACID guarantees
+ *
+ * Features:
+ * - Automatic BEGIN/COMMIT/ROLLBACK management
+ * - Configurable isolation level
+ * - Automatic retry on serialization failures
+ * - Exponential backoff between retries
+ * - Transaction timeout support
+ * - Pessimistic locking via SELECT FOR UPDATE
+ *
+ * @param pool - Database pool to use
+ * @param fn - Function to execute within transaction
+ * @param options - Transaction configuration
+ * @returns Result of the function
+ *
+ * @example
+ * ```typescript
+ * // Simple transaction
+ * const result = await withTransaction(db, async (tx) => {
+ *   await tx.query('UPDATE accounts SET balance = balance - $1 WHERE id = $2', [amount, fromId]);
+ *   await tx.query('UPDATE accounts SET balance = balance + $1 WHERE id = $2', [amount, toId]);
+ *   return { success: true };
+ * });
+ *
+ * // With pessimistic locking for critical operations
+ * const result = await withTransaction(db, async (tx) => {
+ *   // Lock the row to prevent concurrent modifications
+ *   const { rows } = await tx.selectForUpdate(
+ *     'SELECT * FROM wallets WHERE id = $1',
+ *     [walletId]
+ *   );
+ *   if (rows.length === 0) throw new Error('Wallet not found');
+ *
+ *   const wallet = rows[0];
+ *   if (wallet.balance < amount) throw new Error('Insufficient funds');
+ *
+ *   await tx.query('UPDATE wallets SET balance = balance - $1 WHERE id = $2', [amount, walletId]);
+ *   return { newBalance: wallet.balance - amount };
+ * }, { isolationLevel: IsolationLevel.SERIALIZABLE });
+ * ```
+ */
+export async function withTransaction<T>(
+  pool: DatabasePool,
+  fn: (client: TransactionClient) => Promise<T>,
+  options: TransactionOptions = {}
+): Promise<T> {
+  const {
+    isolationLevel = IsolationLevel.READ_COMMITTED,
+    timeoutMs = DEFAULT_TRANSACTION_TIMEOUT,
+    maxRetries = DEFAULT_MAX_RETRIES,
+    retryBaseDelayMs = DEFAULT_RETRY_BASE_DELAY,
+  } = options;
+
+  const logger = createLogger({ name: 'transaction' });
+  let attempt = 0;
+
+  while (attempt < maxRetries) {
+    const client = await pool.connect();
+
+    try {
+      // Set statement timeout
+      await client.query(`SET LOCAL statement_timeout = ${timeoutMs}`);
+
+      // Begin transaction with specified isolation level
+      await client.query(`BEGIN ISOLATION LEVEL ${isolationLevel}`);
+
+      // Create transaction client with locking helpers
+      const txClient: TransactionClient = {
+        query: client.query.bind(client),
+
+        selectForUpdate: async <R = Record<string, unknown>>(
+          sql: string,
+          params?: unknown[]
+        ): Promise<QueryResult<R>> => {
+          // Ensure the query ends with FOR UPDATE
+          const lockingSql = sql.trim().toLowerCase().endsWith('for update')
+            ? sql
+            : `${sql.trim()} FOR UPDATE`;
+          return client.query<R>(lockingSql, params);
+        },
+
+        selectForUpdateNowait: async <R = Record<string, unknown>>(
+          sql: string,
+          params?: unknown[]
+        ): Promise<QueryResult<R>> => {
+          const baseSql = sql
+            .trim()
+            .toLowerCase()
+            .replace(/\s+for\s+update.*$/i, '');
+          return client.query<R>(`${baseSql} FOR UPDATE NOWAIT`, params);
+        },
+
+        selectForUpdateSkipLocked: async <R = Record<string, unknown>>(
+          sql: string,
+          params?: unknown[]
+        ): Promise<QueryResult<R>> => {
+          const baseSql = sql
+            .trim()
+            .toLowerCase()
+            .replace(/\s+for\s+update.*$/i, '');
+          return client.query<R>(`${baseSql} FOR UPDATE SKIP LOCKED`, params);
+        },
+      };
+
+      // Execute the transaction function
+      const result = await fn(txClient);
+
+      // Commit on success
+      await client.query('COMMIT');
+
+      return result;
+    } catch (error: unknown) {
+      // Rollback on any error
+      try {
+        await client.query('ROLLBACK');
+      } catch {
+        // Ignore rollback errors
+      }
+
+      // Check if error is retryable
+      const pgError = error as { code?: string; message?: string };
+      const isSerializationFailure = pgError.code === '40001'; // serialization_failure
+      const isDeadlock = pgError.code === '40P01'; // deadlock_detected
+      const isLockNotAvailable = pgError.code === '55P03'; // lock_not_available
+
+      if (isLockNotAvailable) {
+        throw new LockNotAvailableError(pgError.message ?? 'Lock not available');
+      }
+
+      if (isSerializationFailure || isDeadlock) {
+        attempt++;
+
+        if (attempt < maxRetries) {
+          // Calculate exponential backoff delay with jitter
+          const delay = retryBaseDelayMs * Math.pow(2, attempt) * (0.5 + Math.random() * 0.5);
+
+          logger.warn(
+            {
+              attempt,
+              maxRetries,
+              delay,
+              errorCode: pgError.code,
+            },
+            'Transaction conflict, retrying with backoff'
+          );
+
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+
+        // Max retries exceeded
+        if (isSerializationFailure) {
+          throw new SerializationError(
+            `Transaction serialization failure after ${maxRetries} attempts: ${pgError.message}`
+          );
+        }
+        if (isDeadlock) {
+          throw new DeadlockError(
+            `Deadlock detected after ${maxRetries} attempts: ${pgError.message}`
+          );
+        }
+      }
+
+      // Non-retryable error - throw immediately
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  // Should never reach here, but TypeScript needs this
+  throw new SerializationError('Transaction failed after maximum retries');
+}
+
+/**
+ * Execute a function with an advisory lock
+ *
+ * Advisory locks are application-level locks that don't lock any table rows.
+ * Useful for coordinating work across multiple processes.
+ *
+ * @param pool - Database pool
+ * @param lockKey - Unique numeric key for the lock (use consistent hashing)
+ * @param fn - Function to execute while holding the lock
+ * @param waitForLock - If true, wait for lock; if false, fail immediately if locked
+ *
+ * @example
+ * ```typescript
+ * // Generate a consistent lock key from a string
+ * const lockKey = hashCode('process-daily-reports');
+ *
+ * const result = await withAdvisoryLock(db, lockKey, async () => {
+ *   // Only one process can run this at a time
+ *   return await processReports();
+ * });
+ * ```
+ */
+export async function withAdvisoryLock<T>(
+  pool: DatabasePool,
+  lockKey: number,
+  fn: () => Promise<T>,
+  waitForLock = true
+): Promise<T> {
+  const client = await pool.connect();
+  const logger = createLogger({ name: 'advisory-lock' });
+
+  try {
+    // Acquire advisory lock
+    const lockFunction = waitForLock ? 'pg_advisory_lock' : 'pg_try_advisory_lock';
+    const lockResult = await client.query<{ pg_try_advisory_lock?: boolean }>(
+      `SELECT ${lockFunction}($1)`,
+      [lockKey]
+    );
+
+    // Check if lock was acquired (for try_advisory_lock)
+    if (!waitForLock && lockResult.rows[0]?.pg_try_advisory_lock === false) {
+      throw new LockNotAvailableError(`Advisory lock ${lockKey} is held by another process`);
+    }
+
+    logger.debug({ lockKey }, 'Advisory lock acquired');
+
+    try {
+      return await fn();
+    } finally {
+      // Always release the lock
+      await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
+      logger.debug({ lockKey }, 'Advisory lock released');
+    }
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Generate a consistent hash code from a string for use as advisory lock key
+ * Uses Java-style hashCode algorithm for consistent, deterministic results
+ */
+export function stringToLockKey(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return Math.abs(hash);
+}
