@@ -543,22 +543,112 @@ export class VapiClient {
   // Transcript Buffer for Real-time Processing
   // =============================================================================
 
-  private transcriptBuffer = new Map<string, VapiMessage[]>();
+  /**
+   * CRITICAL FIX: Buffer with size limits and TTL to prevent memory leaks
+   * - Max 1000 messages per call (prevents memory exhaustion)
+   * - Max 100 concurrent calls tracked
+   * - Auto-cleanup of stale entries after 2 hours
+   */
+  private static readonly MAX_MESSAGES_PER_CALL = 1000;
+  private static readonly MAX_TRACKED_CALLS = 100;
+  private static readonly BUFFER_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
+
+  private transcriptBuffer = new Map<string, { messages: VapiMessage[]; createdAt: number }>();
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null;
+
+  /**
+   * Start automatic cleanup of stale transcript buffers
+   * Should be called once when the client is initialized
+   */
+  startBufferCleanup(): void {
+    if (this.cleanupTimer) return;
+
+    // Run cleanup every 10 minutes
+    this.cleanupTimer = setInterval(
+      () => {
+        this.cleanupStaleBuffers();
+      },
+      10 * 60 * 1000
+    );
+
+    // Don't keep process alive just for cleanup
+    this.cleanupTimer.unref();
+  }
+
+  /**
+   * Stop the automatic cleanup timer
+   */
+  stopBufferCleanup(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
+    }
+  }
+
+  /**
+   * Clean up stale transcript buffers (older than TTL)
+   */
+  private cleanupStaleBuffers(): void {
+    const now = Date.now();
+    const staleKeys: string[] = [];
+
+    for (const [callId, entry] of this.transcriptBuffer.entries()) {
+      if (now - entry.createdAt > VapiClient.BUFFER_TTL_MS) {
+        staleKeys.push(callId);
+      }
+    }
+
+    for (const key of staleKeys) {
+      this.transcriptBuffer.delete(key);
+    }
+
+    if (staleKeys.length > 0) {
+      console.info(`[Vapi] Cleaned up ${staleKeys.length} stale transcript buffers`);
+    }
+  }
 
   /**
    * Buffer transcript message for real-time calls
+   * CRITICAL FIX: Enforces size limits to prevent memory leaks
    */
   bufferTranscriptMessage(callId: string, message: VapiMessage): void {
-    const existing = this.transcriptBuffer.get(callId) ?? [];
-    existing.push(message);
-    this.transcriptBuffer.set(callId, existing);
+    // Check if we're at max tracked calls
+    if (
+      !this.transcriptBuffer.has(callId) &&
+      this.transcriptBuffer.size >= VapiClient.MAX_TRACKED_CALLS
+    ) {
+      // Remove oldest entry to make room
+      const oldestKey = this.transcriptBuffer.keys().next().value;
+      if (oldestKey) {
+        this.transcriptBuffer.delete(oldestKey);
+        console.warn(`[Vapi] Evicted oldest transcript buffer to stay within limit`);
+      }
+    }
+
+    const existing = this.transcriptBuffer.get(callId);
+
+    if (existing) {
+      // Enforce max messages per call
+      if (existing.messages.length >= VapiClient.MAX_MESSAGES_PER_CALL) {
+        // Remove oldest messages to make room (keep last 80%)
+        const keepCount = Math.floor(VapiClient.MAX_MESSAGES_PER_CALL * 0.8);
+        existing.messages = existing.messages.slice(-keepCount);
+        console.warn(`[Vapi] Trimmed transcript buffer for call ${callId} to prevent overflow`);
+      }
+      existing.messages.push(message);
+    } else {
+      this.transcriptBuffer.set(callId, {
+        messages: [message],
+        createdAt: Date.now(),
+      });
+    }
   }
 
   /**
    * Get buffered transcript for a call
    */
   getBufferedTranscript(callId: string): VapiMessage[] {
-    return this.transcriptBuffer.get(callId) ?? [];
+    return this.transcriptBuffer.get(callId)?.messages ?? [];
   }
 
   /**
@@ -566,6 +656,16 @@ export class VapiClient {
    */
   clearTranscriptBuffer(callId: string): void {
     this.transcriptBuffer.delete(callId);
+  }
+
+  /**
+   * Get the number of currently tracked calls
+   */
+  getBufferStats(): { trackedCalls: number; maxCalls: number } {
+    return {
+      trackedCalls: this.transcriptBuffer.size,
+      maxCalls: VapiClient.MAX_TRACKED_CALLS,
+    };
   }
 
   /**

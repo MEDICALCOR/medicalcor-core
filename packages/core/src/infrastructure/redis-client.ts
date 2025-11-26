@@ -9,6 +9,7 @@
  * - Circuit breaker integration
  */
 
+import crypto from 'crypto';
 import {
   type CircuitBreaker,
   CircuitBreakerRegistry,
@@ -464,8 +465,100 @@ export class SecureRedisClient {
   async lpop(key: string): Promise<string | null> {
     return this.executeCommand(async () => {
       const conn = this.ensureConnection();
-      return conn.lpop(key);
+      return conn.lpop(this.prefixKey(key));
     });
+  }
+
+  // ============= Distributed Locking =============
+
+  /**
+   * Acquire a distributed lock using Redis
+   * Uses SET NX with expiration to prevent deadlocks
+   *
+   * @param lockKey - The lock identifier
+   * @param ttlSeconds - Lock expiration in seconds (default: 30)
+   * @param retryAttempts - Number of retry attempts (default: 3)
+   * @param retryDelayMs - Delay between retries in ms (default: 100)
+   * @returns Lock token if acquired, null if lock is held
+   */
+  async acquireLock(
+    lockKey: string,
+    ttlSeconds = 30,
+    retryAttempts = 3,
+    retryDelayMs = 100
+  ): Promise<string | null> {
+    const token = crypto.randomUUID();
+    const fullKey = `lock:${lockKey}`;
+
+    for (let attempt = 0; attempt < retryAttempts; attempt++) {
+      const acquired = await this.set(fullKey, token, {
+        ttlSeconds,
+        nx: true, // Only set if not exists
+      });
+
+      if (acquired) {
+        return token;
+      }
+
+      // Wait before retry
+      if (attempt < retryAttempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Release a distributed lock
+   * Only releases if the token matches (prevents releasing someone else's lock)
+   *
+   * @param lockKey - The lock identifier
+   * @param token - The token returned from acquireLock
+   * @returns true if lock was released, false if lock was not held or token mismatch
+   */
+  async releaseLock(lockKey: string, token: string): Promise<boolean> {
+    const fullKey = `lock:${lockKey}`;
+    const currentToken = await this.get(fullKey);
+
+    if (currentToken === token) {
+      await this.del(fullKey);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Execute a function with a distributed lock
+   * Automatically acquires and releases the lock
+   *
+   * @param lockKey - The lock identifier
+   * @param fn - The function to execute while holding the lock
+   * @param options - Lock options
+   * @returns The result of the function, or throws if lock cannot be acquired
+   */
+  async withLock<T>(
+    lockKey: string,
+    fn: () => Promise<T>,
+    options: {
+      ttlSeconds?: number;
+      retryAttempts?: number;
+      retryDelayMs?: number;
+    } = {}
+  ): Promise<T> {
+    const { ttlSeconds = 30, retryAttempts = 3, retryDelayMs = 100 } = options;
+    const token = await this.acquireLock(lockKey, ttlSeconds, retryAttempts, retryDelayMs);
+
+    if (!token) {
+      throw new Error(`Failed to acquire lock: ${lockKey}`);
+    }
+
+    try {
+      return await fn();
+    } finally {
+      await this.releaseLock(lockKey, token);
+    }
   }
 
   async rpop(key: string): Promise<string | null> {

@@ -1,6 +1,12 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { ValidationError, toSafeErrorResponse, generateCorrelationId } from '@medicalcor/core';
+import {
+  ValidationError,
+  toSafeErrorResponse,
+  generateCorrelationId,
+  IdempotencyKeys,
+  hashMessageContent,
+} from '@medicalcor/core';
 import { tasks } from '@trigger.dev/sdk/v3';
 
 function getCorrelationId(request: FastifyRequest): string {
@@ -96,14 +102,23 @@ export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
         'Manual lead scoring triggered'
       );
 
-      const handle = await tasks.trigger('lead-scoring-workflow', {
-        phone,
-        hubspotContactId,
-        message,
-        channel,
-        messageHistory,
-        correlationId,
-      });
+      // Generate idempotency key based on phone, channel, and message content
+      // This prevents duplicate scoring for the same message
+      const messageHash = hashMessageContent(message);
+      const idempotencyKey = IdempotencyKeys.leadScoring(phone, channel, messageHash);
+
+      const handle = await tasks.trigger(
+        'lead-scoring-workflow',
+        {
+          phone,
+          hubspotContactId,
+          message,
+          channel,
+          messageHistory,
+          correlationId,
+        },
+        { idempotencyKey }
+      );
 
       return await reply.status(202).send({
         status: 'triggered',
@@ -161,15 +176,23 @@ export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
           'Manual patient journey triggered'
         );
 
-        const handle = await tasks.trigger('patient-journey-workflow', {
-          phone,
-          hubspotContactId,
-          channel,
-          initialScore,
-          classification,
-          procedureInterest,
-          correlationId,
-        });
+        // Idempotency based on contact and current stage
+        // Prevents duplicate journey starts for the same patient
+        const idempotencyKey = IdempotencyKeys.patientJourney(hubspotContactId, classification);
+
+        const handle = await tasks.trigger(
+          'patient-journey-workflow',
+          {
+            phone,
+            hubspotContactId,
+            channel,
+            initialScore,
+            classification,
+            procedureInterest,
+            correlationId,
+          },
+          { idempotencyKey }
+        );
 
         return await reply.status(202).send({
           status: 'triggered',
@@ -219,12 +242,20 @@ export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
           'Manual nurture sequence triggered'
         );
 
-        const handle = await tasks.trigger('nurture-sequence-workflow', {
-          phone,
-          hubspotContactId,
-          sequenceType,
-          correlationId,
-        });
+        // Idempotency based on contact and sequence type
+        // Prevents duplicate nurture sequences for the same contact
+        const idempotencyKey = IdempotencyKeys.nurtureSequence(hubspotContactId, sequenceType);
+
+        const handle = await tasks.trigger(
+          'nurture-sequence-workflow',
+          {
+            phone,
+            hubspotContactId,
+            sequenceType,
+            correlationId,
+          },
+          { idempotencyKey }
+        );
 
         return await reply.status(202).send({
           status: 'triggered',
@@ -283,17 +314,27 @@ export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
         'Manual booking agent triggered'
       );
 
-      const handle = await tasks.trigger('booking-agent-workflow', {
-        phone,
-        hubspotContactId,
-        procedureType,
-        preferredDates,
-        patientName,
-        patientEmail,
-        language,
-        correlationId,
-        selectedSlotId,
-      });
+      // Idempotency based on contact and slot (if selected) or correlationId
+      // Prevents duplicate booking attempts for the same slot
+      const bookingIdempotencyKey = selectedSlotId
+        ? IdempotencyKeys.bookingAgent(hubspotContactId, selectedSlotId)
+        : IdempotencyKeys.custom('booking-start', hubspotContactId, correlationId);
+
+      const handle = await tasks.trigger(
+        'booking-agent-workflow',
+        {
+          phone,
+          hubspotContactId,
+          procedureType,
+          preferredDates,
+          patientName,
+          patientEmail,
+          language,
+          correlationId,
+          selectedSlotId,
+        },
+        { idempotencyKey: bookingIdempotencyKey }
+      );
 
       return await reply.status(202).send({
         status: 'triggered',
