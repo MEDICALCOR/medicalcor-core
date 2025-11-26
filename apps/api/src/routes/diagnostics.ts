@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/require-await */
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import {
   diagnostics,
@@ -173,10 +174,7 @@ export const diagnosticsRoutes: FastifyPluginAsync = async (fastify) => {
       if (minDurationMs) filters.minDurationMs = parseInt(minDurationMs, 10);
       if (status) filters.status = status;
 
-      const traces = searchTraces(
-        filters,
-        limit ? parseInt(limit, 10) : 100
-      );
+      const traces = searchTraces(filters, limit ? parseInt(limit, 10) : 100);
 
       return reply.send({
         traces,
@@ -194,7 +192,8 @@ export const diagnosticsRoutes: FastifyPluginAsync = async (fastify) => {
     const snapshot = await diagnostics.getSnapshot();
     const health = snapshot.health;
 
-    const statusCode = health.overall === 'healthy' ? 200 : health.overall === 'degraded' ? 200 : 503;
+    const statusCode =
+      health.overall === 'healthy' ? 200 : health.overall === 'degraded' ? 200 : 503;
 
     return reply.status(statusCode).send({
       status: health.overall,

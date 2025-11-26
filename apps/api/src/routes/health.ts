@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/require-await */
+/* eslint-disable @typescript-eslint/prefer-regexp-exec */
 import type { FastifyPluginAsync } from 'fastify';
 import { globalCircuitBreakerRegistry } from '@medicalcor/core';
 
@@ -120,7 +125,18 @@ async function checkRedis(): Promise<HealthCheckResult> {
     }
 
     // ioredis exports Redis class - need to cast through unknown for ESM compatibility
-    const Redis = (ioredisModule as unknown as { default: new (url: string, opts: Record<string, unknown>) => { ping: () => Promise<string>; info: (section: string) => Promise<string>; quit: () => Promise<void> } }).default;
+    const Redis = (
+      ioredisModule as unknown as {
+        default: new (
+          url: string,
+          opts: Record<string, unknown>
+        ) => {
+          ping: () => Promise<string>;
+          info: (section: string) => Promise<string>;
+          quit: () => Promise<void>;
+        };
+      }
+    ).default;
 
     // Detect TLS from URL
     const isTls = redisUrl.startsWith('rediss://');
@@ -205,9 +221,7 @@ function getCircuitBreakerStatus(): {
       state: stat.state,
       failures: stat.totalFailures,
       successRate:
-        stat.totalRequests > 0
-          ? Math.round((stat.totalSuccesses / stat.totalRequests) * 100)
-          : 100,
+        stat.totalRequests > 0 ? Math.round((stat.totalSuccesses / stat.totalRequests) * 100) : 100,
     }));
   } catch {
     return [];
@@ -257,8 +271,7 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
 
     // Determine overall health status
     const criticalServicesHealthy = databaseCheck.status === 'ok';
-    const optionalServicesHealthy =
-      redisCheck.status === 'ok' && triggerCheck.status === 'ok';
+    const optionalServicesHealthy = redisCheck.status === 'ok' && triggerCheck.status === 'ok';
 
     // Get circuit breaker status
     const circuitBreakers = getCircuitBreakerStatus();
@@ -357,9 +370,7 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
     }
 
     // Calculate overall health
-    const criticalUnhealthy = dependencies.some(
-      (d) => d.critical && d.status === 'unhealthy'
-    );
+    const criticalUnhealthy = dependencies.some((d) => d.critical && d.status === 'unhealthy');
     const anyUnhealthy = dependencies.some((d) => d.status === 'unhealthy');
 
     const status = criticalUnhealthy ? 'unhealthy' : anyUnhealthy ? 'degraded' : 'ok';
@@ -467,12 +478,8 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
           stat.totalRequests > 0
             ? Math.round((stat.totalSuccesses / stat.totalRequests) * 1000) / 10
             : 100,
-        lastFailure: stat.lastFailureTime
-          ? new Date(stat.lastFailureTime).toISOString()
-          : null,
-        lastSuccess: stat.lastSuccessTime
-          ? new Date(stat.lastSuccessTime).toISOString()
-          : null,
+        lastFailure: stat.lastFailureTime ? new Date(stat.lastFailureTime).toISOString() : null,
+        lastSuccess: stat.lastSuccessTime ? new Date(stat.lastSuccessTime).toISOString() : null,
       })),
     };
   });

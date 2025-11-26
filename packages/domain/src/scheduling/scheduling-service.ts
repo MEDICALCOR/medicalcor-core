@@ -1,10 +1,32 @@
 import { Pool } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
+import type { ConsentService } from '../consent/consent-service.js';
+
+/**
+ * Error thrown when patient has not provided required consent
+ */
+export class ConsentRequiredError extends Error {
+  public readonly code = 'CONSENT_REQUIRED';
+  public readonly contactId: string;
+  public readonly missingConsents: string[];
+
+  constructor(contactId: string, missingConsents: string[]) {
+    super(
+      `Patient consent required before scheduling. Missing consents: ${missingConsents.join(', ')}`
+    );
+    this.name = 'ConsentRequiredError';
+    this.contactId = contactId;
+    this.missingConsents = missingConsents;
+  }
+}
 
 // Configuration interface
 export interface SchedulingConfig {
   connectionString?: string;
   timezone?: string;
+  consentService?: ConsentService;
+  /** If true, skip consent verification (NOT RECOMMENDED - only for testing) */
+  skipConsentCheck?: boolean;
 }
 
 // Database row types
@@ -44,6 +66,8 @@ export interface BookingRequest {
 
 export class SchedulingService {
   private pool: Pool | null;
+  private consentService: ConsentService | null;
+  private skipConsentCheck: boolean;
 
   constructor(config: SchedulingConfig) {
     // Note: timezone is accepted for future use but currently not utilized
@@ -54,6 +78,16 @@ export class SchedulingService {
           max: 10,
         })
       : null;
+    this.consentService = config.consentService ?? null;
+    this.skipConsentCheck = config.skipConsentCheck ?? false;
+
+    // Warn if consent service is not configured in production
+    if (!this.consentService && process.env.NODE_ENV === 'production' && !this.skipConsentCheck) {
+      console.warn(
+        '[SchedulingService] WARNING: ConsentService not configured. ' +
+          'Patient consent verification will be skipped. This may violate GDPR/HIPAA compliance.'
+      );
+    }
   }
 
   /**
@@ -110,11 +144,24 @@ export class SchedulingService {
 
   /**
    * Book an appointment with Transaction Safety
+   *
+   * GDPR/HIPAA COMPLIANCE: This method verifies patient consent before booking.
+   * If ConsentService is configured, it will check for 'data_processing' consent.
+   * Throws ConsentRequiredError if consent is missing or invalid.
    */
   async bookAppointment(request: BookingRequest): Promise<{ id: string; status: string }> {
     if (!this.pool) {
       throw new Error('Database connection not configured - connectionString is required');
     }
+
+    // CRITICAL: Verify patient consent before processing booking (GDPR/HIPAA requirement)
+    if (this.consentService && !this.skipConsentCheck) {
+      const consentCheck = await this.consentService.hasRequiredConsents(request.hubspotContactId);
+      if (!consentCheck.valid) {
+        throw new ConsentRequiredError(request.hubspotContactId, consentCheck.missing);
+      }
+    }
+
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
@@ -168,7 +215,7 @@ export class SchedulingService {
     startDate: Date,
     endDate: Date
   ): Promise<
-    Array<{
+    {
       id: string;
       slot: { date: string; startTime: string; duration: number };
       patientName?: string;
@@ -176,7 +223,7 @@ export class SchedulingService {
       hubspotContactId: string;
       phone: string;
       createdAt: string;
-    }>
+    }[]
   > {
     if (!this.pool) {
       // Return empty array if no database connection configured
