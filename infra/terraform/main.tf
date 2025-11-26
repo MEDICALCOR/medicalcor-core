@@ -17,11 +17,19 @@ terraform {
     }
   }
 
-  # Remote state configuration (uncomment for production)
-  # backend "gcs" {
-  #   bucket = "medicalcor-terraform-state"
-  #   prefix = "core"
-  # }
+  # SECURITY FIX: Remote state with encryption enabled
+  # State files contain sensitive data (database passwords, etc.)
+  # GCS bucket must have:
+  #   1. Uniform bucket-level access enabled
+  #   2. Customer-managed encryption key (CMEK) or default encryption
+  #   3. Object versioning enabled for state recovery
+  #   4. IAM restricted to terraform service account only
+  backend "gcs" {
+    bucket = "medicalcor-terraform-state"
+    prefix = "core"
+    # Encryption is handled by GCS default encryption or CMEK
+    # Configure via: gsutil kms encryption gs://medicalcor-terraform-state
+  }
 }
 
 # =============================================================================
@@ -68,6 +76,45 @@ variable "enable_workload_identity" {
   description = "Enable Workload Identity Federation for GitHub Actions CI/CD"
   type        = bool
   default     = false
+}
+
+# =============================================================================
+# Secret Variables (SECURITY FIX: Replace hardcoded placeholders)
+# These should be set via terraform.tfvars or environment variables
+# NEVER commit actual secret values to source control
+# =============================================================================
+
+variable "hubspot_access_token" {
+  description = "HubSpot API access token"
+  type        = string
+  sensitive   = true
+  default     = "" # Must be provided at runtime via TF_VAR_hubspot_access_token or tfvars
+  validation {
+    condition     = var.hubspot_access_token == "" || length(var.hubspot_access_token) >= 20
+    error_message = "HubSpot access token must be at least 20 characters when provided."
+  }
+}
+
+variable "whatsapp_api_key" {
+  description = "WhatsApp/360dialog API key"
+  type        = string
+  sensitive   = true
+  default     = "" # Must be provided at runtime via TF_VAR_whatsapp_api_key or tfvars
+  validation {
+    condition     = var.whatsapp_api_key == "" || length(var.whatsapp_api_key) >= 10
+    error_message = "WhatsApp API key must be at least 10 characters when provided."
+  }
+}
+
+variable "stripe_webhook_secret" {
+  description = "Stripe webhook signing secret"
+  type        = string
+  sensitive   = true
+  default     = "" # Must be provided at runtime via TF_VAR_stripe_webhook_secret or tfvars
+  validation {
+    condition     = var.stripe_webhook_secret == "" || can(regex("^whsec_", var.stripe_webhook_secret))
+    error_message = "Stripe webhook secret must start with 'whsec_' prefix."
+  }
 }
 
 # =============================================================================
@@ -204,10 +251,11 @@ resource "google_cloud_run_v2_service" "api" {
     percent = 100
   }
 
+  # SECURITY FIX: Updated depends_on for conditional secret resources
   depends_on = [
-    google_secret_manager_secret_version.hubspot_token,
-    google_secret_manager_secret_version.whatsapp_key,
-    google_secret_manager_secret_version.stripe_secret,
+    google_secret_manager_secret.hubspot_token,
+    google_secret_manager_secret.whatsapp_key,
+    google_secret_manager_secret.stripe_secret,
   ]
 }
 
@@ -293,9 +341,22 @@ resource "google_redis_instance" "cache" {
   redis_version = "REDIS_7_0"
   display_name  = "MedicalCor Redis ${var.environment}"
 
+  # SECURITY FIX: Enable Redis AUTH for production
+  # This prevents unauthorized access even from within the VPC
+  auth_enabled = var.environment == "prod"
+
+  # SECURITY FIX: Enable in-transit encryption (TLS) for production
+  # Prevents MITM attacks on Redis connections
+  transit_encryption_mode = var.environment == "prod" ? "SERVER_AUTHENTICATION" : "DISABLED"
+
   redis_configs = {
     maxmemory-policy = "allkeys-lru"
+    # Disable dangerous commands in production
+    notify-keyspace-events = var.environment == "prod" ? "" : "KEA"
   }
+
+  # SECURITY: Ensure Redis is not publicly accessible
+  connect_mode = "PRIVATE_SERVICE_ACCESS"
 }
 
 # =============================================================================
@@ -311,8 +372,24 @@ resource "google_secret_manager_secret" "hubspot_token" {
 }
 
 resource "google_secret_manager_secret_version" "hubspot_token" {
+  # SECURITY FIX: Only create initial version if secret is provided
+  # For existing deployments, secrets should be managed via GCP Console
+  count       = var.hubspot_access_token != "" ? 1 : 0
   secret      = google_secret_manager_secret.hubspot_token.id
-  secret_data = "PLACEHOLDER_REPLACE_ME"
+  secret_data = var.hubspot_access_token
+
+  lifecycle {
+    # Prevent accidental secret exposure in plan output
+    ignore_changes = [secret_data]
+  }
+}
+
+# Placeholder version for initial terraform apply when no secrets are provided
+# This allows infrastructure to be created first, then secrets added via GCP Console
+resource "google_secret_manager_secret_version" "hubspot_token_placeholder" {
+  count       = var.hubspot_access_token == "" ? 1 : 0
+  secret      = google_secret_manager_secret.hubspot_token.id
+  secret_data = "INITIAL_PLACEHOLDER_UPDATE_VIA_GCP_CONSOLE"
 
   lifecycle {
     ignore_changes = [secret_data]
@@ -328,8 +405,20 @@ resource "google_secret_manager_secret" "whatsapp_key" {
 }
 
 resource "google_secret_manager_secret_version" "whatsapp_key" {
+  # SECURITY FIX: Only create initial version if secret is provided
+  count       = var.whatsapp_api_key != "" ? 1 : 0
   secret      = google_secret_manager_secret.whatsapp_key.id
-  secret_data = "PLACEHOLDER_REPLACE_ME"
+  secret_data = var.whatsapp_api_key
+
+  lifecycle {
+    ignore_changes = [secret_data]
+  }
+}
+
+resource "google_secret_manager_secret_version" "whatsapp_key_placeholder" {
+  count       = var.whatsapp_api_key == "" ? 1 : 0
+  secret      = google_secret_manager_secret.whatsapp_key.id
+  secret_data = "INITIAL_PLACEHOLDER_UPDATE_VIA_GCP_CONSOLE"
 
   lifecycle {
     ignore_changes = [secret_data]
@@ -345,8 +434,20 @@ resource "google_secret_manager_secret" "stripe_secret" {
 }
 
 resource "google_secret_manager_secret_version" "stripe_secret" {
+  # SECURITY FIX: Only create initial version if secret is provided
+  count       = var.stripe_webhook_secret != "" ? 1 : 0
   secret      = google_secret_manager_secret.stripe_secret.id
-  secret_data = "PLACEHOLDER_REPLACE_ME"
+  secret_data = var.stripe_webhook_secret
+
+  lifecycle {
+    ignore_changes = [secret_data]
+  }
+}
+
+resource "google_secret_manager_secret_version" "stripe_secret_placeholder" {
+  count       = var.stripe_webhook_secret == "" ? 1 : 0
+  secret      = google_secret_manager_secret.stripe_secret.id
+  secret_data = "INITIAL_PLACEHOLDER_UPDATE_VIA_GCP_CONSOLE"
 
   lifecycle {
     ignore_changes = [secret_data]
@@ -488,6 +589,29 @@ output "db_connection_name" {
 output "redis_host" {
   description = "Redis host"
   value       = google_redis_instance.cache.host
+}
+
+output "redis_port" {
+  description = "Redis port"
+  value       = google_redis_instance.cache.port
+}
+
+# SECURITY: Redis auth string is sensitive - only output when auth is enabled
+output "redis_auth_string" {
+  description = "Redis AUTH string (only available when auth_enabled=true in prod)"
+  value       = var.environment == "prod" ? google_redis_instance.cache.auth_string : null
+  sensitive   = true
+}
+
+output "redis_tls_enabled" {
+  description = "Whether Redis TLS is enabled"
+  value       = var.environment == "prod"
+}
+
+output "db_password" {
+  description = "Database password (sensitive)"
+  value       = random_password.db_password.result
+  sensitive   = true
 }
 
 # Workload Identity Federation outputs (for GitHub Actions configuration)

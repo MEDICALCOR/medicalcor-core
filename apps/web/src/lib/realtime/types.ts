@@ -18,6 +18,7 @@ export type RealtimeEventType =
   | 'task.completed'
   | 'urgency.new'
   | 'urgency.resolved'
+  | 'auth_success'
   | 'auth_error';
 
 export interface RealtimeEvent<T = unknown> {
@@ -76,7 +77,15 @@ export interface UrgencyPayload {
 }
 
 export interface ConnectionState {
-  status: 'connecting' | 'connected' | 'disconnected' | 'error';
+  /**
+   * Connection status:
+   * - 'connecting': WebSocket handshake in progress
+   * - 'authenticating': Connected, waiting for auth_success from server
+   * - 'connected': Fully authenticated and ready
+   * - 'disconnected': Not connected
+   * - 'error': Connection or authentication error
+   */
+  status: 'connecting' | 'authenticating' | 'connected' | 'disconnected' | 'error';
   lastConnected?: Date;
   reconnectAttempts: number;
 }

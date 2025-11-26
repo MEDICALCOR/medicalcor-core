@@ -12,8 +12,9 @@ interface UseWebSocketOptions {
   url: string;
   /**
    * Authentication token to send with WebSocket connection.
-   * SECURITY: Required for authenticated connections.
-   * Token is passed via query parameter and validated server-side.
+   * SECURITY FIX: Token is now sent ONLY via WebSocket message after connection,
+   * NOT in query parameters (which would expose it in logs and browser history).
+   * The server must validate the auth message before allowing other operations.
    */
   authToken?: string;
   reconnectInterval?: number;
@@ -25,6 +26,10 @@ interface UseWebSocketOptions {
    * Called when authentication fails
    */
   onAuthError?: (message: string) => void;
+  /**
+   * Called when authentication succeeds
+   */
+  onAuthSuccess?: () => void;
 }
 
 const DEFAULT_RECONNECT_INTERVAL = 3000;
@@ -40,6 +45,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
     onClose,
     onError,
     onAuthError,
+    onAuthSuccess,
   } = options;
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -80,25 +86,32 @@ export function useWebSocket(options: UseWebSocketOptions) {
     }));
 
     try {
-      // Build URL with authentication token as query parameter
-      // Server must validate this token before accepting messages
-      const wsUrl = new URL(url);
-      wsUrl.searchParams.set('token', authToken);
-      const ws = new WebSocket(wsUrl.toString());
+      // SECURITY FIX: Do NOT pass token in query parameters
+      // Query params are logged in access logs and visible in browser history
+      // Instead, send auth message immediately after connection
+      const ws = new WebSocket(url);
 
       ws.onopen = () => {
-        // Send authentication message after connection
-        // This provides an additional layer of auth validation
-        ws.send(JSON.stringify({
-          type: 'auth',
-          token: authToken,
-        }));
+        // SECURITY: Send authentication message ONLY via WebSocket message
+        // The server MUST validate this before accepting any other messages
+        // Server should:
+        //   1. Set a short timeout (e.g., 5s) for auth message
+        //   2. Close connection if auth fails or times out
+        //   3. Not process any other messages until auth succeeds
+        ws.send(
+          JSON.stringify({
+            type: 'auth',
+            token: authToken,
+            // Include timestamp to prevent replay attacks
+            timestamp: Date.now(),
+          })
+        );
 
-        setConnectionState({
-          status: 'connected',
-          lastConnected: new Date(),
-          reconnectAttempts: 0,
-        });
+        // Note: We don't set 'connected' status until auth_success is received
+        setConnectionState((prev) => ({
+          ...prev,
+          status: 'authenticating',
+        }));
         onOpen?.();
       };
 
@@ -134,12 +147,35 @@ export function useWebSocket(options: UseWebSocketOptions) {
         try {
           const realtimeEvent = JSON.parse(event.data) as RealtimeEvent;
 
+          // Handle authentication success from server
+          if (realtimeEvent.type === 'auth_success') {
+            setConnectionState({
+              status: 'connected',
+              lastConnected: new Date(),
+              reconnectAttempts: 0,
+            });
+            onAuthSuccess?.();
+            return;
+          }
+
           // Handle authentication error from server
           if (realtimeEvent.type === 'auth_error') {
-            const errorMsg = (realtimeEvent.data as { message?: string } | undefined)?.message ?? 'Authentication failed';
+            const errorMsg =
+              (realtimeEvent.data as { message?: string } | undefined)?.message ??
+              'Authentication failed';
             console.error('[WebSocket] Authentication failed:', errorMsg);
+            setConnectionState((prev) => ({
+              ...prev,
+              status: 'error',
+            }));
             onAuthError?.(errorMsg);
             ws.close();
+            return;
+          }
+
+          // Only process messages if authenticated
+          if (connectionState.status !== 'connected') {
+            console.warn('[WebSocket] Received message before authentication complete');
             return;
           }
 

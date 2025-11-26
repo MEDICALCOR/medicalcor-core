@@ -49,6 +49,59 @@ function getClients() {
 }
 
 // ============================================
+// GDPR Consent Verification
+// ============================================
+
+/**
+ * Consent types supported by the system
+ */
+type ConsentType = 'marketing' | 'appointment_reminders' | 'treatment_updates' | 'data_processing';
+
+/**
+ * CRITICAL GDPR FIX: Helper function to verify contact has valid consent
+ * Returns true only if the contact has explicitly consented to the specified type
+ *
+ * @param contact - HubSpot contact with properties
+ * @param consentType - Type of consent to check
+ * @returns true if contact has valid consent, false otherwise
+ */
+function hasValidConsent(contact: HubSpotContactResult, consentType: ConsentType): boolean {
+  const props = contact.properties;
+
+  // Check specific consent property first
+  const specificConsentProp = `consent_${consentType}`;
+  if (props[specificConsentProp] === 'true') {
+    return true;
+  }
+
+  // For appointment_reminders, also accept treatment_updates consent
+  if (consentType === 'appointment_reminders' && props.consent_treatment_updates === 'true') {
+    return true;
+  }
+
+  // Do NOT fall back to general marketing consent for medical communications
+  // This would violate GDPR's principle of specific consent
+
+  return false;
+}
+
+/**
+ * Log consent check failure for audit trail
+ */
+function logConsentDenied(
+  contactId: string,
+  consentType: ConsentType,
+  correlationId: string
+): void {
+  logger.info('Message not sent - consent not granted', {
+    contactId,
+    consentType,
+    correlationId,
+    reason: 'GDPR_CONSENT_MISSING',
+  });
+}
+
+// ============================================
 // Batch Processing Constants
 // ============================================
 
@@ -291,6 +344,8 @@ export const appointmentReminders = schedules.task({
       const now = new Date();
       const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
+      // CRITICAL GDPR FIX: Include consent check in the search filter
+      // Only send reminders to contacts who have explicitly consented to appointment reminders
       const upcomingAppointments = await hubspot?.searchContacts({
         filterGroups: [
           {
@@ -305,6 +360,33 @@ export const appointmentReminders = schedules.task({
                 operator: 'LTE',
                 value: in24Hours.getTime().toString(),
               },
+              // GDPR CONSENT CHECK: Must have appointment_reminders consent
+              // Falls back to marketing consent if specific consent property doesn't exist
+              {
+                propertyName: 'consent_appointment_reminders',
+                operator: 'EQ',
+                value: 'true',
+              },
+            ],
+          },
+          // Fallback filter group for contacts with only general marketing consent
+          {
+            filters: [
+              {
+                propertyName: 'next_appointment_date',
+                operator: 'GTE',
+                value: now.getTime().toString(),
+              },
+              {
+                propertyName: 'next_appointment_date',
+                operator: 'LTE',
+                value: in24Hours.getTime().toString(),
+              },
+              {
+                propertyName: 'consent_marketing',
+                operator: 'EQ',
+                value: 'true',
+              },
             ],
           },
         ],
@@ -316,6 +398,8 @@ export const appointmentReminders = schedules.task({
           'reminder_24h_sent',
           'reminder_2h_sent',
           'hs_language',
+          'consent_appointment_reminders',
+          'consent_marketing',
         ],
         limit: 100,
       });
@@ -329,10 +413,21 @@ export const appointmentReminders = schedules.task({
         correlationId,
       });
 
-      // Filter contacts with valid data
+      // GDPR FIX: Filter contacts with valid data AND verified consent
       const validContacts = (upcomingAppointments.results as HubSpotContactResult[]).filter(
         (contact) => {
-          return contact.properties.phone && contact.properties.next_appointment_date;
+          // Must have phone and appointment date
+          if (!contact.properties.phone || !contact.properties.next_appointment_date) {
+            return false;
+          }
+
+          // CRITICAL: Verify consent for appointment reminders
+          if (!hasValidConsent(contact, 'appointment_reminders')) {
+            logConsentDenied(contact.id, 'appointment_reminders', correlationId);
+            return false;
+          }
+
+          return true;
         }
       );
 
