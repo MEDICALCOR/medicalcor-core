@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useTransition } from 'react';
 import { ConversationList } from '@/components/messages/conversation-list';
 import { ConversationView, EmptyConversationView } from '@/components/messages/conversation-view';
+import { CopilotPanel } from '@/components/ai-copilot';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   getConversationsAction,
@@ -27,6 +28,7 @@ export default function MessagesPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoadingConversations, startConversationsTransition] = useTransition();
   const [isLoadingMessages, startMessagesTransition] = useTransition();
+  const [suggestedMessage, setSuggestedMessage] = useState<string | undefined>(undefined);
 
   // Fetch conversations on mount
   useEffect(() => {
@@ -106,6 +108,24 @@ export default function MessagesPage() {
     [selectedConversation]
   );
 
+  // Handle AI Copilot suggestion selection
+  const handleSuggestionSelect = useCallback((content: string) => {
+    setSuggestedMessage(content);
+  }, []);
+
+  // Clear suggestion after it's consumed
+  const handleSuggestionConsumed = useCallback(() => {
+    setSuggestedMessage(undefined);
+  }, []);
+
+  // Prepare conversation context for AI Copilot
+  const copilotConversation = messages.map((msg) => ({
+    direction: msg.direction as 'IN' | 'OUT',
+    content: msg.content,
+    timestamp: msg.timestamp.toISOString(),
+    channel: (selectedConversation?.channel ?? 'whatsapp') as 'whatsapp' | 'sms' | 'voice',
+  }));
+
   return (
     <div className="h-[calc(100vh-4rem)]">
       <div className="grid grid-cols-[380px_1fr] h-full">
@@ -130,11 +150,24 @@ export default function MessagesPage() {
             onSendMessage={handleSendMessage}
             onStatusChange={handleStatusChange}
             isLoading={isLoadingMessages}
+            suggestedMessage={suggestedMessage}
+            onSuggestionConsumed={handleSuggestionConsumed}
           />
         ) : (
           <EmptyConversationView />
         )}
       </div>
+
+      {/* AI Copilot Panel */}
+      {selectedConversation && (
+        <CopilotPanel
+          patientId={selectedConversation.id}
+          patientPhone={selectedConversation.phone}
+          patientName={selectedConversation.patientName}
+          currentConversation={copilotConversation}
+          onSuggestionSelect={handleSuggestionSelect}
+        />
+      )}
     </div>
   );
 }
