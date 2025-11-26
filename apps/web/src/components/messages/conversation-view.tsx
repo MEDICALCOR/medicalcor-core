@@ -37,6 +37,10 @@ interface ConversationViewProps {
   onSendMessage: (content: string) => void;
   onStatusChange?: (status: Conversation['status']) => void;
   isLoading?: boolean;
+  /** External suggestion to populate the input field */
+  suggestedMessage?: string;
+  /** Callback when suggestion is consumed (used to clear external state) */
+  onSuggestionConsumed?: () => void;
 }
 
 const statusIcons: Record<MessageStatus, React.ElementType> = {
@@ -103,13 +107,26 @@ export function ConversationView({
   onSendMessage,
   onStatusChange,
   isLoading = false,
+  suggestedMessage,
+  onSuggestionConsumed,
 }: ConversationViewProps) {
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Handle external suggestion - populate input and focus
+  useEffect(() => {
+    if (suggestedMessage) {
+      setNewMessage(suggestedMessage);
+      onSuggestionConsumed?.();
+      // Focus input after a brief delay to ensure DOM is ready
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [suggestedMessage, onSuggestionConsumed]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -256,6 +273,7 @@ export function ConversationView({
           <Paperclip className="h-4 w-4" />
         </Button>
         <Input
+          ref={inputRef}
           value={newMessage}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewMessage(e.target.value)}
           placeholder="Scrie un mesaj..."
