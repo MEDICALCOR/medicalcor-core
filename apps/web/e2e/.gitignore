@@ -1,0 +1,10 @@
+# Test results
+test-results/
+playwright-report/
+
+# Authentication state (contains session tokens)
+.auth/
+
+# Screenshots and videos from failed tests
+*.png
+*.webm

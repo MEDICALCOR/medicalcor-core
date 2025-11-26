@@ -1,3 +1,4 @@
+import { withSentryConfig } from '@sentry/nextjs';
 import withPWAInit from '@ducanh2912/next-pwa';
 
 const withPWA = withPWAInit({
@@ -21,7 +22,45 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '2mb',
     },
+    // Enable instrumentation hook for Sentry
+    instrumentationHook: true,
   },
 };
 
-export default withPWA(nextConfig);
+// Sentry configuration options
+const sentryWebpackPluginOptions = {
+  // Suppresses all logs from the Sentry webpack plugin
+  silent: true,
+
+  // For all available options, see:
+  // https://github.com/getsentry/sentry-webpack-plugin#options
+
+  // Upload source maps to Sentry (requires SENTRY_AUTH_TOKEN)
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+
+  // Hides source maps from generated client bundles
+  hideSourceMaps: true,
+
+  // Automatically tree-shake Sentry logger statements
+  disableLogger: true,
+
+  // Widens the scope of Sentry error capturing
+  widenClientFileUpload: true,
+
+  // Routes browser requests to Sentry through a Next.js rewrite
+  // Helps avoid ad-blockers
+  tunnelRoute: '/monitoring',
+
+  // Automatically annotate React components for more readable stack traces
+  reactComponentAnnotation: {
+    enabled: true,
+  },
+};
+
+// Only wrap with Sentry if DSN is configured
+const finalConfig = process.env.NEXT_PUBLIC_SENTRY_DSN
+  ? withSentryConfig(withPWA(nextConfig), sentryWebpackPluginOptions)
+  : withPWA(nextConfig);
+
+export default finalConfig;
