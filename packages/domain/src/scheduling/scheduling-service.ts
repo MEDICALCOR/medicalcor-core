@@ -1,10 +1,40 @@
 import { Pool } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
+import type { ConsentService, ConsentType } from '../consent/consent-service.js';
+
+/**
+ * Error thrown when required medical consent is not granted
+ */
+export class ConsentRequiredError extends Error {
+  public readonly missingConsents: ConsentType[];
+  public readonly contactId: string;
+
+  constructor(contactId: string, missingConsents: ConsentType[]) {
+    super(
+      `Medical consent required: Patient ${contactId} has not granted required consents: ${missingConsents.join(', ')}. ` +
+        `Appointment cannot be booked without valid consent.`
+    );
+    this.name = 'ConsentRequiredError';
+    this.contactId = contactId;
+    this.missingConsents = missingConsents;
+  }
+}
 
 // Configuration interface
 export interface SchedulingConfig {
   connectionString?: string;
   timezone?: string;
+  /**
+   * Consent service for validating patient consent before booking.
+   * REQUIRED for production use to ensure GDPR/HIPAA compliance.
+   */
+  consentService?: ConsentService;
+  /**
+   * Whether to require consent validation for all bookings.
+   * Defaults to true in production, false in development.
+   * WARNING: Setting this to false in production is a compliance violation.
+   */
+  requireConsent?: boolean;
 }
 
 // Database row types
@@ -44,6 +74,8 @@ export interface BookingRequest {
 
 export class SchedulingService {
   private pool: Pool | null;
+  private consentService: ConsentService | null;
+  private requireConsent: boolean;
 
   constructor(config: SchedulingConfig) {
     // Note: timezone is accepted for future use but currently not utilized
@@ -54,6 +86,26 @@ export class SchedulingService {
           max: 10,
         })
       : null;
+
+    this.consentService = config.consentService ?? null;
+
+    // Default: require consent in production
+    const isProduction = process.env.NODE_ENV === 'production';
+    this.requireConsent = config.requireConsent ?? isProduction;
+
+    // CRITICAL: Warn if consent validation is disabled or not configured in production
+    if (isProduction && !this.consentService) {
+      console.warn(
+        '[SchedulingService] CRITICAL WARNING: No consent service configured in production. ' +
+          'Medical appointments should require consent validation for GDPR/HIPAA compliance.'
+      );
+    }
+    if (isProduction && !this.requireConsent) {
+      console.warn(
+        '[SchedulingService] CRITICAL WARNING: Consent validation is disabled in production. ' +
+          'This is a potential compliance violation.'
+      );
+    }
   }
 
   /**
@@ -109,12 +161,58 @@ export class SchedulingService {
   }
 
   /**
+   * Validate that patient has granted required medical consent
+   * @throws ConsentRequiredError if consent is not granted
+   */
+  private async validateConsent(contactId: string): Promise<void> {
+    if (!this.requireConsent) {
+      return;
+    }
+
+    if (!this.consentService) {
+      // In production with requireConsent=true but no service, fail safe
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(
+          'Consent service not configured but consent validation is required. ' +
+            'Cannot book appointments without consent validation in production.'
+        );
+      }
+      // In development, allow without consent service
+      return;
+    }
+
+    // Check for required consents (data_processing is mandatory for medical appointments)
+    const { valid, missing } = await this.consentService.hasRequiredConsents(contactId);
+
+    if (!valid) {
+      throw new ConsentRequiredError(contactId, missing);
+    }
+
+    // Additionally check for appointment_reminders consent (required for medical scheduling)
+    const hasAppointmentConsent = await this.consentService.hasValidConsent(
+      contactId,
+      'appointment_reminders'
+    );
+
+    if (!hasAppointmentConsent) {
+      throw new ConsentRequiredError(contactId, ['appointment_reminders']);
+    }
+  }
+
+  /**
    * Book an appointment with Transaction Safety
+   * @throws ConsentRequiredError if patient has not granted required medical consent
    */
   async bookAppointment(request: BookingRequest): Promise<{ id: string; status: string }> {
+    // CRITICAL: Validate consent BEFORE anything else
+    // This ensures GDPR/HIPAA compliance for medical appointments
+    // Consent must be checked even before database operations
+    await this.validateConsent(request.hubspotContactId);
+
     if (!this.pool) {
       throw new Error('Database connection not configured - connectionString is required');
     }
+
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
@@ -168,7 +266,7 @@ export class SchedulingService {
     startDate: Date,
     endDate: Date
   ): Promise<
-    Array<{
+    {
       id: string;
       slot: { date: string; startTime: string; duration: number };
       patientName?: string;
@@ -176,7 +274,7 @@ export class SchedulingService {
       hubspotContactId: string;
       phone: string;
       createdAt: string;
-    }>
+    }[]
   > {
     if (!this.pool) {
       // Return empty array if no database connection configured
