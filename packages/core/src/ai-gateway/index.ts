@@ -96,3 +96,43 @@ export {
   type ConversationState,
   type ConversationContextConfig,
 } from './conversation-context.js';
+
+// AI Response Cache - Redis-based caching for AI responses
+export {
+  AIResponseCache,
+  createAIResponseCache,
+  createContextHash,
+  AIResponseCacheConfigSchema,
+  type CachedAIResponse,
+  type CacheStats,
+  type AIResponseCacheConfig,
+} from './ai-response-cache.js';
+
+// User Rate Limiter - Per-user AI request limits
+export {
+  UserRateLimiter,
+  createUserRateLimiter,
+  createRateLimitMiddleware,
+  UserRateLimiterConfigSchema,
+  TierLimitsSchema,
+  DEFAULT_TIER_LIMITS,
+  type UserTier,
+  type RateLimitResult,
+  type UserUsageStats,
+  type TierLimits,
+  type UserRateLimiterConfig,
+} from './user-rate-limiter.js';
+
+// Fine-Tuning Export - Export conversation data for model fine-tuning
+export {
+  FineTuningExportService,
+  createFineTuningExportService,
+  FineTuningExportConfigSchema,
+  DEFAULT_PII_PATTERNS,
+  DEFAULT_SYSTEM_PROMPT,
+  type FineTuningExample,
+  type ExportMessage,
+  type ExportStats,
+  type QualityCriteria,
+  type FineTuningExportConfig,
+} from './fine-tuning-export.js';
