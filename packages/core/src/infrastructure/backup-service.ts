@@ -901,6 +901,13 @@ export class BackupService extends EventEmitter {
 
     // Local file
     const fs = await import('fs/promises');
+
+    // Check if path exists and is a file (not a directory)
+    const stat = await fs.stat(location);
+    if (stat.isDirectory()) {
+      throw new Error(`EISDIR: Cannot read '${location}' - path is a directory, not a file`);
+    }
+
     return fs.readFile(location);
   }
 
@@ -1018,7 +1025,19 @@ export class BackupService extends EventEmitter {
 
       if (this.config.storage.provider === 'local') {
         const fs = await import('fs/promises');
-        const data = await fs.readFile(catalogPath, 'utf-8').catch(() => '[]');
+
+        // Check if catalog exists and is a file (not a directory)
+        let data = '[]';
+        try {
+          const stat = await fs.stat(catalogPath);
+          if (stat.isFile()) {
+            data = await fs.readFile(catalogPath, 'utf-8');
+          }
+          // If it's a directory, use empty array (don't try to read it)
+        } catch {
+          // File doesn't exist yet, use empty array
+        }
+
         const backups: BackupMetadata[] = JSON.parse(data);
 
         for (const backup of backups) {
