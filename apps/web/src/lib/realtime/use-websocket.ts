@@ -19,6 +19,21 @@ interface UseWebSocketOptions {
   authToken?: string;
   reconnectInterval?: number;
   maxReconnectAttempts?: number;
+  /**
+   * Enable heartbeat/ping-pong mechanism to detect ghost disconnects
+   * @default true
+   */
+  enableHeartbeat?: boolean;
+  /**
+   * Heartbeat interval in milliseconds
+   * @default 30000 (30 seconds)
+   */
+  heartbeatInterval?: number;
+  /**
+   * Heartbeat timeout - if no pong received within this time, reconnect
+   * @default 10000 (10 seconds)
+   */
+  heartbeatTimeout?: number;
   onOpen?: () => void;
   onClose?: () => void;
   onError?: (error: Event) => void;
@@ -34,6 +49,8 @@ interface UseWebSocketOptions {
 
 const DEFAULT_RECONNECT_INTERVAL = 3000;
 const MAX_RECONNECT_ATTEMPTS = 10;
+const DEFAULT_HEARTBEAT_INTERVAL = 30000;
+const DEFAULT_HEARTBEAT_TIMEOUT = 10000;
 
 export function useWebSocket(options: UseWebSocketOptions) {
   const {
@@ -41,6 +58,9 @@ export function useWebSocket(options: UseWebSocketOptions) {
     authToken,
     reconnectInterval = DEFAULT_RECONNECT_INTERVAL,
     maxReconnectAttempts = MAX_RECONNECT_ATTEMPTS,
+    enableHeartbeat = true,
+    heartbeatInterval = DEFAULT_HEARTBEAT_INTERVAL,
+    heartbeatTimeout = DEFAULT_HEARTBEAT_TIMEOUT,
     onOpen,
     onClose,
     onError,
@@ -50,12 +70,43 @@ export function useWebSocket(options: UseWebSocketOptions) {
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const heartbeatTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const handlersRef = useRef<Map<RealtimeEventType | '*', Set<RealtimeEventHandler>>>(new Map());
+
+  // CRITICAL FIX: Use refs for values that need to be accessed in callbacks
+  // to prevent stale closure issues. These refs are updated via useEffect
+  // whenever the corresponding state changes.
+  const reconnectAttemptsRef = useRef(0);
+  const isAuthenticatedRef = useRef(false);
+  const isManualDisconnectRef = useRef(false);
+
+  // Store callback refs to avoid stale closures
+  const onOpenRef = useRef(onOpen);
+  const onCloseRef = useRef(onClose);
+  const onErrorRef = useRef(onError);
+  const onAuthErrorRef = useRef(onAuthError);
+  const onAuthSuccessRef = useRef(onAuthSuccess);
+
+  // Update callback refs when callbacks change
+  useEffect(() => {
+    onOpenRef.current = onOpen;
+    onCloseRef.current = onClose;
+    onErrorRef.current = onError;
+    onAuthErrorRef.current = onAuthError;
+    onAuthSuccessRef.current = onAuthSuccess;
+  }, [onOpen, onClose, onError, onAuthError, onAuthSuccess]);
 
   const [connectionState, setConnectionState] = useState<ConnectionState>({
     status: 'disconnected',
     reconnectAttempts: 0,
   });
+
+  // Sync state to refs for use in callbacks (avoids stale closure issues)
+  useEffect(() => {
+    reconnectAttemptsRef.current = connectionState.reconnectAttempts;
+    isAuthenticatedRef.current = connectionState.status === 'connected';
+  }, [connectionState.reconnectAttempts, connectionState.status]);
 
   const clearReconnectTimeout = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -64,15 +115,50 @@ export function useWebSocket(options: UseWebSocketOptions) {
     }
   }, []);
 
+  const clearHeartbeat = useCallback(() => {
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
+    }
+    if (heartbeatTimeoutRef.current) {
+      clearTimeout(heartbeatTimeoutRef.current);
+      heartbeatTimeoutRef.current = null;
+    }
+  }, []);
+
+  const startHeartbeat = useCallback(() => {
+    if (!enableHeartbeat) return;
+
+    clearHeartbeat();
+
+    heartbeatIntervalRef.current = setInterval(() => {
+      const ws = wsRef.current;
+      if (ws?.readyState === WebSocket.OPEN && isAuthenticatedRef.current) {
+        // Send ping
+        ws.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
+
+        // Set timeout for pong response
+        heartbeatTimeoutRef.current = setTimeout(() => {
+          console.warn('[WebSocket] Heartbeat timeout - no pong received, reconnecting');
+          // Force close and trigger reconnect
+          ws.close(4000, 'Heartbeat timeout');
+        }, heartbeatTimeout);
+      }
+    }, heartbeatInterval);
+  }, [enableHeartbeat, heartbeatInterval, heartbeatTimeout, clearHeartbeat]);
+
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       return;
     }
 
+    // Reset manual disconnect flag
+    isManualDisconnectRef.current = false;
+
     // SECURITY: Require authentication token for WebSocket connections
     if (!authToken) {
       console.error('[WebSocket] Authentication token required for connection');
-      onAuthError?.('Authentication token required');
+      onAuthErrorRef.current?.('Authentication token required');
       setConnectionState((prev) => ({
         ...prev,
         status: 'error',
@@ -112,26 +198,50 @@ export function useWebSocket(options: UseWebSocketOptions) {
           ...prev,
           status: 'authenticating',
         }));
-        onOpen?.();
+        onOpenRef.current?.();
       };
 
       ws.onclose = () => {
+        clearHeartbeat();
+
         setConnectionState((prev) => ({
           ...prev,
           status: 'disconnected',
         }));
-        onClose?.();
+        onCloseRef.current?.();
 
-        // Auto-reconnect logic
-        if (connectionState.reconnectAttempts < maxReconnectAttempts) {
-          const delay = reconnectInterval * Math.pow(1.5, connectionState.reconnectAttempts);
+        // CRITICAL FIX: Use ref for reconnect attempts to avoid stale closure
+        // Don't reconnect if this was a manual disconnect
+        if (isManualDisconnectRef.current) {
+          return;
+        }
+
+        // Auto-reconnect with exponential backoff
+        const currentAttempts = reconnectAttemptsRef.current;
+        if (currentAttempts < maxReconnectAttempts) {
+          const delay = Math.min(
+            reconnectInterval * Math.pow(1.5, currentAttempts),
+            60000 // Cap at 60 seconds
+          );
+
+          console.warn(
+            `[WebSocket] Reconnecting in ${delay}ms (attempt ${currentAttempts + 1}/${maxReconnectAttempts})`
+          );
+
           reconnectTimeoutRef.current = setTimeout(() => {
+            // Use functional update to ensure we get the latest state
             setConnectionState((prev) => ({
               ...prev,
               reconnectAttempts: prev.reconnectAttempts + 1,
             }));
             connect();
           }, delay);
+        } else {
+          console.error('[WebSocket] Max reconnection attempts reached');
+          setConnectionState((prev) => ({
+            ...prev,
+            status: 'error',
+          }));
         }
       };
 
@@ -140,12 +250,22 @@ export function useWebSocket(options: UseWebSocketOptions) {
           ...prev,
           status: 'error',
         }));
-        onError?.(error);
+        onErrorRef.current?.(error);
       };
 
       ws.onmessage = (event: MessageEvent<string>) => {
         try {
           const realtimeEvent = JSON.parse(event.data) as RealtimeEvent;
+
+          // Handle pong response for heartbeat
+          if (realtimeEvent.type === 'pong') {
+            // Clear heartbeat timeout - connection is alive
+            if (heartbeatTimeoutRef.current) {
+              clearTimeout(heartbeatTimeoutRef.current);
+              heartbeatTimeoutRef.current = null;
+            }
+            return;
+          }
 
           // Handle authentication success from server
           if (realtimeEvent.type === 'auth_success') {
@@ -154,7 +274,9 @@ export function useWebSocket(options: UseWebSocketOptions) {
               lastConnected: new Date(),
               reconnectAttempts: 0,
             });
-            onAuthSuccess?.();
+            // Start heartbeat after successful authentication
+            startHeartbeat();
+            onAuthSuccessRef.current?.();
             return;
           }
 
@@ -168,13 +290,14 @@ export function useWebSocket(options: UseWebSocketOptions) {
               ...prev,
               status: 'error',
             }));
-            onAuthError?.(errorMsg);
+            onAuthErrorRef.current?.(errorMsg);
+            isManualDisconnectRef.current = true; // Don't auto-reconnect on auth failure
             ws.close();
             return;
           }
 
-          // Only process messages if authenticated
-          if (connectionState.status !== 'connected') {
+          // CRITICAL FIX: Use ref to check authentication status to avoid stale closure
+          if (!isAuthenticatedRef.current) {
             console.warn('[WebSocket] Received message before authentication complete');
             return;
           }
@@ -198,20 +321,12 @@ export function useWebSocket(options: UseWebSocketOptions) {
         status: 'error',
       }));
     }
-  }, [
-    url,
-    authToken,
-    reconnectInterval,
-    maxReconnectAttempts,
-    onOpen,
-    onClose,
-    onError,
-    onAuthError,
-    connectionState.reconnectAttempts,
-  ]);
+  }, [url, authToken, reconnectInterval, maxReconnectAttempts, clearHeartbeat, startHeartbeat]);
 
   const disconnect = useCallback(() => {
+    isManualDisconnectRef.current = true;
     clearReconnectTimeout();
+    clearHeartbeat();
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
@@ -220,7 +335,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
       status: 'disconnected',
       reconnectAttempts: 0,
     });
-  }, [clearReconnectTimeout]);
+  }, [clearReconnectTimeout, clearHeartbeat]);
 
   const subscribe = useCallback(
     <T = unknown>(eventType: RealtimeEventType | '*', handler: RealtimeEventHandler<T>) => {
@@ -248,12 +363,14 @@ export function useWebSocket(options: UseWebSocketOptions) {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      isManualDisconnectRef.current = true;
       clearReconnectTimeout();
+      clearHeartbeat();
       if (wsRef.current) {
         wsRef.current.close();
       }
     };
-  }, [clearReconnectTimeout]);
+  }, [clearReconnectTimeout, clearHeartbeat]);
 
   return {
     connectionState,

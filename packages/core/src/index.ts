@@ -21,7 +21,6 @@ export {
 } from './errors.js';
 
 export {
-  normalizeRomanianPhone,
   withRetry,
   sleep,
   createIdempotencyKey,
@@ -99,11 +98,56 @@ export {
   createDatabaseClient,
   createIsolatedDatabaseClient,
   closeDatabasePool,
+  // Transaction management
+  withTransaction,
+  withAdvisoryLock,
+  stringToLockKey,
+  IsolationLevel,
+  SerializationError,
+  DeadlockError,
+  LockNotAvailableError,
+  // Types
   type DatabaseClient,
   type DatabasePool,
   type PoolClient,
   type QueryResult,
+  type TransactionClient,
+  type TransactionOptions,
 } from './database.js';
+
+// Phone validation utilities
+export {
+  // Main validation functions
+  validatePhone,
+  validatePhoneSync,
+  // Romanian-specific utilities
+  normalizeRomanianPhone,
+  isValidRomanianPhone,
+  formatPhoneForDisplay,
+  // Utility functions
+  isLikelyMobile,
+  redactPhone,
+  getCountryCallingCode,
+  // Legacy (deprecated)
+  normalizePhone,
+  // Types
+  type PhoneNumberType,
+  type PhoneValidationResult,
+  type PhoneParseOptions,
+  type RomanianPhoneResult,
+} from './phone.js';
+
+// Resilient networking utilities
+export {
+  resilientFetch,
+  resilientJsonFetch,
+  createServiceClient,
+  withRetry as resilientWithRetry,
+  // Types
+  type RetryConfig,
+  type ResilientFetchOptions,
+  type ResilientFetchResult,
+} from './resilient-fetch.js';
 
 // Observability-First (Metrics only - Edge Runtime compatible)
 export {
