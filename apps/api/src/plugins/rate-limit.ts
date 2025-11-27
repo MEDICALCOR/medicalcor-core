@@ -82,10 +82,11 @@ function generateKey(request: FastifyRequest): string {
   const path = request.routeOptions.url ?? request.url;
 
   // Determine webhook type from path
+  // BUGFIX: Voice and Vapi should have separate rate limit buckets
   let webhookType = 'default';
   if (path.includes('/webhooks/whatsapp')) webhookType = 'whatsapp';
-  else if (path.includes('/webhooks/voice') || path.includes('/webhooks/vapi'))
-    webhookType = 'voice';
+  else if (path.includes('/webhooks/vapi')) webhookType = 'vapi';
+  else if (path.includes('/webhooks/voice')) webhookType = 'voice';
   else if (path.includes('/webhooks/stripe')) webhookType = 'stripe';
   else if (path.includes('/webhooks/booking')) webhookType = 'booking';
   else if (path.includes('/webhooks/crm')) webhookType = 'crm';
@@ -100,8 +101,10 @@ function getLimit(request: FastifyRequest, config: RateLimitConfig): number {
   const path = request.routeOptions.url ?? request.url;
 
   if (path.includes('/webhooks/whatsapp')) return config.webhookLimits.whatsapp;
-  if (path.includes('/webhooks/voice') || path.includes('/webhooks/vapi'))
-    return config.webhookLimits.vapi;
+  // BUGFIX: Voice and Vapi webhooks should use their respective limits
+  // Previously both used vapi limit, causing incorrect rate limiting for voice
+  if (path.includes('/webhooks/vapi')) return config.webhookLimits.vapi;
+  if (path.includes('/webhooks/voice')) return config.webhookLimits.voice;
   if (path.includes('/webhooks/stripe')) return config.webhookLimits.stripe;
   if (path.includes('/webhooks/booking')) return config.webhookLimits.booking;
   if (path.includes('/webhooks/crm')) return config.webhookLimits.crm;

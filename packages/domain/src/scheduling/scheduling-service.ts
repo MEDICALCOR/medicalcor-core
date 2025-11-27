@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
+import { randomBytes } from 'crypto';
 import type { ConsentService } from '../consent/consent-service.js';
 
 /**
@@ -177,7 +178,9 @@ export class SchedulingService {
 
       // 2. Create the Appointment record
       const appointmentId = uuidv4();
-      const confirmCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      // SECURITY: Use cryptographically secure random bytes instead of Math.random()
+      // This prevents confirmation code prediction/brute-force attacks
+      const confirmCode = randomBytes(4).toString('hex').toUpperCase().substring(0, 6);
 
       await client.query(
         `INSERT INTO appointments

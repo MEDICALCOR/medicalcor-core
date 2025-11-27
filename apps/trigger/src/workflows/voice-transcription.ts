@@ -424,15 +424,31 @@ export const handleVapiWebhook = task({
       correlationId: correlationId ?? call.id,
     };
 
-    // Note: In production, this would trigger processPostCall.trigger()
-    // For now, we return the payload for the API to handle
-    logger.info('Post-call processing triggered', { callId: call.id, correlationId });
+    // CRITICAL FIX: Actually trigger post-call processing
+    // Previously this was a placeholder that never triggered the task
+    try {
+      await processPostCall.trigger(postCallPayload);
+      logger.info('Post-call processing triggered', { callId: call.id, correlationId });
 
-    return {
-      success: true,
-      action: 'post_call_triggered',
-      postCallPayload,
-    };
+      return {
+        success: true,
+        action: 'post_call_triggered',
+        postCallPayload,
+      };
+    } catch (triggerError) {
+      logger.error('Failed to trigger post-call processing', {
+        err: triggerError,
+        callId: call.id,
+        correlationId,
+      });
+
+      return {
+        success: false,
+        action: 'post_call_trigger_failed',
+        error: triggerError instanceof Error ? triggerError.message : 'Unknown error',
+        postCallPayload,
+      };
+    }
   },
 });
 
