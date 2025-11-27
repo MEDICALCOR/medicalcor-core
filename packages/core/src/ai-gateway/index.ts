@@ -136,3 +136,66 @@ export {
   type QualityCriteria,
   type FineTuningExportConfig,
 } from './fine-tuning-export.js';
+
+// Adaptive Timeout - Operation-specific timeouts with instant fallback
+export {
+  AdaptiveTimeoutManager,
+  createAdaptiveTimeoutManager,
+  adaptiveTimeout,
+  DEFAULT_TIMEOUT_CONFIG,
+  TimeoutConfigSchema,
+  AdaptiveTimeoutConfigSchema,
+  type AIOperationType,
+  type TimeoutConfig,
+  type AdaptiveTimeoutConfig,
+  type FallbackResult,
+} from './adaptive-timeout.js';
+
+// Multi-Provider Gateway - OpenAI + Anthropic + Llama with failover
+export {
+  MultiProviderGateway,
+  createMultiProviderGateway,
+  createMultiProviderGatewayFromEnv,
+  DEFAULT_PROVIDER_CONFIGS,
+  ProviderConfigSchema,
+  MultiProviderGatewayConfigSchema,
+  type AIProvider,
+  type ProviderStatus,
+  type ChatMessage,
+  type CompletionOptions,
+  type CompletionResponse,
+  type ProviderConfig,
+  type MultiProviderGatewayConfig,
+  type FallbackMetrics,
+} from './multi-provider-gateway.js';
+
+// Token Estimator - Pre-call cost estimation
+export {
+  TokenEstimator,
+  createTokenEstimator,
+  tokenEstimator,
+  estimateTokens,
+  estimateCost,
+  MODEL_PRICING,
+  TokenEstimatorConfigSchema,
+  type TokenEstimate,
+  type CostEstimate,
+  type TokenMessage,
+  type TokenEstimatorConfig,
+} from './token-estimator.js';
+
+// AI Budget Controller - Spending limits with alerts
+export {
+  AIBudgetController,
+  createAIBudgetController,
+  ALERT_THRESHOLDS,
+  AIBudgetControllerConfigSchema,
+  type AlertThreshold,
+  type BudgetPeriod,
+  type BudgetStatus,
+  type BudgetAlert,
+  type BudgetUsage,
+  type BudgetCheckResult,
+  type AIBudgetControllerConfig,
+  type CustomBudgetLimits,
+} from './ai-budget-controller.js';
