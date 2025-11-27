@@ -15,6 +15,9 @@ import {
   CircuitBreakerRegistry,
   type CircuitState,
 } from '../circuit-breaker.js';
+import { createLogger } from '../logger.js';
+
+const logger = createLogger({ name: 'redis' });
 
 export interface RedisConfig {
   /** Redis URL (supports redis:// and rediss:// protocols) */
@@ -205,12 +208,16 @@ export class SecureRedisClient {
       });
       this.circuitBreaker = registry.get('redis', {
         onOpen: (name) => {
-          console.error(
-            `[Redis] Circuit breaker OPEN for ${name} - Redis operations will fail fast`
+          logger.error(
+            { circuitBreaker: name },
+            'Circuit breaker OPEN - Redis operations will fail fast'
           );
         },
         onClose: (name) => {
-          console.info(`[Redis] Circuit breaker CLOSED for ${name} - Redis operations resumed`);
+          logger.info(
+            { circuitBreaker: name },
+            'Circuit breaker CLOSED - Redis operations resumed'
+          );
         },
       });
     }
@@ -276,9 +283,7 @@ export class SecureRedisClient {
         this.startHealthMonitoring();
       }
 
-      console.info(
-        `[Redis] Connected successfully (TLS: ${this.config.tls ? 'enabled' : 'disabled'})`
-      );
+      logger.info({ tlsEnabled: this.config.tls }, 'Connected successfully');
     } catch (error) {
       this.healthStatus.connected = false;
       throw new Error(
@@ -308,7 +313,7 @@ export class SecureRedisClient {
     }
 
     this.healthStatus.connected = false;
-    console.info('[Redis] Disconnected');
+    logger.info('Disconnected');
   }
 
   /**
@@ -483,7 +488,7 @@ export class SecureRedisClient {
       pipeline.expire(prefixedKey, ttlSeconds);
       const results = await pipeline.exec();
       // First result is from INCRBY, return the new value
-      if (results && results[0] && results[0][1] !== null) {
+      if (results?.[0] && results[0][1] !== null) {
         return results[0][1] as number;
       }
       return 0;
@@ -836,7 +841,7 @@ export function createRedisClientFromEnv(): SecureRedisClient | null {
     // Check if password is embedded in URL (redis://:password@host format)
     const hasEmbeddedPassword = /redis[s]?:\/\/:[^@]+@/.test(redisUrl);
     if (!hasEmbeddedPassword) {
-      console.error('[Redis] CRITICAL: REDIS_PASSWORD is required in production for security');
+      logger.error('CRITICAL: REDIS_PASSWORD is required in production for security');
       throw new Error('REDIS_PASSWORD is required in production');
     }
   }
@@ -853,11 +858,9 @@ export function createRedisClientFromEnv(): SecureRedisClient | null {
     // Check for REDIS_TLS env var to force TLS
     if (process.env.REDIS_TLS === 'true') {
       url = redisUrl.replace('redis://', 'rediss://');
-      console.warn('[Redis] Upgrading connection to TLS for production');
+      logger.warn('Upgrading connection to TLS for production');
     } else {
-      console.warn(
-        '[Redis] WARNING: Using unencrypted Redis connection in production. Set REDIS_TLS=true for TLS.'
-      );
+      logger.warn('Using unencrypted Redis connection in production. Set REDIS_TLS=true for TLS.');
     }
   }
 

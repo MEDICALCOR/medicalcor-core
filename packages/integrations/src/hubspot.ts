@@ -1,4 +1,4 @@
-import { withRetry, ExternalServiceError, RateLimitError } from '@medicalcor/core';
+import { withRetry, ExternalServiceError, RateLimitError, createLogger } from '@medicalcor/core';
 import { z } from 'zod';
 import type {
   HubSpotContact,
@@ -7,6 +7,8 @@ import type {
   HubSpotSearchResponse,
   HubSpotTask,
 } from '@medicalcor/types';
+
+const logger = createLogger({ name: 'hubspot' });
 
 /**
  * Input validation schemas for HubSpot client
@@ -227,7 +229,10 @@ export class HubSpotClient {
 
       // Safety check to prevent infinite loops
       if (allContacts.length >= maxResults) {
-        console.warn(`[HubSpot] Reached maxResults limit (${maxResults}), stopping pagination`);
+        logger.warn(
+          { maxResults, totalFetched: allContacts.length },
+          'Reached maxResults limit, stopping pagination'
+        );
         break;
       }
     } while (after);
@@ -572,12 +577,15 @@ export class HubSpotClient {
         if (!response.ok) {
           const errorBody = await response.text();
           // Log full error internally (may contain PII) but don't expose in exception
-          console.error('[HubSpot] API error:', {
-            status: response.status,
-            statusText: response.statusText,
-            url: path,
-            errorBody, // May contain PII - only for internal logs
-          });
+          logger.error(
+            {
+              status: response.status,
+              statusText: response.statusText,
+              url: path,
+              errorBody, // May contain PII - only for internal logs
+            },
+            'HubSpot API error'
+          );
           // Throw generic error without PII
           throw new ExternalServiceError(
             'HubSpot',
