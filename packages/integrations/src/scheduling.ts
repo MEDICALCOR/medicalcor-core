@@ -52,6 +52,8 @@ const SchedulingServiceConfigSchema = z.object({
       baseDelayMs: z.number().int().min(100).max(30000),
     })
     .optional(),
+  /** Request timeout in milliseconds (default: 15000ms, max: 60000ms) */
+  timeoutMs: z.number().int().min(1000).max(60000).optional(),
 });
 
 /**
@@ -73,6 +75,8 @@ export interface SchedulingServiceConfig {
         baseDelayMs: number;
       }
     | undefined;
+  /** Request timeout in milliseconds (default: 15000ms, max: 60000ms) */
+  timeoutMs?: number | undefined;
 }
 
 export interface TimeSlot {
@@ -153,15 +157,20 @@ export interface RescheduleAppointmentInput {
   notifyPatient?: boolean;
 }
 
+/** Default timeout for scheduling API requests (15 seconds) */
+const DEFAULT_SCHEDULING_TIMEOUT_MS = 15000;
+
 export class SchedulingService {
   private config: SchedulingServiceConfig;
   private baseUrl: string;
+  private timeoutMs: number;
 
   constructor(config: SchedulingServiceConfig) {
     // Validate config at construction time
     const validatedConfig = SchedulingServiceConfigSchema.parse(config);
     this.config = validatedConfig;
     this.baseUrl = validatedConfig.apiUrl;
+    this.timeoutMs = validatedConfig.timeoutMs ?? DEFAULT_SCHEDULING_TIMEOUT_MS;
   }
 
   /**
@@ -390,7 +399,7 @@ export class SchedulingService {
   }
 
   /**
-   * Make HTTP request to scheduling API
+   * Make HTTP request to scheduling API with timeout support
    */
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.baseUrl}${path}`;
@@ -401,36 +410,54 @@ export class SchedulingService {
           ? Object.fromEntries(options.headers.entries())
           : (options.headers as Record<string, string> | undefined);
 
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          Authorization: `Bearer ${this.config.apiKey}`,
-          'Content-Type': 'application/json',
-          ...existingHeaders,
-        },
-      });
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
 
-      if (response.status === 429) {
-        throw new RateLimitError(60);
-      }
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        // Log full error internally (may contain PII) but don't expose in exception
-        console.error('[SchedulingService] API error:', {
-          status: response.status,
-          statusText: response.statusText,
-          url: path,
-          errorBody, // May contain PII - only for internal logs
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal,
+          headers: {
+            Authorization: `Bearer ${this.config.apiKey}`,
+            'Content-Type': 'application/json',
+            ...existingHeaders,
+          },
         });
-        // Throw generic error without PII
-        throw new ExternalServiceError(
-          'SchedulingService',
-          `Request failed with status ${response.status}`
-        );
-      }
 
-      return response.json() as Promise<T>;
+        if (response.status === 429) {
+          throw new RateLimitError(60);
+        }
+
+        if (!response.ok) {
+          const errorBody = await response.text();
+          // Log full error internally (may contain PII) but don't expose in exception
+          console.error('[SchedulingService] API error:', {
+            status: response.status,
+            statusText: response.statusText,
+            url: path,
+            errorBody, // May contain PII - only for internal logs
+          });
+          // Throw generic error without PII
+          throw new ExternalServiceError(
+            'SchedulingService',
+            `Request failed with status ${response.status}`
+          );
+        }
+
+        return (await response.json()) as T;
+      } catch (error) {
+        // Convert AbortError to a more descriptive timeout error
+        if (error instanceof Error && error.name === 'AbortError') {
+          throw new ExternalServiceError(
+            'SchedulingService',
+            `Request timed out after ${this.timeoutMs}ms`
+          );
+        }
+        throw error;
+      } finally {
+        clearTimeout(timeoutId);
+      }
     };
 
     return withRetry(makeRequest, {
@@ -438,8 +465,21 @@ export class SchedulingService {
       baseDelayMs: this.config.retryConfig?.baseDelayMs ?? 1000,
       shouldRetry: (error) => {
         if (error instanceof RateLimitError) return true;
-        if (error instanceof ExternalServiceError && error.message.includes('502')) return true;
-        if (error instanceof ExternalServiceError && error.message.includes('503')) return true;
+        if (error instanceof ExternalServiceError) {
+          const message = error.message.toLowerCase();
+          if (message.includes('502')) return true;
+          if (message.includes('503')) return true;
+          // Retry on timeout errors
+          if (message.includes('timeout')) return true;
+          if (message.includes('timed out')) return true;
+        }
+        // Retry on network errors
+        if (error instanceof Error) {
+          const message = error.message.toLowerCase();
+          if (message.includes('econnreset')) return true;
+          if (message.includes('socket hang up')) return true;
+          if (message.includes('network')) return true;
+        }
         return false;
       },
     });

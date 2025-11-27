@@ -16,6 +16,58 @@ import {
 import { tasks } from '@trigger.dev/sdk/v3';
 
 /**
+ * Timestamp validation configuration for replay attack prevention
+ * - MAX_TIMESTAMP_AGE_SECONDS: Maximum allowed age of a message timestamp (5 minutes)
+ * - MAX_TIMESTAMP_FUTURE_SECONDS: Maximum allowed future timestamp (60 seconds for clock skew)
+ */
+const MAX_TIMESTAMP_AGE_SECONDS = 300; // 5 minutes
+const MAX_TIMESTAMP_FUTURE_SECONDS = 60; // 1 minute clock skew tolerance
+
+/**
+ * Validate a WhatsApp message timestamp
+ * Prevents replay attacks by rejecting messages with timestamps that are:
+ * - Too old (potential replay attack)
+ * - Too far in the future (potential clock manipulation or invalid data)
+ *
+ * @param timestamp - Unix timestamp string from WhatsApp message
+ * @returns Object with validation result and details
+ */
+function validateTimestamp(timestamp: string): {
+  isValid: boolean;
+  error?: string;
+  ageSeconds?: number;
+} {
+  const timestampNum = parseInt(timestamp, 10);
+
+  if (isNaN(timestampNum) || timestampNum <= 0) {
+    return { isValid: false, error: 'Invalid timestamp format' };
+  }
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const ageSeconds = nowSeconds - timestampNum;
+
+  // Check if timestamp is too old (potential replay attack)
+  if (ageSeconds > MAX_TIMESTAMP_AGE_SECONDS) {
+    return {
+      isValid: false,
+      error: `Message timestamp too old (${ageSeconds}s > ${MAX_TIMESTAMP_AGE_SECONDS}s max)`,
+      ageSeconds,
+    };
+  }
+
+  // Check if timestamp is in the future (beyond clock skew tolerance)
+  if (ageSeconds < -MAX_TIMESTAMP_FUTURE_SECONDS) {
+    return {
+      isValid: false,
+      error: `Message timestamp too far in future (${-ageSeconds}s > ${MAX_TIMESTAMP_FUTURE_SECONDS}s tolerance)`,
+      ageSeconds,
+    };
+  }
+
+  return { isValid: true, ageSeconds };
+}
+
+/**
  * WhatsApp (360dialog) webhook routes
  * Handles incoming messages and status updates from WhatsApp Business API
  */
@@ -57,7 +109,10 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * SECURITY: Timing-safe token comparison to prevent timing attacks
    */
-  function verifyTokenTimingSafe(providedToken: string | undefined, expectedToken: string | undefined): boolean {
+  function verifyTokenTimingSafe(
+    providedToken: string | undefined,
+    expectedToken: string | undefined
+  ): boolean {
     if (!providedToken || !expectedToken) {
       return false;
     }
@@ -96,10 +151,7 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.send(challenge);
     }
 
-    fastify.log.warn(
-      { mode },
-      'WhatsApp webhook verification failed'
-    );
+    fastify.log.warn({ mode }, 'WhatsApp webhook verification failed');
     return reply.status(403).send({ error: 'Verification failed' });
   });
 
@@ -164,9 +216,25 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
         for (const change of entry.changes) {
           const { messages, statuses, metadata, contacts } = change.value;
 
-          // Collect incoming messages
+          // Collect incoming messages with timestamp validation
           if (messages) {
             for (const message of messages) {
+              // Validate message timestamp to prevent replay attacks
+              const timestampValidation = validateTimestamp(message.timestamp);
+              if (!timestampValidation.isValid) {
+                fastify.log.warn(
+                  {
+                    correlationId,
+                    messageId: message.id,
+                    timestamp: message.timestamp,
+                    error: timestampValidation.error,
+                  },
+                  'WhatsApp message rejected due to invalid timestamp'
+                );
+                // Skip this message but continue processing others
+                continue;
+              }
+
               const contact = contacts?.find((c) => c.wa_id === message.from);
               const taskEntry = { message, metadata, ...(contact && { contact }) };
               messageTasks.push(taskEntry);
@@ -178,15 +246,32 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
                   type: message.type,
                   from: '[REDACTED]', // PII protection
                   phoneNumberId: metadata.phone_number_id,
+                  timestampAgeSeconds: timestampValidation.ageSeconds,
                 },
                 'WhatsApp message received'
               );
             }
           }
 
-          // Collect status updates
+          // Collect status updates with timestamp validation
           if (statuses) {
             for (const status of statuses) {
+              // Validate status timestamp to prevent replay attacks
+              const statusTimestampValidation = validateTimestamp(status.timestamp);
+              if (!statusTimestampValidation.isValid) {
+                fastify.log.warn(
+                  {
+                    correlationId,
+                    messageId: status.id,
+                    timestamp: status.timestamp,
+                    error: statusTimestampValidation.error,
+                  },
+                  'WhatsApp status update rejected due to invalid timestamp'
+                );
+                // Skip this status but continue processing others
+                continue;
+              }
+
               const mappedErrors = status.errors?.map((e) => ({ code: e.code, title: e.title }));
               statusTasks.push({
                 messageId: status.id,
@@ -201,6 +286,7 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
                   correlationId,
                   messageId: status.id,
                   status: status.status,
+                  timestampAgeSeconds: statusTimestampValidation.ageSeconds,
                 },
                 'WhatsApp status update received'
               );

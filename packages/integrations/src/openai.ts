@@ -69,6 +69,7 @@ const OpenAIClientConfigSchema = z.object({
       baseDelayMs: z.number().int().min(100).max(30000),
     })
     .optional(),
+  timeoutMs: z.number().int().min(1000).max(300000).optional(),
 });
 
 /**
@@ -88,6 +89,8 @@ export interface OpenAIClientConfig {
         baseDelayMs: number;
       }
     | undefined;
+  /** Request timeout in milliseconds (default: 60000ms, max: 300000ms) */
+  timeoutMs?: number | undefined;
 }
 
 export interface ChatMessage {
@@ -110,17 +113,23 @@ export interface AIReplyOptions {
   language?: 'ro' | 'en' | 'de';
 }
 
+/** Default timeout for OpenAI API requests (60 seconds) */
+const DEFAULT_TIMEOUT_MS = 60000;
+
 export class OpenAIClient {
   private client: OpenAI;
   private config: OpenAIClientConfig;
+  private timeoutMs: number;
 
   constructor(config: OpenAIClientConfig) {
     // Validate config at construction time
     const validatedConfig = OpenAIClientConfigSchema.parse(config);
     this.config = validatedConfig;
+    this.timeoutMs = validatedConfig.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.client = new OpenAI({
       apiKey: validatedConfig.apiKey,
       organization: validatedConfig.organization,
+      timeout: this.timeoutMs,
     });
   }
 
@@ -182,9 +191,17 @@ export class OpenAIClient {
       maxRetries: this.config.retryConfig?.maxRetries ?? 3,
       baseDelayMs: this.config.retryConfig?.baseDelayMs ?? 1000,
       shouldRetry: (error) => {
-        if (error instanceof Error && error.message.includes('rate_limit')) return true;
-        if (error instanceof Error && error.message.includes('502')) return true;
-        if (error instanceof Error && error.message.includes('503')) return true;
+        if (error instanceof Error) {
+          const message = error.message.toLowerCase();
+          if (message.includes('rate_limit')) return true;
+          if (message.includes('502')) return true;
+          if (message.includes('503')) return true;
+          // Retry on timeout errors
+          if (message.includes('timeout')) return true;
+          if (message.includes('timed out')) return true;
+          if (message.includes('econnreset')) return true;
+          if (message.includes('socket hang up')) return true;
+        }
         return false;
       },
     });

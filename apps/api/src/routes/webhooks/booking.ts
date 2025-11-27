@@ -5,6 +5,7 @@ import {
   toSafeErrorResponse,
   generateCorrelationId,
   IdempotencyKeys,
+  normalizeRomanianPhone,
 } from '@medicalcor/core';
 import { tasks } from '@trigger.dev/sdk/v3';
 
@@ -12,6 +13,23 @@ import { tasks } from '@trigger.dev/sdk/v3';
  * Booking webhook routes
  * Handles WhatsApp interactive button/list selection callbacks for appointment booking
  */
+
+/**
+ * Normalize and validate phone number to E.164 format
+ * @param phone - Input phone number in various formats
+ * @returns Normalized E.164 phone number
+ * @throws ValidationError if phone cannot be normalized
+ */
+function normalizePhoneInput(phone: string): string {
+  const result = normalizeRomanianPhone(phone);
+  if (!result.isValid) {
+    throw new ValidationError('Invalid phone number format', {
+      fieldErrors: { phone: ['Phone number must be a valid Romanian number'] },
+      formErrors: [],
+    });
+  }
+  return result.normalized;
+}
 
 // Schema for WhatsApp interactive message callback
 const InteractiveCallbackSchema = z.object({
@@ -78,7 +96,7 @@ export const bookingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
         }
 
         const {
-          phone,
+          phone: rawPhone,
           hubspotContactId,
           interactiveType,
           selectedId,
@@ -86,6 +104,9 @@ export const bookingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
           procedureType,
           language,
         } = parseResult.data;
+
+        // Normalize phone number to E.164 format
+        const phone = normalizePhoneInput(rawPhone);
 
         fastify.log.info(
           { correlationId, interactiveType, selectedId, hasHubspotContact: !!hubspotContactId },
@@ -206,7 +227,7 @@ export const bookingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const {
-        phone,
+        phone: rawPhone,
         hubspotContactId,
         slotId,
         procedureType,
@@ -214,6 +235,9 @@ export const bookingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
         patientEmail,
         language,
       } = parseResult.data;
+
+      // Normalize phone number to E.164 format
+      const phone = normalizePhoneInput(rawPhone);
 
       fastify.log.info({ correlationId, slotId, procedureType }, 'Direct booking request received');
 
@@ -273,13 +297,16 @@ export const bookingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
         }
 
         const {
-          phone,
+          phone: rawPhone,
           hubspotContactId,
           selectedNumber,
           availableSlotIds,
           procedureType,
           language,
         } = parseResult.data;
+
+        // Normalize phone number to E.164 format
+        const phone = normalizePhoneInput(rawPhone);
 
         const slotIndex = selectedNumber - 1;
         const selectedSlotId = availableSlotIds[slotIndex];
