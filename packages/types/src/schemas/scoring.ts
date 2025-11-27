@@ -4,6 +4,13 @@
  * NOTE: These schemas are for future advanced scoring features.
  * The current active ScoringOutput type is defined in schemas/lead.ts
  * which uses a simpler 1-5 score scale compatible with the ScoringService.
+ *
+ * UNIFIED SCALE: All scoring uses 1-5 scale for consistency:
+ * - Score 5 (HOT): Explicit procedure interest + budget mentioned
+ * - Score 4 (HOT): Clear procedure interest + qualification signals
+ * - Score 3 (WARM): General interest in procedures
+ * - Score 2 (COLD): Vague interest, early research stage
+ * - Score 1 (UNQUALIFIED): Not a fit
  */
 import { z } from 'zod';
 
@@ -12,10 +19,11 @@ import { LeadPrioritySchema } from './lead.js';
 
 /**
  * Scoring dimension - individual aspect of lead quality
+ * Uses unified 1-5 scale for consistency across all schemas
  */
 export const ScoringDimensionSchema = z.object({
   name: z.string(),
-  score: z.number().min(0).max(100),
+  score: z.number().min(1).max(5),
   weight: z.number().min(0).max(1),
   reasoning: z.string(),
 });
@@ -38,15 +46,15 @@ export const RecommendedActionSchema = z.object({
 });
 
 /**
- * Advanced AI Scoring Output (0-100 scale with dimensions)
+ * Advanced AI Scoring Output (unified 1-5 scale with dimensions)
  * For future advanced multi-dimensional scoring features
  */
 export const AdvancedScoringOutputSchema = z.object({
   id: UUIDSchema,
   leadId: UUIDSchema,
 
-  // Overall score
-  overallScore: z.number().min(0).max(100),
+  // Overall score (unified 1-5 scale)
+  overallScore: z.number().min(1).max(5),
   confidence: z.number().min(0).max(1),
   priority: LeadPrioritySchema,
 

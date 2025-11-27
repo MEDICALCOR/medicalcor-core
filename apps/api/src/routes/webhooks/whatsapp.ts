@@ -55,8 +55,33 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
   }
 
   /**
+   * SECURITY: Timing-safe token comparison to prevent timing attacks
+   */
+  function verifyTokenTimingSafe(providedToken: string | undefined, expectedToken: string | undefined): boolean {
+    if (!providedToken || !expectedToken) {
+      return false;
+    }
+
+    try {
+      const providedBuffer = Buffer.from(providedToken);
+      const expectedBuffer = Buffer.from(expectedToken);
+
+      if (providedBuffer.length !== expectedBuffer.length) {
+        // Perform a dummy comparison to maintain constant time
+        crypto.timingSafeEqual(expectedBuffer, expectedBuffer);
+        return false;
+      }
+
+      return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Webhook verification endpoint (GET)
    * Used by Meta/360dialog to verify webhook URL ownership
+   * SECURITY: Uses timing-safe comparison for verify token
    */
   fastify.get('/webhooks/whatsapp', async (request: FastifyRequest, reply: FastifyReply) => {
     const query = request.query as Record<string, string>;
@@ -66,13 +91,13 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
 
     const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
 
-    if (mode === 'subscribe' && token === verifyToken) {
+    if (mode === 'subscribe' && verifyTokenTimingSafe(token, verifyToken)) {
       fastify.log.info('WhatsApp webhook verified');
       return reply.send(challenge);
     }
 
     fastify.log.warn(
-      { mode, tokenMatch: token === verifyToken },
+      { mode },
       'WhatsApp webhook verification failed'
     );
     return reply.status(403).send({ error: 'Verification failed' });

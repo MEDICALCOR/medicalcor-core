@@ -112,9 +112,9 @@ export const LeadContextSchema = z.object({
   conversationHistory: z.array(ConversationEntrySchema).default([]),
   lastContactAt: TimestampSchema.optional(),
 
-  // AI scoring results
+  // AI scoring results (unified 1-5 scale)
   aiScoreId: UUIDSchema.optional(),
-  aiScore: z.number().min(0).max(100).optional(),
+  aiScore: z.number().min(1).max(5).optional(),
 
   // Timestamps
   createdAt: TimestampSchema,
