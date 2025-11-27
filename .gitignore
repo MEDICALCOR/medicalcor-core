@@ -157,3 +157,8 @@ trigger.config.js.map
 trigger.config.d.ts
 trigger.config.d.ts.map
 .trigger/
+
+# Build artifacts in __mocks__
+packages/integrations/src/__mocks__/*.js
+packages/integrations/src/__mocks__/*.d.ts
+packages/integrations/src/__mocks__/*.map
