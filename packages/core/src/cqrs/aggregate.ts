@@ -428,12 +428,253 @@ export class LeadAggregate extends AggregateRoot<LeadState> {
 }
 
 // ============================================================================
-// LEAD REPOSITORY
+// LEAD READ MODEL (PROJECTION)
+// ============================================================================
+
+/**
+ * Lead Read Model Entry - denormalized view for fast queries
+ */
+export interface LeadReadModelEntry {
+  aggregateId: string;
+  phone: string;
+  channel: LeadState['channel'];
+  status: LeadState['status'];
+  classification?: LeadState['classification'] | undefined;
+  score?: number | undefined;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * Lead Read Model Store Interface
+ * Implementations can use in-memory (dev), Redis (distributed), or PostgreSQL (persistent)
+ */
+export interface LeadReadModelStore {
+  /** Index a lead by phone number */
+  indexByPhone(phone: string, aggregateId: string, entry: LeadReadModelEntry): Promise<void>;
+  /** Lookup aggregate ID by phone number - O(1) operation */
+  findAggregateIdByPhone(phone: string): Promise<string | null>;
+  /** Get full read model entry by phone */
+  getByPhone(phone: string): Promise<LeadReadModelEntry | null>;
+  /** Get full read model entry by aggregate ID */
+  getByAggregateId(aggregateId: string): Promise<LeadReadModelEntry | null>;
+  /** Remove entry (for lead deletion) */
+  remove(aggregateId: string): Promise<void>;
+  /** Rebuild index from events (for recovery/migration) */
+  rebuildFromEvents?(events: StoredEvent[]): Promise<void>;
+}
+
+/**
+ * In-Memory Lead Read Model Store
+ *
+ * Fast O(1) lookups using dual-index Map structure.
+ * Suitable for development, testing, and single-instance deployments.
+ *
+ * For production distributed systems, use Redis or PostgreSQL implementation.
+ */
+export class InMemoryLeadReadModelStore implements LeadReadModelStore {
+  /** Phone → AggregateId index for O(1) phone lookup */
+  private phoneIndex = new Map<string, string>();
+  /** AggregateId → ReadModelEntry for full data access */
+  private entriesById = new Map<string, LeadReadModelEntry>();
+
+  indexByPhone(phone: string, aggregateId: string, entry: LeadReadModelEntry): Promise<void> {
+    // Normalize phone for consistent lookups
+    const normalizedPhone = this.normalizePhone(phone);
+
+    // Update both indexes atomically
+    this.phoneIndex.set(normalizedPhone, aggregateId);
+    this.entriesById.set(aggregateId, { ...entry, phone: normalizedPhone });
+    return Promise.resolve();
+  }
+
+  findAggregateIdByPhone(phone: string): Promise<string | null> {
+    const normalizedPhone = this.normalizePhone(phone);
+    return Promise.resolve(this.phoneIndex.get(normalizedPhone) ?? null);
+  }
+
+  getByPhone(phone: string): Promise<LeadReadModelEntry | null> {
+    const normalizedPhone = this.normalizePhone(phone);
+    const aggregateId = this.phoneIndex.get(normalizedPhone);
+    if (!aggregateId) return Promise.resolve(null);
+    return Promise.resolve(this.entriesById.get(aggregateId) ?? null);
+  }
+
+  getByAggregateId(aggregateId: string): Promise<LeadReadModelEntry | null> {
+    return Promise.resolve(this.entriesById.get(aggregateId) ?? null);
+  }
+
+  remove(aggregateId: string): Promise<void> {
+    const entry = this.entriesById.get(aggregateId);
+    if (entry) {
+      this.phoneIndex.delete(entry.phone);
+      this.entriesById.delete(aggregateId);
+    }
+    return Promise.resolve();
+  }
+
+  async rebuildFromEvents(events: StoredEvent[]): Promise<void> {
+    // Clear existing indexes
+    this.phoneIndex.clear();
+    this.entriesById.clear();
+
+    // Group events by aggregateId
+    const eventsByAggregate = new Map<string, StoredEvent[]>();
+    for (const event of events) {
+      if (event.aggregateId && event.aggregateType === 'Lead') {
+        const existing = eventsByAggregate.get(event.aggregateId) ?? [];
+        existing.push(event);
+        eventsByAggregate.set(event.aggregateId, existing);
+      }
+    }
+
+    // Replay events to build read model
+    for (const [aggregateId, aggregateEvents] of Array.from(eventsByAggregate.entries())) {
+      // Sort by version
+      const sortedEvents = aggregateEvents.sort((a, b) => (a.version ?? 0) - (b.version ?? 0));
+
+      let entry: LeadReadModelEntry | null = null;
+
+      for (const event of sortedEvents) {
+        entry = this.applyEventToReadModel(entry, event);
+      }
+
+      if (entry) {
+        await this.indexByPhone(entry.phone, aggregateId, entry);
+      }
+    }
+  }
+
+  private applyEventToReadModel(
+    current: LeadReadModelEntry | null,
+    event: StoredEvent
+  ): LeadReadModelEntry | null {
+    const timestamp = new Date(event.metadata.timestamp);
+
+    switch (event.type) {
+      case 'LeadCreated': {
+        const payload = event.payload as { phone: string; channel: string };
+        const aggregateId = event.aggregateId;
+        if (!aggregateId) return null; // Safety check - should never happen
+        return {
+          aggregateId,
+          phone: payload.phone,
+          channel: payload.channel as LeadState['channel'],
+          status: 'new',
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        };
+      }
+      case 'LeadScored': {
+        if (!current) return null;
+        const payload = event.payload as { score: number; classification?: string };
+        return {
+          ...current,
+          score: payload.score,
+          classification: payload.classification as LeadState['classification'],
+          updatedAt: timestamp,
+        };
+      }
+      case 'LeadQualified': {
+        if (!current) return null;
+        const payload = event.payload as { classification?: string };
+        return {
+          ...current,
+          status: 'qualified',
+          classification: payload.classification as LeadState['classification'],
+          updatedAt: timestamp,
+        };
+      }
+      case 'LeadAssigned': {
+        if (!current) return null;
+        return { ...current, status: 'contacted', updatedAt: timestamp };
+      }
+      case 'LeadConverted': {
+        if (!current) return null;
+        return { ...current, status: 'converted', updatedAt: timestamp };
+      }
+      case 'LeadLost': {
+        if (!current) return null;
+        return { ...current, status: 'lost', updatedAt: timestamp };
+      }
+      default:
+        return current;
+    }
+  }
+
+  /**
+   * Normalize phone number for consistent indexing
+   * Removes formatting, ensures E.164-like format
+   */
+  private normalizePhone(phone: string): string {
+    // Remove all non-digit characters except leading +
+    let normalized = phone.replace(/[^\d+]/g, '');
+
+    // Remove leading + if present for consistent storage
+    if (normalized.startsWith('+')) {
+      normalized = normalized.substring(1);
+    }
+
+    // Handle Romanian numbers: convert 07xx to 407xx
+    if (normalized.startsWith('0') && normalized.length === 10) {
+      normalized = '40' + normalized.substring(1);
+    }
+
+    return normalized;
+  }
+
+  /** Get index size (for monitoring) */
+  getSize(): { phoneIndex: number; entries: number } {
+    return {
+      phoneIndex: this.phoneIndex.size,
+      entries: this.entriesById.size,
+    };
+  }
+
+  /** Clear all data (for testing) */
+  clear(): void {
+    this.phoneIndex.clear();
+    this.entriesById.clear();
+  }
+}
+
+// ============================================================================
+// LEAD REPOSITORY WITH READ MODEL
 // ============================================================================
 
 export class LeadRepository extends EventSourcedRepository<LeadAggregate> {
-  constructor(eventStore: EventStoreInterface) {
+  private readModel: LeadReadModelStore;
+  private isReadModelInitialized = false;
+
+  constructor(eventStore: EventStoreInterface, readModel?: LeadReadModelStore) {
     super(eventStore, 'Lead');
+    // Use provided read model or create in-memory default
+    this.readModel = readModel ?? new InMemoryLeadReadModelStore();
+  }
+
+  /**
+   * Initialize read model from existing events
+   * Call this on application startup for warm cache
+   */
+  async initializeReadModel(): Promise<void> {
+    if (this.isReadModelInitialized) return;
+
+    if (this.readModel.rebuildFromEvents) {
+      const events = await this.eventStore.getByType('LeadCreated', 10000);
+      // Get all lead events, not just LeadCreated
+      const allLeadEvents: StoredEvent[] = [];
+
+      for (const createEvent of events) {
+        if (createEvent.aggregateId) {
+          const aggregateEvents = await this.eventStore.getByAggregateId(createEvent.aggregateId);
+          allLeadEvents.push(...aggregateEvents);
+        }
+      }
+
+      await this.readModel.rebuildFromEvents(allLeadEvents);
+    }
+
+    this.isReadModelInitialized = true;
   }
 
   protected createEmpty(id: string): LeadAggregate {
@@ -442,19 +683,72 @@ export class LeadRepository extends EventSourcedRepository<LeadAggregate> {
   }
 
   /**
-   * Find lead by phone number
+   * Override save to update read model on every event
+   */
+  override async save(aggregate: LeadAggregate): Promise<void> {
+    const events = aggregate.getUncommittedEvents();
+
+    // Save to event store first
+    await super.save(aggregate);
+
+    // Update read model with new events
+    const state = aggregate.getState();
+    const entry: LeadReadModelEntry = {
+      aggregateId: state.id,
+      phone: state.phone,
+      channel: state.channel,
+      status: state.status,
+      classification: state.classification,
+      score: state.score,
+      createdAt: state.createdAt ?? new Date(),
+      updatedAt: state.updatedAt ?? new Date(),
+    };
+
+    // Index in read model for O(1) future lookups
+    if (events.length > 0) {
+      await this.readModel.indexByPhone(state.phone, state.id, entry);
+    }
+  }
+
+  /**
+   * Find lead by phone number - O(1) lookup using read model
+   *
+   * This is the optimized version that uses the read model projection
+   * instead of scanning all events. Provides constant-time lookup
+   * regardless of the number of leads in the system.
    */
   async findByPhone(phone: string): Promise<LeadAggregate | null> {
-    // This would need a projection/read model in production
-    // For now, we'd need to search all leads
-    const events = await this.eventStore.getByType('LeadCreated');
+    // O(1) lookup in read model
+    const aggregateId = await this.readModel.findAggregateIdByPhone(phone);
 
-    for (const event of events) {
-      if ((event.payload as { phone: string }).phone === phone && event.aggregateId) {
-        return this.getById(event.aggregateId);
-      }
+    if (!aggregateId) {
+      return null;
     }
 
-    return null;
+    // Load full aggregate from event store
+    return this.getById(aggregateId);
+  }
+
+  /**
+   * Check if a lead exists with the given phone number - O(1)
+   */
+  async existsByPhone(phone: string): Promise<boolean> {
+    const aggregateId = await this.readModel.findAggregateIdByPhone(phone);
+    return aggregateId !== null;
+  }
+
+  /**
+   * Get lead summary by phone without loading full aggregate
+   * Useful for quick checks and list views
+   */
+  async getLeadSummaryByPhone(phone: string): Promise<LeadReadModelEntry | null> {
+    return this.readModel.getByPhone(phone);
+  }
+
+  /**
+   * Get the underlying read model store (for monitoring/testing)
+   */
+  getReadModel(): LeadReadModelStore {
+    return this.readModel;
   }
 }

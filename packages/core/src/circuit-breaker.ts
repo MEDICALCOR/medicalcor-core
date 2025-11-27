@@ -26,6 +26,8 @@ export interface CircuitBreakerConfig {
   successThreshold: number;
   /** Time window in ms to count failures (sliding window) */
   failureWindowMs?: number;
+  /** Maximum failure timestamps to track (prevents memory growth) - default: 1000 */
+  maxFailureTimestamps?: number;
   /** Optional callback when state changes */
   onStateChange?: (name: string, from: CircuitState, to: CircuitState) => void;
   /** Optional callback when circuit opens */
@@ -78,9 +80,13 @@ export class CircuitBreaker {
   > &
     Omit<CircuitBreakerConfig, 'name' | 'failureThreshold' | 'resetTimeoutMs' | 'successThreshold'>;
 
+  /** Maximum number of failure timestamps to retain (prevents unbounded memory growth) */
+  private static readonly DEFAULT_MAX_FAILURE_TIMESTAMPS = 1000;
+
   constructor(config: CircuitBreakerConfig) {
     this.config = {
       failureWindowMs: 60000, // 1 minute default
+      maxFailureTimestamps: CircuitBreaker.DEFAULT_MAX_FAILURE_TIMESTAMPS,
       ...config,
     };
   }
@@ -188,11 +194,24 @@ export class CircuitBreaker {
   }
 
   /**
-   * Remove failure timestamps outside the window
+   * Remove failure timestamps outside the window and enforce maximum size
+   *
+   * This implements a bounded sliding window to prevent unbounded memory growth
+   * during sustained failures. Uses efficient array slicing for O(n) cleanup.
    */
   private cleanupFailureTimestamps(): void {
     const windowStart = Date.now() - (this.config.failureWindowMs ?? 60000);
+    const maxTimestamps =
+      this.config.maxFailureTimestamps ?? CircuitBreaker.DEFAULT_MAX_FAILURE_TIMESTAMPS;
+
+    // Filter out timestamps outside the window
     this.failureTimestamps = this.failureTimestamps.filter((ts) => ts > windowStart);
+
+    // CRITICAL: Enforce maximum array size to prevent memory growth
+    // Keep only the most recent timestamps if we exceed the limit
+    if (this.failureTimestamps.length > maxTimestamps) {
+      this.failureTimestamps = this.failureTimestamps.slice(-maxTimestamps);
+    }
   }
 
   /**
