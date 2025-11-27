@@ -68,15 +68,60 @@ export class StripeClient {
 
   /**
    * Get daily revenue (sum of successful charges for today)
+   * CRITICAL FIX: Proper timezone handling - the previous implementation was buggy:
+   * toLocaleString() returns a string, and setHours() applies to LOCAL machine timezone
    */
   async getDailyRevenue(timezone = 'Europe/Bucharest'): Promise<DailyRevenueResult> {
-    // Calculate today's start and end in the specified timezone
     const now = new Date();
-    const todayStart = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
-    todayStart.setHours(0, 0, 0, 0);
 
-    const todayEnd = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
-    todayEnd.setHours(23, 59, 59, 999);
+    // CRITICAL FIX: Calculate day boundaries correctly in target timezone
+    // Use Intl.DateTimeFormat to get date components in target timezone
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+
+    // Get YYYY-MM-DD in target timezone
+    const dateStr = formatter.format(now);
+
+    // Create start and end of day in the target timezone
+    // Using temporal-like approach: create date string with timezone
+    const startOfDayStr = `${dateStr}T00:00:00`;
+    const endOfDayStr = `${dateStr}T23:59:59.999`;
+
+    // Calculate the timezone offset for proper UTC conversion
+    // Get the offset by comparing a date in the timezone vs UTC
+    const testDate = new Date(`${dateStr}T12:00:00Z`);
+    const utcFormatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'UTC',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const tzFormatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const utcParts = utcFormatter.format(testDate);
+    const tzParts = tzFormatter.format(testDate);
+    const utcHour = parseInt(utcParts.split(', ')[1]?.split(':')[0] ?? '12', 10);
+    const tzHour = parseInt(tzParts.split(', ')[1]?.split(':')[0] ?? '12', 10);
+    const offsetHours = tzHour - utcHour;
+
+    // Create proper UTC timestamps
+    const todayStart = new Date(`${startOfDayStr}Z`);
+    todayStart.setUTCHours(todayStart.getUTCHours() - offsetHours);
+    const todayEnd = new Date(`${endOfDayStr}Z`);
+    todayEnd.setUTCHours(todayEnd.getUTCHours() - offsetHours);
 
     // Convert to Unix timestamps
     const createdGte = Math.floor(todayStart.getTime() / 1000);

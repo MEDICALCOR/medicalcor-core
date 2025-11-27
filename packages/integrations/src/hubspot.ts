@@ -11,6 +11,39 @@ import type {
 const logger = createLogger({ name: 'hubspot' });
 
 /**
+ * DOCUMENTATION FIX: HubSpot Association Type IDs
+ * These are standardized IDs used by HubSpot's CRM API for object associations.
+ * Extracted as named constants for better code readability and maintainability.
+ * @see https://developers.hubspot.com/docs/api/crm/associations
+ */
+const HUBSPOT_ASSOCIATION_TYPES = {
+  /** Association type for Call to Contact relationship */
+  CALL_TO_CONTACT: 194,
+  /** Association type for Note to Contact relationship */
+  NOTE_TO_CONTACT: 202,
+  /** Association type for Task to Contact relationship */
+  TASK_TO_CONTACT: 204,
+} as const;
+
+/**
+ * HubSpot API timeouts
+ */
+const HUBSPOT_TIMEOUTS = {
+  /** Request timeout in milliseconds */
+  REQUEST_TIMEOUT_MS: 30000,
+} as const;
+
+/**
+ * HubSpot pagination limits
+ */
+const HUBSPOT_LIMITS = {
+  /** Maximum results per page (HubSpot API limit) */
+  MAX_PAGE_SIZE: 100,
+  /** Default maximum results to fetch in searchAllContacts */
+  DEFAULT_MAX_RESULTS: 10000,
+} as const;
+
+/**
  * Input validation schemas for HubSpot client
  */
 const HubSpotClientConfigSchema = z.object({
@@ -100,6 +133,8 @@ export class HubSpotClient {
 
   /**
    * Sync contact by phone (upsert with deduplication)
+   * CRITICAL FIX: Use atomic upsert to prevent race condition where two concurrent
+   * requests could both find no existing contact and create duplicates.
    */
   async syncContact(data: {
     phone: string;
@@ -111,36 +146,16 @@ export class HubSpotClient {
     const validated = SyncContactSchema.parse(data);
     const { phone, name, email, properties } = validated;
 
-    // First, search for existing contact by phone
-    const existingContacts = await this.searchContactsByPhone(phone);
+    // CRITICAL FIX: Use atomic upsert instead of search-then-create pattern
+    // This prevents TOCTOU (time-of-check to time-of-use) race conditions
+    // where concurrent requests could create duplicate contacts
+    const mergedProperties: Record<string, string> = {
+      ...properties,
+      ...(name ? { firstname: name } : {}),
+      ...(email ? { email } : {}),
+    };
 
-    if (existingContacts.length > 0) {
-      // If multiple found, pick oldest (first created) and optionally merge others
-      const primary = existingContacts.sort(
-        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      )[0];
-
-      if (!primary) {
-        throw new ExternalServiceError('HubSpot', 'No primary contact found after search');
-      }
-
-      // Update existing contact
-      return this.updateContact(primary.id, {
-        ...properties,
-        ...(name && !primary.properties.firstname ? { firstname: name } : {}),
-        ...(email && !primary.properties.email ? { email } : {}),
-      });
-    }
-
-    // Create new contact
-    return this.createContact({
-      properties: {
-        phone,
-        ...(name ? { firstname: name } : {}),
-        ...(email ? { email } : {}),
-        ...properties,
-      },
-    });
+    return this.upsertContactByPhone(phone, mergedProperties);
   }
 
   /**
@@ -203,13 +218,13 @@ export class HubSpotClient {
    * Search ALL contacts with automatic pagination
    * CRITICAL FIX: Prevents data loss when results exceed single page limit
    *
-   * @param request - Search request (limit will be set to 100 per page)
-   * @param maxResults - Maximum total results to fetch (default 10000, prevents infinite loops)
+   * @param request - Search request (limit will be set to page size limit per page)
+   * @param maxResults - Maximum total results to fetch (default from constants, prevents infinite loops)
    * @returns All matching contacts
    */
   async searchAllContacts(
     request: Omit<HubSpotSearchRequest, 'after'>,
-    maxResults = 10000
+    maxResults = HUBSPOT_LIMITS.DEFAULT_MAX_RESULTS
   ): Promise<HubSpotContact[]> {
     const allContacts: HubSpotContact[] = [];
     let after: string | undefined;
@@ -217,7 +232,7 @@ export class HubSpotClient {
     do {
       const pageRequest: HubSpotSearchRequest = {
         ...request,
-        limit: Math.min(request.limit ?? 100, 100), // HubSpot max is 100
+        limit: Math.min(request.limit ?? HUBSPOT_LIMITS.MAX_PAGE_SIZE, HUBSPOT_LIMITS.MAX_PAGE_SIZE),
         ...(after ? { after } : {}),
       };
 
@@ -333,7 +348,7 @@ export class HubSpotClient {
             types: [
               {
                 associationCategory: 'HUBSPOT_DEFINED',
-                associationTypeId: 202, // Note to Contact
+                associationTypeId: HUBSPOT_ASSOCIATION_TYPES.NOTE_TO_CONTACT,
               },
             ],
           },
@@ -373,7 +388,7 @@ export class HubSpotClient {
             types: [
               {
                 associationCategory: 'HUBSPOT_DEFINED',
-                associationTypeId: 194, // Call to Contact
+                associationTypeId: HUBSPOT_ASSOCIATION_TYPES.CALL_TO_CONTACT,
               },
             ],
           },
@@ -412,7 +427,7 @@ export class HubSpotClient {
           types: [
             {
               associationCategory: 'HUBSPOT_DEFINED',
-              associationTypeId: 204, // Task to Contact
+              associationTypeId: HUBSPOT_ASSOCIATION_TYPES.TASK_TO_CONTACT,
             },
           ],
         },
@@ -538,7 +553,7 @@ export class HubSpotClient {
    */
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.baseUrl}${path}`;
-    const timeoutMs = 30000; // 30 second timeout
+    const timeoutMs = HUBSPOT_TIMEOUTS.REQUEST_TIMEOUT_MS;
 
     const makeRequest = async () => {
       let customHeaders: Record<string, string> = {};

@@ -188,11 +188,22 @@ export class CircuitBreaker {
   }
 
   /**
+   * CRITICAL FIX: Maximum size for failure timestamps array to prevent memory leaks
+   */
+  private static readonly MAX_FAILURE_TIMESTAMPS = 1000;
+
+  /**
    * Remove failure timestamps outside the window
+   * CRITICAL FIX: Also enforces maximum array size to prevent unbounded growth
    */
   private cleanupFailureTimestamps(): void {
     const windowStart = Date.now() - (this.config.failureWindowMs ?? 60000);
     this.failureTimestamps = this.failureTimestamps.filter((ts) => ts > windowStart);
+
+    // Safety limit: prevent unbounded array growth during sustained failures
+    if (this.failureTimestamps.length > CircuitBreaker.MAX_FAILURE_TIMESTAMPS) {
+      this.failureTimestamps = this.failureTimestamps.slice(-CircuitBreaker.MAX_FAILURE_TIMESTAMPS);
+    }
   }
 
   /**

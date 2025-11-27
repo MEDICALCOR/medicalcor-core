@@ -72,8 +72,10 @@ function StatsCards({ stats }: StatsCardsProps) {
         <Card key={stat.key} className={stat.isAlert ? 'border-destructive/50' : ''}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{stat.name}</CardTitle>
+            {/* ACCESSIBILITY FIX: Decorative icons should be hidden from screen readers */}
             <stat.icon
               className={`h-4 w-4 ${stat.isAlert ? 'text-destructive' : 'text-muted-foreground'}`}
+              aria-hidden="true"
             />
           </CardHeader>
           <CardContent>
@@ -82,7 +84,8 @@ function StatsCards({ stats }: StatsCardsProps) {
             </div>
             {stat.isAlert && (
               <p className="text-xs text-destructive flex items-center gap-1 mt-1">
-                <AlertTriangle className="h-3 w-3" />
+                {/* ACCESSIBILITY FIX: Decorative icon - text provides meaning */}
+                <AlertTriangle className="h-3 w-3" aria-hidden="true" />
                 Necesită atenție
               </p>
             )}

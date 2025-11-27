@@ -123,14 +123,14 @@ export const handleVoiceCall = task({
           logger.info('GDPR consent verified for voice processing', { correlationId });
         } catch (err) {
           logger.error('Failed to verify GDPR consent', { err, correlationId });
-          // In production, fail safe - do not process without consent verification
-          if (process.env.NODE_ENV === 'production') {
-            throw new Error('Cannot process voice data: consent verification failed');
-          }
+          // CRITICAL: Fail safe - do not process without consent verification
+          // This applies in ALL environments to prevent accidental data processing
+          throw new Error('Cannot process voice data: consent verification failed');
         }
-      } else if (process.env.NODE_ENV === 'production') {
-        logger.error('Consent service not configured in production', { correlationId });
-        throw new Error('Consent service required for GDPR compliance in production');
+      } else {
+        // CRITICAL: Consent service is required for GDPR compliance
+        logger.error('Consent service not configured', { correlationId });
+        throw new Error('Consent service required for GDPR compliance');
       }
 
       try {

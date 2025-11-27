@@ -297,13 +297,25 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Trigger all message handlers in parallel using Promise.allSettled
       const messagePromises = messageTasks.map(({ message, metadata, contact }) => {
+        // CRITICAL FIX: Forward ALL message types, not just text
+        // WhatsApp supports: text, image, audio, video, document, sticker, location, contacts, button, interactive
         const messagePayload = {
           message: {
             id: message.id,
             from: message.from,
             timestamp: message.timestamp,
             type: message.type,
+            // Forward all possible message content types
             ...(message.text && { text: message.text }),
+            ...(message.image && { image: message.image }),
+            ...(message.audio && { audio: message.audio }),
+            ...(message.video && { video: message.video }),
+            ...(message.document && { document: message.document }),
+            ...(message.sticker && { sticker: message.sticker }),
+            ...(message.location && { location: message.location }),
+            ...(message.contacts && { contacts: message.contacts }),
+            ...(message.button && { button: message.button }),
+            ...(message.interactive && { interactive: message.interactive }),
           },
           metadata: {
             display_phone_number: metadata.display_phone_number,
