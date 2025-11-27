@@ -137,8 +137,12 @@ AI Execute  | 50 req/min
 - Refuz request daca depaseste bugetul
 
 ### Gap Rezidual
-- Integrarea completa a `UserRateLimiter` in toate endpoint-urile
-- Dashboard pentru monitorizare costuri in timp real
+- Dashboard pentru monitorizare costuri in timp real - **REZOLVAT**: `infra/grafana/dashboards/ai-cost-monitoring.json`
+
+### Integrari Complete
+- `UserRateLimiter` integrat in `/ai/execute` endpoint
+- `AIBudgetController` integrat in lead-scoring workflow
+- Verificare buget pre-apel AI in toate workflow-urile Trigger.dev
 
 ---
 

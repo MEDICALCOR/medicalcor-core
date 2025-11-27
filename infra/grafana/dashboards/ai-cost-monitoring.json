@@ -1,0 +1,802 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Real-time AI Cost Monitoring - Budget tracking, alerts, and cost optimization",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": true,
+      "title": "AI Gateway Metrics",
+      "type": "link",
+      "url": "/d/ai-gateway-metrics"
+    }
+  ],
+  "liveNow": true,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "panels": [],
+      "title": "Budget Status (Real-Time)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "max": 500,
+          "min": 0,
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 50 },
+              { "color": "orange", "value": 75 },
+              { "color": "red", "value": 90 }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 1 },
+      "id": 2,
+      "options": {
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "expr": "sum(medicalcor_ai_daily_spend_usd)",
+          "legendFormat": "Today's Spend",
+          "refId": "A"
+        }
+      ],
+      "title": "Daily Budget ($500)",
+      "type": "gauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "max": 10000,
+          "min": 0,
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 50 },
+              { "color": "orange", "value": 75 },
+              { "color": "red", "value": 90 }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 1 },
+      "id": 3,
+      "options": {
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "expr": "sum(medicalcor_ai_monthly_spend_usd)",
+          "legendFormat": "Month Spend",
+          "refId": "A"
+        }
+      ],
+      "title": "Monthly Budget ($10,000)",
+      "type": "gauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 300 },
+              { "color": "red", "value": 500 }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 1 },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(medicalcor_ai_spend_usd[1h])) * 24",
+          "legendFormat": "Projected",
+          "refId": "A"
+        }
+      ],
+      "title": "Projected Daily Spend",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [
+            { "options": { "0": { "color": "green", "index": 0, "text": "OK" } }, "type": "value" },
+            { "options": { "from": 1, "result": { "color": "yellow", "index": 1, "text": "Warning" }, "to": 2 }, "type": "range" },
+            { "options": { "from": 3, "result": { "color": "red", "index": 2, "text": "Critical" }, "to": 999 }, "type": "range" }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 3 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 1 },
+      "id": 5,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(medicalcor_ai_budget_alerts_total[24h]))",
+          "legendFormat": "Alerts",
+          "refId": "A"
+        }
+      ],
+      "title": "Budget Alerts (24h)",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
+      "id": 10,
+      "panels": [],
+      "title": "Cost Breakdown by Provider",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false } },
+          "mappings": [],
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+      "id": 11,
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["value", "percent"] },
+        "pieType": "donut",
+        "reduceOptions": { "calcs": ["sum"], "fields": "", "values": false },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(medicalcor_ai_spend_usd[24h])) by (provider)",
+          "legendFormat": "{{provider}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Spend by Provider (24h)",
+      "type": "piechart"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "$/hour",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 30,
+            "gradientMode": "opacity",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "normal" }
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 8 },
+      "id": 12,
+      "options": {
+        "legend": { "calcs": ["sum", "mean"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(medicalcor_ai_spend_usd[5m]) * 3600) by (provider)",
+          "legendFormat": "{{provider}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Hourly Spend Rate by Provider",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 },
+      "id": 20,
+      "panels": [],
+      "title": "Cost per Operation",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.02 },
+              { "color": "red", "value": 0.05 }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 17 },
+      "id": 21,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["mean"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(medicalcor_ai_spend_usd{operation=\"scoring\"}[1h])) / sum(increase(medicalcor_ai_requests_total{operation=\"scoring\"}[1h]))",
+          "legendFormat": "Cost/Score",
+          "refId": "A"
+        }
+      ],
+      "title": "Cost per Lead Scored",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.05 },
+              { "color": "red", "value": 0.1 }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 17 },
+      "id": 22,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["mean"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(medicalcor_ai_spend_usd{operation=\"reply_generation\"}[1h])) / sum(increase(medicalcor_ai_requests_total{operation=\"reply_generation\"}[1h]))",
+          "legendFormat": "Cost/Reply",
+          "refId": "A"
+        }
+      ],
+      "title": "Cost per Reply Generated",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "normal" }
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": { "h": 5, "w": 12, "x": 12, "y": 17 },
+      "id": 23,
+      "options": {
+        "legend": { "calcs": ["sum"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(medicalcor_ai_spend_usd[5m])) by (operation)",
+          "legendFormat": "{{operation}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Spend by Operation Type",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 },
+      "id": 30,
+      "panels": [],
+      "title": "Token Economics",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 6, "w": 4, "x": 0, "y": 23 },
+      "id": 31,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["sum"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(medicalcor_ai_tokens_used_total[24h]))",
+          "legendFormat": "Tokens",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Tokens (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false } },
+          "mappings": [],
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 4, "y": 23 },
+      "id": 32,
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["value", "percent"] },
+        "pieType": "pie",
+        "reduceOptions": { "calcs": ["sum"], "fields": "", "values": false },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(medicalcor_ai_tokens_used_total[24h])) by (type)",
+          "legendFormat": "{{type}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Input vs Output Tokens",
+      "type": "piechart"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "tokens/min",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "opacity",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 6, "w": 14, "x": 10, "y": 23 },
+      "id": 33,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(medicalcor_ai_tokens_used_total[5m]) * 60) by (model)",
+          "legendFormat": "{{model}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Token Usage Rate by Model",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 29 },
+      "id": 40,
+      "panels": [],
+      "title": "Rate Limiting & DDoS Protection",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.05 },
+              { "color": "red", "value": 0.1 }
+            ]
+          },
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 30 },
+      "id": 41,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(medicalcor_http_requests_total{status=\"429\"}[5m])) / sum(rate(medicalcor_http_requests_total[5m]))",
+          "legendFormat": "Rate Limited %",
+          "refId": "A"
+        }
+      ],
+      "title": "Rate Limit Hit Rate",
+      "type": "gauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "line" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 100 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 6, "w": 9, "x": 6, "y": 30 },
+      "id": 42,
+      "options": {
+        "legend": { "calcs": ["sum"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(medicalcor_http_requests_total{status=\"429\"}[5m])) by (route)",
+          "legendFormat": "{{route}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Rate Limited Requests by Endpoint",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 6, "w": 9, "x": 15, "y": 30 },
+      "id": 43,
+      "options": {
+        "legend": { "calcs": ["sum", "mean"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(medicalcor_ai_user_token_limit_exceeded_total[5m])) by (tier)",
+          "legendFormat": "{{tier}} tier exceeded",
+          "refId": "A"
+        }
+      ],
+      "title": "User Token Limit Exceeded by Tier",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 36 },
+      "id": 50,
+      "panels": [],
+      "title": "Cost Optimization Insights",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.7 },
+              { "color": "green", "value": 0.9 }
+            ]
+          },
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 37 },
+      "id": 51,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["mean"], "fields": "", "values": false },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "expr": "sum(medicalcor_ai_cache_hits_total) / (sum(medicalcor_ai_cache_hits_total) + sum(medicalcor_ai_cache_misses_total))",
+          "legendFormat": "Cache Hit Rate",
+          "refId": "A"
+        }
+      ],
+      "title": "AI Response Cache Hit Rate",
+      "type": "gauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 100 },
+              { "color": "red", "value": 500 }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 37 },
+      "id": 52,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["sum"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "sum(medicalcor_ai_cache_hits_total) * 0.01",
+          "legendFormat": "Saved",
+          "refId": "A"
+        }
+      ],
+      "title": "Estimated Savings from Cache (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": { "h": 5, "w": 12, "x": 12, "y": 37 },
+      "id": 53,
+      "options": {
+        "legend": { "calcs": ["mean"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(medicalcor_ai_fallback_total{provider=\"openai\"}[5m])) / sum(rate(medicalcor_ai_requests_total[5m]))",
+          "legendFormat": "OpenAI Fallback",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(medicalcor_ai_instant_fallback_total[5m])) / sum(rate(medicalcor_ai_requests_total[5m]))",
+          "legendFormat": "Instant Rule-Based",
+          "refId": "B"
+        }
+      ],
+      "title": "Fallback Usage (Cost Savings Opportunity)",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["medicalcor", "cost", "budget", "ai"],
+  "templating": {
+    "list": []
+  },
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {
+    "refresh_intervals": ["5s", "10s", "30s", "1m", "5m"]
+  },
+  "timezone": "browser",
+  "title": "AI Cost Monitoring",
+  "uid": "ai-cost-monitoring",
+  "version": 1,
+  "weekStart": ""
+}

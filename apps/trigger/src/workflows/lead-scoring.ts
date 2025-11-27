@@ -16,6 +16,7 @@ function getClients() {
   return createIntegrationClients({
     source: 'lead-scoring',
     includeOpenAI: true,
+    includeBudgetController: true,
   });
 }
 
@@ -46,7 +47,7 @@ export const scoreLeadWorkflow = task({
   },
   run: async (payload: z.infer<typeof LeadScoringPayloadSchema>) => {
     const { phone, hubspotContactId, message, channel, messageHistory, correlationId } = payload;
-    const { hubspot, openai, eventStore } = getClients();
+    const { hubspot, openai, eventStore, budgetController } = getClients();
 
     logger.info('Starting lead scoring workflow', {
       phone,
@@ -77,9 +78,44 @@ export const scoreLeadWorkflow = task({
 
     // Step 2: AI Scoring (with fallback to rule-based)
     let scoringResult: ScoringOutput;
-    if (openai) {
+    let useAIScoring = !!openai;
+
+    // Check budget before AI scoring
+    if (useAIScoring && budgetController) {
+      const budgetCheck = await budgetController.checkBudget({
+        estimatedTokens: { input: 500, output: 200 }, // Estimated tokens for scoring
+        model: 'gpt-4o',
+      });
+
+      if (!budgetCheck.allowed) {
+        logger.warn('AI scoring blocked by budget controller, using rule-based', {
+          correlationId,
+          reason: budgetCheck.reason,
+          status: budgetCheck.status,
+          remainingDaily: budgetCheck.remainingDaily,
+        });
+        useAIScoring = false;
+      } else if (budgetCheck.status === 'warning' || budgetCheck.status === 'critical') {
+        logger.info('Budget warning during AI scoring', {
+          correlationId,
+          status: budgetCheck.status,
+          remainingDaily: budgetCheck.remainingDaily,
+        });
+      }
+    }
+
+    if (useAIScoring && openai) {
       try {
         scoringResult = await openai.scoreMessage(context);
+
+        // Record cost after successful AI call
+        if (budgetController) {
+          await budgetController.recordCost(0.01, {
+            model: 'gpt-4o',
+            operation: 'scoring',
+          });
+        }
+
         logger.info('AI scoring completed', {
           correlationId,
           score: scoringResult.score,
@@ -92,7 +128,7 @@ export const scoreLeadWorkflow = task({
         scoringResult = analyzeMessageForScore(context.messageHistory?.[0]?.content ?? '');
       }
     } else {
-      logger.info('No OpenAI client, using rule-based scoring', { correlationId });
+      logger.info('Using rule-based scoring', { correlationId, reason: openai ? 'budget' : 'no-client' });
       scoringResult = analyzeMessageForScore(context.messageHistory?.[0]?.content ?? '');
     }
 

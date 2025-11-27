@@ -12,6 +12,9 @@ import {
   createEventStore,
   createInMemoryEventStore,
   createDatabaseClient,
+  createAIBudgetController,
+  createSecureRedisClient,
+  type AIBudgetController,
 } from '@medicalcor/core';
 import { createHubSpotClient, type HubSpotClient } from './hubspot.js';
 import { createWhatsAppClient, type WhatsAppClient } from './whatsapp.js';
@@ -93,6 +96,8 @@ export interface ClientsConfig {
   includeConsent?: boolean;
   /** Include template catalog service */
   includeTemplateCatalog?: boolean;
+  /** Include AI budget controller */
+  includeBudgetController?: boolean;
   /** Circuit breaker configuration */
   circuitBreaker?: CircuitBreakerOptions;
 }
@@ -109,6 +114,7 @@ export type ClientName =
   | 'triage'
   | 'consent'
   | 'templateCatalog'
+  | 'budgetController'
   | 'eventStore';
 
 /**
@@ -125,6 +131,7 @@ export interface IntegrationClients {
   triage: TriageService | null;
   consent: ConsentService | null;
   templateCatalog: TemplateCatalogService | null;
+  budgetController: AIBudgetController | null;
   eventStore: EventStore;
   /** Returns true if all required clients are available */
   isConfigured: (required: ClientName[]) => boolean;
@@ -167,6 +174,7 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
     includeTriage = false,
     includeConsent = false,
     includeTemplateCatalog = false,
+    includeBudgetController = false,
     circuitBreaker = {},
   } = config;
   const cbEnabled = circuitBreaker.enabled !== false; // Default enabled
@@ -322,6 +330,22 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
     templateCatalog = createTemplateCatalogService();
   }
 
+  // AI Budget Controller (optional) - requires Redis
+  let budgetController: AIBudgetController | null = null;
+  if (includeBudgetController) {
+    const redisUrl = process.env.REDIS_URL;
+    if (redisUrl) {
+      const redis = createSecureRedisClient({ url: redisUrl });
+      budgetController = createAIBudgetController(redis, {
+        enabled: true,
+        globalDailyBudget: 500,
+        globalMonthlyBudget: 10000,
+        blockOnExceeded: false, // Soft limit by default for workflows
+        softLimitMode: true,
+      });
+    }
+  }
+
   // Event store (always initialized)
   const eventStore: EventStore = databaseUrl
     ? createEventStore({ source, connectionString: databaseUrl })
@@ -360,6 +384,9 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
           break;
         case 'templateCatalog':
           if (!templateCatalog) return false;
+          break;
+        case 'budgetController':
+          if (!budgetController) return false;
           break;
         case 'eventStore':
           // eventStore is always initialized
@@ -406,6 +433,7 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
     triage,
     consent,
     templateCatalog,
+    budgetController,
     eventStore,
     isConfigured,
     getCircuitBreakerStats,
