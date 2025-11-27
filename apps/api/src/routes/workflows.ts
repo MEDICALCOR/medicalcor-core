@@ -6,8 +6,26 @@ import {
   generateCorrelationId,
   IdempotencyKeys,
   hashMessageContent,
+  normalizeRomanianPhone,
 } from '@medicalcor/core';
 import { tasks } from '@trigger.dev/sdk/v3';
+
+/**
+ * Normalize and validate phone number to E.164 format
+ * @param phone - Input phone number in various formats
+ * @returns Normalized E.164 phone number
+ * @throws ValidationError if phone cannot be normalized
+ */
+function normalizePhoneInput(phone: string): string {
+  const result = normalizeRomanianPhone(phone);
+  if (!result.isValid) {
+    throw new ValidationError('Invalid phone number format', {
+      fieldErrors: { phone: ['Phone number must be a valid Romanian number'] },
+      formErrors: [],
+    });
+  }
+  return result.normalized;
+}
 
 function getCorrelationId(request: FastifyRequest): string {
   const header = request.headers['x-correlation-id'];
@@ -90,7 +108,16 @@ export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
         return await reply.status(400).send(toSafeErrorResponse(error));
       }
 
-      const { phone, hubspotContactId, message, channel, messageHistory } = parseResult.data;
+      const {
+        phone: rawPhone,
+        hubspotContactId,
+        message,
+        channel,
+        messageHistory,
+      } = parseResult.data;
+
+      // Normalize phone number to E.164 format
+      const phone = normalizePhoneInput(rawPhone);
 
       fastify.log.info(
         {
@@ -158,13 +185,16 @@ export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
         }
 
         const {
-          phone,
+          phone: rawPhone,
           hubspotContactId,
           channel,
           initialScore,
           classification,
           procedureInterest,
         } = parseResult.data;
+
+        // Normalize phone number to E.164 format
+        const phone = normalizePhoneInput(rawPhone);
 
         fastify.log.info(
           {
@@ -232,7 +262,10 @@ export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
           return await reply.status(400).send(toSafeErrorResponse(error));
         }
 
-        const { phone, hubspotContactId, sequenceType } = parseResult.data;
+        const { phone: rawPhone, hubspotContactId, sequenceType } = parseResult.data;
+
+        // Normalize phone number to E.164 format
+        const phone = normalizePhoneInput(rawPhone);
 
         fastify.log.info(
           {
@@ -294,7 +327,7 @@ export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const {
-        phone,
+        phone: rawPhone,
         hubspotContactId,
         procedureType,
         preferredDates,
@@ -303,6 +336,9 @@ export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
         language,
         selectedSlotId,
       } = parseResult.data;
+
+      // Normalize phone number to E.164 format
+      const phone = normalizePhoneInput(rawPhone);
 
       fastify.log.info(
         {

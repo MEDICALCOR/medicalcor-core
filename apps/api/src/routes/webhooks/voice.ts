@@ -1,8 +1,63 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import crypto from 'crypto';
 import { VoiceWebhookSchema, CallStatusCallbackSchema } from '@medicalcor/types';
-import { ValidationError, toSafeErrorResponse, generateCorrelationId, IdempotencyKeys } from '@medicalcor/core';
+import {
+  ValidationError,
+  toSafeErrorResponse,
+  generateCorrelationId,
+  IdempotencyKeys,
+} from '@medicalcor/core';
 import { tasks } from '@trigger.dev/sdk/v3';
+
+/**
+ * Sanitize user input for safe inclusion in TwiML XML responses
+ * Prevents XML injection attacks by escaping special characters
+ *
+ * @param input - User input to sanitize
+ * @returns Sanitized string safe for XML inclusion
+ */
+function sanitizeForTwiML(input: string): string {
+  if (!input) return '';
+
+  return (
+    input
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+      // Remove control characters that could break XML
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+      // Limit length to prevent buffer overflow attacks
+      .substring(0, 256)
+  );
+}
+
+/**
+ * Validate that a value looks like a valid Twilio identifier
+ * CallSid: CA + 32 hex chars, Phone: E.164 format
+ */
+function isValidTwilioIdentifier(
+  value: string,
+  type: 'callSid' | 'phone' | 'assistantId'
+): boolean {
+  if (!value || typeof value !== 'string') return false;
+
+  switch (type) {
+    case 'callSid':
+      // Twilio CallSid format: CA followed by 32 hex characters
+      return /^CA[a-f0-9]{32}$/i.test(value);
+    case 'phone':
+      // E.164 phone number format: + followed by 1-15 digits
+      return /^\+[1-9]\d{1,14}$/.test(value);
+    case 'assistantId':
+      // Vapi assistant ID: UUID or custom format (alphanumeric with hyphens)
+      return /^[a-zA-Z0-9-]{1,64}$/.test(value);
+    default:
+      return false;
+  }
+}
 
 /**
  * Verify Twilio webhook signature
@@ -115,14 +170,16 @@ export const voiceWebhookRoutes: FastifyPluginAsync = (fastify) => {
         correlationId,
       };
 
-      tasks.trigger('voice-call-handler', taskPayload, {
-        idempotencyKey: IdempotencyKeys.voiceCall(webhook.CallSid),
-      }).catch((err: unknown) => {
-        fastify.log.error(
-          { err, callSid: webhook.CallSid, correlationId },
-          'Failed to trigger voice call handler'
-        );
-      });
+      tasks
+        .trigger('voice-call-handler', taskPayload, {
+          idempotencyKey: IdempotencyKeys.voiceCall(webhook.CallSid),
+        })
+        .catch((err: unknown) => {
+          fastify.log.error(
+            { err, callSid: webhook.CallSid, correlationId },
+            'Failed to trigger voice call handler'
+          );
+        });
 
       // Return TwiML response with Vapi.ai streaming handoff
       const vapiAssistantId = process.env.VAPI_ASSISTANT_ID;
@@ -137,13 +194,44 @@ export const voiceWebhookRoutes: FastifyPluginAsync = (fastify) => {
         return await reply.header('Content-Type', 'application/xml').send(fallbackTwiml);
       }
 
+      // SECURITY: Validate and sanitize all values before including in TwiML
+      if (!isValidTwilioIdentifier(vapiAssistantId, 'assistantId')) {
+        fastify.log.error({ correlationId }, 'CRITICAL: Invalid VAPI_ASSISTANT_ID format');
+        const fallbackTwiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say>We apologize, but our voice assistant is temporarily unavailable. Please try again later or contact us through our website.</Say>
+</Response>`;
+        return await reply.header('Content-Type', 'application/xml').send(fallbackTwiml);
+      }
+
+      if (!isValidTwilioIdentifier(webhook.CallSid, 'callSid')) {
+        fastify.log.warn(
+          { correlationId, callSid: webhook.CallSid },
+          'Invalid CallSid format received'
+        );
+        // Still continue but log the anomaly - Twilio should always send valid CallSids
+      }
+
+      if (!isValidTwilioIdentifier(webhook.From, 'phone')) {
+        fastify.log.warn(
+          { correlationId, from: webhook.From },
+          'Invalid From phone format received'
+        );
+        // Still continue but log the anomaly
+      }
+
+      // Sanitize all values for safe XML inclusion to prevent injection attacks
+      const sanitizedAssistantId = sanitizeForTwiML(vapiAssistantId);
+      const sanitizedPhone = sanitizeForTwiML(webhook.From);
+      const sanitizedCallSid = sanitizeForTwiML(webhook.CallSid);
+
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Connect>
         <Stream url="wss://api.vapi.ai/pull">
-            <Parameter name="assistantId" value="${vapiAssistantId}" />
-            <Parameter name="customerPhoneNumber" value="${webhook.From}" />
-            <Parameter name="callSid" value="${webhook.CallSid}" />
+            <Parameter name="assistantId" value="${sanitizedAssistantId}" />
+            <Parameter name="customerPhoneNumber" value="${sanitizedPhone}" />
+            <Parameter name="callSid" value="${sanitizedCallSid}" />
         </Stream>
     </Connect>
 </Response>`;
@@ -218,14 +306,20 @@ export const voiceWebhookRoutes: FastifyPluginAsync = (fastify) => {
         correlationId,
       };
 
-      tasks.trigger('voice-call-handler', taskPayload, {
-        idempotencyKey: IdempotencyKeys.custom('voice-status', callback.CallSid, callback.CallStatus),
-      }).catch((err: unknown) => {
-        fastify.log.error(
-          { err, callSid: callback.CallSid, correlationId },
-          'Failed to trigger voice call handler'
-        );
-      });
+      tasks
+        .trigger('voice-call-handler', taskPayload, {
+          idempotencyKey: IdempotencyKeys.custom(
+            'voice-status',
+            callback.CallSid,
+            callback.CallStatus
+          ),
+        })
+        .catch((err: unknown) => {
+          fastify.log.error(
+            { err, callSid: callback.CallSid, correlationId },
+            'Failed to trigger voice call handler'
+          );
+        });
 
       return await reply.status(200).send({ status: 'received' });
     } catch (error) {

@@ -30,6 +30,8 @@ export const EmbeddingConfigSchema = z.object({
       baseDelayMs: z.number().int().min(100).max(30000).default(1000),
     })
     .optional(),
+  /** Request timeout in milliseconds (default: 30000ms, max: 120000ms) */
+  timeoutMs: z.number().int().min(1000).max(120000).optional(),
 });
 
 export type EmbeddingConfig = z.infer<typeof EmbeddingConfigSchema>;
@@ -68,12 +70,16 @@ const MODEL_DIMENSIONS: Record<string, number> = {
 // Embedding Service Class
 // =============================================================================
 
+/** Default timeout for embedding API requests (30 seconds) */
+const DEFAULT_EMBEDDING_TIMEOUT_MS = 30000;
+
 export class EmbeddingService {
   private client: OpenAI;
   private config: Required<
     Pick<EmbeddingConfig, 'apiKey' | 'model'> & {
       dimensions: number;
       retryConfig: { maxRetries: number; baseDelayMs: number };
+      timeoutMs: number;
     }
   >;
 
@@ -87,11 +93,13 @@ export class EmbeddingService {
       model: validated.model,
       dimensions: validated.dimensions ?? defaultDimensions,
       retryConfig: validated.retryConfig ?? { maxRetries: 3, baseDelayMs: 1000 },
+      timeoutMs: validated.timeoutMs ?? DEFAULT_EMBEDDING_TIMEOUT_MS,
     };
 
     this.client = new OpenAI({
       apiKey: this.config.apiKey,
       organization: validated.organization,
+      timeout: this.config.timeoutMs,
     });
   }
 
