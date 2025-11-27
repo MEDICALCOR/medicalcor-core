@@ -9,6 +9,26 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./adapters": {
+      "types": "./dist/adapters/index.d.ts",
+      "import": "./dist/adapters/index.js"
+    },
+    "./adapters/payment": {
+      "types": "./dist/adapters/payment/index.d.ts",
+      "import": "./dist/adapters/payment/index.js"
+    },
+    "./adapters/voice": {
+      "types": "./dist/adapters/voice/index.d.ts",
+      "import": "./dist/adapters/voice/index.js"
+    },
+    "./adapters/ai": {
+      "types": "./dist/adapters/ai/index.d.ts",
+      "import": "./dist/adapters/ai/index.js"
+    },
+    "./adapters/crm": {
+      "types": "./dist/adapters/crm/index.d.ts",
+      "import": "./dist/adapters/crm/index.js"
+    },
     "./hubspot": {
       "types": "./dist/hubspot.d.ts",
       "import": "./dist/hubspot.js"

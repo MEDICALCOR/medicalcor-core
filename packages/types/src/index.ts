@@ -3,7 +3,15 @@
  *
  * Central type definitions and Zod schemas for the MedicalCor platform.
  * All schemas are consolidated in the schemas/ directory as the Single Source of Truth.
+ *
+ * This package also exports Universal Adapter Interfaces for the Plug & Play architecture,
+ * enabling provider-agnostic integrations (Payment, CRM, AI, Communication, Scheduling).
  */
+
+// =============================================================================
+// Universal Adapter Interfaces (Plug & Play Architecture)
+// =============================================================================
+export * from './interfaces/index.js';
 
 // =============================================================================
 // Consolidated Schemas (Single Source of Truth)

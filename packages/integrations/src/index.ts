@@ -1,3 +1,46 @@
+// =============================================================================
+// Universal Adapters (Plug & Play Architecture)
+// =============================================================================
+export {
+  // Payment
+  PaymentFactory,
+  getPaymentProvider,
+  StripeAdapter,
+  createStripeAdapter,
+  type PaymentFactoryConfig,
+  type StripeAdapterConfig,
+  // CRM
+  CRMFactory,
+  getCRMProvider,
+  HubSpotAdapter,
+  createHubSpotAdapter,
+  type CRMFactoryConfig,
+  type HubSpotAdapterConfig,
+  // AI
+  AIFactory,
+  getAIProvider,
+  OpenAIAdapter,
+  createOpenAIAdapter,
+  type AIFactoryConfig,
+  type OpenAIAdapterConfig,
+  // Voice
+  VoiceFactory,
+  getVoiceProvider,
+  VapiAdapter,
+  createVapiAdapter,
+  type VoiceFactoryConfig,
+  type VapiAdapterConfig,
+  // Unified
+  getAllProviders,
+  getAvailableProviders,
+  clearAllProviderInstances,
+  type UnifiedProviderConfig,
+  type AllProviders,
+} from './adapters/index.js';
+
+// =============================================================================
+// Legacy Clients (backward compatibility)
+// =============================================================================
 export {
   HubSpotClient,
   createHubSpotClient,
