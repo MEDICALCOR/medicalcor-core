@@ -3,9 +3,13 @@ import {
   ExternalServiceError,
   WebhookSignatureError,
   RateLimitError,
+  createLogger,
+  type SecureRedisClient,
 } from '@medicalcor/core';
 import crypto from 'crypto';
 import { z } from 'zod';
+
+const logger = createLogger({ name: 'whatsapp' });
 
 /**
  * Input validation schemas for WhatsApp client
@@ -434,14 +438,20 @@ export class WhatsAppClient {
         if (!response.ok) {
           const errorBody = await response.text();
           // Log full error internally (may contain PII) but don't expose in exception
-          console.error('[WhatsApp] API error:', {
-            status: response.status,
-            statusText: response.statusText,
-            url: path,
-            errorBody, // May contain PII - only for internal logs
-          });
+          logger.error(
+            {
+              status: response.status,
+              statusText: response.statusText,
+              url: path,
+              errorBody, // May contain PII - only for internal logs
+            },
+            'WhatsApp API error'
+          );
           // Throw generic error without PII
-          throw new ExternalServiceError('WhatsApp', `Request failed with status ${response.status}`);
+          throw new ExternalServiceError(
+            'WhatsApp',
+            `Request failed with status ${response.status}`
+          );
         }
 
         return (await response.json()) as T;
@@ -646,10 +656,42 @@ export const TEMPLATE_CATALOG: Record<string, TemplateDefinition> = {
 export type TemplateName = keyof typeof TEMPLATE_CATALOG;
 
 /**
+ * Configuration for TemplateCatalogService
+ */
+export interface TemplateCatalogServiceConfig {
+  /** Redis client for distributed cooldown tracking (optional - falls back to in-memory) */
+  redis?: SecureRedisClient;
+  /** Key prefix for Redis keys (default: 'whatsapp:cooldown:') */
+  redisKeyPrefix?: string;
+}
+
+/**
  * Template Catalog Service
+ *
+ * Manages WhatsApp Business API templates with multi-language support.
+ * Supports both in-memory (development) and Redis-backed (production) cooldown tracking.
+ *
+ * For distributed deployments, provide a Redis client to ensure cooldown
+ * rules are enforced across all instances.
  */
 export class TemplateCatalogService {
-  private sendHistory = new Map<string, Date>(); // contactId:templateId -> lastSent
+  private sendHistory = new Map<string, Date>(); // In-memory fallback
+  private redis: SecureRedisClient | null;
+  private redisKeyPrefix: string;
+
+  constructor(config: TemplateCatalogServiceConfig = {}) {
+    this.redis = config.redis ?? null;
+    this.redisKeyPrefix = config.redisKeyPrefix ?? 'whatsapp:cooldown:';
+
+    if (this.redis) {
+      logger.info('TemplateCatalogService initialized with Redis-backed cooldown tracking');
+    } else {
+      logger.warn(
+        'TemplateCatalogService using in-memory cooldown tracking. ' +
+          'For distributed deployments, provide a Redis client.'
+      );
+    }
+  }
 
   /**
    * Get template definition
@@ -734,8 +776,72 @@ export class TemplateCatalogService {
 
   /**
    * Check if template can be sent (respects cooldown)
+   *
+   * Uses Redis for distributed deployments, falls back to in-memory for single instances.
    */
-  canSendTemplate(
+  async canSendTemplate(
+    contactId: string,
+    templateId: string
+  ): Promise<{ allowed: boolean; waitMinutes?: number }> {
+    const template = this.getTemplate(templateId);
+    if (!template) {
+      return { allowed: false };
+    }
+
+    if (template.cooldownMinutes === 0) {
+      return { allowed: true };
+    }
+
+    const key = `${contactId}:${templateId}`;
+
+    // Use Redis if available
+    if (this.redis) {
+      try {
+        const ttl = await this.redis.ttl(`${this.redisKeyPrefix}${key}`);
+
+        // Key doesn't exist or expired (-2) or no TTL (-1)
+        if (ttl <= 0) {
+          return { allowed: true };
+        }
+
+        // Cooldown still active
+        return {
+          allowed: false,
+          waitMinutes: Math.ceil(ttl / 60),
+        };
+      } catch (error) {
+        logger.error(
+          { error, contactId, templateId },
+          'Redis error checking cooldown, falling back to in-memory'
+        );
+        // Fall through to in-memory check
+      }
+    }
+
+    // In-memory fallback
+    const lastSent = this.sendHistory.get(key);
+
+    if (!lastSent) {
+      return { allowed: true };
+    }
+
+    const minutesSinceLastSend = (Date.now() - lastSent.getTime()) / 1000 / 60;
+    if (minutesSinceLastSend >= template.cooldownMinutes) {
+      return { allowed: true };
+    }
+
+    return {
+      allowed: false,
+      waitMinutes: Math.ceil(template.cooldownMinutes - minutesSinceLastSend),
+    };
+  }
+
+  /**
+   * Check if template can be sent (sync version for backwards compatibility)
+   *
+   * @deprecated Use async canSendTemplate() instead for Redis support
+   */
+  canSendTemplateSync(
     contactId: string,
     templateId: string
   ): { allowed: boolean; waitMinutes?: number } {
@@ -768,8 +874,37 @@ export class TemplateCatalogService {
 
   /**
    * Record template send
+   *
+   * Stores cooldown in Redis (if configured) with automatic expiration.
+   * Falls back to in-memory storage for single-instance deployments.
    */
-  recordTemplateSend(contactId: string, templateId: string): void {
+  async recordTemplateSend(contactId: string, templateId: string): Promise<void> {
+    const template = this.getTemplate(templateId);
+    const key = `${contactId}:${templateId}`;
+    const now = new Date();
+
+    // Always update in-memory (for sync fallback)
+    this.sendHistory.set(key, now);
+
+    // Also store in Redis if available
+    if (this.redis && template && template.cooldownMinutes > 0) {
+      try {
+        const ttlSeconds = template.cooldownMinutes * 60;
+        await this.redis.set(`${this.redisKeyPrefix}${key}`, now.toISOString(), { ttlSeconds });
+        logger.debug({ contactId, templateId, ttlSeconds }, 'Recorded template send in Redis');
+      } catch (error) {
+        logger.error({ error, contactId, templateId }, 'Failed to record template send in Redis');
+        // Continue - in-memory fallback already updated
+      }
+    }
+  }
+
+  /**
+   * Record template send (sync version for backwards compatibility)
+   *
+   * @deprecated Use async recordTemplateSend() instead for Redis support
+   */
+  recordTemplateSendSync(contactId: string, templateId: string): void {
     const key = `${contactId}:${templateId}`;
     this.sendHistory.set(key, new Date());
   }
@@ -886,7 +1021,22 @@ export class TemplateCatalogService {
 
 /**
  * Create template catalog service instance
+ *
+ * @param config - Optional configuration with Redis client for distributed cooldown tracking
+ *
+ * @example
+ * ```typescript
+ * // Development (in-memory)
+ * const catalog = createTemplateCatalogService();
+ *
+ * // Production (Redis-backed)
+ * const redis = createRedisClientFromEnv();
+ * await redis?.connect();
+ * const catalog = createTemplateCatalogService({ redis });
+ * ```
  */
-export function createTemplateCatalogService(): TemplateCatalogService {
-  return new TemplateCatalogService();
+export function createTemplateCatalogService(
+  config?: TemplateCatalogServiceConfig
+): TemplateCatalogService {
+  return new TemplateCatalogService(config);
 }
