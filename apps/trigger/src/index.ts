@@ -3,6 +3,18 @@
  * Exports all tasks, workflows, and scheduled jobs
  */
 
+// OpenTelemetry Instrumentation
+export {
+  withTaskSpan,
+  withWorkflowSpan,
+  injectTraceContext,
+  extractTraceContext,
+  getTriggerTracer,
+  addTriggerAttributes,
+  TriggerSpanAttributes,
+  type TraceContext,
+} from './instrumentation.js';
+
 // Tasks
 export {
   handleWhatsAppMessage,

@@ -28,13 +28,18 @@
     "db:migrate:status": "cd db && dbmate --migrations-dir ./migrations status",
     "db:migrate:new": "cd db && dbmate --migrations-dir ./migrations new",
     "db:schema:dump": "cd db && dbmate --migrations-dir ./migrations dump",
-    "db:schema:validate": "./scripts/validate-schema.sh"
+    "db:schema:validate": "./scripts/validate-schema.sh",
+    "db:seed": "tsx db/seed.ts"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",
     "@playwright/test": "^1.49.0",
     "@sentry/nextjs": "^8.38.0",
     "@types/node": "^20.10.0",
+    "@types/pg": "^8.11.10",
     "@vitest/coverage-v8": "^2.1.4",
     "eslint": "^9.15.0",
     "eslint-config-prettier": "^9.1.0",
