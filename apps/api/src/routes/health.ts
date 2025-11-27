@@ -4,7 +4,36 @@
 /* eslint-disable @typescript-eslint/require-await */
 /* eslint-disable @typescript-eslint/prefer-regexp-exec */
 import type { FastifyPluginAsync } from 'fastify';
+import crypto from 'crypto';
 import { globalCircuitBreakerRegistry } from '@medicalcor/core';
+
+/**
+ * SECURITY: Timing-safe comparison for API keys
+ * Prevents timing attacks that could reveal API key characters
+ */
+function verifyApiKeyTimingSafe(
+  providedKey: string | undefined,
+  expectedKey: string | undefined,
+): boolean {
+  if (!providedKey || !expectedKey) {
+    return false;
+  }
+
+  try {
+    const providedBuffer = Buffer.from(providedKey);
+    const expectedBuffer = Buffer.from(expectedKey);
+
+    if (providedBuffer.length !== expectedBuffer.length) {
+      // Perform a dummy comparison to maintain constant time
+      crypto.timingSafeEqual(expectedBuffer, expectedBuffer);
+      return false;
+    }
+
+    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+  } catch {
+    return false;
+  }
+}
 
 interface HealthCheckResult {
   status: 'ok' | 'error' | 'degraded';
@@ -507,7 +536,8 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
         });
       }
 
-      if (!apiKey || apiKey !== expectedApiKey) {
+      // SECURITY FIX: Use timing-safe comparison to prevent timing attacks
+      if (!verifyApiKeyTimingSafe(apiKey, expectedApiKey)) {
         fastify.log.warn(
           { ip: request.ip, service: request.params.service },
           'Unauthorized circuit breaker reset attempt'

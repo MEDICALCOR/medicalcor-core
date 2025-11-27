@@ -62,14 +62,30 @@ export const crmWebhookRoutes: FastifyPluginAsync = async (fastify) => {
     const crm = getCRMProvider();
     const payload = request.body as Record<string, unknown>;
 
-    // Optional: Verify webhook secret if configured
+    // SECURITY: Verify webhook secret - REQUIRED for production
+    // This prevents unauthorized requests from creating fake leads
     const secretHeaderValue = request.headers['x-crm-webhook-secret'];
     const secretHeader = typeof secretHeaderValue === 'string' ? secretHeaderValue : undefined;
     const configuredSecret = process.env.CRM_WEBHOOK_SECRET;
 
+    // In production, always require authentication
+    if (process.env.NODE_ENV === 'production' && !configuredSecret) {
+      request.log.error({ correlationId }, 'CRM_WEBHOOK_SECRET not configured in production');
+      return reply.status(503).send({
+        status: 'error',
+        message: 'Webhook authentication not configured'
+      });
+    }
+
+    // Verify secret if configured (always in production, optional in dev)
     if (configuredSecret && !verifySecretTimingSafe(secretHeader, configuredSecret)) {
       request.log.warn({ correlationId }, 'Invalid CRM webhook secret');
       return reply.status(401).send({ status: 'unauthorized' });
+    }
+
+    // Warn if running without authentication in development
+    if (!configuredSecret && process.env.NODE_ENV !== 'production') {
+      request.log.warn({ correlationId }, 'CRM webhook running without authentication (dev mode)');
     }
 
     // Extract event metadata
