@@ -1,9 +1,18 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useSession } from 'next-auth/react';
 import { useWebSocket } from './use-websocket';
 import { RingBuffer, REALTIME_MEMORY_LIMITS } from './ring-buffer';
+import { RealtimeMemoryMonitor, attachMemoryMonitorToWindow } from './memory-monitor';
 import type {
   ConnectionState,
   LeadCreatedPayload,
@@ -88,6 +97,22 @@ export function RealtimeProvider({ children, wsUrl }: RealtimeProviderProps) {
   // This prevents infinite memory growth when tab is open for 8+ hours
   const leadsBufferRef = useRef(new RingBuffer<Lead>(REALTIME_MEMORY_LIMITS.LEADS));
   const urgenciesBufferRef = useRef(new RingBuffer<Urgency>(REALTIME_MEMORY_LIMITS.URGENCIES));
+
+  // Register buffers with memory monitor for debugging (development only)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      RealtimeMemoryMonitor.registry.registerBuffer('leads', leadsBufferRef.current);
+      RealtimeMemoryMonitor.registry.registerBuffer('urgencies', urgenciesBufferRef.current);
+      attachMemoryMonitorToWindow();
+    }
+
+    return () => {
+      if (process.env.NODE_ENV === 'development') {
+        RealtimeMemoryMonitor.registry.unregister('leads');
+        RealtimeMemoryMonitor.registry.unregister('urgencies');
+      }
+    };
+  }, []);
 
   // State that triggers re-renders (derived from buffers)
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -259,9 +284,7 @@ export function RealtimeProvider({ children, wsUrl }: RealtimeProviderProps) {
 
         // Also clean up old urgencies from buffer that were read
         const cutoffTime = new Date(now - maxAge);
-        urgenciesBufferRef.current.remove(
-          (u) => prev.has(u.id) && u.createdAt < cutoffTime
-        );
+        urgenciesBufferRef.current.remove((u) => prev.has(u.id) && u.createdAt < cutoffTime);
 
         return cleaned;
       });
