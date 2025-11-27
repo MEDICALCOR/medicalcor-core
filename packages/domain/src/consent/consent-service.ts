@@ -7,6 +7,7 @@
  * for GDPR compliance. The in-memory repository is only for development/testing.
  */
 
+import crypto from 'crypto';
 import { createLogger, type Logger } from '@medicalcor/core';
 import type { ConsentRepository } from './consent-repository.js';
 import { InMemoryConsentRepository } from './consent-repository.js';
@@ -468,10 +469,11 @@ Sie können Ihre Zustimmung jederzeit widerrufen, indem Sie "STOP" antworten.`,
   }
 
   /**
-   * Generate unique ID
+   * Generate unique ID using crypto-secure randomness
    */
   private generateId(): string {
-    return `cns_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    // SECURITY: Use crypto-secure randomness for consent IDs
+    return `cns_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
   }
 }
 

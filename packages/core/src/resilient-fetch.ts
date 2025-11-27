@@ -11,6 +11,7 @@
  * resilient networking and prevent cascading failures.
  */
 
+import crypto from 'crypto';
 import { createLogger } from './logger.js';
 import {
   type CircuitBreaker,
@@ -119,9 +120,12 @@ function calculateBackoffDelay(attempt: number, config: RetryConfig): number {
   // Cap at max delay
   delay = Math.min(delay, config.maxDelayMs);
 
-  // Add jitter (0.5 to 1.5 of calculated delay)
+  // SECURITY: Use crypto-secure randomness for jitter
   if (config.jitter) {
-    delay = delay * (0.5 + Math.random());
+    const randomBytes = new Uint32Array(1);
+    crypto.getRandomValues(randomBytes);
+    const jitterFactor = 0.5 + (randomBytes[0]! / 0xffffffff);
+    delay = delay * jitterFactor;
   }
 
   return Math.round(delay);
@@ -572,8 +576,12 @@ export async function withRetry<T>(
         // Calculate delay
         let delay = baseDelayMs * Math.pow(backoffMultiplier, attempt - 1);
         delay = Math.min(delay, maxDelayMs);
+        // SECURITY: Use crypto-secure randomness for jitter
         if (jitter) {
-          delay = delay * (0.5 + Math.random());
+          const randomBytes = new Uint32Array(1);
+          crypto.getRandomValues(randomBytes);
+          const jitterFactor = 0.5 + (randomBytes[0]! / 0xffffffff);
+          delay = delay * jitterFactor;
         }
         delay = Math.round(delay);
 

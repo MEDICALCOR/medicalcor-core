@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import crypto from 'crypto';
 import { withRetry, ExternalServiceError, RateLimitError } from '@medicalcor/core';
 
 /**
@@ -531,10 +532,19 @@ export class MockSchedulingService {
       // Skip weekends
       if (currentDate.getDay() === 0 || currentDate.getDay() === 6) continue;
 
+      // SECURITY: Use crypto-secure randomness for shuffling
       // Pick 2-3 random time slots for this day
-      const availableTimesForDay = workingHours
-        .sort(() => Math.random() - 0.5)
-        .slice(0, Math.floor(Math.random() * 2) + 2);
+      const shuffledHours = [...workingHours];
+      for (let i = shuffledHours.length - 1; i > 0; i--) {
+        const randomBytes = new Uint32Array(1);
+        crypto.getRandomValues(randomBytes);
+        const j = randomBytes[0]! % (i + 1);
+        [shuffledHours[i], shuffledHours[j]] = [shuffledHours[j]!, shuffledHours[i]!];
+      }
+      const countBytes = new Uint32Array(1);
+      crypto.getRandomValues(countBytes);
+      const slotCount = (countBytes[0]! % 2) + 2; // 2-3 slots
+      const availableTimesForDay = shuffledHours.slice(0, slotCount);
 
       for (const time of availableTimesForDay) {
         if (slots.length >= limit) break;
@@ -552,9 +562,14 @@ export class MockSchedulingService {
             : 60;
 
         this.slotCounter++;
+        // SECURITY: Use crypto-secure randomness for selection
+        const practitionerBytes = new Uint32Array(1);
+        crypto.getRandomValues(practitionerBytes);
         const selectedPractitioner =
-          practitioners[Math.floor(Math.random() * practitioners.length)];
-        const selectedLocation = locations[Math.floor(Math.random() * locations.length)];
+          practitioners[practitionerBytes[0]! % practitioners.length];
+        const locationBytes = new Uint32Array(1);
+        crypto.getRandomValues(locationBytes);
+        const selectedLocation = locations[locationBytes[0]! % locations.length];
 
         const slot: TimeSlot = {
           id: `slot_${this.slotCounter}_${Date.now()}`,
@@ -583,8 +598,9 @@ export class MockSchedulingService {
    * Mock book appointment
    */
   bookAppointment(input: BookAppointmentInput): Promise<Appointment> {
-    const appointmentId = `apt_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-    const confirmationCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    // SECURITY: Use crypto-secure randomness for appointment ID and confirmation code
+    const appointmentId = `apt_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
+    const confirmationCode = crypto.randomUUID().slice(0, 6).toUpperCase();
 
     const appointment: Appointment = {
       id: appointmentId,

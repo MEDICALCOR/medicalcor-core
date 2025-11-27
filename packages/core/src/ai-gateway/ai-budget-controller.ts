@@ -10,6 +10,7 @@
  */
 
 import { z } from 'zod';
+import crypto from 'crypto';
 import type { SecureRedisClient } from '../infrastructure/redis-client.js';
 import { MODEL_PRICING } from './token-estimator.js';
 
@@ -546,8 +547,9 @@ export class AIBudgetController {
 
     this.alertsTriggered.add(alertKey);
 
+    // SECURITY: Use crypto-secure randomness for alert IDs
     return {
-      id: `alert-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `alert-${Date.now()}-${crypto.randomUUID().slice(0, 12)}`,
       timestamp: new Date(),
       scope,
       scopeId,

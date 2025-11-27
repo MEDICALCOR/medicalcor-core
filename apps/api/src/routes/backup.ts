@@ -388,6 +388,28 @@ export const backupRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
+    // SECURITY: Validate targetDatabaseUrl to prevent SSRF/arbitrary database attacks
+    // Only allow restoring to the current database or explicitly whitelisted URLs
+    if (targetDatabaseUrl) {
+      const allowedDatabaseUrls = (process.env.ALLOWED_RESTORE_DATABASE_URLS ?? '').split(',').filter(Boolean);
+      const currentDatabaseUrl = process.env.DATABASE_URL;
+
+      const isAllowed =
+        targetDatabaseUrl === currentDatabaseUrl ||
+        allowedDatabaseUrls.some(url => url.trim() === targetDatabaseUrl);
+
+      if (!isAllowed) {
+        request.log.warn('Attempted restore to unauthorized database URL', {
+          backupId,
+          targetDatabaseUrl: targetDatabaseUrl.replace(/\/\/[^:]+:[^@]+@/, '//***:***@'), // Redact credentials
+        });
+        return reply.status(403).send({
+          error: 'Forbidden',
+          message: 'Restoring to this database URL is not allowed. Only the current database or explicitly whitelisted URLs are permitted.',
+        });
+      }
+    }
+
     try {
       // Build restore options without undefined values for exactOptionalPropertyTypes
       const restoreOptions: Parameters<typeof backupService.restore>[0] = {

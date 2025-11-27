@@ -6,6 +6,7 @@
  * that can be used by various repository implementations (e.g., ConsentRepository).
  */
 
+import crypto from 'crypto';
 import { createLogger, type Logger } from './logger.js';
 
 /**
@@ -472,8 +473,11 @@ export async function withTransaction<T>(
         attempt++;
 
         if (attempt < maxRetries) {
-          // Calculate exponential backoff delay with jitter
-          const delay = retryBaseDelayMs * Math.pow(2, attempt) * (0.5 + Math.random() * 0.5);
+          // SECURITY: Use crypto-secure randomness for jitter calculation
+          const randomBytes = new Uint32Array(1);
+          crypto.getRandomValues(randomBytes);
+          const jitterFactor = 0.5 + (randomBytes[0]! / 0xffffffff) * 0.5;
+          const delay = retryBaseDelayMs * Math.pow(2, attempt) * jitterFactor;
 
           logger.warn(
             {
