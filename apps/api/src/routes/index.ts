@@ -4,6 +4,7 @@ export {
   whatsappWebhookRoutes,
   voiceWebhookRoutes,
   bookingWebhookRoutes,
+  crmWebhookRoutes,
 } from './webhooks/index.js';
 export { workflowRoutes } from './workflows.js';
 export { aiRoutes } from './ai.js';

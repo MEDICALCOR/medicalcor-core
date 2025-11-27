@@ -324,3 +324,27 @@ export {
   type NPSFeedbackItem,
   type NPSTheme,
 } from './crm-dashboard.schema.js';
+
+// =============================================================================
+// CRM / Lead Generation Machine Schemas
+// =============================================================================
+export {
+  // DTOs
+  LeadDTOSchema,
+  TreatmentPlanDTOSchema,
+  InteractionDTOSchema,
+  // Enums
+  InteractionChannelSchema,
+  InteractionDirectionSchema,
+  LeadEventTypeSchema,
+  CRMLeadStatusSchema,
+  TreatmentPlanStageSchema,
+  // Types
+  type LeadDTO,
+  type TreatmentPlanDTO,
+  type InteractionDTO,
+  type ICRMProvider,
+  type LeadEventType,
+  type CRMLeadStatus,
+  type TreatmentPlanStage,
+} from './crm.schema.js';

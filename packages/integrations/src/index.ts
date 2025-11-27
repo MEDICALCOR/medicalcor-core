@@ -98,3 +98,11 @@ export {
   type EmbeddingInput,
   type ChunkOptions,
 } from './embeddings.js';
+
+// CRM Integrations
+export {
+  CRMFactory,
+  getCRMProvider,
+  resetCRMProvider,
+  PipedriveAdapter,
+} from './crm/index.js';

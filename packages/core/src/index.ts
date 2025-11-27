@@ -404,3 +404,27 @@ export {
   type RAGPromptOptions,
   type IEmbeddingService,
 } from './rag/index.js';
+
+// CRM Database Operations
+export {
+  // Lead operations
+  upsertLeadFromDTO,
+  findLeadIdByExternal,
+  getLeadById,
+  getLeadByExternal,
+  // Treatment plan operations
+  upsertTreatmentPlanFromDTO,
+  getTreatmentPlansByLead,
+  // Interaction operations
+  insertInteractionFromDTO,
+  getInteractionsByLead,
+  // Event operations
+  recordLeadEvent,
+  getLeadEvents,
+  // Practitioner helpers
+  findPractitionerIdByExternalUserId,
+  // Types
+  type UpsertLeadOptions,
+  type UpsertTreatmentPlanOptions,
+  type InsertInteractionOptions,
+} from './crm.db.js';
