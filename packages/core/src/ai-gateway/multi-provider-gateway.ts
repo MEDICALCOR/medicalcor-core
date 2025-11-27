@@ -338,9 +338,7 @@ export class MultiProviderGateway {
           break;
         }
 
-        console.warn(
-          `[MultiProviderGateway] Provider ${provider} failed: ${lastError.message}, trying next...`
-        );
+        // Provider failed - will try next in fallback chain
       }
     }
 
@@ -680,7 +678,7 @@ export class MultiProviderGateway {
       health.consecutiveSuccesses >= this.config.recoveryThreshold
     ) {
       health.status = 'healthy';
-      console.info(`[MultiProviderGateway] Provider ${provider} recovered to healthy`);
+      // Provider recovered to healthy status
     }
   }
 
@@ -704,7 +702,7 @@ export class MultiProviderGateway {
     // Degradation logic
     if (health.consecutiveFailures >= this.config.unhealthyThreshold) {
       health.status = 'unhealthy';
-      console.warn(`[MultiProviderGateway] Provider ${provider} marked unhealthy: ${error}`);
+      // Provider marked as unhealthy
     } else if (health.consecutiveFailures >= 1) {
       health.status = 'degraded';
     }

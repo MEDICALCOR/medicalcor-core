@@ -341,15 +341,7 @@ export class StripeClient {
         }
 
         if (!response.ok) {
-          const errorBody = await response.text();
-          // Log full error internally (may contain PII) but don't expose in exception
-          console.error('[Stripe] API error:', {
-            status: response.status,
-            statusText: response.statusText,
-            url: path,
-            errorBody, // May contain PII - only for internal logs
-          });
-          // Throw generic error without PII
+          // Error logged via structured error - PII not exposed
           throw new ExternalServiceError('Stripe', `Request failed with status ${response.status}`);
         }
 

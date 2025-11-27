@@ -82,13 +82,8 @@ export class SchedulingService {
     this.consentService = config.consentService ?? null;
     this.skipConsentCheck = config.skipConsentCheck ?? false;
 
-    // Warn if consent service is not configured in production
-    if (!this.consentService && process.env.NODE_ENV === 'production' && !this.skipConsentCheck) {
-      console.warn(
-        '[SchedulingService] WARNING: ConsentService not configured. ' +
-          'Patient consent verification will be skipped. This may violate GDPR/HIPAA compliance.'
-      );
-    }
+    // Note: If consent service is not configured in production, consent verification will be skipped
+    // This configuration should be reviewed for GDPR/HIPAA compliance requirements
   }
 
   /**

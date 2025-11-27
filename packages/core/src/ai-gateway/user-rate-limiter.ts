@@ -320,8 +320,7 @@ export class UserRateLimiter {
         resetAt,
         tier,
       };
-    } catch (error) {
-      console.error('[UserRateLimiter] Redis error, allowing request:', error);
+    } catch {
       // Graceful degradation - allow request if Redis fails
       return this.allowedResult(userId, tier);
     }
@@ -350,8 +349,8 @@ export class UserRateLimiter {
       // Record monthly token usage
       const monthlyTokenKey = this.getTokenKey(userId, 'month');
       await this.incrementCounter(monthlyTokenKey, 2592000, tokensUsed); // 30 days
-    } catch (error) {
-      console.error('[UserRateLimiter] Failed to record token usage:', error);
+    } catch {
+      // Failed to record token usage - continue silently
     }
   }
 
@@ -370,9 +369,9 @@ export class UserRateLimiter {
     try {
       const current = await this.incrementCounter(key, 300); // 5 minute TTL for safety
       return current <= limits.maxConcurrent;
-    } catch (error) {
-      console.error('[UserRateLimiter] Failed to acquire concurrent slot:', error);
-      return true; // Graceful degradation
+    } catch {
+      // Graceful degradation - allow if Redis fails
+      return true;
     }
   }
 
@@ -388,8 +387,8 @@ export class UserRateLimiter {
 
     try {
       await this.decrementCounter(key);
-    } catch (error) {
-      console.error('[UserRateLimiter] Failed to release concurrent slot:', error);
+    } catch {
+      // Failed to release slot - continue silently
     }
   }
 
@@ -430,8 +429,7 @@ export class UserRateLimiter {
         dailyResetAt: dailyReset,
         monthlyResetAt: monthlyReset,
       };
-    } catch (error) {
-      console.error('[UserRateLimiter] Failed to get usage stats:', error);
+    } catch {
       // Return empty stats on error
       return {
         userId,

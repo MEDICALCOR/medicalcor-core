@@ -46,15 +46,9 @@ export async function validateCredentials(
         return result.user;
       }
 
-      // Log auth failure without PII (SECURITY: never log email addresses)
-      if (result.error) {
-        console.warn(`[Auth] Login failed: ${result.error}`);
-      }
-
       return null;
-    } catch (error) {
-      console.error('[Auth] Database auth error:', error);
-      // Fall through to env var auth as backup
+    } catch {
+      // Database auth error - fall through to env var auth as backup
     }
   }
 
@@ -164,8 +158,8 @@ export async function getUserById(id: string): Promise<SafeUser | null> {
     try {
       const authService = await getAuthService();
       return await authService.getUser(id);
-    } catch (error) {
-      console.error('[Auth] Failed to get user by ID:', error);
+    } catch {
+      // Failed to get user - fall through to env users
     }
   }
 
@@ -201,8 +195,7 @@ export async function logAuthEvent(
   const dbUrl = process.env.DATABASE_URL;
 
   if (!dbUrl) {
-    // No database - log event type only (SECURITY: never log PII like email)
-    console.warn(`[Auth Event] ${eventType}`);
+    // No database - skip event logging
     return;
   }
 
@@ -219,8 +212,8 @@ export async function logAuthEvent(
       ipAddress: context?.ipAddress,
       userAgent: context?.userAgent,
     });
-  } catch (error) {
-    console.error('[Auth] Failed to log auth event:', error);
+  } catch {
+    // Failed to log auth event - continue silently
   }
 }
 

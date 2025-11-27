@@ -263,7 +263,7 @@ export class BackupService extends EventEmitter {
       this.startScheduler();
     }
 
-    console.info('[BackupService] Initialized successfully');
+    // Backup service initialized successfully
   }
 
   /**
@@ -273,19 +273,17 @@ export class BackupService extends EventEmitter {
     this.isShuttingDown = true;
 
     // Stop all schedulers
-    for (const [name, timer] of this.scheduleTimers) {
+    for (const [, timer] of this.scheduleTimers) {
       clearInterval(timer);
-      console.info(`[BackupService] Stopped scheduler: ${name}`);
     }
     this.scheduleTimers.clear();
 
     // Wait for current backup to complete (with timeout)
     if (this.currentBackup) {
-      console.info('[BackupService] Waiting for current backup to complete...');
       await this.waitForCurrentBackup(30000);
     }
 
-    console.info('[BackupService] Shutdown complete');
+    // Shutdown complete
   }
 
   /**

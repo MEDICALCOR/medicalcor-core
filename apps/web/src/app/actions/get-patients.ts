@@ -73,7 +73,6 @@ function getStripeClient(): StripeClient | MockStripeClient {
     const secretKey = process.env.STRIPE_SECRET_KEY;
     if (!secretKey) {
       // Use mock client for development when Stripe is not configured
-      console.warn('[getStripeClient] STRIPE_SECRET_KEY not set, using mock client');
       stripeClient = createMockStripeClient();
     } else {
       stripeClient = new StripeClient({ secretKey });
@@ -118,9 +117,7 @@ async function fetchAllContacts(
 
     // Safety check to prevent infinite loops
     if (allResults.length >= maxResults) {
-      console.warn(
-        `[fetchAllContacts] Reached maxResults limit (${maxResults}), stopping pagination`
-      );
+      // Reached maxResults limit, stopping pagination
       break;
     }
   } while (cursor);

@@ -139,8 +139,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
 
         // Set timeout for pong response
         heartbeatTimeoutRef.current = setTimeout(() => {
-          console.warn('[WebSocket] Heartbeat timeout - no pong received, reconnecting');
-          // Force close and trigger reconnect
+          // Force close and trigger reconnect on heartbeat timeout
           ws.close(4000, 'Heartbeat timeout');
         }, heartbeatTimeout);
       }
@@ -157,7 +156,6 @@ export function useWebSocket(options: UseWebSocketOptions) {
 
     // SECURITY: Require authentication token for WebSocket connections
     if (!authToken) {
-      console.error('[WebSocket] Authentication token required for connection');
       onAuthErrorRef.current?.('Authentication token required');
       setConnectionState((prev) => ({
         ...prev,
@@ -224,10 +222,6 @@ export function useWebSocket(options: UseWebSocketOptions) {
             60000 // Cap at 60 seconds
           );
 
-          console.warn(
-            `[WebSocket] Reconnecting in ${delay}ms (attempt ${currentAttempts + 1}/${maxReconnectAttempts})`
-          );
-
           reconnectTimeoutRef.current = setTimeout(() => {
             // Use functional update to ensure we get the latest state
             setConnectionState((prev) => ({
@@ -237,7 +231,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
             connect();
           }, delay);
         } else {
-          console.error('[WebSocket] Max reconnection attempts reached');
+          // Max reconnection attempts reached
           setConnectionState((prev) => ({
             ...prev,
             status: 'error',
@@ -285,7 +279,6 @@ export function useWebSocket(options: UseWebSocketOptions) {
             const errorMsg =
               (realtimeEvent.data as { message?: string } | undefined)?.message ??
               'Authentication failed';
-            console.error('[WebSocket] Authentication failed:', errorMsg);
             setConnectionState((prev) => ({
               ...prev,
               status: 'error',
@@ -298,7 +291,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
 
           // CRITICAL FIX: Use ref to check authentication status to avoid stale closure
           if (!isAuthenticatedRef.current) {
-            console.warn('[WebSocket] Received message before authentication complete');
+            // Received message before authentication complete - ignore
             return;
           }
 
