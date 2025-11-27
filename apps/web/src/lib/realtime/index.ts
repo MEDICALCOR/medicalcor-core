@@ -2,6 +2,7 @@ export * from './types';
 export * from './use-websocket';
 export {
   RingBuffer,
+  BoundedMap,
   REALTIME_MEMORY_LIMITS,
   createLeadsBuffer,
   createUrgenciesBuffer,
@@ -15,3 +16,9 @@ export {
   useRealtimeLeads,
   useRealtimeUrgencies,
 } from './context';
+export {
+  RealtimeMemoryMonitor,
+  attachMemoryMonitorToWindow,
+  type MemoryStats,
+  type BufferStats,
+} from './memory-monitor';

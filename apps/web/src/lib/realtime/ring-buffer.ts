@@ -242,6 +242,93 @@ export class RingBuffer<T> {
 }
 
 /**
+ * A bounded Map that automatically evicts oldest entries when capacity is reached.
+ * Uses FIFO (First-In-First-Out) eviction strategy via insertion order tracking.
+ *
+ * Use this instead of Map when you need to track key-value pairs with a maximum size.
+ * This prevents unbounded memory growth during long-running sessions.
+ */
+export class BoundedMap<K, V> {
+  private map = new Map<K, V>();
+  private insertionOrder: K[] = [];
+  private readonly capacity: number;
+
+  constructor(capacity: number) {
+    if (capacity < 1) {
+      throw new Error('BoundedMap capacity must be at least 1');
+    }
+    this.capacity = capacity;
+  }
+
+  set(key: K, value: V): void {
+    // If key already exists, just update the value (don't change order)
+    if (this.map.has(key)) {
+      this.map.set(key, value);
+      return;
+    }
+
+    // Evict oldest entries if at capacity
+    while (this.insertionOrder.length >= this.capacity) {
+      const oldestKey = this.insertionOrder.shift();
+      if (oldestKey !== undefined) {
+        this.map.delete(oldestKey);
+      }
+    }
+
+    this.map.set(key, value);
+    this.insertionOrder.push(key);
+  }
+
+  get(key: K): V | undefined {
+    return this.map.get(key);
+  }
+
+  has(key: K): boolean {
+    return this.map.has(key);
+  }
+
+  delete(key: K): boolean {
+    if (this.map.delete(key)) {
+      const index = this.insertionOrder.indexOf(key);
+      if (index !== -1) {
+        this.insertionOrder.splice(index, 1);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  get size(): number {
+    return this.map.size;
+  }
+
+  get maxSize(): number {
+    return this.capacity;
+  }
+
+  clear(): void {
+    this.map.clear();
+    this.insertionOrder = [];
+  }
+
+  keys(): IterableIterator<K> {
+    return this.map.keys();
+  }
+
+  values(): IterableIterator<V> {
+    return this.map.values();
+  }
+
+  entries(): IterableIterator<[K, V]> {
+    return this.map.entries();
+  }
+
+  forEach(callback: (value: V, key: K) => void): void {
+    this.map.forEach(callback);
+  }
+}
+
+/**
  * Memory limits configuration for realtime data
  * These values are tuned for medical application usage patterns
  */
