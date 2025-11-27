@@ -37,6 +37,8 @@ export interface RateLimitConfig {
     booking: number;
     /** Vapi webhook limit per minute */
     vapi: number;
+    /** CRM (HubSpot) webhook limit per minute */
+    crm: number;
   };
   /** List of IPs to allowlist (bypass rate limiting) */
   allowlist: string[];
@@ -44,15 +46,25 @@ export interface RateLimitConfig {
   addHeaders: boolean;
 }
 
+/**
+ * AGGRESSIVE RATE LIMITS FOR WEBHOOK ENDPOINTS
+ *
+ * These limits are intentionally strict to prevent abuse and control costs.
+ * Legitimate traffic from providers (Meta, Twilio, Stripe) typically stays
+ * well under these limits. If you hit rate limits, investigate the source.
+ *
+ * Limits are per IP address, per minute.
+ */
 const defaultConfig: RateLimitConfig = {
   useRedis: false,
-  globalLimit: 1000, // 1000 requests per minute globally
+  globalLimit: 500, // 500 requests per minute globally (was 1000)
   webhookLimits: {
-    whatsapp: 200, // WhatsApp can send bursts
-    voice: 100, // Voice calls are less frequent
-    stripe: 50, // Stripe webhooks are infrequent
-    booking: 100, // Booking confirmations
-    vapi: 100, // Vapi voice AI calls
+    whatsapp: 60, // WhatsApp: ~1 req/sec max (was 200) - prevents message spam attacks
+    voice: 30, // Voice: ~0.5 req/sec (was 100) - voice calls are slow, no need for high limits
+    stripe: 20, // Stripe: ~0.33 req/sec (was 50) - payment events are rare
+    booking: 30, // Booking: ~0.5 req/sec (was 100) - booking confirmations are infrequent
+    vapi: 30, // Vapi: ~0.5 req/sec (was 100) - voice AI events are slow
+    crm: 30, // CRM (HubSpot): ~0.5 req/sec - workflow webhooks are infrequent
   },
   allowlist: [],
   addHeaders: true,
@@ -76,6 +88,7 @@ function generateKey(request: FastifyRequest): string {
     webhookType = 'voice';
   else if (path.includes('/webhooks/stripe')) webhookType = 'stripe';
   else if (path.includes('/webhooks/booking')) webhookType = 'booking';
+  else if (path.includes('/webhooks/crm')) webhookType = 'crm';
 
   return `ratelimit:${webhookType}:${ip}`;
 }
@@ -91,6 +104,7 @@ function getLimit(request: FastifyRequest, config: RateLimitConfig): number {
     return config.webhookLimits.vapi;
   if (path.includes('/webhooks/stripe')) return config.webhookLimits.stripe;
   if (path.includes('/webhooks/booking')) return config.webhookLimits.booking;
+  if (path.includes('/webhooks/crm')) return config.webhookLimits.crm;
 
   return config.globalLimit;
 }

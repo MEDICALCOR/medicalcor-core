@@ -200,10 +200,12 @@ This API provides:
 ## Authentication
 Most endpoints require API key authentication via \`X-API-Key\` header.
 
-## Rate Limits
-- Global: 1000 req/min
-- Webhooks: 100-200 req/min per provider
-- AI Execute: 100 req/min
+## Rate Limits (Aggressive - Cost Control)
+- Global: 500 req/min
+- WhatsApp Webhooks: 60 req/min
+- Voice/Vapi Webhooks: 30 req/min
+- Stripe Webhooks: 20 req/min
+- Booking/CRM Webhooks: 30 req/min
         `.trim(),
         contact: {
           name: 'MedicalCor Support',
@@ -282,16 +284,18 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
   });
 
   // Rate limiting configuration
+  // COST CONTROL: Aggressive rate limits for webhook endpoints to prevent abuse
   const rateLimitConfig: Partial<RateLimitConfig> = {
     useRedis: !!process.env.REDIS_URL,
     redisUrl: process.env.REDIS_URL,
-    globalLimit: parseInt(process.env.RATE_LIMIT_GLOBAL ?? '1000', 10),
+    globalLimit: parseInt(process.env.RATE_LIMIT_GLOBAL ?? '500', 10),
     webhookLimits: {
-      whatsapp: parseInt(process.env.RATE_LIMIT_WHATSAPP ?? '200', 10),
-      voice: parseInt(process.env.RATE_LIMIT_VOICE ?? '100', 10),
-      stripe: parseInt(process.env.RATE_LIMIT_STRIPE ?? '50', 10),
-      booking: parseInt(process.env.RATE_LIMIT_BOOKING ?? '100', 10),
-      vapi: parseInt(process.env.RATE_LIMIT_VAPI ?? '100', 10),
+      whatsapp: parseInt(process.env.RATE_LIMIT_WHATSAPP ?? '60', 10),
+      voice: parseInt(process.env.RATE_LIMIT_VOICE ?? '30', 10),
+      stripe: parseInt(process.env.RATE_LIMIT_STRIPE ?? '20', 10),
+      booking: parseInt(process.env.RATE_LIMIT_BOOKING ?? '30', 10),
+      vapi: parseInt(process.env.RATE_LIMIT_VAPI ?? '30', 10),
+      crm: parseInt(process.env.RATE_LIMIT_CRM ?? '30', 10),
     },
     allowlist: process.env.RATE_LIMIT_ALLOWLIST?.split(',').filter(Boolean) ?? [],
     addHeaders: process.env.RATE_LIMIT_HEADERS !== 'false',

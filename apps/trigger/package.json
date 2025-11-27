@@ -20,6 +20,8 @@
     "@medicalcor/domain": "workspace:*",
     "@medicalcor/integrations": "workspace:*",
     "@medicalcor/types": "workspace:*",
+    "@opentelemetry/api": "^1.7.0",
+    "@opentelemetry/core": "^1.28.0",
     "@trigger.dev/sdk": "^3.1.0",
     "zod": "^3.23.8"
   },
