@@ -1,0 +1,24 @@
+# dbmate Database Configuration
+# https://github.com/amacneil/dbmate
+
+# Development environment
+development:
+  url: postgres://postgres:postgres@localhost:5432/medicalcor_dev?sslmode=disable
+  migrations_dir: ./migrations
+  schema_file: ./schema.sql
+  migrations_table: schema_migrations
+
+# Test environment
+test:
+  url: postgres://postgres:postgres@localhost:5432/medicalcor_test?sslmode=disable
+  migrations_dir: ./migrations
+  schema_file: ./schema.sql
+  migrations_table: schema_migrations
+
+# Production environment (uses DATABASE_URL env var)
+production:
+  url: ${DATABASE_URL}
+  migrations_dir: ./migrations
+  schema_file: ./schema.sql
+  migrations_table: schema_migrations
+  no_dump_schema: true

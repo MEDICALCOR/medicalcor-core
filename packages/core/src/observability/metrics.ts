@@ -482,3 +482,182 @@ export const aiIntentDetections = globalMetrics.counter(
   'Total AI intent detections',
   ['detected_function', 'confidence_bucket']
 );
+
+// ============================================================================
+// AI GATEWAY - MULTI-PROVIDER & BUDGET METRICS
+// ============================================================================
+
+// AI Provider Requests
+export const aiRequestsTotal = globalMetrics.counter(
+  'medicalcor_ai_requests_total',
+  'Total AI requests by provider and status',
+  ['provider', 'status', 'operation']
+);
+
+// AI Provider Fallback
+export const aiFallbackTotal = globalMetrics.counter(
+  'medicalcor_ai_fallback_total',
+  'Total AI fallback events',
+  ['provider', 'fallback_provider', 'operation']
+);
+
+export const aiInstantFallbackTotal = globalMetrics.counter(
+  'medicalcor_ai_instant_fallback_total',
+  'Total instant fallback events for critical operations',
+  ['operation']
+);
+
+// AI Timeout
+export const aiTimeoutTotal = globalMetrics.counter(
+  'medicalcor_ai_timeout_total',
+  'Total AI timeout events',
+  ['operation', 'provider']
+);
+
+// AI Operation Duration (for adaptive timeout tracking)
+export const aiOperationDuration = globalMetrics.histogram(
+  'medicalcor_ai_operation_duration_seconds',
+  'AI operation duration by type (5s target for scoring)',
+  ['operation', 'provider'],
+  [0.1, 0.5, 1, 2, 3, 5, 10, 15, 30, 60]
+);
+
+// AI Scoring-specific duration (critical path)
+export const aiScoringDuration = globalMetrics.histogram(
+  'medicalcor_ai_scoring_duration_seconds',
+  'AI lead scoring duration (5s timeout target)',
+  ['provider'],
+  [0.5, 1, 2, 3, 4, 5, 7, 10]
+);
+
+// ============================================================================
+// AI BUDGET METRICS
+// ============================================================================
+
+// Daily and Monthly Spend
+export const aiDailySpend = globalMetrics.gauge(
+  'medicalcor_ai_daily_spend_usd',
+  'Current daily AI spend in USD',
+  ['scope', 'scope_id']
+);
+
+export const aiMonthlySpend = globalMetrics.gauge(
+  'medicalcor_ai_monthly_spend_usd',
+  'Current monthly AI spend in USD',
+  ['scope', 'scope_id']
+);
+
+// Spend by Provider
+export const aiSpendByProvider = globalMetrics.counter(
+  'medicalcor_ai_spend_usd',
+  'AI spend in USD by provider',
+  ['provider', 'model', 'operation']
+);
+
+// Budget Alerts
+export const aiBudgetAlerts = globalMetrics.counter(
+  'medicalcor_ai_budget_alerts_total',
+  'Total budget alerts triggered',
+  ['scope', 'threshold', 'period']
+);
+
+// Budget Status
+export const aiBudgetStatus = globalMetrics.gauge(
+  'medicalcor_ai_budget_percent_used',
+  'Percentage of budget used',
+  ['scope', 'scope_id', 'period']
+);
+
+// ============================================================================
+// AI TOKEN METRICS
+// ============================================================================
+
+// Token Usage
+export const aiTokensUsed = globalMetrics.counter(
+  'medicalcor_ai_tokens_used_total',
+  'Total tokens used',
+  ['type', 'model', 'provider']
+);
+
+// Token Estimation Accuracy
+export const aiTokenEstimationTotal = globalMetrics.counter(
+  'medicalcor_ai_token_estimation_total',
+  'Total token estimations performed',
+  ['confidence']
+);
+
+export const aiTokenEstimationAccuracy = globalMetrics.histogram(
+  'medicalcor_ai_token_estimation_accuracy',
+  'Token estimation accuracy (estimated/actual ratio)',
+  ['model'],
+  [0.5, 0.7, 0.8, 0.9, 0.95, 1.0, 1.05, 1.1, 1.2, 1.5]
+);
+
+// ============================================================================
+// AI RATE LIMITING METRICS
+// ============================================================================
+
+// Rate Limit Hits
+export const aiRateLimitHits = globalMetrics.counter(
+  'medicalcor_ai_rate_limit_hits_total',
+  'Total rate limit hits',
+  ['tier', 'limit_type']
+);
+
+// Concurrent Requests
+export const aiConcurrentRequests = globalMetrics.gauge(
+  'medicalcor_ai_concurrent_requests',
+  'Current concurrent AI requests',
+  ['tier']
+);
+
+// ============================================================================
+// PATIENT JOURNEY METRICS
+// ============================================================================
+
+// Patient Journey Stages
+export const patientJourneyStage = globalMetrics.counter(
+  'medicalcor_patient_journey_stage_total',
+  'Patient journey stage transitions',
+  ['stage', 'from_stage']
+);
+
+// Lead Classification Distribution
+export const leadClassificationCurrent = globalMetrics.gauge(
+  'medicalcor_lead_classification_current',
+  'Current lead classification distribution',
+  ['classification']
+);
+
+// Patient Journey Duration
+export const patientJourneyDuration = globalMetrics.histogram(
+  'medicalcor_patient_journey_duration_seconds',
+  'Time spent in patient journey stages',
+  ['stage'],
+  [60, 300, 600, 1800, 3600, 7200, 14400, 28800, 86400]
+);
+
+// ============================================================================
+// PROVIDER HEALTH METRICS
+// ============================================================================
+
+// Provider Health Status
+export const aiProviderHealth = globalMetrics.gauge(
+  'medicalcor_ai_provider_health',
+  'AI provider health status (1=healthy, 0.5=degraded, 0=unhealthy)',
+  ['provider']
+);
+
+// Provider Response Time
+export const aiProviderResponseTime = globalMetrics.gauge(
+  'medicalcor_ai_provider_response_time_ms',
+  'Current average response time per provider',
+  ['provider']
+);
+
+// Provider Success Rate
+export const aiProviderSuccessRate = globalMetrics.gauge(
+  'medicalcor_ai_provider_success_rate',
+  'Current success rate per provider (0-1)',
+  ['provider']
+);
