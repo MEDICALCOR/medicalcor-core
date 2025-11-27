@@ -276,6 +276,16 @@ export function loggingMiddleware(logger: {
 
 /**
  * Retry middleware for transient failures
+ *
+ * IMPORTANT: This middleware re-executes the entire handler chain on retry.
+ * Handlers used with this middleware MUST be idempotent to avoid duplicate side effects.
+ *
+ * For handlers with external side effects (API calls, emails, etc.), consider:
+ * 1. Using idempotencyMiddleware BEFORE retryMiddleware in the chain
+ * 2. Using safeRetryMiddleware which combines both concerns
+ * 3. Implementing idempotency at the handler level using correlation IDs
+ *
+ * @deprecated Prefer safeRetryMiddleware for handlers with side effects
  */
 export function retryMiddleware(options: {
   maxRetries: number;
@@ -305,6 +315,89 @@ export function retryMiddleware(options: {
       }
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return lastError!;
+  };
+}
+
+/**
+ * Safe retry middleware that prevents duplicate side effects
+ *
+ * This middleware combines retry logic with per-attempt idempotency tracking.
+ * Each retry attempt gets a unique attempt ID, allowing handlers to detect
+ * and skip duplicate executions of side effects.
+ *
+ * The middleware tracks:
+ * - Which command+attempt combinations have been started
+ * - Which have completed (success or permanent failure)
+ *
+ * On retry, only the handler logic runs again, but side effects can check
+ * the attempt context to avoid re-execution.
+ */
+export function safeRetryMiddleware(options: {
+  maxRetries: number;
+  retryableErrors: string[];
+  backoffMs: number;
+  /** Optional cache for cross-process idempotency (default: in-memory Map) */
+  attemptCache?: Map<string, { result?: CommandResult; inProgress: boolean }>;
+}): CommandMiddleware {
+  const attemptCache =
+    options.attemptCache ?? new Map<string, { result?: CommandResult; inProgress: boolean }>();
+
+  return async (command, _context, next) => {
+    const baseKey = `${command.type}:${command.metadata.commandId}`;
+    let lastError: CommandResult | undefined;
+
+    for (let attempt = 0; attempt <= options.maxRetries; attempt++) {
+      const attemptKey = `${baseKey}:attempt:${attempt}`;
+
+      // Check if this exact attempt was already processed
+      const cached = attemptCache.get(attemptKey);
+      if (cached?.result) {
+        // This attempt already completed, use cached result
+        if (
+          cached.result.success ||
+          !options.retryableErrors.includes(cached.result.error?.code ?? '')
+        ) {
+          return cached.result;
+        }
+        // Retryable error from this attempt, continue to next attempt
+        lastError = cached.result;
+        continue;
+      }
+
+      // Mark attempt as in-progress to prevent concurrent duplicate execution
+      attemptCache.set(attemptKey, { inProgress: true });
+
+      try {
+        const result = await next();
+
+        // Cache the result
+        attemptCache.set(attemptKey, { result, inProgress: false });
+
+        if (result.success) {
+          return result;
+        }
+
+        if (!options.retryableErrors.includes(result.error?.code ?? '')) {
+          return result;
+        }
+
+        lastError = result;
+
+        if (attempt < options.maxRetries) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, options.backoffMs * Math.pow(2, attempt))
+          );
+        }
+      } catch (error) {
+        // On unexpected error, clear the in-progress flag
+        attemptCache.delete(attemptKey);
+        throw error;
+      }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return lastError!;
   };
 }

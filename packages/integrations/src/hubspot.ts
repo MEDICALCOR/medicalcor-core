@@ -99,7 +99,14 @@ export class HubSpotClient {
   }
 
   /**
-   * Sync contact by phone (upsert with deduplication)
+   * Sync contact by phone (atomic upsert - race-condition safe)
+   *
+   * Uses HubSpot's native upsert API to prevent duplicate creation when
+   * multiple concurrent requests try to sync the same phone number.
+   *
+   * This is an atomic operation that either creates or updates in a single API call,
+   * eliminating the TOCTOU (time-of-check to time-of-use) race condition that existed
+   * in the previous search-then-create/update approach.
    */
   async syncContact(data: {
     phone: string;
@@ -111,36 +118,21 @@ export class HubSpotClient {
     const validated = SyncContactSchema.parse(data);
     const { phone, name, email, properties } = validated;
 
-    // First, search for existing contact by phone
-    const existingContacts = await this.searchContactsByPhone(phone);
+    // Build properties object
+    const contactProperties: Record<string, string> = {
+      ...properties,
+    };
 
-    if (existingContacts.length > 0) {
-      // If multiple found, pick oldest (first created) and optionally merge others
-      const primary = existingContacts.sort(
-        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      )[0];
-
-      if (!primary) {
-        throw new ExternalServiceError('HubSpot', 'No primary contact found after search');
-      }
-
-      // Update existing contact
-      return this.updateContact(primary.id, {
-        ...properties,
-        ...(name && !primary.properties.firstname ? { firstname: name } : {}),
-        ...(email && !primary.properties.email ? { email } : {}),
-      });
+    if (name) {
+      contactProperties.firstname = name;
+    }
+    if (email) {
+      contactProperties.email = email;
     }
 
-    // Create new contact
-    return this.createContact({
-      properties: {
-        phone,
-        ...(name ? { firstname: name } : {}),
-        ...(email ? { email } : {}),
-        ...properties,
-      },
-    });
+    // Use atomic upsert to prevent race conditions
+    // This single API call either creates a new contact or updates existing one
+    return this.upsertContactByPhone(phone, contactProperties);
   }
 
   /**

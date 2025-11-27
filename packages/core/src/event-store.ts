@@ -382,8 +382,9 @@ export class EventStore {
       metadata: {
         correlationId: input.correlationId,
         causationId: input.causationId,
-        idempotencyKey:
-          input.idempotencyKey ?? `${input.type}:${input.correlationId}:${Date.now()}`,
+        // Use UUID for collision-resistant idempotency keys under high load
+        // Date.now() has only millisecond precision which risks collisions
+        idempotencyKey: input.idempotencyKey ?? `${input.type}:${input.correlationId}:${uuidv4()}`,
         timestamp: new Date().toISOString(),
         source: this.source,
       },
