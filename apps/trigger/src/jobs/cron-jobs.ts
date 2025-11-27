@@ -436,8 +436,9 @@ export const appointmentReminders = schedules.task({
       const now = new Date();
       const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-      // CRITICAL GDPR FIX: Include consent check in the search filter
-      // Only send reminders to contacts who have explicitly consented to appointment reminders
+      // CRITICAL GDPR FIX: Only send reminders to contacts who have explicitly consented
+      // to appointment reminders or treatment updates (GDPR requires specific consent)
+      // DO NOT fall back to general marketing consent for medical communications
       const upcomingAppointments = await hubspot?.searchContacts({
         filterGroups: [
           {
@@ -452,8 +453,7 @@ export const appointmentReminders = schedules.task({
                 operator: 'LTE',
                 value: in24Hours.getTime().toString(),
               },
-              // GDPR CONSENT CHECK: Must have appointment_reminders consent
-              // Falls back to marketing consent if specific consent property doesn't exist
+              // GDPR CONSENT CHECK: Must have specific appointment_reminders consent
               {
                 propertyName: 'consent_appointment_reminders',
                 operator: 'EQ',
@@ -461,7 +461,7 @@ export const appointmentReminders = schedules.task({
               },
             ],
           },
-          // Fallback filter group for contacts with only general marketing consent
+          // Alternative: Accept treatment_updates consent (related to appointments)
           {
             filters: [
               {
@@ -475,7 +475,7 @@ export const appointmentReminders = schedules.task({
                 value: in24Hours.getTime().toString(),
               },
               {
-                propertyName: 'consent_marketing',
+                propertyName: 'consent_treatment_updates',
                 operator: 'EQ',
                 value: 'true',
               },

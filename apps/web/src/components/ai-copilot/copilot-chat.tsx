@@ -138,13 +138,19 @@ export function CopilotChat({ context }: CopilotChatProps) {
             </Button>
           </div>
         )}
+        {/* ACCESSIBILITY FIX: Added proper labels and aria attributes */}
         <form onSubmit={handleSubmit} className="flex gap-2">
+          <label htmlFor="copilot-message-input" className="sr-only">
+            Message to AI Copilot
+          </label>
           <textarea
+            id="copilot-message-input"
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Întreabă AI Copilot..."
+            aria-label="Enter your message for AI Copilot"
             className={cn(
               'flex-1 resize-none rounded-lg border bg-background px-3 py-2 text-sm',
               'focus:outline-none focus:ring-2 focus:ring-primary/20',
@@ -158,11 +164,12 @@ export function CopilotChat({ context }: CopilotChatProps) {
             size="icon"
             disabled={!input.trim() || isLoading}
             className="shrink-0"
+            aria-label={isLoading ? 'Sending message' : 'Send message'}
           >
             {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
             ) : (
-              <Send className="h-4 w-4" />
+              <Send className="h-4 w-4" aria-hidden="true" />
             )}
           </Button>
         </form>

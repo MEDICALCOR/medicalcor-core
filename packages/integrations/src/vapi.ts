@@ -586,6 +586,17 @@ export class VapiClient {
   }
 
   /**
+   * CRITICAL FIX: Destroy the client and clean up all resources
+   * Call this when the client is no longer needed to prevent memory leaks
+   */
+  destroy(): void {
+    // Stop cleanup timer
+    this.stopBufferCleanup();
+    // Clear all transcript buffers
+    this.transcriptBuffer.clear();
+  }
+
+  /**
    * Clean up stale transcript buffers (older than TTL)
    */
   private cleanupStaleBuffers(): void {

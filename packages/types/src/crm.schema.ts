@@ -34,7 +34,9 @@ export const LeadDTOSchema = z.object({
   // Language & Metadata
   language: z.string().max(5).default('ro'),
   tags: z.array(z.string()).optional(),
-  metadata: z.record(z.unknown()).optional(),
+  // CRITICAL FIX: Properly validate metadata structure to prevent injection attacks
+  // Only allow primitive types - no objects, functions, or complex structures
+  metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
 
   // GDPR
   gdprConsent: z.boolean().optional(),

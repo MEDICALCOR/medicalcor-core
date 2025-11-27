@@ -82,7 +82,8 @@ export const ConversationEntrySchema = z.object({
   role: z.enum(["patient", "assistant", "agent", "system"]),
   channel: z.enum(["whatsapp", "voice", "sms", "email"]),
   content: z.string(),
-  metadata: z.record(z.unknown()).optional(),
+  // CRITICAL FIX: Properly validate metadata to prevent injection attacks
+  metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
 });
 
 /**
@@ -120,8 +121,8 @@ export const LeadContextSchema = z.object({
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
 
-  // Extensible metadata
-  metadata: z.record(z.unknown()).default({}),
+  // CRITICAL FIX: Properly validate metadata to prevent injection attacks
+  metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).default({}),
 });
 
 /**

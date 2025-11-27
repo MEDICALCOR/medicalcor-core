@@ -1,3 +1,4 @@
+import { ScoringOutputSchema } from '@medicalcor/types';
 import type { AIScoringContext, ScoringOutput, LeadScore } from '@medicalcor/types';
 
 /**
@@ -265,6 +266,7 @@ Provide your scoring analysis in JSON format.`;
 
   /**
    * Parse AI response to ScoringOutput
+   * CRITICAL FIX: Use Zod schema validation for type safety and better error handling
    */
   private parseAIResponse(content: string): ScoringOutput {
     try {
@@ -274,24 +276,29 @@ Provide your scoring analysis in JSON format.`;
         throw new Error('No JSON found in response');
       }
 
-      const parsed = JSON.parse(jsonMatch[0]) as ScoringOutput;
+      const rawParsed = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
 
-      // Validate required fields
-      if (typeof parsed.score !== 'number' || parsed.score < 1 || parsed.score > 5) {
-        throw new Error('Invalid score');
+      // CRITICAL FIX: Use Zod schema validation instead of manual validation
+      // This ensures type safety and provides better error messages
+      const parseResult = ScoringOutputSchema.safeParse({
+        score: rawParsed.score,
+        classification: rawParsed.classification ?? this.scoreToClassification(Number(rawParsed.score) || 2),
+        confidence: rawParsed.confidence ?? 0.8,
+        reasoning: rawParsed.reasoning ?? 'AI analysis',
+        suggestedAction: rawParsed.suggestedAction ?? this.getSuggestedAction(
+          (rawParsed.classification as LeadScore) ?? this.scoreToClassification(Number(rawParsed.score) || 2)
+        ),
+        detectedIntent: rawParsed.detectedIntent,
+        urgencyIndicators: rawParsed.urgencyIndicators ?? [],
+        budgetMentioned: rawParsed.budgetMentioned ?? false,
+        procedureInterest: rawParsed.procedureInterest ?? [],
+      });
+
+      if (!parseResult.success) {
+        throw new Error(`Validation failed: ${parseResult.error.message}`);
       }
 
-      return {
-        score: parsed.score,
-        classification: parsed.classification ?? this.scoreToClassification(parsed.score),
-        confidence: parsed.confidence ?? 0.8,
-        reasoning: parsed.reasoning ?? 'AI analysis',
-        suggestedAction: parsed.suggestedAction ?? this.getSuggestedAction(parsed.classification ?? this.scoreToClassification(parsed.score)),
-        detectedIntent: parsed.detectedIntent,
-        urgencyIndicators: parsed.urgencyIndicators ?? [],
-        budgetMentioned: parsed.budgetMentioned ?? false,
-        procedureInterest: parsed.procedureInterest ?? [],
-      };
+      return parseResult.data;
     } catch {
       // Return safe fallback
       return {
