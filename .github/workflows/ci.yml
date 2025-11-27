@@ -494,12 +494,76 @@ jobs:
           sarif_file: scorecard-results.sarif
 
   # =============================================================================
+  # Database Schema Validation
+  # =============================================================================
+  schema-validation:
+    name: Schema Validation
+    runs-on: ubuntu-latest
+    needs: [changes]
+    if: needs.changes.outputs.src == 'true' || github.ref == 'refs/heads/main'
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: medicalcor_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install dbmate
+        run: |
+          curl -fsSL -o /usr/local/bin/dbmate https://github.com/amacneil/dbmate/releases/download/v2.10.0/dbmate-linux-amd64
+          chmod +x /usr/local/bin/dbmate
+
+      - name: Validate migration files
+        run: |
+          chmod +x ./scripts/validate-schema.sh
+          ./scripts/validate-schema.sh
+
+      - name: Run migrations (up)
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/medicalcor_test?sslmode=disable
+        run: |
+          cd db
+          dbmate --migrations-dir ./migrations up
+
+      - name: Verify migrations are reversible (down + up)
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/medicalcor_test?sslmode=disable
+        run: |
+          cd db
+          dbmate --migrations-dir ./migrations down
+          dbmate --migrations-dir ./migrations up
+
+      - name: Dump final schema
+        env:
+          PGPASSWORD: postgres
+        run: |
+          pg_dump -h localhost -U postgres -d medicalcor_test --schema-only > db/schema.sql
+
+      - name: Upload schema artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: database-schema
+          path: db/schema.sql
+          retention-days: 30
+
+  # =============================================================================
   # CI Success Gate
   # =============================================================================
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [lint, typecheck, test, e2e, build, security, secrets-scan]
+    needs: [lint, typecheck, test, e2e, build, security, secrets-scan, schema-validation]
     if: always()
     steps:
       - name: Check all jobs
@@ -509,7 +573,8 @@ jobs:
              [[ "${{ needs.test.result }}" == "failure" ]] || \
              [[ "${{ needs.e2e.result }}" == "failure" ]] || \
              [[ "${{ needs.build.result }}" == "failure" ]] || \
-             [[ "${{ needs.secrets-scan.result }}" == "failure" ]]; then
+             [[ "${{ needs.secrets-scan.result }}" == "failure" ]] || \
+             [[ "${{ needs.schema-validation.result }}" == "failure" ]]; then
             echo "One or more required jobs failed"
             exit 1
           fi

@@ -22,7 +22,13 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "clean": "turbo clean && rm -rf node_modules",
-    "prepare": "husky"
+    "prepare": "husky",
+    "db:migrate": "cd db && dbmate --migrations-dir ./migrations up",
+    "db:migrate:down": "cd db && dbmate --migrations-dir ./migrations down",
+    "db:migrate:status": "cd db && dbmate --migrations-dir ./migrations status",
+    "db:migrate:new": "cd db && dbmate --migrations-dir ./migrations new",
+    "db:schema:dump": "cd db && dbmate --migrations-dir ./migrations dump",
+    "db:schema:validate": "./scripts/validate-schema.sh"
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",
