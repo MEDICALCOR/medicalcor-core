@@ -21,6 +21,7 @@ import { chatgptPluginRoutes } from './routes/chatgpt-plugin.js';
 import { instrumentFastify } from '@medicalcor/core/observability/instrumentation';
 import { rateLimitPlugin, type RateLimitConfig } from './plugins/rate-limit.js';
 import { apiAuthPlugin } from './plugins/api-auth.js';
+import { pipedriveSignaturePlugin } from './plugins/verify-pipedrive-signature.js';
 
 /**
  * MedicalCor API - Webhook Gateway
@@ -341,6 +342,11 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
       }
     }
   );
+
+  // Pipedrive webhook signature verification
+  // SECURITY: Verifies HMAC-SHA256 signatures on CRM webhooks
+  // Must be registered AFTER content type parsers (which set rawBody)
+  await fastify.register(pipedriveSignaturePlugin);
 
   // Instrument Fastify for observability
   instrumentFastify(fastify, {

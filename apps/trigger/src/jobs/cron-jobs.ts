@@ -1081,6 +1081,95 @@ export const gdprConsentAudit = schedules.task({
   },
 });
 
+/**
+ * Nightly knowledge base ingest - re-indexes knowledge base documents
+ * Runs every day at 2:30 AM
+ */
+export const nightlyKnowledgeIngest = schedules.task({
+  id: 'nightly-knowledge-ingest',
+  cron: '30 2 * * *', // 2:30 AM every day
+  run: async () => {
+    const correlationId = generateCorrelationId();
+    logger.info('Starting nightly knowledge ingest', { correlationId });
+
+    const { eventStore } = getClients();
+
+    try {
+      // Run the ingest script via child process
+      // This approach keeps the cron job lightweight while using the full ingest script
+      const { exec } = await import('child_process');
+      const { promisify } = await import('util');
+      const execAsync = promisify(exec);
+
+      const startTime = Date.now();
+
+      // Execute the ingest script
+      // Use tsx for TypeScript execution
+      const { stdout, stderr } = await execAsync(
+        'pnpm tsx scripts/ingest-knowledge.ts',
+        {
+          cwd: process.cwd(),
+          env: {
+            ...process.env,
+            // Ensure DATABASE_URL is available
+          },
+          timeout: 300000, // 5 minute timeout
+        }
+      );
+
+      const duration = Date.now() - startTime;
+
+      if (stderr && stderr.trim()) {
+        logger.warn('Ingest script stderr', { stderr: stderr.trim(), correlationId });
+      }
+
+      // Parse results from stdout
+      const entriesMatch = stdout.match(/Entries inserted: (\d+)/);
+      const updatedMatch = stdout.match(/Entries updated: (\d+)/);
+      const filesMatch = stdout.match(/Files processed: (\d+)/);
+
+      const entriesInserted = entriesMatch ? parseInt(entriesMatch[1]!, 10) : 0;
+      const entriesUpdated = updatedMatch ? parseInt(updatedMatch[1]!, 10) : 0;
+      const filesProcessed = filesMatch ? parseInt(filesMatch[1]!, 10) : 0;
+
+      logger.info('Nightly knowledge ingest completed', {
+        filesProcessed,
+        entriesInserted,
+        entriesUpdated,
+        durationMs: duration,
+        correlationId,
+      });
+
+      // Emit job completion event
+      await emitJobEvent(eventStore, 'cron.knowledge_ingest.completed', {
+        filesProcessed,
+        entriesInserted,
+        entriesUpdated,
+        durationMs: duration,
+        correlationId,
+      });
+
+      return {
+        success: true,
+        filesProcessed,
+        entriesInserted,
+        entriesUpdated,
+        durationMs: duration,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Nightly knowledge ingest failed', { error: errorMessage, correlationId });
+
+      await emitJobEvent(eventStore, 'cron.knowledge_ingest.failed', {
+        error: errorMessage,
+        correlationId,
+      });
+
+      return { success: false, error: errorMessage };
+    }
+  },
+});
+
 // ============================================
 // Helper Functions
 // ============================================
