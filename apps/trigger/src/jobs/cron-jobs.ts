@@ -153,9 +153,11 @@ async function withExponentialRetry<T>(
         break;
       }
 
-      // Calculate delay with exponential backoff and jitter
+      // SECURITY: Use crypto-secure randomness for jitter calculation
       const exponentialDelay = baseDelayMs * Math.pow(2, attempt);
-      const jitter = Math.random() * 0.3 * exponentialDelay; // 30% jitter
+      const randomBytes = new Uint32Array(1);
+      crypto.getRandomValues(randomBytes);
+      const jitter = (randomBytes[0]! / 0xffffffff) * 0.3 * exponentialDelay; // 30% jitter
       const delay = Math.min(exponentialDelay + jitter, maxDelayMs);
 
       await new Promise((resolve) => setTimeout(resolve, delay));

@@ -356,10 +356,14 @@ export class MockStripeClient {
     const todayEnd = new Date(now);
     todayEnd.setHours(23, 59, 59, 999);
 
-    // Generate realistic mock data
+    // SECURITY: Use crypto-secure randomness for mock data
     const baseAmount = 250000; // 2500 RON base
-    const variance = Math.floor(Math.random() * 150000); // 0-1500 RON variance
-    const transactionCount = Math.floor(Math.random() * 8) + 3; // 3-10 transactions
+    const varianceBytes = new Uint32Array(1);
+    crypto.getRandomValues(varianceBytes);
+    const variance = varianceBytes[0]! % 150001; // 0-1500 RON variance
+    const countBytes = new Uint32Array(1);
+    crypto.getRandomValues(countBytes);
+    const transactionCount = (countBytes[0]! % 8) + 3; // 3-10 transactions
 
     return Promise.resolve({
       amount: baseAmount + variance,
@@ -377,8 +381,11 @@ export class MockStripeClient {
     const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
     const dailyAverage = 300000; // 3000 RON average per day
 
+    // SECURITY: Use crypto-secure randomness for mock data
+    const varianceBytes = new Uint32Array(1);
+    crypto.getRandomValues(varianceBytes);
     return Promise.resolve({
-      amount: dailyAverage * days + Math.floor(Math.random() * 100000),
+      amount: dailyAverage * days + (varianceBytes[0]! % 100001),
       currency: 'ron',
       transactionCount: days * 5,
       periodStart: startDate,

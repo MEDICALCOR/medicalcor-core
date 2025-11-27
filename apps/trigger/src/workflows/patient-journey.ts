@@ -721,7 +721,8 @@ export const bookingAgentWorkflow = task({
     }
 
     // Check if booking was successful
-    if (!appointment!) {
+    // CRITICAL FIX: Use proper undefined check instead of non-null assertion on possibly undefined variable
+    if (appointment === undefined) {
       logger.error('All booking attempts failed', {
         attempts: bookingAttempt,
         lastError: lastBookingError,

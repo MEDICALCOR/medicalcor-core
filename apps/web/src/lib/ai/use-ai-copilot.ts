@@ -20,9 +20,10 @@ interface UseCopilotState {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '/api';
 
-// Generate unique ID
+// Generate unique ID using crypto-secure randomness
 function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  // Use crypto.randomUUID() for cryptographically secure ID generation
+  return `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
 }
 
 export function useAICopilot() {

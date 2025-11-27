@@ -14,6 +14,7 @@
  */
 
 import { z } from 'zod';
+import crypto from 'crypto';
 import {
   AdaptiveTimeoutManager,
   createAdaptiveTimeoutManager,
@@ -638,12 +639,17 @@ export class MultiProviderGateway {
       weight: this.providers.get(p)?.weight ?? 50,
     }));
 
-    // Sort by random weighted value
+    // SECURITY: Use crypto-secure randomness for weighted selection
     return weighted
-      .map((item) => ({
-        ...item,
-        sort: Math.random() * item.weight,
-      }))
+      .map((item) => {
+        const randomBytes = new Uint32Array(1);
+        crypto.getRandomValues(randomBytes);
+        const randomValue = randomBytes[0]! / 0xffffffff;
+        return {
+          ...item,
+          sort: randomValue * item.weight,
+        };
+      })
       .sort((a, b) => b.sort - a.sort)
       .map((item) => item.provider);
   }
