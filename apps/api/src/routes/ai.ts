@@ -13,6 +13,17 @@ import {
   FUNCTION_INPUT_SCHEMAS,
   type AIFunctionCategory,
   type FunctionContext,
+  // New AI Gateway imports
+  createUserRateLimiter,
+  createTokenEstimator,
+  createAIBudgetController,
+  createAdaptiveTimeoutManager,
+  type UserRateLimiter,
+  type TokenEstimator,
+  type AIBudgetController,
+  type AdaptiveTimeoutManager,
+  type UserTier,
+  type AIOperationType,
 } from '@medicalcor/core';
 
 /**
@@ -78,6 +89,89 @@ function initializeFunctionRegistry(): void {
 
 // Initialize on module load
 initializeFunctionRegistry();
+
+// AI Gateway services (lazily initialized with Redis)
+let userRateLimiter: UserRateLimiter | null = null;
+let budgetController: AIBudgetController | null = null;
+const tokenEstimator: TokenEstimator = createTokenEstimator();
+const timeoutManager: AdaptiveTimeoutManager = createAdaptiveTimeoutManager();
+
+/**
+ * Initialize AI Gateway services with Redis
+ * Called when the first request comes in with Redis available
+ */
+function initializeAIGatewayServices(redis: any): void {
+  if (!userRateLimiter && redis) {
+    userRateLimiter = createUserRateLimiter(redis, {
+      enabled: true,
+      defaultTier: 'basic',
+      enableTokenLimiting: true,
+      enableConcurrentLimiting: true,
+    });
+  }
+
+  if (!budgetController && redis) {
+    budgetController = createAIBudgetController(redis, {
+      enabled: true,
+      defaultDailyBudget: 50, // $50/day per user
+      defaultMonthlyBudget: 1000, // $1000/month per user
+      globalDailyBudget: 500, // $500/day global
+      globalMonthlyBudget: 10000, // $10000/month global
+      alertThresholds: [0.5, 0.75, 0.9],
+      blockOnExceeded: false, // Soft limit for now
+      onAlert: async (alert) => {
+        console.warn(
+          `[AIBudget] Alert: ${alert.scope} ${alert.scopeId} at ${Math.round(alert.percentUsed * 100)}% of ${alert.period} budget`
+        );
+      },
+    });
+  }
+}
+
+/**
+ * Determine operation type from request for timeout configuration
+ */
+function getOperationType(request: z.infer<typeof AIRequestSchema>): AIOperationType {
+  if (request.type === 'natural') {
+    // Natural language requests - check if it's likely scoring
+    const query = request.query.toLowerCase();
+    if (query.includes('scor') || query.includes('lead') || query.includes('calific')) {
+      return 'scoring';
+    }
+    return 'function_call';
+  }
+
+  if (request.type === 'function_call') {
+    const firstCall = request.calls[0];
+    if (firstCall?.function.includes('score')) {
+      return 'scoring';
+    }
+    if (firstCall?.function.includes('reply') || firstCall?.function.includes('message')) {
+      return 'reply_generation';
+    }
+    return 'function_call';
+  }
+
+  if (request.type === 'workflow') {
+    return 'workflow';
+  }
+
+  return 'default';
+}
+
+/**
+ * Get user tier from headers or default
+ */
+function getUserTier(headers: Record<string, string | string[] | undefined>): UserTier {
+  const tierHeader = headers['x-user-tier'];
+  if (typeof tierHeader === 'string') {
+    const validTiers: UserTier[] = ['free', 'basic', 'pro', 'enterprise', 'unlimited'];
+    if (validTiers.includes(tierHeader as UserTier)) {
+      return tierHeader as UserTier;
+    }
+  }
+  return 'basic';
+}
 
 // Query schemas
 const FunctionQuerySchema = z.object({
@@ -240,6 +334,13 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
    * - Direct function calls (LLM specifies function and arguments)
    * - Multi-step workflows (sequence of dependent function calls)
    *
+   * FEATURES:
+   * - Adaptive timeout (5s for scoring, 30s for others)
+   * - User-based rate limiting with token budgets
+   * - Pre-call cost estimation
+   * - Budget alerts at 50%, 75%, 90%
+   * - Instant fallback for critical operations
+   *
    * SECURITY: This endpoint requires API key authentication (enforced by apiAuthPlugin)
    * and validates all user/tenant IDs to prevent spoofing attacks.
    */
@@ -294,6 +395,13 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
     handler: async (request, reply) => {
       const correlationId = (request.headers['x-correlation-id'] as string) ?? crypto.randomUUID();
       const traceId = (request.headers['x-trace-id'] as string) ?? crypto.randomUUID();
+      const startTime = Date.now();
+
+      // Initialize AI Gateway services if Redis is available
+      const redis = (fastify as any).redis;
+      if (redis) {
+        initializeAIGatewayServices(redis);
+      }
 
       // Parse and validate request
       const parseResult = ExecuteBodySchema.safeParse(request.body);
@@ -318,6 +426,86 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
         });
       }
 
+      // Get user tier and operation type
+      const userTier = getUserTier(request.headers);
+      const operationType = getOperationType(parseResult.data);
+      const timeoutConfig = timeoutManager.getTimeoutConfig(operationType);
+
+      // Estimate tokens and cost before execution
+      let estimatedTokens = { input: 500, output: 500 }; // Default estimate
+      if (parseResult.data.type === 'natural') {
+        const estimate = tokenEstimator.estimate(
+          [{ role: 'user', content: parseResult.data.query }],
+          { model: 'gpt-4o', maxOutputTokens: 500 }
+        );
+        estimatedTokens = { input: estimate.inputTokens, output: estimate.estimatedOutputTokens };
+      }
+      const estimatedCost = tokenEstimator.estimateCost(
+        [{ role: 'user', content: JSON.stringify(parseResult.data) }],
+        'gpt-4o',
+        estimatedTokens.output
+      );
+
+      // Check user rate limit (if rate limiter is available)
+      if (userRateLimiter) {
+        const rateLimitResult = await userRateLimiter.checkLimit(userId, {
+          tier: userTier,
+          estimatedTokens: estimatedTokens.input + estimatedTokens.output,
+          operationType,
+        });
+
+        if (!rateLimitResult.allowed) {
+          reply.header('X-RateLimit-Limit', rateLimitResult.limit.toString());
+          reply.header('X-RateLimit-Remaining', rateLimitResult.remaining.toString());
+          reply.header('X-RateLimit-Reset', rateLimitResult.resetAt.toString());
+          reply.header('Retry-After', (rateLimitResult.retryAfter ?? rateLimitResult.resetInSeconds).toString());
+
+          return reply.status(429).send({
+            code: 'RATE_LIMIT_EXCEEDED',
+            message: rateLimitResult.reason ?? 'Too many requests',
+            retryAfter: rateLimitResult.retryAfter ?? rateLimitResult.resetInSeconds,
+            tier: userTier,
+          });
+        }
+
+        // Set rate limit headers
+        reply.header('X-RateLimit-Limit', rateLimitResult.limit.toString());
+        reply.header('X-RateLimit-Remaining', rateLimitResult.remaining.toString());
+        reply.header('X-RateLimit-Reset', rateLimitResult.resetAt.toString());
+      }
+
+      // Check budget (if budget controller is available)
+      let budgetWarning: string | undefined;
+      if (budgetController) {
+        const budgetResult = await budgetController.checkBudget({
+          userId,
+          tenantId: tenantId ?? undefined,
+          estimatedCost: estimatedCost.totalCost,
+          model: 'gpt-4o',
+          estimatedTokens,
+        });
+
+        if (!budgetResult.allowed) {
+          return reply.status(402).send({
+            code: 'BUDGET_EXCEEDED',
+            message: budgetResult.reason ?? 'AI budget exceeded',
+            status: budgetResult.status,
+            remainingDaily: budgetResult.remainingDaily,
+            remainingMonthly: budgetResult.remainingMonthly,
+          });
+        }
+
+        // Add budget warning header if near limit
+        if (budgetResult.status === 'warning' || budgetResult.status === 'critical') {
+          budgetWarning = `${budgetResult.status}: Daily $${budgetResult.remainingDaily.toFixed(2)} / Monthly $${budgetResult.remainingMonthly.toFixed(2)} remaining`;
+          reply.header('X-Budget-Warning', budgetWarning);
+        }
+
+        // Set budget headers
+        reply.header('X-Budget-Status', budgetResult.status);
+        reply.header('X-Estimated-Cost', estimatedCost.totalCost.toFixed(4));
+      }
+
       const context: FunctionContext = {
         correlationId,
         traceId,
@@ -326,21 +514,118 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
       };
 
       try {
-        const response = await router.process(parseResult.data, context);
+        // Execute with adaptive timeout
+        const executePromise = router.process(parseResult.data, context);
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => {
+            reject(new Error(`Operation timed out after ${timeoutConfig.timeoutMs}ms`));
+          }, timeoutConfig.timeoutMs);
+        });
+
+        let response: Awaited<ReturnType<typeof router.process>>;
+        let usedFallback = false;
+
+        try {
+          response = await Promise.race([executePromise, timeoutPromise]);
+        } catch (error) {
+          // If instant fallback is enabled and operation timed out
+          if (timeoutConfig.instantFallback && error instanceof Error && error.message.includes('timed out')) {
+            request.log.warn({ correlationId, operationType }, 'Operation timed out, using fallback');
+            usedFallback = true;
+
+            // Return a fallback response for scoring operations
+            if (operationType === 'scoring') {
+              response = {
+                success: true,
+                requestId: crypto.randomUUID(),
+                type: parseResult.data.type,
+                results: [{
+                  function: 'score_lead',
+                  success: true,
+                  result: {
+                    score: 3, // Default mid-range score
+                    classification: 'WARM',
+                    confidence: 0.5,
+                    reasoning: 'Fallback response due to timeout - manual review recommended',
+                    suggestedAction: 'Queue for manual scoring',
+                    usedFallback: true,
+                  },
+                  executionTimeMs: Date.now() - startTime,
+                }],
+                totalExecutionTimeMs: Date.now() - startTime,
+                traceId,
+              };
+            } else {
+              // Re-throw for non-fallback operations
+              throw error;
+            }
+          } else {
+            throw error;
+          }
+        }
+
+        const executionTime = Date.now() - startTime;
+
+        // Record actual cost (if budget controller available)
+        if (budgetController) {
+          // Use actual tokens if available, otherwise estimate
+          const actualCost = estimatedCost.totalCost * (response.success ? 1 : 0.1);
+          await budgetController.recordCost(actualCost, {
+            userId,
+            tenantId: tenantId ?? undefined,
+            model: 'gpt-4o',
+            operation: operationType,
+          });
+        }
+
+        // Record token usage (if rate limiter available)
+        if (userRateLimiter) {
+          await userRateLimiter.recordTokenUsage(userId, estimatedTokens.input + estimatedTokens.output, {
+            tier: userTier,
+            operationType,
+          });
+        }
+
+        // Record performance metrics for adaptive timeout
+        timeoutManager.recordPerformance(operationType, executionTime, response.success);
 
         // Set response headers
         reply.header('X-Correlation-Id', correlationId);
         reply.header('X-Trace-Id', traceId);
-        reply.header('X-Execution-Time-Ms', response.totalExecutionTimeMs.toString());
+        reply.header('X-Execution-Time-Ms', executionTime.toString());
+        reply.header('X-Operation-Type', operationType);
+        reply.header('X-Timeout-Ms', timeoutConfig.timeoutMs.toString());
+        if (usedFallback) {
+          reply.header('X-Used-Fallback', 'true');
+        }
 
-        return reply.send(response);
+        return reply.send({
+          ...response,
+          _meta: {
+            operationType,
+            timeoutMs: timeoutConfig.timeoutMs,
+            estimatedCost: estimatedCost.totalCost,
+            usedFallback,
+            budgetWarning,
+          },
+        });
       } catch (error) {
-        request.log.error({ error, correlationId }, 'AI execution error');
+        request.log.error({ error, correlationId, operationType }, 'AI execution error');
 
-        return reply.status(500).send({
-          code: 'EXECUTION_ERROR',
-          message: 'Failed to execute AI request',
+        // Record failed execution
+        timeoutManager.recordPerformance(operationType, Date.now() - startTime, false);
+
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const isTimeout = errorMessage.includes('timed out');
+
+        return reply.status(isTimeout ? 504 : 500).send({
+          code: isTimeout ? 'TIMEOUT_ERROR' : 'EXECUTION_ERROR',
+          message: isTimeout
+            ? `AI request timed out after ${timeoutConfig.timeoutMs}ms`
+            : 'Failed to execute AI request',
           correlationId,
+          operationType,
+          timeoutMs: timeoutConfig.timeoutMs,
         });
       }
     },
