@@ -92,7 +92,7 @@ export async function canAccessPatient(patientId: string): Promise<boolean> {
     const accessToken = process.env.HUBSPOT_ACCESS_TOKEN;
 
     if (!accessToken) {
-      console.error('[canAccessPatient] HUBSPOT_ACCESS_TOKEN not configured');
+      // HUBSPOT_ACCESS_TOKEN not configured - deny access
       return false;
     }
 
@@ -109,8 +109,7 @@ export async function canAccessPatient(patientId: string): Promise<boolean> {
     }
 
     return patientClinicId === session.user.clinicId;
-  } catch (error) {
-    console.error('[canAccessPatient] Failed to verify patient access:', error);
+  } catch {
     // Fail closed - deny access on error
     return false;
   }

@@ -578,7 +578,6 @@ export class FineTuningExportService {
   ): FineTuningExample[] {
     // For now, return original examples
     // In production, this would integrate with translation/paraphrase APIs
-    console.warn('[FineTuningExport] Augmentation not implemented, returning original examples');
     return examples;
   }
 
