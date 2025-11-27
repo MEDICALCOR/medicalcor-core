@@ -121,6 +121,16 @@ interface RedisConnection {
   publish: (channel: string, message: string) => Promise<number>;
   subscribe: (channel: string, callback: (message: string) => void) => Promise<void>;
   unsubscribe: (channel: string) => Promise<void>;
+  eval: (script: string, numKeys: number, ...args: (string | number)[]) => Promise<unknown>;
+  multi: () => RedisPipeline;
+  incrby: (key: string, increment: number) => Promise<number>;
+}
+
+// Redis pipeline interface for MULTI/EXEC operations
+interface RedisPipeline {
+  incrby: (key: string, increment: number) => RedisPipeline;
+  expire: (key: string, seconds: number) => RedisPipeline;
+  exec: () => Promise<[Error | null, unknown][] | null>;
 }
 
 /**
@@ -544,23 +554,32 @@ export class SecureRedisClient {
   }
 
   /**
-   * Release a distributed lock
-   * Only releases if the token matches (prevents releasing someone else's lock)
+   * Release a distributed lock using Lua script for atomic operation
+   * SECURITY: Uses Lua script to prevent race conditions where token could change
+   * between GET and DEL operations (TOCTOU vulnerability)
    *
    * @param lockKey - The lock identifier
    * @param token - The token returned from acquireLock
    * @returns true if lock was released, false if lock was not held or token mismatch
    */
   async releaseLock(lockKey: string, token: string): Promise<boolean> {
-    const fullKey = `lock:${lockKey}`;
-    const currentToken = await this.get(fullKey);
+    return this.executeCommand(async () => {
+      const conn = this.ensureConnection();
+      const fullKey = this.prefixKey(`lock:${lockKey}`);
 
-    if (currentToken === token) {
-      await this.del(fullKey);
-      return true;
-    }
+      // Lua script for atomic check-and-delete
+      // Returns 1 if lock was released, 0 if token didn't match or key didn't exist
+      const luaScript = `
+        if redis.call("GET", KEYS[1]) == ARGV[1] then
+          return redis.call("DEL", KEYS[1])
+        else
+          return 0
+        end
+      `;
 
-    return false;
+      const result = await conn.eval(luaScript, 1, fullKey, token);
+      return result === 1;
+    });
   }
 
   /**

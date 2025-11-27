@@ -3,7 +3,8 @@
 /* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/return-await */
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import crypto from 'crypto';
 import { createBackupServiceFromEnv, type BackupMetadata, type BackupType } from '@medicalcor/core';
 
 /**
@@ -16,6 +17,57 @@ import { createBackupServiceFromEnv, type BackupMetadata, type BackupType } from
  * - Managing backup configuration
  * - Monitoring backup status
  */
+
+/**
+ * SECURITY: Timing-safe API key comparison to prevent timing attacks
+ * Uses constant-time comparison regardless of where strings differ
+ */
+function verifyApiKeyTimingSafe(providedKey: string | undefined, validKey: string): boolean {
+  if (!providedKey || !validKey) {
+    return false;
+  }
+
+  try {
+    // Ensure both buffers are the same length for timingSafeEqual
+    // If lengths differ, create padded buffers to ensure constant-time comparison
+    const providedBuffer = Buffer.from(providedKey);
+    const validBuffer = Buffer.from(validKey);
+
+    if (providedBuffer.length !== validBuffer.length) {
+      // Compare against valid key buffer twice to maintain constant time
+      // This prevents length-based timing attacks
+      crypto.timingSafeEqual(validBuffer, validBuffer);
+      return false;
+    }
+
+    return crypto.timingSafeEqual(providedBuffer, validBuffer);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Authentication hook for backup endpoints
+ * SECURITY: All backup endpoints require admin API key authentication
+ */
+async function requireBackupAuth(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  const apiKey = request.headers['x-api-key'] as string | undefined;
+  const adminKey = process.env.ADMIN_API_KEY || process.env.API_SECRET_KEY;
+
+  if (!adminKey) {
+    return reply.status(503).send({
+      error: 'Service unavailable',
+      message: 'Admin authentication not configured',
+    });
+  }
+
+  if (!verifyApiKeyTimingSafe(apiKey, adminKey)) {
+    return reply.status(401).send({
+      error: 'Unauthorized',
+      message: 'Valid x-api-key header required for backup operations',
+    });
+  }
+}
 
 // Initialize backup service (singleton)
 let backupServiceInstance: ReturnType<typeof createBackupServiceFromEnv> = null;
@@ -71,8 +123,9 @@ export const backupRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /backup/status
    *
    * Get backup service status and statistics
+   * SECURITY: Requires admin API key authentication
    */
-  fastify.get('/backup/status', async () => {
+  fastify.get('/backup/status', { onRequest: requireBackupAuth }, async () => {
     const stats = backupService.getStats();
     const currentProgress = backupService.getCurrentProgress();
 
@@ -109,8 +162,9 @@ export const backupRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /backup/list
    *
    * List all backups with optional filtering
+   * SECURITY: Requires admin API key authentication
    */
-  fastify.get<{ Querystring: ListBackupsQuery }>('/backup/list', async (request) => {
+  fastify.get<{ Querystring: ListBackupsQuery }>('/backup/list', { onRequest: requireBackupAuth }, async (request) => {
     const { type, status, limit, fromDate, toDate } = request.query;
 
     // Build filter object without undefined values for exactOptionalPropertyTypes
@@ -164,8 +218,9 @@ export const backupRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /backup/:id
    *
    * Get details of a specific backup
+   * SECURITY: Requires admin API key authentication
    */
-  fastify.get<{ Params: { id: string } }>('/backup/:id', async (request, reply) => {
+  fastify.get<{ Params: { id: string } }>('/backup/:id', { onRequest: requireBackupAuth }, async (request, reply) => {
     const { id } = request.params;
     const backup = backupService.getBackup(id);
 
@@ -211,8 +266,9 @@ export const backupRoutes: FastifyPluginAsync = async (fastify) => {
    * POST /backup/create
    *
    * Create a new manual backup
+   * SECURITY: Requires admin API key authentication
    */
-  fastify.post<{ Body: CreateBackupRequest }>('/backup/create', async (request, reply) => {
+  fastify.post<{ Body: CreateBackupRequest }>('/backup/create', { onRequest: requireBackupAuth }, async (request, reply) => {
     const { type = 'full', tags } = request.body ?? {};
 
     // Check if a backup is already in progress
@@ -264,8 +320,9 @@ export const backupRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /backup/progress
    *
    * Get current backup progress (for polling)
+   * SECURITY: Requires admin API key authentication
    */
-  fastify.get('/backup/progress', async () => {
+  fastify.get('/backup/progress', { onRequest: requireBackupAuth }, async () => {
     const progress = backupService.getCurrentProgress();
 
     if (!progress) {
@@ -297,8 +354,9 @@ export const backupRoutes: FastifyPluginAsync = async (fastify) => {
    * POST /backup/restore
    *
    * Restore from a backup
+   * SECURITY: Requires admin API key authentication - CRITICAL operation
    */
-  fastify.post<{ Body: RestoreBackupRequest }>('/backup/restore', async (request, reply) => {
+  fastify.post<{ Body: RestoreBackupRequest }>('/backup/restore', { onRequest: requireBackupAuth }, async (request, reply) => {
     const {
       backupId,
       targetDatabaseUrl,
@@ -362,8 +420,9 @@ export const backupRoutes: FastifyPluginAsync = async (fastify) => {
    * DELETE /backup/:id
    *
    * Delete a specific backup
+   * SECURITY: Requires admin API key authentication - destructive operation
    */
-  fastify.delete<{ Params: { id: string } }>('/backup/:id', async (request, reply) => {
+  fastify.delete<{ Params: { id: string } }>('/backup/:id', { onRequest: requireBackupAuth }, async (request, reply) => {
     const { id } = request.params;
 
     const backup = backupService.getBackup(id);
@@ -398,26 +457,7 @@ export const backupRoutes: FastifyPluginAsync = async (fastify) => {
    * Get current backup configuration
    * SECURITY: Requires admin API key authentication to prevent info disclosure
    */
-  fastify.get('/backup/config', {
-    onRequest: async (request, reply) => {
-      const apiKey = request.headers['x-api-key'];
-      const adminKey = process.env.ADMIN_API_KEY || process.env.API_SECRET_KEY;
-
-      if (!adminKey) {
-        return reply.status(503).send({
-          error: 'Service unavailable',
-          message: 'Admin authentication not configured',
-        });
-      }
-
-      if (!apiKey || apiKey !== adminKey) {
-        return reply.status(401).send({
-          error: 'Unauthorized',
-          message: 'Valid x-api-key header required for backup configuration',
-        });
-      }
-    },
-  }, async () => {
+  fastify.get('/backup/config', { onRequest: requireBackupAuth }, async () => {
     return {
       timestamp: new Date().toISOString(),
       storage: {

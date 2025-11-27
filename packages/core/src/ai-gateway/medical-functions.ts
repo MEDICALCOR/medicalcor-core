@@ -146,7 +146,7 @@ export const ScoreLeadInputSchema = z.object({
 export const ScoreLeadFunction: AIFunction = {
   name: 'score_lead',
   description:
-    'Analyze and score a lead based on conversation history, channel, and behavior. Returns classification (HOT/WARM/COLD/UNQUALIFIED), numeric score (0-100), and recommended next action.',
+    'Analyze and score a lead based on conversation history, channel, and behavior. Returns classification (HOT/WARM/COLD/UNQUALIFIED), numeric score (1-5), and recommended next action.',
   parameters: {
     type: 'object',
     properties: {
@@ -211,7 +211,7 @@ export const ScoreLeadFunction: AIFunction = {
       },
       output: {
         classification: 'HOT',
-        score: 85,
+        score: 5, // Unified 1-5 scale: clear booking intent = score 5
         confidence: 0.92,
         intent: 'booking_request',
         recommendedAction: 'schedule_appointment',
@@ -797,10 +797,17 @@ export function validateAIReasoning(reasoning: string): {
 /**
  * Lead scoring output schema with validation
  * Ensures AI doesn't hallucinate scores or classifications
+ *
+ * UNIFIED SCALE: Uses 1-5 score scale across all schemas for consistency:
+ * - Score 5 (HOT): Explicit procedure interest + budget mentioned
+ * - Score 4 (HOT): Clear procedure interest + qualification signals
+ * - Score 3 (WARM): General interest in procedures
+ * - Score 2 (COLD): Vague interest, early research stage
+ * - Score 1 (UNQUALIFIED): Not a fit
  */
 export const LeadScoringOutputSchema = z
   .object({
-    score: z.number().min(0).max(100).describe('Lead score from 0-100'),
+    score: z.number().min(1).max(5).describe('Lead score from 1-5 (unified scale)'),
     classification: z.enum(['HOT', 'WARM', 'COLD', 'UNQUALIFIED']).describe('Lead classification'),
     confidence: z.number().min(0).max(1).describe('Confidence level 0-1'),
     reasoning: z
