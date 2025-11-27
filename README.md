@@ -10,9 +10,9 @@
 
 <p align="center">
   <a href="#-features">Features</a> •
+  <a href="#-architecture">Architecture</a> •
   <a href="#-quick-start">Quick Start</a> •
-  <a href="#-documentation">Documentation</a> •
-  <a href="#-architecture">Architecture</a>
+  <a href="#-documentation">Documentation</a>
 </p>
 
 <p align="center">
@@ -20,6 +20,7 @@
   <img src="https://img.shields.io/badge/TypeScript-5.6-blue?style=flat-square&logo=typescript" alt="TypeScript" />
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License" />
   <img src="https://img.shields.io/badge/GDPR-Compliant-success?style=flat-square" alt="GDPR" />
+  <img src="https://img.shields.io/badge/HIPAA-Ready-success?style=flat-square" alt="HIPAA" />
 </p>
 
 ---
@@ -44,26 +45,105 @@ AI-powered lead management system for dental clinics with omnichannel communicat
 
 ## Features
 
-- **AI-Powered Lead Scoring** - GPT-4o analyzes conversations to score leads (1-5) with automatic HOT/WARM/COLD classification
-- **Omnichannel Communication** - WhatsApp, Voice, Email, and Web support via unified inbox
-- **Durable Workflows** - Trigger.dev ensures reliable background processing with automatic retries
-- **GDPR Compliance** - Built-in consent management with audit trails
-- **Event Sourcing** - Complete audit trail for compliance and debugging
+### AI-First Architecture
+
+| Feature | Description |
+|---------|-------------|
+| **GPT-4o Lead Scoring** | AI-powered lead scoring (1-5) with automatic HOT/WARM/COLD classification, procedure interest detection, and urgency analysis |
+| **AI Gateway** | OpenAI & Anthropic compatible function calling with natural language intent detection and multi-step workflow execution |
+| **RAG Pipeline** | Retrieval-Augmented Generation with pgvector, hybrid semantic + keyword search, and HubSpot patient context integration |
+| **AI Copilot** | Smart response suggestions, patient history summaries, and procedure recommendations for clinic operators |
+| **Voice AI Integration** | Vapi-powered voice calls with real-time transcription, lead qualification extraction, and CRM sync |
+
+### Omnichannel Communication
+
+| Channel | Capabilities |
+|---------|--------------|
+| **WhatsApp Business** | Template messaging, rich media, consent tracking, multi-language support (RO/EN/DE) |
+| **Voice (Vapi)** | Outbound calls, transcript analysis, keyword extraction, automated summaries |
+| **Web Forms** | Lead capture with UTM tracking, GDPR consent collection |
+| **Email** | Integration-ready with HubSpot workflows |
+
+### Enterprise Infrastructure
+
+| Component | Description |
+|-----------|-------------|
+| **CQRS + Event Sourcing** | Command/Query separation with aggregate roots, projections, and complete audit trails |
+| **Circuit Breaker** | Resilient external service calls with automatic fallback and registry management |
+| **Durable Workflows** | Trigger.dev-powered background processing with automatic retries and idempotency |
+| **Observability** | OpenTelemetry instrumentation, Prometheus metrics, structured logging with correlation IDs |
+| **HIPAA-Compliant Logging** | Medical-grade PII redaction with pattern-based detection and explicit field enumeration |
+
+### Security & Compliance
+
+| Feature | Implementation |
+|---------|----------------|
+| **GDPR Consent Management** | Explicit consent tracking, automatic renewal reminders, audit trails |
+| **PII Redaction** | Automatic redaction of 50+ PII fields including Romanian CNP, phone, email, medical history |
+| **Authentication** | Session management, password policies, rate limiting, login attempt tracking |
+| **Webhook Security** | HMAC signature verification for WhatsApp, Stripe, Vapi webhooks |
+| **TLS/SSL** | Redis TLS support, secure database connections |
+
+### Intelligent Automation
+
+| Workflow | Description |
+|----------|-------------|
+| **Patient Journey** | Automated nurture sequences based on lead score and engagement |
+| **Appointment Reminders** | 24h and 2h automated WhatsApp reminders with consent verification |
+| **Daily Recall** | Automatic follow-up for patients due for 6-month checkups |
+| **Lead Scoring Refresh** | Nightly re-scoring of inactive leads |
+| **GDPR Consent Audit** | Daily check for expiring consent with automatic renewal requests |
+| **Stale Lead Cleanup** | Weekly archival of leads with 90+ days inactivity |
+| **Weekly Analytics** | Automated performance reports with conversion metrics |
+
+### Web Dashboard
+
+| Feature | Description |
+|---------|-------------|
+| **Real-time Inbox** | Unified view of WhatsApp, voice, and web conversations |
+| **AI Copilot Panel** | Context-aware chat, smart suggestions, patient summaries |
+| **Visual Workflow Builder** | Drag-and-drop automation with triggers, conditions, and actions |
+| **Analytics Dashboard** | Conversion funnels, operator performance, lead source analysis |
+| **Push Notifications** | Browser notifications for urgencies, new leads, appointments |
+| **Quick Search** | Keyboard-driven command palette (Cmd+K) |
+| **Data Export** | CSV and XLSX export for leads, appointments, reports |
 
 ## Architecture
 
 ```
 medicalcor-core/
 ├── apps/
-│   ├── api/                 # Fastify Server (Webhook Gateway)
-│   ├── trigger/             # Trigger.dev Workers
-│   └── web/                 # Next.js Admin Dashboard
+│   ├── api/                    # Fastify Server (Webhook Gateway)
+│   │   ├── routes/             # Health, webhooks, AI, diagnostics
+│   │   └── plugins/            # Auth, rate limiting
+│   ├── trigger/                # Trigger.dev Workers
+│   │   ├── workflows/          # Lead scoring, voice transcription
+│   │   ├── tasks/              # WhatsApp, voice, payment handlers
+│   │   └── jobs/               # Cron jobs (reminders, GDPR audit)
+│   └── web/                    # Next.js Admin Dashboard
+│       ├── components/         # AI copilot, analytics, workflows
+│       └── lib/                # Hooks, utilities, i18n
 ├── packages/
-│   ├── core/                # Shared Business Logic (logger, errors, utils)
-│   ├── types/               # Shared Zod Schemas
-│   ├── integrations/        # External Services (HubSpot, WhatsApp, OpenAI)
-│   └── domain/              # Domain Logic (scoring, triage, scheduling)
-└── infra/                   # Infrastructure configs
+│   ├── core/                   # Shared Infrastructure
+│   │   ├── ai-gateway/         # Function registry, AI router, caching
+│   │   ├── auth/               # Sessions, password reset, rate limiting
+│   │   ├── cqrs/               # Commands, queries, aggregates, projections
+│   │   ├── observability/      # Metrics, instrumentation, diagnostics
+│   │   ├── rag/                # Knowledge base, vector search, embeddings
+│   │   └── infrastructure/     # Redis client, backup service
+│   ├── domain/                 # Business Logic
+│   │   ├── scoring/            # AI + rule-based lead scoring
+│   │   ├── triage/             # Priority routing and scheduling
+│   │   ├── consent/            # GDPR consent management
+│   │   └── language/           # Multi-language detection
+│   ├── integrations/           # External Services
+│   │   ├── hubspot/            # CRM integration
+│   │   ├── whatsapp/           # Meta Business API
+│   │   ├── vapi/               # Voice AI
+│   │   ├── stripe/             # Payments
+│   │   └── openai/             # GPT-4o, embeddings
+│   └── types/                  # Shared Zod Schemas
+└── infra/                      # Infrastructure configs
 ```
 
 ## Quick Start
@@ -95,13 +175,73 @@ curl http://localhost:3000/health
 
 | Package | Description |
 |---------|-------------|
-| `@medicalcor/api` | Fastify webhook gateway |
-| `@medicalcor/trigger` | Trigger.dev workflows and jobs |
-| `@medicalcor/web` | Next.js admin dashboard |
-| `@medicalcor/core` | Logger, errors, utilities, env validation |
+| `@medicalcor/api` | Fastify webhook gateway with AI routes |
+| `@medicalcor/trigger` | Trigger.dev workflows, tasks, and cron jobs |
+| `@medicalcor/web` | Next.js admin dashboard with AI copilot |
+| `@medicalcor/core` | CQRS, event sourcing, AI gateway, RAG, auth, observability |
 | `@medicalcor/types` | Zod schemas for all domains |
-| `@medicalcor/domain` | Scoring, triage, scheduling services |
-| `@medicalcor/integrations` | HubSpot, WhatsApp, OpenAI clients |
+| `@medicalcor/domain` | Scoring, triage, consent, language services |
+| `@medicalcor/integrations` | HubSpot, WhatsApp, OpenAI, Vapi, Stripe clients |
+
+## Tech Stack
+
+### Runtime & Build
+- **Runtime**: Node.js 20+
+- **Package Manager**: pnpm 9+
+- **Build System**: Turborepo
+- **Language**: TypeScript 5.6 (strict mode)
+
+### Backend
+- **API Framework**: Fastify 5
+- **Background Jobs**: Trigger.dev v3
+- **Database**: PostgreSQL 15 + pgvector
+- **Cache**: Redis 7 with TLS
+- **Validation**: Zod
+
+### Frontend
+- **Framework**: Next.js 15
+- **Styling**: Tailwind CSS
+- **State**: React hooks
+
+### AI & ML
+- **LLM**: OpenAI GPT-4o
+- **Voice**: Vapi
+- **Embeddings**: text-embedding-3-small
+- **Vector Search**: pgvector
+
+### Observability
+- **Tracing**: OpenTelemetry
+- **Metrics**: Prometheus-compatible
+- **Logging**: Pino with PII redaction
+- **Error Tracking**: Sentry
+
+### Testing
+- **Unit/Integration**: Vitest
+- **Mocking**: MSW (Mock Service Worker)
+- **E2E**: Playwright
+
+## Commands
+
+```bash
+# Development
+pnpm dev              # Start all services
+pnpm dev:api          # Start API only
+
+# Building
+pnpm build            # Build all packages
+pnpm clean            # Clean build artifacts
+
+# Testing
+pnpm test             # Run all tests
+pnpm test:watch       # Watch mode
+pnpm test:coverage    # With coverage report
+
+# Code Quality
+pnpm lint             # Run ESLint
+pnpm lint:fix         # Fix linting issues
+pnpm format           # Format with Prettier
+pnpm typecheck        # Run TypeScript checks
+```
 
 ## Documentation
 
@@ -139,45 +279,16 @@ curl http://localhost:3000/health
 | [Glossary](./docs/README/GLOSSARY.md) | Domain terminology |
 | [Changelog](./docs/README/CHANGELOG.md) | Version history |
 
-## Tech Stack
-
-- **Runtime**: Node.js 20+
-- **Package Manager**: pnpm 9+
-- **Build System**: Turborepo
-- **Language**: TypeScript (strict mode)
-- **API Framework**: Fastify 5
-- **Web Framework**: Next.js 15
-- **Validation**: Zod
-- **Background Jobs**: Trigger.dev
-- **Database**: PostgreSQL 15
-- **Cache**: Redis 7
-- **Testing**: Vitest + MSW + Playwright
-- **Observability**: OpenTelemetry
-
-## Commands
-
-```bash
-# Development
-pnpm dev              # Start all services
-pnpm dev:api          # Start API only
-pnpm dev:web          # Start web dashboard
-
-# Building
-pnpm build            # Build all packages
-pnpm clean            # Clean build artifacts
-
-# Testing
-pnpm test             # Run all tests
-pnpm test:coverage    # With coverage report
-
-# Code Quality
-pnpm lint             # Run ESLint
-pnpm typecheck        # Run TypeScript checks
-```
-
 ## Environment Setup
 
 Copy `.env.example` to `.env` and configure your credentials. See [Configuration Guide](./docs/README/CONFIGURATION.md) for details.
+
+Required integrations:
+- **HubSpot** - CRM integration
+- **WhatsApp Business API** - Messaging
+- **OpenAI** - AI scoring and embeddings
+- **Vapi** - Voice AI (optional)
+- **Stripe** - Payments (optional)
 
 ## Contributing
 
