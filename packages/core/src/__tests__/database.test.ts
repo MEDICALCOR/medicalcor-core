@@ -14,7 +14,6 @@ import {
   type DatabasePool,
   type QueryResult,
   type PoolClient,
-  type TransactionClient,
   IsolationLevel,
   SerializationError,
   DeadlockError,
@@ -58,7 +57,7 @@ function createMockClient(
   return {
     queries: clientQueries,
     query: vi.fn().mockImplementation(async (sql: string, params?: unknown[]) => {
-      clientQueries.push({ query: sql, params });
+      clientQueries.push(params !== undefined ? { query: sql, params } : { query: sql });
 
       if (queryError) {
         throw queryError;

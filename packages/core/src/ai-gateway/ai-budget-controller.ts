@@ -518,13 +518,20 @@ export class AIBudgetController {
     else if (maxPercent >= 0.75) status = 'warning';
 
     const blocked = this.config.blockOnExceeded && (wouldExceedDaily || wouldExceedMonthly);
-    const reason = blocked
-      ? wouldExceedDaily
-        ? `Daily budget exceeded for ${scope} ${scopeId}`
-        : `Monthly budget exceeded for ${scope} ${scopeId}`
-      : undefined;
 
-    return { status, blocked, reason, alerts };
+    const result: { status: BudgetStatus; blocked: boolean; reason?: string; alerts: BudgetAlert[] } = {
+      status,
+      blocked,
+      alerts,
+    };
+
+    if (blocked) {
+      result.reason = wouldExceedDaily
+        ? `Daily budget exceeded for ${scope} ${scopeId}`
+        : `Monthly budget exceeded for ${scope} ${scopeId}`;
+    }
+
+    return result;
   }
 
   /**

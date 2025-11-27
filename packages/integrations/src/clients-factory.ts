@@ -51,6 +51,7 @@ export interface EventStore {
     aggregateId?: string;
     aggregateType?: string;
   }) => Promise<unknown>;
+  getByCorrelationId: (correlationId: string) => Promise<Array<{ type: string }>>;
 }
 
 /**

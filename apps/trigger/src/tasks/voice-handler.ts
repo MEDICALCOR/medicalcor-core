@@ -93,10 +93,7 @@ export const handleVoiceCall = task({
       // GDPR COMPLIANCE: Verify data processing consent before analyzing personal data
       if (consent) {
         try {
-          const consentCheck = await consent.hasRequiredConsents(hubspotContactId, [
-            'data_processing',
-            'voice_recording',
-          ]);
+          const consentCheck = await consent.hasRequiredConsents(hubspotContactId);
           if (!consentCheck.valid) {
             logger.warn('Missing GDPR consent for voice data processing', {
               contactId: hubspotContactId,

@@ -19,7 +19,6 @@ import {
   AdaptiveTimeoutManager,
   createAdaptiveTimeoutManager,
   type AIOperationType,
-  type FallbackResult,
 } from './adaptive-timeout.js';
 
 /**

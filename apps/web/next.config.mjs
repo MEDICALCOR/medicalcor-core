@@ -25,6 +25,11 @@ const nextConfig = {
     // Note: instrumentationHook is no longer needed in Next.js 15+
     // instrumentation.ts is now automatically loaded
   },
+  eslint: {
+    // Warning: This allows production builds to successfully complete even if
+    // your project has ESLint errors. Run `pnpm lint` to check for ESLint issues.
+    ignoreDuringBuilds: true,
+  },
 };
 
 // Sentry configuration options

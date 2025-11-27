@@ -77,11 +77,11 @@ export const patientJourneyWorkflow = task({
 
         try {
           // Check if task was already created (idempotency check via event store)
-          const existingEvents = await eventStore.getEventsByCorrelation(
+          const existingEvents = await eventStore.getByCorrelationId(
             `${correlationId}:task:${taskIdempotencyKey}`
           );
           const taskAlreadyCreated = existingEvents.some(
-            (e) => e.type === 'hubspot.task.created'
+            (e: { type: string }) => e.type === 'hubspot.task.created'
           );
 
           if (!taskAlreadyCreated) {
@@ -633,7 +633,7 @@ export const bookingAgentWorkflow = task({
     // ============================================
     logger.info('Booking selected slot', { slotId: selectedSlot.id, correlationId });
 
-    let appointment: Appointment;
+    let appointment: Appointment | undefined;
     const MAX_BOOKING_RETRIES = 3;
     let bookingAttempt = 0;
     let lastBookingError: unknown;
