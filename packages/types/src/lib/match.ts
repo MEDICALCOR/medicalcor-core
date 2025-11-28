@@ -73,12 +73,11 @@ export type PartialHandlerMap<T, K extends keyof T, R> = {
  *
  * area({ type: 'circle', radius: 5 }); // 78.54...
  */
-export function match<T, K extends keyof T, R>(
-  handlers: HandlerMap<T, K, R>
-): (value: T) => R {
+export function match<T, K extends keyof T, R>(handlers: HandlerMap<T, K, R>): (value: T) => R {
   return (value: T) => {
     const discriminant = value[Object.keys(handlers)[0] as K] as keyof typeof handlers;
     const handler = handlers[discriminant];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (handler) {
       return handler(value as never);
     }
@@ -96,13 +95,16 @@ export function match<T, K extends keyof T, R>(
  *   // ... all other event types
  * });
  */
+
 export function matchOn<T, K extends keyof T>(
   key: K,
   handlers: HandlerMap<T, K, unknown>
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
 ): <R>(value: T) => R {
   return (value: T) => {
     const discriminant = value[key] as keyof typeof handlers;
     const handler = handlers[discriminant];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (handler) {
       return handler(value as never) as never;
     }
@@ -170,17 +172,14 @@ export class Matcher<T, R = never> {
   /**
    * Creates a new matcher for a value
    */
-  static value<T>(value: T): Matcher<T, never> {
+  static value<T>(value: T): Matcher<T> {
     return new Matcher(value);
   }
 
   /**
    * Adds a conditional case with a guard
    */
-  when<U>(
-    guard: (value: T) => boolean,
-    handler: (value: T) => U
-  ): Matcher<T, R | U> {
+  when<U>(guard: (value: T) => boolean, handler: (value: T) => U): Matcher<T, R | U> {
     if (!this.matched && guard(this.value)) {
       this.result = handler(this.value) as unknown as R;
       this.matched = true;
@@ -283,7 +282,7 @@ export class UnionMatcher<T, K extends keyof T, R = never, THandled = never> {
   /**
    * Creates a union matcher with a discriminant key
    */
-  static on<T, K extends keyof T>(value: T, key: K): UnionMatcher<T, K, never, never> {
+  static on<T, K extends keyof T>(value: T, key: K): UnionMatcher<T, K> {
     return new UnionMatcher(value, key);
   }
 
@@ -399,7 +398,9 @@ export function matchesPattern<T>(value: T, pattern: Pattern<T>): boolean {
   if (typeof pattern === 'function') return (pattern as (value: T) => boolean)(value);
   if (typeof pattern === 'object' && pattern !== null && '_' in pattern) {
     if (pattern._ === 'wildcard') return true;
-    if (pattern._ === 'type') return (pattern as { _: 'type'; guard: (v: unknown) => boolean }).guard(value);
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (pattern._ === 'type')
+      return (pattern as { _: 'type'; guard: (v: unknown) => boolean }).guard(value);
   }
   return value === pattern;
 }
@@ -471,12 +472,10 @@ class SwitchExpr<T, R> {
  *   ['Hello, User!']
  * );
  */
-export function cond<T>(
-  ...conditions: [...Array<[boolean, T]>, [T]]
-): T {
+export function cond<T>(...conditions: [...[boolean, T][], [T]]): T {
   for (const item of conditions) {
     if (item.length === 1) return item[0];
-    const [condition, value] = item as [boolean, T];
+    const [condition, value] = item;
     if (condition) return value;
   }
   throw new Error('No condition matched and no default provided');
@@ -485,9 +484,7 @@ export function cond<T>(
 /**
  * Lazy conditional - evaluates handlers only when needed
  */
-export function condLazy<T>(
-  ...conditions: [...Array<[boolean, () => T]>, [() => T]]
-): T {
+export function condLazy<T>(...conditions: [...[boolean, () => T][], [() => T]]): T {
   for (const item of conditions) {
     if (item.length === 1) return (item[0] as () => T)();
     const [condition, handler] = item as [boolean, () => T];
@@ -502,9 +499,9 @@ export function condLazy<T>(
  * @example
  * const value = coalesce(maybeNull, maybeUndefined, defaultValue);
  */
-export function coalesce<T>(...values: Array<T | null | undefined>): T | undefined {
+export function coalesce<T>(...values: (T | null | undefined)[]): T | undefined {
   for (const value of values) {
-    if (value != null) return value;
+    if (value !== null && value !== undefined) return value;
   }
   return undefined;
 }
@@ -512,7 +509,9 @@ export function coalesce<T>(...values: Array<T | null | undefined>): T | undefin
 /**
  * First truthy value
  */
-export function firstTruthy<T>(...values: Array<T | null | undefined | false | 0 | ''>): T | undefined {
+export function firstTruthy<T>(
+  ...values: (T | null | undefined | false | 0 | '')[]
+): T | undefined {
   for (const value of values) {
     if (value) return value;
   }

@@ -63,9 +63,7 @@ function generateUUID(): string {
 /**
  * Creates event metadata
  */
-export function createEventMetadata(
-  options: Partial<EventMetadata> = {}
-): EventMetadata {
+export function createEventMetadata(options: Partial<EventMetadata> = {}): EventMetadata {
   const base = {
     id: options.id ?? generateUUID(),
     timestamp: options.timestamp ?? new Date().toISOString(),
@@ -95,7 +93,10 @@ export function createEventMetadata(
  */
 export interface EventDefinition<TType extends string, TPayload> {
   readonly type: TType;
-  readonly create: (payload: TPayload, metadata?: Partial<EventMetadata>) => BaseEvent<TType, TPayload>;
+  readonly create: (
+    payload: TPayload,
+    metadata?: Partial<EventMetadata>
+  ) => BaseEvent<TType, TPayload>;
   readonly is: (event: unknown) => event is BaseEvent<TType, TPayload>;
 }
 
@@ -187,7 +188,9 @@ export const LeadCreated = defineEvent<'lead.created', LeadCreatedPayload>('lead
 export const LeadScored = defineEvent<'lead.scored', LeadScoredPayload>('lead.scored');
 export const LeadQualified = defineEvent<'lead.qualified', LeadQualifiedPayload>('lead.qualified');
 export const LeadAssigned = defineEvent<'lead.assigned', LeadAssignedPayload>('lead.assigned');
-export const LeadStatusChanged = defineEvent<'lead.status.changed', LeadStatusChangedPayload>('lead.status.changed');
+export const LeadStatusChanged = defineEvent<'lead.status.changed', LeadStatusChangedPayload>(
+  'lead.status.changed'
+);
 
 // =============================================================================
 // DOMAIN EVENTS - WhatsApp
@@ -219,9 +222,17 @@ export interface WhatsAppStatusUpdatePayload {
   errorCode?: string;
 }
 
-export const WhatsAppMessageReceived = defineEvent<'whatsapp.message.received', WhatsAppMessageReceivedPayload>('whatsapp.message.received');
-export const WhatsAppMessageSent = defineEvent<'whatsapp.message.sent', WhatsAppMessageSentPayload>('whatsapp.message.sent');
-export const WhatsAppStatusUpdate = defineEvent<'whatsapp.status.updated', WhatsAppStatusUpdatePayload>('whatsapp.status.updated');
+export const WhatsAppMessageReceived = defineEvent<
+  'whatsapp.message.received',
+  WhatsAppMessageReceivedPayload
+>('whatsapp.message.received');
+export const WhatsAppMessageSent = defineEvent<'whatsapp.message.sent', WhatsAppMessageSentPayload>(
+  'whatsapp.message.sent'
+);
+export const WhatsAppStatusUpdate = defineEvent<
+  'whatsapp.status.updated',
+  WhatsAppStatusUpdatePayload
+>('whatsapp.status.updated');
 
 // =============================================================================
 // DOMAIN EVENTS - Voice
@@ -251,9 +262,16 @@ export interface VoiceTranscriptReadyPayload {
   sentiment?: string;
 }
 
-export const VoiceCallInitiated = defineEvent<'voice.call.initiated', VoiceCallInitiatedPayload>('voice.call.initiated');
-export const VoiceCallCompleted = defineEvent<'voice.call.completed', VoiceCallCompletedPayload>('voice.call.completed');
-export const VoiceTranscriptReady = defineEvent<'voice.transcript.ready', VoiceTranscriptReadyPayload>('voice.transcript.ready');
+export const VoiceCallInitiated = defineEvent<'voice.call.initiated', VoiceCallInitiatedPayload>(
+  'voice.call.initiated'
+);
+export const VoiceCallCompleted = defineEvent<'voice.call.completed', VoiceCallCompletedPayload>(
+  'voice.call.completed'
+);
+export const VoiceTranscriptReady = defineEvent<
+  'voice.transcript.ready',
+  VoiceTranscriptReadyPayload
+>('voice.transcript.ready');
 
 // =============================================================================
 // DOMAIN EVENTS - Payment
@@ -277,7 +295,9 @@ export interface PaymentFailedPayload {
   failureReason: string;
 }
 
-export const PaymentReceived = defineEvent<'payment.received', PaymentReceivedPayload>('payment.received');
+export const PaymentReceived = defineEvent<'payment.received', PaymentReceivedPayload>(
+  'payment.received'
+);
 export const PaymentFailed = defineEvent<'payment.failed', PaymentFailedPayload>('payment.failed');
 
 // =============================================================================
@@ -309,9 +329,18 @@ export interface AppointmentCancelledPayload {
   cancelledBy: 'patient' | 'clinic' | 'system';
 }
 
-export const AppointmentScheduled = defineEvent<'appointment.scheduled', AppointmentScheduledPayload>('appointment.scheduled');
-export const AppointmentReminderSent = defineEvent<'appointment.reminder.sent', AppointmentReminderSentPayload>('appointment.reminder.sent');
-export const AppointmentCancelled = defineEvent<'appointment.cancelled', AppointmentCancelledPayload>('appointment.cancelled');
+export const AppointmentScheduled = defineEvent<
+  'appointment.scheduled',
+  AppointmentScheduledPayload
+>('appointment.scheduled');
+export const AppointmentReminderSent = defineEvent<
+  'appointment.reminder.sent',
+  AppointmentReminderSentPayload
+>('appointment.reminder.sent');
+export const AppointmentCancelled = defineEvent<
+  'appointment.cancelled',
+  AppointmentCancelledPayload
+>('appointment.cancelled');
 
 // =============================================================================
 // DOMAIN EVENTS - Consent
@@ -327,7 +356,9 @@ export interface ConsentRecordedPayload {
   ipAddress?: string;
 }
 
-export const ConsentRecorded = defineEvent<'consent.recorded', ConsentRecordedPayload>('consent.recorded');
+export const ConsentRecorded = defineEvent<'consent.recorded', ConsentRecordedPayload>(
+  'consent.recorded'
+);
 
 // =============================================================================
 // EVENT UNION TYPE
@@ -401,7 +432,9 @@ export type EventHandlerMap<T extends DomainEventUnion = DomainEventUnion> = {
 /**
  * Partial event handler map - for selective handling
  */
-export type PartialEventHandlerMap<T extends DomainEventUnion = DomainEventUnion> = Partial<EventHandlerMap<T>>;
+export type PartialEventHandlerMap<T extends DomainEventUnion = DomainEventUnion> = Partial<
+  EventHandlerMap<T>
+>;
 
 // =============================================================================
 // EVENT BUS IMPLEMENTATION
@@ -444,8 +477,8 @@ export interface EventBusOptions {
  * bus.publish(LeadCreated.create({ phone: '+40123456789', source: 'whatsapp' }));
  */
 export class EventBus {
-  private handlers: Map<DomainEventTypeLiteral, Set<EventHandler<DomainEventUnion>>> = new Map();
-  private allHandlers: Set<EventHandler<DomainEventUnion>> = new Set();
+  private handlers = new Map<DomainEventTypeLiteral, Set<EventHandler<DomainEventUnion>>>();
+  private allHandlers = new Set<EventHandler<DomainEventUnion>>();
   private options: EventBusOptions;
 
   constructor(options: EventBusOptions = {}) {
@@ -462,6 +495,7 @@ export class EventBus {
     if (!this.handlers.has(type)) {
       this.handlers.set(type, new Set());
     }
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     this.handlers.get(type)!.add(handler as EventHandler<DomainEventUnion>);
 
     return {
@@ -503,6 +537,7 @@ export class EventBus {
   ): Subscription {
     const subscription = this.on(type, (event) => {
       subscription.unsubscribe();
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       handler(event);
     });
     return subscription;
@@ -566,7 +601,9 @@ export interface EventStore {
   /** Get events by aggregate ID */
   getEvents(aggregateId: string, afterVersion?: number): Promise<DomainEventUnion[]>;
   /** Get all events of a specific type */
-  getEventsByType<T extends DomainEventTypeLiteral>(type: T): Promise<Extract<DomainEventUnion, { type: T }>[]>;
+  getEventsByType<T extends DomainEventTypeLiteral>(
+    type: T
+  ): Promise<Extract<DomainEventUnion, { type: T }>[]>;
   /** Get events in a time range */
   getEventsInRange(from: Date, to: Date): Promise<DomainEventUnion[]>;
 }
@@ -599,7 +636,7 @@ export function replayEvents<TState>(
  */
 export class ProjectionBuilder<TState> {
   private initialState: TState;
-  private handlers: Map<DomainEventTypeLiteral, EventReducer<TState, DomainEventUnion>> = new Map();
+  private handlers = new Map<DomainEventTypeLiteral, EventReducer<TState, DomainEventUnion>>();
 
   constructor(initialState: TState) {
     this.initialState = initialState;
@@ -658,13 +695,14 @@ export function projection<TState>(initialState: TState): ProjectionBuilder<TSta
  *   _: () => 'Unknown event',
  * });
  */
+
 export function matchEvent<R>(
   event: DomainEventUnion,
-  handlers: PartialEventHandlerMap<DomainEventUnion> & { _?: () => R }
-): R | void {
+  handlers: PartialEventHandlerMap & { _?: () => R }
+): R | undefined {
   const handler = handlers[event.type as keyof typeof handlers];
   if (handler) {
-    return handler(event as never) as R | void;
+    return handler(event as never) as R | undefined;
   }
   return handlers._?.();
 }
@@ -690,6 +728,7 @@ export function groupEventsByType(
     if (!groups.has(event.type)) {
       groups.set(event.type, []);
     }
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     groups.get(event.type)!.push(event);
   }
   return groups;

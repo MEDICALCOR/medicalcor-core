@@ -65,8 +65,10 @@ export const HttpStatusCodes = {
 
 export type HttpStatusCode = (typeof HttpStatusCodes)[keyof typeof HttpStatusCodes];
 export type SuccessStatusCode = (typeof SuccessStatusCodes)[keyof typeof SuccessStatusCodes];
-export type ClientErrorStatusCode = (typeof ClientErrorStatusCodes)[keyof typeof ClientErrorStatusCodes];
-export type ServerErrorStatusCode = (typeof ServerErrorStatusCodes)[keyof typeof ServerErrorStatusCodes];
+export type ClientErrorStatusCode =
+  (typeof ClientErrorStatusCodes)[keyof typeof ClientErrorStatusCodes];
+export type ServerErrorStatusCode =
+  (typeof ServerErrorStatusCodes)[keyof typeof ServerErrorStatusCodes];
 
 // =============================================================================
 // ERROR CODES - Domain-Specific
@@ -294,14 +296,14 @@ export interface PaginationMeta {
  * Type guard for successful response
  */
 export function isSuccessResponse<T>(response: ApiResponse<T>): response is ApiSuccessResponse<T> {
-  return response.success === true;
+  return response.success;
 }
 
 /**
  * Type guard for error response
  */
 export function isErrorResponse<T>(response: ApiResponse<T>): response is ApiErrorResponse {
-  return response.success === false;
+  return !response.success;
 }
 
 // =============================================================================
@@ -340,7 +342,11 @@ export function validationError(
   message = 'Validation failed',
   traceId?: string
 ): ApiErrorResponse {
-  const opts: { statusCode: HttpStatusCode; fieldErrors: Record<string, string[]>; traceId?: string } = {
+  const opts: {
+    statusCode: HttpStatusCode;
+    fieldErrors: Record<string, string[]>;
+    traceId?: string;
+  } = {
     statusCode: 400,
     fieldErrors,
   };
@@ -351,14 +357,8 @@ export function validationError(
 /**
  * Creates a not found error response
  */
-export function notFoundError(
-  resource: string,
-  id?: string,
-  traceId?: string
-): ApiErrorResponse {
-  const message = id
-    ? `${resource} with ID '${id}' not found`
-    : `${resource} not found`;
+export function notFoundError(resource: string, id?: string, traceId?: string): ApiErrorResponse {
+  const message = id ? `${resource} with ID '${id}' not found` : `${resource} not found`;
   const details: Record<string, unknown> = { resource };
   if (id !== undefined) details.id = id;
   const opts: { statusCode: HttpStatusCode; details: Record<string, unknown>; traceId?: string } = {
@@ -372,10 +372,7 @@ export function notFoundError(
 /**
  * Creates an unauthorized error response
  */
-export function unauthorizedError(
-  message = 'Unauthorized',
-  traceId?: string
-): ApiErrorResponse {
+export function unauthorizedError(message = 'Unauthorized', traceId?: string): ApiErrorResponse {
   const opts: { statusCode: HttpStatusCode; traceId?: string } = { statusCode: 401 };
   if (traceId !== undefined) opts.traceId = traceId;
   return error(createApiError('UNAUTHENTICATED', message, opts));
@@ -384,10 +381,7 @@ export function unauthorizedError(
 /**
  * Creates a forbidden error response
  */
-export function forbiddenError(
-  message = 'Access denied',
-  traceId?: string
-): ApiErrorResponse {
+export function forbiddenError(message = 'Access denied', traceId?: string): ApiErrorResponse {
   const opts: { statusCode: HttpStatusCode; traceId?: string } = { statusCode: 403 };
   if (traceId !== undefined) opts.traceId = traceId;
   return error(createApiError('UNAUTHORIZED', message, opts));
@@ -401,7 +395,8 @@ export function internalError(
   traceId?: string,
   details?: Record<string, unknown>
 ): ApiErrorResponse {
-  const opts: { statusCode: HttpStatusCode; traceId?: string; details?: Record<string, unknown> } = { statusCode: 500 };
+  const opts: { statusCode: HttpStatusCode; traceId?: string; details?: Record<string, unknown> } =
+    { statusCode: 500 };
   if (traceId !== undefined) opts.traceId = traceId;
   if (details !== undefined) opts.details = details;
   return error(createApiError('INTERNAL_ERROR', message, opts));
@@ -489,10 +484,17 @@ export const ResponseMetaSchema = z.object({
  */
 export function createApiResponseSchema<T extends z.ZodTypeAny>(
   dataSchema: T
-): z.ZodDiscriminatedUnion<'success', [
-  z.ZodObject<{ success: z.ZodLiteral<true>; data: T; meta: z.ZodOptional<typeof ResponseMetaSchema> }>,
-  z.ZodObject<{ success: z.ZodLiteral<false>; error: typeof ApiErrorSchema }>
-]> {
+): z.ZodDiscriminatedUnion<
+  'success',
+  [
+    z.ZodObject<{
+      success: z.ZodLiteral<true>;
+      data: T;
+      meta: z.ZodOptional<typeof ResponseMetaSchema>;
+    }>,
+    z.ZodObject<{ success: z.ZodLiteral<false>; error: typeof ApiErrorSchema }>,
+  ]
+> {
   return z.discriminatedUnion('success', [
     z.object({
       success: z.literal(true),
@@ -522,9 +524,7 @@ export const PaginationMetaSchema = z.object({
 /**
  * Creates a paginated response schema
  */
-export function createPaginatedResponseSchema<T extends z.ZodTypeAny>(
-  itemSchema: T
-) {
+export function createPaginatedResponseSchema<T extends z.ZodTypeAny>(itemSchema: T) {
   return createApiResponseSchema(
     z.object({
       items: z.array(itemSchema),
@@ -540,10 +540,7 @@ export function createPaginatedResponseSchema<T extends z.ZodTypeAny>(
 /**
  * Maps a successful response's data
  */
-export function mapResponse<T, U>(
-  response: ApiResponse<T>,
-  fn: (data: T) => U
-): ApiResponse<U> {
+export function mapResponse<T, U>(response: ApiResponse<T>, fn: (data: T) => U): ApiResponse<U> {
   if (isSuccessResponse(response)) {
     return success(fn(response.data), response.meta);
   }
@@ -624,10 +621,7 @@ export function recoverResponse<T>(
 /**
  * Wraps a Promise into an API response
  */
-export async function wrapAsync<T>(
-  promise: Promise<T>,
-  traceId?: string
-): Promise<ApiResponse<T>> {
+export async function wrapAsync<T>(promise: Promise<T>, traceId?: string): Promise<ApiResponse<T>> {
   try {
     const data = await promise;
     const meta: Partial<ResponseMeta> = {};
@@ -642,10 +636,7 @@ export async function wrapAsync<T>(
 /**
  * Wraps a function that might throw into an API response
  */
-export function wrapSync<T>(
-  fn: () => T,
-  traceId?: string
-): ApiResponse<T> {
+export function wrapSync<T>(fn: () => T, traceId?: string): ApiResponse<T> {
   try {
     const meta: Partial<ResponseMeta> = {};
     if (traceId !== undefined) meta.traceId = traceId;
@@ -686,8 +677,8 @@ export interface BatchResponse<T> {
 export function batchSuccess<T>(
   results: BatchItemResult<T>[]
 ): ApiSuccessResponse<BatchResponse<T>> {
-  const succeeded = results.filter(r => isSuccessResponse(r.result));
-  const failed = results.filter(r => isErrorResponse(r.result));
+  const succeeded = results.filter((r) => isSuccessResponse(r.result));
+  const failed = results.filter((r) => isErrorResponse(r.result));
 
   return success({
     succeeded,
