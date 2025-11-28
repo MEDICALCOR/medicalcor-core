@@ -104,6 +104,10 @@ const LANGUAGE_MARKERS: Record<SupportedLanguage, string[]> = {
     'want',
     'would',
     'like',
+    'need',
+    'help',
+    'could',
+    'should',
     'appointment',
     'dentist',
     'clinic',
@@ -420,8 +424,12 @@ export class LanguageService {
     const normalizedMessage = message.toLowerCase().trim();
 
     // Check for explicit language requests
+    // Note: Using word boundaries that work with unicode by matching spaces/start/end
     const languagePatterns: Record<SupportedLanguage, RegExp[]> = {
-      ro: [/\b(română|romaneste|romanian)\b/i, /\b(vorbesc|vreau|prefer).*(română|romaneste)\b/i],
+      ro: [
+        /(?:^|\s)(română|romaneste|romanian)(?:\s|$)/i,
+        /(?:^|\s)(vorbesc|vreau|prefer).*(română|romaneste)(?:\s|$)/i,
+      ],
       en: [/\b(english|engleza)\b/i, /\b(speak|want|prefer).*english\b/i],
       de: [/\b(german|germana|deutsch)\b/i, /\b(spreche|möchte).*deutsch\b/i],
     };
