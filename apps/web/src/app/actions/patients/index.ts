@@ -33,7 +33,7 @@ import {
   getStripeClient,
   getSchedulingService,
   DEFAULT_TIMEZONE,
-} from '../shared/clients.js';
+} from '../shared/clients';
 import {
   mapHubSpotStageToStatus,
   mapScoreToClassification,
@@ -41,8 +41,8 @@ import {
   maskPhone,
   formatRelativeTime,
   parseProcedureInterest,
-} from '../shared/mappers.js';
-import { validatePageSize, emptyPaginatedResponse } from '../shared/pagination.js';
+} from '../shared/mappers';
+import { validatePageSize, emptyPaginatedResponse } from '../shared/pagination';
 
 // ============================================================================
 // PATIENT LIST ACTIONS

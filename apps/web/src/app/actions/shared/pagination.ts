@@ -1,4 +1,4 @@
-'use server';
+
 
 /**
  * @fileoverview Pagination Utilities for Server Actions
@@ -10,7 +10,7 @@
  */
 
 import type { HubSpotClient, HubSpotSearchRequest, HubSpotContact } from '@medicalcor/integrations';
-import { HUBSPOT_PAGE_SIZE, MAX_FETCH_RESULTS } from './clients.js';
+import { HUBSPOT_PAGE_SIZE, MAX_FETCH_RESULTS } from './clients';
 
 // ============================================================================
 // TYPES

@@ -42,4 +42,65 @@ export * from './language/index.js';
 // SHARED TYPES & UTILITIES
 // ============================================================================
 
-export * from './shared/index.js';
+// Export shared types from types.ts
+export * from './shared/types.js';
+
+// Export schemas and validation helpers, excluding types that conflict
+// with the domain service exports above
+export {
+  // Common schemas
+  ContactIdSchema,
+  PhoneNumberSchema,
+  EmailSchema,
+  ISODateStringSchema,
+  SupportedLanguageSchema,
+
+  // Consent schemas
+  ConsentTypeSchema,
+  ConsentStatusSchema,
+  ConsentChannelSchema,
+  ConsentMethodSchema,
+  ConsentSourceSchema,
+  ConsentRequestSchema,
+
+  // Scoring schemas
+  LeadChannelSchema,
+  MessageHistoryEntrySchema,
+  UTMParametersSchema,
+  AIScoringContextSchema,
+
+  // Triage schemas
+  LeadScoreClassificationSchema,
+  TriageInputSchema,
+
+  // Scheduling schemas
+  TimeSlotSchema,
+  DateStringSchema,
+  ProcedureTypeSchema,
+  AppointmentSlotSchema,
+  BookAppointmentRequestSchema,
+  AvailableSlotsRequestSchema,
+
+  // Language schemas
+  LanguageDetectionRequestSchema,
+  TranslationRequestSchema,
+
+  // Helpers
+  validateWithResult,
+  withValidation,
+
+  // Non-conflicting types from schemas (types that don't exist in domain services)
+  type ConsentChannel,
+  type ConsentMethod,
+  type LeadChannel,
+  type MessageHistoryEntry,
+  type UTMParameters,
+  type AIScoringContext,
+  type LeadScoreClassification,
+  type DateString,
+  type ProcedureType,
+  type AppointmentSlot,
+  type BookAppointmentRequest,
+  type AvailableSlotsRequest,
+  type LanguageDetectionRequest,
+} from './shared/schemas.js';

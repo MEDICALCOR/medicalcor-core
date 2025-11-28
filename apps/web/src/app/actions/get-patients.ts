@@ -1,10 +1,11 @@
-'use server';
-
 /**
  * @fileoverview Legacy Server Actions Re-exports
  *
  * This file maintains backward compatibility with existing imports.
  * All functionality has been modularized into domain-specific modules.
+ *
+ * NOTE: Do not add 'use server' here - re-exports are not allowed in server action files.
+ * The actual server action functions have 'use server' in their own files.
  *
  * @deprecated Import from domain-specific modules instead:
  * - `@/app/actions/patients` for patient/lead operations
@@ -30,30 +31,30 @@ export {
   getDashboardStatsAction,
   getPatientByIdAction,
   getPatientTimelineAction,
-} from './patients/index.js';
+} from './patients';
 
 // Triage actions
-export { getTriageLeadsAction } from './triage/index.js';
+export { getTriageLeadsAction } from './triage';
 
 // Calendar actions
-export { getCalendarSlotsAction } from './calendar/index.js';
+export { getCalendarSlotsAction } from './calendar';
 
 // Analytics actions
-export { getAnalyticsDataAction } from './analytics/index.js';
+export { getAnalyticsDataAction } from './analytics';
 
 // Messages actions
 export {
   getConversationsAction,
   getConversationsActionPaginated,
   getMessagesAction,
-} from './messages/index.js';
+} from './messages';
 
 // ============================================================================
 // TYPE RE-EXPORTS
 // ============================================================================
 
-export type { TriageLead, TriageColumn } from './triage/index.js';
-export type { CalendarSlot } from './calendar/index.js';
+export type { TriageLead, TriageColumn } from './triage';
+export type { CalendarSlot } from './calendar';
 export type {
   AnalyticsMetrics,
   TimeSeriesPoint,
@@ -62,5 +63,5 @@ export type {
   TopProcedure,
   OperatorPerformance,
   AnalyticsData,
-} from './analytics/index.js';
+} from './analytics';
 export type { Conversation, Message, PatientDetailData, PatientTimelineEvent } from '@medicalcor/types';

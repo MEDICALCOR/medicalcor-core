@@ -77,16 +77,15 @@ export {
 // ============================================================================
 // RESULT TYPE - Functional Error Handling
 // ============================================================================
-export {
-  // Core types
-  type Result,
-  type Ok,
-  type Err,
-  type Option,
-  type Some,
-  type None,
-  type AsyncResult,
 
+// Export types only (interfaces)
+export type { Result, Option } from './result.js';
+export type { Ok as OkResult, Err as ErrResult, Some as SomeOption, None as NoneOption } from './result.js';
+// Note: AsyncResult is both a type alias and a namespace, exported as value below
+
+// Export values (constructor functions and utilities)
+// AsyncResult works as both a type and a value due to TypeScript's declaration merging
+export {
   // Constructors
   Ok,
   Err,
@@ -112,7 +111,7 @@ export {
   isSome,
   isNone,
 
-  // AsyncResult utilities
+  // AsyncResult utilities namespace (also serves as the AsyncResult type)
   AsyncResult,
 } from './result.js';
 

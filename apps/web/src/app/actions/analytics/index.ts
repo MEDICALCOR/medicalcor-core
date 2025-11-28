@@ -20,9 +20,9 @@ import type {
   AnalyticsData,
 } from '@medicalcor/types';
 import { requirePermission } from '@/lib/auth/server-action-auth';
-import { getHubSpotClient, getStripeClient, getSchedulingService } from '../shared/clients.js';
-import { fetchAllContacts } from '../shared/pagination.js';
-import { mapLeadSource } from '../shared/mappers.js';
+import { getHubSpotClient, getStripeClient, getSchedulingService } from '../shared/clients';
+import { fetchAllContacts } from '../shared/pagination';
+import { mapLeadSource } from '../shared/mappers';
 
 // ============================================================================
 // CONSTANTS

@@ -110,7 +110,7 @@ export interface Container<T extends Record<string, unknown>> {
 class ContainerImpl<T extends Record<string, unknown>> implements Container<T> {
   private registrations = new Map<keyof T, Registration<T, unknown>>();
   private resolving = new Set<keyof T>(); // For cycle detection
-  private parent?: ContainerImpl<T>;
+  private parent: ContainerImpl<T> | undefined;
 
   constructor(parent?: ContainerImpl<T>) {
     this.parent = parent;

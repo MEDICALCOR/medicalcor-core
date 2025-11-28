@@ -34,17 +34,17 @@ export {
   getDashboardStatsAction,
   getPatientByIdAction,
   getPatientTimelineAction,
-} from './patients/index.js';
+} from './patients/index';
 
-export type { PatientDetailData, PatientTimelineEvent } from './patients/index.js';
+export type { PatientDetailData, PatientTimelineEvent } from './patients/index';
 
 // ============================================================================
 // TRIAGE ACTIONS
 // ============================================================================
 
-export { getTriageLeadsAction } from './triage/index.js';
+export { getTriageLeadsAction } from './triage/index';
 
-export type { TriageLead, TriageColumn } from './triage/index.js';
+export type { TriageLead, TriageColumn } from './triage/index';
 
 // ============================================================================
 // CALENDAR ACTIONS
@@ -53,15 +53,15 @@ export type { TriageLead, TriageColumn } from './triage/index.js';
 export {
   getCalendarSlotsAction,
   getAvailableSlotsRangeAction,
-} from './calendar/index.js';
+} from './calendar/index';
 
-export type { CalendarSlot } from './calendar/index.js';
+export type { CalendarSlot } from './calendar/index';
 
 // ============================================================================
 // ANALYTICS ACTIONS
 // ============================================================================
 
-export { getAnalyticsDataAction } from './analytics/index.js';
+export { getAnalyticsDataAction } from './analytics/index';
 
 export type {
   AnalyticsMetrics,
@@ -71,7 +71,7 @@ export type {
   TopProcedure,
   OperatorPerformance,
   AnalyticsData,
-} from './analytics/index.js';
+} from './analytics/index';
 
 // ============================================================================
 // MESSAGES ACTIONS
@@ -82,9 +82,9 @@ export {
   getConversationsActionPaginated,
   getMessagesAction,
   sendMessageAction,
-} from './messages/index.js';
+} from './messages/index';
 
-export type { Conversation, Message } from './messages/index.js';
+export type { Conversation, Message } from './messages/index';
 
 // ============================================================================
 // SHARED UTILITIES (for internal use)
@@ -97,7 +97,7 @@ export {
   DEFAULT_TIMEZONE,
   HUBSPOT_PAGE_SIZE,
   MAX_FETCH_RESULTS,
-} from './shared/clients.js';
+} from './shared/clients';
 
 export {
   mapHubSpotStageToStatus,
@@ -109,13 +109,13 @@ export {
   detectChannel,
   mapConversationStatus,
   LEAD_SCORE_THRESHOLDS,
-} from './shared/mappers.js';
+} from './shared/mappers';
 
 export {
   fetchAllContacts,
   validatePageSize,
   emptyPaginatedResponse,
-} from './shared/pagination.js';
+} from './shared/pagination';
 
-export type { PatientStatus, CommunicationChannel, ConversationStatus } from './shared/mappers.js';
-export type { FetchAllOptions, SearchParamsWithoutPaging } from './shared/pagination.js';
+export type { PatientStatus, CommunicationChannel, ConversationStatus } from './shared/mappers';
+export type { FetchAllOptions, SearchParamsWithoutPaging } from './shared/pagination';

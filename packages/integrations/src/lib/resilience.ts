@@ -92,10 +92,11 @@ export class Bulkhead {
 
   constructor(config: BulkheadConfig) {
     this.config = {
-      maxConcurrent: 10,
-      maxQueue: 50,
-      queueTimeoutMs: 30000,
       ...config,
+      // Apply defaults for missing properties
+      maxConcurrent: config.maxConcurrent ?? 10,
+      maxQueue: config.maxQueue ?? 50,
+      queueTimeoutMs: config.queueTimeoutMs ?? 30000,
     };
   }
 
@@ -646,7 +647,7 @@ export interface AdaptiveTimeoutConfig {
  * ```
  */
 export class AdaptiveTimeout {
-  private readonly config: AdaptiveTimeoutConfig;
+  private readonly config: Required<AdaptiveTimeoutConfig>;
   private currentTimeoutMs: number;
   private responseTimes: number[] = [];
   private timeoutCount = 0;
@@ -654,13 +655,12 @@ export class AdaptiveTimeout {
 
   constructor(config: Partial<AdaptiveTimeoutConfig> = {}) {
     this.config = {
-      initialTimeoutMs: 5000,
-      minTimeoutMs: 1000,
-      maxTimeoutMs: 60000,
-      successFactor: 0.9,
-      timeoutFactor: 1.5,
-      windowSize: 10,
-      ...config,
+      initialTimeoutMs: config.initialTimeoutMs ?? 5000,
+      minTimeoutMs: config.minTimeoutMs ?? 1000,
+      maxTimeoutMs: config.maxTimeoutMs ?? 60000,
+      successFactor: config.successFactor ?? 0.9,
+      timeoutFactor: config.timeoutFactor ?? 1.5,
+      windowSize: config.windowSize ?? 10,
     };
     this.currentTimeoutMs = this.config.initialTimeoutMs;
   }
@@ -970,7 +970,7 @@ export class CompositeResilience {
 
     // 2. Deduplication (if enabled)
     if (this.deduplicator && !options.skipDedup) {
-      return this.deduplicator.execute(key, () => this.executeWithBulkheadAndTimeout(operation));
+      return this.deduplicator.execute(key, () => this.executeWithBulkheadAndTimeout(operation)) as Promise<T>;
     }
 
     // 3. Bulkhead & Timeout

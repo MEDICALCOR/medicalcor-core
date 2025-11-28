@@ -1,4 +1,4 @@
-'use server';
+
 
 /**
  * @fileoverview Shared Server Action Utilities
@@ -8,6 +8,6 @@
  * @module actions/shared
  */
 
-export * from './clients.js';
-export * from './mappers.js';
-export * from './pagination.js';
+export * from './clients';
+export * from './mappers';
+export * from './pagination';
