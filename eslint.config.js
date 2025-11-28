@@ -77,10 +77,13 @@ export default tseslint.config(
     },
   },
 
-  // Custom rules
+  // Custom rules for code quality
   {
     rules: {
-      // TypeScript specific
+      // ===================================================================
+      // TypeScript Strict Rules - Domain-Specific Code Quality
+      // ===================================================================
+
       '@typescript-eslint/no-unused-vars': [
         'error',
         {
@@ -96,20 +99,80 @@ export default tseslint.config(
       '@typescript-eslint/no-import-type-side-effects': 'error',
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
-      '@typescript-eslint/no-explicit-any': 'warn',
+
+      // STRICT: No any types - use unknown or proper types
+      '@typescript-eslint/no-explicit-any': 'error',
+
+      // STRICT: No unsafe member access on any
+      '@typescript-eslint/no-unsafe-member-access': 'error',
+      '@typescript-eslint/no-unsafe-call': 'error',
+      '@typescript-eslint/no-unsafe-return': 'error',
+      '@typescript-eslint/no-unsafe-assignment': 'error',
+      '@typescript-eslint/no-unsafe-argument': 'error',
+
+      // Non-null assertions should be reviewed carefully
       '@typescript-eslint/no-non-null-assertion': 'warn',
+
       '@typescript-eslint/restrict-template-expressions': [
         'error',
         { allowNumber: true, allowBoolean: true },
       ],
 
-      // General
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      // Prefer nullish coalescing for safer defaults
+      '@typescript-eslint/prefer-nullish-coalescing': 'error',
+
+      // Ensure exhaustive switch statements for type safety
+      '@typescript-eslint/switch-exhaustiveness-check': 'error',
+
+      // ===================================================================
+      // Code Quality & Complexity
+      // ===================================================================
+
+      // Cyclomatic complexity limit (keep functions simple)
+      complexity: ['warn', { max: 15 }],
+
+      // Maximum function lines (encourage smaller functions)
+      'max-lines-per-function': [
+        'warn',
+        { max: 100, skipBlankLines: true, skipComments: true },
+      ],
+
+      // Maximum file lines
+      'max-lines': [
+        'warn',
+        { max: 500, skipBlankLines: true, skipComments: true },
+      ],
+
+      // Maximum nesting depth
+      'max-depth': ['warn', { max: 4 }],
+
+      // ===================================================================
+      // General Quality Rules
+      // ===================================================================
+
+      // STRICT: No console.log in production code
+      'no-console': ['error', { allow: ['warn', 'error', 'info', 'debug'] }],
+
       'prefer-const': 'error',
       'no-var': 'error',
       eqeqeq: ['error', 'always'],
 
-      // Relaxed for practicality
+      // No debugger statements in production
+      'no-debugger': 'error',
+
+      // No alert/confirm/prompt in production
+      'no-alert': 'error',
+
+      // Require default case in switch
+      'default-case': 'warn',
+
+      // Disallow returning values from setters
+      'no-setter-return': 'error',
+
+      // ===================================================================
+      // Relaxed for Practicality
+      // ===================================================================
+
       '@typescript-eslint/no-confusing-void-expression': 'off',
       '@typescript-eslint/no-misused-promises': ['error', { checksVoidReturn: false }],
       '@typescript-eslint/no-deprecated': 'off',

@@ -17,24 +17,15 @@ import { correlationId } from './branded-types.js';
 // Re-export Core Result Types from @medicalcor/types
 // =============================================================================
 
-export {
-  // Types
-  type Ok,
-  type Err,
-  type Result,
-  type AsyncResult,
-  // Constructors
-  Ok,
-  Err,
-  // Type Guards
-  isOk,
-  isErr,
-  // Result namespace operations
-  Result as ResultOps,
-} from '@medicalcor/types';
+// Re-export types - consumers can import Ok/Err types directly from @medicalcor/types if needed
+export type { Result, AsyncResult } from '@medicalcor/types';
 
-// Import for internal use
-import { Ok, Err, isOk, isErr, type Result, type AsyncResult } from '@medicalcor/types';
+// Re-export value constructors (Ok, Err), type guards, and Result namespace
+export { ok as Ok, err as Err, isOk, isErr, ResultOps } from '@medicalcor/types';
+
+// Import for internal use - alias to avoid conflicts with local ok/err functions
+import { ok as makeOk, err as makeErr, isOk, isErr } from '@medicalcor/types';
+import type { Result, AsyncResult } from '@medicalcor/types';
 
 // =============================================================================
 // Standalone Functions (for integration-specific use)
@@ -45,21 +36,21 @@ import { Ok, Err, isOk, isErr, type Result, type AsyncResult } from '@medicalcor
  * Create a successful Result (alias for Ok)
  */
 export function ok<T>(value: T): Result<T, never> {
-  return Ok(value);
+  return makeOk(value);
 }
 
 /**
  * Create a failed Result (alias for Err)
  */
 export function err<E>(error: E): Result<never, E> {
-  return Err(error);
+  return makeErr(error);
 }
 
 /**
  * Create a Result from a nullable value
  */
 export function fromNullable<T, E>(value: T | null | undefined, error: E): Result<T, E> {
-  return value !== null && value !== undefined ? Ok(value) : Err(error);
+  return value !== null && value !== undefined ? makeOk(value) : makeErr(error);
 }
 
 /**
@@ -70,7 +61,7 @@ export function fromPredicate<T, E>(
   predicate: (v: T) => boolean,
   error: E
 ): Result<T, E> {
-  return predicate(value) ? Ok(value) : Err(error);
+  return predicate(value) ? makeOk(value) : makeErr(error);
 }
 
 /**
@@ -78,9 +69,9 @@ export function fromPredicate<T, E>(
  */
 export function tryCatch<T, E = Error>(fn: () => T, onError: (error: unknown) => E): Result<T, E> {
   try {
-    return Ok(fn());
+    return makeOk(fn());
   } catch (e) {
-    return Err(onError(e));
+    return makeErr(onError(e));
   }
 }
 
@@ -92,9 +83,9 @@ export async function tryCatchAsync<T, E = Error>(
   onError: (error: unknown) => E
 ): AsyncResult<T, E> {
   try {
-    return Ok(await fn());
+    return makeOk(await fn());
   } catch (e) {
-    return Err(onError(e));
+    return makeErr(onError(e));
   }
 }
 
@@ -106,14 +97,14 @@ export async function tryCatchAsync<T, E = Error>(
  * Transform the success value (Functor map)
  */
 export function map<T, U, E>(result: Result<T, E>, fn: (value: T) => U): Result<U, E> {
-  return isOk(result) ? Ok(fn(result.value)) : result;
+  return isOk(result) ? makeOk(fn(result.value)) : result;
 }
 
 /**
  * Transform the error value
  */
 export function mapErr<T, E, F>(result: Result<T, E>, fn: (error: E) => F): Result<T, F> {
-  return isErr(result) ? Err(fn(result.error)) : result;
+  return isErr(result) ? makeErr(fn(result.error)) : result;
 }
 
 /**
@@ -145,7 +136,7 @@ export function ap<T, U, E>(
 ): Result<U, E> {
   if (isErr(resultFn)) return resultFn;
   if (isErr(result)) return result;
-  return Ok(resultFn.value(result.value));
+  return makeOk(resultFn.value(result.value));
 }
 
 // =============================================================================
@@ -185,7 +176,7 @@ export function recover<T, E>(
   recovery: (error: E) => T
 ): Result<T, E> {
   if (isErr(result) && predicate(result.error)) {
-    return Ok(recovery(result.error));
+    return makeOk(recovery(result.error));
   }
   return result;
 }
@@ -254,7 +245,7 @@ export function all<T extends readonly Result<unknown, unknown>[]>(
     }
     values.push(result.value);
   }
-  return Ok(values) as Result<
+  return makeOk(values) as Result<
     { [K in keyof T]: T[K] extends Result<infer U, unknown> ? U : never },
     never
   >;
@@ -275,7 +266,7 @@ export function allSettled<T, E>(results: readonly Result<T, E>[]): Result<T[], 
     }
   }
 
-  return errors.length > 0 ? Err(errors) : Ok(values);
+  return errors.length > 0 ? makeErr(errors) : makeOk(values);
 }
 
 /**
@@ -289,7 +280,7 @@ export function firstOk<T, E>(results: readonly Result<T, E>[]): Result<T, E> {
     lastErr = result;
   }
 
-  return lastErr ?? Err(undefined as E);
+  return lastErr ?? makeErr(undefined as E);
 }
 
 /**
@@ -311,7 +302,7 @@ export function sequenceS<R extends Record<string, Result<unknown, unknown>>>(
     resultEntries.push([key, result.value]);
   }
 
-  return Ok(Object.fromEntries(resultEntries)) as Result<
+  return makeOk(Object.fromEntries(resultEntries)) as Result<
     { [K in keyof R]: R[K] extends Result<infer T, unknown> ? T : never },
     never
   >;
@@ -407,8 +398,15 @@ function isRetryableCode(code: IntegrationErrorCode): boolean {
     case 'TIMEOUT':
     case 'RATE_LIMITED':
     case 'EXTERNAL_SERVICE_ERROR':
+    case 'CIRCUIT_OPEN':
       return true;
-    default:
+    case 'AUTHENTICATION_FAILED':
+    case 'AUTHORIZATION_FAILED':
+    case 'VALIDATION_ERROR':
+    case 'NOT_FOUND':
+    case 'CONFLICT':
+    case 'WEBHOOK_SIGNATURE_INVALID':
+    case 'INTERNAL_ERROR':
       return false;
   }
 }
@@ -536,27 +534,32 @@ export async function retryResult<T>(
 ): AsyncIntegrationResult<T> {
   const { maxRetries, baseDelayMs, shouldRetry = (e) => e.retryable } = options;
 
-  let lastError: IntegrationError | undefined;
+  // Handle edge case of no retries
+  if (maxRetries < 0) {
+    return operation();
+  }
+
+  let lastResult: Result<T, IntegrationError> = await operation();
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    const result = await operation();
-
-    if (isOk(result)) {
-      return result;
+    if (isOk(lastResult)) {
+      return lastResult;
     }
 
-    lastError = result.error;
+    const lastError = lastResult.error;
 
     if (!shouldRetry(lastError) || attempt === maxRetries) {
-      return result;
+      return lastResult;
     }
 
     // Exponential backoff
     const delay = baseDelayMs * Math.pow(2, attempt);
     await new Promise((resolve) => setTimeout(resolve, delay));
+
+    lastResult = await operation();
   }
 
-  return err(lastError!);
+  return lastResult;
 }
 
 // =============================================================================

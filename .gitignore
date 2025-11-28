@@ -162,3 +162,6 @@ trigger.config.d.ts.map
 packages/integrations/src/__mocks__/*.js
 packages/integrations/src/__mocks__/*.d.ts
 packages/integrations/src/__mocks__/*.map
+
+# JSCPD duplication reports
+.jscpd-report/
