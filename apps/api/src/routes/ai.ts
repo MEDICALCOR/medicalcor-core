@@ -441,8 +441,7 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
       }
       const estimatedCost = tokenEstimator.estimateCost(
         [{ role: 'user', content: JSON.stringify(parseResult.data) }],
-        'gpt-4o',
-        estimatedTokens.output
+        { model: 'gpt-4o', maxOutputTokens: estimatedTokens.output }
       );
 
       // Check user rate limit (if rate limiter is available)
@@ -478,7 +477,7 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
       if (budgetController) {
         const budgetResult = await budgetController.checkBudget({
           userId,
-          tenantId: tenantId ?? undefined,
+          ...(tenantId && { tenantId }),
           estimatedCost: estimatedCost.totalCost,
           model: 'gpt-4o',
           estimatedTokens,
@@ -571,7 +570,7 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
           const actualCost = estimatedCost.totalCost * (response.success ? 1 : 0.1);
           await budgetController.recordCost(actualCost, {
             userId,
-            tenantId: tenantId ?? undefined,
+            ...(tenantId && { tenantId }),
             model: 'gpt-4o',
             operation: operationType,
           });

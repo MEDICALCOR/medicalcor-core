@@ -380,6 +380,9 @@ export class FunctionExecutor {
       // Validate command bus result reasoning before returning
       if (result.result && typeof result.result === 'object' && 'reasoning' in result.result) {
         const resultWithReasoning = result.result as { reasoning: unknown };
+        if (typeof resultWithReasoning.reasoning !== 'string') {
+          throw new Error('AI reasoning must be a string');
+        }
         const reasoningValidation = validateAIReasoning(resultWithReasoning.reasoning);
         if (!reasoningValidation.valid) {
           // Log critical validation failure

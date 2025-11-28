@@ -91,7 +91,7 @@ function formatTimeAgo(date: Date): string {
 }
 
 export function RealtimeProvider({ children, wsUrl }: RealtimeProviderProps) {
-  const { data: session, status: sessionStatus } = useSession();
+  const { status: sessionStatus } = useSession();
 
   // Use Ring Buffers for memory-bounded storage
   // This prevents infinite memory growth when tab is open for 8+ hours
@@ -126,44 +126,64 @@ export function RealtimeProvider({ children, wsUrl }: RealtimeProviderProps) {
   // Use environment variable or provided URL
   const url = wsUrl ?? process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:3001/ws';
 
-  // SECURITY FIX: Get auth token from session for WebSocket authentication
-  // We use the NextAuth session token directly instead of creating a custom token
-  // The server validates this against the NextAuth session store
-  //
-  // NOTE: For production, consider implementing a dedicated WebSocket token endpoint
-  // that exchanges the session for a short-lived WS-specific JWT token:
+  // SECURITY: WebSocket authentication using server-signed JWT tokens
+  // Flow:
   //   1. Client calls /api/ws/token with session cookie
-  //   2. Server validates session and returns short-lived JWT (e.g., 5 min)
+  //   2. Server validates session and returns short-lived JWT (5 min)
   //   3. Client uses JWT for WebSocket auth
-  //   4. Server validates JWT signature and expiry
-  const authToken = useMemo(() => {
-    // When authenticated, session and session.user are guaranteed to exist
-    if (sessionStatus !== 'authenticated') {
-      return undefined;
+  //   4. WebSocket server validates JWT signature and expiry
+  const [authToken, setAuthToken] = useState<string | undefined>(undefined);
+  const tokenRefreshRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fetch WebSocket auth token from server
+  const fetchWsToken = useCallback(async () => {
+    try {
+      const response = await fetch('/api/ws/token', {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        console.error('[Realtime] Failed to fetch WS token:', response.status);
+        setAuthToken(undefined);
+        return;
+      }
+
+      const data = (await response.json()) as { token: string; expiresIn: number };
+      setAuthToken(data.token);
+
+      // Schedule token refresh 30 seconds before expiry
+      const refreshIn = (data.expiresIn - 30) * 1000;
+      if (refreshIn > 0) {
+        tokenRefreshRef.current = setTimeout(() => {
+          void fetchWsToken();
+        }, refreshIn);
+      }
+    } catch (error) {
+      console.error('[Realtime] Error fetching WS token:', error);
+      setAuthToken(undefined);
     }
-    // TypeScript doesn't know that session is non-null when authenticated, so we assert it
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (!session) {
-      return undefined;
+  }, []);
+
+  // Fetch token when authenticated
+  useEffect(() => {
+    if (sessionStatus === 'authenticated') {
+      void fetchWsToken();
+    } else {
+      setAuthToken(undefined);
+      if (tokenRefreshRef.current) {
+        clearTimeout(tokenRefreshRef.current);
+        tokenRefreshRef.current = null;
+      }
     }
 
-    // SECURITY: Use a cryptographically secure token instead of plain base64
-    // In a real implementation, this should be a JWT signed by the server
-    // For now, we include a hash that the server can validate
-    const tokenData = {
-      userId: session.user.id,
-      email: session.user.email,
-      timestamp: Date.now(),
-      // Add a nonce to prevent replay attacks
-      nonce: crypto.randomUUID(),
+    return () => {
+      if (tokenRefreshRef.current) {
+        clearTimeout(tokenRefreshRef.current);
+        tokenRefreshRef.current = null;
+      }
     };
-
-    // Use base64url encoding (URL-safe) instead of regular base64
-    return btoa(JSON.stringify(tokenData))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '');
-  }, [session, sessionStatus]);
+  }, [sessionStatus, fetchWsToken]);
 
   const { connectionState, isConnected, connect, disconnect, subscribe } = useWebSocket({
     url,

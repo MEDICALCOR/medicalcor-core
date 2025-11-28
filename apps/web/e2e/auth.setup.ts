@@ -15,10 +15,17 @@ setup('authenticate', async ({ page }) => {
   // Wait for the login form to be visible
   await expect(page.getByRole('heading', { name: /conectare/i })).toBeVisible();
 
-  // Fill in credentials
-  // Note: In CI, use environment variables for test credentials
-  const testEmail = process.env.TEST_USER_EMAIL ?? 'test@medicalcor.ro';
-  const testPassword = process.env.TEST_USER_PASSWORD ?? 'test-password-123';
+  // Fill in credentials - REQUIRED via environment variables
+  // SECURITY: No default credentials to prevent accidental use in production
+  const testEmail = process.env.TEST_USER_EMAIL;
+  const testPassword = process.env.TEST_USER_PASSWORD;
+
+  if (!testEmail || !testPassword) {
+    throw new Error(
+      'TEST_USER_EMAIL and TEST_USER_PASSWORD environment variables are required for E2E tests. ' +
+        'Set them in your CI pipeline or .env.local file.'
+    );
+  }
 
   await page.getByLabel(/email/i).fill(testEmail);
   await page.getByLabel(/parola/i).fill(testPassword);
@@ -41,11 +48,10 @@ setup('authenticate', async ({ page }) => {
 /**
  * Test credentials for CI:
  *
- * Set these environment variables in your CI pipeline:
+ * REQUIRED environment variables:
  * - TEST_USER_EMAIL: Email of test user
  * - TEST_USER_PASSWORD: Password of test user
  *
- * For local development, you can create a .env.local file:
- * TEST_USER_EMAIL=test@medicalcor.ro
- * TEST_USER_PASSWORD=test-password-123
+ * For local development, create a .env.local file with your test user credentials.
+ * NEVER commit real credentials to version control.
  */

@@ -286,6 +286,20 @@ export {
   GetLeadAnalyticsFunction,
   TriggerWorkflowFunction,
   GetWorkflowStatusFunction,
+  // Rate Limiter
+  UserRateLimiter,
+  createUserRateLimiter,
+  createRateLimitMiddleware,
+  // Token Estimator
+  TokenEstimator,
+  createTokenEstimator,
+  tokenEstimator,
+  // Budget Controller
+  AIBudgetController,
+  createAIBudgetController,
+  // Adaptive Timeout
+  AdaptiveTimeoutManager,
+  createAdaptiveTimeoutManager,
   // Types
   type AIFunction,
   type AIFunctionCall,
@@ -298,6 +312,8 @@ export {
   type AIResponse,
   type AIRouterConfig,
   type DetectedIntent,
+  type UserTier,
+  type AIOperationType,
 } from './ai-gateway/index.js';
 
 // Authentication & Authorization

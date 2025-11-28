@@ -8,7 +8,8 @@
  * Or in development: NODE_OPTIONS='--import ./src/instrumentation.ts' pnpm dev
  */
 
-import { initTelemetry, shutdownTelemetry } from '@medicalcor/core';
+// Note: initTelemetry/shutdownTelemetry from @medicalcor/core/telemetry are for manual setup
+// This file uses OpenTelemetry NodeSDK directly for auto-instrumentation
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
@@ -40,7 +41,8 @@ if (!isDisabled) {
 
   const sdk = new NodeSDK({
     resource,
-    spanProcessor: new BatchSpanProcessor(exporter),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    spanProcessor: new BatchSpanProcessor(exporter) as any,
     textMapPropagator: new W3CTraceContextPropagator(),
     instrumentations: [
       getNodeAutoInstrumentations({
@@ -82,4 +84,5 @@ if (!isDisabled) {
   process.on('SIGINT', shutdown);
 }
 
-export { initTelemetry, shutdownTelemetry };
+// Re-export telemetry utilities for consumers
+export { initTelemetry, shutdownTelemetry } from '@medicalcor/core/telemetry';

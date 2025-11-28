@@ -399,7 +399,8 @@ export const backupRoutes: FastifyPluginAsync = async (fastify) => {
         allowedDatabaseUrls.some(url => url.trim() === targetDatabaseUrl);
 
       if (!isAllowed) {
-        request.log.warn('Attempted restore to unauthorized database URL', {
+        request.log.warn({
+          msg: 'Attempted restore to unauthorized database URL',
           backupId,
           targetDatabaseUrl: targetDatabaseUrl.replace(/\/\/[^:]+:[^@]+@/, '//***:***@'), // Redact credentials
         });
