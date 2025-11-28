@@ -11,6 +11,10 @@
  * @version 2.0.0
  */
 
+/* eslint-disable @typescript-eslint/no-empty-object-type -- {} is intentional for generic type constraints in builder patterns */
+/* eslint-disable @typescript-eslint/no-non-null-assertion -- non-null assertions are safe in builder patterns where required fields are tracked at type level */
+/* eslint-disable @typescript-eslint/no-dynamic-delete -- dynamic delete is necessary for removing keys from builder state */
+
 import { z } from 'zod';
 import type { LeadId, TraceId, E164PhoneNumber, EmailAddress } from './primitives.js';
 import { createLeadId, createTraceId } from './primitives.js';
@@ -59,7 +63,7 @@ export class TypeSafeBuilder<TFinal, TCurrent extends Partial<TFinal> = {}> {
   setMany<TFields extends Partial<TFinal>>(
     fields: TFields
   ): TypeSafeBuilder<TFinal, TCurrent & TFields> {
-    return new TypeSafeBuilder({ ...this.data, ...fields } as TCurrent & TFields);
+    return new TypeSafeBuilder({ ...this.data, ...fields });
   }
 
   /**
@@ -80,7 +84,7 @@ export class TypeSafeBuilder<TFinal, TCurrent extends Partial<TFinal> = {}> {
 /**
  * Creates a new type-safe builder
  */
-export function createBuilder<T>(): TypeSafeBuilder<T, {}> {
+export function createBuilder<T>(): TypeSafeBuilder<T> {
   return new TypeSafeBuilder<T, {}>();
 }
 
@@ -97,7 +101,15 @@ export interface LeadData {
   email?: EmailAddress;
   firstName?: string;
   lastName?: string;
-  source: 'whatsapp' | 'voice' | 'web_form' | 'hubspot' | 'facebook' | 'google' | 'referral' | 'manual';
+  source:
+    | 'whatsapp'
+    | 'voice'
+    | 'web_form'
+    | 'hubspot'
+    | 'facebook'
+    | 'google'
+    | 'referral'
+    | 'manual';
   status: 'new' | 'contacted' | 'qualified' | 'nurturing' | 'scheduled' | 'converted' | 'lost';
   priority?: 'critical' | 'high' | 'medium' | 'low';
   clinicId?: string;
@@ -128,7 +140,9 @@ interface LeadBuilderState {
  *   .withName('John', 'Doe')
  *   .build();
  */
-export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; hasSource: false; hasStatus: false }> {
+export class LeadBuilder<
+  TState extends LeadBuilderState = { hasPhone: false; hasSource: false; hasStatus: false },
+> {
   private data: Partial<LeadData>;
 
   private constructor(data: Partial<LeadData> = {}) {
@@ -152,7 +166,7 @@ export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; ha
    * Creates a builder from existing data (for updates)
    */
   static from(data: LeadData): LeadBuilder<{ hasPhone: true; hasSource: true; hasStatus: true }> {
-    return new LeadBuilder(data) as LeadBuilder<{ hasPhone: true; hasSource: true; hasStatus: true }>;
+    return new LeadBuilder(data);
   }
 
   /**
@@ -162,7 +176,7 @@ export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; ha
     return new LeadBuilder({
       ...this.data,
       phone: phone as E164PhoneNumber,
-    }) as LeadBuilder<TState & { hasPhone: true }>;
+    });
   }
 
   /**
@@ -172,7 +186,7 @@ export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; ha
     return new LeadBuilder({
       ...this.data,
       source,
-    }) as LeadBuilder<TState & { hasSource: true }>;
+    });
   }
 
   /**
@@ -183,7 +197,7 @@ export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; ha
       ...this.data,
       status,
       updatedAt: new Date(),
-    }) as LeadBuilder<TState & { hasStatus: true }>;
+    });
   }
 
   /**
@@ -193,7 +207,7 @@ export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; ha
     return new LeadBuilder({
       ...this.data,
       priority,
-    }) as LeadBuilder<TState>;
+    });
   }
 
   /**
@@ -202,7 +216,7 @@ export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; ha
   withName(firstName: string, lastName?: string): LeadBuilder<TState> {
     const newData: Partial<LeadData> = { ...this.data, firstName };
     if (lastName !== undefined) newData.lastName = lastName;
-    return new LeadBuilder(newData) as LeadBuilder<TState>;
+    return new LeadBuilder(newData);
   }
 
   /**
@@ -212,7 +226,7 @@ export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; ha
     return new LeadBuilder({
       ...this.data,
       email: email as EmailAddress,
-    }) as LeadBuilder<TState>;
+    });
   }
 
   /**
@@ -222,7 +236,7 @@ export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; ha
     return new LeadBuilder({
       ...this.data,
       hubspotContactId,
-    }) as LeadBuilder<TState>;
+    });
   }
 
   /**
@@ -232,7 +246,7 @@ export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; ha
     return new LeadBuilder({
       ...this.data,
       clinicId,
-    }) as LeadBuilder<TState>;
+    });
   }
 
   /**
@@ -242,7 +256,7 @@ export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; ha
     return new LeadBuilder({
       ...this.data,
       metadata: { ...this.data.metadata, ...metadata },
-    }) as LeadBuilder<TState>;
+    });
   }
 
   /**
@@ -252,15 +266,13 @@ export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; ha
     return new LeadBuilder({
       ...this.data,
       id: id as LeadId,
-    }) as LeadBuilder<TState>;
+    });
   }
 
   /**
    * Builds the Lead (only available when all required fields are set)
    */
-  build(
-    this: LeadBuilder<{ hasPhone: true; hasSource: true; hasStatus: true }>
-  ): LeadData {
+  build(this: LeadBuilder<{ hasPhone: true; hasSource: true; hasStatus: true }>): LeadData {
     const data = this.data as LeadData;
     return {
       ...data,
@@ -309,7 +321,7 @@ export interface EventData<TType extends string, TPayload> {
 export class EventBuilder<
   TType extends string,
   TPayload = undefined,
-  TState extends { hasPayload: boolean } = { hasPayload: false }
+  TState extends { hasPayload: boolean } = { hasPayload: false },
 > {
   private data: Partial<EventData<TType, TPayload>>;
 
@@ -339,7 +351,7 @@ export class EventBuilder<
     return new EventBuilder(this.data.type!, {
       ...this.data,
       payload,
-    } as Partial<EventData<TType, P>>) as EventBuilder<TType, P, { hasPayload: true }>;
+    } as Partial<EventData<TType, P>>);
   }
 
   /**
@@ -349,7 +361,7 @@ export class EventBuilder<
     return new EventBuilder(this.data.type!, {
       ...this.data,
       correlationId: correlationId as TraceId,
-    }) as EventBuilder<TType, TPayload, TState>;
+    });
   }
 
   /**
@@ -359,7 +371,7 @@ export class EventBuilder<
     return new EventBuilder(this.data.type!, {
       ...this.data,
       idempotencyKey: key,
-    }) as EventBuilder<TType, TPayload, TState>;
+    });
   }
 
   /**
@@ -369,7 +381,7 @@ export class EventBuilder<
     return new EventBuilder(this.data.type!, {
       ...this.data,
       version,
-    }) as EventBuilder<TType, TPayload, TState>;
+    });
   }
 
   /**
@@ -379,15 +391,13 @@ export class EventBuilder<
     return new EventBuilder(this.data.type!, {
       ...this.data,
       timestamp: typeof timestamp === 'string' ? timestamp : timestamp.toISOString(),
-    }) as EventBuilder<TType, TPayload, TState>;
+    });
   }
 
   /**
    * Builds the event (requires payload)
    */
-  build(
-    this: EventBuilder<TType, TPayload, { hasPayload: true }>
-  ): EventData<TType, TPayload> {
+  build(this: EventBuilder<TType, TPayload, { hasPayload: true }>): EventData<TType, TPayload> {
     return this.data as EventData<TType, TPayload>;
   }
 }
@@ -427,11 +437,15 @@ export interface ApiRequestConfig<TBody = unknown> {
 export class ApiRequestBuilder<
   TMethod extends HttpMethod = 'GET',
   TBody = undefined,
-  TState extends { hasAuth: boolean } = { hasAuth: false }
+  TState extends { hasAuth: boolean } = { hasAuth: false },
 > {
   private config: Partial<ApiRequestConfig<TBody>>;
 
-  private constructor(method: TMethod, path: string, config: Partial<ApiRequestConfig<TBody>> = {}) {
+  private constructor(
+    method: TMethod,
+    path: string,
+    config: Partial<ApiRequestConfig<TBody>> = {}
+  ) {
     this.config = {
       method,
       path,
@@ -478,14 +492,17 @@ export class ApiRequestBuilder<
   /**
    * Adds authentication header
    */
-  withAuth(token: string, type: 'Bearer' | 'Basic' = 'Bearer'): ApiRequestBuilder<TMethod, TBody, { hasAuth: true }> {
+  withAuth(
+    token: string,
+    type: 'Bearer' | 'Basic' = 'Bearer'
+  ): ApiRequestBuilder<TMethod, TBody, { hasAuth: true }> {
     return new ApiRequestBuilder(this.config.method as TMethod, this.config.path!, {
       ...this.config,
       headers: {
         ...this.config.headers,
         Authorization: `${type} ${token}`,
       },
-    }) as ApiRequestBuilder<TMethod, TBody, { hasAuth: true }>;
+    });
   }
 
   /**
@@ -498,7 +515,7 @@ export class ApiRequestBuilder<
         ...this.config.headers,
         [key]: value,
       },
-    }) as ApiRequestBuilder<TMethod, TBody, TState>;
+    });
   }
 
   /**
@@ -512,17 +529,19 @@ export class ApiRequestBuilder<
         ...this.config.headers,
         'Content-Type': 'application/json',
       },
-    } as Partial<ApiRequestConfig<B>>) as ApiRequestBuilder<TMethod, B, TState>;
+    } as Partial<ApiRequestConfig<B>>);
   }
 
   /**
    * Adds query parameters
    */
-  withQuery(query: Record<string, string | number | boolean>): ApiRequestBuilder<TMethod, TBody, TState> {
+  withQuery(
+    query: Record<string, string | number | boolean>
+  ): ApiRequestBuilder<TMethod, TBody, TState> {
     return new ApiRequestBuilder(this.config.method as TMethod, this.config.path!, {
       ...this.config,
       query: { ...this.config.query, ...query },
-    }) as ApiRequestBuilder<TMethod, TBody, TState>;
+    });
   }
 
   /**
@@ -532,7 +551,7 @@ export class ApiRequestBuilder<
     return new ApiRequestBuilder(this.config.method as TMethod, this.config.path!, {
       ...this.config,
       timeout: ms,
-    }) as ApiRequestBuilder<TMethod, TBody, TState>;
+    });
   }
 
   /**
@@ -542,7 +561,7 @@ export class ApiRequestBuilder<
     return new ApiRequestBuilder(this.config.method as TMethod, this.config.path!, {
       ...this.config,
       retries: count,
-    }) as ApiRequestBuilder<TMethod, TBody, TState>;
+    });
   }
 
   /**
@@ -584,7 +603,7 @@ export class SchemaBuilder<T extends z.ZodRawShape = {}> {
   /**
    * Creates a new object schema builder
    */
-  static object(): SchemaBuilder<{}> {
+  static object(): SchemaBuilder {
     return new SchemaBuilder({});
   }
 
@@ -648,7 +667,7 @@ export class SchemaBuilder<T extends z.ZodRawShape = {}> {
     return new SchemaBuilder({
       ...this.shape,
       ...other,
-    } as T & U);
+    });
   }
 
   /**
@@ -695,7 +714,16 @@ export class SchemaBuilder<T extends z.ZodRawShape = {}> {
 /**
  * Filter operators
  */
-export type FilterOperator = 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'contains' | 'startsWith';
+export type FilterOperator =
+  | 'eq'
+  | 'neq'
+  | 'gt'
+  | 'gte'
+  | 'lt'
+  | 'lte'
+  | 'in'
+  | 'contains'
+  | 'startsWith';
 
 /**
  * Filter condition

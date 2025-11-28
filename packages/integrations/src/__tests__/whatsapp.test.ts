@@ -565,51 +565,51 @@ describe('TemplateCatalogService', () => {
   });
 
   describe('canSendTemplate (cooldown)', () => {
-    it('should allow first send', () => {
+    it('should allow first send', async () => {
       const service = new TemplateCatalogService();
 
-      const result = service.canSendTemplate('contact_123', 'hot_lead_acknowledgment');
+      const result = await service.canSendTemplate('contact_123', 'hot_lead_acknowledgment');
 
       expect(result.allowed).toBe(true);
     });
 
-    it('should allow templates with zero cooldown', () => {
+    it('should allow templates with zero cooldown', async () => {
       const service = new TemplateCatalogService();
 
       // appointment_confirmation has 0 cooldown
-      service.recordTemplateSend('contact_123', 'appointment_confirmation');
-      const result = service.canSendTemplate('contact_123', 'appointment_confirmation');
+      await service.recordTemplateSend('contact_123', 'appointment_confirmation');
+      const result = await service.canSendTemplate('contact_123', 'appointment_confirmation');
 
       expect(result.allowed).toBe(true);
     });
 
-    it('should block during cooldown period', () => {
+    it('should block during cooldown period', async () => {
       const service = new TemplateCatalogService();
 
       // hot_lead_acknowledgment has 60 minute cooldown
-      service.recordTemplateSend('contact_123', 'hot_lead_acknowledgment');
-      const result = service.canSendTemplate('contact_123', 'hot_lead_acknowledgment');
+      await service.recordTemplateSend('contact_123', 'hot_lead_acknowledgment');
+      const result = await service.canSendTemplate('contact_123', 'hot_lead_acknowledgment');
 
       expect(result.allowed).toBe(false);
       expect(result.waitMinutes).toBeGreaterThan(0);
     });
 
-    it('should return false for unknown template', () => {
+    it('should return false for unknown template', async () => {
       const service = new TemplateCatalogService();
 
-      const result = service.canSendTemplate('contact_123', 'unknown_template');
+      const result = await service.canSendTemplate('contact_123', 'unknown_template');
 
       expect(result.allowed).toBe(false);
     });
   });
 
   describe('recordTemplateSend', () => {
-    it('should record template send', () => {
+    it('should record template send', async () => {
       const service = new TemplateCatalogService();
 
-      service.recordTemplateSend('contact_123', 'hot_lead_acknowledgment');
+      await service.recordTemplateSend('contact_123', 'hot_lead_acknowledgment');
 
-      const result = service.canSendTemplate('contact_123', 'hot_lead_acknowledgment');
+      const result = await service.canSendTemplate('contact_123', 'hot_lead_acknowledgment');
       expect(result.allowed).toBe(false);
     });
   });

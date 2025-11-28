@@ -162,8 +162,8 @@ export interface CustomBudgetLimits {
 export class AIBudgetController {
   private config: AIBudgetControllerConfig;
   private redis: SecureRedisClient;
-  private alertsTriggered: Set<string> = new Set(); // Track triggered alerts to avoid duplicates
-  private customLimits: Map<string, CustomBudgetLimits> = new Map();
+  private alertsTriggered = new Set<string>(); // Track triggered alerts to avoid duplicates
+  private customLimits = new Map<string, CustomBudgetLimits>();
 
   constructor(redis: SecureRedisClient, config: Partial<AIBudgetControllerConfig> = {}) {
     this.config = AIBudgetControllerConfigSchema.parse(config);
@@ -236,10 +236,7 @@ export class AIBudgetController {
       if (tenantCheck.blocked && !blockReason) {
         blockReason = tenantCheck.reason;
       }
-      remainingDaily = Math.min(
-        remainingDaily,
-        tenantUsage.dailyBudget - tenantUsage.dailySpend
-      );
+      remainingDaily = Math.min(remainingDaily, tenantUsage.dailyBudget - tenantUsage.dailySpend);
       remainingMonthly = Math.min(
         remainingMonthly,
         tenantUsage.monthlyBudget - tenantUsage.monthlySpend
@@ -267,8 +264,7 @@ export class AIBudgetController {
       await this.triggerAlert(alert);
     }
 
-    const allowed =
-      !blockReason || this.config.softLimitMode || !this.config.blockOnExceeded;
+    const allowed = !blockReason || this.config.softLimitMode || !this.config.blockOnExceeded;
 
     return {
       allowed,
@@ -390,11 +386,7 @@ export class AIBudgetController {
   /**
    * Set custom budget limits
    */
-  setCustomLimits(
-    scope: 'user' | 'tenant',
-    scopeId: string,
-    limits: CustomBudgetLimits
-  ): void {
+  setCustomLimits(scope: 'user' | 'tenant', scopeId: string, limits: CustomBudgetLimits): void {
     const key = `${scope}:${scopeId}`;
     this.customLimits.set(key, limits);
   }
@@ -481,7 +473,7 @@ export class AIBudgetController {
     const wouldExceedMonthly = usage.monthlySpend + estimatedCost > usage.monthlyBudget;
 
     // Generate threshold alerts
-    for (const threshold of this.config.alertThresholds as number[]) {
+    for (const threshold of this.config.alertThresholds) {
       // Daily threshold
       const dailyPercent = (usage.dailySpend + estimatedCost) / usage.dailyBudget;
       if (dailyPercent >= threshold && usage.dailyPercentUsed < threshold) {
@@ -519,7 +511,12 @@ export class AIBudgetController {
 
     const blocked = this.config.blockOnExceeded && (wouldExceedDaily || wouldExceedMonthly);
 
-    const result: { status: BudgetStatus; blocked: boolean; reason?: string; alerts: BudgetAlert[] } = {
+    const result: {
+      status: BudgetStatus;
+      blocked: boolean;
+      reason?: string;
+      alerts: BudgetAlert[];
+    } = {
       status,
       blocked,
       alerts,

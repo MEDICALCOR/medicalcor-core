@@ -12,7 +12,11 @@
  * @version 2.0.0
  */
 
-import { z, type ZodSchema, type ZodError } from 'zod';
+/* eslint-disable @typescript-eslint/no-unsafe-function-type -- Function type needed for generic predicate guards */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment -- runtime type checks require any handling */
+/* eslint-disable @typescript-eslint/no-unnecessary-type-parameters -- type parameters are intentional for generic type guards */
+
+import type { z, ZodSchema, ZodError } from 'zod';
 import type { Result } from './result.js';
 import { Ok, Err } from './result.js';
 
@@ -108,6 +112,7 @@ export function isNull(value: unknown): value is null {
  * Type guard for null or undefined
  */
 export function isNullish(value: unknown): value is null | undefined {
+  // eslint-disable-next-line eqeqeq -- intentional: == null checks both null and undefined
   return value == null;
 }
 
@@ -115,6 +120,7 @@ export function isNullish(value: unknown): value is null | undefined {
  * Type guard for non-nullish values
  */
 export function isNonNullish<T>(value: T): value is NonNullable<T> {
+  // eslint-disable-next-line eqeqeq -- intentional: != null checks both null and undefined
   return value != null;
 }
 
@@ -148,10 +154,7 @@ export function isArray(value: unknown): value is unknown[] {
 /**
  * Type guard for typed array
  */
-export function isArrayOf<T>(
-  value: unknown,
-  guard: (item: unknown) => item is T
-): value is T[] {
+export function isArrayOf<T>(value: unknown, guard: (item: unknown) => item is T): value is T[] {
   return isArray(value) && value.every(guard);
 }
 
@@ -180,10 +183,11 @@ export function isError(value: unknown): value is Error {
  * Type guard for Promise
  */
 export function isPromise<T = unknown>(value: unknown): value is Promise<T> {
-  return value instanceof Promise || (
-    isObject(value) &&
-    isFunction((value as { then?: unknown }).then) &&
-    isFunction((value as { catch?: unknown }).catch)
+  return (
+    value instanceof Promise ||
+    (isObject(value) &&
+      isFunction((value as { then?: unknown }).then) &&
+      isFunction((value as { catch?: unknown }).catch))
   );
 }
 
@@ -282,7 +286,8 @@ const URL_REGEX = /^https?:\/\/.+/;
 /**
  * URL validation regex
  */
-const FULL_URL_REGEX = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?(\?[^\s#]*)?(#[^\s]*)?$/i;
+const FULL_URL_REGEX =
+  /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?(\?[^\s#]*)?(#[^\s]*)?$/i;
 
 /**
  * Type guard for URL
@@ -331,7 +336,17 @@ export function isJSONString(value: unknown): value is string {
 /**
  * Lead source values
  */
-const LEAD_SOURCES = ['whatsapp', 'voice', 'web_form', 'web', 'hubspot', 'facebook', 'google', 'referral', 'manual'] as const;
+const LEAD_SOURCES = [
+  'whatsapp',
+  'voice',
+  'web_form',
+  'web',
+  'hubspot',
+  'facebook',
+  'google',
+  'referral',
+  'manual',
+] as const;
 type LeadSource = (typeof LEAD_SOURCES)[number];
 
 /**
@@ -344,7 +359,16 @@ export function isLeadSource(value: unknown): value is LeadSource {
 /**
  * Lead status values
  */
-const LEAD_STATUSES = ['new', 'contacted', 'qualified', 'nurturing', 'scheduled', 'converted', 'lost', 'invalid'] as const;
+const LEAD_STATUSES = [
+  'new',
+  'contacted',
+  'qualified',
+  'nurturing',
+  'scheduled',
+  'converted',
+  'lost',
+  'invalid',
+] as const;
 type LeadStatus = (typeof LEAD_STATUSES)[number];
 
 /**
@@ -455,7 +479,10 @@ export function hasKeyOfType<K extends string, T>(
  * Base assertion error
  */
 export class AssertionError extends Error {
-  constructor(message: string, public readonly value?: unknown) {
+  constructor(
+    message: string,
+    public readonly value?: unknown
+  ) {
     super(message);
     this.name = 'AssertionError';
   }
@@ -473,10 +500,8 @@ export function assert(condition: unknown, message?: string): asserts condition 
 /**
  * Asserts that a value is defined (not null or undefined)
  */
-export function assertDefined<T>(
-  value: T,
-  message?: string
-): asserts value is NonNullable<T> {
+export function assertDefined<T>(value: T, message?: string): asserts value is NonNullable<T> {
+  // eslint-disable-next-line eqeqeq -- intentional: == null checks both null and undefined
   if (value == null) {
     throw new AssertionError(message ?? 'Value is null or undefined', value);
   }
@@ -528,10 +553,7 @@ export function assertSchema<T>(
 ): asserts value is T {
   const result = schema.safeParse(value);
   if (!result.success) {
-    throw new AssertionError(
-      message ?? `Schema validation failed: ${result.error.message}`,
-      value
-    );
+    throw new AssertionError(message ?? `Schema validation failed: ${result.error.message}`, value);
   }
 }
 
@@ -539,10 +561,7 @@ export function assertSchema<T>(
  * Asserts that a value is never reached (exhaustiveness check)
  */
 export function assertNever(value: never, message?: string): never {
-  throw new AssertionError(
-    message ?? `Unexpected value: ${JSON.stringify(value)}`,
-    value
-  );
+  throw new AssertionError(message ?? `Unexpected value: ${JSON.stringify(value)}`, value);
 }
 
 // =============================================================================
@@ -566,10 +585,7 @@ export type ValidationResult<T> = Result<T, ValidationError[]>;
 /**
  * Validates a value against a Zod schema
  */
-export function validate<T>(
-  value: unknown,
-  schema: ZodSchema<T>
-): ValidationResult<T> {
+export function validate<T>(value: unknown, schema: ZodSchema<T>): ValidationResult<T> {
   const result = schema.safeParse(value);
   if (result.success) {
     return Ok(result.data);
@@ -582,7 +598,7 @@ export function validate<T>(
  */
 export function formatZodError(error: ZodError): ValidationError[] {
   return error.errors.map((issue: z.ZodIssue) => ({
-    path: issue.path as (string | number)[],
+    path: issue.path,
     message: issue.message,
     code: issue.code,
   }));
@@ -635,11 +651,7 @@ export function refine<T, S extends T>(
 /**
  * Creates a refinement from a predicate
  */
-export function refineWith<T>(
-  predicate: (value: T) => boolean,
-  value: T,
-  message?: string
-): T {
+export function refineWith<T>(predicate: (value: T) => boolean, value: T, message?: string): T {
   if (!predicate(value)) {
     throw new AssertionError(message ?? 'Refinement failed', value);
   }
@@ -649,10 +661,7 @@ export function refineWith<T>(
 /**
  * Narrowing helper - filters array to specific type
  */
-export function narrow<T, S extends T>(
-  array: T[],
-  guard: (value: T) => value is S
-): S[] {
+export function narrow<T, S extends T>(array: T[], guard: (value: T) => value is S): S[] {
   return array.filter(guard);
 }
 
@@ -669,10 +678,7 @@ export function getProperty<T, K extends keyof T>(
 /**
  * Safe nested property access
  */
-export function getNestedProperty<T>(
-  obj: unknown,
-  path: string
-): T | undefined {
+export function getNestedProperty<T>(obj: unknown, path: string): T | undefined {
   const keys = path.split('.');
   let current: unknown = obj;
   for (const key of keys) {
@@ -691,19 +697,18 @@ export function getNestedProperty<T>(
 /**
  * Safely parses JSON with type inference
  */
-export function parseJSON<T>(
-  json: string,
-  schema: ZodSchema<T>
-): ValidationResult<T> {
+export function parseJSON<T>(json: string, schema: ZodSchema<T>): ValidationResult<T> {
   try {
     const parsed = JSON.parse(json);
     return validate(parsed, schema);
   } catch (error) {
-    return Err([{
-      path: [],
-      message: `Invalid JSON: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      code: 'invalid_json',
-    }]);
+    return Err([
+      {
+        path: [],
+        message: `Invalid JSON: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        code: 'invalid_json',
+      },
+    ]);
   }
 }
 

@@ -42,16 +42,15 @@ type DeepReadonlyObject<T> = {
 /**
  * The inverse of DeepReadonly - makes all properties deeply mutable
  */
-// eslint-disable-next-line @typescript-eslint/array-type -- ReadonlyArray needed for conditional type inference
-export type DeepMutable<T> =
-  T extends ReadonlyArray<infer R>
-    ? DeepMutableArray<R>
-    : // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type -- needed for deep recursion
-      T extends Function
-      ? T
-      : T extends object
-        ? DeepMutableObject<T>
-        : T;
+
+export type DeepMutable<T> = T extends readonly (infer R)[]
+  ? DeepMutableArray<R>
+  : // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type -- needed for deep recursion
+    T extends Function
+    ? T
+    : T extends object
+      ? DeepMutableObject<T>
+      : T;
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- interface extension pattern
 interface DeepMutableArray<T> extends Array<DeepMutable<T>> {}

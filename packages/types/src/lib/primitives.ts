@@ -12,6 +12,9 @@
  * @version 2.0.0
  */
 
+/* eslint-disable @typescript-eslint/no-unsafe-function-type -- Function type is intentional for generic predicate/validator callbacks */
+/* eslint-disable @typescript-eslint/no-unnecessary-type-parameters -- type parameters in branded types are intentional for nominal typing */
+
 import { z } from 'zod';
 
 // =============================================================================
@@ -45,10 +48,7 @@ export type Unbrand<T> = T extends Brand<infer U, string> ? U : T;
 /**
  * Creates a branded type with validation
  */
-export function brand<T, TBrand extends string>(
-  value: T,
-  _brand: TBrand
-): Brand<T, TBrand> {
+export function brand<T, TBrand extends string>(value: T, _brand: TBrand): Brand<T, TBrand> {
   return value as Brand<T, TBrand>;
 }
 
@@ -233,7 +233,7 @@ export type StatefulLead<TState extends LeadState, TData = unknown> = Phantom<TD
 export type EventName<
   TDomain extends string,
   TEntity extends string,
-  TAction extends string
+  TAction extends string,
 > = `${TDomain}.${TEntity}.${TAction}`;
 
 /**
@@ -253,17 +253,23 @@ export type DomainEventName =
 /**
  * Extracts domain from event name
  */
-export type ExtractDomain<T extends string> = T extends `${infer D}.${string}.${string}` ? D : never;
+export type ExtractDomain<T extends string> = T extends `${infer D}.${string}.${string}`
+  ? D
+  : never;
 
 /**
  * Extracts entity from event name
  */
-export type ExtractEntity<T extends string> = T extends `${string}.${infer E}.${string}` ? E : never;
+export type ExtractEntity<T extends string> = T extends `${string}.${infer E}.${string}`
+  ? E
+  : never;
 
 /**
  * Extracts action from event name
  */
-export type ExtractAction<T extends string> = T extends `${string}.${string}.${infer A}` ? A : never;
+export type ExtractAction<T extends string> = T extends `${string}.${string}.${infer A}`
+  ? A
+  : never;
 
 /**
  * API endpoint pattern
@@ -271,8 +277,10 @@ export type ExtractAction<T extends string> = T extends `${string}.${string}.${i
 export type ApiEndpoint<
   TVersion extends `v${number}`,
   TResource extends string,
-  TAction extends string = ''
-> = TAction extends '' ? `/api/${TVersion}/${TResource}` : `/api/${TVersion}/${TResource}/${TAction}`;
+  TAction extends string = '',
+> = TAction extends ''
+  ? `/api/${TVersion}/${TResource}`
+  : `/api/${TVersion}/${TResource}/${TAction}`;
 
 /**
  * Webhook endpoint pattern
@@ -319,11 +327,7 @@ export type DeepMutable<T> = {
  * Makes all properties deeply partial
  */
 export type DeepPartial<T> = {
-  [K in keyof T]?: T[K] extends object
-    ? T[K] extends Function
-      ? T[K]
-      : DeepPartial<T[K]>
-    : T[K];
+  [K in keyof T]?: T[K] extends object ? (T[K] extends Function ? T[K] : DeepPartial<T[K]>) : T[K];
 };
 
 /**
@@ -524,9 +528,8 @@ export type UnionToIntersection<U> = (U extends unknown ? (x: U) => void : never
 /**
  * Gets the last member of a union
  */
-export type LastOfUnion<T> = UnionToIntersection<T extends unknown ? () => T : never> extends () => infer R
-  ? R
-  : never;
+export type LastOfUnion<T> =
+  UnionToIntersection<T extends unknown ? () => T : never> extends () => infer R ? R : never;
 
 /**
  * Converts a union to a tuple
@@ -538,11 +541,7 @@ export type UnionToTuple<T, L = LastOfUnion<T>> = [T] extends [never]
 /**
  * Checks if a type is a union
  */
-export type IsUnion<T, U = T> = T extends unknown
-  ? [U] extends [T]
-    ? false
-    : true
-  : false;
+export type IsUnion<T, U = T> = T extends unknown ? ([U] extends [T] ? false : true) : false;
 
 // =============================================================================
 // ZOD BRANDED SCHEMA FACTORIES
@@ -551,17 +550,26 @@ export type IsUnion<T, U = T> = T extends unknown
 /**
  * Creates a Zod schema for LeadId with UUID validation
  */
-export const LeadIdSchema = z.string().uuid().transform((val: string): LeadId => val as LeadId);
+export const LeadIdSchema = z
+  .string()
+  .uuid()
+  .transform((val: string): LeadId => val as LeadId);
 
 /**
  * Creates a Zod schema for PatientId with UUID validation
  */
-export const PatientIdSchema = z.string().uuid().transform((val: string): PatientId => val as PatientId);
+export const PatientIdSchema = z
+  .string()
+  .uuid()
+  .transform((val: string): PatientId => val as PatientId);
 
 /**
  * Creates a Zod schema for HubSpotContactId
  */
-export const HubSpotContactIdSchema = z.string().min(1).transform((val: string): HubSpotContactId => val as HubSpotContactId);
+export const HubSpotContactIdSchema = z
+  .string()
+  .min(1)
+  .transform((val: string): HubSpotContactId => val as HubSpotContactId);
 
 /**
  * Creates a Zod schema for E164PhoneNumber
@@ -582,12 +590,18 @@ export const EmailAddressSchema = z
 /**
  * Creates a Zod schema for TraceId
  */
-export const TraceIdSchema = z.string().min(1).transform((val: string): TraceId => val as TraceId);
+export const TraceIdSchema = z
+  .string()
+  .min(1)
+  .transform((val: string): TraceId => val as TraceId);
 
 /**
  * Creates a Zod schema for IdempotencyKey
  */
-export const IdempotencyKeySchema = z.string().uuid().transform((val: string): IdempotencyKey => val as IdempotencyKey);
+export const IdempotencyKeySchema = z
+  .string()
+  .uuid()
+  .transform((val: string): IdempotencyKey => val as IdempotencyKey);
 
 // =============================================================================
 // TYPE ASSERTION UTILITIES
@@ -601,9 +615,8 @@ export type Assert<T extends true> = T;
 /**
  * Check if two types are exactly equal
  */
-export type Equals<X, Y> = (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2
-  ? true
-  : false;
+export type Equals<X, Y> =
+  (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2 ? true : false;
 
 /**
  * Check if type A extends type B
@@ -647,7 +660,7 @@ export function tuple<T extends unknown[]>(...args: T): Readonly<T> {
  * Creates a strictly typed object
  */
 export function object<T extends Record<string, unknown>>(obj: T): Readonly<T> {
-  return Object.freeze(obj) as Readonly<T>;
+  return Object.freeze(obj);
 }
 
 // =============================================================================

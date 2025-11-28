@@ -134,6 +134,13 @@ export class OpenAIClient {
   }
 
   /**
+   * Expose chat completions API for domain services that expect the raw OpenAI interface
+   */
+  get chat() {
+    return this.client.chat;
+  }
+
+  /**
    * Sanitize user input to prevent prompt injection attacks
    * - Removes control characters that could manipulate the prompt
    * - Limits length to prevent token exhaustion attacks

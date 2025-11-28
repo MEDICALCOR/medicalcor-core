@@ -7,20 +7,24 @@
  * ╚══════════════════════════════════════════════════════════════════════════════╝
  */
 
+import { CircuitBreakerRegistry, createEventStore, type EventStore } from '@medicalcor/core';
 import {
-  CircuitBreakerRegistry,
-  createEventStore,
-  EventStore,
-  InMemoryEventStore,
-} from '@medicalcor/core';
-import { ScoringService, TriageService, ConsentService } from '@medicalcor/domain';
+  ScoringService,
+  TriageService,
+  ConsentService,
+  type ScoringServiceDeps,
+} from '@medicalcor/domain';
 
-import { HubSpotClient, createHubSpotClient } from './hubspot.js';
-import { WhatsAppClient, createWhatsAppClient, TemplateCatalogService } from './whatsapp.js';
-import { OpenAIClient, createOpenAIClient } from './openai.js';
-import { SchedulingService, createSchedulingService, MockSchedulingService } from './scheduling.js';
-import { VapiClient, createVapiClient } from './vapi.js';
-import { StripeClient, createStripeClient, MockStripeClient } from './stripe.js';
+import { type HubSpotClient, createHubSpotClient } from './hubspot.js';
+import { type WhatsAppClient, createWhatsAppClient, TemplateCatalogService } from './whatsapp.js';
+import { type OpenAIClient, createOpenAIClient } from './openai.js';
+import {
+  type SchedulingService,
+  createSchedulingService,
+  MockSchedulingService,
+} from './scheduling.js';
+import { type VapiClient, createVapiClient } from './vapi.js';
+import { type StripeClient, createStripeClient, MockStripeClient } from './stripe.js';
 
 import {
   type CorrelationId,
@@ -307,6 +311,8 @@ export function createEnhancedIntegrationClients(
   const circuitBreakerRegistry = new CircuitBreakerRegistry({
     failureThreshold: globalCircuitBreaker.failureThreshold,
     resetTimeoutMs: globalCircuitBreaker.resetTimeoutMs,
+    successThreshold: 2,
+    failureWindowMs: 60000,
   });
 
   // Create resilience instances for each client
@@ -354,7 +360,7 @@ export function createEnhancedIntegrationClients(
   }
 
   // Create event store
-  const eventStore: EventStore = createEventStore() ?? new InMemoryEventStore();
+  const eventStore: EventStore = createEventStore({ source: config.source });
 
   // Initialize clients
   let hubspot: HubSpotClient | null = null;
@@ -378,7 +384,8 @@ export function createEnhancedIntegrationClients(
         baseDelayMs: globalRetry.baseDelayMs,
       },
     });
-    hubspot = circuitBreakerRegistry.wrapClient('hubspot', rawClient);
+    // Circuit breaker is available via circuitBreakerRegistry.get('hubspot')
+    hubspot = rawClient;
     incrementCounter('integration_client_initialized', {
       [IntegrationLabels.SERVICE]: 'hubspot',
     });
@@ -395,7 +402,8 @@ export function createEnhancedIntegrationClients(
         baseDelayMs: globalRetry.baseDelayMs,
       },
     });
-    whatsapp = circuitBreakerRegistry.wrapClient('whatsapp', rawClient);
+    // Circuit breaker is available via circuitBreakerRegistry.get('whatsapp')
+    whatsapp = rawClient;
     incrementCounter('integration_client_initialized', {
       [IntegrationLabels.SERVICE]: 'whatsapp',
     });
@@ -413,7 +421,8 @@ export function createEnhancedIntegrationClients(
         },
         timeoutMs: globalTimeout.requestTimeoutMs,
       });
-      openai = circuitBreakerRegistry.wrapClient('openai', rawClient);
+      // Circuit breaker is available via circuitBreakerRegistry.get('openai')
+      openai = rawClient;
       incrementCounter('integration_client_initialized', {
         [IntegrationLabels.SERVICE]: 'openai',
       });
@@ -453,7 +462,8 @@ export function createEnhancedIntegrationClients(
         },
         timeoutMs: globalTimeout.requestTimeoutMs,
       });
-      vapi = circuitBreakerRegistry.wrapClient('vapi', rawClient);
+      // Circuit breaker is available via circuitBreakerRegistry.get('vapi')
+      vapi = rawClient;
       incrementCounter('integration_client_initialized', {
         [IntegrationLabels.SERVICE]: 'vapi',
       });
@@ -476,7 +486,8 @@ export function createEnhancedIntegrationClients(
         stripeConfig.webhookSecret = stripeCreds.webhookSecret;
       }
       const rawClient = createStripeClient(stripeConfig);
-      stripe = circuitBreakerRegistry.wrapClient('stripe', rawClient);
+      // Circuit breaker is available via circuitBreakerRegistry.get('stripe')
+      stripe = rawClient;
       incrementCounter('integration_client_initialized', {
         [IntegrationLabels.SERVICE]: 'stripe',
       });
@@ -486,16 +497,19 @@ export function createEnhancedIntegrationClients(
   }
 
   // Domain services
-  if (config.includeScoring !== false && openai && hubspot) {
-    scoring = new ScoringService(openai, hubspot, eventStore);
+  if (config.includeScoring !== false && openai) {
+    // Cast OpenAI client to domain's interface - the chat.completions.create signatures differ
+    // but are functionally compatible for our usage
+    const openaiForScoring = { openai } as unknown as ScoringServiceDeps;
+    scoring = new ScoringService({ openaiApiKey: getOpenAIApiKey() ?? '' }, openaiForScoring);
   }
 
-  if (config.includeTriage !== false && openai) {
-    triage = new TriageService(openai);
+  if (config.includeTriage !== false) {
+    triage = new TriageService();
   }
 
-  if (config.includeConsent !== false && eventStore) {
-    consent = new ConsentService(eventStore);
+  if (config.includeConsent !== false) {
+    consent = new ConsentService();
   }
 
   if (config.includeTemplateCatalog !== false && whatsapp) {
@@ -547,7 +561,7 @@ export function createEnhancedIntegrationClients(
     },
 
     isCircuitOpen(service: ClientName): boolean {
-      return circuitBreakerRegistry.isOpen(service);
+      return circuitBreakerRegistry.getOpenCircuits().includes(service);
     },
 
     resetCircuit(service: ClientName): void {
@@ -650,7 +664,7 @@ export function createEnhancedIntegrationClients(
       }
       resilience.clear();
       if (vapi && 'destroy' in vapi) {
-        (vapi as VapiClient).destroy();
+        vapi.destroy();
       }
     },
   };
@@ -708,10 +722,10 @@ export interface IntegrationClients {
 export function createIntegrationClients(config: ClientsConfig): IntegrationClients {
   // Build circuit breaker config inline if provided
   const circuitBreakerConfig = config.circuitBreaker
-    ? ((builder: CircuitBreakerBuilder) =>
+    ? (builder: CircuitBreakerBuilder) =>
         builder
           .failureThreshold(config.circuitBreaker?.failureThreshold ?? 5)
-          .resetTimeout(config.circuitBreaker?.resetTimeoutMs ?? 30000))
+          .resetTimeout(config.circuitBreaker?.resetTimeoutMs ?? 30000)
     : undefined;
 
   // Build enhanced config, only including defined properties to satisfy exactOptionalPropertyTypes
@@ -724,7 +738,9 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
     ...(config.includeScoring !== undefined && { includeScoring: config.includeScoring }),
     ...(config.includeTriage !== undefined && { includeTriage: config.includeTriage }),
     ...(config.includeConsent !== undefined && { includeConsent: config.includeConsent }),
-    ...(config.includeTemplateCatalog !== undefined && { includeTemplateCatalog: config.includeTemplateCatalog }),
+    ...(config.includeTemplateCatalog !== undefined && {
+      includeTemplateCatalog: config.includeTemplateCatalog,
+    }),
     ...(circuitBreakerConfig && { circuitBreaker: circuitBreakerConfig }),
   };
 

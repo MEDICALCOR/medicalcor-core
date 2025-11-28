@@ -16,6 +16,10 @@
  * @version 2.0.0
  */
 
+/* eslint-disable @typescript-eslint/only-throw-error -- Err values in Result monad can be thrown as-is */
+/* eslint-disable @typescript-eslint/use-unknown-in-catch-callback-variable -- catch handler type is constrained by Promise API */
+/* eslint-disable @typescript-eslint/no-unnecessary-condition -- defensive null checks for monadic operations */
+
 // =============================================================================
 // RESULT TYPE - Success or Failure with Typed Errors
 // =============================================================================
@@ -124,51 +128,35 @@ export const Result = {
   /**
    * Chains Result operations (flatMap/bind)
    */
-  flatMap<T, U, E, F>(
-    result: Result<T, E>,
-    fn: (value: T) => Result<U, F>
-  ): Result<U, E | F> {
+  flatMap<T, U, E, F>(result: Result<T, E>, fn: (value: T) => Result<U, F>): Result<U, E | F> {
     return isOk(result) ? fn(result.value) : result;
   },
 
   /**
    * Alias for flatMap
    */
-  andThen<T, U, E, F>(
-    result: Result<T, E>,
-    fn: (value: T) => Result<U, F>
-  ): Result<U, E | F> {
+  andThen<T, U, E, F>(result: Result<T, E>, fn: (value: T) => Result<U, F>): Result<U, E | F> {
     return Result.flatMap(result, fn);
   },
 
   /**
    * Chains to another Result if this one is Err
    */
-  orElse<T, E, F>(
-    result: Result<T, E>,
-    fn: (error: E) => Result<T, F>
-  ): Result<T, F> {
+  orElse<T, E, F>(result: Result<T, E>, fn: (error: E) => Result<T, F>): Result<T, F> {
     return isErr(result) ? fn(result.error) : result;
   },
 
   /**
    * Pattern matches on Result, providing handlers for both cases
    */
-  fold<T, E, U>(
-    result: Result<T, E>,
-    onErr: (error: E) => U,
-    onOk: (value: T) => U
-  ): U {
+  fold<T, E, U>(result: Result<T, E>, onErr: (error: E) => U, onOk: (value: T) => U): U {
     return isOk(result) ? onOk(result.value) : onErr(result.error);
   },
 
   /**
    * Alias for fold with reversed parameter order
    */
-  match<T, E, U>(
-    result: Result<T, E>,
-    patterns: { ok: (value: T) => U; err: (error: E) => U }
-  ): U {
+  match<T, E, U>(result: Result<T, E>, patterns: { ok: (value: T) => U; err: (error: E) => U }): U {
     return isOk(result) ? patterns.ok(result.value) : patterns.err(result.error);
   },
 
@@ -264,17 +252,14 @@ export const Result = {
    * Creates a Result from a nullable value
    */
   fromNullable<T, E>(value: T | null | undefined, error: E): Result<T, E> {
+    // eslint-disable-next-line eqeqeq -- intentional: != null checks both null and undefined
     return value != null ? Ok(value) : Err(error);
   },
 
   /**
    * Creates a Result from a predicate
    */
-  fromPredicate<T, E>(
-    value: T,
-    predicate: (value: T) => boolean,
-    error: E
-  ): Result<T, E> {
+  fromPredicate<T, E>(value: T, predicate: (value: T) => boolean, error: E): Result<T, E> {
     return predicate(value) ? Ok(value) : Err(error);
   },
 
@@ -288,10 +273,7 @@ export const Result = {
   /**
    * Applies a function wrapped in Result to a value wrapped in Result
    */
-  ap<T, U, E>(
-    resultFn: Result<(value: T) => U, E>,
-    result: Result<T, E>
-  ): Result<U, E> {
+  ap<T, U, E>(resultFn: Result<(value: T) => U, E>, result: Result<T, E>): Result<U, E> {
     if (isErr(resultFn)) return resultFn;
     if (isErr(result)) return result;
     return Ok(resultFn.value(result.value));
@@ -300,10 +282,7 @@ export const Result = {
   /**
    * Zips two Results into a tuple
    */
-  zip<T, U, E>(
-    first: Result<T, E>,
-    second: Result<U, E>
-  ): Result<[T, U], E> {
+  zip<T, U, E>(first: Result<T, E>, second: Result<U, E>): Result<[T, U], E> {
     if (isErr(first)) return first;
     if (isErr(second)) return second;
     return Ok([first.value, second.value]);
@@ -325,11 +304,7 @@ export const Result = {
   /**
    * Filters a Result, converting to Err if predicate fails
    */
-  filter<T, E>(
-    result: Result<T, E>,
-    predicate: (value: T) => boolean,
-    error: E
-  ): Result<T, E> {
+  filter<T, E>(result: Result<T, E>, predicate: (value: T) => boolean, error: E): Result<T, E> {
     if (isErr(result)) return result;
     return predicate(result.value) ? result : Err(error);
   },
@@ -443,6 +418,7 @@ export const Option = {
    * Creates an Option from a nullable value
    */
   fromNullable<T>(value: T | null | undefined): Option<T> {
+    // eslint-disable-next-line eqeqeq -- intentional: != null checks both null and undefined
     return value != null ? Some(value) : None;
   },
 
@@ -491,10 +467,7 @@ export const Option = {
   /**
    * Pattern matches with object syntax
    */
-  match<T, U>(
-    option: Option<T>,
-    patterns: { some: (value: T) => U; none: () => U }
-  ): U {
+  match<T, U>(option: Option<T>, patterns: { some: (value: T) => U; none: () => U }): U {
     return isSome(option) ? patterns.some(option.value) : patterns.none();
   },
 
@@ -584,11 +557,7 @@ export const Option = {
   /**
    * Zips with a combining function
    */
-  zipWith<T, U, V>(
-    first: Option<T>,
-    second: Option<U>,
-    fn: (t: T, u: U) => V
-  ): Option<V> {
+  zipWith<T, U, V>(first: Option<T>, second: Option<U>, fn: (t: T, u: U) => V): Option<V> {
     if (isNone(first) || isNone(second)) return None;
     return Some(fn(first.value, second.value));
   },
@@ -671,20 +640,14 @@ export const AsyncResult = {
   /**
    * Maps the success value
    */
-  map<T, U, E>(
-    asyncResult: AsyncResult<T, E>,
-    fn: (value: T) => U
-  ): AsyncResult<U, E> {
+  map<T, U, E>(asyncResult: AsyncResult<T, E>, fn: (value: T) => U): AsyncResult<U, E> {
     return asyncResult.then((result) => Result.map(result, fn));
   },
 
   /**
    * Maps the error value
    */
-  mapErr<T, E, F>(
-    asyncResult: AsyncResult<T, E>,
-    fn: (error: E) => F
-  ): AsyncResult<T, F> {
+  mapErr<T, E, F>(asyncResult: AsyncResult<T, E>, fn: (error: E) => F): AsyncResult<T, F> {
     return asyncResult.then((result) => Result.mapErr(result, fn));
   },
 
@@ -695,8 +658,9 @@ export const AsyncResult = {
     asyncResult: AsyncResult<T, E>,
     fn: (value: T) => AsyncResult<U, F>
   ): AsyncResult<U, E | F> {
-    return asyncResult.then((result): Promise<Result<U, E | F>> =>
-      isOk(result) ? fn(result.value) : Promise.resolve(result as Err<E>)
+    return asyncResult.then(
+      (result): Promise<Result<U, E | F>> =>
+        isOk(result) ? fn(result.value) : Promise.resolve(result)
     );
   },
 
@@ -707,9 +671,7 @@ export const AsyncResult = {
     asyncResult: AsyncResult<T, E>,
     fn: (value: T) => Result<U, F>
   ): AsyncResult<U, E | F> {
-    return asyncResult.then((result) =>
-      isOk(result) ? fn(result.value) : result
-    );
+    return asyncResult.then((result) => (isOk(result) ? fn(result.value) : result));
   },
 
   /**
@@ -726,10 +688,7 @@ export const AsyncResult = {
   /**
    * Unwraps or returns default
    */
-  async unwrapOr<T, E>(
-    asyncResult: AsyncResult<T, E>,
-    defaultValue: T
-  ): Promise<T> {
+  async unwrapOr<T, E>(asyncResult: AsyncResult<T, E>, defaultValue: T): Promise<T> {
     const result = await asyncResult;
     return Result.unwrapOr(result, defaultValue);
   },
@@ -802,17 +761,11 @@ export const AsyncResult = {
   /**
    * Adds timeout to AsyncResult
    */
-  timeout<T, E>(
-    asyncResult: AsyncResult<T, E>,
-    ms: number,
-    timeoutError: E
-  ): AsyncResult<T, E> {
+  timeout<T, E>(asyncResult: AsyncResult<T, E>, ms: number, timeoutError: E): AsyncResult<T, E> {
     const timer = globalThis.setTimeout ?? ((fn: () => void, _ms: number) => fn());
     return Promise.race([
       asyncResult,
-      new Promise<Result<T, E>>((resolve) =>
-        timer(() => resolve(Err(timeoutError)), ms)
-      ),
+      new Promise<Result<T, E>>((resolve) => timer(() => resolve(Err(timeoutError)), ms)),
     ]);
   },
 };
@@ -833,21 +786,14 @@ export const AsyncResult = {
  */
 export const Do = {
   result: {
-    bind<K extends string, T, E>(
-      key: K,
-      result: Result<T, E>
-    ): DoResult<{ [P in K]: T }, E> {
-      return new DoResult(
-        isOk(result) ? Ok({ [key]: result.value } as { [P in K]: T }) : result
-      );
+    bind<K extends string, T, E>(key: K, result: Result<T, E>): DoResult<Record<K, T>, E> {
+      return new DoResult(isOk(result) ? Ok({ [key]: result.value } as Record<K, T>) : result);
     },
   },
 
   option: {
-    bind<K extends string, T>(key: K, option: Option<T>): DoOption<{ [P in K]: T }> {
-      return new DoOption(
-        isSome(option) ? Some({ [key]: option.value } as { [P in K]: T }) : None
-      );
+    bind<K extends string, T>(key: K, option: Option<T>): DoOption<Record<K, T>> {
+      return new DoOption(isSome(option) ? Some({ [key]: option.value } as Record<K, T>) : None);
     },
   },
 };
@@ -861,13 +807,11 @@ class DoResult<T extends object, E> {
   bind<K extends string, U, F>(
     key: Exclude<K, keyof T>,
     fn: (value: T) => Result<U, F>
-  ): DoResult<T & { [P in K]: U }, E | F> {
+  ): DoResult<T & Record<K, U>, E | F> {
     if (isErr(this.result)) return new DoResult(this.result as never);
     const nextResult = fn(this.result.value);
     if (isErr(nextResult)) return new DoResult(nextResult as never);
-    return new DoResult(
-      Ok({ ...this.result.value, [key]: nextResult.value } as T & { [P in K]: U })
-    );
+    return new DoResult(Ok({ ...this.result.value, [key]: nextResult.value } as T & Record<K, U>));
   }
 
   map<U>(fn: (value: T) => U): Result<U, E> {
@@ -888,12 +832,12 @@ class DoOption<T extends object> {
   bind<K extends string, U>(
     key: Exclude<K, keyof T>,
     fn: (value: T) => Option<U>
-  ): DoOption<T & { [P in K]: U }> {
+  ): DoOption<T & Record<K, U>> {
     if (isNone(this.option)) return new DoOption(None);
     const nextOption = fn(this.option.value);
     if (isNone(nextOption)) return new DoOption(None);
     return new DoOption(
-      Some({ ...this.option.value, [key]: nextOption.value } as T & { [P in K]: U })
+      Some({ ...this.option.value, [key]: nextOption.value } as T & Record<K, U>)
     );
   }
 
@@ -924,12 +868,7 @@ class DoOption<T extends object> {
 export function pipe<A>(a: A): A;
 export function pipe<A, B>(a: A, ab: (a: A) => B): B;
 export function pipe<A, B, C>(a: A, ab: (a: A) => B, bc: (b: B) => C): C;
-export function pipe<A, B, C, D>(
-  a: A,
-  ab: (a: A) => B,
-  bc: (b: B) => C,
-  cd: (c: C) => D
-): D;
+export function pipe<A, B, C, D>(a: A, ab: (a: A) => B, bc: (b: B) => C, cd: (c: C) => D): D;
 export function pipe<A, B, C, D, E>(
   a: A,
   ab: (a: A) => B,
@@ -945,10 +884,7 @@ export function pipe<A, B, C, D, E, F>(
   de: (d: D) => E,
   ef: (e: E) => F
 ): F;
-export function pipe(
-  value: unknown,
-  ...fns: Array<(arg: unknown) => unknown>
-): unknown {
+export function pipe(value: unknown, ...fns: ((arg: unknown) => unknown)[]): unknown {
   return fns.reduce((acc, fn) => fn(acc), value);
 }
 
@@ -965,11 +901,7 @@ export function pipe(
  */
 export function flow<A, B>(ab: (a: A) => B): (a: A) => B;
 export function flow<A, B, C>(ab: (a: A) => B, bc: (b: B) => C): (a: A) => C;
-export function flow<A, B, C, D>(
-  ab: (a: A) => B,
-  bc: (b: B) => C,
-  cd: (c: C) => D
-): (a: A) => D;
+export function flow<A, B, C, D>(ab: (a: A) => B, bc: (b: B) => C, cd: (c: C) => D): (a: A) => D;
 export function flow<A, B, C, D, E>(
   ab: (a: A) => B,
   bc: (b: B) => C,
@@ -983,7 +915,7 @@ export function flow<A, B, C, D, E, F>(
   de: (d: D) => E,
   ef: (e: E) => F
 ): (a: A) => F;
-export function flow(...fns: Array<(arg: unknown) => unknown>): (arg: unknown) => unknown {
+export function flow(...fns: ((arg: unknown) => unknown)[]): (arg: unknown) => unknown {
   return (arg) => fns.reduce((acc, fn) => fn(acc), arg);
 }
 
