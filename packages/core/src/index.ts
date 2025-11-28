@@ -444,3 +444,10 @@ export {
   type UpsertTreatmentPlanOptions,
   type InsertInteractionOptions,
 } from './crm.db.js';
+
+// ============================================================================
+// TYPE SYSTEM - State of the Art TypeScript Utilities
+// ============================================================================
+
+// Re-export all types from the types module
+export * from './types/index.js';
