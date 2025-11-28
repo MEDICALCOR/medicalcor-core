@@ -923,15 +923,12 @@ export interface CompositeResilienceConfig {
  * ```
  */
 export class CompositeResilience {
-  private readonly config: CompositeResilienceConfig;
   private readonly bulkhead?: Bulkhead;
   private readonly rateLimiter?: TokenBucketRateLimiter;
   private readonly deduplicator?: RequestDeduplicator;
   private readonly adaptiveTimeout?: AdaptiveTimeout;
 
   constructor(config: CompositeResilienceConfig) {
-    this.config = config;
-
     if (config.bulkhead) {
       this.bulkhead = new Bulkhead({ ...config.bulkhead, name: config.name });
     }
@@ -997,14 +994,27 @@ export class CompositeResilience {
     deduplicator?: { size: number; maxSize: number };
     adaptiveTimeout?: ReturnType<AdaptiveTimeout['getStats']>;
   } {
-    return {
-      bulkhead: this.bulkhead?.getStats(),
-      rateLimiter: this.rateLimiter
-        ? { availableTokens: this.rateLimiter.getAvailableTokens() }
-        : undefined,
-      deduplicator: this.deduplicator?.getStats(),
-      adaptiveTimeout: this.adaptiveTimeout?.getStats(),
-    };
+    const stats: {
+      bulkhead?: BulkheadStats;
+      rateLimiter?: { availableTokens: number };
+      deduplicator?: { size: number; maxSize: number };
+      adaptiveTimeout?: ReturnType<AdaptiveTimeout['getStats']>;
+    } = {};
+
+    if (this.bulkhead) {
+      stats.bulkhead = this.bulkhead.getStats();
+    }
+    if (this.rateLimiter) {
+      stats.rateLimiter = { availableTokens: this.rateLimiter.getAvailableTokens() };
+    }
+    if (this.deduplicator) {
+      stats.deduplicator = this.deduplicator.getStats();
+    }
+    if (this.adaptiveTimeout) {
+      stats.adaptiveTimeout = this.adaptiveTimeout.getStats();
+    }
+
+    return stats;
   }
 
   /**
