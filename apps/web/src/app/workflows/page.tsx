@@ -60,8 +60,8 @@ export default function WorkflowsPage() {
       try {
         const fetchedWorkflows = await getWorkflowsAction();
         setWorkflows(fetchedWorkflows);
-      } catch (error) {
-        console.error('[Workflows] Failed to fetch workflows:', error);
+      } catch {
+        // Fetch failed - workflows remain empty
       }
     });
   }, []);
@@ -73,8 +73,8 @@ export default function WorkflowsPage() {
         try {
           const fetchedTemplates = await getWorkflowTemplatesAction();
           setTemplates(fetchedTemplates);
-        } catch (error) {
-          console.error('[Workflows] Failed to fetch templates:', error);
+        } catch {
+          // Fetch failed - templates remain empty
         }
       });
     }
@@ -85,8 +85,7 @@ export default function WorkflowsPage() {
     setWorkflows((prev) => prev.map((wf) => (wf.id === id ? { ...wf, isActive } : wf)));
 
     // Server update
-    toggleWorkflowAction(id, isActive).catch((error: unknown) => {
-      console.error('[Workflows] Failed to toggle workflow:', error);
+    toggleWorkflowAction(id, isActive).catch(() => {
       // Revert on error
       setWorkflows((prev) =>
         prev.map((wf) => (wf.id === id ? { ...wf, isActive: !isActive } : wf))

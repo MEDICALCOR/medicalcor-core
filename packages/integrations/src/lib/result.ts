@@ -4,6 +4,9 @@
  * ║                                                                               ║
  * ║  Railway-oriented programming for TypeScript. Compose operations that can     ║
  * ║  fail without try/catch boilerplate. Inspired by Rust's Result type.         ║
+ * ║                                                                               ║
+ * ║  NOTE: Core Result monad is consolidated in @medicalcor/types.               ║
+ * ║  This file re-exports from types and adds integration-specific utilities.    ║
  * ╚══════════════════════════════════════════════════════════════════════════════╝
  */
 
@@ -11,74 +14,52 @@ import type { CorrelationId } from './branded-types.js';
 import { correlationId } from './branded-types.js';
 
 // =============================================================================
-// Core Result Type
+// Re-export Core Result Types from @medicalcor/types
+// =============================================================================
+
+export {
+  // Types
+  type Ok,
+  type Err,
+  type Result,
+  type AsyncResult,
+  // Constructors
+  Ok,
+  Err,
+  // Type Guards
+  isOk,
+  isErr,
+  // Result namespace operations
+  Result as ResultOps,
+} from '@medicalcor/types';
+
+// Import for internal use
+import { Ok, Err, isOk, isErr, type Result, type AsyncResult } from '@medicalcor/types';
+
+// =============================================================================
+// Standalone Functions (for integration-specific use)
+// These mirror the Result namespace but as standalone functions for convenience
 // =============================================================================
 
 /**
- * Success variant - operation completed successfully
+ * Create a successful Result (alias for Ok)
  */
-export interface Ok<T> {
-  readonly _tag: 'Ok';
-  readonly value: T;
+export function ok<T>(value: T): Result<T, never> {
+  return Ok(value);
 }
 
 /**
- * Error variant - operation failed with typed error
+ * Create a failed Result (alias for Err)
  */
-export interface Err<E> {
-  readonly _tag: 'Err';
-  readonly error: E;
-}
-
-/**
- * Result<T, E> - A value that is either Ok<T> or Err<E>
- *
- * Use Result when:
- * - Operations can fail in expected ways
- * - You want to compose fallible operations
- * - You want exhaustive error handling
- * - You want to avoid exception-based control flow
- *
- * @example
- * ```typescript
- * const result = await fetchUser(userId);
- * if (isOk(result)) {
- *   console.log('User:', result.value);
- * } else {
- *   console.error('Error:', result.error);
- * }
- * ```
- */
-export type Result<T, E> = Ok<T> | Err<E>;
-
-/**
- * AsyncResult - Promise that resolves to a Result
- */
-export type AsyncResult<T, E> = Promise<Result<T, E>>;
-
-// =============================================================================
-// Constructors
-// =============================================================================
-
-/**
- * Create a successful Result
- */
-export function ok<T>(value: T): Ok<T> {
-  return { _tag: 'Ok', value };
-}
-
-/**
- * Create a failed Result
- */
-export function err<E>(error: E): Err<E> {
-  return { _tag: 'Err', error };
+export function err<E>(error: E): Result<never, E> {
+  return Err(error);
 }
 
 /**
  * Create a Result from a nullable value
  */
 export function fromNullable<T, E>(value: T | null | undefined, error: E): Result<T, E> {
-  return value !== null && value !== undefined ? ok(value) : err(error);
+  return value !== null && value !== undefined ? Ok(value) : Err(error);
 }
 
 /**
@@ -89,7 +70,7 @@ export function fromPredicate<T, E>(
   predicate: (v: T) => boolean,
   error: E
 ): Result<T, E> {
-  return predicate(value) ? ok(value) : err(error);
+  return predicate(value) ? Ok(value) : Err(error);
 }
 
 /**
@@ -97,9 +78,9 @@ export function fromPredicate<T, E>(
  */
 export function tryCatch<T, E = Error>(fn: () => T, onError: (error: unknown) => E): Result<T, E> {
   try {
-    return ok(fn());
+    return Ok(fn());
   } catch (e) {
-    return err(onError(e));
+    return Err(onError(e));
   }
 }
 
@@ -111,28 +92,10 @@ export async function tryCatchAsync<T, E = Error>(
   onError: (error: unknown) => E
 ): AsyncResult<T, E> {
   try {
-    return ok(await fn());
+    return Ok(await fn());
   } catch (e) {
-    return err(onError(e));
+    return Err(onError(e));
   }
-}
-
-// =============================================================================
-// Type Guards
-// =============================================================================
-
-/**
- * Check if Result is Ok
- */
-export function isOk<T, E>(result: Result<T, E>): result is Ok<T> {
-  return result._tag === 'Ok';
-}
-
-/**
- * Check if Result is Err
- */
-export function isErr<T, E>(result: Result<T, E>): result is Err<E> {
-  return result._tag === 'Err';
 }
 
 // =============================================================================
@@ -143,19 +106,18 @@ export function isErr<T, E>(result: Result<T, E>): result is Err<E> {
  * Transform the success value (Functor map)
  */
 export function map<T, U, E>(result: Result<T, E>, fn: (value: T) => U): Result<U, E> {
-  return isOk(result) ? ok(fn(result.value)) : result;
+  return isOk(result) ? Ok(fn(result.value)) : result;
 }
 
 /**
  * Transform the error value
  */
 export function mapErr<T, E, F>(result: Result<T, E>, fn: (error: E) => F): Result<T, F> {
-  return isErr(result) ? err(fn(result.error)) : result;
+  return isErr(result) ? Err(fn(result.error)) : result;
 }
 
 /**
  * Chain Results (Monad flatMap/bind)
- * Use when the transformation itself can fail
  */
 export function flatMap<T, U, E>(
   result: Result<T, E>,
@@ -183,7 +145,7 @@ export function ap<T, U, E>(
 ): Result<U, E> {
   if (isErr(resultFn)) return resultFn;
   if (isErr(result)) return result;
-  return ok(resultFn.value(result.value));
+  return Ok(resultFn.value(result.value));
 }
 
 // =============================================================================
@@ -223,7 +185,7 @@ export function recover<T, E>(
   recovery: (error: E) => T
 ): Result<T, E> {
   if (isErr(result) && predicate(result.error)) {
-    return ok(recovery(result.error));
+    return Ok(recovery(result.error));
   }
   return result;
 }
@@ -247,7 +209,6 @@ export function match<T, E, U>(
 
 /**
  * Unwrap the success value or throw the error
- * Use sparingly - prefer pattern matching
  */
 export function unwrap<T, E>(result: Result<T, E>): T {
   if (isOk(result)) return result.value;
@@ -279,7 +240,6 @@ export function unwrapErr<T, E>(result: Result<T, E>): E {
 
 /**
  * Combine multiple Results into a single Result of tuple
- * Short-circuits on first error
  */
 export function all<T extends readonly Result<unknown, unknown>[]>(
   results: T
@@ -294,7 +254,7 @@ export function all<T extends readonly Result<unknown, unknown>[]>(
     }
     values.push(result.value);
   }
-  return ok(values) as Result<
+  return Ok(values) as Result<
     { [K in keyof T]: T[K] extends Result<infer U, unknown> ? U : never },
     never
   >;
@@ -315,7 +275,7 @@ export function allSettled<T, E>(results: readonly Result<T, E>[]): Result<T[], 
     }
   }
 
-  return errors.length > 0 ? err(errors) : ok(values);
+  return errors.length > 0 ? Err(errors) : Ok(values);
 }
 
 /**
@@ -329,7 +289,7 @@ export function firstOk<T, E>(results: readonly Result<T, E>[]): Result<T, E> {
     lastErr = result;
   }
 
-  return lastErr ?? err(undefined as E);
+  return lastErr ?? Err(undefined as E);
 }
 
 /**
@@ -351,7 +311,7 @@ export function sequenceS<R extends Record<string, Result<unknown, unknown>>>(
     resultEntries.push([key, result.value]);
   }
 
-  return ok(Object.fromEntries(resultEntries)) as Result<
+  return Ok(Object.fromEntries(resultEntries)) as Result<
     { [K in keyof R]: R[K] extends Result<infer T, unknown> ? T : never },
     never
   >;

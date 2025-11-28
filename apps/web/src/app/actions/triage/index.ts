@@ -279,7 +279,7 @@ export async function getTriageLeadsAction(): Promise<TriageColumn[]> {
 
     return columns;
   } catch (error) {
-    console.error('[getTriageLeadsAction] Failed to fetch triage leads:', error);
+    // Error logged server-side
     return createEmptyColumns();
   }
 }

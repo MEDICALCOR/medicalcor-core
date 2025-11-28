@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, MessageSquare, Phone, Mail, Filter, CheckCheck } from 'lucide-react';
+import { Search, MessageSquare, Phone, Mail, Filter, CheckCheck, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,10 @@ interface ConversationListProps {
   conversations: Conversation[];
   selectedId?: string;
   onSelect: (conversation: Conversation) => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
+  totalCount?: number;
 }
 
 const channelIcons: Record<MessageChannel, React.ElementType> = {
@@ -56,7 +60,15 @@ function formatTime(date: Date): string {
   return date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'short' });
 }
 
-export function ConversationList({ conversations, selectedId, onSelect }: ConversationListProps) {
+export function ConversationList({
+  conversations,
+  selectedId,
+  onSelect,
+  hasMore = false,
+  isLoadingMore = false,
+  onLoadMore,
+  totalCount,
+}: ConversationListProps) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ConversationStatus | 'all'>('all');
   const [channelFilter, setChannelFilter] = useState<MessageChannel | 'all'>('all');
@@ -221,6 +233,32 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
           <div className="p-8 text-center text-muted-foreground">
             <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p>Nu există conversații</p>
+          </div>
+        )}
+
+        {/* Load More Button */}
+        {hasMore && onLoadMore && (
+          <div className="p-4 border-t">
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={onLoadMore}
+              disabled={isLoadingMore}
+            >
+              {isLoadingMore ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Se încarcă...
+                </>
+              ) : (
+                <>Încarcă mai multe</>
+              )}
+            </Button>
+            {totalCount !== undefined && (
+              <p className="text-xs text-center text-muted-foreground mt-2">
+                {conversations.length} din {totalCount} conversații
+              </p>
+            )}
           </div>
         )}
       </div>

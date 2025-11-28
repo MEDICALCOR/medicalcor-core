@@ -171,6 +171,83 @@ export async function getAvailableSlotsRangeAction(
 }
 
 // ============================================================================
+// BOOKING ACTION
+// ============================================================================
+
+/**
+ * Request to book an appointment
+ */
+export interface BookAppointmentRequest {
+  slotId: string;
+  patientId: string;
+  patientName: string;
+  patientPhone: string;
+  procedureType: string;
+  notes?: string;
+}
+
+/**
+ * Response from booking an appointment
+ */
+export interface BookAppointmentResponse {
+  success: boolean;
+  appointmentId?: string;
+  error?: string;
+}
+
+/**
+ * Books an appointment for a patient
+ *
+ * @param request - Booking request with patient and slot details
+ * @requires MANAGE_APPOINTMENTS permission
+ *
+ * @returns Booking response with success status and appointment ID
+ *
+ * @example
+ * ```typescript
+ * const result = await bookAppointmentAction({
+ *   slotId: 'slot-123',
+ *   patientId: 'hubspot-456',
+ *   patientName: 'Ion Popescu',
+ *   patientPhone: '+40721000000',
+ *   procedureType: 'consultation',
+ * });
+ * if (result.success) {
+ *   console.log('Booked:', result.appointmentId);
+ * }
+ * ```
+ */
+export async function bookAppointmentAction(
+  request: BookAppointmentRequest
+): Promise<BookAppointmentResponse> {
+  try {
+    await requirePermission('MANAGE_APPOINTMENTS');
+    const scheduling = getSchedulingService();
+
+    const result = await scheduling.bookAppointment({
+      hubspotContactId: request.patientId,
+      phone: request.patientPhone,
+      patientName: request.patientName,
+      slotId: request.slotId,
+      procedureType: request.procedureType,
+      notes: request.notes,
+    });
+
+    return {
+      success: true,
+      appointmentId: result.id,
+    };
+  } catch (error) {
+    console.error('[bookAppointmentAction] Failed to book appointment:', error);
+    const message = error instanceof Error ? error.message : 'Eroare la programare';
+    return {
+      success: false,
+      error: message,
+    };
+  }
+}
+
+// ============================================================================
 // TYPE RE-EXPORTS
 // ============================================================================
 
