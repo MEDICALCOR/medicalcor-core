@@ -1,11 +1,28 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect, useTransition, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ChevronLeft, ChevronRight, Plus, Clock, User, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { ChevronLeft, ChevronRight, Plus, Clock, User, Loader2, Calendar, Phone } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { getCalendarSlotsAction, type CalendarSlot } from '@/app/actions/get-patients';
 
 const weekDays = ['Lun', 'Mar', 'Mie', 'Joi', 'Vin'];
@@ -66,11 +83,43 @@ function SlotsSkeleton() {
   );
 }
 
+// Procedure types for the booking form
+const PROCEDURE_TYPES = [
+  { value: 'consultatie', label: 'Consultație' },
+  { value: 'control', label: 'Control' },
+  { value: 'implant', label: 'Implant dentar' },
+  { value: 'extractie', label: 'Extracție' },
+  { value: 'albire', label: 'Albire dentară' },
+  { value: 'detartraj', label: 'Detartraj' },
+  { value: 'ortodontie', label: 'Ortodonție' },
+  { value: 'alt', label: 'Alt serviciu' },
+];
+
+interface BookingFormData {
+  patientName: string;
+  patientPhone: string;
+  procedure: string;
+  notes: string;
+}
+
+const initialFormData: BookingFormData = {
+  patientName: '',
+  patientPhone: '',
+  procedure: '',
+  notes: '',
+};
+
 export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [slots, setSlots] = useState<CalendarSlot[]>([]);
   const [isPending, startTransition] = useTransition();
+
+  // Booking modal state
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<CalendarSlot | null>(null);
+  const [formData, setFormData] = useState<BookingFormData>(initialFormData);
+  const [isBooking, startBookingTransition] = useTransition();
 
   const weekDates = generateWeekDates(currentDate);
 
@@ -95,10 +144,49 @@ export default function CalendarPage() {
     setCurrentDate(newDate);
   };
 
-  const handleBookSlot = (slot: CalendarSlot) => {
-    // TODO: Open booking modal with proper form
-    alert(`Programare nouă la ${slot.time}\nDurata: ${slot.duration} minute`);
-  };
+  const handleBookSlot = useCallback((slot: CalendarSlot) => {
+    setSelectedSlot(slot);
+    setFormData(initialFormData);
+    setBookingModalOpen(true);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setBookingModalOpen(false);
+    setSelectedSlot(null);
+    setFormData(initialFormData);
+  }, []);
+
+  const handleFormChange = useCallback((field: keyof BookingFormData, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  const handleSubmitBooking = useCallback(() => {
+    if (!selectedSlot || !formData.patientName || !formData.patientPhone || !formData.procedure) {
+      return;
+    }
+
+    startBookingTransition(async () => {
+      // TODO: Call server action to create booking
+      // For now, simulate a successful booking
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Update local state to show slot as booked
+      setSlots((prevSlots) =>
+        prevSlots.map((slot) =>
+          slot.id === selectedSlot.id
+            ? {
+                ...slot,
+                available: false,
+                patient: formData.patientName,
+                procedure: PROCEDURE_TYPES.find((p) => p.value === formData.procedure)?.label ?? formData.procedure,
+              }
+            : slot
+        )
+      );
+
+      handleCloseModal();
+    });
+  }, [selectedSlot, formData, handleCloseModal]);
 
   const isToday = (date: Date) => {
     const today = new Date();
@@ -209,6 +297,109 @@ export default function CalendarPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Booking Modal */}
+      <Dialog open={bookingModalOpen} onOpenChange={setBookingModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" aria-hidden="true" />
+              Programare Nouă
+            </DialogTitle>
+            <DialogDescription>
+              {selectedSlot && (
+                <>
+                  {selectedDate.toLocaleDateString('ro-RO', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                  })}{' '}
+                  la ora {selectedSlot.time} ({selectedSlot.duration} minute)
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="patientName">Nume pacient *</Label>
+              <Input
+                id="patientName"
+                placeholder="ex: Ion Popescu"
+                value={formData.patientName}
+                onChange={(e) => handleFormChange('patientName', e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="patientPhone">Telefon *</Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                <Input
+                  id="patientPhone"
+                  placeholder="07XX XXX XXX"
+                  className="pl-9"
+                  value={formData.patientPhone}
+                  onChange={(e) => handleFormChange('patientPhone', e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="procedure">Procedură *</Label>
+              <Select
+                value={formData.procedure}
+                onValueChange={(value) => handleFormChange('procedure', value)}
+              >
+                <SelectTrigger id="procedure">
+                  <SelectValue placeholder="Selectează procedura" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PROCEDURE_TYPES.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="notes">Observații</Label>
+              <Input
+                id="notes"
+                placeholder="Observații opționale..."
+                value={formData.notes}
+                onChange={(e) => handleFormChange('notes', e.target.value)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseModal}>
+              Anulează
+            </Button>
+            <Button
+              onClick={handleSubmitBooking}
+              disabled={
+                isBooking ||
+                !formData.patientName ||
+                !formData.patientPhone ||
+                !formData.procedure
+              }
+            >
+              {isBooking ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                  Se salvează...
+                </>
+              ) : (
+                'Confirmă Programarea'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

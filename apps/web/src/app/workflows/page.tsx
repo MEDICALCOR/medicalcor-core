@@ -1,10 +1,14 @@
 'use client';
 
 import { useState, useCallback, useEffect, useTransition } from 'react';
-import { Plus, Zap, LayoutTemplate, List, Loader2 } from 'lucide-react';
+import { Plus, Zap, LayoutTemplate, List, Loader2, Save, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { WorkflowList, WorkflowTemplates } from '@/components/workflows';
 import {
   getWorkflowsAction,
@@ -13,6 +17,7 @@ import {
   deleteWorkflowAction,
   duplicateWorkflowAction,
   createWorkflowFromTemplateAction,
+  updateWorkflowAction,
   type Workflow,
   type WorkflowTemplate,
 } from '@/app/actions/workflows';
@@ -20,10 +25,18 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 function WorkflowsSkeleton() {
   return (
@@ -45,6 +58,24 @@ function StatsSkeleton() {
   );
 }
 
+// Workflow trigger types
+const TRIGGER_TYPES = [
+  { value: 'lead_created', label: 'Lead Nou' },
+  { value: 'lead_scored', label: 'Lead Scorat' },
+  { value: 'appointment_scheduled', label: 'Programare Creată' },
+  { value: 'message_received', label: 'Mesaj Primit' },
+  { value: 'consent_granted', label: 'Consimțământ Acordat' },
+  { value: 'payment_received', label: 'Plată Primită' },
+  { value: 'schedule', label: 'Programat (Cron)' },
+];
+
+interface WorkflowEditorData {
+  name: string;
+  description: string;
+  trigger: string;
+  isActive: boolean;
+}
+
 export default function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [templates, setTemplates] = useState<WorkflowTemplate[]>([]);
@@ -53,6 +84,17 @@ export default function WorkflowsPage() {
   const [isLoadingWorkflows, startWorkflowsTransition] = useTransition();
   const [isLoadingTemplates, startTemplatesTransition] = useTransition();
   const [isCreating, startCreatingTransition] = useTransition();
+
+  // Workflow editor state
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
+  const [editorData, setEditorData] = useState<WorkflowEditorData>({
+    name: '',
+    description: '',
+    trigger: '',
+    isActive: false,
+  });
+  const [isSaving, startSavingTransition] = useTransition();
 
   // Fetch workflows on mount
   useEffect(() => {
@@ -94,10 +136,52 @@ export default function WorkflowsPage() {
     });
   }, []);
 
-  const handleEdit = useCallback((_workflow: Workflow) => {
-    // TODO: Implement workflow editor
-    // For now, this is a placeholder
+  const handleEdit = useCallback((workflow: Workflow) => {
+    setEditingWorkflow(workflow);
+    setEditorData({
+      name: workflow.name,
+      description: workflow.description,
+      trigger: workflow.trigger,
+      isActive: workflow.isActive,
+    });
+    setEditorOpen(true);
   }, []);
+
+  const handleCloseEditor = useCallback(() => {
+    setEditorOpen(false);
+    setEditingWorkflow(null);
+    setEditorData({ name: '', description: '', trigger: '', isActive: false });
+  }, []);
+
+  const handleEditorChange = useCallback((field: keyof WorkflowEditorData, value: string | boolean) => {
+    setEditorData((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  const handleSaveWorkflow = useCallback(() => {
+    if (!editingWorkflow || !editorData.name || !editorData.trigger) {
+      return;
+    }
+
+    startSavingTransition(async () => {
+      try {
+        const updatedWorkflow = await updateWorkflowAction(editingWorkflow.id, {
+          name: editorData.name,
+          description: editorData.description,
+          trigger: editorData.trigger,
+          isActive: editorData.isActive,
+        });
+
+        // Update local state
+        setWorkflows((prev) =>
+          prev.map((wf) => (wf.id === editingWorkflow.id ? updatedWorkflow : wf))
+        );
+
+        handleCloseEditor();
+      } catch (error) {
+        console.error('[Workflows] Failed to update workflow:', error);
+      }
+    });
+  }, [editingWorkflow, editorData, handleCloseEditor]);
 
   const handleDelete = useCallback((id: string) => {
     // Optimistic update
@@ -268,6 +352,111 @@ export default function WorkflowsPage() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Workflow Editor Dialog */}
+      <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" aria-hidden="true" />
+              Editează Workflow
+            </DialogTitle>
+            <DialogDescription>
+              Modifică setările workflow-ului. Pasii pot fi editați ulterior.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="workflowName">Nume workflow *</Label>
+              <Input
+                id="workflowName"
+                placeholder="ex: Follow-up Lead Nou"
+                value={editorData.name}
+                onChange={(e) => handleEditorChange('name', e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="workflowDescription">Descriere</Label>
+              <Textarea
+                id="workflowDescription"
+                placeholder="Descrie ce face acest workflow..."
+                rows={3}
+                value={editorData.description}
+                onChange={(e) => handleEditorChange('description', e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="workflowTrigger">Trigger *</Label>
+              <Select
+                value={editorData.trigger}
+                onValueChange={(value) => handleEditorChange('trigger', value)}
+              >
+                <SelectTrigger id="workflowTrigger">
+                  <SelectValue placeholder="Selectează trigger-ul" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TRIGGER_TYPES.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="workflowActive">Workflow Activ</Label>
+                <p className="text-sm text-muted-foreground">
+                  Activează sau dezactivează execuția automată
+                </p>
+              </div>
+              <Switch
+                id="workflowActive"
+                checked={editorData.isActive}
+                onCheckedChange={(checked) => handleEditorChange('isActive', checked)}
+              />
+            </div>
+
+            {editingWorkflow && (
+              <div className="rounded-lg bg-muted p-3">
+                <div className="text-sm text-muted-foreground">
+                  <span className="font-medium">Creat:</span>{' '}
+                  {new Date(editingWorkflow.createdAt).toLocaleDateString('ro-RO')}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  <span className="font-medium">Execuții:</span> {editingWorkflow.executionCount}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseEditor}>
+              Anulează
+            </Button>
+            <Button
+              onClick={handleSaveWorkflow}
+              disabled={isSaving || !editorData.name || !editorData.trigger}
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                  Se salvează...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" aria-hidden="true" />
+                  Salvează
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

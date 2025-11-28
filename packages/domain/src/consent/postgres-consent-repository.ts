@@ -134,7 +134,47 @@ export class PostgresConsentRepository implements ConsentRepository {
   async findByContact(contactId: string): Promise<ConsentRecord[]> {
     const sql = `SELECT * FROM consents WHERE contact_id = $1 ORDER BY created_at DESC`;
     const result = await this.db.query(sql, [contactId]);
-    return (result.rows as unknown as ConsentRow[]).map((row) => this.rowToConsent(row));
+    return result.rows.map((row) => this.rowToConsent(this.validateConsentRow(row)));
+  }
+
+  /**
+   * Type guard to validate database row structure
+   * SECURITY: Ensures database results match expected schema
+   */
+  private validateConsentRow(row: Record<string, unknown>): ConsentRow {
+    if (
+      typeof row.id !== 'string' ||
+      typeof row.contact_id !== 'string' ||
+      typeof row.phone !== 'string' ||
+      typeof row.consent_type !== 'string' ||
+      typeof row.status !== 'string' ||
+      typeof row.version !== 'number' ||
+      typeof row.source_channel !== 'string' ||
+      typeof row.source_method !== 'string' ||
+      !(row.created_at instanceof Date) ||
+      !(row.updated_at instanceof Date)
+    ) {
+      throw new Error('Invalid consent row structure from database');
+    }
+    return row as ConsentRow;
+  }
+
+  /**
+   * Type guard to validate audit row structure
+   * SECURITY: Ensures database results match expected schema
+   */
+  private validateAuditRow(row: Record<string, unknown>): AuditRow {
+    if (
+      typeof row.id !== 'string' ||
+      typeof row.consent_id !== 'string' ||
+      typeof row.action !== 'string' ||
+      typeof row.new_status !== 'string' ||
+      typeof row.performed_by !== 'string' ||
+      !(row.timestamp instanceof Date)
+    ) {
+      throw new Error('Invalid audit row structure from database');
+    }
+    return row as AuditRow;
   }
 
   async delete(consentId: string): Promise<void> {
@@ -159,13 +199,13 @@ export class PostgresConsentRepository implements ConsentRepository {
       ORDER BY expires_at ASC
     `;
     const result = await this.db.query(sql, [withinDays]);
-    return (result.rows as unknown as ConsentRow[]).map((row) => this.rowToConsent(row));
+    return result.rows.map((row) => this.rowToConsent(this.validateConsentRow(row)));
   }
 
   async findByStatus(status: ConsentStatus): Promise<ConsentRecord[]> {
     const sql = `SELECT * FROM consents WHERE status = $1 ORDER BY updated_at DESC`;
     const result = await this.db.query(sql, [status]);
-    return (result.rows as unknown as ConsentRow[]).map((row) => this.rowToConsent(row));
+    return result.rows.map((row) => this.rowToConsent(this.validateConsentRow(row)));
   }
 
   async appendAuditEntry(entry: ConsentAuditEntry): Promise<void> {
@@ -196,7 +236,7 @@ export class PostgresConsentRepository implements ConsentRepository {
       ORDER BY timestamp DESC
     `;
     const result = await this.db.query(sql, [consentId]);
-    return (result.rows as unknown as AuditRow[]).map((row) => this.rowToAuditEntry(row));
+    return result.rows.map((row) => this.rowToAuditEntry(this.validateAuditRow(row)));
   }
 
   async getContactAuditTrail(contactId: string): Promise<ConsentAuditEntry[]> {
@@ -207,7 +247,7 @@ export class PostgresConsentRepository implements ConsentRepository {
       ORDER BY cal.timestamp DESC
     `;
     const result = await this.db.query(sql, [contactId]);
-    return (result.rows as unknown as AuditRow[]).map((row) => this.rowToAuditEntry(row));
+    return result.rows.map((row) => this.rowToAuditEntry(this.validateAuditRow(row)));
   }
 
   private rowToConsent(row: ConsentRow): ConsentRecord {

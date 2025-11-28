@@ -235,18 +235,61 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 }
 
 /**
+ * Get allowed CORS origins from environment
+ * SECURITY: Restricts API access to trusted domains only
+ */
+function getAllowedOrigins(): string[] {
+  const envOrigins = process.env.ALLOWED_CORS_ORIGINS;
+  if (envOrigins) {
+    return envOrigins.split(',').map((origin) => origin.trim());
+  }
+  // Default allowed origins for production
+  // SECURITY: Always explicitly list allowed domains - never use '*' in production
+  return [
+    'https://medicalcor.ro',
+    'https://www.medicalcor.ro',
+    'https://app.medicalcor.ro',
+    // Development origins (only in dev mode)
+    ...(process.env.NODE_ENV === 'development' ? ['http://localhost:3000', 'http://localhost:3001'] : []),
+  ];
+}
+
+/**
+ * Validate origin against allowed list
+ * SECURITY: Prevents unauthorized cross-origin requests
+ */
+function isOriginAllowed(origin: string | null): boolean {
+  if (!origin) return false;
+  const allowedOrigins = getAllowedOrigins();
+  return allowedOrigins.includes(origin);
+}
+
+/**
  * OPTIONS /api/leads
  *
  * Handle CORS preflight requests
+ * SECURITY: Only allows requests from trusted origins
  */
-export async function OPTIONS(): Promise<NextResponse> {
+export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
+  const origin = req.headers.get('origin');
+  const allowedOrigin = isOriginAllowed(origin) ? origin : null;
+
+  // If origin is not allowed, return 403
+  if (!allowedOrigin) {
+    return new NextResponse(null, {
+      status: 403,
+      statusText: 'Origin not allowed',
+    });
+  }
+
   return new NextResponse(null, {
     status: 204,
     headers: {
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': allowedOrigin,
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
       'Access-Control-Max-Age': '86400',
+      'Vary': 'Origin',
     },
   });
 }
