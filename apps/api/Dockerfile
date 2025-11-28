@@ -59,4 +59,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOST=0.0.0.0
 
-CMD ["node", "apps/api/dist/app.js"]
+CMD ["node", "apps/api/dist/index.js"]
