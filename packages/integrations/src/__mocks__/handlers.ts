@@ -363,6 +363,190 @@ const vapiHandlers = [
 ];
 
 // =============================================================================
+// Scheduling API Mocks
+// =============================================================================
+
+const schedulingHandlers = [
+  // Get available slots
+  http.get('https://scheduling.api.example.com/api/v1/slots', ({ request }) => {
+    const url = new URL(request.url);
+    const procedureType = url.searchParams.get('procedure_type');
+
+    return HttpResponse.json({
+      slots: [
+        {
+          id: 'slot_001',
+          date: '2025-01-15',
+          time: '09:00',
+          dateTime: '2025-01-15T09:00:00Z',
+          duration: 60,
+          available: true,
+          practitioner: { id: 'dr_001', name: 'Dr. Popescu', specialty: 'Implantologie' },
+          location: { id: 'loc_001', name: 'Clinica Centrala', address: 'Str. Principala 1' },
+        },
+        {
+          id: 'slot_002',
+          date: '2025-01-15',
+          time: '10:30',
+          dateTime: '2025-01-15T10:30:00Z',
+          duration: 60,
+          available: true,
+          practitioner: { id: 'dr_001', name: 'Dr. Popescu', specialty: 'Implantologie' },
+          location: { id: 'loc_001', name: 'Clinica Centrala', address: 'Str. Principala 1' },
+        },
+        {
+          id: 'slot_003',
+          date: '2025-01-16',
+          time: '14:00',
+          dateTime: '2025-01-16T14:00:00Z',
+          duration: 30,
+          available: false, // Not available
+          practitioner: { id: 'dr_002', name: 'Dr. Ionescu' },
+        },
+      ],
+    });
+  }),
+
+  // Get slot by ID
+  http.get('https://scheduling.api.example.com/api/v1/slots/:slotId', ({ params }) => {
+    if (params.slotId === 'not_found') {
+      return new HttpResponse(null, { status: 404 });
+    }
+    return HttpResponse.json({
+      id: params.slotId,
+      date: '2025-01-15',
+      time: '09:00',
+      dateTime: '2025-01-15T09:00:00Z',
+      duration: 60,
+      available: params.slotId !== 'booked_slot',
+      practitioner: { id: 'dr_001', name: 'Dr. Popescu' },
+      location: { id: 'loc_001', name: 'Clinica Centrala' },
+    });
+  }),
+
+  // Book appointment
+  http.post('https://scheduling.api.example.com/api/v1/appointments', async ({ request }) => {
+    const body = (await request.json()) as {
+      slot_id: string;
+      patient: { phone: string; name?: string; email?: string };
+      procedure_type: string;
+    };
+
+    return HttpResponse.json(
+      {
+        id: `apt_${Date.now()}`,
+        slotId: body.slot_id,
+        patientPhone: body.patient.phone,
+        patientName: body.patient.name,
+        patientEmail: body.patient.email,
+        procedureType: body.procedure_type,
+        scheduledAt: '2025-01-15T09:00:00Z',
+        duration: 60,
+        status: 'confirmed',
+        practitioner: { id: 'dr_001', name: 'Dr. Popescu' },
+        location: { id: 'loc_001', name: 'Clinica Centrala' },
+        confirmationCode: 'ABC123',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      { status: 201 }
+    );
+  }),
+
+  // Get appointment by ID
+  http.get('https://scheduling.api.example.com/api/v1/appointments/:appointmentId', ({ params }) => {
+    if (params.appointmentId === 'not_found') {
+      return new HttpResponse(null, { status: 404 });
+    }
+    return HttpResponse.json({
+      id: params.appointmentId,
+      slotId: 'slot_001',
+      patientPhone: '+40721000001',
+      patientName: 'Test Patient',
+      procedureType: 'implant',
+      scheduledAt: '2025-01-15T09:00:00Z',
+      duration: 60,
+      status: 'confirmed',
+      practitioner: { id: 'dr_001', name: 'Dr. Popescu' },
+      confirmationCode: 'ABC123',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  }),
+
+  // Cancel appointment
+  http.post(
+    'https://scheduling.api.example.com/api/v1/appointments/:appointmentId/cancel',
+    ({ params }) => {
+      return HttpResponse.json({
+        id: params.appointmentId,
+        slotId: 'slot_001',
+        patientPhone: '+40721000001',
+        procedureType: 'implant',
+        scheduledAt: '2025-01-15T09:00:00Z',
+        duration: 60,
+        status: 'cancelled',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  ),
+
+  // Reschedule appointment
+  http.post(
+    'https://scheduling.api.example.com/api/v1/appointments/:appointmentId/reschedule',
+    async ({ params, request }) => {
+      const body = (await request.json()) as { new_slot_id: string };
+      return HttpResponse.json({
+        id: params.appointmentId,
+        slotId: body.new_slot_id,
+        patientPhone: '+40721000001',
+        procedureType: 'implant',
+        scheduledAt: '2025-01-16T14:00:00Z',
+        duration: 60,
+        status: 'confirmed',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  ),
+
+  // Get patient appointments
+  http.get('https://scheduling.api.example.com/api/v1/appointments', ({ request }) => {
+    const url = new URL(request.url);
+    const status = url.searchParams.get('status');
+
+    const appointments = [
+      {
+        id: 'apt_001',
+        slotId: 'slot_001',
+        patientPhone: '+40721000001',
+        procedureType: 'implant',
+        scheduledAt: '2025-01-15T09:00:00Z',
+        duration: 60,
+        status: 'confirmed',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: 'apt_002',
+        slotId: 'slot_005',
+        patientPhone: '+40721000001',
+        procedureType: 'control',
+        scheduledAt: '2025-01-20T11:00:00Z',
+        duration: 30,
+        status: 'completed',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ];
+
+    const filtered = status ? appointments.filter((a) => a.status === status) : appointments;
+    return HttpResponse.json({ appointments: filtered });
+  }),
+];
+
+// =============================================================================
 // Test Helper - Rate Limited Response
 // =============================================================================
 
@@ -478,4 +662,5 @@ export const handlers = [
   ...openaiHandlers,
   ...stripeHandlers,
   ...vapiHandlers,
+  ...schedulingHandlers,
 ];

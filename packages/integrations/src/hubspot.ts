@@ -7,6 +7,7 @@ import type {
   HubSpotSearchResponse,
   HubSpotTask,
 } from '@medicalcor/types';
+import { parseIntegerString } from '@medicalcor/types';
 
 const logger = createLogger({ name: 'hubspot' });
 
@@ -842,7 +843,8 @@ export class HubSpotClient {
   async recordAppointmentCancellation(contactId: string): Promise<HubSpotContact> {
     // First get current count
     const contact = await this.getContact(contactId);
-    const currentCount = parseInt(contact.properties.canceled_appointments ?? '0', 10);
+    // VALIDATION FIX: Use safe parser to handle invalid/NaN values
+    const currentCount = parseIntegerString(contact.properties.canceled_appointments);
 
     return this.updateContact(contactId, {
       canceled_appointments: (currentCount + 1).toString(),
@@ -857,8 +859,9 @@ export class HubSpotClient {
     treatmentValue: number
   ): Promise<HubSpotContact> {
     const contact = await this.getContact(contactId);
-    const currentLTV = parseInt(contact.properties.lifetime_value ?? '0', 10);
-    const currentTreatments = parseInt(contact.properties.total_treatments ?? '0', 10);
+    // VALIDATION FIX: Use safe parsers to handle invalid/NaN values
+    const currentLTV = parseIntegerString(contact.properties.lifetime_value);
+    const currentTreatments = parseIntegerString(contact.properties.total_treatments);
 
     // Calculate new loyalty segment based on LTV
     const newLTV = currentLTV + treatmentValue;

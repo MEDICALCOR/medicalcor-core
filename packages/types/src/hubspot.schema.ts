@@ -4,6 +4,51 @@ import { z } from 'zod';
  * HubSpot CRM Schemas
  */
 
+/**
+ * Numeric String Schema
+ * HubSpot stores numeric values as strings. This schema validates that
+ * the string contains a valid numeric value.
+ *
+ * VALIDATION: Ensures values like "", "invalid", "NaN" are rejected
+ * or coerced to safe defaults.
+ */
+export const NumericStringSchema = z
+  .string()
+  .optional()
+  .transform((val) => {
+    if (val === undefined || val === null || val === '') {
+      return undefined;
+    }
+    // Validate it's a parseable number
+    const parsed = Number(val);
+    if (Number.isNaN(parsed)) {
+      return undefined;
+    }
+    return val;
+  });
+
+/**
+ * Helper to safely parse a numeric string with a default value
+ */
+export function parseNumericString(value: string | undefined | null, defaultValue: number = 0): number {
+  if (value === undefined || value === null || value === '') {
+    return defaultValue;
+  }
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? defaultValue : parsed;
+}
+
+/**
+ * Helper to safely parse an integer string with a default value
+ */
+export function parseIntegerString(value: string | undefined | null, defaultValue: number = 0): number {
+  if (value === undefined || value === null || value === '') {
+    return defaultValue;
+  }
+  const parsed = parseInt(value, 10);
+  return Number.isNaN(parsed) ? defaultValue : parsed;
+}
+
 // Churn Risk levels
 export const ChurnRiskSchema = z.enum(['SCAZUT', 'MEDIU', 'RIDICAT', 'FOARTE_RIDICAT']);
 

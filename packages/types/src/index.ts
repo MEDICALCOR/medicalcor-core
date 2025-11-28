@@ -171,6 +171,10 @@ export {
   NPSCategorySchema,
   LoyaltySegmentSchema,
   FollowUpPrioritySchema,
+  // Numeric string validation helpers
+  NumericStringSchema,
+  parseNumericString,
+  parseIntegerString,
   // Types
   type HubSpotContactProperties,
   type HubSpotContact,

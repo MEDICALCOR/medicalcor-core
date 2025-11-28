@@ -337,21 +337,39 @@ export class AIBudgetController {
 
   /**
    * Get budget usage for a scope
+   * RESILIENCE: Uses Promise.allSettled with fallback defaults to prevent
+   * Redis outages from blocking budget checks entirely
    */
   async getUsage(scope: 'user' | 'tenant' | 'global', scopeId: string): Promise<BudgetUsage> {
     const now = Date.now();
     const dailyKey = this.getDailyKey(now);
     const monthlyKey = this.getMonthlyKey(now);
 
-    const [dailySpend, monthlySpend, requestsToday, requestsMonth, modelSpend, opSpend] =
-      await Promise.all([
-        this.getSpend(scope, scopeId, 'daily', dailyKey),
-        this.getSpend(scope, scopeId, 'monthly', monthlyKey),
-        this.getRequestCount(scope, scopeId, 'daily', dailyKey),
-        this.getRequestCount(scope, scopeId, 'monthly', monthlyKey),
-        this.getModelSpend(scope, scopeId),
-        this.getOperationSpend(scope, scopeId),
-      ]);
+    // RESILIENCE FIX: Use Promise.allSettled instead of Promise.all
+    // If Redis has a temporary outage, we return default values instead of failing
+    const results = await Promise.allSettled([
+      this.getSpend(scope, scopeId, 'daily', dailyKey),
+      this.getSpend(scope, scopeId, 'monthly', monthlyKey),
+      this.getRequestCount(scope, scopeId, 'daily', dailyKey),
+      this.getRequestCount(scope, scopeId, 'monthly', monthlyKey),
+      this.getModelSpend(scope, scopeId),
+      this.getOperationSpend(scope, scopeId),
+    ]);
+
+    // Extract values with fallback defaults for any failures
+    const dailySpend = results[0].status === 'fulfilled' ? results[0].value : 0;
+    const monthlySpend = results[1].status === 'fulfilled' ? results[1].value : 0;
+    const requestsToday = results[2].status === 'fulfilled' ? results[2].value : 0;
+    const requestsMonth = results[3].status === 'fulfilled' ? results[3].value : 0;
+    const modelSpend = results[4].status === 'fulfilled' ? results[4].value : {};
+    const opSpend = results[5].status === 'fulfilled' ? results[5].value : {};
+
+    // Log any failures for monitoring
+    const failures = results.filter((r) => r.status === 'rejected');
+    if (failures.length > 0) {
+      // Note: In production, this would use the logger instead of console
+      console.warn(`[AIBudgetController] ${failures.length} Redis queries failed, using defaults`);
+    }
 
     const { dailyBudget, monthlyBudget } = this.getBudgetLimits(scope, scopeId);
 
@@ -672,11 +690,20 @@ export class AIBudgetController {
     // Since we're using separate keys, we need to scan for model keys
     const pattern = `${this.config.keyPrefix}model:${scope}:${scopeId}:${this.getMonthlyKey(Date.now())}:*`;
     const keys = await this.redis.keys(pattern);
+
+    if (keys.length === 0) {
+      return {};
+    }
+
+    // PERFORMANCE FIX: Use MGET instead of N individual GET calls
+    // This reduces Redis roundtrips from O(n) to O(1)
+    const values = await this.redis.mget(keys);
     const result: Record<string, number> = {};
 
-    for (const key of keys) {
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i]!;
       const model = key.split(':').pop() ?? '';
-      const value = await this.redis.get(key);
+      const value = values[i];
       result[model] = (parseInt(value ?? '0', 10) || 0) / 10000;
     }
 
@@ -687,11 +714,20 @@ export class AIBudgetController {
     // Since we're using separate keys, we need to scan for operation keys
     const pattern = `${this.config.keyPrefix}op:${scope}:${scopeId}:${this.getMonthlyKey(Date.now())}:*`;
     const keys = await this.redis.keys(pattern);
+
+    if (keys.length === 0) {
+      return {};
+    }
+
+    // PERFORMANCE FIX: Use MGET instead of N individual GET calls
+    // This reduces Redis roundtrips from O(n) to O(1)
+    const values = await this.redis.mget(keys);
     const result: Record<string, number> = {};
 
-    for (const key of keys) {
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i]!;
       const op = key.split(':').pop() ?? '';
-      const value = await this.redis.get(key);
+      const value = values[i];
       result[op] = (parseInt(value ?? '0', 10) || 0) / 10000;
     }
 
