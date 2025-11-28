@@ -41,6 +41,7 @@ export type LeadSource =
   | 'web_form'
   | 'web'
   | 'hubspot'
+  | 'pipedrive'
   | 'facebook'
   | 'google'
   | 'referral'
@@ -79,7 +80,12 @@ export interface AIScoringContext {
   language?: 'ro' | 'en' | 'de';
   messageHistory?: ConversationMessage[];
   utm?: UTMParams;
+  /** HubSpot contact ID for context enrichment */
   hubspotContactId?: string;
+  /** Pipedrive person ID for context enrichment */
+  pipedrivePersonId?: string;
+  /** Preferred CRM for this context (overrides agent default) */
+  preferredCRM?: CRMProvider;
 }
 
 /**
@@ -102,6 +108,11 @@ export interface ScoringOutput {
 // ============================================================================
 
 /**
+ * Supported CRM providers
+ */
+export type CRMProvider = 'hubspot' | 'pipedrive';
+
+/**
  * Scoring agent configuration
  */
 export interface ScoringAgentConfig {
@@ -121,6 +132,10 @@ export interface ScoringAgentConfig {
   enableContextEnrichment?: boolean;
   /** HubSpot client for context enrichment */
   hubspotClient?: HubSpotClient;
+  /** Pipedrive client for context enrichment */
+  pipedriveClient?: PipedriveClient;
+  /** Primary CRM provider (default: auto-detect based on available clients) */
+  primaryCRM?: CRMProvider;
 }
 
 /**
@@ -155,6 +170,55 @@ interface HubSpotNote {
   };
 }
 
+/**
+ * Pipedrive client interface for context enrichment
+ */
+interface PipedriveClient {
+  getPerson(personId: string): Promise<PipedrivePerson | null>;
+  getPersonDeals(personId: string): Promise<PipedriveDeal[]>;
+  getPersonActivities(personId: string): Promise<PipedriveActivity[]>;
+}
+
+interface PipedrivePerson {
+  id: number;
+  name: string;
+  email?: { value: string; primary: boolean }[];
+  phone?: { value: string; primary: boolean }[];
+  org_id?: { value: number; name: string };
+  owner_id?: { id: number; name: string };
+  add_time?: string;
+  update_time?: string;
+  // Custom fields are dynamic
+  [key: string]: unknown;
+}
+
+interface PipedriveDeal {
+  id: number;
+  title: string;
+  value: number;
+  currency: string;
+  status: 'open' | 'won' | 'lost' | 'deleted';
+  stage_id: number;
+  pipeline_id: number;
+  probability?: number;
+  won_time?: string;
+  lost_time?: string;
+  add_time?: string;
+  update_time?: string;
+}
+
+interface PipedriveActivity {
+  id: number;
+  type: string;
+  subject?: string;
+  note?: string;
+  done: boolean;
+  due_date?: string;
+  due_time?: string;
+  add_time?: string;
+  marked_as_done_time?: string;
+}
+
 // ============================================================================
 // Tool Definitions
 // ============================================================================
@@ -166,13 +230,18 @@ const SCORING_TOOLS: Anthropic.Messages.Tool[] = [
   {
     name: 'get_patient_history',
     description:
-      'Retrieve patient history from HubSpot CRM including past interactions, deals, and notes. Use this to enrich scoring context with historical data.',
+      'Retrieve patient history from CRM (HubSpot or Pipedrive) including past interactions, deals, and notes. Use this to enrich scoring context with historical data.',
     input_schema: {
       type: 'object',
       properties: {
         contactId: {
           type: 'string',
-          description: 'HubSpot contact ID',
+          description: 'CRM contact/person ID (HubSpot contact ID or Pipedrive person ID)',
+        },
+        crmProvider: {
+          type: 'string',
+          enum: ['hubspot', 'pipedrive', 'auto'],
+          description: 'Which CRM to use (auto will use the configured primary CRM)',
         },
         includeDeals: {
           type: 'boolean',
@@ -180,7 +249,7 @@ const SCORING_TOOLS: Anthropic.Messages.Tool[] = [
         },
         includeNotes: {
           type: 'boolean',
-          description: 'Whether to include notes/interactions',
+          description: 'Whether to include notes/activities',
         },
       },
       required: ['contactId'],
@@ -541,6 +610,14 @@ export class ScoringAgent {
     const messages =
       context.messageHistory?.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join('\n') ?? '';
 
+    // Determine CRM context
+    const hasCRMId = context.hubspotContactId ?? context.pipedrivePersonId;
+    const crmInfo = context.hubspotContactId
+      ? `- **HubSpot Contact ID**: ${context.hubspotContactId}`
+      : context.pipedrivePersonId
+        ? `- **Pipedrive Person ID**: ${context.pipedrivePersonId}`
+        : '';
+
     return `Please analyze this lead and provide a score.
 
 ## LEAD CONTEXT
@@ -549,7 +626,7 @@ export class ScoringAgent {
 - **Channel**: ${context.channel}
 - **Language**: ${context.language ?? 'unknown'}
 - **First Contact**: ${context.firstTouchTimestamp}
-${context.hubspotContactId ? `- **HubSpot Contact ID**: ${context.hubspotContactId}` : ''}
+${crmInfo}
 ${context.utm?.utm_source ? `- **Source**: ${context.utm.utm_source}` : ''}
 ${context.utm?.utm_campaign ? `- **Campaign**: ${context.utm.utm_campaign}` : ''}
 
@@ -559,7 +636,7 @@ ${messages || 'No messages available'}
 
 ## INSTRUCTIONS
 
-1. ${context.hubspotContactId ? 'Use get_patient_history to fetch additional context' : 'Skip history fetch (no HubSpot ID)'}
+1. ${hasCRMId ? 'Use get_patient_history to fetch additional context from CRM' : 'Skip history fetch (no CRM ID available)'}
 2. Analyze the conversation for scoring signals
 3. Use calculate_score to determine the final score`;
   }
@@ -588,16 +665,74 @@ ${messages || 'No messages available'}
   }
 
   /**
-   * Execute get_patient_history tool
+   * Determine which CRM to use for context enrichment
+   */
+  private determineCRM(
+    input: Record<string, unknown>,
+    context: AIScoringContext
+  ): CRMProvider | null {
+    // Explicit CRM selection in tool input
+    const requestedCRM = input.crmProvider as string | undefined;
+    if (requestedCRM && requestedCRM !== 'auto') {
+      return requestedCRM as CRMProvider;
+    }
+
+    // Context-level preference
+    if (context.preferredCRM) {
+      return context.preferredCRM;
+    }
+
+    // Agent-level configuration
+    if (this.config.primaryCRM) {
+      return this.config.primaryCRM;
+    }
+
+    // Auto-detect based on available IDs and clients
+    if (context.pipedrivePersonId && this.config.pipedriveClient) {
+      return 'pipedrive';
+    }
+    if (context.hubspotContactId && this.config.hubspotClient) {
+      return 'hubspot';
+    }
+
+    // Fallback to whatever client is available
+    if (this.config.pipedriveClient) return 'pipedrive';
+    if (this.config.hubspotClient) return 'hubspot';
+
+    return null;
+  }
+
+  /**
+   * Execute get_patient_history tool - supports both HubSpot and Pipedrive
    */
   private async executeGetPatientHistory(
+    input: Record<string, unknown>,
+    context: AIScoringContext
+  ): Promise<unknown> {
+    const crm = this.determineCRM(input, context);
+
+    if (!crm) {
+      return { error: 'No CRM client configured' };
+    }
+
+    if (crm === 'pipedrive') {
+      return this.executeGetPatientHistoryPipedrive(input, context);
+    }
+
+    return this.executeGetPatientHistoryHubSpot(input, context);
+  }
+
+  /**
+   * Fetch patient history from HubSpot
+   */
+  private async executeGetPatientHistoryHubSpot(
     input: Record<string, unknown>,
     context: AIScoringContext
   ): Promise<unknown> {
     const contactId = (input.contactId as string | undefined) ?? context.hubspotContactId;
 
     if (!contactId) {
-      return { error: 'No contact ID provided' };
+      return { error: 'No HubSpot contact ID provided' };
     }
 
     if (!this.config.hubspotClient) {
@@ -616,6 +751,7 @@ ${messages || 'No messages available'}
       ]);
 
       return {
+        crmProvider: 'hubspot',
         contact: contact
           ? {
               id: contact.id,
@@ -641,7 +777,90 @@ ${messages || 'No messages available'}
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       return {
-        error: `Failed to fetch patient history: ${errorMessage}`,
+        error: `Failed to fetch HubSpot patient history: ${errorMessage}`,
+      };
+    }
+  }
+
+  /**
+   * Fetch patient history from Pipedrive
+   */
+  private async executeGetPatientHistoryPipedrive(
+    input: Record<string, unknown>,
+    context: AIScoringContext
+  ): Promise<unknown> {
+    const personId = (input.contactId as string | undefined) ?? context.pipedrivePersonId;
+
+    if (!personId) {
+      return { error: 'No Pipedrive person ID provided' };
+    }
+
+    if (!this.config.pipedriveClient) {
+      return { error: 'Pipedrive client not configured', personId };
+    }
+
+    try {
+      const [person, deals, activities] = await Promise.all([
+        this.config.pipedriveClient.getPerson(personId),
+        input.includeDeals !== false
+          ? this.config.pipedriveClient.getPersonDeals(personId)
+          : Promise.resolve([]),
+        input.includeNotes !== false
+          ? this.config.pipedriveClient.getPersonActivities(personId)
+          : Promise.resolve([]),
+      ]);
+
+      // Extract primary email and phone
+      const primaryEmail =
+        person?.email?.find((e) => e.primary)?.value ?? person?.email?.[0]?.value;
+      const primaryPhone =
+        person?.phone?.find((p) => p.primary)?.value ?? person?.phone?.[0]?.value;
+
+      // Calculate won deals value
+      const wonDeals = deals.filter((d) => d.status === 'won');
+      const totalWonValue = wonDeals.reduce((sum, d) => sum + d.value, 0);
+
+      return {
+        crmProvider: 'pipedrive',
+        contact: person
+          ? {
+              id: String(person.id),
+              name: person.name,
+              email: primaryEmail,
+              phone: primaryPhone,
+              organization: person.org_id?.name,
+              owner: person.owner_id?.name,
+              createdAt: person.add_time,
+              updatedAt: person.update_time,
+            }
+          : null,
+        deals: deals.map((d) => ({
+          id: String(d.id),
+          name: d.title,
+          amount: String(d.value),
+          currency: d.currency,
+          stage: `stage_${d.stage_id}`,
+          status: d.status,
+          probability: d.probability,
+        })),
+        recentActivities: activities.slice(0, 5).map((a) => ({
+          type: a.type,
+          subject: a.subject,
+          note: a.note?.substring(0, 200),
+          done: a.done,
+          dueDate: a.due_date,
+          completedAt: a.marked_as_done_time,
+        })),
+        isReturningPatient: wonDeals.length > 0,
+        totalDeals: deals.length,
+        wonDeals: wonDeals.length,
+        totalWonValue,
+        openDeals: deals.filter((d) => d.status === 'open').length,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return {
+        error: `Failed to fetch Pipedrive patient history: ${errorMessage}`,
       };
     }
   }
@@ -852,6 +1071,11 @@ ${messages || 'No messages available'}
 // ============================================================================
 
 /**
+ * CRM provider schema
+ */
+export const CRMProviderSchema = z.enum(['hubspot', 'pipedrive']);
+
+/**
  * Input schema for scoring agent
  */
 export const ScoringAgentInputSchema = z.object({
@@ -866,6 +1090,7 @@ export const ScoringAgentInputSchema = z.object({
     'facebook',
     'google',
     'manual',
+    'pipedrive',
   ]),
   firstTouchTimestamp: z.string(),
   language: z.enum(['ro', 'en', 'de']).optional(),
@@ -879,6 +1104,8 @@ export const ScoringAgentInputSchema = z.object({
     )
     .optional(),
   hubspotContactId: z.string().optional(),
+  pipedrivePersonId: z.string().optional(),
+  preferredCRM: CRMProviderSchema.optional(),
   utm: z
     .object({
       utm_source: z.string().optional(),

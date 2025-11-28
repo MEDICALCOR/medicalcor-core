@@ -15,13 +15,14 @@
  * - Multi-step reasoning with tool use
  * - GDPR-compliant data handling
  * - Comprehensive audit logging
- * - Context enrichment from HubSpot
+ * - Context enrichment from HubSpot and Pipedrive
  * - Fallback scoring for reliability
  *
  * @example
  * ```typescript
  * import { createScoringAgent } from '@medicalcor/agents';
  *
+ * // With HubSpot
  * const agent = createScoringAgent({
  *   apiKey: process.env.ANTHROPIC_API_KEY!,
  *   hubspotClient: hubspot,
@@ -30,10 +31,18 @@
  *   },
  * });
  *
+ * // With Pipedrive
+ * const agentPipedrive = createScoringAgent({
+ *   apiKey: process.env.ANTHROPIC_API_KEY!,
+ *   pipedriveClient: pipedrive,
+ *   primaryCRM: 'pipedrive',
+ * });
+ *
  * const result = await agent.scoreContext({
  *   phone: '+40712345678',
  *   channel: 'whatsapp',
  *   firstTouchTimestamp: new Date().toISOString(),
+ *   pipedrivePersonId: '12345', // or hubspotContactId
  *   messageHistory: [
  *     { role: 'user', content: 'Bună, mă interesează implanturile All-on-4', timestamp: new Date().toISOString() },
  *   ],
@@ -58,7 +67,13 @@ export {
   ScoringAgent,
   createScoringAgent,
   ScoringAgentInputSchema,
+  CRMProviderSchema,
   type ScoringAgentConfig,
+  type CRMProvider,
+  type AIScoringContext,
+  type ScoringOutput,
+  type LeadScore,
+  type LeadSource,
 } from './scoring-agent.js';
 
 // Hooks
