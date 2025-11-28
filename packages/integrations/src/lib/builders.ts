@@ -14,8 +14,12 @@ import { unsafe } from './branded-types.js';
 // Type-Level Boolean Logic
 // =============================================================================
 
-type True = { readonly _true: unique symbol };
-type False = { readonly _false: unique symbol };
+interface True {
+  readonly _true: unique symbol;
+}
+interface False {
+  readonly _false: unique symbol;
+}
 type Bool = True | False;
 
 // Type-level boolean operations (available for advanced type compositions)
@@ -41,12 +45,12 @@ interface BuilderState {
   readonly circuitBreaker: Bool;
 }
 
-type EmptyState = {
+interface EmptyState {
   apiKey: False;
   retryConfig: False;
   timeout: False;
   circuitBreaker: False;
-};
+}
 
 type WithApiKey<S extends BuilderState> = Omit<S, 'apiKey'> & { apiKey: True };
 type WithRetryConfig<S extends BuilderState> = Omit<S, 'retryConfig'> & { retryConfig: True };
@@ -432,11 +436,9 @@ export class CircuitBreakerBuilder {
   /**
    * Only count specific error types
    */
-  onlyCountErrors<E extends new (...args: unknown[]) => Error>(
-    ...errorTypes: E[]
-  ): this {
-    this.state.errorFilter = (error) =>
-      errorTypes.some((ErrorType) => error instanceof ErrorType);
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- E enables type-safe error class filtering
+  onlyCountErrors<E extends new (...args: unknown[]) => Error>(...errorTypes: E[]): this {
+    this.state.errorFilter = (error) => errorTypes.some((ErrorType) => error instanceof ErrorType);
     return this;
   }
 
@@ -587,36 +589,21 @@ export class TimeoutBuilder {
    * Fast timeout config for real-time operations
    */
   static fast(): TimeoutConfig {
-    return TimeoutBuilder.create()
-      .connect(2000)
-      .request(10000)
-      .idle(30000)
-      .total(30000)
-      .build();
+    return TimeoutBuilder.create().connect(2000).request(10000).idle(30000).total(30000).build();
   }
 
   /**
    * Standard timeout config
    */
   static standard(): TimeoutConfig {
-    return TimeoutBuilder.create()
-      .connect(5000)
-      .request(30000)
-      .idle(60000)
-      .total(120000)
-      .build();
+    return TimeoutBuilder.create().connect(5000).request(30000).idle(60000).total(120000).build();
   }
 
   /**
    * Patient timeout config for slow operations
    */
   static patient(): TimeoutConfig {
-    return TimeoutBuilder.create()
-      .connect(10000)
-      .request(60000)
-      .idle(120000)
-      .total(300000)
-      .build();
+    return TimeoutBuilder.create().connect(10000).request(60000).idle(120000).total(300000).build();
   }
 }
 
@@ -730,7 +717,8 @@ export abstract class BaseClientBuilder<
    * Disable circuit breaker
    */
   withoutCircuitBreaker(): this {
-    (this.config as MutableConfig<BaseClientConfig>).circuitBreakerConfig = CircuitBreakerBuilder.create().disable().build();
+    (this.config as MutableConfig<BaseClientConfig>).circuitBreakerConfig =
+      CircuitBreakerBuilder.create().disable().build();
     return this;
   }
 
@@ -899,7 +887,7 @@ export class RequestBuilder<TBody = unknown> {
    * Set bearer token
    */
   bearerToken(token: string): this {
-    this.config.headers['Authorization'] = `Bearer ${token}`;
+    this.config.headers.Authorization = `Bearer ${token}`;
     return this;
   }
 

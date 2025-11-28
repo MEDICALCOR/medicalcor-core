@@ -27,9 +27,9 @@ export type SpanKind = 'INTERNAL' | 'SERVER' | 'CLIENT' | 'PRODUCER' | 'CONSUMER
 /**
  * Span attributes for context
  */
-export interface SpanAttributes {
-  readonly [key: string]: string | number | boolean | readonly string[] | undefined;
-}
+export type SpanAttributes = Readonly<
+  Record<string, string | number | boolean | readonly string[] | undefined>
+>;
 
 /**
  * Span event for timeline tracking
@@ -88,9 +88,7 @@ export type MetricType = 'counter' | 'gauge' | 'histogram' | 'summary';
 /**
  * Metric labels
  */
-export interface MetricLabels {
-  readonly [key: string]: string;
-}
+export type MetricLabels = Readonly<Record<string, string>>;
 
 /**
  * Metric data point
@@ -304,9 +302,10 @@ export class InMemoryTelemetryCollector implements TelemetryCollector {
     // No-op for in-memory collector
   }
 
-  async shutdown(): Promise<void> {
+  shutdown(): Promise<void> {
     this.spans = [];
     this.metrics = [];
+    return Promise.resolve();
   }
 
   /**
@@ -383,6 +382,7 @@ class TelemetryRegistry {
   }
 
   static getInstance(): TelemetryRegistry {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- singleton pattern: instance is undefined on first call
     if (!TelemetryRegistry.instance) {
       TelemetryRegistry.instance = new TelemetryRegistry();
     }
@@ -441,7 +441,8 @@ export function startSpan(
     parentContext?: TelemetryContext;
   } = {}
 ): Span {
-  const parentContext = options.parentContext ?? TelemetryRegistry.getInstance().getCurrentContext();
+  const parentContext =
+    options.parentContext ?? TelemetryRegistry.getInstance().getCurrentContext();
 
   const span: Span = {
     traceId: parentContext?.traceId ?? generateTraceId(),
@@ -494,11 +495,7 @@ export function endSpan(
 /**
  * Add an event to a span
  */
-export function addSpanEvent(
-  span: Span,
-  name: string,
-  attributes?: SpanAttributes
-): Span {
+export function addSpanEvent(span: Span, name: string, attributes?: SpanAttributes): Span {
   const event: SpanEvent = {
     name,
     timestamp: Date.now(),
@@ -673,8 +670,7 @@ export async function instrument<T>(
       incrementCounter(IntegrationMetrics.ERROR_TOTAL, {
         [IntegrationLabels.SERVICE]: service,
         [IntegrationLabels.OPERATION]: opName,
-        [IntegrationLabels.ERROR_TYPE]:
-          error instanceof Error ? error.constructor.name : 'Unknown',
+        [IntegrationLabels.ERROR_TYPE]: error instanceof Error ? error.constructor.name : 'Unknown',
       });
     }
 

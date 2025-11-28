@@ -259,9 +259,7 @@ export function hasKind<T extends string>(
  * ```
  */
 export function assertNever(value: never, message?: string): never {
-  throw new Error(
-    message ?? `Unhandled discriminated union member: ${JSON.stringify(value)}`
-  );
+  throw new Error(message ?? `Unhandled discriminated union member: ${JSON.stringify(value)}`);
 }
 
 /**
@@ -277,13 +275,15 @@ export function assertNever(value: never, message?: string): never {
  * });
  * ```
  */
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- M enables proper type inference for discriminated union matchers
 export function exhaustiveMatch<
   T extends { _tag: string },
   R,
-  M extends { [K in T['_tag']]: (value: Extract<T, { _tag: K }>) => R }
+  M extends { [K in T['_tag']]: (value: Extract<T, { _tag: K }>) => R },
 >(value: T, matchers: M): R {
   const tag = value._tag;
   const matcher = matchers[tag as keyof M];
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- matcher can be undefined at runtime
   if (!matcher) {
     throw new Error(`No matcher for tag: ${tag}`);
   }
@@ -294,10 +294,11 @@ export function exhaustiveMatch<
 /**
  * Match with default fallback
  */
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- M enables proper type inference for discriminated union matchers
 export function matchWithDefault<
   T extends { _tag: string },
   R,
-  M extends Partial<{ [K in T['_tag']]: (value: Extract<T, { _tag: K }>) => R }>
+  M extends Partial<{ [K in T['_tag']]: (value: Extract<T, { _tag: K }>) => R }>,
 >(value: T, matchers: M, defaultValue: R | ((value: T) => R)): R {
   const tag = value._tag;
   const matcher = matchers[tag as keyof M];
@@ -356,32 +357,18 @@ export function assertDefined<T>(
 /**
  * Assert value is a non-empty string
  */
-export function assertNonEmptyString(
-  value: unknown,
-  message?: string
-): asserts value is string {
+export function assertNonEmptyString(value: unknown, message?: string): asserts value is string {
   if (!isNonEmptyString(value)) {
-    throw new AssertionError(
-      message ?? 'Expected non-empty string',
-      value,
-      'non-empty string'
-    );
+    throw new AssertionError(message ?? 'Expected non-empty string', value, 'non-empty string');
   }
 }
 
 /**
  * Assert value is a positive integer
  */
-export function assertPositiveInteger(
-  value: unknown,
-  message?: string
-): asserts value is number {
+export function assertPositiveInteger(value: unknown, message?: string): asserts value is number {
   if (!isPositiveInteger(value)) {
-    throw new AssertionError(
-      message ?? 'Expected positive integer',
-      value,
-      'positive integer'
-    );
+    throw new AssertionError(message ?? 'Expected positive integer', value, 'positive integer');
   }
 }
 
@@ -411,10 +398,8 @@ export function assertSchema<T>(
 /**
  * Safely get a property from an object
  */
-export function getProperty<T>(
-  obj: unknown,
-  key: string
-): T | undefined {
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- T enables callers to specify the expected return type
+export function getProperty<T>(obj: unknown, key: string): T | undefined {
   if (!isObject(obj)) return undefined;
   return obj[key] as T | undefined;
 }
@@ -422,10 +407,8 @@ export function getProperty<T>(
 /**
  * Safely get a nested property from an object
  */
-export function getNestedProperty<T>(
-  obj: unknown,
-  path: string[]
-): T | undefined {
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- T enables callers to specify the expected return type
+export function getNestedProperty<T>(obj: unknown, path: string[]): T | undefined {
   let current: unknown = obj;
 
   for (const key of path) {
@@ -462,30 +445,21 @@ export function isNonEmptyArray<T>(value: unknown): value is [T, ...T[]] {
 /**
  * Check if all elements in array satisfy a guard
  */
-export function isArrayOf<T>(
-  value: unknown,
-  guard: (item: unknown) => item is T
-): value is T[] {
+export function isArrayOf<T>(value: unknown, guard: (item: unknown) => item is T): value is T[] {
   return Array.isArray(value) && value.every(guard);
 }
 
 /**
  * Check if array has exact length
  */
-export function hasLength<T>(
-  value: unknown,
-  length: number
-): value is T[] {
+export function hasLength<T>(value: unknown, length: number): value is T[] {
   return Array.isArray(value) && value.length === length;
 }
 
 /**
  * Check if array has minimum length
  */
-export function hasMinLength<T>(
-  value: unknown,
-  minLength: number
-): value is T[] {
+export function hasMinLength<T>(value: unknown, minLength: number): value is T[] {
   return Array.isArray(value) && value.length >= minLength;
 }
 
@@ -605,10 +579,7 @@ export function isStripeWebhookPayload(value: unknown): value is StripeWebhookPa
 /**
  * Validate and return typed result
  */
-export function validate<T>(
-  schema: z.ZodType<T>,
-  value: unknown
-): GuardResult<T> {
+export function validate<T>(schema: z.ZodType<T>, value: unknown): GuardResult<T> {
   const result = schema.safeParse(value);
   if (result.success) {
     return guardOk(result.data);
@@ -619,11 +590,7 @@ export function validate<T>(
 /**
  * Validate or throw
  */
-export function validateOrThrow<T>(
-  schema: z.ZodType<T>,
-  value: unknown,
-  errorMessage?: string
-): T {
+export function validateOrThrow<T>(schema: z.ZodType<T>, value: unknown, errorMessage?: string): T {
   const result = schema.safeParse(value);
   if (result.success) {
     return result.data;
@@ -670,14 +637,11 @@ export function toNonEmptyString(str: string): string | null {
 /**
  * Filter and narrow array elements
  */
-export function filterMap<T, U>(
-  arr: readonly T[],
-  fn: (item: T) => U | null | undefined
-): U[] {
+export function filterMap<T, U>(arr: readonly T[], fn: (item: T) => U | null | undefined): U[] {
   const result: U[] = [];
   for (const item of arr) {
     const mapped = fn(item);
-    if (mapped != null) {
+    if (mapped !== null && mapped !== undefined) {
       result.push(mapped);
     }
   }
