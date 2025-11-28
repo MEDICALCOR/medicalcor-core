@@ -303,10 +303,12 @@ export function createEnhancedIntegrationClients(
   const globalCircuitBreaker = resolveCircuitBreakerConfig(config.circuitBreaker);
   const globalTimeout = resolveTimeoutConfig(config.timeout);
 
-  // Create circuit breaker registry
+  // Create circuit breaker registry with aligned API
   const circuitBreakerRegistry = new CircuitBreakerRegistry({
     failureThreshold: globalCircuitBreaker.failureThreshold,
     resetTimeoutMs: globalCircuitBreaker.resetTimeoutMs,
+    successThreshold: globalCircuitBreaker.successThreshold,
+    failureWindowMs: globalCircuitBreaker.failureWindowMs,
   });
 
   // Create resilience instances for each client

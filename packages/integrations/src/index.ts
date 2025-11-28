@@ -111,21 +111,20 @@ export {
 } from './clients-factory.js';
 
 // =============================================================================
-// Enhanced Client Factory (Temporarily Disabled - API mismatch issues)
-// TODO: Fix CircuitBreakerRegistry API usage and domain service integration
+// Enhanced Client Factory
 // =============================================================================
 
-// export {
-//   createEnhancedIntegrationClients,
-//   type EnhancedClientsConfig,
-//   type EnhancedIntegrationClients,
-//   type CircuitBreakerStats,
-//   getHubSpotAccessToken,
-//   getWhatsAppCredentials,
-//   getVapiCredentials,
-//   getStripeCredentials,
-//   getSchedulingCredentials,
-// } from './clients-factory.enhanced.js';
+export {
+  createEnhancedIntegrationClients,
+  type EnhancedClientsConfig,
+  type EnhancedIntegrationClients,
+  type CircuitBreakerStats as EnhancedCircuitBreakerStats,
+  getHubSpotAccessToken,
+  getWhatsAppCredentials,
+  getVapiCredentials,
+  getStripeCredentials,
+  getSchedulingCredentials,
+} from './clients-factory.enhanced.js';
 
 // =============================================================================
 // RAG - Embedding Service
