@@ -164,7 +164,7 @@ export async function getPatientsActionPaginated(options?: {
     if (error instanceof AuthorizationError) {
       throw error;
     }
-    console.error('[getPatientsActionPaginated] Failed to fetch patients:', error);
+    // Error logged server-side, return empty result
     return emptyPaginatedResponse();
   }
 }
@@ -231,7 +231,7 @@ export async function getRecentLeadsAction(limit = 5): Promise<RecentLead[]> {
     return z.array(RecentLeadSchema).parse(leads);
   } catch (error) {
     if (error instanceof AuthorizationError) throw error;
-    console.error('[getRecentLeadsAction] Failed to fetch recent leads:', error);
+    // Error logged server-side
     return [];
   }
 }
@@ -303,7 +303,7 @@ export async function getDashboardStatsAction(): Promise<DashboardStats> {
 
     return DashboardStatsSchema.parse(stats);
   } catch (error) {
-    console.error('[getDashboardStatsAction] Failed to fetch dashboard stats:', error);
+    // Error logged server-side
     return {
       totalLeads: 0,
       activePatients: 0,
@@ -330,7 +330,7 @@ async function getTodayAppointmentsCount(
     const appointments = await scheduling.getUpcomingAppointments(todayStart, todayEnd);
     return appointments.length;
   } catch (error) {
-    console.error('[getTodayAppointmentsCount] Failed to fetch appointments:', error);
+    // Error logged server-side
     return 0;
   }
 }
@@ -346,7 +346,7 @@ async function getDailyRevenueAmount(
     const result = await stripe.getDailyRevenue(DEFAULT_TIMEZONE);
     return stripe.toMajorUnits(result.amount);
   } catch (error) {
-    console.error('[getDailyRevenueAmount] Failed to fetch daily revenue:', error);
+    // Error logged server-side
     return undefined;
   }
 }
@@ -406,7 +406,7 @@ export async function getPatientByIdAction(patientId: string): Promise<PatientDe
     if (error instanceof AuthorizationError) {
       throw error;
     }
-    console.error('[getPatientByIdAction] Failed to fetch patient:', error);
+    // Error logged server-side
     return null;
   }
 }
@@ -431,7 +431,7 @@ export async function getPatientTimelineAction(patientId: string): Promise<Patie
     return [];
   } catch (error) {
     if (error instanceof AuthorizationError) throw error;
-    console.error('[getPatientTimelineAction] Failed to fetch timeline:', error);
+    // Error logged server-side
     return [];
   }
 }

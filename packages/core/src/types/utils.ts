@@ -562,8 +562,8 @@ export function exhaustive(value: never): never {
  * Like exhaustive, but returns a default value instead of throwing.
  * Useful when you want to handle unknown cases gracefully.
  */
-export function exhaustiveWithDefault<T>(value: never, defaultValue: T): T {
-  console.warn(`Unhandled case: ${JSON.stringify(value)}, using default`);
+export function exhaustiveWithDefault<T>(_value: never, defaultValue: T): T {
+  // Returns default for unhandled exhaustive cases
   return defaultValue;
 }
 

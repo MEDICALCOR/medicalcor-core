@@ -297,9 +297,8 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
   } catch (error) {
     if (error instanceof AuthorizationError) {
       accessDenied = true;
-    } else {
-      console.error('[PatientPage] Error fetching patient:', error);
     }
+    // Other errors result in null patient - handled below
   }
 
   // Handle access denied

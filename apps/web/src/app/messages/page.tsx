@@ -6,11 +6,13 @@ import { ConversationView, EmptyConversationView } from '@/components/messages/c
 import { CopilotPanel } from '@/components/ai-copilot';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  getConversationsAction,
+  getConversationsActionPaginated,
   getMessagesAction,
   type Conversation,
   type Message,
 } from '@/app/actions/get-patients';
+
+const PAGE_SIZE = 20;
 
 function ConversationListSkeleton() {
   return (
@@ -27,16 +29,40 @@ export default function MessagesPage() {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoadingConversations, startConversationsTransition] = useTransition();
+  const [isLoadingMore, startLoadMoreTransition] = useTransition();
   const [isLoadingMessages, startMessagesTransition] = useTransition();
   const [suggestedMessage, setSuggestedMessage] = useState<string | undefined>(undefined);
 
-  // Fetch conversations on mount
+  // Pagination state
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalCount, setTotalCount] = useState<number | undefined>(undefined);
+
+  // Fetch initial conversations on mount
   useEffect(() => {
     startConversationsTransition(async () => {
-      const fetchedConversations = await getConversationsAction();
-      setConversations(fetchedConversations);
+      const result = await getConversationsActionPaginated({ pageSize: PAGE_SIZE });
+      setConversations(result.items);
+      setNextCursor(result.nextCursor);
+      setHasMore(result.hasMore);
+      setTotalCount(result.total);
     });
   }, []);
+
+  // Load more conversations
+  const handleLoadMore = useCallback(() => {
+    if (!hasMore || !nextCursor) return;
+
+    startLoadMoreTransition(async () => {
+      const result = await getConversationsActionPaginated({
+        cursor: nextCursor,
+        pageSize: PAGE_SIZE,
+      });
+      setConversations((prev) => [...prev, ...result.items]);
+      setNextCursor(result.nextCursor);
+      setHasMore(result.hasMore);
+    });
+  }, [hasMore, nextCursor]);
 
   const handleSelectConversation = useCallback((conversation: Conversation) => {
     setSelectedConversation(conversation);
@@ -146,6 +172,10 @@ export default function MessagesPage() {
             conversations={conversations}
             selectedId={selectedConversation?.id}
             onSelect={handleSelectConversation}
+            hasMore={hasMore}
+            isLoadingMore={isLoadingMore}
+            onLoadMore={handleLoadMore}
+            totalCount={totalCount}
           />
         )}
 

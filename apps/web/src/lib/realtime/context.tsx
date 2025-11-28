@@ -136,15 +136,21 @@ export function RealtimeProvider({ children, wsUrl }: RealtimeProviderProps) {
   const tokenRefreshRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch WebSocket auth token from server
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const fetchWsToken = useCallback(async () => {
+    // Abort any in-flight request
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+
     try {
       const response = await fetch('/api/ws/token', {
         method: 'POST',
         credentials: 'include',
+        signal: abortControllerRef.current.signal,
       });
 
       if (!response.ok) {
-        console.error('[Realtime] Failed to fetch WS token:', response.status);
         setAuthToken(undefined);
         return;
       }
@@ -160,7 +166,10 @@ export function RealtimeProvider({ children, wsUrl }: RealtimeProviderProps) {
         }, refreshIn);
       }
     } catch (error) {
-      console.error('[Realtime] Error fetching WS token:', error);
+      // Ignore aborted requests
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
       setAuthToken(undefined);
     }
   }, []);
@@ -182,6 +191,8 @@ export function RealtimeProvider({ children, wsUrl }: RealtimeProviderProps) {
         clearTimeout(tokenRefreshRef.current);
         tokenRefreshRef.current = null;
       }
+      // Abort in-flight token fetch on cleanup
+      abortControllerRef.current?.abort();
     };
   }, [sessionStatus, fetchWsToken]);
 

@@ -4,7 +4,16 @@
  * World-class TypeScript types for domain services.
  * Provides proper typing for external dependencies and shared patterns.
  *
+ * NOTE ON RESULT PATTERNS:
+ * This package uses a `success: boolean` based Result pattern for simplicity
+ * in domain services. For the full functional Result monad with `_tag` discriminator,
+ * use `@medicalcor/types` which provides Result, Option, AsyncResult, and more.
+ *
+ * - Domain Result: `{ success: true, value: T } | { success: false, error: E }`
+ * - Types Result:  `{ _tag: 'Ok', value: T } | { _tag: 'Err', error: E }`
+ *
  * @module domain/shared/types
+ * @see @medicalcor/types for full functional programming primitives
  */
 
 import type { z } from 'zod';

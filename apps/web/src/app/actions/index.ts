@@ -53,9 +53,14 @@ export type { TriageLead, TriageColumn } from './triage/index';
 export {
   getCalendarSlotsAction,
   getAvailableSlotsRangeAction,
+  bookAppointmentAction,
 } from './calendar/index';
 
-export type { CalendarSlot } from './calendar/index';
+export type {
+  CalendarSlot,
+  BookAppointmentRequest,
+  BookAppointmentResponse,
+} from './calendar/index';
 
 // ============================================================================
 // ANALYTICS ACTIONS

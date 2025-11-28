@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect, useTransition, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronLeft, ChevronRight, Plus, Clock, User, Loader2 } from 'lucide-react';
 import { getCalendarSlotsAction, type CalendarSlot } from '@/app/actions/get-patients';
+import { BookingModal } from '@/components/calendar/booking-modal';
 
 const weekDays = ['Lun', 'Mar', 'Mie', 'Joi', 'Vin'];
 
@@ -72,16 +73,24 @@ export default function CalendarPage() {
   const [slots, setSlots] = useState<CalendarSlot[]>([]);
   const [isPending, startTransition] = useTransition();
 
+  // Booking modal state
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<CalendarSlot | null>(null);
+
   const weekDates = generateWeekDates(currentDate);
 
   // Fetch slots when selected date changes
-  useEffect(() => {
+  const fetchSlots = useCallback(() => {
     startTransition(async () => {
       const dateStr = selectedDate.toISOString().split('T')[0] ?? '';
       const fetchedSlots = await getCalendarSlotsAction(dateStr);
       setSlots(fetchedSlots);
     });
   }, [selectedDate]);
+
+  useEffect(() => {
+    fetchSlots();
+  }, [fetchSlots]);
 
   const goToPreviousWeek = () => {
     const newDate = new Date(currentDate);
@@ -96,8 +105,13 @@ export default function CalendarPage() {
   };
 
   const handleBookSlot = (slot: CalendarSlot) => {
-    // TODO: Open booking modal with proper form
-    alert(`Programare nouă la ${slot.time}\nDurata: ${slot.duration} minute`);
+    setSelectedSlot(slot);
+    setBookingModalOpen(true);
+  };
+
+  const handleBookingComplete = () => {
+    // Refresh slots after booking
+    fetchSlots();
   };
 
   const isToday = (date: Date) => {
@@ -209,6 +223,15 @@ export default function CalendarPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Booking Modal */}
+      <BookingModal
+        slot={selectedSlot}
+        selectedDate={selectedDate}
+        open={bookingModalOpen}
+        onOpenChange={setBookingModalOpen}
+        onBookingComplete={handleBookingComplete}
+      />
     </div>
   );
 }

@@ -47,6 +47,7 @@ export {
   getConversationsAction,
   getConversationsActionPaginated,
   getMessagesAction,
+  sendMessageAction,
 } from './messages';
 
 // ============================================================================
