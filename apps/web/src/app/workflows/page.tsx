@@ -5,7 +5,7 @@ import { Plus, Zap, LayoutTemplate, List, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { WorkflowList, WorkflowTemplates } from '@/components/workflows';
+import { WorkflowList, WorkflowTemplates, WorkflowEditor } from '@/components/workflows';
 import {
   getWorkflowsAction,
   getWorkflowTemplatesAction,
@@ -13,6 +13,8 @@ import {
   deleteWorkflowAction,
   duplicateWorkflowAction,
   createWorkflowFromTemplateAction,
+  createWorkflowAction,
+  updateWorkflowAction,
   type Workflow,
   type WorkflowTemplate,
 } from '@/app/actions/workflows';
@@ -54,6 +56,11 @@ export default function WorkflowsPage() {
   const [isLoadingTemplates, startTemplatesTransition] = useTransition();
   const [isCreating, startCreatingTransition] = useTransition();
 
+  // Editor state
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
+  const [isNewWorkflow, setIsNewWorkflow] = useState(false);
+
   // Fetch workflows on mount
   useEffect(() => {
     startWorkflowsTransition(async () => {
@@ -94,9 +101,45 @@ export default function WorkflowsPage() {
     });
   }, []);
 
-  const handleEdit = useCallback((_workflow: Workflow) => {
-    // TODO: Implement workflow editor
-    // For now, this is a placeholder
+  const handleEdit = useCallback((workflow: Workflow) => {
+    setEditingWorkflow(workflow);
+    setIsNewWorkflow(false);
+    setEditorOpen(true);
+  }, []);
+
+  const handleNewWorkflow = useCallback(() => {
+    setEditingWorkflow(null);
+    setIsNewWorkflow(true);
+    setEditorOpen(true);
+  }, []);
+
+  const handleSaveWorkflow = useCallback(async (data: Partial<Workflow> & { id?: string }) => {
+    if (data.id) {
+      // Update existing workflow
+      const updated = await updateWorkflowAction({
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        triggerType: data.trigger?.type,
+        triggerConfig: data.trigger?.config,
+        steps: data.steps,
+      });
+      setWorkflows((prev) => prev.map((wf) => (wf.id === updated.id ? updated : wf)));
+    } else {
+      // Create new workflow - validate required fields
+      if (!data.name || !data.trigger || !data.steps) {
+        throw new Error('Missing required fields for new workflow');
+      }
+      const created = await createWorkflowAction({
+        name: data.name,
+        description: data.description,
+        triggerType: data.trigger.type,
+        triggerConfig: data.trigger.config,
+        steps: data.steps,
+        isActive: false,
+      });
+      setWorkflows((prev) => [created, ...prev]);
+    }
   }, []);
 
   const handleDelete = useCallback((id: string) => {
@@ -154,7 +197,7 @@ export default function WorkflowsPage() {
           </h1>
           <p className="text-muted-foreground mt-1">Automatizează procesele și follow-up-urile</p>
         </div>
-        <Button>
+        <Button onClick={handleNewWorkflow}>
           <Plus className="h-4 w-4 mr-2" />
           Workflow Nou
         </Button>
@@ -201,10 +244,16 @@ export default function WorkflowsPage() {
               <Zap className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="text-lg font-medium">Nu există workflow-uri</p>
               <p className="text-sm mt-1">Creează primul workflow sau folosește un template</p>
-              <Button className="mt-4" onClick={() => setActiveTab('templates')}>
-                <LayoutTemplate className="h-4 w-4 mr-2" />
-                Vezi Template-uri
-              </Button>
+              <div className="flex justify-center gap-2 mt-4">
+                <Button onClick={handleNewWorkflow}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Creează Workflow
+                </Button>
+                <Button variant="outline" onClick={() => setActiveTab('templates')}>
+                  <LayoutTemplate className="h-4 w-4 mr-2" />
+                  Vezi Template-uri
+                </Button>
+              </div>
             </div>
           ) : (
             <WorkflowList
@@ -270,6 +319,15 @@ export default function WorkflowsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Workflow Editor */}
+      <WorkflowEditor
+        workflow={editingWorkflow}
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        onSave={handleSaveWorkflow}
+        isNew={isNewWorkflow}
+      />
     </div>
   );
 }
