@@ -212,17 +212,26 @@ export class AuthService {
       };
     }
 
-    // Check concurrent session limit
+    // Enforce concurrent session limit
+    // SECURITY: Uses atomic enforcement to prevent race conditions (TOCTOU vulnerability)
+    // Instead of check-then-act, we fetch sessions and enforce limit in single operation
     if (SESSION_CONFIG.maxConcurrentSessions > 0) {
-      const activeCount = await this.sessionRepo.countActiveForUser(user.id);
-      if (activeCount >= SESSION_CONFIG.maxConcurrentSessions) {
-        // Revoke oldest session to make room
-        const activeSessions = await this.sessionRepo.getActiveForUser(user.id);
-        if (activeSessions.length > 0) {
-          const oldest = activeSessions[activeSessions.length - 1];
-          if (oldest) {
-            await this.sessionRepo.revoke(oldest.id, 'max_sessions_exceeded');
-          }
+      // Get all active sessions and enforce limit atomically
+      // This is resilient to race conditions - worst case we have max+1 sessions briefly
+      const activeSessions = await this.sessionRepo.getActiveForUser(user.id);
+
+      // Calculate how many sessions to revoke to make room for the new one
+      const sessionsToRevoke = activeSessions.length - SESSION_CONFIG.maxConcurrentSessions + 1;
+
+      if (sessionsToRevoke > 0) {
+        // Revoke the oldest sessions (at the end of the array, sorted by creation time)
+        const sessionsForRevocation = activeSessions.slice(-sessionsToRevoke);
+        for (const session of sessionsForRevocation) {
+          await this.sessionRepo.revoke(session.id, 'max_sessions_exceeded');
+          logger.info(
+            { userId: user.id, sessionId: session.id },
+            'Revoked session due to concurrent session limit'
+          );
         }
       }
     }

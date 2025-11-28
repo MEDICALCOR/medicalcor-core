@@ -1123,37 +1123,52 @@ export class BackupService extends EventEmitter {
     }
   }
 
+  /**
+   * Stop all scheduled backup timers
+   * MEMORY SAFETY: Must be called before starting new schedulers to prevent leaks
+   */
+  private stopScheduler(): void {
+    for (const [name, timer] of this.scheduleTimers) {
+      clearInterval(timer);
+      console.info(`[BackupService] Stopped scheduler: ${name}`);
+    }
+    this.scheduleTimers.clear();
+  }
+
   private startScheduler(): void {
     const schedule = this.config.schedule!;
 
+    // MEMORY SAFETY: Clear any existing timers before creating new ones
+    // This prevents timer accumulation if startScheduler() is called multiple times
+    if (this.scheduleTimers.size > 0) {
+      console.warn('[BackupService] Scheduler already running, stopping existing timers first');
+      this.stopScheduler();
+    }
+
     // Full backup scheduler
     const fullInterval = this.getIntervalMs(schedule.fullBackupFrequency);
-    this.scheduleTimers.set(
-      'full',
-      setInterval(async () => {
-        if (this.isShuttingDown) return;
-        try {
-          await this.createBackup('full', { scheduled: 'true' });
-        } catch (error) {
-          console.error('[BackupService] Scheduled full backup failed:', error);
-        }
-      }, fullInterval)
-    );
+    const fullTimer = setInterval(async () => {
+      if (this.isShuttingDown) return;
+      try {
+        await this.createBackup('full', { scheduled: 'true' });
+      } catch (error) {
+        console.error('[BackupService] Scheduled full backup failed:', error);
+      }
+    }, fullInterval);
+    this.scheduleTimers.set('full', fullTimer);
 
     // Incremental backup scheduler (if configured)
     if (schedule.incrementalFrequency) {
       const incInterval = this.getIntervalMs(schedule.incrementalFrequency);
-      this.scheduleTimers.set(
-        'incremental',
-        setInterval(async () => {
-          if (this.isShuttingDown) return;
-          try {
-            await this.createBackup('incremental', { scheduled: 'true' });
-          } catch (error) {
-            console.error('[BackupService] Scheduled incremental backup failed:', error);
-          }
-        }, incInterval)
-      );
+      const incTimer = setInterval(async () => {
+        if (this.isShuttingDown) return;
+        try {
+          await this.createBackup('incremental', { scheduled: 'true' });
+        } catch (error) {
+          console.error('[BackupService] Scheduled incremental backup failed:', error);
+        }
+      }, incInterval);
+      this.scheduleTimers.set('incremental', incTimer);
     }
 
     console.info(
