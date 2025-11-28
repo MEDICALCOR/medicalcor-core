@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { randomBytes } from 'crypto';
 import { withRetry, ExternalServiceError, RateLimitError } from '@medicalcor/core';
 
 /**
@@ -583,8 +584,9 @@ export class MockSchedulingService {
    * Mock book appointment
    */
   bookAppointment(input: BookAppointmentInput): Promise<Appointment> {
-    const appointmentId = `apt_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-    const confirmationCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    // SECURITY: Use cryptographically secure random for IDs and confirmation codes
+    const appointmentId = `apt_${Date.now()}_${randomBytes(4).toString('hex')}`;
+    const confirmationCode = randomBytes(4).toString('hex').toUpperCase().substring(0, 6);
 
     const appointment: Appointment = {
       id: appointmentId,

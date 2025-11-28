@@ -1,7 +1,10 @@
 import { Pool } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { randomBytes } from 'crypto';
+import { createLogger } from '@medicalcor/core';
 import type { ConsentService } from '../consent/consent-service.js';
+
+const logger = createLogger({ name: 'scheduling-service' });
 
 /**
  * Error thrown when patient has not provided required consent
@@ -84,9 +87,9 @@ export class SchedulingService {
 
     // Warn if consent service is not configured in production
     if (!this.consentService && process.env.NODE_ENV === 'production' && !this.skipConsentCheck) {
-      console.warn(
-        '[SchedulingService] WARNING: ConsentService not configured. ' +
-          'Patient consent verification will be skipped. This may violate GDPR/HIPAA compliance.'
+      logger.warn(
+        'ConsentService not configured - patient consent verification will be skipped. ' +
+        'This may violate GDPR/HIPAA compliance.'
       );
     }
   }

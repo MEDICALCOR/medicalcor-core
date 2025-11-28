@@ -7,6 +7,7 @@
  * for GDPR compliance. The in-memory repository is only for development/testing.
  */
 
+import { randomBytes } from 'crypto';
 import { createLogger, type Logger } from '@medicalcor/core';
 import type { ConsentRepository } from './consent-repository.js';
 import { InMemoryConsentRepository } from './consent-repository.js';
@@ -469,9 +470,10 @@ Sie können Ihre Zustimmung jederzeit widerrufen, indem Sie "STOP" antworten.`,
 
   /**
    * Generate unique ID
+   * SECURITY: Uses cryptographically secure random bytes
    */
   private generateId(): string {
-    return `cns_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    return `cns_${Date.now()}_${randomBytes(5).toString('hex')}`;
   }
 }
 
