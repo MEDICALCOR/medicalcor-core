@@ -229,10 +229,8 @@ export function getVapiCredentials(): {
 } | null {
   const apiKey = process.env.VAPI_API_KEY;
   if (!apiKey) return null;
-  return {
-    apiKey,
-    assistantId: process.env.VAPI_ASSISTANT_ID,
-  };
+  const assistantId = process.env.VAPI_ASSISTANT_ID;
+  return assistantId ? { apiKey, assistantId } : { apiKey };
 }
 
 /**
@@ -244,10 +242,8 @@ export function getStripeCredentials(): {
 } | null {
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) return null;
-  return {
-    secretKey,
-    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
-  };
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  return webhookSecret ? { secretKey, webhookSecret } : { secretKey };
 }
 
 /**
