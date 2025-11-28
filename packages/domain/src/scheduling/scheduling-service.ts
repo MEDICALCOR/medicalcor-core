@@ -92,6 +92,8 @@ export class SchedulingService {
         'This may violate GDPR/HIPAA compliance.'
       );
     }
+    // Note: If consent service is not configured in production, consent verification will be skipped
+    // This configuration should be reviewed for GDPR/HIPAA compliance requirements
   }
 
   /**

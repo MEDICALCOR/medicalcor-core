@@ -14,11 +14,11 @@
  */
 
 import { z } from 'zod';
+import crypto from 'crypto';
 import {
   AdaptiveTimeoutManager,
   createAdaptiveTimeoutManager,
   type AIOperationType,
-  type FallbackResult,
 } from './adaptive-timeout.js';
 
 /**
@@ -337,9 +337,7 @@ export class MultiProviderGateway {
           break;
         }
 
-        console.warn(
-          `[MultiProviderGateway] Provider ${provider} failed: ${lastError.message}, trying next...`
-        );
+        // Provider failed - will try next in fallback chain
       }
     }
 
@@ -638,12 +636,17 @@ export class MultiProviderGateway {
       weight: this.providers.get(p)?.weight ?? 50,
     }));
 
-    // Sort by random weighted value
+    // SECURITY: Use crypto-secure randomness for weighted selection
     return weighted
-      .map((item) => ({
-        ...item,
-        sort: Math.random() * item.weight,
-      }))
+      .map((item) => {
+        const randomBytes = new Uint32Array(1);
+        crypto.getRandomValues(randomBytes);
+        const randomValue = randomBytes[0]! / 0xffffffff;
+        return {
+          ...item,
+          sort: randomValue * item.weight,
+        };
+      })
       .sort((a, b) => b.sort - a.sort)
       .map((item) => item.provider);
   }
@@ -674,7 +677,7 @@ export class MultiProviderGateway {
       health.consecutiveSuccesses >= this.config.recoveryThreshold
     ) {
       health.status = 'healthy';
-      console.info(`[MultiProviderGateway] Provider ${provider} recovered to healthy`);
+      // Provider recovered to healthy status
     }
   }
 
@@ -698,7 +701,7 @@ export class MultiProviderGateway {
     // Degradation logic
     if (health.consecutiveFailures >= this.config.unhealthyThreshold) {
       health.status = 'unhealthy';
-      console.warn(`[MultiProviderGateway] Provider ${provider} marked unhealthy: ${error}`);
+      // Provider marked as unhealthy
     } else if (health.consecutiveFailures >= 1) {
       health.status = 'degraded';
     }

@@ -24,6 +24,7 @@ import {
   type AdaptiveTimeoutManager,
   type UserTier,
   type AIOperationType,
+  type SecureRedisClient,
 } from '@medicalcor/core';
 
 /**
@@ -100,7 +101,7 @@ const timeoutManager: AdaptiveTimeoutManager = createAdaptiveTimeoutManager();
  * Initialize AI Gateway services with Redis
  * Called when the first request comes in with Redis available
  */
-function initializeAIGatewayServices(redis: any): void {
+function initializeAIGatewayServices(redis: SecureRedisClient): void {
   if (!userRateLimiter && redis) {
     userRateLimiter = createUserRateLimiter(redis, {
       enabled: true,
@@ -119,10 +120,8 @@ function initializeAIGatewayServices(redis: any): void {
       globalMonthlyBudget: 10000, // $10000/month global
       alertThresholds: [0.5, 0.75, 0.9],
       blockOnExceeded: false, // Soft limit for now
-      onAlert: async (alert) => {
-        console.warn(
-          `[AIBudget] Alert: ${alert.scope} ${alert.scopeId} at ${Math.round(alert.percentUsed * 100)}% of ${alert.period} budget`
-        );
+      onAlert: async () => {
+        // Budget alert - could integrate with monitoring/alerting system
       },
     });
   }
@@ -398,7 +397,7 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
       const startTime = Date.now();
 
       // Initialize AI Gateway services if Redis is available
-      const redis = (fastify as any).redis;
+      const redis = (fastify as unknown as { redis?: SecureRedisClient }).redis;
       if (redis) {
         initializeAIGatewayServices(redis);
       }
@@ -442,8 +441,7 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
       }
       const estimatedCost = tokenEstimator.estimateCost(
         [{ role: 'user', content: JSON.stringify(parseResult.data) }],
-        'gpt-4o',
-        estimatedTokens.output
+        { model: 'gpt-4o', maxOutputTokens: estimatedTokens.output }
       );
 
       // Check user rate limit (if rate limiter is available)
@@ -479,7 +477,7 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
       if (budgetController) {
         const budgetResult = await budgetController.checkBudget({
           userId,
-          tenantId: tenantId ?? undefined,
+          ...(tenantId && { tenantId }),
           estimatedCost: estimatedCost.totalCost,
           model: 'gpt-4o',
           estimatedTokens,
@@ -572,7 +570,7 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
           const actualCost = estimatedCost.totalCost * (response.success ? 1 : 0.1);
           await budgetController.recordCost(actualCost, {
             userId,
-            tenantId: tenantId ?? undefined,
+            ...(tenantId && { tenantId }),
             model: 'gpt-4o',
             operation: operationType,
           });

@@ -6,6 +6,7 @@
  * that can be used by various repository implementations (e.g., ConsentRepository).
  */
 
+import crypto from 'crypto';
 import { createLogger, type Logger } from './logger.js';
 
 /**
@@ -47,10 +48,25 @@ interface DatabaseConfig {
 }
 
 /**
+ * TYPE SAFETY FIX: Define proper interface for pg Pool to reduce inline type assertions
+ * This provides better type safety and maintainability for the dynamic pg import
+ */
+interface PgPoolClient {
+  query: (sql: string, params?: unknown[]) => Promise<{ rows: unknown[]; rowCount: number | null }>;
+  release: () => void;
+}
+
+interface PgPool {
+  query: (sql: string, params?: unknown[]) => Promise<{ rows: unknown[]; rowCount: number | null }>;
+  connect: () => Promise<PgPoolClient>;
+  end: () => Promise<void>;
+}
+
+/**
  * PostgreSQL database pool wrapper
  */
 class PostgresPool implements DatabasePool {
-  private pool: unknown;
+  private pool: PgPool | null = null;
   private logger: Logger;
   private initialized = false;
 
@@ -79,6 +95,7 @@ class PostgresPool implements DatabasePool {
             }
           : undefined;
 
+      // TYPE SAFETY FIX: Cast only once at creation time
       this.pool = new pg.default.Pool({
         connectionString: this.config.connectionString,
         max: this.config.maxConnections ?? 10,
@@ -86,12 +103,10 @@ class PostgresPool implements DatabasePool {
         connectionTimeoutMillis: this.config.connectionTimeoutMs ?? 5000,
         // SECURITY: SSL configuration for encrypted connections
         ssl: sslConfig,
-      });
+      }) as unknown as PgPool;
 
-      // Test connection
-      const client = await (
-        this.pool as { connect: () => Promise<{ release: () => void }> }
-      ).connect();
+      // Test connection - no type assertion needed now
+      const client = await this.pool.connect();
       client.release();
 
       this.initialized = true;
@@ -107,24 +122,21 @@ class PostgresPool implements DatabasePool {
     params?: unknown[]
   ): Promise<QueryResult<T>> {
     await this.initialize();
-    const pool = this.pool as {
-      query: (sql: string, params?: unknown[]) => Promise<{ rows: T[]; rowCount: number | null }>;
-    };
-    return pool.query(sql, params);
+    // TYPE SAFETY FIX: Use type guard instead of inline assertion
+    if (!this.pool) {
+      throw new Error('Database pool not initialized');
+    }
+    const result = await this.pool.query(sql, params);
+    return { rows: result.rows as T[], rowCount: result.rowCount };
   }
 
   async connect(): Promise<PoolClient> {
     await this.initialize();
-    const pool = this.pool as {
-      connect: () => Promise<{
-        query: (
-          sql: string,
-          params?: unknown[]
-        ) => Promise<{ rows: unknown[]; rowCount: number | null }>;
-        release: () => void;
-      }>;
-    };
-    const client = await pool.connect();
+    // TYPE SAFETY FIX: Use type guard instead of inline assertion
+    if (!this.pool) {
+      throw new Error('Database pool not initialized');
+    }
+    const client = await this.pool.connect();
 
     return {
       query: async <T = Record<string, unknown>>(
@@ -140,7 +152,8 @@ class PostgresPool implements DatabasePool {
 
   async end(): Promise<void> {
     if (this.pool) {
-      await (this.pool as { end: () => Promise<void> }).end();
+      // TYPE SAFETY FIX: No inline assertion needed with proper interface
+      await this.pool.end();
       this.initialized = false;
       this.logger.info('Database pool closed');
     }
@@ -472,8 +485,11 @@ export async function withTransaction<T>(
         attempt++;
 
         if (attempt < maxRetries) {
-          // Calculate exponential backoff delay with jitter
-          const delay = retryBaseDelayMs * Math.pow(2, attempt) * (0.5 + Math.random() * 0.5);
+          // SECURITY: Use crypto-secure randomness for jitter calculation
+          const randomBytes = new Uint32Array(1);
+          crypto.getRandomValues(randomBytes);
+          const jitterFactor = 0.5 + (randomBytes[0]! / 0xffffffff) * 0.5;
+          const delay = retryBaseDelayMs * Math.pow(2, attempt) * jitterFactor;
 
           logger.warn(
             {

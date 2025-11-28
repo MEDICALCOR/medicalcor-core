@@ -53,9 +53,9 @@ export function Header() {
           <span className="sr-only">Toggle theme</span>
         </Button>
 
-        {/* User menu */}
-        <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-10 sm:w-10">
-          <User className="h-4 w-4 sm:h-5 sm:w-5" />
+        {/* User menu - ACCESSIBILITY FIX: Added aria-label for screen readers */}
+        <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-10 sm:w-10" aria-label="User menu">
+          <User className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
         </Button>
       </div>
     </header>

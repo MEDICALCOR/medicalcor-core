@@ -53,6 +53,43 @@ export const WhatsAppLocationSchema = z.object({
 });
 
 /**
+ * Sticker message content
+ */
+export const WhatsAppStickerSchema = z.object({
+  id: z.string(),
+  mime_type: z.string().optional(),
+  sha256: z.string().optional(),
+  animated: z.boolean().optional(),
+});
+
+/**
+ * Contact info for contacts message
+ */
+export const WhatsAppContactInfoSchema = z.object({
+  name: z.object({
+    formatted_name: z.string(),
+    first_name: z.string().optional(),
+    last_name: z.string().optional(),
+  }),
+  phones: z.array(z.object({
+    phone: z.string(),
+    type: z.string().optional(),
+  })).optional(),
+  emails: z.array(z.object({
+    email: z.string(),
+    type: z.string().optional(),
+  })).optional(),
+});
+
+/**
+ * Button message content
+ */
+export const WhatsAppButtonSchema = z.object({
+  text: z.string(),
+  payload: z.string().optional(),
+});
+
+/**
  * Interactive message reply (button/list)
  */
 export const WhatsAppInteractiveSchema = z.object({
@@ -96,6 +133,9 @@ export const WhatsAppMessageSchema = z.object({
   video: WhatsAppMediaSchema.optional(),
   document: WhatsAppMediaSchema.optional(),
   location: WhatsAppLocationSchema.optional(),
+  sticker: WhatsAppStickerSchema.optional(),
+  contacts: z.array(WhatsAppContactInfoSchema).optional(),
+  button: WhatsAppButtonSchema.optional(),
   interactive: WhatsAppInteractiveSchema.optional(),
   context: z
     .object({

@@ -291,9 +291,14 @@ export function detectIntent(query: string, availableFunctions: AIFunction[]): D
           }
         }
 
+        // SECURITY: Use crypto.getRandomValues for unpredictable confidence scoring
+        const randomBytes = new Uint32Array(1);
+        crypto.getRandomValues(randomBytes);
+        const randomFraction = randomBytes[0]! / 0xffffffff; // 0-1 range
+
         detectedIntents.push({
           function: fnName,
-          confidence: 0.8 + Math.random() * 0.15, // 0.8-0.95
+          confidence: 0.8 + randomFraction * 0.15, // 0.8-0.95
           extractedArgs,
           reasoning: `Matched pattern: ${pattern.source}`,
         });

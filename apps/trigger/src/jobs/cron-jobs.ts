@@ -153,9 +153,11 @@ async function withExponentialRetry<T>(
         break;
       }
 
-      // Calculate delay with exponential backoff and jitter
+      // SECURITY: Use crypto-secure randomness for jitter calculation
       const exponentialDelay = baseDelayMs * Math.pow(2, attempt);
-      const jitter = Math.random() * 0.3 * exponentialDelay; // 30% jitter
+      const randomBytes = new Uint32Array(1);
+      crypto.getRandomValues(randomBytes);
+      const jitter = (randomBytes[0]! / 0xffffffff) * 0.3 * exponentialDelay; // 30% jitter
       const delay = Math.min(exponentialDelay + jitter, maxDelayMs);
 
       await new Promise((resolve) => setTimeout(resolve, delay));
@@ -436,8 +438,9 @@ export const appointmentReminders = schedules.task({
       const now = new Date();
       const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-      // CRITICAL GDPR FIX: Include consent check in the search filter
-      // Only send reminders to contacts who have explicitly consented to appointment reminders
+      // CRITICAL GDPR FIX: Only send reminders to contacts who have explicitly consented
+      // to appointment reminders or treatment updates (GDPR requires specific consent)
+      // DO NOT fall back to general marketing consent for medical communications
       const upcomingAppointments = await hubspot?.searchContacts({
         filterGroups: [
           {
@@ -452,8 +455,7 @@ export const appointmentReminders = schedules.task({
                 operator: 'LTE',
                 value: in24Hours.getTime().toString(),
               },
-              // GDPR CONSENT CHECK: Must have appointment_reminders consent
-              // Falls back to marketing consent if specific consent property doesn't exist
+              // GDPR CONSENT CHECK: Must have specific appointment_reminders consent
               {
                 propertyName: 'consent_appointment_reminders',
                 operator: 'EQ',
@@ -461,7 +463,7 @@ export const appointmentReminders = schedules.task({
               },
             ],
           },
-          // Fallback filter group for contacts with only general marketing consent
+          // Alternative: Accept treatment_updates consent (related to appointments)
           {
             filters: [
               {
@@ -475,7 +477,7 @@ export const appointmentReminders = schedules.task({
                 value: in24Hours.getTime().toString(),
               },
               {
-                propertyName: 'consent_marketing',
+                propertyName: 'consent_treatment_updates',
                 operator: 'EQ',
                 value: 'true',
               },
@@ -1076,6 +1078,95 @@ export const gdprConsentAudit = schedules.task({
     }
 
     return { success: true, consentRenewalsSent, errors };
+  },
+});
+
+/**
+ * Nightly knowledge base ingest - re-indexes knowledge base documents
+ * Runs every day at 2:30 AM
+ */
+export const nightlyKnowledgeIngest = schedules.task({
+  id: 'nightly-knowledge-ingest',
+  cron: '30 2 * * *', // 2:30 AM every day
+  run: async () => {
+    const correlationId = generateCorrelationId();
+    logger.info('Starting nightly knowledge ingest', { correlationId });
+
+    const { eventStore } = getClients();
+
+    try {
+      // Run the ingest script via child process
+      // This approach keeps the cron job lightweight while using the full ingest script
+      const { exec } = await import('child_process');
+      const { promisify } = await import('util');
+      const execAsync = promisify(exec);
+
+      const startTime = Date.now();
+
+      // Execute the ingest script
+      // Use tsx for TypeScript execution
+      const { stdout, stderr } = await execAsync(
+        'pnpm tsx scripts/ingest-knowledge.ts',
+        {
+          cwd: process.cwd(),
+          env: {
+            ...process.env,
+            // Ensure DATABASE_URL is available
+          },
+          timeout: 300000, // 5 minute timeout
+        }
+      );
+
+      const duration = Date.now() - startTime;
+
+      if (stderr && stderr.trim()) {
+        logger.warn('Ingest script stderr', { stderr: stderr.trim(), correlationId });
+      }
+
+      // Parse results from stdout
+      const entriesMatch = stdout.match(/Entries inserted: (\d+)/);
+      const updatedMatch = stdout.match(/Entries updated: (\d+)/);
+      const filesMatch = stdout.match(/Files processed: (\d+)/);
+
+      const entriesInserted = entriesMatch ? parseInt(entriesMatch[1]!, 10) : 0;
+      const entriesUpdated = updatedMatch ? parseInt(updatedMatch[1]!, 10) : 0;
+      const filesProcessed = filesMatch ? parseInt(filesMatch[1]!, 10) : 0;
+
+      logger.info('Nightly knowledge ingest completed', {
+        filesProcessed,
+        entriesInserted,
+        entriesUpdated,
+        durationMs: duration,
+        correlationId,
+      });
+
+      // Emit job completion event
+      await emitJobEvent(eventStore, 'cron.knowledge_ingest.completed', {
+        filesProcessed,
+        entriesInserted,
+        entriesUpdated,
+        durationMs: duration,
+        correlationId,
+      });
+
+      return {
+        success: true,
+        filesProcessed,
+        entriesInserted,
+        entriesUpdated,
+        durationMs: duration,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Nightly knowledge ingest failed', { error: errorMessage, correlationId });
+
+      await emitJobEvent(eventStore, 'cron.knowledge_ingest.failed', {
+        error: errorMessage,
+        correlationId,
+      });
+
+      return { success: false, error: errorMessage };
+    }
   },
 });
 

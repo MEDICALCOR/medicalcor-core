@@ -186,8 +186,8 @@ export class AIResponseCache {
 
       this.stats.hits++;
       return response;
-    } catch (error) {
-      console.error('[AIResponseCache] Failed to get cached response:', error);
+    } catch {
+      // Failed to get cached response - graceful degradation
       this.stats.misses++;
       return null;
     }
@@ -216,9 +216,7 @@ export class AIResponseCache {
 
     // Check response size limit
     if (response.length > this.config.maxResponseSize) {
-      console.warn(
-        `[AIResponseCache] Response too large to cache: ${response.length} bytes > ${this.config.maxResponseSize} bytes`
-      );
+      // Response too large to cache - skip caching
       return false;
     }
 
@@ -264,8 +262,8 @@ export class AIResponseCache {
       this.stats.responseCount++;
 
       return true;
-    } catch (error) {
-      console.error('[AIResponseCache] Failed to cache response:', error);
+    } catch {
+      // Failed to cache response - continue without caching
       return false;
     }
   }
@@ -294,8 +292,8 @@ export class AIResponseCache {
     try {
       const deleted = await this.redis.del(cacheKey);
       return deleted > 0;
-    } catch (error) {
-      console.error('[AIResponseCache] Failed to invalidate cache:', error);
+    } catch {
+      // Failed to invalidate cache - continue
       return false;
     }
   }
@@ -316,8 +314,8 @@ export class AIResponseCache {
       await this.redis.del(indexKey);
 
       return deleted;
-    } catch (error) {
-      console.error('[AIResponseCache] Failed to invalidate clinic cache:', error);
+    } catch {
+      // Failed to invalidate clinic cache - continue
       return 0;
     }
   }
@@ -338,8 +336,8 @@ export class AIResponseCache {
       }
 
       return await this.redis.del(...keys);
-    } catch (error) {
-      console.error('[AIResponseCache] Failed to invalidate by type:', error);
+    } catch {
+      // Failed to invalidate by type - continue
       return 0;
     }
   }
@@ -357,8 +355,8 @@ export class AIResponseCache {
       }
 
       return await this.redis.del(...keys);
-    } catch (error) {
-      console.error('[AIResponseCache] Failed to invalidate patient cache:', error);
+    } catch {
+      // Failed to invalidate patient cache - continue
       return 0;
     }
   }

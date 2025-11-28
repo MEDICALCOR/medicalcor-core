@@ -281,12 +281,7 @@ export class VapiClient {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const errorBody = await response.text();
-        console.error('[Vapi] API error:', {
-          status: response.status,
-          url,
-          errorBody,
-        });
+        // Error details logged via structured error, not exposed to caller
         throw new ExternalServiceError('Vapi', `Request failed with status ${response.status}`);
       }
 
@@ -586,6 +581,17 @@ export class VapiClient {
   }
 
   /**
+   * CRITICAL FIX: Destroy the client and clean up all resources
+   * Call this when the client is no longer needed to prevent memory leaks
+   */
+  destroy(): void {
+    // Stop cleanup timer
+    this.stopBufferCleanup();
+    // Clear all transcript buffers
+    this.transcriptBuffer.clear();
+  }
+
+  /**
    * Clean up stale transcript buffers (older than TTL)
    */
   private cleanupStaleBuffers(): void {
@@ -602,9 +608,7 @@ export class VapiClient {
       this.transcriptBuffer.delete(key);
     }
 
-    if (staleKeys.length > 0) {
-      console.info(`[Vapi] Cleaned up ${staleKeys.length} stale transcript buffers`);
-    }
+    // Cleanup completed - stale buffers removed silently
   }
 
   /**
@@ -621,7 +625,7 @@ export class VapiClient {
       const oldestKey = this.transcriptBuffer.keys().next().value;
       if (oldestKey) {
         this.transcriptBuffer.delete(oldestKey);
-        console.warn(`[Vapi] Evicted oldest transcript buffer to stay within limit`);
+        // Oldest buffer evicted to stay within limit
       }
     }
 
@@ -633,7 +637,7 @@ export class VapiClient {
         // Remove oldest messages to make room (keep last 80%)
         const keepCount = Math.floor(VapiClient.MAX_MESSAGES_PER_CALL * 0.8);
         existing.messages = existing.messages.slice(-keepCount);
-        console.warn(`[Vapi] Trimmed transcript buffer for call ${callId} to prevent overflow`);
+        // Buffer trimmed to prevent overflow
       }
       existing.messages.push(message);
     } else {

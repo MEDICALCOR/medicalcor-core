@@ -178,8 +178,8 @@ export class HubSpotContextProvider {
     try {
       const contact = await this.hubspotClient.getContact(contactId);
       return this.formatPatientContext(contact);
-    } catch (error) {
-      console.error('[HubSpotContextProvider] Failed to fetch contact:', error);
+    } catch {
+      // Failed to fetch contact - return null for graceful degradation
       return null;
     }
   }
@@ -208,8 +208,8 @@ export class HubSpotContextProvider {
       }
 
       return this.formatPatientContext(contact);
-    } catch (error) {
-      console.error('[HubSpotContextProvider] Failed to search contacts:', error);
+    } catch {
+      // Failed to search contacts - return null for graceful degradation
       return null;
     }
   }

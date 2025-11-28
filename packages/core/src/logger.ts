@@ -1,4 +1,5 @@
 import pino, { type Logger, type LoggerOptions } from 'pino';
+import crypto from 'crypto';
 
 /**
  * Medical-grade logger with PII redaction
@@ -170,10 +171,12 @@ export function withCorrelationId(logger: Logger, correlationId: string): Logger
 }
 
 /**
- * Generate a correlation ID
+ * Generate a correlation ID using crypto-secure randomness
  */
 export function generateCorrelationId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+  // SECURITY: Use crypto.randomUUID() for unpredictable correlation IDs
+  const uuid = crypto.randomUUID();
+  return `${Date.now()}-${uuid.slice(0, 12)}`;
 }
 
 // Default logger instance

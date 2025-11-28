@@ -29,9 +29,7 @@ const CredentialsSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
-// Log auth configuration on startup
-const authMode = process.env.DATABASE_URL ? 'database' : 'environment variables';
-console.warn(`[Auth] Authentication configured using ${authMode}`);
+// Auth configuration uses database if DATABASE_URL is set, otherwise environment variables
 
 export const authConfig: NextAuthConfig = {
   pages: {

@@ -359,9 +359,8 @@ Sources: ${ragResult.sources.map((s) => s.title).join(', ')}
         entry.correlationId ?? null,
         entry.useCase ?? null,
       ]);
-    } catch (error) {
-      // Don't fail the main operation if logging fails
-      console.error('Failed to log RAG query:', error);
+    } catch {
+      // Don't fail the main operation if logging fails - silently continue
     }
   }
 

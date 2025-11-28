@@ -273,15 +273,6 @@ export class FunctionExecutor {
 
       // Log any validation issues for monitoring and audit
       if (outputValidation.errors.length > 0 || outputValidation.warnings.length > 0) {
-        // Note: In production, this would emit to monitoring/alerting systems
-        console.warn('[AI Output Validation]', {
-          functionName,
-          traceId: context.traceId,
-          correlationId: context.correlationId,
-          errors: outputValidation.errors,
-          warnings: outputValidation.warnings,
-        });
-
         // Emit audit event for AI output validation issues
         await this.deps.eventStore.emit({
           type: 'AIOutputValidationIssue',
@@ -388,7 +379,11 @@ export class FunctionExecutor {
 
       // Validate command bus result reasoning before returning
       if (result.result && typeof result.result === 'object' && 'reasoning' in result.result) {
-        const reasoningValidation = validateAIReasoning((result.result as any).reasoning);
+        const resultWithReasoning = result.result as { reasoning: unknown };
+        if (typeof resultWithReasoning.reasoning !== 'string') {
+          throw new Error('AI reasoning must be a string');
+        }
+        const reasoningValidation = validateAIReasoning(resultWithReasoning.reasoning);
         if (!reasoningValidation.valid) {
           // Log critical validation failure
           await this.deps.eventStore.emit({

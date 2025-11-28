@@ -77,15 +77,19 @@ export const crmWebhookRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    // Verify secret if configured (always in production, optional in dev)
-    if (configuredSecret && !verifySecretTimingSafe(secretHeader, configuredSecret)) {
-      request.log.warn({ correlationId }, 'Invalid CRM webhook secret');
-      return reply.status(401).send({ status: 'unauthorized' });
+    // SECURITY: Always require authentication - no bypass allowed
+    // Even in development, authentication is mandatory to prevent security vulnerabilities
+    if (!configuredSecret) {
+      request.log.error({ correlationId }, 'CRM_WEBHOOK_SECRET not configured - rejecting request');
+      return reply.status(503).send({
+        status: 'error',
+        message: 'Webhook authentication not configured'
+      });
     }
 
-    // Warn if running without authentication in development
-    if (!configuredSecret && process.env.NODE_ENV !== 'production') {
-      request.log.warn({ correlationId }, 'CRM webhook running without authentication (dev mode)');
+    if (!verifySecretTimingSafe(secretHeader, configuredSecret)) {
+      request.log.warn({ correlationId }, 'Invalid CRM webhook secret');
+      return reply.status(401).send({ status: 'unauthorized' });
     }
 
     // Extract event metadata

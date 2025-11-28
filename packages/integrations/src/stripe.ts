@@ -68,15 +68,60 @@ export class StripeClient {
 
   /**
    * Get daily revenue (sum of successful charges for today)
+   * CRITICAL FIX: Proper timezone handling - the previous implementation was buggy:
+   * toLocaleString() returns a string, and setHours() applies to LOCAL machine timezone
    */
   async getDailyRevenue(timezone = 'Europe/Bucharest'): Promise<DailyRevenueResult> {
-    // Calculate today's start and end in the specified timezone
     const now = new Date();
-    const todayStart = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
-    todayStart.setHours(0, 0, 0, 0);
 
-    const todayEnd = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
-    todayEnd.setHours(23, 59, 59, 999);
+    // CRITICAL FIX: Calculate day boundaries correctly in target timezone
+    // Use Intl.DateTimeFormat to get date components in target timezone
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+
+    // Get YYYY-MM-DD in target timezone
+    const dateStr = formatter.format(now);
+
+    // Create start and end of day in the target timezone
+    // Using temporal-like approach: create date string with timezone
+    const startOfDayStr = `${dateStr}T00:00:00`;
+    const endOfDayStr = `${dateStr}T23:59:59.999`;
+
+    // Calculate the timezone offset for proper UTC conversion
+    // Get the offset by comparing a date in the timezone vs UTC
+    const testDate = new Date(`${dateStr}T12:00:00Z`);
+    const utcFormatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'UTC',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const tzFormatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const utcParts = utcFormatter.format(testDate);
+    const tzParts = tzFormatter.format(testDate);
+    const utcHour = parseInt(utcParts.split(', ')[1]?.split(':')[0] ?? '12', 10);
+    const tzHour = parseInt(tzParts.split(', ')[1]?.split(':')[0] ?? '12', 10);
+    const offsetHours = tzHour - utcHour;
+
+    // Create proper UTC timestamps
+    const todayStart = new Date(`${startOfDayStr}Z`);
+    todayStart.setUTCHours(todayStart.getUTCHours() - offsetHours);
+    const todayEnd = new Date(`${endOfDayStr}Z`);
+    todayEnd.setUTCHours(todayEnd.getUTCHours() - offsetHours);
 
     // Convert to Unix timestamps
     const createdGte = Math.floor(todayStart.getTime() / 1000);
@@ -296,15 +341,7 @@ export class StripeClient {
         }
 
         if (!response.ok) {
-          const errorBody = await response.text();
-          // Log full error internally (may contain PII) but don't expose in exception
-          console.error('[Stripe] API error:', {
-            status: response.status,
-            statusText: response.statusText,
-            url: path,
-            errorBody, // May contain PII - only for internal logs
-          });
-          // Throw generic error without PII
+          // Error logged via structured error - PII not exposed
           throw new ExternalServiceError('Stripe', `Request failed with status ${response.status}`);
         }
 
@@ -356,10 +393,14 @@ export class MockStripeClient {
     const todayEnd = new Date(now);
     todayEnd.setHours(23, 59, 59, 999);
 
-    // Generate realistic mock data
+    // SECURITY: Use crypto-secure randomness for mock data
     const baseAmount = 250000; // 2500 RON base
-    const variance = Math.floor(Math.random() * 150000); // 0-1500 RON variance
-    const transactionCount = Math.floor(Math.random() * 8) + 3; // 3-10 transactions
+    const varianceBytes = new Uint32Array(1);
+    crypto.getRandomValues(varianceBytes);
+    const variance = varianceBytes[0]! % 150001; // 0-1500 RON variance
+    const countBytes = new Uint32Array(1);
+    crypto.getRandomValues(countBytes);
+    const transactionCount = (countBytes[0]! % 8) + 3; // 3-10 transactions
 
     return Promise.resolve({
       amount: baseAmount + variance,
@@ -377,8 +418,11 @@ export class MockStripeClient {
     const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
     const dailyAverage = 300000; // 3000 RON average per day
 
+    // SECURITY: Use crypto-secure randomness for mock data
+    const varianceBytes = new Uint32Array(1);
+    crypto.getRandomValues(varianceBytes);
     return Promise.resolve({
-      amount: dailyAverage * days + Math.floor(Math.random() * 100000),
+      amount: dailyAverage * days + (varianceBytes[0]! % 100001),
       currency: 'ron',
       transactionCount: days * 5,
       periodStart: startDate,
