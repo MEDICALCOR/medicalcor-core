@@ -4,9 +4,7 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "tsBuildInfoFile": "./tsconfig.tsbuildinfo",
-    // TODO: Re-enable after fixing type issues in resilience.ts, telemetry.ts, clients-factory.enhanced.ts
-    // See code review findings for details on required fixes
-    "exactOptionalPropertyTypes": false,
+    "exactOptionalPropertyTypes": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false
   },

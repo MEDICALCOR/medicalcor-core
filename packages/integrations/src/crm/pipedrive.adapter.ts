@@ -274,7 +274,9 @@ export class PipedriveAdapter implements ICRMProvider {
       status: 'new', // Default status for new leads from Pipedrive
 
       metadata: {
-        raw_pipedrive_id: String(person.id ?? ''),
+        // personId validated at line 198-199
+        raw_pipedrive_id:
+          typeof personId === 'number' || typeof personId === 'string' ? String(personId) : '',
         ...(utmMedium && { utm_medium: utmMedium }),
         ...(utmCampaign && { utm_campaign: utmCampaign }),
       },

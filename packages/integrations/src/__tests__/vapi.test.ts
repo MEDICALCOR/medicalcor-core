@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterEach, afterAll } from 'vitest';
 import {
   createVapiClient,
   formatTranscriptForCRM,
@@ -6,8 +6,12 @@ import {
   type VapiTranscript,
   type VapiCallSummary,
 } from '../vapi.js';
+import { server } from '../__mocks__/setup.js';
 
-// Tests use MSW handlers from setup.ts for API mocking
+// MSW server lifecycle
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
 
 describe('VapiClient', () => {
   const client = createVapiClient({

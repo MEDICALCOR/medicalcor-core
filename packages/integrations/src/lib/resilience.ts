@@ -79,11 +79,11 @@ export interface BulkheadStats {
 export class Bulkhead {
   private readonly config: BulkheadConfig;
   private activeCount = 0;
-  private queue: Array<{
-    resolve: (value: void) => void;
+  private queue: {
+    resolve: () => void;
     reject: (error: Error) => void;
     timeoutId: ReturnType<typeof setTimeout>;
-  }> = [];
+  }[] = [];
   private stats = {
     totalExecuted: 0,
     totalRejected: 0,
@@ -91,13 +91,7 @@ export class Bulkhead {
   };
 
   constructor(config: BulkheadConfig) {
-    this.config = {
-      ...config,
-      // Apply defaults for missing properties
-      maxConcurrent: config.maxConcurrent ?? 10,
-      maxQueue: config.maxQueue ?? 50,
-      queueTimeoutMs: config.queueTimeoutMs ?? 30000,
-    };
+    this.config = config;
   }
 
   /**
@@ -517,7 +511,7 @@ export class GracefulDegradation<T> {
   /**
    * Handle failed execution
    */
-  private onFailure(error: unknown): void {
+  private onFailure(_error: unknown): void {
     this.consecutiveFailures++;
     incrementCounter('degradation_failure_total');
 
@@ -970,7 +964,9 @@ export class CompositeResilience {
 
     // 2. Deduplication (if enabled)
     if (this.deduplicator && !options.skipDedup) {
-      return this.deduplicator.execute(key, () => this.executeWithBulkheadAndTimeout(operation)) as Promise<T>;
+      return this.deduplicator.execute(key, () =>
+        this.executeWithBulkheadAndTimeout(operation)
+      ) as Promise<T>;
     }
 
     // 3. Bulkhead & Timeout
@@ -1001,13 +997,17 @@ export class CompositeResilience {
     deduplicator?: { size: number; maxSize: number };
     adaptiveTimeout?: ReturnType<AdaptiveTimeout['getStats']>;
   } {
+    const bulkhead = this.bulkhead?.getStats();
+    const rateLimiter = this.rateLimiter
+      ? { availableTokens: this.rateLimiter.getAvailableTokens() }
+      : undefined;
+    const deduplicator = this.deduplicator?.getStats();
+    const adaptiveTimeout = this.adaptiveTimeout?.getStats();
     return {
-      bulkhead: this.bulkhead?.getStats(),
-      rateLimiter: this.rateLimiter
-        ? { availableTokens: this.rateLimiter.getAvailableTokens() }
-        : undefined,
-      deduplicator: this.deduplicator?.getStats(),
-      adaptiveTimeout: this.adaptiveTimeout?.getStats(),
+      ...(bulkhead && { bulkhead }),
+      ...(rateLimiter && { rateLimiter }),
+      ...(deduplicator && { deduplicator }),
+      ...(adaptiveTimeout && { adaptiveTimeout }),
     };
   }
 

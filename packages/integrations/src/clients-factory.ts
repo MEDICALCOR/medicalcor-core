@@ -51,7 +51,7 @@ export interface EventStore {
     aggregateId?: string;
     aggregateType?: string;
   }) => Promise<unknown>;
-  getByCorrelationId: (correlationId: string) => Promise<Array<{ type: string }>>;
+  getByCorrelationId: (correlationId: string) => Promise<{ type: string }[]>;
 }
 
 /**
@@ -283,10 +283,7 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
       stripeConfig.webhookSecret = stripeWebhookSecret;
     }
 
-    const stripeRaw =
-      stripeSecretKey
-        ? createStripeClient(stripeConfig)
-        : createMockStripeClient();
+    const stripeRaw = stripeSecretKey ? createStripeClient(stripeConfig) : createMockStripeClient();
     // Always wrap Stripe with circuit breaker for payment protection
     stripe = cbEnabled ? wrapClientWithCircuitBreaker(stripeRaw, 'stripe') : stripeRaw;
   }

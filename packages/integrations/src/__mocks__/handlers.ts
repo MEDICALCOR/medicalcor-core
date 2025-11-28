@@ -57,9 +57,39 @@ const hubspotHandlers = [
     });
   }),
 
-  // Create contact
+  // Create/Upsert contact
   http.post('https://api.hubapi.com/crm/v3/objects/contacts', async ({ request }) => {
+    const url = new URL(request.url);
+    const idProperty = url.searchParams.get('idProperty');
     const body = (await request.json()) as { properties: Record<string, string> };
+
+    // Handle upsert by phone
+    if (idProperty === 'phone' && body.properties.phone === '+40721000001') {
+      return HttpResponse.json({
+        id: 'hs_contact_123',
+        properties: {
+          phone: '+40721000001',
+          ...body.properties,
+        },
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
+    // Handle upsert by email
+    if (idProperty === 'email' && body.properties.email === 'test@example.com') {
+      return HttpResponse.json({
+        id: 'hs_contact_123',
+        properties: {
+          email: 'test@example.com',
+          ...body.properties,
+        },
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
+    // Default: create new contact
     return HttpResponse.json(
       {
         id: `hs_contact_new_${Date.now()}`,

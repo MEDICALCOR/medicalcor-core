@@ -7,20 +7,19 @@
  * ╚══════════════════════════════════════════════════════════════════════════════╝
  */
 
-import {
-  CircuitBreakerRegistry,
-  createEventStore,
-  EventStore,
-  InMemoryEventStore,
-} from '@medicalcor/core';
+import { CircuitBreakerRegistry, createEventStore, type EventStore } from '@medicalcor/core';
 import { ScoringService, TriageService, ConsentService } from '@medicalcor/domain';
 
-import { HubSpotClient, createHubSpotClient } from './hubspot.js';
-import { WhatsAppClient, createWhatsAppClient, TemplateCatalogService } from './whatsapp.js';
-import { OpenAIClient, createOpenAIClient } from './openai.js';
-import { SchedulingService, createSchedulingService, MockSchedulingService } from './scheduling.js';
-import { VapiClient, createVapiClient } from './vapi.js';
-import { StripeClient, createStripeClient, MockStripeClient } from './stripe.js';
+import { type HubSpotClient, createHubSpotClient } from './hubspot.js';
+import { type WhatsAppClient, createWhatsAppClient, TemplateCatalogService } from './whatsapp.js';
+import { type OpenAIClient, createOpenAIClient } from './openai.js';
+import {
+  type SchedulingService,
+  createSchedulingService,
+  MockSchedulingService,
+} from './scheduling.js';
+import { type VapiClient, createVapiClient } from './vapi.js';
+import { type StripeClient, createStripeClient, MockStripeClient } from './stripe.js';
 
 import {
   type CorrelationId,
@@ -222,9 +221,10 @@ export function getVapiCredentials(): {
 } | null {
   const apiKey = process.env.VAPI_API_KEY;
   if (!apiKey) return null;
+  const assistantId = process.env.VAPI_ASSISTANT_ID;
   return {
     apiKey,
-    assistantId: process.env.VAPI_ASSISTANT_ID,
+    ...(assistantId && { assistantId }),
   };
 }
 
@@ -237,9 +237,10 @@ export function getStripeCredentials(): {
 } | null {
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) return null;
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   return {
     secretKey,
-    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+    ...(webhookSecret && { webhookSecret }),
   };
 }
 
@@ -307,6 +308,7 @@ export function createEnhancedIntegrationClients(
   const circuitBreakerRegistry = new CircuitBreakerRegistry({
     failureThreshold: globalCircuitBreaker.failureThreshold,
     resetTimeoutMs: globalCircuitBreaker.resetTimeoutMs,
+    successThreshold: 2, // Default success threshold for recovery
   });
 
   // Create resilience instances for each client
@@ -354,7 +356,7 @@ export function createEnhancedIntegrationClients(
   }
 
   // Create event store
-  const eventStore: EventStore = createEventStore() ?? new InMemoryEventStore();
+  const eventStore: EventStore = createEventStore({ source: config.source });
 
   // Initialize clients
   let hubspot: HubSpotClient | null = null;
@@ -486,16 +488,22 @@ export function createEnhancedIntegrationClients(
   }
 
   // Domain services
-  if (config.includeScoring !== false && openai && hubspot) {
-    scoring = new ScoringService(openai, hubspot, eventStore);
+  // Note: These services require specific config - instantiate only when config is available
+  const openaiApiKey = getOpenAIApiKey();
+  if (config.includeScoring !== false && openai && openaiApiKey) {
+    scoring = new ScoringService(
+      { openaiApiKey, fallbackEnabled: true },
+      { openai: openai as never }
+    );
   }
 
-  if (config.includeTriage !== false && openai) {
-    triage = new TriageService(openai);
+  if (config.includeTriage !== false) {
+    triage = new TriageService();
   }
 
-  if (config.includeConsent !== false && eventStore) {
-    consent = new ConsentService(eventStore);
+  if (config.includeConsent !== false) {
+    // ConsentService uses in-memory repository in non-production by default
+    consent = new ConsentService();
   }
 
   if (config.includeTemplateCatalog !== false && whatsapp) {
@@ -650,7 +658,7 @@ export function createEnhancedIntegrationClients(
       }
       resilience.clear();
       if (vapi && 'destroy' in vapi) {
-        (vapi as VapiClient).destroy();
+        vapi.destroy();
       }
     },
   };
@@ -708,10 +716,10 @@ export interface IntegrationClients {
 export function createIntegrationClients(config: ClientsConfig): IntegrationClients {
   // Build circuit breaker config inline if provided
   const circuitBreakerConfig = config.circuitBreaker
-    ? ((builder: CircuitBreakerBuilder) =>
+    ? (builder: CircuitBreakerBuilder) =>
         builder
           .failureThreshold(config.circuitBreaker?.failureThreshold ?? 5)
-          .resetTimeout(config.circuitBreaker?.resetTimeoutMs ?? 30000))
+          .resetTimeout(config.circuitBreaker?.resetTimeoutMs ?? 30000)
     : undefined;
 
   // Build enhanced config, only including defined properties to satisfy exactOptionalPropertyTypes
@@ -724,7 +732,9 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
     ...(config.includeScoring !== undefined && { includeScoring: config.includeScoring }),
     ...(config.includeTriage !== undefined && { includeTriage: config.includeTriage }),
     ...(config.includeConsent !== undefined && { includeConsent: config.includeConsent }),
-    ...(config.includeTemplateCatalog !== undefined && { includeTemplateCatalog: config.includeTemplateCatalog }),
+    ...(config.includeTemplateCatalog !== undefined && {
+      includeTemplateCatalog: config.includeTemplateCatalog,
+    }),
     ...(circuitBreakerConfig && { circuitBreaker: circuitBreakerConfig }),
   };
 

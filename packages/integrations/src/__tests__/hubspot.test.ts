@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { HubSpotClient, createHubSpotClient } from '../hubspot.js';
 import {
@@ -8,7 +8,10 @@ import {
   createFailingHandler,
 } from '../__mocks__/setup.js';
 
-// Note: server lifecycle (listen, resetHandlers, close) is managed by vitest.setup.ts
+// MSW server lifecycle
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
 
 describe('HubSpotClient', () => {
   const config = {

@@ -76,8 +76,8 @@ export {
 
 export {
   CircuitBreaker,
-  CircuitBreakerRegistry,
   CircuitBreakerError,
+  CircuitBreakerRegistry,
   CircuitState,
   globalCircuitBreakerRegistry,
   withCircuitBreaker,

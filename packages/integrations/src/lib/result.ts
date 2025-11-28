@@ -78,7 +78,7 @@ export function err<E>(error: E): Err<E> {
  * Create a Result from a nullable value
  */
 export function fromNullable<T, E>(value: T | null | undefined, error: E): Result<T, E> {
-  return value != null ? ok(value) : err(error);
+  return value !== null && value !== undefined ? ok(value) : err(error);
 }
 
 /**
@@ -95,10 +95,7 @@ export function fromPredicate<T, E>(
 /**
  * Wrap a function that might throw into a Result
  */
-export function tryCatch<T, E = Error>(
-  fn: () => T,
-  onError: (error: unknown) => E
-): Result<T, E> {
+export function tryCatch<T, E = Error>(fn: () => T, onError: (error: unknown) => E): Result<T, E> {
   try {
     return ok(fn());
   } catch (e) {
@@ -254,7 +251,7 @@ export function match<T, E, U>(
  */
 export function unwrap<T, E>(result: Result<T, E>): T {
   if (isOk(result)) return result.value;
-  throw result.error;
+  throw result.error instanceof Error ? result.error : new Error(String(result.error));
 }
 
 /**
@@ -303,9 +300,7 @@ export function all<T extends readonly Result<unknown, unknown>[]>(
 /**
  * Combine multiple Results, collecting all errors
  */
-export function allSettled<T, E>(
-  results: readonly Result<T, E>[]
-): Result<T[], E[]> {
+export function allSettled<T, E>(results: readonly Result<T, E>[]): Result<T[], E[]> {
   const values: T[] = [];
   const errors: E[] = [];
 
@@ -537,27 +532,17 @@ export function toIntegrationError(
       });
     }
 
-    return integrationError(
-      'EXTERNAL_SERVICE_ERROR',
-      service,
-      error.message,
-      {
-        cause: error,
-        correlationId,
-        retryable: true,
-      }
-    );
+    return integrationError('EXTERNAL_SERVICE_ERROR', service, error.message, {
+      cause: error,
+      correlationId,
+      retryable: true,
+    });
   }
 
-  return integrationError(
-    'INTERNAL_ERROR',
-    service,
-    String(error),
-    {
-      correlationId,
-      retryable: false,
-    }
-  );
+  return integrationError('INTERNAL_ERROR', service, String(error), {
+    correlationId,
+    retryable: false,
+  });
 }
 
 /**
