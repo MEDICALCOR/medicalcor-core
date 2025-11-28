@@ -1,169 +1,24 @@
 /**
  * ╔══════════════════════════════════════════════════════════════════════════════╗
- * ║                         @medicalcor/integrations                              ║
+ * ║                    @medicalcor/integrations/lib                               ║
  * ║                                                                               ║
- * ║  State-of-the-art third-party service integrations with enterprise-grade     ║
- * ║  type safety, resilience patterns, and observability infrastructure.          ║
- * ║                                                                               ║
- * ║  Features:                                                                    ║
- * ║  - Branded/Nominal types for compile-time safety                             ║
- * ║  - Result monad for functional error handling                                 ║
- * ║  - Fluent builders for type-safe configuration                               ║
- * ║  - OpenTelemetry-compatible observability                                    ║
- * ║  - Bulkhead, deduplication, and graceful degradation                        ║
- * ║  - Exhaustive type guards and runtime assertions                            ║
+ * ║  State-of-the-art infrastructure for enterprise integration development.     ║
+ * ║  Type-safe, resilient, observable, and beautifully designed.                 ║
  * ╚══════════════════════════════════════════════════════════════════════════════╝
  */
 
 // =============================================================================
-// Core Integration Clients
-// =============================================================================
-
-export {
-  HubSpotClient,
-  createHubSpotClient,
-  type HubSpotClientConfig,
-  type TimelineEventInput,
-  type TaskInput,
-} from './hubspot.js';
-
-export {
-  WhatsAppClient,
-  createWhatsAppClient,
-  TEMPLATE_CATALOG,
-  TemplateCatalogService,
-  createTemplateCatalogService,
-  type WhatsAppClientConfig,
-  type SendTextOptions,
-  type SendTemplateOptions,
-  type TemplateComponent,
-  type MessageResponse,
-  type TemplateName,
-  type TemplateDefinition,
-  type TemplateParameter,
-  type TemplateMessage,
-  type TemplateSendResult,
-  type SupportedLanguage,
-} from './whatsapp.js';
-
-export {
-  OpenAIClient,
-  createOpenAIClient,
-  type OpenAIClientConfig,
-  type ChatMessage,
-  type ChatCompletionOptions,
-  type AIReplyOptions,
-} from './openai.js';
-
-export {
-  SchedulingService,
-  MockSchedulingService,
-  createSchedulingService,
-  createMockSchedulingService,
-  type SchedulingServiceConfig,
-  type TimeSlot,
-  type GetAvailableSlotsOptions,
-  type BookAppointmentInput,
-  type Appointment,
-  type CancelAppointmentInput,
-  type RescheduleAppointmentInput,
-} from './scheduling.js';
-
-export {
-  VapiClient,
-  createVapiClient,
-  formatTranscriptForCRM,
-  extractLeadQualification,
-  type VapiClientConfig,
-  type VapiCall,
-  type VapiCallStatus,
-  type VapiEndedReason,
-  type VapiTranscript,
-  type VapiMessage,
-  type VapiCallSummary,
-  type TranscriptAnalysis,
-  type CreateOutboundCallInput,
-  type GetCallInput,
-  type ListCallsInput,
-} from './vapi.js';
-
-export {
-  StripeClient,
-  MockStripeClient,
-  createStripeClient,
-  createMockStripeClient,
-  type StripeClientConfig,
-  type DailyRevenueResult,
-} from './stripe.js';
-
-// =============================================================================
-// Client Factory (Legacy)
-// =============================================================================
-
-export {
-  createIntegrationClients,
-  getOpenAIApiKey,
-  type ClientsConfig,
-  type IntegrationClients,
-  type CircuitBreakerOptions,
-  type ClientName,
-  type EventStore,
-} from './clients-factory.js';
-
-// =============================================================================
-// Enhanced Client Factory (Recommended)
-// =============================================================================
-
-export {
-  createEnhancedIntegrationClients,
-  type EnhancedClientsConfig,
-  type EnhancedIntegrationClients,
-  type CircuitBreakerStats,
-  getHubSpotAccessToken,
-  getWhatsAppCredentials,
-  getVapiCredentials,
-  getStripeCredentials,
-  getSchedulingCredentials,
-} from './clients-factory.enhanced.js';
-
-// =============================================================================
-// RAG - Embedding Service
-// =============================================================================
-
-export {
-  EmbeddingService,
-  createEmbeddingService,
-  chunkText,
-  prepareTextForEmbedding,
-  EmbeddingConfigSchema,
-  type EmbeddingConfig,
-  type EmbeddingResult,
-  type BatchEmbeddingResult,
-  type EmbeddingInput,
-  type ChunkOptions,
-} from './embeddings.js';
-
-// =============================================================================
-// CRM Integrations
-// =============================================================================
-
-export {
-  CRMFactory,
-  getCRMProvider,
-  resetCRMProvider,
-  PipedriveAdapter,
-} from './crm/index.js';
-
-// =============================================================================
-// State-of-the-Art Library Infrastructure
-// =============================================================================
-
 // Branded Types & Nominal Typing
+// =============================================================================
+
 export {
+  // Core branding
   type Brand,
   type Flavor,
   type Unbrand,
   type BrandOf,
+
+  // ID types
   type HubSpotContactId,
   type HubSpotDealId,
   type HubSpotTaskId,
@@ -190,23 +45,35 @@ export {
   type ExternalContactId,
   type ExternalDealId,
   type CorrelationId,
+
+  // Phone types
   type E164PhoneNumber,
   type NormalizedPhoneNumber,
   type RawPhoneNumber,
+
+  // Currency types
   type MinorCurrencyAmount,
   type MajorCurrencyAmount,
   type CurrencyCode,
+
+  // Time types
   type UnixTimestampSeconds,
   type UnixTimestampMs,
   type ISODateTime,
   type ISODate,
   type TimeString,
+
+  // Sensitive types
   type SecretApiKey,
   type WebhookSecret,
   type HMACSignature,
+
+  // Content types
   type SanitizedInput,
   type JSONString,
   type Base64String,
+
+  // Smart constructors
   BrandValidationError,
   type BrandResult,
   hubSpotContactId,
@@ -221,44 +88,68 @@ export {
   toMajorUnits,
   correlationId,
   contentHash,
+
+  // Unsafe constructors
   unsafe,
+
+  // Type guards
   isBranded,
   assertBrand,
-} from './lib/index.js';
+} from './branded-types.js';
 
+// =============================================================================
 // Result Monad & Functional Error Handling
+// =============================================================================
+
 export {
+  // Core types
   type Ok,
   type Err,
   type Result,
   type AsyncResult,
+
+  // Constructors
   ok,
   err,
   fromNullable,
   fromPredicate,
   tryCatch,
   tryCatchAsync,
+
+  // Type guards
   isOk,
   isErr,
+
+  // Transformations
   map,
   mapErr,
   flatMap,
   flatMapAsync,
   ap,
+
+  // Recovery
   getOrElse,
   getOrElseW,
   orElse,
   recover,
+
+  // Matching
   match,
   unwrap,
   expect,
   unwrapErr,
+
+  // Combining
   all,
   allSettled,
   firstOk,
   sequenceS,
+
+  // Side effects
   tap,
   tapErr,
+
+  // Integration errors
   type IntegrationError,
   type IntegrationErrorCode,
   type IntegrationResult,
@@ -267,35 +158,55 @@ export {
   toIntegrationError,
   wrapAsync,
   retryResult,
+
+  // Pipeline
   ResultPipeline,
   pipeline,
-} from './lib/index.js';
+} from './result.js';
 
+// =============================================================================
 // Builder Patterns & Fluent APIs
+// =============================================================================
+
 export {
+  // Retry configuration
   type RetryStrategy,
   type RetryConfig,
   RetryConfigBuilder,
+
+  // Circuit breaker configuration
   type CircuitState,
   type CircuitBreakerConfig,
   CircuitBreakerBuilder,
+
+  // Timeout configuration
   type TimeoutConfig,
   TimeoutBuilder,
+
+  // Base client builder
   type BaseClientConfig,
   BaseClientBuilder,
+
+  // Request builder
   type HttpMethod,
   type RequestConfig,
   RequestBuilder,
+
+  // Builder state types
   type BuilderState,
   type EmptyState,
   type WithApiKey,
   type WithRetryConfig,
   type WithTimeout,
   type WithCircuitBreaker,
-} from './lib/index.js';
+} from './builders.js';
 
+// =============================================================================
 // Observability & Telemetry
+// =============================================================================
+
 export {
+  // Span types
   type SpanStatusCode,
   type SpanKind,
   type SpanAttributes,
@@ -303,17 +214,27 @@ export {
   type SpanLink,
   type Span,
   type TraceContext,
+
+  // Metric types
   type MetricType,
   type MetricLabels,
   type MetricDataPoint,
   type HistogramBucket,
   type HistogramData,
+
+  // Standard metrics & labels
   IntegrationMetrics,
   IntegrationLabels,
+
+  // Telemetry context
   type TelemetryContext,
   createTelemetryContext,
+
+  // Collector interface
   type TelemetryCollector,
   InMemoryTelemetryCollector,
+
+  // Instrumentation
   startSpan,
   endSpan,
   addSpanEvent,
@@ -322,38 +243,64 @@ export {
   incrementCounter,
   setGauge,
   observeHistogram,
+
+  // Instrumented operations
   type InstrumentOptions,
   instrument,
   instrumentSync,
+
+  // Registry
   getTelemetryRegistry,
   configureTelemetry,
-  Timer,
-} from './lib/index.js';
 
+  // Timer utility
+  Timer,
+} from './telemetry.js';
+
+// =============================================================================
 // Resilience Patterns
+// =============================================================================
+
 export {
+  // Bulkhead
   type BulkheadConfig,
   type BulkheadStats,
   BulkheadRejectedError,
   Bulkhead,
+
+  // Deduplication
   type DeduplicationConfig,
   RequestDeduplicator,
+
+  // Graceful degradation
   type DegradationLevel,
   type DegradationConfig,
   GracefulDegradation,
+
+  // Adaptive timeout
   type AdaptiveTimeoutConfig,
   AdaptiveTimeout,
+
+  // Rate limiting
   type RateLimiterConfig,
   TokenBucketRateLimiter,
+
+  // Composite resilience
   type CompositeResilienceConfig,
   CompositeResilience,
-} from './lib/index.js';
+} from './resilience.js';
 
+// =============================================================================
 // Type Guards & Assertions
+// =============================================================================
+
 export {
+  // Guard result
   type GuardResult,
   guardOk,
   guardFail,
+
+  // Primitive guards
   isObject,
   isNonEmptyString,
   isPositiveInteger,
@@ -365,29 +312,43 @@ export {
   isValidPhone,
   isE164Phone,
   isUUID,
+
+  // Integration guards
   isHubSpotContact,
   isWhatsAppMessage,
   isVapiCall,
   isStripeCharge,
+
+  // Discriminated union guards
   hasTag,
   hasType,
   hasKind,
+
+  // Exhaustive matching
   assertNever,
   exhaustiveMatch,
   matchWithDefault,
+
+  // Assertions
   AssertionError,
   assert,
   assertDefined,
   assertNonEmptyString,
   assertPositiveInteger,
   assertSchema,
+
+  // Property access
   getProperty,
   getNestedProperty,
   getPropertyGuarded,
+
+  // Array guards
   isNonEmptyArray,
   isArrayOf,
   hasLength,
   hasMinLength,
+
+  // Webhook guards
   HubSpotWebhookPayloadSchema,
   type HubSpotWebhookPayload,
   isHubSpotWebhookPayload,
@@ -397,11 +358,15 @@ export {
   StripeWebhookPayloadSchema,
   type StripeWebhookPayload,
   isStripeWebhookPayload,
+
+  // Validation utilities
   validate,
   validateOrThrow,
   validateWithErrors,
+
+  // Type narrowing
   toNonEmptyArray,
   toNonEmptyString,
   filterMap,
   partition,
-} from './lib/index.js';
+} from './guards.js';
