@@ -287,18 +287,22 @@ export class ConsentService {
 
   /**
    * Check if all required consents are granted
+   * PERFORMANCE: Uses Promise.all for parallel consent checks
    */
   async hasRequiredConsents(
     contactId: string
   ): Promise<{ valid: boolean; missing: ConsentType[] }> {
-    const missing: ConsentType[] = [];
+    // Check all consents in parallel for better performance
+    const results = await Promise.all(
+      this.config.requiredForProcessing.map(async (consentType) => ({
+        consentType,
+        hasConsent: await this.hasValidConsent(contactId, consentType),
+      }))
+    );
 
-    for (const consentType of this.config.requiredForProcessing) {
-      const hasConsent = await this.hasValidConsent(contactId, consentType);
-      if (!hasConsent) {
-        missing.push(consentType);
-      }
-    }
+    const missing = results
+      .filter((result) => !result.hasConsent)
+      .map((result) => result.consentType);
 
     return {
       valid: missing.length === 0,

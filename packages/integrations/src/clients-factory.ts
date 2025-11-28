@@ -138,11 +138,39 @@ export interface IntegrationClients {
 }
 
 // Global circuit breaker registry for integrations
+// =============================================================================
+// Circuit Breaker Configuration Constants
+// =============================================================================
+
+/**
+ * Number of consecutive failures before circuit opens (trips).
+ * After 5 failures, the circuit opens to prevent cascading failures.
+ */
+const CB_FAILURE_THRESHOLD = 5;
+
+/**
+ * Time in milliseconds before attempting recovery after circuit opens.
+ * After 30 seconds, circuit moves to HALF_OPEN to test if service recovered.
+ */
+const CB_RESET_TIMEOUT_MS = 30_000;
+
+/**
+ * Number of successful calls in HALF_OPEN state before circuit closes.
+ * Two consecutive successes confirm the service has recovered.
+ */
+const CB_SUCCESS_THRESHOLD = 2;
+
+/**
+ * Time window in milliseconds for counting failures.
+ * Failures older than 60 seconds are not counted toward the threshold.
+ */
+const CB_FAILURE_WINDOW_MS = 60_000;
+
 const integrationCircuitBreakerRegistry = new CircuitBreakerRegistry({
-  failureThreshold: 5,
-  resetTimeoutMs: 30000,
-  successThreshold: 2,
-  failureWindowMs: 60000,
+  failureThreshold: CB_FAILURE_THRESHOLD,
+  resetTimeoutMs: CB_RESET_TIMEOUT_MS,
+  successThreshold: CB_SUCCESS_THRESHOLD,
+  failureWindowMs: CB_FAILURE_WINDOW_MS,
 });
 
 /**

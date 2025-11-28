@@ -379,6 +379,34 @@ export function createStripeClient(config: StripeClientConfig): StripeClient {
   return new StripeClient(config);
 }
 
+// =============================================================================
+// Mock Stripe Constants
+// =============================================================================
+
+/** Base daily revenue in smallest currency unit (bani). 250000 = 2,500 RON */
+const MOCK_BASE_DAILY_REVENUE_BANI = 250_000;
+
+/** Maximum variance for daily revenue (bani). 150001 = up to 1,500 RON variance */
+const MOCK_MAX_VARIANCE_BANI = 150_001;
+
+/** Average daily revenue in smallest currency unit (bani). 300000 = 3,000 RON */
+const MOCK_AVG_DAILY_REVENUE_BANI = 300_000;
+
+/** Minimum mock transactions per day */
+const MOCK_MIN_TRANSACTIONS = 3;
+
+/** Maximum mock transactions per day */
+const MOCK_MAX_TRANSACTIONS = 10;
+
+/** Maximum variance for period revenue (bani). 100001 = up to 1,000 RON variance */
+const MOCK_PERIOD_MAX_VARIANCE_BANI = 100_001;
+
+/** Average transactions per day for period calculations */
+const MOCK_TRANSACTIONS_PER_DAY = 5;
+
+/** Milliseconds in one day (24 * 60 * 60 * 1000) */
+const MS_PER_DAY = 86_400_000;
+
 /**
  * Mock Stripe Client for development/testing
  */
@@ -394,16 +422,16 @@ export class MockStripeClient {
     todayEnd.setHours(23, 59, 59, 999);
 
     // SECURITY: Use crypto-secure randomness for mock data
-    const baseAmount = 250000; // 2500 RON base
     const varianceBytes = new Uint32Array(1);
     crypto.getRandomValues(varianceBytes);
-    const variance = varianceBytes[0]! % 150001; // 0-1500 RON variance
+    const variance = varianceBytes[0]! % MOCK_MAX_VARIANCE_BANI;
     const countBytes = new Uint32Array(1);
     crypto.getRandomValues(countBytes);
-    const transactionCount = (countBytes[0]! % 8) + 3; // 3-10 transactions
+    const transactionRange = MOCK_MAX_TRANSACTIONS - MOCK_MIN_TRANSACTIONS;
+    const transactionCount = (countBytes[0]! % (transactionRange + 1)) + MOCK_MIN_TRANSACTIONS;
 
     return Promise.resolve({
-      amount: baseAmount + variance,
+      amount: MOCK_BASE_DAILY_REVENUE_BANI + variance,
       currency: 'ron',
       transactionCount,
       periodStart: todayStart,
@@ -415,16 +443,15 @@ export class MockStripeClient {
    * Get mock revenue for period
    */
   getRevenueForPeriod(startDate: Date, endDate: Date): Promise<DailyRevenueResult> {
-    const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    const dailyAverage = 300000; // 3000 RON average per day
+    const days = Math.ceil((endDate.getTime() - startDate.getTime()) / MS_PER_DAY);
 
     // SECURITY: Use crypto-secure randomness for mock data
     const varianceBytes = new Uint32Array(1);
     crypto.getRandomValues(varianceBytes);
     return Promise.resolve({
-      amount: dailyAverage * days + (varianceBytes[0]! % 100001),
+      amount: MOCK_AVG_DAILY_REVENUE_BANI * days + (varianceBytes[0]! % MOCK_PERIOD_MAX_VARIANCE_BANI),
       currency: 'ron',
-      transactionCount: days * 5,
+      transactionCount: days * MOCK_TRANSACTIONS_PER_DAY,
       periodStart: startDate,
       periodEnd: endDate,
     });
