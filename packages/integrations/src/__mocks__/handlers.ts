@@ -57,9 +57,33 @@ const hubspotHandlers = [
     });
   }),
 
-  // Create contact
+  // Create/Upsert contact
+  // Handles both regular create and upsert (with idProperty query param)
   http.post('https://api.hubapi.com/crm/v3/objects/contacts', async ({ request }) => {
+    const url = new URL(request.url);
+    const idProperty = url.searchParams.get('idProperty');
     const body = (await request.json()) as { properties: Record<string, string> };
+
+    // If using upsert with idProperty, check if contact exists
+    if (idProperty === 'phone' && body.properties.phone === '+40721000001') {
+      // Return existing contact for upsert
+      return HttpResponse.json({
+        id: 'hs_contact_123',
+        properties: {
+          ...body.properties,
+          phone: '+40721000001',
+          firstname: 'Test',
+          lastname: 'User',
+          email: 'test@example.com',
+          lifecyclestage: 'lead',
+          lead_score: '3',
+        },
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
+    // New contact creation
     return HttpResponse.json(
       {
         id: `hs_contact_new_${Date.now()}`,

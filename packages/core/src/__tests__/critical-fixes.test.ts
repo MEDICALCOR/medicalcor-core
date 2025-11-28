@@ -431,7 +431,7 @@ describe('AI Output Validation [CRITICAL]', () => {
   describe('validateAndSanitizeAIOutput', () => {
     it('should validate lead scoring output against schema', () => {
       const validOutput = {
-        score: 85,
+        score: 5, // Valid score: 1-5 unified scale
         classification: 'HOT',
         confidence: 0.92,
         reasoning: 'Lead expressed clear interest in booking an appointment.',
@@ -450,7 +450,7 @@ describe('AI Output Validation [CRITICAL]', () => {
 
     it('should reject invalid score values', () => {
       const invalidOutput = {
-        score: 150, // Invalid: above 100
+        score: 10, // Invalid: above 5 (schema is 1-5)
         classification: 'HOT',
         confidence: 0.92,
         reasoning: 'Some reasoning.',
@@ -469,7 +469,7 @@ describe('AI Output Validation [CRITICAL]', () => {
 
     it('should reject invalid confidence values', () => {
       const invalidOutput = {
-        score: 85,
+        score: 5, // Valid score: 1-5
         classification: 'HOT',
         confidence: 1.5, // Invalid: above 1
         reasoning: 'Some reasoning.',

@@ -1,17 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EmbeddingService, chunkText, prepareTextForEmbedding } from '../embeddings.js';
 
-// Mock OpenAI
+// Mock OpenAI - define the mock inside vi.mock to avoid hoisting issues
 vi.mock('openai', () => {
   return {
-    default: vi.fn().mockImplementation(() => ({
-      embeddings: {
+    default: class MockOpenAI {
+      embeddings = {
         create: vi.fn().mockResolvedValue({
           data: [{ embedding: new Array(1536).fill(0.1), index: 0 }],
           usage: { total_tokens: 50 },
         }),
-      },
-    })),
+      };
+    },
   };
 });
 
@@ -181,7 +181,8 @@ describe('chunkText', () => {
   });
 
   it('should preserve content across chunks', () => {
-    const text = 'The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs.';
+    const text =
+      'The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs.';
     const chunks = chunkText(text, { maxChunkSize: 50, overlap: 10 });
 
     // All original words should appear in at least one chunk
