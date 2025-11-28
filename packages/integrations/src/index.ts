@@ -27,6 +27,14 @@ export {
   type TaskInput,
 } from './hubspot.js';
 
+// Re-export HubSpot types from @medicalcor/types for convenience
+export type {
+  HubSpotContact,
+  HubSpotContactInput,
+  HubSpotSearchRequest,
+  HubSpotSearchResponse,
+} from '@medicalcor/types';
+
 export {
   WhatsAppClient,
   createWhatsAppClient,
@@ -147,12 +155,7 @@ export {
 // CRM Integrations
 // =============================================================================
 
-export {
-  CRMFactory,
-  getCRMProvider,
-  resetCRMProvider,
-  PipedriveAdapter,
-} from './crm/index.js';
+export { CRMFactory, getCRMProvider, resetCRMProvider, PipedriveAdapter } from './crm/index.js';
 
 // =============================================================================
 // State-of-the-Art Library Infrastructure

@@ -104,6 +104,8 @@ const LANGUAGE_MARKERS: Record<SupportedLanguage, string[]> = {
     'want',
     'would',
     'like',
+    'need',
+    'help',
     'appointment',
     'dentist',
     'clinic',
@@ -420,10 +422,14 @@ export class LanguageService {
     const normalizedMessage = message.toLowerCase().trim();
 
     // Check for explicit language requests
+    // Note: Using (?:^|\\s) and (?:$|\\s) instead of \b for Unicode compatibility
     const languagePatterns: Record<SupportedLanguage, RegExp[]> = {
-      ro: [/\b(română|romaneste|romanian)\b/i, /\b(vorbesc|vreau|prefer).*(română|romaneste)\b/i],
-      en: [/\b(english|engleza)\b/i, /\b(speak|want|prefer).*english\b/i],
-      de: [/\b(german|germana|deutsch)\b/i, /\b(spreche|möchte).*deutsch\b/i],
+      ro: [
+        /(?:^|\s)(română|romaneste|românește|romanian)(?:$|\s|[.,!?])/i,
+        /(?:vorbesc|vreau|prefer).*(română|romaneste|românește)/i,
+      ],
+      en: [/(english|engleza|engleză)(?:$|\s|[.,!?])/i, /(?:speak|want|prefer).*english/i],
+      de: [/(german|germana|germană|deutsch)(?:$|\s|[.,!?])/i, /(?:spreche|möchte).*deutsch/i],
     };
 
     for (const [lang, patterns] of Object.entries(languagePatterns) as [
