@@ -316,6 +316,41 @@ export class CircuitBreakerRegistry {
   reset(name: string): void {
     this.breakers.get(name)?.reset();
   }
+
+  /**
+   * Check if a circuit breaker is open (service unavailable)
+   */
+  isOpen(name: string): boolean {
+    const breaker = this.breakers.get(name);
+    if (!breaker) return false;
+    return breaker.getState() === CircuitState.OPEN;
+  }
+
+  /**
+   * Wrap a client object with circuit breaker protection
+   * All async methods will be wrapped to use the circuit breaker
+   */
+  wrapClient<T extends object>(name: string, client: T, config?: Partial<CircuitBreakerConfig>): T {
+    const breaker = this.get(name, config);
+
+    return new Proxy(client, {
+      get(target, prop, receiver) {
+        const value = Reflect.get(target, prop, receiver);
+
+        // Only wrap functions
+        if (typeof value !== 'function') {
+          return value;
+        }
+
+        // Return wrapped function that uses circuit breaker
+        return async (...args: unknown[]) => {
+          return breaker.execute(() =>
+            (value as (...args: unknown[]) => Promise<unknown>).apply(target, args)
+          );
+        };
+      },
+    });
+  }
 }
 
 /**
