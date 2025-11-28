@@ -6,13 +6,10 @@
  *
  * This is the "quantum leap" - making LLMs fully operational against
  * the medical CRM with type-safe, validated function calling.
+ *
+ * REFACTORED: Removed all `any` types. Uses discriminated unions and
+ * branded types for maximum type safety.
  */
-
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import type { EventStore } from '../event-store.js';
 import type { CommandBus } from '../cqrs/command-bus.js';
@@ -26,6 +23,174 @@ import {
   validateAndSanitizeAIOutput,
   validateAIReasoning,
 } from './medical-functions.js';
+// ============================================================================
+// TYPED FUNCTION ARGUMENTS
+// ============================================================================
+
+/**
+ * Score lead function arguments
+ */
+interface ScoreLeadArgs {
+  phone: string;
+  channel: 'whatsapp' | 'voice' | 'web' | 'referral';
+  messages?: {
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp?: string;
+  }[];
+  utmParams?: {
+    source?: string;
+    medium?: string;
+    campaign?: string;
+    content?: string;
+    term?: string;
+  };
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Get patient function arguments
+ */
+interface GetPatientArgs {
+  patientId?: string;
+  phone?: string;
+  email?: string;
+}
+
+/**
+ * Update patient function arguments
+ */
+interface UpdatePatientArgs {
+  patientId: string;
+  updates: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    dateOfBirth?: string;
+    notes?: string;
+    tags?: string[];
+  };
+}
+
+/**
+ * Schedule appointment function arguments
+ */
+interface ScheduleAppointmentArgs {
+  patientId: string;
+  phone?: string;
+  doctorId?: string;
+  serviceType: string;
+  preferredDate: string;
+  preferredTimeSlot?: 'morning' | 'afternoon' | 'evening' | 'any';
+  duration?: number;
+  notes?: string;
+  urgency?: 'normal' | 'urgent' | 'emergency';
+}
+
+/**
+ * Get available slots function arguments
+ */
+interface GetAvailableSlotsArgs {
+  startDate: string;
+  endDate: string;
+  doctorId?: string;
+  serviceType?: string;
+  duration?: number;
+}
+
+/**
+ * Cancel appointment function arguments
+ */
+interface CancelAppointmentArgs {
+  appointmentId: string;
+  reason?: string;
+  notifyPatient?: boolean;
+}
+
+/**
+ * Send WhatsApp function arguments
+ */
+interface SendWhatsAppArgs {
+  to: string;
+  message?: string;
+  templateName?: string;
+  templateParams?: Record<string, string>;
+}
+
+/**
+ * Record consent function arguments
+ */
+interface RecordConsentArgs {
+  patientId: string;
+  phone: string;
+  consentType:
+    | 'data_processing'
+    | 'marketing_whatsapp'
+    | 'marketing_email'
+    | 'marketing_sms'
+    | 'appointment_reminders'
+    | 'treatment_updates'
+    | 'third_party_sharing';
+  status: 'granted' | 'denied' | 'withdrawn';
+  source: string;
+  ipAddress?: string;
+}
+
+/**
+ * Check consent function arguments
+ */
+interface CheckConsentArgs {
+  patientId?: string;
+  phone?: string;
+  consentTypes?: string[];
+}
+
+/**
+ * Get lead analytics function arguments
+ */
+interface GetLeadAnalyticsArgs {
+  startDate: string;
+  endDate: string;
+  groupBy?: 'day' | 'week' | 'month' | 'channel' | 'classification';
+  channel?: 'whatsapp' | 'voice' | 'web' | 'referral';
+}
+
+/**
+ * Trigger workflow function arguments
+ */
+interface TriggerWorkflowArgs {
+  workflow: 'lead-scoring' | 'patient-journey' | 'nurture-sequence' | 'booking-agent';
+  payload: Record<string, unknown>;
+  priority?: 'low' | 'normal' | 'high';
+}
+
+/**
+ * Get workflow status function arguments
+ */
+interface GetWorkflowStatusArgs {
+  taskId: string;
+}
+
+/**
+ * Get function args type by function name
+ */
+interface FunctionArgsMap {
+  score_lead: ScoreLeadArgs;
+  get_patient: GetPatientArgs;
+  update_patient: UpdatePatientArgs;
+  schedule_appointment: ScheduleAppointmentArgs;
+  get_available_slots: GetAvailableSlotsArgs;
+  cancel_appointment: CancelAppointmentArgs;
+  send_whatsapp: SendWhatsAppArgs;
+  record_consent: RecordConsentArgs;
+  check_consent: CheckConsentArgs;
+  get_lead_analytics: GetLeadAnalyticsArgs;
+  trigger_workflow: TriggerWorkflowArgs;
+  get_workflow_status: GetWorkflowStatusArgs;
+}
+
+type FunctionName = keyof FunctionArgsMap;
 
 // ============================================================================
 // DEPENDENCY INTERFACES
@@ -205,11 +370,48 @@ export interface FunctionExecutorDeps {
 }
 
 // ============================================================================
+// HANDLER TYPE
+// ============================================================================
+
+/**
+ * Type-safe handler signature for each function
+ */
+type FunctionHandler<T extends FunctionName> = (
+  args: FunctionArgsMap[T],
+  context: FunctionContext
+) => Promise<unknown>;
+
+/**
+ * Handler map type - ensures all handlers have correct signatures
+ */
+type HandlerMap = {
+  [K in FunctionName]: FunctionHandler<K>;
+};
+
+// ============================================================================
 // FUNCTION EXECUTOR IMPLEMENTATION
 // ============================================================================
 
 export class FunctionExecutor {
-  constructor(private deps: FunctionExecutorDeps) {}
+  private readonly handlers: HandlerMap;
+
+  constructor(private deps: FunctionExecutorDeps) {
+    // Initialize handlers with proper type binding
+    this.handlers = {
+      score_lead: this.handleScoreLead.bind(this),
+      get_patient: this.handleGetPatient.bind(this),
+      update_patient: this.handleUpdatePatient.bind(this),
+      schedule_appointment: this.handleScheduleAppointment.bind(this),
+      get_available_slots: this.handleGetAvailableSlots.bind(this),
+      cancel_appointment: this.handleCancelAppointment.bind(this),
+      send_whatsapp: this.handleSendWhatsApp.bind(this),
+      record_consent: this.handleRecordConsent.bind(this),
+      check_consent: this.handleCheckConsent.bind(this),
+      get_lead_analytics: this.handleGetLeadAnalytics.bind(this),
+      trigger_workflow: this.handleTriggerWorkflow.bind(this),
+      get_workflow_status: this.handleGetWorkflowStatus.bind(this),
+    };
+  }
 
   /**
    * Execute a function by name with validated arguments
@@ -222,9 +424,8 @@ export class FunctionExecutor {
     const startTime = Date.now();
 
     try {
-      // Get the appropriate handler
-      const handler = this.getHandler(functionName);
-      if (!handler) {
+      // Check if function name is valid
+      if (!this.isFunctionName(functionName)) {
         return {
           function: functionName,
           success: false,
@@ -237,10 +438,14 @@ export class FunctionExecutor {
         };
       }
 
-      // Validate input - schema may be undefined for dynamic function names
-      const schema = FUNCTION_INPUT_SCHEMAS[functionName as keyof typeof FUNCTION_INPUT_SCHEMAS];
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (schema) {
+      // Validate input
+      const schema = FUNCTION_INPUT_SCHEMAS[functionName] as
+        | (typeof FUNCTION_INPUT_SCHEMAS)[keyof typeof FUNCTION_INPUT_SCHEMAS]
+        | undefined;
+      let validatedArgs = args;
+
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- schema can be undefined at runtime
+      if (schema !== null && schema !== undefined) {
         const validation = schema.safeParse(args);
         if (!validation.success) {
           return {
@@ -255,11 +460,15 @@ export class FunctionExecutor {
             traceId: context.traceId,
           };
         }
-        args = validation.data;
+        validatedArgs = validation.data as Record<string, unknown>;
       }
 
-      // Execute the handler
-      const result = await handler(args, context);
+      // Execute the handler with proper typing
+      const handler = this.handlers[functionName] as (
+        args: Record<string, unknown>,
+        ctx: FunctionContext
+      ) => Promise<unknown>;
+      const result = await handler(validatedArgs, context);
 
       // =========================================================================
       // CRITICAL: Validate AI output before showing to medical staff
@@ -338,34 +547,17 @@ export class FunctionExecutor {
   }
 
   /**
-   * Get handler for a function
+   * Type guard to check if a string is a valid function name
    */
-  private getHandler(
-    functionName: string
-  ): ((args: Record<string, unknown>, context: FunctionContext) => Promise<unknown>) | null {
-    const handlers: Record<string, (args: any, context: FunctionContext) => Promise<unknown>> = {
-      score_lead: this.handleScoreLead.bind(this),
-      get_patient: this.handleGetPatient.bind(this),
-      update_patient: this.handleUpdatePatient.bind(this),
-      schedule_appointment: this.handleScheduleAppointment.bind(this),
-      get_available_slots: this.handleGetAvailableSlots.bind(this),
-      cancel_appointment: this.handleCancelAppointment.bind(this),
-      send_whatsapp: this.handleSendWhatsApp.bind(this),
-      record_consent: this.handleRecordConsent.bind(this),
-      check_consent: this.handleCheckConsent.bind(this),
-      get_lead_analytics: this.handleGetLeadAnalytics.bind(this),
-      trigger_workflow: this.handleTriggerWorkflow.bind(this),
-      get_workflow_status: this.handleGetWorkflowStatus.bind(this),
-    };
-
-    return handlers[functionName] ?? null;
+  private isFunctionName(name: string): name is FunctionName {
+    return name in this.handlers;
   }
 
   // ============================================================================
   // LEAD FUNCTIONS
   // ============================================================================
 
-  private async handleScoreLead(args: any, context: FunctionContext): Promise<unknown> {
+  private async handleScoreLead(args: ScoreLeadArgs, context: FunctionContext): Promise<unknown> {
     if (!this.deps.scoringService) {
       // Use command bus as fallback
       const result = await this.deps.commandBus.send('ScoreLead', args, {
@@ -413,11 +605,13 @@ export class FunctionExecutor {
     const scoringResult = await this.deps.scoringService.scoreMessage({
       phone: args.phone,
       channel: args.channel,
-      messageHistory: args.messages?.map((m: { role: string; content: string }) => ({
-        role: m.role,
-        content: m.content,
-      })),
-      utm: args.utmParams,
+      ...(args.messages && {
+        messageHistory: args.messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
+      }),
+      ...(args.utmParams && { utm: args.utmParams as Record<string, string> }),
     });
 
     // =========================================================================
@@ -489,13 +683,13 @@ export class FunctionExecutor {
   // PATIENT FUNCTIONS
   // ============================================================================
 
-  private async handleGetPatient(args: any, context: FunctionContext): Promise<unknown> {
+  private async handleGetPatient(args: GetPatientArgs, context: FunctionContext): Promise<unknown> {
     // Try HubSpot service first
     if (this.deps.hubspotService) {
       const contact = await this.deps.hubspotService.getContact({
-        phone: args.phone,
-        email: args.email,
-        contactId: args.patientId,
+        ...(args.phone && { phone: args.phone }),
+        ...(args.email && { email: args.email }),
+        ...(args.patientId && { contactId: args.patientId }),
       });
 
       if (contact) {
@@ -525,7 +719,10 @@ export class FunctionExecutor {
     return result.data;
   }
 
-  private async handleUpdatePatient(args: any, context: FunctionContext): Promise<unknown> {
+  private async handleUpdatePatient(
+    args: UpdatePatientArgs,
+    context: FunctionContext
+  ): Promise<unknown> {
     // Use command bus for updates
     const result = await this.deps.commandBus.send(
       'UpdatePatient',
@@ -613,7 +810,10 @@ export class FunctionExecutor {
     return { valid: missing.length === 0, missing };
   }
 
-  private async handleScheduleAppointment(args: any, context: FunctionContext): Promise<unknown> {
+  private async handleScheduleAppointment(
+    args: ScheduleAppointmentArgs,
+    context: FunctionContext
+  ): Promise<unknown> {
     // =========================================================================
     // CRITICAL GDPR CHECK: Validate consent BEFORE scheduling any appointment
     // Medical appointments cannot be scheduled without explicit data processing consent
@@ -673,10 +873,10 @@ export class FunctionExecutor {
       patientId: args.patientId,
       serviceType: args.serviceType,
       preferredDate: args.preferredDate,
-      preferredTimeSlot: args.preferredTimeSlot,
-      duration: args.duration,
-      notes: args.notes,
-      urgency: args.urgency,
+      ...(args.preferredTimeSlot && { preferredTimeSlot: args.preferredTimeSlot }),
+      ...(args.duration !== undefined && { duration: args.duration }),
+      ...(args.notes && { notes: args.notes }),
+      ...(args.urgency && { urgency: args.urgency }),
     });
 
     // Emit event with consent verification metadata
@@ -701,7 +901,10 @@ export class FunctionExecutor {
     return appointment;
   }
 
-  private async handleGetAvailableSlots(args: any, context: FunctionContext): Promise<unknown> {
+  private async handleGetAvailableSlots(
+    args: GetAvailableSlotsArgs,
+    context: FunctionContext
+  ): Promise<unknown> {
     if (!this.deps.schedulingService) {
       // Use query bus as fallback
       const result = await this.deps.queryBus.query('GetAvailableSlots', args, {
@@ -714,9 +917,9 @@ export class FunctionExecutor {
     const slots = await this.deps.schedulingService.getAvailableSlots({
       startDate: args.startDate,
       endDate: args.endDate,
-      doctorId: args.doctorId,
-      serviceType: args.serviceType,
-      duration: args.duration,
+      ...(args.doctorId && { doctorId: args.doctorId }),
+      ...(args.serviceType && { serviceType: args.serviceType }),
+      ...(args.duration !== undefined && { duration: args.duration }),
     });
 
     return {
@@ -729,7 +932,10 @@ export class FunctionExecutor {
     };
   }
 
-  private async handleCancelAppointment(args: any, context: FunctionContext): Promise<unknown> {
+  private async handleCancelAppointment(
+    args: CancelAppointmentArgs,
+    context: FunctionContext
+  ): Promise<unknown> {
     if (!this.deps.schedulingService) {
       const result = await this.deps.commandBus.send('CancelAppointment', args, {
         correlationId: context.correlationId,
@@ -745,8 +951,8 @@ export class FunctionExecutor {
 
     const cancellation = await this.deps.schedulingService.cancelAppointment({
       appointmentId: args.appointmentId,
-      reason: args.reason,
-      notifyPatient: args.notifyPatient,
+      ...(args.reason && { reason: args.reason }),
+      ...(args.notifyPatient !== undefined && { notifyPatient: args.notifyPatient }),
     });
 
     // Emit event
@@ -775,7 +981,10 @@ export class FunctionExecutor {
   // MESSAGING FUNCTIONS
   // ============================================================================
 
-  private async handleSendWhatsApp(args: any, context: FunctionContext): Promise<unknown> {
+  private async handleSendWhatsApp(
+    args: SendWhatsAppArgs,
+    context: FunctionContext
+  ): Promise<unknown> {
     if (!this.deps.whatsappService) {
       // Use command bus as fallback
       const result = await this.deps.commandBus.send('SendWhatsAppMessage', args, {
@@ -792,9 +1001,9 @@ export class FunctionExecutor {
 
     const messageResult = await this.deps.whatsappService.sendMessage({
       to: args.to,
-      message: args.message,
-      templateName: args.templateName,
-      templateParams: args.templateParams,
+      ...(args.message && { message: args.message }),
+      ...(args.templateName && { templateName: args.templateName }),
+      ...(args.templateParams && { templateParams: args.templateParams }),
     });
 
     // Emit event
@@ -818,7 +1027,10 @@ export class FunctionExecutor {
   // CONSENT FUNCTIONS
   // ============================================================================
 
-  private async handleRecordConsent(args: any, context: FunctionContext): Promise<unknown> {
+  private async handleRecordConsent(
+    args: RecordConsentArgs,
+    context: FunctionContext
+  ): Promise<unknown> {
     if (!this.deps.consentService) {
       const result = await this.deps.commandBus.send('RecordConsent', args, {
         correlationId: context.correlationId,
@@ -838,7 +1050,7 @@ export class FunctionExecutor {
       consentType: args.consentType,
       status: args.status,
       source: args.source,
-      ipAddress: args.ipAddress,
+      ...(args.ipAddress && { ipAddress: args.ipAddress }),
     });
 
     // Emit event for GDPR audit trail
@@ -864,7 +1076,10 @@ export class FunctionExecutor {
     };
   }
 
-  private async handleCheckConsent(args: any, context: FunctionContext): Promise<unknown> {
+  private async handleCheckConsent(
+    args: CheckConsentArgs,
+    context: FunctionContext
+  ): Promise<unknown> {
     if (!this.deps.consentService) {
       const result = await this.deps.queryBus.query('CheckConsent', args, {
         correlationId: context.correlationId,
@@ -874,9 +1089,9 @@ export class FunctionExecutor {
     }
 
     return this.deps.consentService.checkConsent({
-      patientId: args.patientId,
-      phone: args.phone,
-      consentTypes: args.consentTypes,
+      ...(args.patientId && { patientId: args.patientId }),
+      ...(args.phone && { phone: args.phone }),
+      ...(args.consentTypes && { consentTypes: args.consentTypes }),
     });
   }
 
@@ -884,7 +1099,10 @@ export class FunctionExecutor {
   // ANALYTICS FUNCTIONS
   // ============================================================================
 
-  private async handleGetLeadAnalytics(args: any, context: FunctionContext): Promise<unknown> {
+  private async handleGetLeadAnalytics(
+    args: GetLeadAnalyticsArgs,
+    context: FunctionContext
+  ): Promise<unknown> {
     // Get analytics from projection manager
     const leadStats = this.deps.projectionManager.get('lead-stats');
     const dailyMetrics = this.deps.projectionManager.get('daily-metrics');
@@ -930,7 +1148,10 @@ export class FunctionExecutor {
   // WORKFLOW FUNCTIONS
   // ============================================================================
 
-  private async handleTriggerWorkflow(args: any, context: FunctionContext): Promise<unknown> {
+  private async handleTriggerWorkflow(
+    args: TriggerWorkflowArgs,
+    context: FunctionContext
+  ): Promise<unknown> {
     if (!this.deps.workflowService) {
       const result = await this.deps.commandBus.send('TriggerWorkflow', args, {
         correlationId: context.correlationId,
@@ -947,7 +1168,7 @@ export class FunctionExecutor {
     const workflowResult = await this.deps.workflowService.triggerWorkflow({
       workflow: args.workflow,
       payload: args.payload,
-      priority: args.priority,
+      ...(args.priority && { priority: args.priority }),
     });
 
     // Emit event
@@ -965,7 +1186,10 @@ export class FunctionExecutor {
     return workflowResult;
   }
 
-  private async handleGetWorkflowStatus(args: any, context: FunctionContext): Promise<unknown> {
+  private async handleGetWorkflowStatus(
+    args: GetWorkflowStatusArgs,
+    context: FunctionContext
+  ): Promise<unknown> {
     if (!this.deps.workflowService) {
       const result = await this.deps.queryBus.query(
         'GetWorkflowStatus',

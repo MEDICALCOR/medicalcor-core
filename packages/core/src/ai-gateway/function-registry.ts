@@ -326,82 +326,199 @@ export function RegisterFunction(_definition: AIFunction, _inputSchema: ZodSchem
   };
 }
 
-/**
- * Helper to convert Zod schema to JSON Schema for function parameters
- */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any */
-export function zodToJsonSchema(schema: ZodSchema): JSONSchemaProperty {
-  // Basic implementation - in production use zod-to-json-schema library
-  // Note: Accessing _def is a Zod internal pattern
-  const def = schema._def as any;
+// ============================================================================
+// ZOD INTERNAL TYPES - Type definitions for Zod's internal structure
+// ============================================================================
 
-  if (!def) {
+/**
+ * Zod's internal definition structure.
+ * This is intentionally loosely typed because Zod's internals are not public API,
+ * but we use specific type narrowing for safety.
+ */
+interface ZodDefBase {
+  typeName: string;
+  description?: string;
+}
+
+interface ZodStringDef extends ZodDefBase {
+  typeName: 'ZodString';
+}
+
+interface ZodNumberDef extends ZodDefBase {
+  typeName: 'ZodNumber';
+}
+
+interface ZodBooleanDef extends ZodDefBase {
+  typeName: 'ZodBoolean';
+}
+
+interface ZodArrayDef extends ZodDefBase {
+  typeName: 'ZodArray';
+  type: ZodSchema;
+}
+
+interface ZodObjectDef extends ZodDefBase {
+  typeName: 'ZodObject';
+  shape: (() => Record<string, ZodSchema>) | Record<string, ZodSchema>;
+}
+
+interface ZodEnumDef extends ZodDefBase {
+  typeName: 'ZodEnum';
+  values: string[];
+}
+
+interface ZodOptionalDef extends ZodDefBase {
+  typeName: 'ZodOptional';
+  innerType: ZodSchema;
+}
+
+interface ZodDefaultDef extends ZodDefBase {
+  typeName: 'ZodDefault';
+  innerType: ZodSchema;
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+  defaultValue: Function | string | number | boolean | null | undefined | object;
+}
+
+type ZodDef =
+  | ZodStringDef
+  | ZodNumberDef
+  | ZodBooleanDef
+  | ZodArrayDef
+  | ZodObjectDef
+  | ZodEnumDef
+  | ZodOptionalDef
+  | ZodDefaultDef
+  | ZodDefBase;
+
+/**
+ * Type guard to check if schema has internal definition
+ */
+function hasZodDef(schema: ZodSchema): schema is ZodSchema & { _def: ZodDef } {
+  return '_def' in schema && typeof (schema as { _def?: unknown })._def === 'object';
+}
+
+/**
+ * Type guard helpers for specific Zod types
+ */
+function isZodArrayDef(def: ZodDef): def is ZodArrayDef {
+  return def.typeName === 'ZodArray';
+}
+
+function isZodObjectDef(def: ZodDef): def is ZodObjectDef {
+  return def.typeName === 'ZodObject';
+}
+
+function isZodEnumDef(def: ZodDef): def is ZodEnumDef {
+  return def.typeName === 'ZodEnum';
+}
+
+function isZodOptionalDef(def: ZodDef): def is ZodOptionalDef {
+  return def.typeName === 'ZodOptional';
+}
+
+function isZodDefaultDef(def: ZodDef): def is ZodDefaultDef {
+  return def.typeName === 'ZodDefault';
+}
+
+/**
+ * Helper to convert Zod schema to JSON Schema for function parameters.
+ * Uses type guards and discriminated unions for type safety.
+ */
+export function zodToJsonSchema(schema: ZodSchema): JSONSchemaProperty {
+  // Safely access Zod's internal definition
+  if (!hasZodDef(schema)) {
     return { type: 'unknown', description: '' };
   }
 
-  const typeName = def.typeName as string;
+  const def = schema._def;
 
-  switch (typeName) {
+  switch (def.typeName) {
     case 'ZodString':
       return {
         type: 'string',
         description: def.description ?? '',
       };
+
     case 'ZodNumber':
       return {
         type: 'number',
         description: def.description ?? '',
       };
+
     case 'ZodBoolean':
       return {
         type: 'boolean',
         description: def.description ?? '',
       };
+
     case 'ZodArray':
-      return {
-        type: 'array',
-        description: def.description ?? '',
-        items: zodToJsonSchema(def.type as ZodSchema),
-      };
-    case 'ZodObject': {
-      const shape = typeof def.shape === 'function' ? def.shape() : def.shape;
-      const properties: Record<string, JSONSchemaProperty> = {};
-      const required: string[] = [];
-
-      for (const [key, value] of Object.entries(shape)) {
-        properties[key] = zodToJsonSchema(value as ZodSchema);
-        // Check if field is optional
-        const fieldDef = (value as any)._def;
-        if (fieldDef?.typeName !== 'ZodOptional') {
-          required.push(key);
-        }
+      if (isZodArrayDef(def)) {
+        return {
+          type: 'array',
+          description: def.description ?? '',
+          items: zodToJsonSchema(def.type),
+        };
       }
+      return { type: 'array', description: def.description ?? '' };
 
-      return {
-        type: 'object',
-        description: def.description ?? '',
-        properties,
-        required,
-      };
+    case 'ZodObject': {
+      if (isZodObjectDef(def)) {
+        const shape = typeof def.shape === 'function' ? def.shape() : def.shape;
+        const properties: Record<string, JSONSchemaProperty> = {};
+        const required: string[] = [];
+
+        for (const [key, value] of Object.entries(shape)) {
+          properties[key] = zodToJsonSchema(value);
+          // Check if field is optional by examining inner type
+          if (hasZodDef(value) && value._def.typeName !== 'ZodOptional') {
+            required.push(key);
+          }
+        }
+
+        return {
+          type: 'object',
+          description: def.description ?? '',
+          properties,
+          required,
+        };
+      }
+      return { type: 'object', description: def.description ?? '' };
     }
+
     case 'ZodEnum':
-      return {
-        type: 'string',
-        description: def.description ?? '',
-        enum: def.values as string[],
-      };
+      if (isZodEnumDef(def)) {
+        return {
+          type: 'string',
+          description: def.description ?? '',
+          enum: def.values,
+        };
+      }
+      return { type: 'string', description: def.description ?? '' };
+
     case 'ZodOptional':
-      return zodToJsonSchema(def.innerType as ZodSchema);
+      if (isZodOptionalDef(def)) {
+        return zodToJsonSchema(def.innerType);
+      }
+      return { type: 'unknown', description: def.description ?? '' };
+
     case 'ZodDefault':
-      return {
-        ...zodToJsonSchema(def.innerType as ZodSchema),
-        default: typeof def.defaultValue === 'function' ? def.defaultValue() : def.defaultValue,
-      };
+      if (isZodDefaultDef(def)) {
+        const defaultValue =
+          typeof def.defaultValue === 'function'
+            ? (def.defaultValue as () => unknown)()
+            : def.defaultValue;
+        return {
+          ...zodToJsonSchema(def.innerType),
+          default: defaultValue,
+        };
+      }
+      return { type: 'unknown', description: def.description ?? '' };
+
     default:
+      // Fallback for unhandled Zod types
       return {
         type: 'string',
         description: def.description ?? '',
       };
   }
 }
-/* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any */
