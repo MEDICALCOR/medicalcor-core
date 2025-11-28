@@ -27,6 +27,15 @@ export {
   type TaskInput,
 } from './hubspot.js';
 
+// Re-export HubSpot types from @medicalcor/types for convenience
+export type {
+  HubSpotContact,
+  HubSpotContactInput,
+  HubSpotSearchRequest,
+  HubSpotSearchResponse,
+  HubSpotTask,
+} from '@medicalcor/types';
+
 export {
   WhatsAppClient,
   createWhatsAppClient,
