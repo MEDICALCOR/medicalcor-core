@@ -20,13 +20,13 @@ import type {
   PaginatedResponse,
 } from '@medicalcor/types';
 import { requirePermission } from '@/lib/auth/server-action-auth';
-import { getHubSpotClient } from '../shared/clients.js';
-import { validatePageSize, emptyPaginatedResponse } from '../shared/pagination.js';
+import { getHubSpotClient } from '../shared/clients';
+import { validatePageSize, emptyPaginatedResponse } from '../shared/pagination';
 import {
   maskPhone,
   detectChannel,
   mapConversationStatus,
-} from '../shared/mappers.js';
+} from '../shared/mappers';
 
 // ============================================================================
 // CONSTANTS

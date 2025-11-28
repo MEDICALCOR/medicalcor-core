@@ -12,8 +12,8 @@
 
 import type { CalendarSlot } from '@medicalcor/types';
 import { requirePermission } from '@/lib/auth/server-action-auth';
-import { getSchedulingService } from '../shared/clients.js';
-import { maskPhone } from '../shared/mappers.js';
+import { getSchedulingService } from '../shared/clients';
+import { maskPhone } from '../shared/mappers';
 
 // ============================================================================
 // CONSTANTS

@@ -604,9 +604,10 @@ export function safeSet<T extends object>(obj: T, path: (string | number)[], val
   let current = result;
 
   for (let i = 0; i < path.length - 1; i++) {
-    const key = path[i];
+    const key = path[i]!; // Safe: loop bound ensures i < path.length - 1
+    const nextKey = path[i + 1]; // May be undefined at boundary
     if (current[key] === null || current[key] === undefined) {
-      current[key] = typeof path[i + 1] === 'number' ? [] : {};
+      current[key] = typeof nextKey === 'number' ? [] : {};
     } else {
       current[key] = Array.isArray(current[key])
         ? [...(current[key] as unknown[])]
@@ -615,7 +616,10 @@ export function safeSet<T extends object>(obj: T, path: (string | number)[], val
     current = current[key] as Record<string | number, unknown>;
   }
 
-  current[path[path.length - 1]] = value;
+  const lastKey = path[path.length - 1];
+  if (lastKey !== undefined) {
+    current[lastKey] = value;
+  }
   return result as T;
 }
 

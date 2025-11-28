@@ -284,9 +284,9 @@ export class DomainError extends Error {
     public readonly code: DomainErrorCode,
     message: string,
     public readonly details?: Record<string, unknown>,
-    public readonly cause?: Error
+    override readonly cause?: Error
   ) {
-    super(message);
+    super(message, { cause });
     this.name = 'DomainError';
     Object.setPrototypeOf(this, DomainError.prototype);
   }

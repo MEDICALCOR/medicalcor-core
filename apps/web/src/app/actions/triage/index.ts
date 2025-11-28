@@ -12,13 +12,13 @@
 
 import type { TriageLead, TriageColumn, HubSpotContact, LeadSource } from '@medicalcor/types';
 import { requirePermission } from '@/lib/auth/server-action-auth';
-import { getHubSpotClient, getSchedulingService } from '../shared/clients.js';
+import { getHubSpotClient, getSchedulingService } from '../shared/clients';
 import {
   mapLeadSource,
   maskPhone,
   formatRelativeTime,
   parseProcedureInterest,
-} from '../shared/mappers.js';
+} from '../shared/mappers';
 
 // ============================================================================
 // CONSTANTS

@@ -37,7 +37,7 @@ export interface SpanAttributes {
 export interface SpanEvent {
   readonly name: string;
   readonly timestamp: number;
-  readonly attributes?: SpanAttributes;
+  readonly attributes?: SpanAttributes | undefined;
 }
 
 /**
@@ -55,12 +55,12 @@ export interface SpanLink {
 export interface Span {
   readonly traceId: string;
   readonly spanId: string;
-  readonly parentSpanId?: string;
+  readonly parentSpanId?: string | undefined;
   readonly name: string;
   readonly kind: SpanKind;
   readonly startTime: number;
   endTime?: number;
-  readonly status: { code: SpanStatusCode; message?: string };
+  readonly status: { code: SpanStatusCode; message?: string | undefined };
   readonly attributes: SpanAttributes;
   readonly events: SpanEvent[];
   readonly links: SpanLink[];
@@ -101,7 +101,7 @@ export interface MetricDataPoint {
   readonly value: number;
   readonly labels: MetricLabels;
   readonly timestamp: number;
-  readonly unit?: string;
+  readonly unit?: string | undefined;
 }
 
 /**
@@ -344,12 +344,14 @@ export class InMemoryTelemetryCollector implements TelemetryCollector {
     const summary: Record<string, { count: number; sum: number; avg: number }> = {};
 
     for (const metric of this.metrics) {
-      if (!summary[metric.name]) {
-        summary[metric.name] = { count: 0, sum: 0, avg: 0 };
+      let entry = summary[metric.name];
+      if (!entry) {
+        entry = { count: 0, sum: 0, avg: 0 };
+        summary[metric.name] = entry;
       }
-      summary[metric.name].count++;
-      summary[metric.name].sum += metric.value;
-      summary[metric.name].avg = summary[metric.name].sum / summary[metric.name].count;
+      entry.count++;
+      entry.sum += metric.value;
+      entry.avg = entry.sum / entry.count;
     }
 
     return summary;
@@ -433,8 +435,8 @@ class TelemetryRegistry {
 export function startSpan(
   name: string,
   options: {
-    kind?: SpanKind;
-    attributes?: SpanAttributes;
+    kind?: SpanKind | undefined;
+    attributes?: SpanAttributes | undefined;
     links?: SpanLink[];
     parentContext?: TelemetryContext;
   } = {}
@@ -530,8 +532,8 @@ export function recordMetric(
   value: number,
   options: {
     type?: MetricType;
-    labels?: MetricLabels;
-    unit?: string;
+    labels?: MetricLabels | undefined;
+    unit?: string | undefined;
   } = {}
 ): void {
   const metric: MetricDataPoint = {

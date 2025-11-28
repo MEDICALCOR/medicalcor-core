@@ -393,8 +393,8 @@ export interface IntegrationError {
   readonly correlationId: CorrelationId;
   readonly timestamp: Date;
   readonly retryable: boolean;
-  readonly cause?: Error;
-  readonly metadata?: Record<string, unknown>;
+  readonly cause?: Error | undefined;
+  readonly metadata?: Record<string, unknown> | undefined;
 }
 
 /**
@@ -424,7 +424,7 @@ export function integrationError(
   options: {
     retryable?: boolean;
     cause?: Error;
-    correlationId?: CorrelationId;
+    correlationId?: CorrelationId | undefined;
     metadata?: Record<string, unknown>;
   } = {}
 ): IntegrationError {
