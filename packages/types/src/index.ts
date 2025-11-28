@@ -3,7 +3,41 @@
  *
  * Central type definitions and Zod schemas for the MedicalCor platform.
  * All schemas are consolidated in the schemas/ directory as the Single Source of Truth.
+ *
+ * @module @medicalcor/types
+ * @version 2.0.0
+ *
+ * ## Architecture
+ *
+ * This package provides state-of-the-art TypeScript patterns:
+ *
+ * ### Core Library (`lib/`)
+ * - **Primitives**: Branded/nominal types, phantom types, template literals
+ * - **Result/Option**: Functional error handling monads (Railway-Oriented Programming)
+ * - **Builders**: Type-safe fluent builders with compile-time field tracking
+ * - **Matching**: Exhaustive pattern matching with discriminated unions
+ * - **Guards**: Runtime type guards and assertion functions
+ * - **API**: Response handling with typed errors and pagination
+ * - **Events**: Type-safe event system with full inference
+ *
+ * ### Domain Schemas (`schemas/`)
+ * - Common validation (phone, email, UUID, pagination)
+ * - Lead/Patient context and lifecycle
+ * - Voice/Telephony (Twilio/Vapi)
+ * - WhatsApp (360Dialog)
+ * - AI Scoring
+ *
+ * ### Integration Schemas
+ * - Stripe payments
+ * - HubSpot CRM
+ * - Domain events
+ * - Server actions
  */
+
+// =============================================================================
+// Advanced Type System Library (State-of-the-Art)
+// =============================================================================
+export * from './lib/index.js';
 
 // =============================================================================
 // Consolidated Schemas (Single Source of Truth)
