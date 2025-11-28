@@ -21,6 +21,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "check:duplication": "jscpd .",
     "clean": "turbo clean && rm -rf node_modules",
     "prepare": "husky",
     "db:migrate": "tsx tools/run-migrations.ts",
@@ -36,6 +37,8 @@
     "pg": "^8.13.1"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.5.0",
+    "@commitlint/config-conventional": "^19.5.0",
     "@eslint/js": "^9.15.0",
     "@playwright/test": "^1.49.0",
     "@sentry/nextjs": "^8.38.0",
@@ -46,6 +49,7 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "husky": "^9.1.6",
+    "jscpd": "^4.0.5",
     "lint-staged": "^15.2.10",
     "msw": "^2.12.3",
     "prettier": "^3.3.3",
