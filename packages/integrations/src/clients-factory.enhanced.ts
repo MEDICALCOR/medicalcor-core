@@ -7,20 +7,27 @@
  * ╚══════════════════════════════════════════════════════════════════════════════╝
  */
 
+import { CircuitBreakerRegistry, createEventStore } from '@medicalcor/core';
+import type { EventStore } from '@medicalcor/core';
+import type { ScoringService, TriageService, ConsentService } from '@medicalcor/domain';
 import {
-  CircuitBreakerRegistry,
-  createEventStore,
-  EventStore,
-  InMemoryEventStore,
-} from '@medicalcor/core';
-import { ScoringService, TriageService, ConsentService } from '@medicalcor/domain';
+  createScoringService,
+  createTriageService,
+  createConsentService,
+} from '@medicalcor/domain';
 
-import { HubSpotClient, createHubSpotClient } from './hubspot.js';
-import { WhatsAppClient, createWhatsAppClient, TemplateCatalogService } from './whatsapp.js';
-import { OpenAIClient, createOpenAIClient } from './openai.js';
-import { SchedulingService, createSchedulingService, MockSchedulingService } from './scheduling.js';
-import { VapiClient, createVapiClient } from './vapi.js';
-import { StripeClient, createStripeClient, MockStripeClient } from './stripe.js';
+import { createHubSpotClient } from './hubspot.js';
+import type { HubSpotClient } from './hubspot.js';
+import { createWhatsAppClient, TemplateCatalogService } from './whatsapp.js';
+import type { WhatsAppClient } from './whatsapp.js';
+import { createOpenAIClient } from './openai.js';
+import type { OpenAIClient } from './openai.js';
+import { createSchedulingService, MockSchedulingService } from './scheduling.js';
+import type { SchedulingService } from './scheduling.js';
+import { createVapiClient } from './vapi.js';
+import type { VapiClient } from './vapi.js';
+import { createStripeClient, MockStripeClient } from './stripe.js';
+import type { StripeClient } from './stripe.js';
 
 import {
   type CorrelationId,
@@ -355,8 +362,8 @@ export function createEnhancedIntegrationClients(
     resilience.set(name, createResilienceForClient(name));
   }
 
-  // Create event store
-  const eventStore: EventStore = createEventStore() ?? new InMemoryEventStore();
+  // Create event store - use in-memory for this factory
+  const eventStore: EventStore = createEventStore({ source: config.source });
 
   // Initialize clients
   let hubspot: HubSpotClient | null = null;
@@ -488,16 +495,20 @@ export function createEnhancedIntegrationClients(
   }
 
   // Domain services
-  if (config.includeScoring !== false && openai && hubspot) {
-    scoring = new ScoringService(openai, hubspot, eventStore);
+  const openaiApiKey = getOpenAIApiKey();
+  if (config.includeScoring !== false && openaiApiKey) {
+    scoring = createScoringService({
+      openaiApiKey,
+      fallbackEnabled: true,
+    });
   }
 
-  if (config.includeTriage !== false && openai) {
-    triage = new TriageService(openai);
+  if (config.includeTriage !== false) {
+    triage = createTriageService();
   }
 
-  if (config.includeConsent !== false && eventStore) {
-    consent = new ConsentService(eventStore);
+  if (config.includeConsent !== false) {
+    consent = createConsentService();
   }
 
   if (config.includeTemplateCatalog !== false && whatsapp) {
@@ -652,7 +663,7 @@ export function createEnhancedIntegrationClients(
       }
       resilience.clear();
       if (vapi && 'destroy' in vapi) {
-        (vapi as VapiClient).destroy();
+        vapi.destroy();
       }
     },
   };
@@ -710,10 +721,10 @@ export interface IntegrationClients {
 export function createIntegrationClients(config: ClientsConfig): IntegrationClients {
   // Build circuit breaker config inline if provided
   const circuitBreakerConfig = config.circuitBreaker
-    ? ((builder: CircuitBreakerBuilder) =>
+    ? (builder: CircuitBreakerBuilder) =>
         builder
           .failureThreshold(config.circuitBreaker?.failureThreshold ?? 5)
-          .resetTimeout(config.circuitBreaker?.resetTimeoutMs ?? 30000))
+          .resetTimeout(config.circuitBreaker?.resetTimeoutMs ?? 30000)
     : undefined;
 
   // Build enhanced config, only including defined properties to satisfy exactOptionalPropertyTypes
@@ -726,7 +737,9 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
     ...(config.includeScoring !== undefined && { includeScoring: config.includeScoring }),
     ...(config.includeTriage !== undefined && { includeTriage: config.includeTriage }),
     ...(config.includeConsent !== undefined && { includeConsent: config.includeConsent }),
-    ...(config.includeTemplateCatalog !== undefined && { includeTemplateCatalog: config.includeTemplateCatalog }),
+    ...(config.includeTemplateCatalog !== undefined && {
+      includeTemplateCatalog: config.includeTemplateCatalog,
+    }),
     ...(circuitBreakerConfig && { circuitBreaker: circuitBreakerConfig }),
   };
 
