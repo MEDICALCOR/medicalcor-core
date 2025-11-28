@@ -316,6 +316,38 @@ export class CircuitBreakerRegistry {
   reset(name: string): void {
     this.breakers.get(name)?.reset();
   }
+
+  /**
+   * Check if a specific circuit breaker is open
+   */
+  isOpen(name: string): boolean {
+    const breaker = this.breakers.get(name);
+    return breaker ? breaker.getState() === CircuitState.OPEN : false;
+  }
+
+  /**
+   * Wrap a client object with circuit breaker protection for all async methods
+   */
+  wrapClient<T extends object>(name: string, client: T, config?: Partial<CircuitBreakerConfig>): T {
+    const breaker = this.get(name, config);
+
+    return new Proxy(client, {
+      get(target, prop, receiver) {
+        const value = Reflect.get(target, prop, receiver);
+
+        // Only wrap functions
+        if (typeof value !== 'function') {
+          return value;
+        }
+
+        // Return wrapped function that uses circuit breaker
+        return async (...args: unknown[]) => {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+          return breaker.execute(() => value.apply(target, args));
+        };
+      },
+    });
+  }
 }
 
 /**
