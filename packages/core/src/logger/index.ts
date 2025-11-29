@@ -12,7 +12,7 @@ import pino, { type Logger, type LoggerOptions } from 'pino';
 
 import { createCensor, REDACTION_PATHS, redactString } from './redaction.js';
 
-export { REDACTION_PATHS, redactString } from './redaction.js';
+export { REDACTION_PATHS, redactString, maskPhone, maskEmail, maskName } from './redaction.js';
 
 /**
  * Logger configuration options

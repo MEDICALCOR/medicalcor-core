@@ -6,6 +6,7 @@ import {
   toSafeErrorResponse,
   generateCorrelationId,
   IdempotencyKeys,
+  maskPhone,
 } from '@medicalcor/core';
 import { tasks } from '@trigger.dev/sdk/v3';
 
@@ -214,7 +215,8 @@ export const voiceWebhookRoutes: FastifyPluginAsync = (fastify) => {
 
       if (!isValidTwilioIdentifier(webhook.From, 'phone')) {
         fastify.log.warn(
-          { correlationId, from: webhook.From },
+          // SECURITY FIX: Mask phone number for HIPAA/GDPR compliance
+          { correlationId, from: maskPhone(webhook.From) },
           'Invalid From phone format received'
         );
         // Still continue but log the anomaly

@@ -47,8 +47,32 @@ export async function validateCredentials(
       }
 
       return null;
-    } catch {
-      // Database auth error - fall through to env var auth as backup
+    } catch (error) {
+      // CRITICAL FIX: Log authentication failures for compliance audit trail
+      // Silent failures mask security issues and violate HIPAA audit requirements
+      console.error('[Auth] Database authentication failed:', {
+        email: email.replace(/(.{2}).*@/, '$1***@'), // Mask email for logging
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+      });
+
+      // Log the auth failure event for compliance
+      try {
+        await logAuthEvent('login_failure', undefined, email, context);
+      } catch {
+        // Event logging failed - continue but note it
+        console.error('[Auth] Failed to log authentication failure event');
+      }
+
+      // In production, don't fall back to env auth if DB auth fails
+      // This prevents bypassing database security
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[Auth] Production: Not falling back to env auth after DB failure');
+        return null;
+      }
+
+      // Development only: fall through to env var auth as backup
+      console.warn('[Auth] Development: Falling back to environment variable auth');
     }
   }
 

@@ -70,19 +70,25 @@ export class UserRepository {
 
   /**
    * Find user by ID
+   * CRITICAL FIX: Added soft delete filter for GDPR compliance
    */
   async findById(id: string): Promise<User | null> {
-    const result = await this.db.query('SELECT * FROM users WHERE id = $1', [id]);
+    const result = await this.db.query(
+      'SELECT * FROM users WHERE id = $1 AND deleted_at IS NULL',
+      [id]
+    );
     return result.rows[0] ? mapRowToUser(result.rows[0]) : null;
   }
 
   /**
    * Find user by email (case-insensitive)
+   * CRITICAL FIX: Added soft delete filter for GDPR compliance
    */
   async findByEmail(email: string): Promise<User | null> {
-    const result = await this.db.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [
-      email,
-    ]);
+    const result = await this.db.query(
+      'SELECT * FROM users WHERE LOWER(email) = LOWER($1) AND deleted_at IS NULL',
+      [email]
+    );
     return result.rows[0] ? mapRowToUser(result.rows[0]) : null;
   }
 
@@ -117,6 +123,7 @@ export class UserRepository {
 
   /**
    * Update user
+   * CRITICAL FIX: Added soft delete filter for GDPR compliance
    */
   async update(id: string, data: UpdateUserData): Promise<User | null> {
     const setClauses: string[] = [];
@@ -162,7 +169,7 @@ export class UserRepository {
     values.push(id);
 
     const result = await this.db.query(
-      `UPDATE users SET ${setClauses.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+      `UPDATE users SET ${setClauses.join(', ')} WHERE id = $${paramIndex} AND deleted_at IS NULL RETURNING *`,
       values
     );
 
@@ -175,6 +182,7 @@ export class UserRepository {
 
   /**
    * Update password
+   * CRITICAL FIX: Added soft delete filter for GDPR compliance
    */
   async updatePassword(id: string, newPassword: string): Promise<boolean> {
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_COST);
@@ -186,7 +194,7 @@ export class UserRepository {
         must_change_password = FALSE,
         failed_login_attempts = 0,
         locked_until = NULL
-       WHERE id = $2`,
+       WHERE id = $2 AND deleted_at IS NULL`,
       [passwordHash, id]
     );
 
@@ -298,12 +306,31 @@ export class UserRepository {
   }
 
   /**
-   * Delete user
+   * Delete user (soft delete for GDPR compliance)
+   * CRITICAL FIX: Changed from hard delete to soft delete for GDPR right-to-be-forgotten
+   * Data will be permanently purged after 90-day retention period
    */
   async delete(id: string): Promise<boolean> {
+    const result = await this.db.query(
+      'UPDATE users SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1 AND deleted_at IS NULL',
+      [id]
+    );
+    if (result.rowCount && result.rowCount > 0) {
+      logger.info({ userId: id }, 'User soft-deleted (90-day retention before permanent deletion)');
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Permanently delete user (hard delete) - ADMIN ONLY
+   * Use with caution - this permanently removes all user data
+   * Should only be called after retention period or by explicit admin request
+   */
+  async hardDelete(id: string): Promise<boolean> {
     const result = await this.db.query('DELETE FROM users WHERE id = $1', [id]);
     if (result.rowCount && result.rowCount > 0) {
-      logger.info({ userId: id }, 'User deleted');
+      logger.warn({ userId: id }, 'User permanently deleted (hard delete)');
       return true;
     }
     return false;
@@ -311,6 +338,7 @@ export class UserRepository {
 
   /**
    * List users with pagination
+   * CRITICAL FIX: Added soft delete filter for GDPR compliance
    */
   async list(options?: {
     limit?: number;
@@ -321,7 +349,7 @@ export class UserRepository {
   }): Promise<{ users: SafeUser[]; total: number }> {
     const { limit = 50, offset = 0, status, role, clinicId } = options ?? {};
 
-    const whereClauses: string[] = [];
+    const whereClauses: string[] = ['deleted_at IS NULL'];  // CRITICAL FIX: Always filter deleted
     const values: unknown[] = [];
     let paramIndex = 1;
 
@@ -338,7 +366,7 @@ export class UserRepository {
       values.push(clinicId);
     }
 
-    const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const whereClause = `WHERE ${whereClauses.join(' AND ')}`;
 
     const [countResult, dataResult] = await Promise.all([
       this.db.query(`SELECT COUNT(*) as count FROM users ${whereClause}`, values),
@@ -357,6 +385,7 @@ export class UserRepository {
   /**
    * Search users by name or email
    * SECURITY FIX: Escape LIKE special characters to prevent LIKE injection
+   * CRITICAL FIX: Added soft delete filter for GDPR compliance
    */
   async search(query: string, limit = 20): Promise<SafeUser[]> {
     // SECURITY: Escape LIKE pattern special characters to prevent injection
@@ -369,7 +398,7 @@ export class UserRepository {
 
     const result = await this.db.query(
       `SELECT * FROM users
-       WHERE LOWER(name) LIKE $1 ESCAPE '\\' OR LOWER(email) LIKE $1 ESCAPE '\\'
+       WHERE deleted_at IS NULL AND (LOWER(name) LIKE $1 ESCAPE '\\' OR LOWER(email) LIKE $1 ESCAPE '\\')
        ORDER BY name ASC
        LIMIT $2`,
       [`%${escapedQuery}%`, limit]
@@ -380,10 +409,11 @@ export class UserRepository {
 
   /**
    * Count users by status
+   * CRITICAL FIX: Added soft delete filter for GDPR compliance
    */
   async countByStatus(): Promise<Record<UserStatus, number>> {
     const result = await this.db.query(
-      `SELECT status, COUNT(*) as count FROM users GROUP BY status`
+      `SELECT status, COUNT(*) as count FROM users WHERE deleted_at IS NULL GROUP BY status`
     );
 
     const counts: Record<UserStatus, number> = {

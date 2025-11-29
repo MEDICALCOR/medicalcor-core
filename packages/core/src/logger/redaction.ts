@@ -90,6 +90,14 @@ export const REDACTION_PATHS: string[] = [
   "wa_id",
   "profile.name",
 
+  // Voice/Vapi specific
+  "customerPhone",
+  "customer.number",
+  "phoneNumber.number",
+  "callerPhone",
+  "recipientPhone",
+  "recipientId",
+
   // Lead context demographics - explicit enumeration (from PatientDemographicsSchema)
   // SECURITY: Explicitly enumerate instead of using wildcards to prevent field omission
   "demographics.firstName",
@@ -199,4 +207,60 @@ export function shouldRedactPath(path: string): boolean {
     // Exact match or ends with the field name
     return normalizedPath === normalizedRedact || normalizedPath.endsWith(`.${normalizedRedact}`);
   });
+}
+
+/**
+ * Mask a phone number for safe logging
+ * Shows only last 4 digits to allow support without full PII exposure
+ *
+ * @example
+ * maskPhone('+40712345678') // returns '+40******5678'
+ * maskPhone('0712345678')   // returns '07****5678'
+ */
+export function maskPhone(phone: string | undefined | null): string {
+  if (!phone) return '[NO_PHONE]';
+
+  const cleaned = phone.replace(/\s/g, '');
+  if (cleaned.length < 6) return '[INVALID_PHONE]';
+
+  // Keep first 3 chars (country code indicator) and last 4 digits
+  const prefix = cleaned.slice(0, 3);
+  const suffix = cleaned.slice(-4);
+  const maskedMiddle = '*'.repeat(Math.max(cleaned.length - 7, 2));
+
+  return `${prefix}${maskedMiddle}${suffix}`;
+}
+
+/**
+ * Mask an email address for safe logging
+ * Shows first 2 chars and domain
+ *
+ * @example
+ * maskEmail('john.doe@example.com') // returns 'jo***@example.com'
+ */
+export function maskEmail(email: string | undefined | null): string {
+  if (!email) return '[NO_EMAIL]';
+
+  const atIndex = email.indexOf('@');
+  if (atIndex < 1) return '[INVALID_EMAIL]';
+
+  const localPart = email.slice(0, atIndex);
+  const domain = email.slice(atIndex);
+
+  const visibleChars = Math.min(2, localPart.length);
+  return `${localPart.slice(0, visibleChars)}***${domain}`;
+}
+
+/**
+ * Mask a name for safe logging
+ * Shows first initial and last initial only
+ *
+ * @example
+ * maskName('John Doe') // returns 'J*** D***'
+ */
+export function maskName(name: string | undefined | null): string {
+  if (!name) return '[NO_NAME]';
+
+  const parts = name.trim().split(/\s+/);
+  return parts.map((part) => (part.length > 0 ? `${part[0]}***` : '')).join(' ');
 }

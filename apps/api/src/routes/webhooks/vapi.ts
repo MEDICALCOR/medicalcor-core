@@ -6,6 +6,7 @@ import {
   toSafeErrorResponse,
   generateCorrelationId,
   IdempotencyKeys,
+  maskPhone,
 } from '@medicalcor/core';
 import { tasks } from '@trigger.dev/sdk/v3';
 import crypto from 'crypto';
@@ -190,7 +191,8 @@ export const vapiWebhookRoutes: FastifyPluginAsync = (fastify) => {
               correlationId,
               callId: event.call.id,
               callType: event.call.type,
-              customerPhone: event.call.customer?.number,
+              // SECURITY FIX: Mask phone number for HIPAA/GDPR compliance
+              customerPhone: maskPhone(event.call.customer?.number),
             },
             'Vapi call started'
           );
@@ -207,7 +209,8 @@ export const vapiWebhookRoutes: FastifyPluginAsync = (fastify) => {
               callId: call.id,
               status: call.status,
               endedReason: call.endedReason,
-              customerPhone: call.customer?.number,
+              // SECURITY FIX: Mask phone number for HIPAA/GDPR compliance
+              customerPhone: maskPhone(call.customer?.number),
             },
             'Vapi call ended'
           );
