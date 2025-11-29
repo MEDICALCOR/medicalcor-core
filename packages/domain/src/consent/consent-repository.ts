@@ -180,9 +180,10 @@ export class InMemoryConsentRepository implements ConsentRepository {
     return Promise.resolve(this.auditLog.filter((e) => e.consentId === consentId));
   }
 
-  async getContactAuditTrail(contactId: string): Promise<ConsentAuditEntry[]> {
-    const consents = await this.findByContact(contactId);
-    const consentIds = new Set(consents.map((c) => c.id));
-    return this.auditLog.filter((e) => consentIds.has(e.consentId));
+  getContactAuditTrail(contactId: string): Promise<ConsentAuditEntry[]> {
+    return this.findByContact(contactId).then((consents) => {
+      const consentIds = new Set(consents.map((c) => c.id));
+      return this.auditLog.filter((e) => consentIds.has(e.consentId));
+    });
   }
 }
