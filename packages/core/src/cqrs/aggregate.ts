@@ -449,6 +449,7 @@ export interface LeadLookup {
  * Database client interface for lead projections
  */
 export interface LeadProjectionClient {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
   query<T>(sql: string, params: unknown[]): Promise<{ rows: T[] }>;
 }
 
@@ -528,16 +529,29 @@ export class LeadRepository extends EventSourcedRepository<LeadAggregate> {
     }
 
     const row = result.rows[0];
-    return {
+    const lookup: LeadLookup = {
       id: row.id,
       phone: row.phone,
       channel: row.channel as LeadState['channel'],
-      classification: row.classification as LeadState['classification'] | undefined,
-      score: row.score ?? undefined,
-      hubspotContactId: row.hubspot_contact_id ?? undefined,
-      assignedTo: row.assigned_to ?? undefined,
       status: row.status as LeadState['status'],
     };
+    
+    // Only add optional properties if defined (exactOptionalPropertyTypes compliance)
+    // Note: DB query types have | null, not | undefined, so we only check for null
+    if (row.classification !== null) {
+      lookup.classification = row.classification as LeadState['classification'];
+    }
+    if (row.score !== null) {
+      lookup.score = row.score;
+    }
+    if (row.hubspot_contact_id !== null) {
+      lookup.hubspotContactId = row.hubspot_contact_id;
+    }
+    if (row.assigned_to !== null) {
+      lookup.assignedTo = row.assigned_to;
+    }
+    
+    return lookup;
   }
 
   /**

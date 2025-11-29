@@ -463,6 +463,28 @@ export class HubSpotClient {
   }
 
   /**
+   * Find contact by phone number
+   */
+  async findContactByPhone(phone: string): Promise<HubSpotContact | null> {
+    const response = await this.searchContacts({
+      filterGroups: [
+        {
+          filters: [
+            {
+              propertyName: 'phone',
+              operator: 'EQ',
+              value: phone,
+            },
+          ],
+        },
+      ],
+      limit: 1,
+    });
+
+    return response.results[0] ?? null;
+  }
+
+  /**
    * Upsert contact by email (atomic operation - race-condition safe)
    *
    * Uses HubSpot's native upsert API with idProperty to prevent duplicate creation

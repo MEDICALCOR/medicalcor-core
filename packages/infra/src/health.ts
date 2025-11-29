@@ -77,7 +77,7 @@ export type HealthChecker = () => Promise<DependencyCheck>;
  * ```
  */
 export function createHealthCheck(config: HealthCheckConfig) {
-  const checkers: Map<string, HealthChecker> = new Map();
+  const checkers = new Map<string, HealthChecker>();
   const { version, startTime, checkTimeout = 5000 } = config;
 
   /**

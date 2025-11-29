@@ -318,8 +318,13 @@ export class TriageService {
           routingRecommendation = 'same_day';
           // Try again for same_day
           availableSlot = await this.findAvailableSlot('same_day', procedureInterest);
-        }
-        if (!availableSlot && routingRecommendation === 'same_day') {
+          // If still no slot, downgrade to next_business_day
+          if (!availableSlot) {
+            routingRecommendation = 'next_business_day';
+            availableSlot = await this.findAvailableSlot('next_business_day', procedureInterest);
+          }
+        } else if (routingRecommendation === 'same_day') {
+          // Original was same_day, downgrade to next_business_day
           routingRecommendation = 'next_business_day';
           availableSlot = await this.findAvailableSlot('next_business_day', procedureInterest);
         }
@@ -338,15 +343,23 @@ export class TriageService {
       availableSlot
     );
 
-    return {
+    // Build result with only defined optional properties (exactOptionalPropertyTypes compliance)
+    const result: TriageResult = {
       urgencyLevel,
       routingRecommendation,
       medicalFlags,
-      suggestedOwner,
       prioritySchedulingRequested,
       notes,
-      availableSlot,
+      // suggestedOwner is always defined since determineSuggestedOwner always returns a string
+      suggestedOwner,
     };
+    
+    // Add availableSlot only if defined
+    if (availableSlot !== undefined) {
+      result.availableSlot = availableSlot;
+    }
+    
+    return result;
   }
 
   /**
@@ -489,19 +502,34 @@ export class TriageService {
     }
 
     try {
-      const slots = await this.schedulingService.getAvailableSlots({
-        procedureType: procedureInterest?.[0],
+      // Build options with only defined properties (exactOptionalPropertyTypes compliance)
+      const options: { procedureType?: string; preferredDates?: string[]; limit?: number } = {
         preferredDates,
         limit: 1,
-      });
+      };
+      
+      // Add procedureType only if first procedure is defined
+      const firstProcedure = procedureInterest?.[0];
+      if (firstProcedure !== undefined) {
+        options.procedureType = firstProcedure;
+      }
+      
+      const slots = await this.schedulingService.getAvailableSlots(options);
 
       if (slots.length > 0 && slots[0]) {
-        return {
+        // Build slot result with only defined optional properties
+        const slotResult: { id: string; date: string; startTime: string; practitioner?: string } = {
           id: slots[0].id,
           date: slots[0].date,
           startTime: slots[0].startTime,
-          practitioner: slots[0].practitioner,
         };
+        
+        // Add practitioner only if defined
+        if (slots[0].practitioner !== undefined) {
+          slotResult.practitioner = slots[0].practitioner;
+        }
+        
+        return slotResult;
       }
     } catch {
       // Silently fail - slot validation is enhancement, not requirement

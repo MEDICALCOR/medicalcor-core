@@ -21,7 +21,8 @@ import { PhoneNumber } from '../../shared-kernel/value-objects/phone-number.js';
 import type {
   LeadScoredEvent,
   LeadQualifiedEvent,
-  EventMetadata,
+  LeadScoredPayload,
+  LeadQualifiedPayload,
 } from '../../shared-kernel/domain-events/lead-events.js';
 import {
   createLeadScoredEvent,
@@ -211,7 +212,10 @@ export class ScoreLeadUseCase {
     this.crmGateway = deps.crmGateway;
     this.aiGateway = deps.aiGateway;
     this.eventPublisher = deps.eventPublisher;
-    this.idempotencyStore = deps.idempotencyStore;
+    // Only assign idempotencyStore if defined (exactOptionalPropertyTypes compliance)
+    if (deps.idempotencyStore !== undefined) {
+      this.idempotencyStore = deps.idempotencyStore;
+    }
   }
 
   /**
@@ -272,10 +276,18 @@ export class ScoreLeadUseCase {
       channel: input.channel,
       language: phone.getPreferredLanguage(),
       messageHistory: this.buildMessageHistory(input),
-      utmSource: lead?.utmSource,
-      utmCampaign: lead?.utmCampaign,
-      previousScore: previousScore,
     };
+    
+    // Only add optional properties if defined (exactOptionalPropertyTypes compliance)
+    if (lead?.utmSource !== undefined) {
+      (scoringContext as { utmSource: string }).utmSource = lead.utmSource;
+    }
+    if (lead?.utmCampaign !== undefined) {
+      (scoringContext as { utmCampaign: string }).utmCampaign = lead.utmCampaign;
+    }
+    if (previousScore !== undefined) {
+      (scoringContext as { previousScore: LeadScore }).previousScore = previousScore;
+    }
 
     // =========================================================================
     // STEP 6: Perform Scoring (AI or Rule-based)
@@ -341,9 +353,9 @@ export class ScoreLeadUseCase {
     const metadata = createEventMetadata(input.correlationId, 'score-lead-use-case');
 
     // LeadScored event (always)
-    const scoredEvent = createLeadScoredEvent(leadId, {
+    // Build payload with only defined optional properties (exactOptionalPropertyTypes compliance)
+    const scoredPayload: LeadScoredPayload = {
       phone: phone.e164,
-      hubspotContactId: input.hubspotContactId,
       channel: input.channel,
       score: scoringResult.score.numericValue,
       classification: scoringResult.score.classification,
@@ -351,13 +363,32 @@ export class ScoreLeadUseCase {
       method: scoringMethod,
       reasoning: scoringResult.reasoning,
       suggestedAction: scoringResult.suggestedAction,
-      detectedIntent: scoringResult.detectedIntent,
-      urgencyIndicators: scoringResult.urgencyIndicators,
-      budgetMentioned: scoringResult.budgetMentioned,
-      procedureInterest: scoringResult.procedureInterest,
-      previousScore: previousScore?.numericValue,
-      previousClassification: previousScore?.classification,
-    }, metadata);
+    };
+    
+    // Add optional properties only if they have values
+    if (input.hubspotContactId !== undefined) {
+      (scoredPayload as { hubspotContactId: string }).hubspotContactId = input.hubspotContactId;
+    }
+    if (scoringResult.detectedIntent !== undefined) {
+      (scoredPayload as { detectedIntent: string }).detectedIntent = scoringResult.detectedIntent;
+    }
+    if (scoringResult.urgencyIndicators.length > 0) {
+      (scoredPayload as { urgencyIndicators: readonly string[] }).urgencyIndicators = scoringResult.urgencyIndicators;
+    }
+    // budgetMentioned is always defined (boolean type) - always include it
+    (scoredPayload as { budgetMentioned: boolean }).budgetMentioned = scoringResult.budgetMentioned;
+    
+    if (scoringResult.procedureInterest.length > 0) {
+      (scoredPayload as { procedureInterest: readonly string[] }).procedureInterest = scoringResult.procedureInterest;
+    }
+    if (previousScore?.numericValue !== undefined) {
+      (scoredPayload as { previousScore: number }).previousScore = previousScore.numericValue;
+    }
+    if (previousScore?.classification !== undefined) {
+      (scoredPayload as { previousClassification: LeadClassification }).previousClassification = previousScore.classification;
+    }
+    
+    const scoredEvent = createLeadScoredEvent(leadId, scoredPayload, metadata);
 
     events.push(scoredEvent);
     await this.eventPublisher.publish(scoredEvent);
@@ -365,14 +396,21 @@ export class ScoreLeadUseCase {
     // LeadQualified event (only if newly qualified)
     const wasQualified = scoringResult.score.isHot() && (!previousScore || !previousScore.isHot());
     if (wasQualified) {
-      const qualifiedEvent = createLeadQualifiedEvent(leadId, {
+      // Build qualified payload with only defined optional properties (exactOptionalPropertyTypes compliance)
+      const qualifiedPayload: LeadQualifiedPayload = {
         phone: phone.e164,
-        hubspotContactId: input.hubspotContactId,
         score: scoringResult.score.numericValue,
         classification: 'HOT',
         qualificationReason: scoringResult.reasoning,
         procedureInterest: scoringResult.procedureInterest,
-      }, metadata);
+      };
+      
+      // Add optional hubspotContactId only if defined
+      if (input.hubspotContactId !== undefined) {
+        (qualifiedPayload as { hubspotContactId: string }).hubspotContactId = input.hubspotContactId;
+      }
+      
+      const qualifiedEvent = createLeadQualifiedEvent(leadId, qualifiedPayload, metadata);
 
       events.push(qualifiedEvent);
       await this.eventPublisher.publish(qualifiedEvent);
@@ -547,17 +585,24 @@ export class ScoreLeadUseCase {
     // Create LeadScore value object
     const leadScore = LeadScore.fromNumeric(score, 0.7);
 
-    return {
+    // Build result with only defined optional properties (exactOptionalPropertyTypes compliance)
+    const result: AIScoringResult = {
       score: leadScore,
       reasoning: `Rule-based scoring: ${indicators.join(', ') || 'no specific indicators detected'}`,
       suggestedAction: this.getSuggestedAction(leadScore.classification, context.language),
-      detectedIntent: indicators[0],
       urgencyIndicators: hasUrgency ? ['priority_scheduling_requested'] : [],
       budgetMentioned: hasBudget,
       procedureInterest: procedures,
       tokensUsed: 0,
       latencyMs: 0,
     };
+    
+    // Add detectedIntent only if there are indicators
+    if (indicators.length > 0 && indicators[0] !== undefined) {
+      (result as { detectedIntent: string }).detectedIntent = indicators[0];
+    }
+    
+    return result;
   }
 
   /**

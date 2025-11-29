@@ -117,8 +117,7 @@ function generateHotp(secret: Buffer, counter: bigint, digits = 6): string {
   counterBuffer.writeBigUInt64BE(counter);
 
   // HMAC-SHA1 as per RFC 4226
-  const hmac = createHash('sha1');
-  // Use HMAC properly
+  // Use HMAC properly with inner and outer pads
   const innerKey = Buffer.alloc(64, 0x36);
   const outerKey = Buffer.alloc(64, 0x5c);
 
@@ -127,8 +126,9 @@ function generateHotp(secret: Buffer, counter: bigint, digits = 6): string {
   secret.copy(keyPadded);
 
   for (let i = 0; i < 64; i++) {
-    innerKey[i] ^= keyPadded[i]!;
-    outerKey[i] ^= keyPadded[i]!;
+    const keyByte = keyPadded[i] ?? 0;
+    innerKey[i] = (innerKey[i] ?? 0) ^ keyByte;
+    outerKey[i] = (outerKey[i] ?? 0) ^ keyByte;
   }
 
   // Inner hash
@@ -244,12 +244,18 @@ export class MfaService {
     }
 
     const row = result.rows[0]!;
-    return {
+    const status: MfaStatus = {
       enabled: true,
       method: row.method as MfaMethod,
-      verifiedAt: row.verified_at ? new Date(row.verified_at as string) : undefined,
       backupCodesRemaining: parseInt(row.backup_codes as string, 10),
     };
+    
+    // Only add verifiedAt if it's defined (exactOptionalPropertyTypes compliance)
+    if (row.verified_at) {
+      status.verifiedAt = new Date(row.verified_at as string);
+    }
+    
+    return status;
   }
 
   /**
@@ -465,12 +471,18 @@ export class MfaService {
       details: { mfa: true, failedAttempts },
     });
 
-    return {
+    const result: MfaVerifyResult = {
       success: false,
       error: 'Invalid verification code',
       attemptsRemaining: Math.max(0, MFA_CONFIG.maxFailedAttempts - failedAttempts),
-      lockedUntil: newLockedUntil,
     };
+    
+    // Only add lockedUntil if it's defined (exactOptionalPropertyTypes compliance)
+    if (newLockedUntil) {
+      result.lockedUntil = newLockedUntil;
+    }
+    
+    return result;
   }
 
   /**

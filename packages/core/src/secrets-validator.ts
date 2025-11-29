@@ -194,14 +194,21 @@ function validateSecret(rule: SecretRule): SecretValidationResult {
 
   // Check if present
   if (!value || value.trim() === '') {
-    return {
+    const result: SecretValidationResult = {
       valid: rule.requirement === 'optional',
       secret: rule.name,
       envVar: rule.envVar,
       requirement: rule.requirement,
-      error: rule.requirement !== 'optional' ? 'Missing' : undefined,
-      warning: rule.requirement === 'optional' ? 'Not configured (optional)' : undefined,
     };
+    
+    // Only add error/warning if defined (exactOptionalPropertyTypes compliance)
+    if (rule.requirement !== 'optional') {
+      result.error = 'Missing';
+    } else {
+      result.warning = 'Not configured (optional)';
+    }
+    
+    return result;
   }
 
   // Check minimum length

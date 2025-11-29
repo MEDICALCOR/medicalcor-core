@@ -319,12 +319,16 @@ export class SystemPromptsRepository {
   private db: DatabasePool | null = null;
 
   constructor(config: Partial<SystemPromptsRepositoryConfig> = {}) {
-    this.config = {
+    const baseConfig: SystemPromptsRepositoryConfig = {
       useDatabase: config.useDatabase ?? false,
-      connectionString: config.connectionString,
       cacheTtlSeconds: config.cacheTtlSeconds ?? 300, // 5 minutes
       enableAuditLog: config.enableAuditLog ?? true,
     };
+    // Only add connectionString if it's defined (exactOptionalPropertyTypes compliance)
+    if (config.connectionString !== undefined) {
+      baseConfig.connectionString = config.connectionString;
+    }
+    this.config = baseConfig;
   }
 
   /**
@@ -384,9 +388,10 @@ export class SystemPromptsRepository {
         };
         this.setCache(key, fullPrompt);
       }
-      logger.info('System prompts repository initialized with defaults', {
-        promptCount: Object.keys(DEFAULT_PROMPTS).length,
-      });
+      logger.info(
+        { promptCount: Object.keys(DEFAULT_PROMPTS).length },
+        'System prompts repository initialized with defaults'
+      );
     }
 
     this.initialized = true;
@@ -600,12 +605,15 @@ export class SystemPromptsRepository {
     this.setCache(cacheKey, fullPrompt);
 
     if (this.config.enableAuditLog) {
-      logger.info('System prompt upserted', {
-        promptId: prompt.id,
-        category: prompt.category,
-        version: prompt.version,
-        tenantId: prompt.tenantId,
-      });
+      logger.info(
+        {
+          promptId: prompt.id,
+          category: prompt.category,
+          version: prompt.version,
+          tenantId: prompt.tenantId,
+        },
+        'System prompt upserted'
+      );
     }
 
     return fullPrompt;
@@ -626,10 +634,13 @@ export class SystemPromptsRepository {
     // Warn about unresolved variables
     const unresolvedMatches = content.match(/\{\{[^}]+\}\}/g);
     if (unresolvedMatches) {
-      logger.warn('Unresolved variables in prompt', {
-        promptId: prompt.id,
-        unresolved: unresolvedMatches,
-      });
+      logger.warn(
+        {
+          promptId: prompt.id,
+          unresolved: unresolvedMatches,
+        },
+        'Unresolved variables in prompt'
+      );
     }
 
     return content;

@@ -261,7 +261,7 @@ export const processPostCall = task({
 
         // Triage assessment
         if (triage) {
-          triageResult = triage.assess({
+          triageResult = await triage.assess({
             leadScore: scoreResult.classification,
             channel: 'voice',
             messageContent: analysis.fullTranscript,
@@ -286,7 +286,7 @@ export const processPostCall = task({
     }
 
     // Step 5: Sync to HubSpot
-    let hubspotContactId: string | undefined;
+    // hubspotContactId was already declared above - reuse it
 
     if (hubspot) {
       try {
