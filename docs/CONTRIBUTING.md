@@ -162,6 +162,49 @@ Include:
 - Ask in team chat
 - Create a discussion on GitHub
 
+## AI Assistant Guidelines
+
+When using AI assistants (such as Claude Code, GitHub Copilot, or similar tools) to contribute to this repository:
+
+### Branch-Based Workflow
+
+1. **Never commit directly to main** - All changes must go through a feature branch
+2. **Always create a new branch before modifying anything** - No exceptions
+3. **Operate only on the GitHub repository** - Do not create or edit local-only files
+
+### Branch Naming Convention
+
+Use the following prefixes for branch names:
+
+| Prefix | Use Case | Example |
+|--------|----------|---------|
+| `feature/` | New features or enhancements | `feature/user-authentication` |
+| `fix/` | Bug fixes | `fix/login-timeout` |
+| `refactor/` | Code restructuring | `refactor/api-handlers` |
+
+### Workflow Example
+
+```bash
+# Create and switch to a new branch
+git checkout -b feature/your-feature-name
+
+# Make changes and commit
+git add .
+git commit -m "feat(module): add new feature"
+
+# Push to remote
+git push -u origin feature/your-feature-name
+
+# Create Pull Request for review
+```
+
+### Prohibited Actions
+
+- ❌ Committing directly to `main`
+- ❌ Creating local-only edits that bypass version control
+- ❌ Modifying files without creating a branch first
+- ❌ Force pushing to shared branches
+
 ## Code of Conduct
 
 - Be respectful and inclusive
