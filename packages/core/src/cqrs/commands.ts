@@ -280,7 +280,7 @@ export const createLeadHandler: CommandHandler<
   const { phone, channel, utmParams } = command.payload;
 
   // Check if lead already exists
-  const leadRepo = new LeadRepository(context.eventStore);
+  const leadRepo = new LeadRepository(context.eventStore, context.projectionClient);
   const existingLead = await leadRepo.findByPhone(phone);
 
   if (existingLead) {
@@ -345,7 +345,7 @@ export const scoreLeadHandler: CommandHandler<
   const { phone, channel, messages } = command.payload;
 
   // Get or create lead
-  const leadRepo = new LeadRepository(context.eventStore);
+  const leadRepo = new LeadRepository(context.eventStore, context.projectionClient);
   let lead = await leadRepo.findByPhone(phone);
 
   if (!lead) {
@@ -355,7 +355,11 @@ export const scoreLeadHandler: CommandHandler<
   }
 
   // Simple rule-based scoring (in production, would call AI service)
-  const allContent = messages?.map((m) => m.content).join(' ').toLowerCase() ?? '';
+  const allContent =
+    messages
+      ?.map((m) => m.content)
+      .join(' ')
+      .toLowerCase() ?? '';
 
   let score = 2;
   let classification: 'HOT' | 'WARM' | 'COLD' | 'UNQUALIFIED' = 'COLD';
@@ -413,7 +417,7 @@ export const qualifyLeadHandler: CommandHandler<
 > = async (command, context) => {
   const { leadId, classification } = command.payload;
 
-  const leadRepo = new LeadRepository(context.eventStore);
+  const leadRepo = new LeadRepository(context.eventStore, context.projectionClient);
   const lead = await leadRepo.getById(leadId);
 
   if (!lead) {
@@ -450,7 +454,7 @@ export const assignLeadHandler: CommandHandler<
 > = async (command, context) => {
   const { leadId, assigneeId } = command.payload;
 
-  const leadRepo = new LeadRepository(context.eventStore);
+  const leadRepo = new LeadRepository(context.eventStore, context.projectionClient);
   const lead = await leadRepo.getById(leadId);
 
   if (!lead) {
@@ -487,7 +491,7 @@ export const convertLeadHandler: CommandHandler<
 > = async (command, context) => {
   const { leadId, hubspotContactId } = command.payload;
 
-  const leadRepo = new LeadRepository(context.eventStore);
+  const leadRepo = new LeadRepository(context.eventStore, context.projectionClient);
   const lead = await leadRepo.getById(leadId);
 
   if (!lead) {

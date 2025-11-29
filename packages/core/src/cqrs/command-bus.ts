@@ -9,6 +9,7 @@
 
 import type { ZodSchema } from 'zod';
 import type { EventStore, StoredEvent, EventPublisher } from '../event-store.js';
+import type { LeadProjectionClient } from './aggregate.js';
 
 // ============================================================================
 // CORE TYPES
@@ -54,6 +55,11 @@ export interface CommandContext {
   tenantId?: string | undefined;
   eventStore: EventStore;
   eventPublisher?: EventPublisher | undefined;
+  /**
+   * SQL projection client for O(1) lead lookups.
+   * When provided, LeadRepository uses leads_lookup table instead of Event Store scan.
+   */
+  projectionClient?: LeadProjectionClient | undefined;
 }
 
 export type CommandHandler<TPayload, TResult> = (
@@ -82,7 +88,8 @@ export class CommandBus {
 
   constructor(
     private eventStore: EventStore,
-    private eventPublisher?: EventPublisher
+    private eventPublisher?: EventPublisher,
+    private projectionClient?: LeadProjectionClient
   ) {}
 
   /**
@@ -153,6 +160,7 @@ export class CommandBus {
       tenantId: command.metadata.tenantId,
       eventStore: this.eventStore,
       eventPublisher: this.eventPublisher,
+      projectionClient: this.projectionClient,
     };
 
     // Build middleware chain
@@ -418,7 +426,8 @@ export function defineCommand<TPayload>(type: string, schema: ZodSchema<TPayload
 
 export function createCommandBus(
   eventStore: EventStore,
-  eventPublisher?: EventPublisher
+  eventPublisher?: EventPublisher,
+  projectionClient?: LeadProjectionClient
 ): CommandBus {
-  return new CommandBus(eventStore, eventPublisher);
+  return new CommandBus(eventStore, eventPublisher, projectionClient);
 }
