@@ -24,6 +24,7 @@ export {
   type CommandContext,
   type CommandHandler,
   type CommandMiddleware,
+  type IdempotencyCacheEntry,
 } from './command-bus.js';
 
 // Query Bus

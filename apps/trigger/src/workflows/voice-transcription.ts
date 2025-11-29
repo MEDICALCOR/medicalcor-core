@@ -34,6 +34,7 @@ function getClients() {
     includeVapi: true,
     includeScoring: true,
     includeTriage: true,
+    includeConsent: true,
   });
 }
 
@@ -90,7 +91,7 @@ export const processPostCall = task({
   run: async (payload: PostCallPayload) => {
     const { callId, customerPhone, customerName, callType, endedReason, duration, correlationId } =
       payload;
-    const { hubspot, openai, vapi, scoring, triage, eventStore } = getClients();
+    const { hubspot, openai, vapi, scoring, triage, eventStore, consent } = getClients();
 
     logger.info('Starting post-call processing', {
       callId,
@@ -103,7 +104,75 @@ export const processPostCall = task({
     const phoneResult = normalizeRomanianPhone(customerPhone);
     const normalizedPhone = phoneResult.normalized;
 
-    // Step 2: Fetch transcript from Vapi
+    // SECURITY FIX: GDPR compliance - verify data processing consent before analyzing voice data
+    // This must happen BEFORE fetching/processing transcripts which contain personal data
+    let hubspotContactId: string | undefined;
+    let hasGdprConsent = false;
+
+    if (hubspot) {
+      try {
+        // Look up contact by phone to check consent
+        const contact = await hubspot.findContactByPhone(normalizedPhone);
+        hubspotContactId = contact?.id;
+
+        if (hubspotContactId && consent) {
+          const consentCheck = await consent.hasRequiredConsents(hubspotContactId);
+          hasGdprConsent = consentCheck.valid;
+
+          if (!hasGdprConsent) {
+            logger.warn('Missing GDPR consent for voice data processing', {
+              callId,
+              contactId: hubspotContactId,
+              missingConsents: consentCheck.missing,
+              correlationId,
+            });
+
+            // Log minimal call metadata only (legitimate interest basis)
+            await hubspot.logCallToTimeline({
+              contactId: hubspotContactId,
+              callSid: callId,
+              duration: duration ?? 0,
+              transcript: '[Transcript not processed - consent required]',
+            });
+
+            return {
+              status: 'consent_required',
+              callId,
+              hubspotContactId,
+              missingConsents: consentCheck.missing,
+              message: 'Voice transcript processing skipped due to missing GDPR consent',
+            };
+          }
+
+          logger.info('GDPR consent verified for voice transcript processing', {
+            callId,
+            hubspotContactId,
+            correlationId,
+          });
+        } else if (!consent) {
+          // CRITICAL: Fail safe - if consent service unavailable, do not process personal data
+          logger.error('Consent service not available - cannot verify GDPR consent', {
+            callId,
+            correlationId,
+          });
+          return {
+            status: 'error',
+            callId,
+            message: 'Consent verification unavailable - transcript processing blocked',
+          };
+        }
+      } catch (err) {
+        logger.error('Failed to verify GDPR consent', { err, callId, correlationId });
+        // Fail safe: do not process without consent verification
+        return {
+          status: 'error',
+          callId,
+          message: 'Consent verification failed - transcript processing blocked',
+        };
+      }
+    }
+
+    // Step 2: Fetch transcript from Vapi (only after consent verified)
     let transcript: VapiTranscript | null = null;
     let analysis = null;
     let summary: VapiCallSummary | null = null;

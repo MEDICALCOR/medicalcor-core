@@ -136,6 +136,7 @@ export class ConsentService {
 
   /**
    * Record or update consent
+   * SECURITY FIX: Uses atomic upsert to prevent race conditions between concurrent requests
    * @returns Promise resolving to the consent record
    */
   async recordConsent(request: ConsentRequest): Promise<ConsentRecord> {
@@ -151,39 +152,42 @@ export class ConsentService {
       metadata,
     } = request;
 
-    const existing = await this.repository.findByContactAndType(contactId, consentType);
-    const previousStatus = existing?.status ?? null;
-
     const now = new Date().toISOString();
     const expirationDays = expiresInDays ?? this.config.defaultExpirationDays;
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + expirationDays);
 
-    const consent: ConsentRecord = {
-      id: existing?.id ?? this.generateId(),
+    // Build consent record with new ID (will be ignored if record already exists)
+    const consentInput: ConsentRecord = {
+      id: this.generateId(),
       contactId,
       phone,
       consentType,
       status,
       version: this.config.currentPolicyVersion,
-      grantedAt: status === 'granted' ? now : (existing?.grantedAt ?? null),
+      grantedAt: status === 'granted' ? now : null,
       withdrawnAt: status === 'withdrawn' ? now : null,
       expiresAt: status === 'granted' ? expiresAt.toISOString() : null,
       source,
       ipAddress: ipAddress ?? null,
       userAgent: userAgent ?? null,
       metadata: metadata ?? {},
-      createdAt: existing?.createdAt ?? now,
+      createdAt: now,
       updatedAt: now,
     };
 
-    // Persist to repository
-    await this.repository.save(consent);
+    // SECURITY FIX: Use atomic upsert to prevent race conditions
+    // The repository will atomically insert or update and return the actual record
+    const { record: savedConsent, wasCreated } = await this.repository.upsert(consentInput);
 
-    // Create audit entry
+    // Determine previous status for audit trail
+    // If it wasn't created, the status before this update was the previous one
+    const previousStatus = wasCreated ? null : savedConsent.status;
+
+    // Create audit entry using the actual saved consent ID (important for race condition handling)
     await this.createAuditEntry({
-      consentId: consent.id,
-      action: existing ? (status === 'withdrawn' ? 'withdrawn' : 'updated') : 'created',
+      consentId: savedConsent.id,
+      action: wasCreated ? 'created' : (status === 'withdrawn' ? 'withdrawn' : 'updated'),
       previousStatus,
       newStatus: status,
       performedBy: 'system',
@@ -193,11 +197,11 @@ export class ConsentService {
     });
 
     this.logger.info(
-      { contactId, consentType, status, action: existing ? 'updated' : 'created' },
+      { contactId, consentType, status, action: wasCreated ? 'created' : 'updated' },
       'Consent recorded'
     );
 
-    return consent;
+    return savedConsent;
   }
 
   /**

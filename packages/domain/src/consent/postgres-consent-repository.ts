@@ -118,6 +118,70 @@ export class PostgresConsentRepository implements ConsentRepository {
     return this.rowToConsent(row);
   }
 
+  /**
+   * Atomically upsert a consent record
+   * SECURITY FIX: This method uses PostgreSQL's ON CONFLICT to prevent race conditions
+   * and returns whether the record was created or updated for correct audit logging
+   */
+  async upsert(consent: ConsentRecord): Promise<{ record: ConsentRecord; wasCreated: boolean }> {
+    // Use xmax system column to determine if row was inserted or updated
+    // xmax = 0 means it was an INSERT, otherwise it was an UPDATE
+    const sql = `
+      INSERT INTO consents (
+        id, contact_id, phone, consent_type, status, version,
+        granted_at, withdrawn_at, expires_at,
+        source_channel, source_method, evidence_url, witnessed_by,
+        ip_address, user_agent, metadata, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      ON CONFLICT (contact_id, consent_type) DO UPDATE SET
+        status = EXCLUDED.status,
+        version = EXCLUDED.version,
+        granted_at = EXCLUDED.granted_at,
+        withdrawn_at = EXCLUDED.withdrawn_at,
+        expires_at = EXCLUDED.expires_at,
+        source_channel = EXCLUDED.source_channel,
+        source_method = EXCLUDED.source_method,
+        evidence_url = EXCLUDED.evidence_url,
+        witnessed_by = EXCLUDED.witnessed_by,
+        ip_address = EXCLUDED.ip_address,
+        user_agent = EXCLUDED.user_agent,
+        metadata = EXCLUDED.metadata,
+        updated_at = EXCLUDED.updated_at
+      RETURNING *, (xmax = 0) AS was_created
+    `;
+
+    const params = [
+      consent.id,
+      consent.contactId,
+      consent.phone,
+      consent.consentType,
+      consent.status,
+      consent.version,
+      consent.grantedAt,
+      consent.withdrawnAt,
+      consent.expiresAt,
+      consent.source.channel,
+      consent.source.method,
+      consent.source.evidenceUrl,
+      consent.source.witnessedBy,
+      consent.ipAddress,
+      consent.userAgent,
+      JSON.stringify(consent.metadata),
+      consent.createdAt,
+      consent.updatedAt,
+    ];
+
+    const result = await this.db.query(sql, params);
+    const row = result.rows[0] as (ConsentRow & { was_created: boolean }) | undefined;
+    if (!row) {
+      throw new Error('Failed to upsert consent: no row returned');
+    }
+    return {
+      record: this.rowToConsent(row),
+      wasCreated: row.was_created,
+    };
+  }
+
   async findByContactAndType(
     contactId: string,
     consentType: ConsentType

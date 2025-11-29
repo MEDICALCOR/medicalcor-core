@@ -54,7 +54,10 @@ export async function POST() {
       expiresIn: 300, // 5 minutes in seconds
     });
   } catch (error) {
-    console.error('[WS Token] Error generating token:', error);
+    // SECURITY FIX: Only log in non-production to avoid console noise
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[WS Token] Error generating token:', error);
+    }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

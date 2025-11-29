@@ -181,6 +181,19 @@ export class SchedulingService {
       if (slotCheck.rows.length === 0) throw new Error('Slot not found');
       if (slotCheck.rows[0]?.is_booked) throw new Error('Slot already booked');
 
+      // SECURITY FIX: Double-check for existing active appointments (defense in depth)
+      // This prevents double-booking even if is_booked flag gets out of sync
+      const existingAppointment = await client.query(
+        `SELECT id FROM appointments
+         WHERE slot_id = $1 AND status NOT IN ('cancelled', 'no_show')
+         FOR UPDATE`,
+        [request.slotId]
+      );
+
+      if (existingAppointment.rows.length > 0) {
+        throw new Error('Slot already has an active appointment');
+      }
+
       // 2. Create the Appointment record
       const appointmentId = uuidv4();
       // SECURITY: Use cryptographically secure random bytes instead of Math.random()

@@ -35,6 +35,48 @@ function verifyApiKeyTimingSafe(
   }
 }
 
+/**
+ * SECURITY FIX: Rate limiter for circuit breaker reset endpoint
+ * Prevents authenticated DoS by limiting reset frequency per service
+ */
+interface RateLimitEntry {
+  count: number;
+  windowStart: number;
+}
+
+const circuitBreakerResetRateLimiter = new Map<string, RateLimitEntry>();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute window
+const RATE_LIMIT_MAX_RESETS = 5; // Max 5 resets per service per minute
+
+function checkCircuitBreakerRateLimit(service: string, ip: string): { allowed: boolean; retryAfterMs?: number } {
+  const key = `${service}:${ip}`;
+  const now = Date.now();
+  const entry = circuitBreakerResetRateLimiter.get(key);
+
+  // Clean up old entries periodically (every 100 checks)
+  if (Math.random() < 0.01) {
+    for (const [k, e] of circuitBreakerResetRateLimiter) {
+      if (now - e.windowStart > RATE_LIMIT_WINDOW_MS) {
+        circuitBreakerResetRateLimiter.delete(k);
+      }
+    }
+  }
+
+  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+    // New window
+    circuitBreakerResetRateLimiter.set(key, { count: 1, windowStart: now });
+    return { allowed: true };
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX_RESETS) {
+    const retryAfterMs = RATE_LIMIT_WINDOW_MS - (now - entry.windowStart);
+    return { allowed: false, retryAfterMs };
+  }
+
+  entry.count++;
+  return { allowed: true };
+}
+
 interface HealthCheckResult {
   status: 'ok' | 'error' | 'degraded';
   message?: string;
@@ -549,6 +591,22 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
       }
 
       const { service } = request.params;
+
+      // SECURITY FIX: Rate limit circuit breaker resets to prevent DoS
+      // Even authenticated users shouldn't be able to rapidly reset circuit breakers
+      const rateLimitResult = checkCircuitBreakerRateLimit(service, request.ip);
+      if (!rateLimitResult.allowed) {
+        fastify.log.warn(
+          { ip: request.ip, service, retryAfterMs: rateLimitResult.retryAfterMs },
+          'Circuit breaker reset rate limit exceeded'
+        );
+        reply.header('Retry-After', Math.ceil((rateLimitResult.retryAfterMs ?? 60000) / 1000).toString());
+        return reply.status(429).send({
+          success: false,
+          message: 'Rate limit exceeded. Too many circuit breaker reset attempts.',
+          retryAfterMs: rateLimitResult.retryAfterMs,
+        });
+      }
 
       try {
         globalCircuitBreakerRegistry.reset(service);

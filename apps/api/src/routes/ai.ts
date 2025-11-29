@@ -127,14 +127,16 @@ function initializeAIGatewayServices(redis: SecureRedisClient): void {
       // Only allow soft limits in development for testing
       blockOnExceeded: process.env.AI_BUDGET_SOFT_LIMIT === 'true' ? false : isProduction,
       onAlert: async (alert) => {
-        // Log budget alerts for monitoring
-        console.warn('[AI Budget Alert]', {
+        // SECURITY FIX: Use structured logging instead of console.warn in production
+        // The fastify logger respects log levels and integrates with observability
+        fastify.log.warn({
+          event: 'ai_budget_alert',
           level: alert.level,
           userId: alert.userId,
           tenantId: alert.tenantId,
           percentage: alert.percentage,
           remaining: alert.remaining,
-        });
+        }, '[AI Budget Alert] Budget threshold exceeded');
         // TODO: Integrate with monitoring/alerting system (Sentry, PagerDuty, etc.)
       },
     });
