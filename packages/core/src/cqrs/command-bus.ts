@@ -310,20 +310,73 @@ export function retryMiddleware(options: {
 }
 
 /**
- * Idempotency middleware
+ * Idempotency cache entry with timestamp for TTL expiration
  */
-export function idempotencyMiddleware(cache: Map<string, CommandResult>): CommandMiddleware {
+export interface IdempotencyCacheEntry {
+  result: CommandResult;
+  timestamp: number;
+}
+
+/**
+ * Default idempotency cache TTL: 1 hour
+ */
+const DEFAULT_IDEMPOTENCY_TTL_MS = 60 * 60 * 1000;
+
+/**
+ * Maximum cache size to prevent memory exhaustion
+ */
+const MAX_IDEMPOTENCY_CACHE_SIZE = 10000;
+
+/**
+ * Idempotency middleware with TTL-based expiration
+ * SECURITY FIX: Added TTL and max size to prevent memory leak DoS
+ */
+export function idempotencyMiddleware(
+  cache: Map<string, IdempotencyCacheEntry>,
+  options?: { ttlMs?: number; maxSize?: number }
+): CommandMiddleware {
+  const ttlMs = options?.ttlMs ?? DEFAULT_IDEMPOTENCY_TTL_MS;
+  const maxSize = options?.maxSize ?? MAX_IDEMPOTENCY_CACHE_SIZE;
+  let lastCleanup = Date.now();
+
   return async (command, _context, next) => {
     const key = `${command.type}:${command.metadata.commandId}`;
+    const now = Date.now();
 
-    if (cache.has(key)) {
-      return cache.get(key)!;
+    // Periodic cleanup of expired entries (every 5 minutes)
+    if (now - lastCleanup > 5 * 60 * 1000) {
+      lastCleanup = now;
+      for (const [k, entry] of cache) {
+        if (now - entry.timestamp > ttlMs) {
+          cache.delete(k);
+        }
+      }
+    }
+
+    // Check for cached result (if not expired)
+    const cached = cache.get(key);
+    if (cached && now - cached.timestamp <= ttlMs) {
+      return cached.result;
     }
 
     const result = await next();
 
     if (result.success) {
-      cache.set(key, result);
+      // Evict oldest entries if cache is full
+      if (cache.size >= maxSize) {
+        let oldestKey: string | null = null;
+        let oldestTime = Infinity;
+        for (const [k, entry] of cache) {
+          if (entry.timestamp < oldestTime) {
+            oldestTime = entry.timestamp;
+            oldestKey = k;
+          }
+        }
+        if (oldestKey) {
+          cache.delete(oldestKey);
+        }
+      }
+      cache.set(key, { result, timestamp: now });
     }
 
     return result;

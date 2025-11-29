@@ -218,18 +218,15 @@ export class AuthService {
     }
 
     // Check concurrent session limit
+    // SECURITY FIX: Use atomic operation to prevent TOCTOU race condition
+    // The previous implementation had a race between counting sessions and revoking,
+    // allowing concurrent logins to bypass the session limit or revoke wrong sessions
     if (SESSION_CONFIG.maxConcurrentSessions > 0) {
-      const activeCount = await this.sessionRepo.countActiveForUser(user.id);
-      if (activeCount >= SESSION_CONFIG.maxConcurrentSessions) {
-        // Revoke oldest session to make room
-        const activeSessions = await this.sessionRepo.getActiveForUser(user.id);
-        if (activeSessions.length > 0) {
-          const oldest = activeSessions[activeSessions.length - 1];
-          if (oldest) {
-            await this.sessionRepo.revoke(oldest.id, 'max_sessions_exceeded');
-          }
-        }
-      }
+      await this.sessionRepo.enforceSessionLimit(
+        user.id,
+        SESSION_CONFIG.maxConcurrentSessions,
+        'max_sessions_exceeded'
+      );
     }
 
     // Create session

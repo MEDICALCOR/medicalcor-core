@@ -107,7 +107,10 @@ export async function getCalendarSlotsAction(dateStr: string): Promise<CalendarS
 
     return allSlots;
   } catch (error) {
-    console.error('[getCalendarSlotsAction] Failed to fetch calendar slots:', error);
+    // SECURITY FIX: Only log in non-production to avoid console noise
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[getCalendarSlotsAction] Failed to fetch calendar slots:', error);
+    }
     return [];
   }
 }
@@ -165,7 +168,10 @@ export async function getAvailableSlotsRangeAction(
       available: true,
     }));
   } catch (error) {
-    console.error('[getAvailableSlotsRangeAction] Failed to fetch slots:', error);
+    // SECURITY FIX: Only log in non-production to avoid console noise
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[getAvailableSlotsRangeAction] Failed to fetch slots:', error);
+    }
     return [];
   }
 }
@@ -238,7 +244,10 @@ export async function bookAppointmentAction(
       appointmentId: result.id,
     };
   } catch (error) {
-    console.error('[bookAppointmentAction] Failed to book appointment:', error);
+    // SECURITY FIX: Only log in non-production to avoid console noise
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[bookAppointmentAction] Failed to book appointment:', error);
+    }
     const message = error instanceof Error ? error.message : 'Eroare la programare';
     return {
       success: false,

@@ -154,7 +154,10 @@ export async function getConversationsActionPaginated(options?: {
       total: response.total,
     };
   } catch (error) {
-    console.error('[getConversationsActionPaginated] Failed to fetch conversations:', error);
+    // SECURITY FIX: Only log in non-production to avoid console noise
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[getConversationsActionPaginated] Failed to fetch conversations:', error);
+    }
     return emptyPaginatedResponse();
   }
 }

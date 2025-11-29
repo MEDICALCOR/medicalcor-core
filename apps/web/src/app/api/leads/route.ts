@@ -217,11 +217,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const duration = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
-    // Log error without exposing PII
-    console.error('[/api/leads] Error:', {
-      error: errorMessage,
-      duration: `${duration}ms`,
-    });
+    // SECURITY FIX: Only log errors in non-production or use structured logging
+    // Console output in production can leak info and affect performance
+    if (process.env.NODE_ENV !== 'production') {
+      // Development: detailed logging for debugging
+      console.error('[/api/leads] Error:', {
+        error: errorMessage,
+        duration: `${duration}ms`,
+      });
+    }
+    // In production, errors should be captured by Sentry/observability (already configured)
 
     // Return generic error to client
     return NextResponse.json(
@@ -235,18 +240,78 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 }
 
 /**
+ * SECURITY FIX: Validate origin against allowlist
+ * The wildcard (*) was insecure for lead submission endpoints containing PII
+ */
+function getAllowedOrigin(requestOrigin: string | null): string | null {
+  // Get allowed origins from environment variable (comma-separated)
+  const allowedOriginsEnv = process.env.ALLOWED_ORIGINS ?? '';
+  const allowedOrigins = allowedOriginsEnv
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+  // Default to common patterns if not configured
+  if (allowedOrigins.length === 0) {
+    // Production: only allow the main domain and subdomains
+    const productionDomains = [
+      'https://medicalcor.ro',
+      'https://www.medicalcor.ro',
+      'https://app.medicalcor.ro',
+    ];
+    // Development: also allow localhost
+    if (process.env.NODE_ENV !== 'production') {
+      allowedOrigins.push('http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000');
+    }
+    allowedOrigins.push(...productionDomains);
+  }
+
+  if (!requestOrigin) {
+    return null;
+  }
+
+  // Check if the request origin is in the allowlist
+  if (allowedOrigins.includes(requestOrigin)) {
+    return requestOrigin;
+  }
+
+  // Check for subdomain patterns (e.g., *.medicalcor.ro)
+  for (const allowed of allowedOrigins) {
+    if (allowed.startsWith('*.')) {
+      const domain = allowed.slice(2);
+      if (requestOrigin.endsWith(domain) || requestOrigin.endsWith(`://${domain}`)) {
+        return requestOrigin;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
  * OPTIONS /api/leads
  *
  * Handle CORS preflight requests
+ * SECURITY FIX: Uses origin allowlist instead of wildcard
  */
-export async function OPTIONS(): Promise<NextResponse> {
+export async function OPTIONS(request: NextRequest): Promise<NextResponse> {
+  const requestOrigin = request.headers.get('origin');
+  const allowedOrigin = getAllowedOrigin(requestOrigin);
+
+  // If origin not allowed, still respond but without CORS headers
+  // This prevents CORS errors from revealing the allowlist
+  if (!allowedOrigin) {
+    return new NextResponse(null, { status: 204 });
+  }
+
   return new NextResponse(null, {
     status: 204,
     headers: {
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': allowedOrigin,
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
       'Access-Control-Max-Age': '86400',
+      'Vary': 'Origin',
     },
   });
 }

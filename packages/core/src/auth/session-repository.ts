@@ -181,6 +181,41 @@ export class SessionRepository {
   }
 
   /**
+   * Atomically enforce session limit for a user
+   * SECURITY: Uses a single atomic SQL statement to prevent TOCTOU race conditions
+   * This revokes the oldest sessions if the user exceeds maxSessions
+   */
+  async enforceSessionLimit(userId: string, maxSessions: number, reason: string): Promise<number> {
+    // Atomic operation: revoke excess sessions in a single query
+    // This prevents race conditions where multiple concurrent logins could
+    // bypass the session limit by checking count separately from revoking
+    const result = await this.db.query(
+      `WITH active_sessions AS (
+         SELECT id, ROW_NUMBER() OVER (ORDER BY last_activity_at DESC) as rn
+         FROM sessions
+         WHERE user_id = $1
+           AND expires_at > CURRENT_TIMESTAMP
+           AND revoked_at IS NULL
+         FOR UPDATE
+       ),
+       sessions_to_revoke AS (
+         SELECT id FROM active_sessions WHERE rn >= $2
+       )
+       UPDATE sessions
+       SET revoked_at = CURRENT_TIMESTAMP, revoked_reason = $3
+       WHERE id IN (SELECT id FROM sessions_to_revoke)
+       RETURNING id`,
+      [userId, maxSessions, reason]
+    );
+
+    const count = result.rowCount ?? 0;
+    if (count > 0) {
+      logger.info({ userId, count, maxSessions, reason }, 'Excess sessions revoked to enforce limit');
+    }
+    return count;
+  }
+
+  /**
    * Delete expired sessions (cleanup)
    */
   async deleteExpired(): Promise<number> {

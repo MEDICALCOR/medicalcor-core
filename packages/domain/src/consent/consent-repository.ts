@@ -18,6 +18,12 @@ export interface ConsentRepository {
   save(consent: ConsentRecord): Promise<ConsentRecord>;
 
   /**
+   * Atomically upsert a consent record and return whether it was created or updated
+   * SECURITY: Use this method to prevent race conditions between concurrent consent updates
+   */
+  upsert(consent: ConsentRecord): Promise<{ record: ConsentRecord; wasCreated: boolean }>;
+
+  /**
    * Find consent by contact ID and type
    */
   findByContactAndType(
@@ -82,6 +88,13 @@ export class InMemoryConsentRepository implements ConsentRepository {
     const key = this.getKey(consent.contactId, consent.consentType);
     this.consents.set(key, consent);
     return consent;
+  }
+
+  async upsert(consent: ConsentRecord): Promise<{ record: ConsentRecord; wasCreated: boolean }> {
+    const key = this.getKey(consent.contactId, consent.consentType);
+    const wasCreated = !this.consents.has(key);
+    this.consents.set(key, consent);
+    return { record: consent, wasCreated };
   }
 
   async findByContactAndType(
