@@ -367,13 +367,32 @@ export {
 export {
   EncryptionService,
   createEncryptionService,
+  createKmsEncryptionService,
+  createAutoEncryptionService,
   encryptValue,
   decryptValue,
+  // KMS Providers
+  AwsKmsProvider,
+  LocalKmsProvider,
+  type KmsProvider,
   type DataClassification,
   type EncryptedField,
   type EncryptionResult,
   type DecryptionOptions,
 } from './encryption.js';
+
+// Dead Letter Queue (DLQ) for failed webhooks
+export {
+  DeadLetterQueueService,
+  createDeadLetterQueueService,
+  DLQ_MIGRATION_SQL,
+  type WebhookType,
+  type DlqStatus,
+  type DlqEntry,
+  type DlqAddOptions,
+  type DlqRetryOptions,
+  type RetryHandler,
+} from './dead-letter-queue.js';
 
 // Secrets Validation (Boot-time security checks)
 export {

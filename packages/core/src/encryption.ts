@@ -7,6 +7,8 @@
  * - Key versioning for rotation
  * - Automatic audit logging
  * - Field-level encryption
+ * - AWS KMS integration for enterprise key management (optional)
+ * - Envelope encryption pattern for scalability
  *
  * @module @medicalcor/core/encryption
  */
@@ -22,6 +24,215 @@ import type { DatabasePool } from './database.js';
 import { createLogger, type Logger } from './logger.js';
 
 const logger: Logger = createLogger({ name: 'encryption-service' });
+
+// =============================================================================
+// KMS PROVIDER INTERFACE - Pluggable Key Management
+// =============================================================================
+
+/**
+ * Key Management Service provider interface
+ * Allows pluggable KMS backends (AWS KMS, Azure Key Vault, GCP KMS, HashiCorp Vault)
+ */
+export interface KmsProvider {
+  /** Provider name for logging */
+  readonly name: string;
+
+  /**
+   * Encrypt a data encryption key (DEK) using the KMS master key (KEK)
+   * @param plainKey - The plaintext data encryption key
+   * @returns Encrypted (wrapped) key
+   */
+  encryptDataKey(plainKey: Buffer): Promise<Buffer>;
+
+  /**
+   * Decrypt a wrapped data encryption key
+   * @param encryptedKey - The encrypted (wrapped) key
+   * @returns Plaintext data encryption key
+   */
+  decryptDataKey(encryptedKey: Buffer): Promise<Buffer>;
+
+  /**
+   * Generate a new data encryption key using KMS
+   * @returns Object with plaintext key and encrypted key
+   */
+  generateDataKey(): Promise<{ plainKey: Buffer; encryptedKey: Buffer }>;
+
+  /**
+   * Check if KMS is available and properly configured
+   */
+  isAvailable(): Promise<boolean>;
+}
+
+/** Internal AWS KMS client interface */
+interface AwsKmsClient {
+  encrypt(plainKey: Buffer): Promise<Buffer>;
+  decrypt(encryptedKey: Buffer): Promise<Buffer>;
+  generateDataKey(): Promise<{ plainKey: Buffer; encryptedKey: Buffer }>;
+}
+
+/**
+ * AWS KMS Provider implementation
+ * Uses envelope encryption: KMS encrypts data keys, data keys encrypt data
+ *
+ * Configuration:
+ * - AWS_KMS_KEY_ID: The KMS key ARN or alias
+ * - AWS_REGION: AWS region (defaults to eu-central-1)
+ *
+ * @example
+ * ```typescript
+ * const kms = new AwsKmsProvider('arn:aws:kms:eu-central-1:123456789:key/abc-123');
+ * const encryptionService = new EncryptionService(db, kms);
+ * ```
+ */
+export class AwsKmsProvider implements KmsProvider {
+  readonly name = 'AWS KMS';
+  private kmsClient: AwsKmsClient | null = null;
+  private readonly keyId: string;
+
+  constructor(keyId?: string) {
+    this.keyId = keyId ?? process.env.AWS_KMS_KEY_ID ?? '';
+    if (!this.keyId) {
+      throw new Error('AWS KMS key ID must be provided via constructor or AWS_KMS_KEY_ID env var');
+    }
+  }
+
+  private async getClient(): Promise<AwsKmsClient> {
+    if (!this.kmsClient) {
+      // Dynamically import AWS SDK to avoid requiring it when not used
+      try {
+        const { KMSClient, EncryptCommand, DecryptCommand, GenerateDataKeyCommand } =
+          await import('@aws-sdk/client-kms');
+
+        const region = process.env.AWS_REGION ?? 'eu-central-1';
+        const client = new KMSClient({ region });
+
+        this.kmsClient = {
+          encrypt: async (plainKey: Buffer) => {
+            const command = new EncryptCommand({
+              KeyId: this.keyId,
+              Plaintext: plainKey,
+            });
+            const response = await client.send(command);
+            if (!response.CiphertextBlob) {
+              throw new Error('KMS encryption returned no ciphertext');
+            }
+            return Buffer.from(response.CiphertextBlob);
+          },
+          decrypt: async (encryptedKey: Buffer) => {
+            const command = new DecryptCommand({
+              KeyId: this.keyId,
+              CiphertextBlob: encryptedKey,
+            });
+            const response = await client.send(command);
+            if (!response.Plaintext) {
+              throw new Error('KMS decryption returned no plaintext');
+            }
+            return Buffer.from(response.Plaintext);
+          },
+          generateDataKey: async () => {
+            const command = new GenerateDataKeyCommand({
+              KeyId: this.keyId,
+              KeySpec: 'AES_256',
+            });
+            const response = await client.send(command);
+            if (!response.Plaintext || !response.CiphertextBlob) {
+              throw new Error('KMS generateDataKey returned incomplete response');
+            }
+            return {
+              plainKey: Buffer.from(response.Plaintext),
+              encryptedKey: Buffer.from(response.CiphertextBlob),
+            };
+          },
+        };
+
+        logger.info({ keyId: this.keyId.slice(-12), region }, 'AWS KMS client initialized');
+      } catch (error) {
+        logger.error({ error }, 'Failed to initialize AWS KMS client');
+        throw new Error(
+          'AWS KMS not available. Install @aws-sdk/client-kms package: npm install @aws-sdk/client-kms'
+        );
+      }
+    }
+    return this.kmsClient;
+  }
+
+  async encryptDataKey(plainKey: Buffer): Promise<Buffer> {
+    const client = await this.getClient();
+    return client.encrypt(plainKey);
+  }
+
+  async decryptDataKey(encryptedKey: Buffer): Promise<Buffer> {
+    const client = await this.getClient();
+    return client.decrypt(encryptedKey);
+  }
+
+  async generateDataKey(): Promise<{ plainKey: Buffer; encryptedKey: Buffer }> {
+    const client = await this.getClient();
+    return client.generateDataKey();
+  }
+
+  async isAvailable(): Promise<boolean> {
+    try {
+      await this.getClient();
+      // Test connection with a simple encrypt/decrypt cycle
+      const testKey = randomBytes(32);
+      const encrypted = await this.encryptDataKey(testKey);
+      const decrypted = await this.decryptDataKey(encrypted);
+      return testKey.equals(decrypted);
+    } catch (error) {
+      logger.warn({ error }, 'AWS KMS availability check failed');
+      return false;
+    }
+  }
+}
+
+/**
+ * Local/Environment KMS Provider (for development/testing)
+ * Uses a master key from environment variable
+ *
+ * WARNING: Only use for development. Production should use AWS KMS or similar HSM-backed service.
+ */
+export class LocalKmsProvider implements KmsProvider {
+  readonly name = 'Local Environment';
+  private readonly masterKey: Buffer;
+
+  constructor(masterKeyHex?: string) {
+    const keyHex = masterKeyHex ?? process.env.KMS_MASTER_KEY;
+    if (!keyHex || keyHex.length !== 64) {
+      throw new Error('KMS_MASTER_KEY must be 32 bytes (64 hex characters)');
+    }
+    this.masterKey = Buffer.from(keyHex, 'hex');
+  }
+
+  async encryptDataKey(plainKey: Buffer): Promise<Buffer> {
+    // AES-GCM encryption of the data key with the master key
+    const iv = randomBytes(12);
+    const cipher = createCipheriv('aes-256-gcm', this.masterKey, iv);
+    const encrypted = Buffer.concat([cipher.update(plainKey), cipher.final()]);
+    const authTag = cipher.getAuthTag();
+    // Format: iv(12) + authTag(16) + encrypted
+    return Buffer.concat([iv, authTag, encrypted]);
+  }
+
+  async decryptDataKey(encryptedKey: Buffer): Promise<Buffer> {
+    const iv = encryptedKey.subarray(0, 12);
+    const authTag = encryptedKey.subarray(12, 28);
+    const encrypted = encryptedKey.subarray(28);
+    const decipher = createDecipheriv('aes-256-gcm', this.masterKey, iv);
+    decipher.setAuthTag(authTag);
+    return Buffer.concat([decipher.update(encrypted), decipher.final()]);
+  }
+
+  async generateDataKey(): Promise<{ plainKey: Buffer; encryptedKey: Buffer }> {
+    const plainKey = randomBytes(32);
+    const encryptedKey = await this.encryptDataKey(plainKey);
+    return { plainKey, encryptedKey };
+  }
+
+  async isAvailable(): Promise<boolean> {
+    return true;
+  }
+}
 
 /** Encryption algorithm configuration */
 const ENCRYPTION_CONFIG = {
@@ -68,12 +279,27 @@ function deriveKey(masterKey: Buffer, salt: Buffer): Buffer {
 
 /**
  * Application-Level Encryption Service
+ *
+ * Supports two modes:
+ * 1. Direct key mode: Master key loaded from environment (DATA_ENCRYPTION_KEY)
+ * 2. KMS mode: Keys managed via KMS provider (AWS KMS, etc.) for envelope encryption
+ *
+ * KMS mode is recommended for production as it provides:
+ * - Hardware-backed key protection
+ * - Automatic key rotation
+ * - Audit logging of key usage
+ * - Compliance with HIPAA/GDPR requirements
  */
 export class EncryptionService {
   private masterKey: Buffer | null = null;
   private currentKeyVersion: number = 1;
+  private kmsProvider: KmsProvider | null = null;
+  private cachedDataKey: { plainKey: Buffer; encryptedKey: Buffer } | null = null;
+  private dataKeyCacheExpiry: number = 0;
+  private static readonly DATA_KEY_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-  constructor(private db?: DatabasePool) {
+  constructor(private db?: DatabasePool, kmsProvider?: KmsProvider) {
+    this.kmsProvider = kmsProvider ?? null;
     this.loadMasterKey();
   }
 
@@ -169,9 +395,164 @@ export class EncryptionService {
 
   /**
    * Check if encryption is properly configured
+   * Returns true if either direct key or KMS provider is available
    */
   isConfigured(): boolean {
-    return this.masterKey !== null;
+    return this.masterKey !== null || this.kmsProvider !== null;
+  }
+
+  /**
+   * Check if KMS mode is enabled
+   */
+  isKmsEnabled(): boolean {
+    return this.kmsProvider !== null;
+  }
+
+  /**
+   * Get KMS provider name (for logging/diagnostics)
+   */
+  getKmsProviderName(): string | null {
+    return this.kmsProvider?.name ?? null;
+  }
+
+  /**
+   * Get or generate a data encryption key via KMS
+   * Uses caching to reduce KMS API calls
+   * @private
+   */
+  private async getDataKey(): Promise<{ plainKey: Buffer; encryptedKey: Buffer }> {
+    if (!this.kmsProvider) {
+      throw new Error('KMS provider not configured');
+    }
+
+    // Return cached key if still valid
+    if (this.cachedDataKey && Date.now() < this.dataKeyCacheExpiry) {
+      return this.cachedDataKey;
+    }
+
+    // Generate new data key via KMS
+    this.cachedDataKey = await this.kmsProvider.generateDataKey();
+    this.dataKeyCacheExpiry = Date.now() + EncryptionService.DATA_KEY_CACHE_TTL_MS;
+
+    logger.debug({ kmsProvider: this.kmsProvider.name }, 'Generated new data encryption key via KMS');
+    return this.cachedDataKey;
+  }
+
+  /**
+   * Decrypt a data key that was encrypted by KMS
+   * @private
+   */
+  private async decryptDataKey(encryptedKey: Buffer): Promise<Buffer> {
+    if (!this.kmsProvider) {
+      throw new Error('KMS provider not configured');
+    }
+    return this.kmsProvider.decryptDataKey(encryptedKey);
+  }
+
+  /**
+   * Encrypt a value using KMS-managed envelope encryption
+   * The data key is encrypted by KMS and stored with the ciphertext
+   */
+  async encryptWithKms(plaintext: string): Promise<EncryptionResult> {
+    if (!this.kmsProvider) {
+      throw new Error('KMS provider not configured. Use encrypt() for direct key encryption.');
+    }
+
+    // Get data key from KMS (cached for performance)
+    const { plainKey, encryptedKey } = await this.getDataKey();
+
+    // Generate random IV
+    const iv = randomBytes(ENCRYPTION_CONFIG.ivLength);
+
+    // Encrypt data with the data key
+    const cipher = createCipheriv(ENCRYPTION_CONFIG.algorithm, plainKey, iv, {
+      authTagLength: ENCRYPTION_CONFIG.authTagLength,
+    });
+
+    const encrypted = Buffer.concat([
+      cipher.update(plaintext, 'utf8'),
+      cipher.final(),
+    ]);
+
+    const authTag = cipher.getAuthTag();
+
+    // Format: kms:keyVersion:encryptedDataKey:iv:authTag:encrypted (all base64)
+    const encryptedValue = [
+      'kms', // Marker for KMS-encrypted data
+      this.currentKeyVersion.toString(),
+      encryptedKey.toString('base64'),
+      iv.toString('base64'),
+      authTag.toString('base64'),
+      encrypted.toString('base64'),
+    ].join(':');
+
+    return {
+      encryptedValue,
+      keyVersion: this.currentKeyVersion,
+    };
+  }
+
+  /**
+   * Decrypt a value that was encrypted using KMS envelope encryption
+   */
+  async decryptWithKms(encryptedValue: string): Promise<string> {
+    if (!this.kmsProvider) {
+      throw new Error('KMS provider not configured');
+    }
+
+    const parts = encryptedValue.split(':');
+    if (parts.length !== 6 || parts[0] !== 'kms') {
+      throw new Error('Invalid KMS-encrypted value format');
+    }
+
+    const keyVersion = parseInt(parts[1]!, 10);
+    const encryptedDataKey = Buffer.from(parts[2]!, 'base64');
+    const iv = Buffer.from(parts[3]!, 'base64');
+    const authTag = Buffer.from(parts[4]!, 'base64');
+    const encrypted = Buffer.from(parts[5]!, 'base64');
+
+    if (keyVersion !== this.currentKeyVersion) {
+      logger.warn({ keyVersion, currentVersion: this.currentKeyVersion }, 'Decrypting with old KMS key version');
+    }
+
+    // Decrypt data key via KMS
+    const plainKey = await this.decryptDataKey(encryptedDataKey);
+
+    // Decrypt data with the decrypted data key
+    const decipher = createDecipheriv(ENCRYPTION_CONFIG.algorithm, plainKey, iv, {
+      authTagLength: ENCRYPTION_CONFIG.authTagLength,
+    });
+    decipher.setAuthTag(authTag);
+
+    const decrypted = Buffer.concat([
+      decipher.update(encrypted),
+      decipher.final(),
+    ]);
+
+    return decrypted.toString('utf8');
+  }
+
+  /**
+   * Smart encrypt - uses KMS if available, otherwise direct key
+   */
+  async encryptSmart(plaintext: string): Promise<EncryptionResult> {
+    if (this.kmsProvider) {
+      return this.encryptWithKms(plaintext);
+    }
+    return this.encrypt(plaintext);
+  }
+
+  /**
+   * Smart decrypt - detects encryption method and decrypts appropriately
+   */
+  async decryptSmart(encryptedValue: string): Promise<string> {
+    if (encryptedValue.startsWith('kms:')) {
+      if (!this.kmsProvider) {
+        throw new Error('Value was encrypted with KMS but no KMS provider is configured');
+      }
+      return this.decryptWithKms(encryptedValue);
+    }
+    return this.decrypt(encryptedValue);
   }
 
   /**
@@ -484,8 +865,57 @@ export class EncryptionService {
 
 /**
  * Create encryption service instance
+ * @param db - Optional database pool for storing encrypted data
+ * @param kmsProvider - Optional KMS provider for envelope encryption
  */
-export function createEncryptionService(db?: DatabasePool): EncryptionService {
+export function createEncryptionService(db?: DatabasePool, kmsProvider?: KmsProvider): EncryptionService {
+  return new EncryptionService(db, kmsProvider);
+}
+
+/**
+ * Create encryption service with AWS KMS
+ * Recommended for production environments
+ *
+ * @param db - Database pool for storing encrypted data
+ * @param kmsKeyId - AWS KMS key ARN or alias (optional, uses AWS_KMS_KEY_ID env var)
+ *
+ * @example
+ * ```typescript
+ * const encryptionService = await createKmsEncryptionService(db);
+ * const { encryptedValue } = await encryptionService.encryptWithKms('sensitive data');
+ * ```
+ */
+export async function createKmsEncryptionService(
+  db?: DatabasePool,
+  kmsKeyId?: string
+): Promise<EncryptionService> {
+  const kmsProvider = new AwsKmsProvider(kmsKeyId);
+
+  // Verify KMS is available before returning
+  const isAvailable = await kmsProvider.isAvailable();
+  if (!isAvailable) {
+    throw new Error('AWS KMS is not available. Check AWS credentials and KMS key configuration.');
+  }
+
+  logger.info({ kmsKeyId: kmsKeyId?.slice(-12) ?? 'from env' }, 'Created KMS-enabled encryption service');
+  return new EncryptionService(db, kmsProvider);
+}
+
+/**
+ * Create encryption service with automatic KMS detection
+ * Uses AWS KMS if AWS_KMS_KEY_ID is configured, otherwise falls back to direct key
+ */
+export async function createAutoEncryptionService(db?: DatabasePool): Promise<EncryptionService> {
+  const kmsKeyId = process.env.AWS_KMS_KEY_ID;
+
+  if (kmsKeyId) {
+    try {
+      return await createKmsEncryptionService(db, kmsKeyId);
+    } catch (error) {
+      logger.warn({ error }, 'Failed to initialize KMS, falling back to direct key encryption');
+    }
+  }
+
   return new EncryptionService(db);
 }
 
