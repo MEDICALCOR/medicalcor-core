@@ -10,6 +10,12 @@ import type {
 
 const logger = createLogger({ name: 'hubspot' });
 
+// Ensure only allowed base URLs are used (prevent SSRF via config)
+// Place inside the HubSpotClient constructor:
+// if (config.baseUrl && config.baseUrl !== 'https://api.hubapi.com') {
+//   throw new Error('Invalid HubSpot baseUrl provided');
+// }
+
 /**
  * DOCUMENTATION FIX: HubSpot Association Type IDs
  * These are standardized IDs used by HubSpot's CRM API for object associations.
@@ -572,9 +578,25 @@ export class HubSpotClient {
 
   /**
    * Make HTTP request to HubSpot API
+   * CRITICAL: Validate that path/baseUrl do not allow SSRF or unexpected host
    */
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+    // Only allow known, safe paths. Not absolute URLs, no traversal, must start with "/"
+    if (typeof path !== 'string' || !path.startsWith('/') || path.includes('://') || path.includes('..')) {
+      throw new ExternalServiceError(
+        'HubSpot',
+        'Refusing to make request: invalid or unsafe path used in API call.'
+      );
+    }
     const url = `${this.baseUrl}${path}`;
+    // Ensure only requests to the official HubSpot API host are performed
+    const parsedUrl = new URL(url);
+    if (parsedUrl.hostname !== 'api.hubapi.com') {
+      throw new ExternalServiceError(
+        'HubSpot',
+        `Refusing to make request to untrusted host: ${parsedUrl.hostname}`
+      );
+    }
     const timeoutMs = HUBSPOT_TIMEOUTS.REQUEST_TIMEOUT_MS;
 
     const makeRequest = async () => {
