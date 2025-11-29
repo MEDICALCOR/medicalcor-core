@@ -112,16 +112,30 @@ function initializeAIGatewayServices(redis: SecureRedisClient): void {
   }
 
   if (!budgetController && redis) {
+    // SECURITY: Budget limits are critical for cost control
+    // blockOnExceeded should ALWAYS be true in production
+    const isProduction = process.env.NODE_ENV === 'production';
+
     budgetController = createAIBudgetController(redis, {
       enabled: true,
-      defaultDailyBudget: 50, // $50/day per user
-      defaultMonthlyBudget: 1000, // $1000/month per user
-      globalDailyBudget: 500, // $500/day global
-      globalMonthlyBudget: 10000, // $10000/month global
+      defaultDailyBudget: Number(process.env.AI_BUDGET_DAILY_USER) || 50, // $50/day per user
+      defaultMonthlyBudget: Number(process.env.AI_BUDGET_MONTHLY_USER) || 1000, // $1000/month per user
+      globalDailyBudget: Number(process.env.AI_BUDGET_DAILY_GLOBAL) || 500, // $500/day global
+      globalMonthlyBudget: Number(process.env.AI_BUDGET_MONTHLY_GLOBAL) || 10000, // $10000/month global
       alertThresholds: [0.5, 0.75, 0.9],
-      blockOnExceeded: false, // Soft limit for now
-      onAlert: async () => {
-        // Budget alert - could integrate with monitoring/alerting system
+      // CRITICAL: Block requests when budget exceeded in production
+      // Only allow soft limits in development for testing
+      blockOnExceeded: process.env.AI_BUDGET_SOFT_LIMIT === 'true' ? false : isProduction,
+      onAlert: async (alert) => {
+        // Log budget alerts for monitoring
+        console.warn('[AI Budget Alert]', {
+          level: alert.level,
+          userId: alert.userId,
+          tenantId: alert.tenantId,
+          percentage: alert.percentage,
+          remaining: alert.remaining,
+        });
+        // TODO: Integrate with monitoring/alerting system (Sentry, PagerDuty, etc.)
       },
     });
   }

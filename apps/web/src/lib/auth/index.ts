@@ -11,6 +11,19 @@ const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
 export { handlers, auth, signIn, signOut };
 export type { AuthUser, UserRole };
 
+// Re-export RBAC utilities
+export {
+  hasPermission,
+  hasAllPermissions,
+  hasAnyPermission,
+  getPermissionsForRole,
+  canAccessPage,
+  isRoleAtLeast,
+  getRoleDisplayName,
+  PAGE_ACCESS,
+  type Permission,
+} from './rbac';
+
 /**
  * Get the current session in server components/actions
  */
