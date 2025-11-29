@@ -61,6 +61,16 @@ else
     echo -e "  ${RED}commit-msg hook source not found${NC}"
 fi
 
+# Install pre-commit hook
+echo -e "${YELLOW}Installing pre-commit hook...${NC}"
+if [ -f "$CUSTOM_HOOKS_DIR/pre-commit" ]; then
+    cp "$CUSTOM_HOOKS_DIR/pre-commit" "$GIT_HOOKS_DIR/pre-commit"
+    chmod +x "$GIT_HOOKS_DIR/pre-commit"
+    echo -e "  ${GREEN}pre-commit hook installed${NC}"
+else
+    echo -e "  ${RED}pre-commit hook source not found${NC}"
+fi
+
 echo ""
 echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}  Git hooks installed successfully!${NC}"
@@ -71,6 +81,7 @@ echo ""
 echo -e "${YELLOW}IMPORTANT:${NC}"
 echo "  - Direct push to main is now BLOCKED"
 echo "  - Commit messages must follow conventional format"
+echo "  - Pre-commit runs lint and typecheck on staged files"
 echo "  - Use feature branches and Pull Requests"
 echo ""
 echo "See docs/GIT_WORKFLOW.md for the complete workflow."
