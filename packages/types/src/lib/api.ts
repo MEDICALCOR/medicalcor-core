@@ -191,6 +191,9 @@ export function mapErrorCodeToStatus(code: ErrorCode): HttpStatusCode {
     case 'INVALID_INPUT':
     case 'MISSING_FIELD':
     case 'INVALID_FORMAT':
+    case 'BUSINESS_RULE_VIOLATION':
+    case 'INVALID_STATE_TRANSITION':
+    case 'OPERATION_NOT_ALLOWED':
       return 400;
     case 'UNAUTHENTICATED':
     case 'INVALID_TOKEN':
@@ -213,14 +216,17 @@ export function mapErrorCodeToStatus(code: ErrorCode): HttpStatusCode {
     case 'RATE_LIMIT_EXCEEDED':
     case 'QUOTA_EXCEEDED':
       return 429;
+    case 'INTERNAL_ERROR':
+    case 'DATABASE_ERROR':
+    case 'CONFIGURATION_ERROR':
+    case 'UNKNOWN_ERROR':
+      return 500;
     case 'EXTERNAL_SERVICE_ERROR':
     case 'HUBSPOT_ERROR':
     case 'STRIPE_ERROR':
     case 'WHATSAPP_ERROR':
     case 'TWILIO_ERROR':
       return 502;
-    default:
-      return 500;
   }
 }
 
@@ -294,14 +300,14 @@ export interface PaginationMeta {
  * Type guard for successful response
  */
 export function isSuccessResponse<T>(response: ApiResponse<T>): response is ApiSuccessResponse<T> {
-  return response.success === true;
+  return response.success;
 }
 
 /**
  * Type guard for error response
  */
 export function isErrorResponse<T>(response: ApiResponse<T>): response is ApiErrorResponse {
-  return response.success === false;
+  return !response.success;
 }
 
 // =============================================================================

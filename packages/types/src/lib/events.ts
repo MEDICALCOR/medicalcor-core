@@ -444,8 +444,8 @@ export interface EventBusOptions {
  * bus.publish(LeadCreated.create({ phone: '+40123456789', source: 'whatsapp' }));
  */
 export class EventBus {
-  private handlers: Map<DomainEventTypeLiteral, Set<EventHandler<DomainEventUnion>>> = new Map();
-  private allHandlers: Set<EventHandler<DomainEventUnion>> = new Set();
+  private handlers = new Map<DomainEventTypeLiteral, Set<EventHandler<DomainEventUnion>>>();
+  private allHandlers = new Set<EventHandler<DomainEventUnion>>();
   private options: EventBusOptions;
 
   constructor(options: EventBusOptions = {}) {
@@ -503,7 +503,7 @@ export class EventBus {
   ): Subscription {
     const subscription = this.on(type, (event) => {
       subscription.unsubscribe();
-      handler(event);
+      void handler(event);
     });
     return subscription;
   }
@@ -599,7 +599,7 @@ export function replayEvents<TState>(
  */
 export class ProjectionBuilder<TState> {
   private initialState: TState;
-  private handlers: Map<DomainEventTypeLiteral, EventReducer<TState, DomainEventUnion>> = new Map();
+  private handlers = new Map<DomainEventTypeLiteral, EventReducer<TState, DomainEventUnion>>();
 
   constructor(initialState: TState) {
     this.initialState = initialState;
@@ -660,11 +660,11 @@ export function projection<TState>(initialState: TState): ProjectionBuilder<TSta
  */
 export function matchEvent<R>(
   event: DomainEventUnion,
-  handlers: PartialEventHandlerMap<DomainEventUnion> & { _?: () => R }
-): R | void {
+  handlers: PartialEventHandlerMap & { _?: () => R }
+): R | undefined {
   const handler = handlers[event.type as keyof typeof handlers];
   if (handler) {
-    return handler(event as never) as R | void;
+    return handler(event as never) as R | undefined;
   }
   return handlers._?.();
 }

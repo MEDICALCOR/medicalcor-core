@@ -59,7 +59,7 @@ export class TypeSafeBuilder<TFinal, TCurrent extends Partial<TFinal> = {}> {
   setMany<TFields extends Partial<TFinal>>(
     fields: TFields
   ): TypeSafeBuilder<TFinal, TCurrent & TFields> {
-    return new TypeSafeBuilder({ ...this.data, ...fields } as TCurrent & TFields);
+    return new TypeSafeBuilder({ ...this.data, ...fields });
   }
 
   /**
@@ -80,7 +80,7 @@ export class TypeSafeBuilder<TFinal, TCurrent extends Partial<TFinal> = {}> {
 /**
  * Creates a new type-safe builder
  */
-export function createBuilder<T>(): TypeSafeBuilder<T, {}> {
+export function createBuilder<T>(): TypeSafeBuilder<T> {
   return new TypeSafeBuilder<T, {}>();
 }
 
@@ -152,7 +152,7 @@ export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; ha
    * Creates a builder from existing data (for updates)
    */
   static from(data: LeadData): LeadBuilder<{ hasPhone: true; hasSource: true; hasStatus: true }> {
-    return new LeadBuilder(data) as LeadBuilder<{ hasPhone: true; hasSource: true; hasStatus: true }>;
+    return new LeadBuilder(data);
   }
 
   /**
@@ -162,7 +162,7 @@ export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; ha
     return new LeadBuilder({
       ...this.data,
       phone: phone as E164PhoneNumber,
-    }) as LeadBuilder<TState & { hasPhone: true }>;
+    });
   }
 
   /**
@@ -172,7 +172,7 @@ export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; ha
     return new LeadBuilder({
       ...this.data,
       source,
-    }) as LeadBuilder<TState & { hasSource: true }>;
+    });
   }
 
   /**
@@ -183,7 +183,7 @@ export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; ha
       ...this.data,
       status,
       updatedAt: new Date(),
-    }) as LeadBuilder<TState & { hasStatus: true }>;
+    });
   }
 
   /**
@@ -193,7 +193,7 @@ export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; ha
     return new LeadBuilder({
       ...this.data,
       priority,
-    }) as LeadBuilder<TState>;
+    });
   }
 
   /**
@@ -202,7 +202,7 @@ export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; ha
   withName(firstName: string, lastName?: string): LeadBuilder<TState> {
     const newData: Partial<LeadData> = { ...this.data, firstName };
     if (lastName !== undefined) newData.lastName = lastName;
-    return new LeadBuilder(newData) as LeadBuilder<TState>;
+    return new LeadBuilder(newData);
   }
 
   /**
@@ -212,7 +212,7 @@ export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; ha
     return new LeadBuilder({
       ...this.data,
       email: email as EmailAddress,
-    }) as LeadBuilder<TState>;
+    });
   }
 
   /**
@@ -222,7 +222,7 @@ export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; ha
     return new LeadBuilder({
       ...this.data,
       hubspotContactId,
-    }) as LeadBuilder<TState>;
+    });
   }
 
   /**
@@ -232,7 +232,7 @@ export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; ha
     return new LeadBuilder({
       ...this.data,
       clinicId,
-    }) as LeadBuilder<TState>;
+    });
   }
 
   /**
@@ -242,7 +242,7 @@ export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; ha
     return new LeadBuilder({
       ...this.data,
       metadata: { ...this.data.metadata, ...metadata },
-    }) as LeadBuilder<TState>;
+    });
   }
 
   /**
@@ -252,7 +252,7 @@ export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; ha
     return new LeadBuilder({
       ...this.data,
       id: id as LeadId,
-    }) as LeadBuilder<TState>;
+    });
   }
 
   /**
@@ -339,7 +339,7 @@ export class EventBuilder<
     return new EventBuilder(this.data.type!, {
       ...this.data,
       payload,
-    } as Partial<EventData<TType, P>>) as EventBuilder<TType, P, { hasPayload: true }>;
+    } as Partial<EventData<TType, P>>);
   }
 
   /**
@@ -349,7 +349,7 @@ export class EventBuilder<
     return new EventBuilder(this.data.type!, {
       ...this.data,
       correlationId: correlationId as TraceId,
-    }) as EventBuilder<TType, TPayload, TState>;
+    });
   }
 
   /**
@@ -359,7 +359,7 @@ export class EventBuilder<
     return new EventBuilder(this.data.type!, {
       ...this.data,
       idempotencyKey: key,
-    }) as EventBuilder<TType, TPayload, TState>;
+    });
   }
 
   /**
@@ -369,7 +369,7 @@ export class EventBuilder<
     return new EventBuilder(this.data.type!, {
       ...this.data,
       version,
-    }) as EventBuilder<TType, TPayload, TState>;
+    });
   }
 
   /**
@@ -379,7 +379,7 @@ export class EventBuilder<
     return new EventBuilder(this.data.type!, {
       ...this.data,
       timestamp: typeof timestamp === 'string' ? timestamp : timestamp.toISOString(),
-    }) as EventBuilder<TType, TPayload, TState>;
+    });
   }
 
   /**
@@ -485,7 +485,7 @@ export class ApiRequestBuilder<
         ...this.config.headers,
         Authorization: `${type} ${token}`,
       },
-    }) as ApiRequestBuilder<TMethod, TBody, { hasAuth: true }>;
+    });
   }
 
   /**
@@ -498,7 +498,7 @@ export class ApiRequestBuilder<
         ...this.config.headers,
         [key]: value,
       },
-    }) as ApiRequestBuilder<TMethod, TBody, TState>;
+    });
   }
 
   /**
@@ -512,7 +512,7 @@ export class ApiRequestBuilder<
         ...this.config.headers,
         'Content-Type': 'application/json',
       },
-    } as Partial<ApiRequestConfig<B>>) as ApiRequestBuilder<TMethod, B, TState>;
+    } as Partial<ApiRequestConfig<B>>);
   }
 
   /**
@@ -522,7 +522,7 @@ export class ApiRequestBuilder<
     return new ApiRequestBuilder(this.config.method as TMethod, this.config.path!, {
       ...this.config,
       query: { ...this.config.query, ...query },
-    }) as ApiRequestBuilder<TMethod, TBody, TState>;
+    });
   }
 
   /**
@@ -532,7 +532,7 @@ export class ApiRequestBuilder<
     return new ApiRequestBuilder(this.config.method as TMethod, this.config.path!, {
       ...this.config,
       timeout: ms,
-    }) as ApiRequestBuilder<TMethod, TBody, TState>;
+    });
   }
 
   /**
@@ -542,7 +542,7 @@ export class ApiRequestBuilder<
     return new ApiRequestBuilder(this.config.method as TMethod, this.config.path!, {
       ...this.config,
       retries: count,
-    }) as ApiRequestBuilder<TMethod, TBody, TState>;
+    });
   }
 
   /**
@@ -584,7 +584,7 @@ export class SchemaBuilder<T extends z.ZodRawShape = {}> {
   /**
    * Creates a new object schema builder
    */
-  static object(): SchemaBuilder<{}> {
+  static object(): SchemaBuilder {
     return new SchemaBuilder({});
   }
 
@@ -648,7 +648,7 @@ export class SchemaBuilder<T extends z.ZodRawShape = {}> {
     return new SchemaBuilder({
       ...this.shape,
       ...other,
-    } as T & U);
+    });
   }
 
   /**

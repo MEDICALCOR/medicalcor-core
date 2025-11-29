@@ -922,7 +922,7 @@ export class TemplateCatalogService {
     }
 
     const bodyParams = template.parameters
-      .filter((p): p is TemplateParameter & { name: string } => Boolean(parameters[p.name]))
+      .filter((p): p is TemplateParameter => Boolean(parameters[p.name]))
       .map((p) => {
         const paramValue = parameters[p.name];
         return {

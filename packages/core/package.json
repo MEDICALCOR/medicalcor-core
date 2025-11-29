@@ -63,7 +63,8 @@
   "peerDependencies": {
     "pg": "^8.0.0",
     "ioredis": "^5.0.0",
-    "@aws-sdk/client-s3": "^3.940.0"
+    "@aws-sdk/client-s3": "^3.940.0",
+    "@aws-sdk/client-kms": "^3.940.0"
   },
   "peerDependenciesMeta": {
     "pg": {
@@ -74,9 +75,13 @@
     },
     "@aws-sdk/client-s3": {
       "optional": true
+    },
+    "@aws-sdk/client-kms": {
+      "optional": true
     }
   },
   "devDependencies": {
+    "@aws-sdk/client-kms": "^3.940.0",
     "@aws-sdk/client-s3": "^3.940.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.9.0",

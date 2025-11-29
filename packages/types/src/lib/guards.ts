@@ -12,7 +12,7 @@
  * @version 2.0.0
  */
 
-import { z, type ZodSchema, type ZodError } from 'zod';
+import type { z, ZodSchema, ZodError } from 'zod';
 import type { Result } from './result.js';
 import { Ok, Err } from './result.js';
 
@@ -108,14 +108,14 @@ export function isNull(value: unknown): value is null {
  * Type guard for null or undefined
  */
 export function isNullish(value: unknown): value is null | undefined {
-  return value == null;
+  return value === null || value === undefined;
 }
 
 /**
  * Type guard for non-nullish values
  */
 export function isNonNullish<T>(value: T): value is NonNullable<T> {
-  return value != null;
+  return value !== null && value !== undefined;
 }
 
 // =============================================================================
@@ -477,7 +477,7 @@ export function assertDefined<T>(
   value: T,
   message?: string
 ): asserts value is NonNullable<T> {
-  if (value == null) {
+  if (value === null || value === undefined) {
     throw new AssertionError(message ?? 'Value is null or undefined', value);
   }
 }
@@ -582,7 +582,7 @@ export function validate<T>(
  */
 export function formatZodError(error: ZodError): ValidationError[] {
   return error.errors.map((issue: z.ZodIssue) => ({
-    path: issue.path as (string | number)[],
+    path: issue.path,
     message: issue.message,
     code: issue.code,
   }));

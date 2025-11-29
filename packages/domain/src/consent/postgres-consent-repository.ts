@@ -389,6 +389,7 @@ export class PostgresConsentRepository implements ConsentRepository {
 }
 
 interface ConsentRow {
+  [key: string]: unknown;
   id: string;
   contact_id: string;
   phone: string;
@@ -410,6 +411,7 @@ interface ConsentRow {
 }
 
 interface AuditRow {
+  [key: string]: unknown;
   id: string;
   consent_id: string;
   action: string;

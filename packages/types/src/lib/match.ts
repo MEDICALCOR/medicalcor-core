@@ -170,7 +170,7 @@ export class Matcher<T, R = never> {
   /**
    * Creates a new matcher for a value
    */
-  static value<T>(value: T): Matcher<T, never> {
+  static value<T>(value: T): Matcher<T> {
     return new Matcher(value);
   }
 
@@ -283,7 +283,7 @@ export class UnionMatcher<T, K extends keyof T, R = never, THandled = never> {
   /**
    * Creates a union matcher with a discriminant key
    */
-  static on<T, K extends keyof T>(value: T, key: K): UnionMatcher<T, K, never, never> {
+  static on<T, K extends keyof T>(value: T, key: K): UnionMatcher<T, K> {
     return new UnionMatcher(value, key);
   }
 
@@ -472,11 +472,11 @@ class SwitchExpr<T, R> {
  * );
  */
 export function cond<T>(
-  ...conditions: [...Array<[boolean, T]>, [T]]
+  ...conditions: [...[boolean, T][], [T]]
 ): T {
   for (const item of conditions) {
     if (item.length === 1) return item[0];
-    const [condition, value] = item as [boolean, T];
+    const [condition, value] = item;
     if (condition) return value;
   }
   throw new Error('No condition matched and no default provided');
@@ -486,7 +486,7 @@ export function cond<T>(
  * Lazy conditional - evaluates handlers only when needed
  */
 export function condLazy<T>(
-  ...conditions: [...Array<[boolean, () => T]>, [() => T]]
+  ...conditions: [...[boolean, () => T][], [() => T]]
 ): T {
   for (const item of conditions) {
     if (item.length === 1) return (item[0] as () => T)();
@@ -502,9 +502,9 @@ export function condLazy<T>(
  * @example
  * const value = coalesce(maybeNull, maybeUndefined, defaultValue);
  */
-export function coalesce<T>(...values: Array<T | null | undefined>): T | undefined {
+export function coalesce<T>(...values: (T | null | undefined)[]): T | undefined {
   for (const value of values) {
-    if (value != null) return value;
+    if (value !== null && value !== undefined) return value;
   }
   return undefined;
 }
@@ -512,7 +512,7 @@ export function coalesce<T>(...values: Array<T | null | undefined>): T | undefin
 /**
  * First truthy value
  */
-export function firstTruthy<T>(...values: Array<T | null | undefined | false | 0 | ''>): T | undefined {
+export function firstTruthy<T>(...values: (T | null | undefined | false | 0 | '')[]): T | undefined {
   for (const value of values) {
     if (value) return value;
   }

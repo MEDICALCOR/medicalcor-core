@@ -191,7 +191,8 @@ export const Result = {
    */
   unwrap<T, E>(result: Result<T, E>): T {
     if (isOk(result)) return result.value;
-    throw result.error;
+    const err = result.error;
+    throw err instanceof Error ? err : new Error(String(err));
   },
 
   /**
@@ -264,7 +265,7 @@ export const Result = {
    * Creates a Result from a nullable value
    */
   fromNullable<T, E>(value: T | null | undefined, error: E): Result<T, E> {
-    return value != null ? Ok(value) : Err(error);
+    return value !== null && value !== undefined ? Ok(value) : Err(error);
   },
 
   /**
@@ -443,7 +444,7 @@ export const Option = {
    * Creates an Option from a nullable value
    */
   fromNullable<T>(value: T | null | undefined): Option<T> {
-    return value != null ? Some(value) : None;
+    return value !== null && value !== undefined ? Some(value) : None;
   },
 
   /**
@@ -665,7 +666,7 @@ export const AsyncResult = {
     promise: Promise<T>,
     errorMapper: (error: unknown) => E
   ): AsyncResult<T, E> {
-    return promise.then(Ok).catch((error) => Err(errorMapper(error)));
+    return promise.then(Ok).catch((error: unknown) => Err(errorMapper(error)));
   },
 
   /**
@@ -696,7 +697,7 @@ export const AsyncResult = {
     fn: (value: T) => AsyncResult<U, F>
   ): AsyncResult<U, E | F> {
     return asyncResult.then((result): Promise<Result<U, E | F>> =>
-      isOk(result) ? fn(result.value) : Promise.resolve(result as Err<E>)
+      isOk(result) ? fn(result.value) : Promise.resolve(result)
     );
   },
 
@@ -784,8 +785,7 @@ export const AsyncResult = {
 
     const sleep = (ms: number): Promise<void> =>
       new Promise((resolve) => {
-        const timer = globalThis.setTimeout ?? ((fn: () => void, _ms: number) => fn());
-        timer(() => resolve(), ms);
+        globalThis.setTimeout(() => resolve(), ms);
       });
 
     const tryOnce = async (): Promise<Result<T, E>> => {
@@ -807,11 +807,10 @@ export const AsyncResult = {
     ms: number,
     timeoutError: E
   ): AsyncResult<T, E> {
-    const timer = globalThis.setTimeout ?? ((fn: () => void, _ms: number) => fn());
     return Promise.race([
       asyncResult,
       new Promise<Result<T, E>>((resolve) =>
-        timer(() => resolve(Err(timeoutError)), ms)
+        globalThis.setTimeout(() => resolve(Err(timeoutError)), ms)
       ),
     ]);
   },
@@ -836,17 +835,17 @@ export const Do = {
     bind<K extends string, T, E>(
       key: K,
       result: Result<T, E>
-    ): DoResult<{ [P in K]: T }, E> {
+    ): DoResult<Record<K, T>, E> {
       return new DoResult(
-        isOk(result) ? Ok({ [key]: result.value } as { [P in K]: T }) : result
+        isOk(result) ? Ok({ [key]: result.value } as Record<K, T>) : result
       );
     },
   },
 
   option: {
-    bind<K extends string, T>(key: K, option: Option<T>): DoOption<{ [P in K]: T }> {
+    bind<K extends string, T>(key: K, option: Option<T>): DoOption<Record<K, T>> {
       return new DoOption(
-        isSome(option) ? Some({ [key]: option.value } as { [P in K]: T }) : None
+        isSome(option) ? Some({ [key]: option.value } as Record<K, T>) : None
       );
     },
   },
@@ -861,12 +860,12 @@ class DoResult<T extends object, E> {
   bind<K extends string, U, F>(
     key: Exclude<K, keyof T>,
     fn: (value: T) => Result<U, F>
-  ): DoResult<T & { [P in K]: U }, E | F> {
+  ): DoResult<T & Record<K, U>, E | F> {
     if (isErr(this.result)) return new DoResult(this.result as never);
     const nextResult = fn(this.result.value);
     if (isErr(nextResult)) return new DoResult(nextResult as never);
     return new DoResult(
-      Ok({ ...this.result.value, [key]: nextResult.value } as T & { [P in K]: U })
+      Ok({ ...this.result.value, [key]: nextResult.value } as T & Record<K, U>)
     );
   }
 
@@ -888,12 +887,12 @@ class DoOption<T extends object> {
   bind<K extends string, U>(
     key: Exclude<K, keyof T>,
     fn: (value: T) => Option<U>
-  ): DoOption<T & { [P in K]: U }> {
+  ): DoOption<T & Record<K, U>> {
     if (isNone(this.option)) return new DoOption(None);
     const nextOption = fn(this.option.value);
     if (isNone(nextOption)) return new DoOption(None);
     return new DoOption(
-      Some({ ...this.option.value, [key]: nextOption.value } as T & { [P in K]: U })
+      Some({ ...this.option.value, [key]: nextOption.value } as T & Record<K, U>)
     );
   }
 
@@ -947,7 +946,7 @@ export function pipe<A, B, C, D, E, F>(
 ): F;
 export function pipe(
   value: unknown,
-  ...fns: Array<(arg: unknown) => unknown>
+  ...fns: ((arg: unknown) => unknown)[]
 ): unknown {
   return fns.reduce((acc, fn) => fn(acc), value);
 }
@@ -983,7 +982,7 @@ export function flow<A, B, C, D, E, F>(
   de: (d: D) => E,
   ef: (e: E) => F
 ): (a: A) => F;
-export function flow(...fns: Array<(arg: unknown) => unknown>): (arg: unknown) => unknown {
+export function flow(...fns: ((arg: unknown) => unknown)[]): (arg: unknown) => unknown {
   return (arg) => fns.reduce((acc, fn) => fn(acc), arg);
 }
 
