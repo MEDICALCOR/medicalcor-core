@@ -148,6 +148,7 @@ export * from './shared-kernel/domain-events/index.js';
 export * from './patient-acquisition/index.js';
 
 // OSAX Context - Oral Surgery Auxiliary eXtension case management
+// OSAX Context - Obstructive Sleep Apnea case management
 export * from './osax/index.js';
 
 // ============================================================================
