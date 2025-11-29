@@ -94,3 +94,27 @@ export {
   // Factory
   createMigrationManager,
 } from './migrations.js';
+
+// =============================================================================
+// CRM Health Checks
+// =============================================================================
+
+export {
+  // Service
+  CrmHealthCheckService,
+  CrmHealthCheckError,
+  // Factory functions
+  createCrmHealthCheckService,
+  createCrmHealthChecker,
+  // Utility functions
+  quickCrmHealthCheck,
+  formatCrmHealthResult,
+  hasCrmHealthCheck,
+  // Schemas
+  CrmHealthConfigSchema,
+  // Types
+  type CrmHealthConfig,
+  type CrmHealthResult,
+  type CrmHealthDetails,
+  type CrmWithHealthCheck,
+} from './crm-health.js';

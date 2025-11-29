@@ -102,6 +102,9 @@ importers:
       '@medicalcor/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@medicalcor/infra':
+        specifier: workspace:*
+        version: link:../../packages/infra
       '@medicalcor/integrations':
         specifier: workspace:*
         version: link:../../packages/integrations
@@ -184,6 +187,9 @@ importers:
       '@medicalcor/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@medicalcor/infra':
+        specifier: workspace:*
+        version: link:../../packages/infra
       '@medicalcor/integrations':
         specifier: workspace:*
         version: link:../../packages/integrations

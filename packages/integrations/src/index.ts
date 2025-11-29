@@ -155,7 +155,27 @@ export {
 // CRM Integrations
 // =============================================================================
 
-export { CRMFactory, getCRMProvider, resetCRMProvider, PipedriveAdapter } from './crm/index.js';
+export {
+  CRMFactory,
+  getCRMProvider,
+  resetCRMProvider,
+  getMockCRMProvider,
+  isMockCRMProvider,
+  PipedriveAdapter,
+  // Mock CRM Adapter
+  MockCrmAdapter,
+  MockCrmError,
+  createMockCrmAdapter,
+  createSuccessMockCrm,
+  createErrorMockCrm,
+  createFlakyMockCrm,
+  createSlowMockCrm,
+  MockCrmConfigSchema,
+  MockCrmScenarioSchema,
+  type MockCrmConfig,
+  type MockCrmScenario,
+  type CrmHealthCheckResult,
+} from './crm/index.js';
 
 // =============================================================================
 // State-of-the-Art Library Infrastructure

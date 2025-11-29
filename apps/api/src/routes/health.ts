@@ -6,6 +6,8 @@
 import type { FastifyPluginAsync } from 'fastify';
 import crypto from 'crypto';
 import { globalCircuitBreakerRegistry } from '@medicalcor/core';
+import { getCRMProvider, isMockCRMProvider } from '@medicalcor/integrations';
+import { CrmHealthCheckService } from '@medicalcor/infra';
 
 /**
  * SECURITY: Timing-safe comparison for API keys
@@ -13,7 +15,7 @@ import { globalCircuitBreakerRegistry } from '@medicalcor/core';
  */
 function verifyApiKeyTimingSafe(
   providedKey: string | undefined,
-  expectedKey: string | undefined,
+  expectedKey: string | undefined
 ): boolean {
   if (!providedKey || !expectedKey) {
     return false;
@@ -48,7 +50,10 @@ const circuitBreakerResetRateLimiter = new Map<string, RateLimitEntry>();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute window
 const RATE_LIMIT_MAX_RESETS = 5; // Max 5 resets per service per minute
 
-function checkCircuitBreakerRateLimit(service: string, ip: string): { allowed: boolean; retryAfterMs?: number } {
+function checkCircuitBreakerRateLimit(
+  service: string,
+  ip: string
+): { allowed: boolean; retryAfterMs?: number } {
   const key = `${service}:${ip}`;
   const now = Date.now();
   const entry = circuitBreakerResetRateLimiter.get(key);
@@ -316,6 +321,58 @@ function getMemoryStats(): { heapUsed: number; heapTotal: number; external: numb
 // Currently not used but kept for extensibility
 
 /**
+ * CRM Health Check Service (singleton for consistent state tracking)
+ */
+const crmHealthService = new CrmHealthCheckService({
+  timeoutMs: 5000,
+  degradedThresholdMs: 2000,
+  unhealthyThresholdMs: 5000,
+  providerName: 'crm',
+  critical: false, // CRM is not critical for API to function
+});
+
+/**
+ * Check CRM connectivity
+ * Uses the configured CRM provider (Pipedrive, Mock, etc.)
+ */
+async function checkCRM(): Promise<HealthCheckResult> {
+  const startTime = Date.now();
+
+  try {
+    const crmProvider = getCRMProvider();
+    const result = await crmHealthService.check(crmProvider);
+
+    // Build result with required fields first (exactOptionalPropertyTypes compliance)
+    const healthResult: HealthCheckResult = {
+      status:
+        result.status === 'healthy' ? 'ok' : result.status === 'degraded' ? 'degraded' : 'error',
+      latencyMs: result.latencyMs,
+      details: {
+        provider: result.provider,
+        isMock: isMockCRMProvider(),
+        apiConnected: result.details.apiConnected,
+        authenticated: result.details.authenticated,
+        ...(result.details.apiVersion && { apiVersion: result.details.apiVersion }),
+        ...(result.details.rateLimit && { rateLimitRemaining: result.details.rateLimit.remaining }),
+      },
+    };
+
+    // Only add message if provided
+    if (result.message !== undefined) {
+      healthResult.message = result.message;
+    }
+
+    return healthResult;
+  } catch (error) {
+    return {
+      status: 'error',
+      message: error instanceof Error ? error.message : 'CRM health check failed',
+      latencyMs: Date.now() - startTime,
+    };
+  }
+}
+
+/**
  * Health check routes
  *
  * Provides endpoints for Kubernetes probes and load balancer health checks.
@@ -331,13 +388,18 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
    */
   fastify.get<{ Reply: HealthResponse }>('/health', async (_request, reply) => {
     // Run all health checks in parallel
-    const [databaseCheck, redisCheck] = await Promise.all([checkDatabase(), checkRedis()]);
+    const [databaseCheck, redisCheck, crmCheck] = await Promise.all([
+      checkDatabase(),
+      checkRedis(),
+      checkCRM(),
+    ]);
     const triggerCheck = checkTrigger();
 
     const checks = {
       database: databaseCheck,
       redis: redisCheck,
       trigger: triggerCheck,
+      crm: crmCheck,
     };
 
     // Determine overall health status
@@ -388,7 +450,11 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
    */
   fastify.get<{ Reply: HealthResponse }>('/health/deep', async (_request, reply) => {
     // Run all health checks in parallel
-    const [databaseCheck, redisCheck] = await Promise.all([checkDatabase(), checkRedis()]);
+    const [databaseCheck, redisCheck, crmCheck] = await Promise.all([
+      checkDatabase(),
+      checkRedis(),
+      checkCRM(),
+    ]);
     const triggerCheck = checkTrigger();
 
     // Build dependency list - conditionally add optional properties for exactOptionalPropertyTypes
@@ -425,7 +491,20 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
     };
     if (triggerCheck.message) triggerDep.message = triggerCheck.message;
 
-    const dependencies: DependencyHealth[] = [postgresqlDep, redisDep, triggerDep];
+    const crmDep: DependencyHealth = {
+      name: 'crm',
+      status:
+        crmCheck.status === 'ok'
+          ? 'healthy'
+          : crmCheck.status === 'degraded'
+            ? 'degraded'
+            : 'unhealthy',
+      critical: false, // CRM is optional for API to function
+    };
+    if (crmCheck.latencyMs !== undefined) crmDep.latencyMs = crmCheck.latencyMs;
+    if (crmCheck.message) crmDep.message = crmCheck.message;
+
+    const dependencies: DependencyHealth[] = [postgresqlDep, redisDep, triggerDep, crmDep];
 
     // Check circuit breakers as pseudo-dependencies
     const circuitBreakers = getCircuitBreakerStatus();
@@ -526,6 +605,55 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
   });
 
   /**
+   * GET /health/crm
+   *
+   * Dedicated CRM health check endpoint.
+   * Returns detailed information about the CRM provider status.
+   */
+  fastify.get('/health/crm', async (_request, reply) => {
+    try {
+      const crmProvider = getCRMProvider();
+      const result = await crmHealthService.check(crmProvider);
+
+      const response = {
+        status: result.status,
+        timestamp: result.timestamp.toISOString(),
+        provider: result.provider,
+        isMock: isMockCRMProvider(),
+        latencyMs: result.latencyMs,
+        message: result.message,
+        details: {
+          configured: result.details.configured,
+          apiConnected: result.details.apiConnected,
+          authenticated: result.details.authenticated,
+          apiVersion: result.details.apiVersion,
+          rateLimit: result.details.rateLimit,
+          lastSuccessfulCall: result.details.lastSuccessfulCall?.toISOString(),
+          error: result.details.error,
+        },
+        consecutiveFailures: crmHealthService.getConsecutiveFailures(),
+      };
+
+      if (result.status === 'unhealthy') {
+        return await reply.status(503).send(response);
+      }
+
+      return response;
+    } catch (error) {
+      return await reply.status(503).send({
+        status: 'unhealthy',
+        timestamp: new Date().toISOString(),
+        provider: 'unknown',
+        isMock: false,
+        error: {
+          code: 'CRM_CHECK_FAILED',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        },
+      });
+    }
+  });
+
+  /**
    * GET /health/circuit-breakers
    *
    * Get detailed circuit breaker status for all services.
@@ -600,7 +728,10 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
           { ip: request.ip, service, retryAfterMs: rateLimitResult.retryAfterMs },
           'Circuit breaker reset rate limit exceeded'
         );
-        reply.header('Retry-After', Math.ceil((rateLimitResult.retryAfterMs ?? 60000) / 1000).toString());
+        reply.header(
+          'Retry-After',
+          Math.ceil((rateLimitResult.retryAfterMs ?? 60000) / 1000).toString()
+        );
         return reply.status(429).send({
           success: false,
           message: 'Rate limit exceeded. Too many circuit breaker reset attempts.',

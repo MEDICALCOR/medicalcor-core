@@ -1105,28 +1105,25 @@ export const nightlyKnowledgeIngest = schedules.task({
 
       // Execute the ingest script
       // Use tsx for TypeScript execution
-      const { stdout, stderr } = await execAsync(
-        'pnpm tsx scripts/ingest-knowledge.ts',
-        {
-          cwd: process.cwd(),
-          env: {
-            ...process.env,
-            // Ensure DATABASE_URL is available
-          },
-          timeout: 300000, // 5 minute timeout
-        }
-      );
+      const { stdout, stderr } = await execAsync('pnpm tsx scripts/ingest-knowledge.ts', {
+        cwd: process.cwd(),
+        env: {
+          ...process.env,
+          // Ensure DATABASE_URL is available
+        },
+        timeout: 300000, // 5 minute timeout
+      });
 
       const duration = Date.now() - startTime;
 
-      if (stderr && stderr.trim()) {
+      if (stderr.trim()) {
         logger.warn('Ingest script stderr', { stderr: stderr.trim(), correlationId });
       }
 
       // Parse results from stdout
-      const entriesMatch = stdout.match(/Entries inserted: (\d+)/);
-      const updatedMatch = stdout.match(/Entries updated: (\d+)/);
-      const filesMatch = stdout.match(/Files processed: (\d+)/);
+      const entriesMatch = /Entries inserted: (\d+)/.exec(stdout);
+      const updatedMatch = /Entries updated: (\d+)/.exec(stdout);
+      const filesMatch = /Files processed: (\d+)/.exec(stdout);
 
       const entriesInserted = entriesMatch ? parseInt(entriesMatch[1]!, 10) : 0;
       const entriesUpdated = updatedMatch ? parseInt(updatedMatch[1]!, 10) : 0;
@@ -1161,6 +1158,87 @@ export const nightlyKnowledgeIngest = schedules.task({
       logger.error('Nightly knowledge ingest failed', { error: errorMessage, correlationId });
 
       await emitJobEvent(eventStore, 'cron.knowledge_ingest.failed', {
+        error: errorMessage,
+        correlationId,
+      });
+
+      return { success: false, error: errorMessage };
+    }
+  },
+});
+
+/**
+ * CRM Health Monitoring - periodic health check of CRM integration
+ * Runs every 15 minutes to detect CRM issues early
+ */
+export const crmHealthMonitor = schedules.task({
+  id: 'crm-health-monitor',
+  cron: '*/15 * * * *', // Every 15 minutes
+  run: async () => {
+    const correlationId = generateCorrelationId();
+    logger.info('Starting CRM health check', { correlationId });
+
+    const { eventStore } = getClients();
+
+    try {
+      // Dynamic import to get CRM provider and health service
+      const { getCRMProvider, isMockCRMProvider } = await import('@medicalcor/integrations');
+      const { CrmHealthCheckService } = await import('@medicalcor/infra');
+
+      const crmProvider = getCRMProvider();
+      const healthService = new CrmHealthCheckService({
+        timeoutMs: 10000,
+        degradedThresholdMs: 3000,
+        unhealthyThresholdMs: 8000,
+        providerName: 'crm',
+      });
+
+      const result = await healthService.check(crmProvider);
+
+      const metrics = {
+        status: result.status,
+        provider: result.provider,
+        isMock: isMockCRMProvider(),
+        latencyMs: result.latencyMs,
+        apiConnected: result.details.apiConnected,
+        authenticated: result.details.authenticated,
+        consecutiveFailures: healthService.getConsecutiveFailures(),
+      };
+
+      // Log based on health status
+      if (result.status === 'healthy') {
+        logger.info('CRM health check passed', { ...metrics, correlationId });
+      } else if (result.status === 'degraded') {
+        logger.warn('CRM health degraded', { ...metrics, message: result.message, correlationId });
+      } else {
+        logger.error('CRM health check failed', {
+          ...metrics,
+          message: result.message,
+          error: result.details.error,
+          correlationId,
+        });
+      }
+
+      // Emit health check event for monitoring
+      await emitJobEvent(eventStore, 'cron.crm_health_check.completed', {
+        ...metrics,
+        timestamp: result.timestamp.toISOString(),
+        message: result.message,
+        correlationId,
+      });
+
+      return {
+        success: result.status !== 'unhealthy',
+        ...metrics,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('CRM health check failed with exception', {
+        error: errorMessage,
+        correlationId,
+      });
+
+      await emitJobEvent(eventStore, 'cron.crm_health_check.failed', {
         error: errorMessage,
         correlationId,
       });

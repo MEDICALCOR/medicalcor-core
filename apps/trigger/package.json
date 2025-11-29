@@ -18,6 +18,7 @@
   "dependencies": {
     "@medicalcor/core": "workspace:*",
     "@medicalcor/domain": "workspace:*",
+    "@medicalcor/infra": "workspace:*",
     "@medicalcor/integrations": "workspace:*",
     "@medicalcor/types": "workspace:*",
     "@opentelemetry/api": "^1.7.0",
