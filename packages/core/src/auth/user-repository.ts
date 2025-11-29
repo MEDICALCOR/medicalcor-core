@@ -73,10 +73,9 @@ export class UserRepository {
    * CRITICAL FIX: Added soft delete filter for GDPR compliance
    */
   async findById(id: string): Promise<User | null> {
-    const result = await this.db.query(
-      'SELECT * FROM users WHERE id = $1 AND deleted_at IS NULL',
-      [id]
-    );
+    const result = await this.db.query('SELECT * FROM users WHERE id = $1 AND deleted_at IS NULL', [
+      id,
+    ]);
     return result.rows[0] ? mapRowToUser(result.rows[0]) : null;
   }
 
@@ -233,7 +232,7 @@ export class UserRepository {
           -- Otherwise no lockout
           ELSE NULL
         END
-       WHERE id = $1
+       WHERE id = $1 AND deleted_at IS NULL
        RETURNING failed_login_attempts, locked_until`,
       [id]
     );
@@ -253,29 +252,35 @@ export class UserRepository {
 
   /**
    * Reset failed login attempts after successful login
+   * CRITICAL FIX: Added soft delete filter for GDPR compliance
    */
   async resetFailedAttempts(id: string): Promise<void> {
     await this.db.query(
-      `UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1`,
+      `UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1 AND deleted_at IS NULL`,
       [id]
     );
   }
 
   /**
    * Update last login info
+   * CRITICAL FIX: Added soft delete filter for GDPR compliance
    */
   async updateLastLogin(id: string, ipAddress?: string): Promise<void> {
     await this.db.query(
-      `UPDATE users SET last_login_at = CURRENT_TIMESTAMP, last_login_ip = $2 WHERE id = $1`,
+      `UPDATE users SET last_login_at = CURRENT_TIMESTAMP, last_login_ip = $2 WHERE id = $1 AND deleted_at IS NULL`,
       [id, ipAddress ?? null]
     );
   }
 
   /**
    * Check if account is locked
+   * CRITICAL FIX: Added soft delete filter for GDPR compliance
    */
   async isAccountLocked(id: string): Promise<{ locked: boolean; until?: Date }> {
-    const result = await this.db.query(`SELECT locked_until FROM users WHERE id = $1`, [id]);
+    const result = await this.db.query(
+      `SELECT locked_until FROM users WHERE id = $1 AND deleted_at IS NULL`,
+      [id]
+    );
 
     if (!result.rows[0]) {
       return { locked: false };
@@ -296,10 +301,11 @@ export class UserRepository {
 
   /**
    * Unlock account manually
+   * CRITICAL FIX: Added soft delete filter for GDPR compliance
    */
   async unlockAccount(id: string): Promise<void> {
     await this.db.query(
-      `UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1`,
+      `UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1 AND deleted_at IS NULL`,
       [id]
     );
     logger.info({ userId: id }, 'Account unlocked');
@@ -349,7 +355,7 @@ export class UserRepository {
   }): Promise<{ users: SafeUser[]; total: number }> {
     const { limit = 50, offset = 0, status, role, clinicId } = options ?? {};
 
-    const whereClauses: string[] = ['deleted_at IS NULL'];  // CRITICAL FIX: Always filter deleted
+    const whereClauses: string[] = ['deleted_at IS NULL']; // CRITICAL FIX: Always filter deleted
     const values: unknown[] = [];
     let paramIndex = 1;
 
@@ -392,9 +398,9 @@ export class UserRepository {
     // The characters % and _ have special meaning in LIKE patterns
     const escapedQuery = query
       .toLowerCase()
-      .replace(/\\/g, '\\\\')  // Escape backslashes first
-      .replace(/%/g, '\\%')    // Escape percent signs
-      .replace(/_/g, '\\_');   // Escape underscores
+      .replace(/\\/g, '\\\\') // Escape backslashes first
+      .replace(/%/g, '\\%') // Escape percent signs
+      .replace(/_/g, '\\_'); // Escape underscores
 
     const result = await this.db.query(
       `SELECT * FROM users
