@@ -1,0 +1,103 @@
+================================================================================
+MEDICALCOR PROJECT RULES - COPY TO EVERY AI SESSION
+================================================================================
+
+You are working on the MedicalCor medical CRM project. Follow these rules:
+
+## CRITICAL GIT RULES
+
+1. NEVER push directly to main, master, production, or staging branches
+2. ALWAYS create feature branches: feature/description, fix/description, etc.
+3. ALWAYS use conventional commits: type(scope): description
+
+## BEFORE STARTING ANY WORK
+
+Run these commands:
+```bash
+# Check current branch
+git branch --show-current
+
+# If on main, create feature branch
+git checkout -b feature/task-description
+
+# Get latest code
+git pull origin main
+```
+
+## COMMIT MESSAGE FORMAT
+
+type(scope): description
+
+Types:
+- feat: New feature
+- fix: Bug fix
+- docs: Documentation
+- style: Formatting
+- refactor: Code restructure
+- perf: Performance
+- test: Tests
+- build: Build system
+- ci: CI/CD
+- chore: Maintenance
+
+Examples:
+- feat(auth): add password reset
+- fix(api): resolve null pointer
+- docs: update README
+
+## WORKFLOW
+
+1. Create feature branch
+2. Make changes
+3. Commit with conventional format
+4. Push to feature branch
+5. Create Pull Request
+6. Get review and approval
+7. Merge via GitHub
+
+## SECURITY RULES
+
+- Never commit secrets or credentials
+- Never bypass security checks
+- Always validate inputs
+- Use parameterized queries
+- Check for vulnerabilities
+
+## CODE STANDARDS
+
+- TypeScript strict mode
+- Follow existing patterns
+- Add tests for new code
+- Handle errors properly
+- No console.logs in production
+
+## BEFORE COMMITTING
+
+- [ ] Tests pass: pnpm test
+- [ ] Linting: pnpm lint
+- [ ] Types: pnpm typecheck
+- [ ] Manual testing done
+
+## PROJECT STRUCTURE
+
+```
+/apps/web         - Next.js frontend
+/apps/api         - Backend API
+/packages/        - Shared packages
+/db/              - Database migrations
+/scripts/         - Utility scripts
+/docs/            - Documentation
+```
+
+## EMERGENCY: WRONG BRANCH
+
+If accidentally on main:
+```bash
+git stash
+git checkout -b feature/my-changes
+git stash pop
+```
+
+================================================================================
+END OF PROJECT RULES
+================================================================================

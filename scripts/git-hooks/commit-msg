@@ -1,0 +1,93 @@
+#!/bin/bash
+#
+# Commit-msg hook to validate conventional commit format
+# Part of MedicalCor Triple-Guard System
+#
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
+COMMIT_MSG_FILE="$1"
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# Conventional commit pattern
+# Format: type(scope): description
+# Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
+PATTERN="^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-zA-Z0-9_-]+\))?: .{1,100}$"
+
+# Also allow merge commits
+MERGE_PATTERN="^Merge (branch|pull request|remote-tracking branch)"
+
+# Allow fixup and squash commits
+FIXUP_PATTERN="^(fixup|squash)! "
+
+# Get the first line of the commit message
+FIRST_LINE=$(echo "$COMMIT_MSG" | head -1)
+
+# Skip validation for merge commits
+if echo "$FIRST_LINE" | grep -qE "$MERGE_PATTERN"; then
+    exit 0
+fi
+
+# Skip validation for fixup/squash commits
+if echo "$FIRST_LINE" | grep -qE "$FIXUP_PATTERN"; then
+    exit 0
+fi
+
+# Validate the commit message
+if ! echo "$FIRST_LINE" | grep -qE "$PATTERN"; then
+    echo -e "${RED}========================================${NC}"
+    echo -e "${RED}  INVALID COMMIT MESSAGE!${NC}"
+    echo -e "${RED}========================================${NC}"
+    echo ""
+    echo -e "${YELLOW}Your message:${NC}"
+    echo "  $FIRST_LINE"
+    echo ""
+    echo -e "${GREEN}REQUIRED FORMAT:${NC}"
+    echo "  type(scope): description"
+    echo ""
+    echo -e "${GREEN}VALID TYPES:${NC}"
+    echo "  feat     - New feature"
+    echo "  fix      - Bug fix"
+    echo "  docs     - Documentation changes"
+    echo "  style    - Formatting, missing semicolons, etc."
+    echo "  refactor - Code restructuring without behavior change"
+    echo "  perf     - Performance improvements"
+    echo "  test     - Adding or updating tests"
+    echo "  build    - Build system or dependencies"
+    echo "  ci       - CI/CD configuration"
+    echo "  chore    - Maintenance tasks"
+    echo "  revert   - Reverting previous commits"
+    echo ""
+    echo -e "${GREEN}EXAMPLES:${NC}"
+    echo "  feat(auth): add password reset functionality"
+    echo "  fix(api): resolve null pointer in patient lookup"
+    echo "  docs: update API documentation"
+    echo "  refactor(db): optimize query performance"
+    echo ""
+    echo -e "${YELLOW}See docs/CONTRIBUTING.md for full guidelines${NC}"
+    echo -e "${RED}========================================${NC}"
+    exit 1
+fi
+
+# Check message length
+if [ ${#FIRST_LINE} -gt 100 ]; then
+    echo -e "${RED}========================================${NC}"
+    echo -e "${RED}  COMMIT MESSAGE TOO LONG!${NC}"
+    echo -e "${RED}========================================${NC}"
+    echo ""
+    echo "First line must be 100 characters or less."
+    echo "Current length: ${#FIRST_LINE}"
+    echo ""
+    echo "Use the message body for additional details."
+    echo -e "${RED}========================================${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}Commit message format validated${NC}"
+exit 0
