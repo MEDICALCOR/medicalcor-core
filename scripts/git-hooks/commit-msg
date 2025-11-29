@@ -1,0 +1,149 @@
+#!/bin/bash
+# =============================================================================
+# MedicalCor Core - Commit Message Hook (Standalone Version)
+# =============================================================================
+# Purpose: Validate commit messages follow Conventional Commits format
+#
+# Installation (if not using Husky):
+#   cp scripts/git-hooks/commit-msg .git/hooks/commit-msg
+#   chmod +x .git/hooks/commit-msg
+#
+# Format: <type>(<scope>): <subject>
+#
+# Types:
+#   feat     - A new feature
+#   fix      - A bug fix
+#   docs     - Documentation only changes
+#   style    - Changes that don't affect code meaning (formatting, etc.)
+#   refactor - Code change that neither fixes a bug nor adds a feature
+#   perf     - Performance improvement
+#   test     - Adding missing tests or correcting existing tests
+#   build    - Changes to build system or dependencies
+#   ci       - Changes to CI configuration
+#   chore    - Other changes that don't modify src or test files
+#   revert   - Reverts a previous commit
+#
+# Examples:
+#   feat(auth): add biometric login support
+#   fix(appointments): resolve timezone offset calculation
+#   docs(api): update authentication endpoint documentation
+#   refactor(utils): extract date formatting to shared module
+# =============================================================================
+
+set -e
+
+# Colors for terminal output
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+BOLD='\033[1m'
+
+# Get the commit message file path
+COMMIT_MSG_FILE="$1"
+
+# If no file provided, exit successfully (shouldn't happen in git hook context)
+if [ -z "$COMMIT_MSG_FILE" ]; then
+    echo -e "${RED}Error: No commit message file provided${NC}"
+    exit 1
+fi
+
+# Read the commit message
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# Skip validation for merge commits and fixup commits
+if [[ "$COMMIT_MSG" =~ ^Merge ]] || [[ "$COMMIT_MSG" =~ ^fixup! ]] || [[ "$COMMIT_MSG" =~ ^squash! ]]; then
+    exit 0
+fi
+
+# Conventional commit pattern
+# Format: type(scope): subject
+# - type is required
+# - scope is optional (in parentheses)
+# - subject is required and must start with lowercase
+PATTERN="^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?: .+"
+
+# Get only the first line (the subject line)
+FIRST_LINE=$(echo "$COMMIT_MSG" | head -n1)
+
+# Validate against the pattern
+if ! [[ "$FIRST_LINE" =~ $PATTERN ]]; then
+    echo ""
+    echo -e "${RED}╔════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${RED}║  ${BOLD}COMMIT REJECTED - Invalid commit message format${NC}${RED}              ║${NC}"
+    echo -e "${RED}╚════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "${YELLOW}Your commit message:${NC}"
+    echo -e "  ${FIRST_LINE}"
+    echo ""
+    echo -e "${CYAN}Expected format: ${BOLD}<type>(<scope>): <subject>${NC}"
+    echo ""
+    echo -e "${GREEN}Valid types:${NC}"
+    echo "  feat     - A new feature"
+    echo "  fix      - A bug fix"
+    echo "  docs     - Documentation only changes"
+    echo "  style    - Formatting, missing semi colons, etc."
+    echo "  refactor - Code change (no new feature, no bug fix)"
+    echo "  perf     - Performance improvement"
+    echo "  test     - Adding/correcting tests"
+    echo "  build    - Build system or dependencies"
+    echo "  ci       - CI configuration changes"
+    echo "  chore    - Other changes (no src/test)"
+    echo "  revert   - Reverts a previous commit"
+    echo ""
+    echo -e "${GREEN}Examples:${NC}"
+    echo "  feat(auth): add biometric login support"
+    echo "  fix(appointments): resolve timezone offset calculation"
+    echo "  docs(api): update authentication endpoint docs"
+    echo "  refactor(utils): extract date formatting to shared module"
+    echo ""
+    echo -e "${YELLOW}For more info: docs/CONTRIBUTING.md${NC}"
+    echo ""
+    exit 1
+fi
+
+# Additional validations
+
+# Check subject line length (should be <= 100 characters as per commitlint config)
+if [ ${#FIRST_LINE} -gt 100 ]; then
+    echo ""
+    echo -e "${YELLOW}Warning: Subject line exceeds 100 characters (${#FIRST_LINE} chars)${NC}"
+    echo -e "${YELLOW}Consider shortening for better readability${NC}"
+    echo ""
+    # Warning only, don't block
+fi
+
+# Check that subject doesn't end with period
+if [[ "$FIRST_LINE" =~ \.$ ]]; then
+    echo ""
+    echo -e "${RED}╔════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${RED}║  ${BOLD}COMMIT REJECTED - Subject should not end with period${NC}${RED}         ║${NC}"
+    echo -e "${RED}╚════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "${YELLOW}Your commit message:${NC}"
+    echo -e "  ${FIRST_LINE}"
+    echo ""
+    echo -e "${CYAN}Remove the trailing period from your commit message.${NC}"
+    echo ""
+    exit 1
+fi
+
+# Extract the subject (after the colon and space)
+SUBJECT=$(echo "$FIRST_LINE" | sed -E 's/^[^:]+: //')
+
+# Check that subject starts with lowercase (or is a proper noun - relaxed check)
+FIRST_CHAR=$(echo "$SUBJECT" | cut -c1)
+if [[ "$FIRST_CHAR" =~ [A-Z] ]]; then
+    # Check if it's a common proper noun or acronym (allow these)
+    if ! [[ "$SUBJECT" =~ ^(API|UI|URL|HTTP|HTTPS|SQL|CSS|HTML|JWT|OAuth|GDPR|CMSR|RLS)[^a-z] ]]; then
+        echo ""
+        echo -e "${YELLOW}Warning: Subject should start with lowercase${NC}"
+        echo -e "${YELLOW}Current: '${SUBJECT}'${NC}"
+        echo ""
+        # Warning only for this, don't block
+    fi
+fi
+
+echo -e "${GREEN}Commit message validation passed${NC}"
+exit 0

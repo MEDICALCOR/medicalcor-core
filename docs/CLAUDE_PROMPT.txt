@@ -1,0 +1,206 @@
+# MedicalCor Core - Claude Code Session Rules
+# =============================================================================
+# Copy this ENTIRE file at the START of every Claude Code session.
+# These rules are MANDATORY and must be followed without exception.
+# =============================================================================
+
+## IDENTITY & CONTEXT
+
+You are a senior software engineer working on MedicalCor Core, a medical CRM
+system for healthcare providers. This is a production system handling sensitive
+patient data subject to GDPR and Romanian CMSR 2025 regulations.
+
+Repository: casagest/medicalcor-core
+Tech Stack: Next.js 14, TypeScript, Supabase, Hono API, pnpm monorepo
+
+## CRITICAL RULES (NEVER VIOLATE)
+
+### Git Workflow
+
+1. **NEVER work on main branch directly**
+   - Always create a feature branch first
+   - Branch naming: feature/description, fix/description, refactor/description
+
+2. **NEVER push to main, staging, or production branches**
+   - These are protected and will be blocked by hooks
+   - All changes go through Pull Requests
+
+3. **Before ANY work, verify your branch:**
+   ```bash
+   git branch --show-current
+   ```
+   If on main, create a feature branch immediately:
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+4. **Commit messages follow Conventional Commits:**
+   - feat(scope): description - for new features
+   - fix(scope): description - for bug fixes
+   - refactor(scope): description - for restructuring
+   - docs(scope): description - for documentation
+   - test(scope): description - for tests
+
+### Security Requirements
+
+1. **NEVER hardcode secrets, API keys, or passwords**
+   - Always use environment variables
+   - Check .env.example for required variables
+
+2. **NEVER log sensitive data**
+   - No patient data in console.log
+   - No passwords, tokens, or PII in logs
+
+3. **ALWAYS validate inputs with Zod**
+   - All API endpoints must validate input
+   - All forms must validate before submission
+
+4. **ALWAYS use parameterized queries**
+   - Never concatenate user input into SQL
+   - Use Prisma/Drizzle query builders
+
+5. **NEVER disable security features**
+   - No @ts-ignore without documented justification
+   - No eslint-disable without approval
+   - No bypassing RLS policies
+
+### Code Quality
+
+1. **Before committing, run:**
+   ```bash
+   pnpm lint && pnpm typecheck && pnpm test
+   ```
+
+2. **TypeScript strict mode is required**
+   - No 'any' types without documented justification
+   - All functions must have typed parameters and returns
+
+3. **Tests are required for:**
+   - All new features
+   - All bug fixes (regression tests)
+   - All security-related changes
+
+### Database
+
+1. **All migrations must be reversible**
+   - Include rollback procedures
+   - Test on staging before production
+
+2. **RLS (Row Level Security) is mandatory**
+   - All patient data tables must have RLS
+   - Verify policies cover all operations
+
+3. **Run migrations with:**
+   ```bash
+   pnpm db:migrate
+   ```
+
+### AI/LLM Usage
+
+1. **NEVER send patient data to external AI services**
+   - PII must be anonymized before processing
+   - Use the anonymization utilities
+
+2. **Log all AI interactions for audit**
+   - Include prompt templates
+   - Exclude actual patient data
+
+## PROJECT STRUCTURE
+
+```
+medicalcor-core/
+├── apps/
+│   ├── api/              # Hono backend API
+│   └── web/              # Next.js frontend
+├── packages/
+│   ├── db/               # Database utilities
+│   ├── shared/           # Shared types & utils
+│   └── ui/               # UI components
+├── db/migrations/        # Database migrations
+├── docs/                 # Documentation (READ THESE)
+└── scripts/              # Utility scripts
+```
+
+## COMMON TASKS
+
+### Creating a new feature
+```bash
+git checkout main
+git pull origin main
+git checkout -b feature/my-feature
+# ... make changes ...
+git add .
+git commit -m "feat(scope): description"
+git push -u origin feature/my-feature
+# Create PR on GitHub
+```
+
+### Fixing a bug
+```bash
+git checkout main
+git pull origin main
+git checkout -b fix/bug-description
+# ... fix the bug ...
+git add .
+git commit -m "fix(scope): description"
+git push -u origin fix/bug-description
+# Create PR on GitHub
+```
+
+### Running the development environment
+```bash
+pnpm install           # Install dependencies
+pnpm db:migrate        # Run migrations
+pnpm dev               # Start development server
+```
+
+### Running tests
+```bash
+pnpm test              # Run all tests
+pnpm test:coverage     # Run with coverage
+pnpm lint              # Check linting
+pnpm typecheck         # Check types
+```
+
+## DOCUMENTATION REFERENCES
+
+Before starting work, familiarize yourself with:
+- docs/GIT_WORKFLOW.md - Git branching and commit rules
+- docs/CONTRIBUTING.md - Contribution guidelines
+- docs/SECURITY.md - Security requirements
+- docs/DEPLOY_CHECKLIST.md - Deployment procedures
+- docs/ARCHITECTURE.md - System architecture
+
+## WHEN IN DOUBT
+
+1. ASK before making destructive changes
+2. READ the documentation first
+3. TEST in staging before production
+4. NEVER skip security validation
+
+## SESSION CHECKLIST
+
+At the start of each session:
+- [ ] Verified not on main branch
+- [ ] Created feature branch if needed
+- [ ] Pulled latest changes
+- [ ] Understood the task requirements
+- [ ] Reviewed relevant documentation
+
+At the end of each session:
+- [ ] All changes committed with proper messages
+- [ ] Tests pass (pnpm test)
+- [ ] Linting passes (pnpm lint)
+- [ ] Types check (pnpm typecheck)
+- [ ] Pushed to feature branch
+- [ ] Created PR if ready for review
+
+## EMERGENCY CONTACTS
+
+For security incidents or critical issues:
+- Check docs/SECURITY.md for procedures
+- Follow incident response protocol
+- Never discuss security issues in public channels
+
+---
+END OF RULES - Follow these without exception.

@@ -30,7 +30,9 @@
     "db:schema:dump": "cd db && dbmate --migrations-dir ./migrations dump",
     "db:schema:validate": "./scripts/validate-schema.sh",
     "db:seed": "tsx db/seed.ts",
-    "db:ingest": "tsx scripts/ingest-knowledge.ts"
+    "db:ingest": "tsx scripts/ingest-knowledge.ts",
+    "setup:hooks": "bash scripts/setup-git-hooks.sh",
+    "hooks:check": "bash scripts/setup-git-hooks.sh --check"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.55",

@@ -1,0 +1,134 @@
+#!/bin/bash
+# =============================================================================
+# MedicalCor Core - Pre-Push Hook (Standalone Version)
+# =============================================================================
+# Purpose: Block direct pushes to protected branches (main, staging, production)
+#
+# Installation (if not using Husky):
+#   cp scripts/git-hooks/pre-push .git/hooks/pre-push
+#   chmod +x .git/hooks/pre-push
+#
+# Or use the automated installer:
+#   ./scripts/setup-git-hooks.sh
+#
+# This hook is CRITICAL for repository protection. It prevents accidental
+# pushes to protected branches, enforcing the PR-based workflow.
+#
+# Protected branches:
+#   - main (production code)
+#   - staging (pre-production testing)
+#   - production (legacy alias, if used)
+#   - master (legacy alias)
+#
+# Bypass (EMERGENCY ONLY):
+#   ALLOW_DIRECT_PUSH=true git push origin main
+# =============================================================================
+
+set -e
+
+# Colors for terminal output
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+BOLD='\033[1m'
+
+# Protected branches - DO NOT modify without team approval
+PROTECTED_BRANCHES=("main" "master" "staging" "production")
+
+# Get the current branch
+CURRENT_BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo "")
+
+# Get the remote being pushed to
+REMOTE="$1"
+REMOTE_URL="$2"
+
+# Function to print error banner
+print_error_banner() {
+    echo ""
+    echo -e "${RED}╔════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${RED}║  ${BOLD}PUSH BLOCKED - PROTECTED BRANCH${NC}${RED}                               ║${NC}"
+    echo -e "${RED}╚════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+}
+
+# Function to print instructions
+print_instructions() {
+    echo -e "${YELLOW}You are attempting to push directly to: ${BOLD}$1${NC}"
+    echo ""
+    echo -e "${CYAN}This branch is protected. All changes must go through a Pull Request.${NC}"
+    echo ""
+    echo -e "${GREEN}Correct workflow:${NC}"
+    echo -e "  1. Create a feature branch: ${BOLD}git checkout -b feature/your-feature${NC}"
+    echo -e "  2. Make your changes and commit"
+    echo -e "  3. Push to your feature branch: ${BOLD}git push -u origin feature/your-feature${NC}"
+    echo -e "  4. Create a Pull Request on GitHub"
+    echo -e "  5. Get code review and approval"
+    echo -e "  6. Merge via GitHub (squash or rebase)"
+    echo ""
+    echo -e "${YELLOW}Need help? See: docs/GIT_WORKFLOW.md${NC}"
+    echo ""
+}
+
+# Function to print emergency bypass info
+print_emergency_bypass() {
+    echo -e "${RED}${BOLD}EMERGENCY BYPASS (use with extreme caution):${NC}"
+    echo -e "${RED}ALLOW_DIRECT_PUSH=true git push origin $1${NC}"
+    echo ""
+    echo -e "${RED}WARNING: Emergency bypasses are logged and require justification.${NC}"
+    echo ""
+}
+
+# Check if emergency bypass is enabled
+if [ "$ALLOW_DIRECT_PUSH" = "true" ]; then
+    echo -e "${YELLOW}╔════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${YELLOW}║  ${BOLD}WARNING: Emergency bypass enabled${NC}${YELLOW}                              ║${NC}"
+    echo -e "${YELLOW}╚════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "${YELLOW}Push to protected branch allowed via ALLOW_DIRECT_PUSH=true${NC}"
+    echo -e "${YELLOW}User: $(whoami)${NC}"
+    echo -e "${YELLOW}Timestamp: $(date -Iseconds)${NC}"
+    echo -e "${YELLOW}Branch: $CURRENT_BRANCH${NC}"
+    echo ""
+
+    # Log the bypass
+    BYPASS_LOG_FILE=".git/bypass-log.txt"
+    echo "[$(date -Iseconds)] BYPASS: User=$(whoami) Branch=$CURRENT_BRANCH Remote=$REMOTE" >> "$BYPASS_LOG_FILE"
+
+    exit 0
+fi
+
+# Read stdin to get pushed refs
+while read -r local_ref local_sha remote_ref remote_sha; do
+    if [[ "$remote_ref" =~ refs/heads/(.+) ]]; then
+        PUSH_BRANCH="${BASH_REMATCH[1]}"
+
+        for protected in "${PROTECTED_BRANCHES[@]}"; do
+            if [ "$PUSH_BRANCH" = "$protected" ]; then
+                print_error_banner
+                print_instructions "$PUSH_BRANCH"
+                print_emergency_bypass "$PUSH_BRANCH"
+                exit 1
+            fi
+        done
+    fi
+done
+
+# Belt and suspenders check
+for protected in "${PROTECTED_BRANCHES[@]}"; do
+    if [ "$CURRENT_BRANCH" = "$protected" ]; then
+        if git rev-parse --verify --quiet "@{u}" > /dev/null 2>&1; then
+            TRACKING_BRANCH=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || echo "")
+            if [[ "$TRACKING_BRANCH" == "origin/$protected" ]]; then
+                print_error_banner
+                print_instructions "$CURRENT_BRANCH"
+                print_emergency_bypass "$CURRENT_BRANCH"
+                exit 1
+            fi
+        fi
+    fi
+done
+
+echo -e "${GREEN}Pre-push checks passed${NC}"
+exit 0
