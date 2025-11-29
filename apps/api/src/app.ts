@@ -338,7 +338,11 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
     protectedPaths: [
       '/workflows',
       '/webhooks/booking',
-      '/ai/execute',
+      // SECURITY FIX: Protect ALL AI endpoints including discovery endpoints
+      // Previously only /ai/execute was protected, leaving /ai/functions, /ai/openai/tools,
+      // /ai/anthropic/tools, /ai/categories, and /ai/schema exposed to unauthenticated users.
+      // This allowed attackers to enumerate the complete AI API surface.
+      '/ai',
       // SECURITY FIX: Protect metrics and diagnostics endpoints
       // These expose sensitive internal information (traces, system resources, metrics)
       '/metrics',
