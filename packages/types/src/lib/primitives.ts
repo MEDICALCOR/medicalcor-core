@@ -647,7 +647,7 @@ export function tuple<T extends unknown[]>(...args: T): Readonly<T> {
  * Creates a strictly typed object
  */
 export function object<T extends Record<string, unknown>>(obj: T): Readonly<T> {
-  return Object.freeze(obj) as Readonly<T>;
+  return Object.freeze(obj);
 }
 
 // =============================================================================

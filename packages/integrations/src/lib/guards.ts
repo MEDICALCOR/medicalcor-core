@@ -275,7 +275,7 @@ export function assertNever(value: never, message?: string): never {
  * });
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- M enables proper type inference for discriminated union matchers
+ 
 export function exhaustiveMatch<
   T extends { _tag: string },
   R,
@@ -294,7 +294,7 @@ export function exhaustiveMatch<
 /**
  * Match with default fallback
  */
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- M enables proper type inference for discriminated union matchers
+ 
 export function matchWithDefault<
   T extends { _tag: string },
   R,

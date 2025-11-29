@@ -51,7 +51,7 @@ export interface DlqEntry {
   correlationId: string;
   payload: Record<string, unknown>;
   errorMessage: string;
-  errorStack?: string;
+  errorStack?: string | undefined;
   status: DlqStatus;
   retryCount: number;
   maxRetries: number;

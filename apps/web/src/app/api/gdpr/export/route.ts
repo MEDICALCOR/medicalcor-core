@@ -109,7 +109,7 @@ export async function GET(): Promise<NextResponse> {
 
     // 6. Interaction history
     if (leadsResult.rows.length > 0) {
-      const leadIds = leadsResult.rows.map((r: { id: string }) => r.id);
+      const leadIds = leadsResult.rows.map((r) => r.id as string);
       const interactionsResult = await db.query(
         `SELECT type, channel, direction, status, created_at
          FROM interactions WHERE lead_id = ANY($1) AND deleted_at IS NULL
