@@ -117,8 +117,7 @@ function generateHotp(secret: Buffer, counter: bigint, digits = 6): string {
   counterBuffer.writeBigUInt64BE(counter);
 
   // HMAC-SHA1 as per RFC 4226
-  const hmac = createHash('sha1');
-  // Use HMAC properly
+  // Use HMAC properly with inner and outer pads
   const innerKey = Buffer.alloc(64, 0x36);
   const outerKey = Buffer.alloc(64, 0x5c);
 
@@ -126,9 +125,11 @@ function generateHotp(secret: Buffer, counter: bigint, digits = 6): string {
   const keyPadded = Buffer.alloc(64);
   secret.copy(keyPadded);
 
+  // Buffer.alloc guarantees all indices are initialized to the specified fill value (0x36 and 0x5c)
+  // so we can safely use non-null assertions here
   for (let i = 0; i < 64; i++) {
-    innerKey[i] ^= keyPadded[i]!;
-    outerKey[i] ^= keyPadded[i]!;
+    innerKey[i] = innerKey[i]! ^ keyPadded[i]!;
+    outerKey[i] = outerKey[i]! ^ keyPadded[i]!;
   }
 
   // Inner hash
@@ -244,12 +245,18 @@ export class MfaService {
     }
 
     const row = result.rows[0]!;
-    return {
+    const status: MfaStatus = {
       enabled: true,
       method: row.method as MfaMethod,
-      verifiedAt: row.verified_at ? new Date(row.verified_at as string) : undefined,
       backupCodesRemaining: parseInt(row.backup_codes as string, 10),
     };
+    
+    // Only add verifiedAt if it's defined (exactOptionalPropertyTypes compliance)
+    if (row.verified_at) {
+      status.verifiedAt = new Date(row.verified_at as string);
+    }
+    
+    return status;
   }
 
   /**
@@ -465,12 +472,18 @@ export class MfaService {
       details: { mfa: true, failedAttempts },
     });
 
-    return {
+    const result: MfaVerifyResult = {
       success: false,
       error: 'Invalid verification code',
       attemptsRemaining: Math.max(0, MFA_CONFIG.maxFailedAttempts - failedAttempts),
-      lockedUntil: newLockedUntil,
     };
+    
+    // Only add lockedUntil if it's defined (exactOptionalPropertyTypes compliance)
+    if (newLockedUntil) {
+      result.lockedUntil = newLockedUntil;
+    }
+    
+    return result;
   }
 
   /**

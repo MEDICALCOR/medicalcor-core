@@ -128,14 +128,19 @@ function initializeAIGatewayServices(redis: SecureRedisClient): void {
       blockOnExceeded: process.env.AI_BUDGET_SOFT_LIMIT === 'true' ? false : isProduction,
       onAlert: async (alert) => {
         // SECURITY FIX: Use structured logging instead of console.warn in production
-        // The fastify logger respects log levels and integrates with observability
-        fastify.log.warn({
+        // Use createLogger from @medicalcor/core since fastify is not in scope
+        const { createLogger } = await import('@medicalcor/core');
+        const logger = createLogger({ name: 'ai-budget-controller' });
+        
+        logger.warn({
           event: 'ai_budget_alert',
-          level: alert.level,
-          userId: alert.userId,
-          tenantId: alert.tenantId,
-          percentage: alert.percentage,
-          remaining: alert.remaining,
+          alertId: alert.id,
+          scope: alert.scope,
+          scopeId: alert.scopeId,
+          threshold: alert.threshold,
+          percentUsed: alert.percentUsed,
+          currentSpend: alert.currentSpend,
+          budgetLimit: alert.budgetLimit,
         }, '[AI Budget Alert] Budget threshold exceeded');
         // TODO: Integrate with monitoring/alerting system (Sentry, PagerDuty, etc.)
       },

@@ -163,7 +163,7 @@ export const handleVoiceCall = task({
           });
 
           // Perform triage assessment
-          const triageResult = triage.assess({
+          const triageResult = await triage.assess({
             leadScore: scoreResult.classification,
             channel: 'voice',
             messageContent: transcript,
@@ -355,7 +355,7 @@ export const handleCallCompleted = task({
         scoreResult = await scoring.scoreMessage(leadContext);
 
         // Triage assessment
-        const triageResult = triage.assess({
+        const triageResult = await triage.assess({
           leadScore: scoreResult.classification,
           channel: 'voice',
           messageContent: transcript,
