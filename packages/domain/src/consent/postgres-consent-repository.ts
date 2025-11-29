@@ -61,6 +61,68 @@ interface DatabaseClient {
   query(sql: string, params?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
 }
 
+/**
+ * Type guard to validate a database row has the expected ConsentRow shape
+ * This provides runtime validation to ensure type safety
+ */
+function isConsentRow(row: Record<string, unknown>): row is ConsentRow {
+  return (
+    typeof row.id === 'string' &&
+    typeof row.contact_id === 'string' &&
+    typeof row.phone === 'string' &&
+    typeof row.consent_type === 'string' &&
+    typeof row.status === 'string' &&
+    typeof row.version === 'number' &&
+    typeof row.source_channel === 'string' &&
+    typeof row.source_method === 'string' &&
+    row.created_at instanceof Date &&
+    row.updated_at instanceof Date
+  );
+}
+
+/**
+ * Type guard to validate a database row has the expected AuditRow shape
+ */
+function isAuditRow(row: Record<string, unknown>): row is AuditRow {
+  return (
+    typeof row.id === 'string' &&
+    typeof row.consent_id === 'string' &&
+    typeof row.action === 'string' &&
+    typeof row.new_status === 'string' &&
+    typeof row.performed_by === 'string' &&
+    row.timestamp instanceof Date
+  );
+}
+
+/**
+ * Safely cast database rows to ConsentRow[] with runtime validation
+ * TYPE SAFETY FIX: Replaces unsafe `as unknown as ConsentRow[]` casts
+ */
+function toConsentRows(rows: Record<string, unknown>[]): ConsentRow[] {
+  return rows.filter((row): row is ConsentRow => {
+    if (!isConsentRow(row)) {
+      // Log warning but don't throw - allows partial results
+      console.warn('[ConsentRepository] Invalid row structure detected, skipping row');
+      return false;
+    }
+    return true;
+  });
+}
+
+/**
+ * Safely cast database rows to AuditRow[] with runtime validation
+ * TYPE SAFETY FIX: Replaces unsafe `as unknown as AuditRow[]` casts
+ */
+function toAuditRows(rows: Record<string, unknown>[]): AuditRow[] {
+  return rows.filter((row): row is AuditRow => {
+    if (!isAuditRow(row)) {
+      console.warn('[ConsentRepository] Invalid audit row structure detected, skipping row');
+      return false;
+    }
+    return true;
+  });
+}
+
 export class PostgresConsentRepository implements ConsentRepository {
   constructor(private readonly db: DatabaseClient) {}
 
@@ -198,7 +260,8 @@ export class PostgresConsentRepository implements ConsentRepository {
   async findByContact(contactId: string): Promise<ConsentRecord[]> {
     const sql = `SELECT * FROM consents WHERE contact_id = $1 ORDER BY created_at DESC`;
     const result = await this.db.query(sql, [contactId]);
-    return (result.rows as unknown as ConsentRow[]).map((row) => this.rowToConsent(row));
+    // TYPE SAFETY FIX: Use validated type conversion instead of unsafe cast
+    return toConsentRows(result.rows).map((row) => this.rowToConsent(row));
   }
 
   async delete(consentId: string): Promise<void> {
@@ -223,13 +286,15 @@ export class PostgresConsentRepository implements ConsentRepository {
       ORDER BY expires_at ASC
     `;
     const result = await this.db.query(sql, [withinDays]);
-    return (result.rows as unknown as ConsentRow[]).map((row) => this.rowToConsent(row));
+    // TYPE SAFETY FIX: Use validated type conversion instead of unsafe cast
+    return toConsentRows(result.rows).map((row) => this.rowToConsent(row));
   }
 
   async findByStatus(status: ConsentStatus): Promise<ConsentRecord[]> {
     const sql = `SELECT * FROM consents WHERE status = $1 ORDER BY updated_at DESC`;
     const result = await this.db.query(sql, [status]);
-    return (result.rows as unknown as ConsentRow[]).map((row) => this.rowToConsent(row));
+    // TYPE SAFETY FIX: Use validated type conversion instead of unsafe cast
+    return toConsentRows(result.rows).map((row) => this.rowToConsent(row));
   }
 
   async appendAuditEntry(entry: ConsentAuditEntry): Promise<void> {
@@ -260,7 +325,8 @@ export class PostgresConsentRepository implements ConsentRepository {
       ORDER BY timestamp DESC
     `;
     const result = await this.db.query(sql, [consentId]);
-    return (result.rows as unknown as AuditRow[]).map((row) => this.rowToAuditEntry(row));
+    // TYPE SAFETY FIX: Use validated type conversion instead of unsafe cast
+    return toAuditRows(result.rows).map((row) => this.rowToAuditEntry(row));
   }
 
   async getContactAuditTrail(contactId: string): Promise<ConsentAuditEntry[]> {
@@ -271,7 +337,8 @@ export class PostgresConsentRepository implements ConsentRepository {
       ORDER BY cal.timestamp DESC
     `;
     const result = await this.db.query(sql, [contactId]);
-    return (result.rows as unknown as AuditRow[]).map((row) => this.rowToAuditEntry(row));
+    // TYPE SAFETY FIX: Use validated type conversion instead of unsafe cast
+    return toAuditRows(result.rows).map((row) => this.rowToAuditEntry(row));
   }
 
   private rowToConsent(row: ConsentRow): ConsentRecord {

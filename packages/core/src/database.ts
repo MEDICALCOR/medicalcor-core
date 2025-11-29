@@ -115,6 +115,45 @@ class PostgresPool implements DatabasePool {
         ssl: sslConfig,
       }) as unknown as PgPool;
 
+      // SECURITY FIX: Add pool error handler for auth failures
+      // This ensures database authentication failures are logged for audit compliance
+      const poolWithEvents = this.pool as unknown as {
+        on: (event: string, handler: (error: Error, client?: unknown) => void) => void;
+      };
+
+      poolWithEvents.on('error', (error: Error) => {
+        // AUDIT LOG: Database connection errors (including auth failures)
+        const errorMessage = error.message.toLowerCase();
+        const isAuthFailure =
+          errorMessage.includes('password') ||
+          errorMessage.includes('authentication') ||
+          errorMessage.includes('permission') ||
+          errorMessage.includes('access denied') ||
+          errorMessage.includes('28p01') || // PostgreSQL invalid password
+          errorMessage.includes('28000');   // PostgreSQL invalid authorization
+
+        if (isAuthFailure) {
+          this.logger.error(
+            {
+              errorType: 'database_auth_failure',
+              errorMessage: error.message,
+              // SECURITY: Don't log full connection string (contains password)
+              timestamp: new Date().toISOString(),
+            },
+            'SECURITY AUDIT: Database authentication failure detected'
+          );
+        } else {
+          this.logger.error(
+            {
+              errorType: 'database_connection_error',
+              errorMessage: error.message,
+              timestamp: new Date().toISOString(),
+            },
+            'Database pool connection error'
+          );
+        }
+      });
+
       // Test connection - no type assertion needed now
       const client = await this.pool.connect();
       client.release();
@@ -122,7 +161,29 @@ class PostgresPool implements DatabasePool {
       this.initialized = true;
       this.logger.info('Database pool initialized');
     } catch (error) {
-      this.logger.error({ error }, 'Failed to initialize database pool');
+      // SECURITY FIX: Log detailed auth failures for audit trail
+      const errorMessage = error instanceof Error ? error.message.toLowerCase() : '';
+      const isAuthFailure =
+        errorMessage.includes('password') ||
+        errorMessage.includes('authentication') ||
+        errorMessage.includes('permission') ||
+        errorMessage.includes('access denied') ||
+        errorMessage.includes('28p01') ||
+        errorMessage.includes('28000');
+
+      if (isAuthFailure) {
+        this.logger.error(
+          {
+            errorType: 'database_auth_failure',
+            errorMessage: error instanceof Error ? error.message : String(error),
+            timestamp: new Date().toISOString(),
+          },
+          'SECURITY AUDIT: Database authentication failure during initialization'
+        );
+      } else {
+        this.logger.error({ error }, 'Failed to initialize database pool');
+      }
+
       throw error;
     }
   }
