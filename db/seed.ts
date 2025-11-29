@@ -95,6 +95,170 @@ const SCORING_REASONS = [
   'Potential client pentru servicii estetice',
 ];
 
+// Medical Procedures with realistic prices (in EUR)
+const MEDICAL_PROCEDURES = [
+  // Implantology - High Value
+  { name: 'Implant dentar Premium (Nobel Biocare)', category: 'implantology', priceMin: 800, priceMax: 1200, duration: 60, isHighValue: true },
+  { name: 'Implant dentar Standard (MegaGen)', category: 'implantology', priceMin: 500, priceMax: 700, duration: 60, isHighValue: true },
+  { name: 'All-on-4 (per arcadă)', category: 'implantology', priceMin: 5000, priceMax: 8000, duration: 180, isHighValue: true },
+  { name: 'All-on-6 (per arcadă)', category: 'implantology', priceMin: 7000, priceMax: 12000, duration: 240, isHighValue: true },
+  { name: 'Sinus lift', category: 'implantology', priceMin: 600, priceMax: 1000, duration: 90, isHighValue: true },
+  { name: 'Augmentare osoasă', category: 'implantology', priceMin: 400, priceMax: 800, duration: 60, isHighValue: true },
+
+  // Prosthodontics
+  { name: 'Coroană zirconiu', category: 'prosthodontics', priceMin: 300, priceMax: 450, duration: 60, isHighValue: false },
+  { name: 'Coroană metalo-ceramică', category: 'prosthodontics', priceMin: 200, priceMax: 300, duration: 45, isHighValue: false },
+  { name: 'Fațetă ceramică (e.max)', category: 'prosthodontics', priceMin: 350, priceMax: 500, duration: 45, isHighValue: true },
+  { name: 'Proteză totală mobilă', category: 'prosthodontics', priceMin: 400, priceMax: 700, duration: 90, isHighValue: false },
+  { name: 'Proteză scheletată', category: 'prosthodontics', priceMin: 500, priceMax: 800, duration: 90, isHighValue: false },
+  { name: 'Pod dentar (3 unități)', category: 'prosthodontics', priceMin: 600, priceMax: 1000, duration: 90, isHighValue: false },
+
+  // Endodontics
+  { name: 'Tratament de canal monoradicular', category: 'endodontics', priceMin: 150, priceMax: 250, duration: 60, isHighValue: false },
+  { name: 'Tratament de canal pluriradicular', category: 'endodontics', priceMin: 200, priceMax: 350, duration: 90, isHighValue: false },
+  { name: 'Retratament endodontic', category: 'endodontics', priceMin: 250, priceMax: 400, duration: 90, isHighValue: false },
+
+  // Orthodontics - High Value
+  { name: 'Aparat dentar metalic (complet)', category: 'orthodontics', priceMin: 1500, priceMax: 2500, duration: 45, isHighValue: true },
+  { name: 'Aparat dentar ceramic (complet)', category: 'orthodontics', priceMin: 2000, priceMax: 3500, duration: 45, isHighValue: true },
+  { name: 'Invisalign (tratament complet)', category: 'orthodontics', priceMin: 3000, priceMax: 5000, duration: 45, isHighValue: true },
+  { name: 'Gutieră de contenție', category: 'orthodontics', priceMin: 150, priceMax: 250, duration: 30, isHighValue: false },
+
+  // Aesthetics
+  { name: 'Albire dentară profesională', category: 'aesthetics', priceMin: 200, priceMax: 350, duration: 60, isHighValue: false },
+  { name: 'Albire cu lampă Zoom', category: 'aesthetics', priceMin: 300, priceMax: 450, duration: 90, isHighValue: false },
+  { name: 'Bonding estetic (per dinte)', category: 'aesthetics', priceMin: 80, priceMax: 150, duration: 30, isHighValue: false },
+
+  // Surgery
+  { name: 'Extractie simplă', category: 'surgery', priceMin: 50, priceMax: 100, duration: 30, isHighValue: false },
+  { name: 'Extractie chirurgicală', category: 'surgery', priceMin: 100, priceMax: 200, duration: 45, isHighValue: false },
+  { name: 'Extractie molar de minte inclus', category: 'surgery', priceMin: 200, priceMax: 400, duration: 60, isHighValue: false },
+
+  // General
+  { name: 'Consultație + plan de tratament', category: 'general', priceMin: 0, priceMax: 50, duration: 30, isHighValue: false },
+  { name: 'Detartraj + periaj profesional', category: 'general', priceMin: 80, priceMax: 150, duration: 45, isHighValue: false },
+  { name: 'Plomba compozit', category: 'general', priceMin: 80, priceMax: 150, duration: 30, isHighValue: false },
+  { name: 'Plomba ceramică (inlay/onlay)', category: 'general', priceMin: 200, priceMax: 350, duration: 45, isHighValue: false },
+];
+
+// WhatsApp Message Templates (Meta-approved format)
+const WHATSAPP_TEMPLATES = [
+  {
+    name: 'appointment_reminder_24h',
+    category: 'appointment',
+    language: 'ro',
+    content: `Bună ziua, {{1}}! 👋
+
+Vă reamintim că aveți o programare mâine, {{2}}, la ora {{3}}.
+
+📍 Clinica {{4}}
+🦷 Procedură: {{5}}
+
+Vă rugăm să confirmați prezența răspunzând cu DA sau să anulați cu cel puțin 4 ore înainte.
+
+Cu respect,
+Echipa {{4}}`,
+    variables: ['patientName', 'date', 'time', 'clinicName', 'procedure'],
+    headerType: 'text',
+    buttonsType: 'quick_reply',
+    buttons: ['Confirm', 'Reprogramează', 'Anulează'],
+  },
+  {
+    name: 'appointment_confirmation',
+    category: 'appointment',
+    language: 'ro',
+    content: `Programare confirmată! ✅
+
+{{1}}, programarea dumneavoastră a fost înregistrată:
+
+📅 Data: {{2}}
+🕐 Ora: {{3}}
+🦷 Procedură: {{4}}
+👨‍⚕️ Doctor: {{5}}
+
+📍 {{6}}
+
+Vă așteptăm cu drag!`,
+    variables: ['patientName', 'date', 'time', 'procedure', 'doctorName', 'address'],
+    headerType: 'text',
+  },
+  {
+    name: 'welcome_new_lead',
+    category: 'marketing',
+    language: 'ro',
+    content: `Bună ziua! 👋
+
+Mulțumim pentru interesul acordat clinicii noastre dentare!
+
+Suntem aici să vă ajutăm cu:
+🦷 Consultații gratuite de evaluare
+💎 Tratamente estetice de ultimă generație
+🏥 Implanturi și proteze premium
+
+Cum vă putem fi de folos astăzi?`,
+    variables: [],
+    headerType: 'text',
+    buttonsType: 'quick_reply',
+    buttons: ['Vreau programare', 'Întrebare prețuri', 'Urgență dentară'],
+  },
+  {
+    name: 'post_treatment_followup',
+    category: 'followup',
+    language: 'ro',
+    content: `Bună ziua, {{1}}! 🌟
+
+Sperăm că vă simțiți bine după tratamentul de {{2}}.
+
+Vă rugăm să ne spuneți cum vă simțiți:
+- Aveți dureri sau disconfort?
+- Ați urmat indicațiile post-tratament?
+
+Suntem aici pentru orice întrebare!
+
+Echipa {{3}}`,
+    variables: ['patientName', 'procedure', 'clinicName'],
+    headerType: 'text',
+    buttonsType: 'quick_reply',
+    buttons: ['Mă simt bine', 'Am o întrebare', 'Am nevoie de ajutor'],
+  },
+  {
+    name: 'payment_reminder',
+    category: 'billing',
+    language: 'ro',
+    content: `Bună ziua, {{1}}.
+
+Vă informăm că aveți o factură restantă în valoare de {{2}} EUR pentru tratamentul din data de {{3}}.
+
+Modalități de plată:
+💳 Card la recepție
+🏦 Transfer bancar
+📱 Plată online
+
+Vă rugăm să ne contactați pentru orice întrebare.`,
+    variables: ['patientName', 'amount', 'treatmentDate'],
+    headerType: 'text',
+  },
+  {
+    name: 'recall_checkup',
+    category: 'recall',
+    language: 'ro',
+    content: `Bună ziua, {{1}}! 😊
+
+Au trecut {{2}} luni de la ultima vizită la clinica noastră.
+
+Este timpul pentru un control de rutină pentru:
+✓ Verificare generală
+✓ Detartraj profesional
+✓ Evaluare tratament anterior
+
+Programați-vă acum și beneficiați de 10% reducere!`,
+    variables: ['patientName', 'monthsSinceLastVisit'],
+    headerType: 'text',
+    buttonsType: 'call_to_action',
+    buttons: ['Programează acum'],
+  },
+];
+
 // =============================================================================
 // Helpers
 // =============================================================================
@@ -464,6 +628,250 @@ async function seedAIProviderMetrics(client: pg.Client): Promise<number> {
 }
 
 // =============================================================================
+// Seed Medical Procedures
+// =============================================================================
+
+async function seedMedicalProcedures(client: pg.Client): Promise<number> {
+  let inserted = 0;
+
+  // Create table if not exists
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS medical_procedures (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name VARCHAR(255) NOT NULL,
+      category VARCHAR(100) NOT NULL,
+      price_min DECIMAL(10,2) NOT NULL,
+      price_max DECIMAL(10,2) NOT NULL,
+      duration_minutes INTEGER NOT NULL,
+      is_high_value BOOLEAN DEFAULT FALSE,
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(name)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_procedures_category ON medical_procedures(category);
+    CREATE INDEX IF NOT EXISTS idx_procedures_high_value ON medical_procedures(is_high_value) WHERE is_high_value = TRUE;
+  `);
+
+  for (const proc of MEDICAL_PROCEDURES) {
+    try {
+      await client.query(
+        `INSERT INTO medical_procedures (name, category, price_min, price_max, duration_minutes, is_high_value)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (name) DO UPDATE SET
+           price_min = EXCLUDED.price_min,
+           price_max = EXCLUDED.price_max,
+           duration_minutes = EXCLUDED.duration_minutes,
+           is_high_value = EXCLUDED.is_high_value,
+           updated_at = NOW()`,
+        [proc.name, proc.category, proc.priceMin, proc.priceMax, proc.duration, proc.isHighValue]
+      );
+      inserted++;
+    } catch {
+      // Ignore errors
+    }
+  }
+
+  return inserted;
+}
+
+// =============================================================================
+// Seed WhatsApp Templates
+// =============================================================================
+
+async function seedWhatsAppTemplates(client: pg.Client): Promise<number> {
+  let inserted = 0;
+
+  // Create table if not exists
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS whatsapp_templates (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name VARCHAR(255) NOT NULL,
+      category VARCHAR(100) NOT NULL,
+      language VARCHAR(10) NOT NULL DEFAULT 'ro',
+      content TEXT NOT NULL,
+      variables JSONB DEFAULT '[]',
+      header_type VARCHAR(50),
+      buttons_type VARCHAR(50),
+      buttons JSONB DEFAULT '[]',
+      meta_template_id VARCHAR(255),
+      meta_status VARCHAR(50) DEFAULT 'pending',
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(name, language)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_templates_category ON whatsapp_templates(category);
+    CREATE INDEX IF NOT EXISTS idx_templates_active ON whatsapp_templates(is_active) WHERE is_active = TRUE;
+  `);
+
+  for (const template of WHATSAPP_TEMPLATES) {
+    try {
+      await client.query(
+        `INSERT INTO whatsapp_templates (name, category, language, content, variables, header_type, buttons_type, buttons)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         ON CONFLICT (name, language) DO UPDATE SET
+           content = EXCLUDED.content,
+           variables = EXCLUDED.variables,
+           header_type = EXCLUDED.header_type,
+           buttons_type = EXCLUDED.buttons_type,
+           buttons = EXCLUDED.buttons,
+           updated_at = NOW()`,
+        [
+          template.name,
+          template.category,
+          template.language,
+          template.content,
+          JSON.stringify(template.variables),
+          template.headerType ?? null,
+          template.buttonsType ?? null,
+          JSON.stringify(template.buttons ?? []),
+        ]
+      );
+      inserted++;
+    } catch {
+      // Ignore errors
+    }
+  }
+
+  return inserted;
+}
+
+// =============================================================================
+// Seed System Prompts (from ai-gateway/system-prompts.ts defaults)
+// =============================================================================
+
+async function seedSystemPrompts(client: pg.Client): Promise<number> {
+  let inserted = 0;
+
+  // Create table if not exists
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS system_prompts (
+      id VARCHAR(255) PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      category VARCHAR(100) NOT NULL,
+      version VARCHAR(20) NOT NULL,
+      content TEXT NOT NULL,
+      variables JSONB DEFAULT '[]',
+      metadata JSONB DEFAULT '{}',
+      tenant_id VARCHAR(255),
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_prompts_category ON system_prompts(category);
+    CREATE INDEX IF NOT EXISTS idx_prompts_tenant ON system_prompts(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_prompts_active ON system_prompts(is_active) WHERE is_active = TRUE;
+  `);
+
+  // Default system prompts
+  const systemPrompts = [
+    {
+      id: 'lead_scoring_v1',
+      name: 'Lead Scoring - Dental Clinic',
+      category: 'lead_scoring',
+      version: '1.0.0',
+      content: `Ești un asistent AI pentru o clinică dentară din România. Analizezi mesajele primite de la potențiali pacienți și atribui un scor de la 1 la 5.
+
+CRITERII DE SCORARE:
+- Scor 5 (HOT): Menționează proceduri cu valoare mare (implant, All-on-X, proteze), urgență, sau are asigurare privată
+- Scor 4 (WARM-HOT): Interesat de tratamente estetice (albire, fațete), menționează buget, sau cere programare
+- Scor 3 (WARM): Întrebări generale despre servicii, prețuri orientative, disponibilitate
+- Scor 2 (COLD): Doar consultație de rutină, curățare, sau mesaj neclar
+- Scor 1 (UNQUALIFIED): Spam, off-topic, sau nu poate fi contactat
+
+RĂSPUNDE ÎN FORMAT JSON:
+{
+  "score": <1-5>,
+  "classification": "<HOT|WARM|COLD|UNQUALIFIED>",
+  "confidence": <0.0-1.0>,
+  "reasoning": "<explicație scurtă în română>",
+  "procedureInterest": ["<proceduri identificate>"],
+  "urgency": "<low|medium|high>",
+  "suggestedAction": "<acțiune recomandată>"
+}`,
+      variables: ['clinicName', 'procedures', 'priceRange'],
+      metadata: { description: 'Prompt pentru scorarea lead-urilor dentare', maxTokens: 500, temperature: 0.3 },
+    },
+    {
+      id: 'reply_generation_v1',
+      name: 'Reply Generation - WhatsApp',
+      category: 'reply_generation',
+      version: '1.0.0',
+      content: `Ești asistentul virtual al clinicii dentare {{clinicName}}. Răspunzi pe WhatsApp la mesajele pacienților.
+
+REGULI:
+1. Folosește un ton profesional dar prietenos
+2. Răspunsurile să fie scurte (max 3 paragrafe)
+3. Menționează întotdeauna posibilitatea de programare
+4. Nu da prețuri exacte - oferă doar intervale orientative
+5. Pentru urgențe, recomandă să sune la {{phoneNumber}}
+6. Semnează cu "Echipa {{clinicName}}"
+
+Răspunde la mesajul pacientului într-un mod natural și util.`,
+      variables: ['clinicName', 'phoneNumber', 'priceList', 'patientMessage'],
+      metadata: { description: 'Generare răspunsuri WhatsApp', maxTokens: 300, temperature: 0.7 },
+    },
+    {
+      id: 'triage_v1',
+      name: 'Medical Triage',
+      category: 'triage',
+      version: '1.0.0',
+      content: `Ești un sistem de triaj medical pentru stomatologie. Analizezi simptomele raportate și prioritizezi urgența.
+
+NIVELURI DE URGENȚĂ:
+- URGENT (roșu): Durere severă, sângerare abundentă, traumatism facial, abces cu febră
+- PRIORITAR (portocaliu): Durere moderată persistentă, inflamație vizibilă, proteze rupte
+- STANDARD (galben): Durere minoră, consultație de rutină, estetică
+- ELECTIV (verde): Curățare, control periodic, informații generale
+
+RĂSPUNS JSON:
+{
+  "urgencyLevel": "<URGENT|PRIORITY|STANDARD|ELECTIVE>",
+  "urgencyScore": <1-10>,
+  "symptoms": ["<simptome identificate>"],
+  "recommendedTimeframe": "<imediat|24h|3-5 zile|2 săptămâni>",
+  "triageNotes": "<note pentru echipa medicală>"
+}`,
+      variables: ['patientSymptoms', 'patientAge', 'medicalHistory'],
+      metadata: { description: 'Triaj medical pentru programări urgente', maxTokens: 400, temperature: 0.2 },
+    },
+  ];
+
+  for (const prompt of systemPrompts) {
+    try {
+      await client.query(
+        `INSERT INTO system_prompts (id, name, category, version, content, variables, metadata)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (id) DO UPDATE SET
+           content = EXCLUDED.content,
+           variables = EXCLUDED.variables,
+           metadata = EXCLUDED.metadata,
+           version = EXCLUDED.version,
+           updated_at = NOW()`,
+        [
+          prompt.id,
+          prompt.name,
+          prompt.category,
+          prompt.version,
+          prompt.content,
+          JSON.stringify(prompt.variables),
+          JSON.stringify(prompt.metadata),
+        ]
+      );
+      inserted++;
+    } catch {
+      // Ignore errors
+    }
+  }
+
+  return inserted;
+}
+
+// =============================================================================
 // Main
 // =============================================================================
 
@@ -506,6 +914,15 @@ async function main(): Promise<void> {
 
     const providerMetrics = await seedAIProviderMetrics(client);
     console.log(`  ai_provider_metrics: ${providerMetrics} records`);
+
+    const procedures = await seedMedicalProcedures(client);
+    console.log(`  medical_procedures: ${procedures} records`);
+
+    const templates = await seedWhatsAppTemplates(client);
+    console.log(`  whatsapp_templates: ${templates} records`);
+
+    const prompts = await seedSystemPrompts(client);
+    console.log(`  system_prompts: ${prompts} records`);
 
     console.log();
     console.log('='.repeat(60));

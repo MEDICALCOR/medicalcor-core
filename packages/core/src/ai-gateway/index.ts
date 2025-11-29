@@ -199,3 +199,19 @@ export {
   type AIBudgetControllerConfig,
   type CustomBudgetLimits,
 } from './ai-budget-controller.js';
+
+// System Prompts - Centralized prompt storage and versioning
+export {
+  SystemPromptsRepository,
+  createSystemPromptsRepository,
+  getSystemPromptsRepository,
+  initializeSystemPrompts,
+  DEFAULT_PROMPTS,
+  PromptCategorySchema,
+  SystemPromptSchema,
+  type PromptCategory,
+  type SystemPrompt,
+  type PromptTemplate,
+  type SystemPromptsRepositoryConfig,
+  type PromptQuery,
+} from './system-prompts.js';
