@@ -63,11 +63,17 @@ export const apiAuthPlugin: FastifyPluginAsync<ApiAuthConfig> = async (fastify, 
     }
   }
 
-  // Error if no API keys configured (REQUIRED in all environments)
+  // SECURITY FIX: Fail-close - API_SECRET_KEY is REQUIRED in production
+  // This prevents the application from starting without proper authentication configured
+  const isProduction = process.env.NODE_ENV === 'production';
   if (apiKeys.length === 0) {
-    fastify.log.error(
-      'CRITICAL: API_SECRET_KEY not configured - workflow endpoints will reject all requests!'
-    );
+    const errorMsg = 'CRITICAL: API_SECRET_KEY not configured - workflow endpoints will reject all requests!';
+    fastify.log.error(errorMsg);
+
+    // SECURITY: In production, fail fast - do not start without API key
+    if (isProduction) {
+      throw new Error('FATAL: API_SECRET_KEY must be configured in production. Server cannot start without authentication.');
+    }
   }
 
   fastify.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {

@@ -1,0 +1,27 @@
+# MedicalCor Security Policy
+# This file follows the security.txt standard (RFC 9116)
+# https://securitytxt.org/
+
+Contact: mailto:security@medicalcor.io
+Contact: https://medicalcor.io/security/report
+
+# Encryption key for secure communication
+# Encryption: https://medicalcor.io/.well-known/pgp-key.txt
+
+# Security acknowledgments page
+Acknowledgments: https://medicalcor.io/security/acknowledgments
+
+# Preferred languages for security reports
+Preferred-Languages: en, ro, de
+
+# Security policy and disclosure guidelines
+Policy: https://medicalcor.io/security/policy
+
+# When this file expires (should be updated annually)
+Expires: 2026-12-31T23:59:59.000Z
+
+# Hiring security researchers
+Hiring: https://medicalcor.io/careers
+
+# Canonical URL for this file
+Canonical: https://api.medicalcor.io/.well-known/security.txt

@@ -206,14 +206,24 @@ export class UserRepository {
 
   /**
    * Increment failed login attempts
+   * SECURITY FIX: Properly handle lockout timer - only set new lockout if not already locked
+   * This prevents indefinite lockout from repeated attempts
    */
   async incrementFailedAttempts(id: string): Promise<{ attempts: number; lockedUntil?: Date }> {
     const result = await this.db.query(
       `UPDATE users SET
         failed_login_attempts = failed_login_attempts + 1,
         locked_until = CASE
-          WHEN failed_login_attempts >= 4 THEN CURRENT_TIMESTAMP + INTERVAL '30 minutes'
-          ELSE locked_until
+          -- SECURITY FIX: Only set new lockout if:
+          -- 1. We've reached the threshold (5 attempts including this one)
+          -- 2. Account is not currently locked (prevents extending lockout indefinitely)
+          WHEN failed_login_attempts >= 4 AND (locked_until IS NULL OR locked_until < CURRENT_TIMESTAMP)
+            THEN CURRENT_TIMESTAMP + INTERVAL '30 minutes'
+          -- Keep existing lockout if still active
+          WHEN locked_until > CURRENT_TIMESTAMP
+            THEN locked_until
+          -- Otherwise no lockout
+          ELSE NULL
         END
        WHERE id = $1
        RETURNING failed_login_attempts, locked_until`,
@@ -346,14 +356,23 @@ export class UserRepository {
 
   /**
    * Search users by name or email
+   * SECURITY FIX: Escape LIKE special characters to prevent LIKE injection
    */
   async search(query: string, limit = 20): Promise<SafeUser[]> {
+    // SECURITY: Escape LIKE pattern special characters to prevent injection
+    // The characters % and _ have special meaning in LIKE patterns
+    const escapedQuery = query
+      .toLowerCase()
+      .replace(/\\/g, '\\\\')  // Escape backslashes first
+      .replace(/%/g, '\\%')    // Escape percent signs
+      .replace(/_/g, '\\_');   // Escape underscores
+
     const result = await this.db.query(
       `SELECT * FROM users
-       WHERE LOWER(name) LIKE $1 OR LOWER(email) LIKE $1
+       WHERE LOWER(name) LIKE $1 ESCAPE '\\' OR LOWER(email) LIKE $1 ESCAPE '\\'
        ORDER BY name ASC
        LIMIT $2`,
-      [`%${query.toLowerCase()}%`, limit]
+      [`%${escapedQuery}%`, limit]
     );
 
     return result.rows.map((row) => toSafeUser(mapRowToUser(row)));

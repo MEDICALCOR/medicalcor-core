@@ -9,6 +9,8 @@ import {
   validateEnv,
   getMissingSecrets,
   logSecretsStatus,
+  validateSecretsAtStartup,
+  printSetupInstructions,
 } from '@medicalcor/core';
 import {
   healthRoutes,
@@ -34,6 +36,7 @@ const logger = createLogger({ name: 'api' });
 
 /**
  * Validate environment and secrets on boot
+ * SECURITY: Fail-fast in production if critical secrets are missing
  */
 function validateEnvironment(): void {
   const isProduction = process.env.NODE_ENV === 'production';
@@ -46,6 +49,23 @@ function validateEnvironment(): void {
     if (isProduction) {
       process.exit(1);
     }
+  }
+
+  // SECURITY: Comprehensive secrets validation at startup
+  // In production, this will throw and exit if required secrets are missing
+  try {
+    const summary = validateSecretsAtStartup({
+      failOnMissing: isProduction,
+      failOnRecommended: false, // Only warn about recommended secrets
+    });
+
+    if (!summary.valid || summary.warnings > 0) {
+      // Print setup instructions for missing secrets
+      printSetupInstructions(summary);
+    }
+  } catch (error) {
+    logger.error({ error }, 'FATAL: Secrets validation failed');
+    process.exit(1);
   }
 
   // Log secrets status (without revealing values)
@@ -70,13 +90,16 @@ function parseCorsOrigins(): string[] | false {
   // No CORS configured - disabled (most secure default)
   if (!corsOrigin) return false;
 
-  // SECURITY: Never allow wildcard in production
+  // SECURITY FIX: Never allow wildcard in any environment
+  // This prevents potential data leaks even in development
   if (corsOrigin === '*') {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('SECURITY: CORS_ORIGIN cannot be "*" in production');
     }
-    // In development, allow all origins for convenience
-    return ['*'];
+    // SECURITY FIX: In development, use explicit localhost origins instead of wildcard
+    // This provides security while maintaining developer convenience
+    logger.warn('CORS_ORIGIN is "*" - using localhost defaults for development');
+    return ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173', 'http://127.0.0.1:3000'];
   }
 
   // Parse comma-separated origins and validate each

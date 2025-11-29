@@ -15,11 +15,18 @@ const logger: Logger = createLogger({ name: 'password-reset-service' });
 
 /** Token configuration */
 const TOKEN_CONFIG = {
-  /** Token expiration time in minutes */
-  expirationMinutes: 15,
-  /** Minimum time between reset requests (rate limiting) */
-  minRequestIntervalMinutes: 1,
-  /** Max reset requests per hour */
+  /**
+   * Token expiration time in minutes
+   * SECURITY FIX: Reduced from 15 to 5 minutes for medical application security
+   * Shorter expiration window reduces risk of token interception/brute-force
+   */
+  expirationMinutes: 5,
+  /**
+   * Minimum time between reset requests (rate limiting)
+   * SECURITY FIX: Increased from 1 to 5 minutes to prevent enumeration attacks
+   */
+  minRequestIntervalMinutes: 5,
+  /** Max reset requests per hour - kept at 3 for reasonable UX */
   maxRequestsPerHour: 3,
 };
 
@@ -53,24 +60,45 @@ export class PasswordResetService {
   /**
    * Request a password reset for an email
    * Returns the token if successful (should be sent via email in production)
+   *
+   * SECURITY FIX: Implements constant-time response to prevent timing attacks
+   * All code paths take approximately the same time to complete
    */
   async requestReset(
     email: string,
     context?: AuthContext
   ): Promise<{ success: boolean; token?: string; error?: string }> {
+    // SECURITY FIX: Record start time for constant-time response
+    const startTime = Date.now();
+    const MIN_RESPONSE_TIME_MS = 200; // Minimum response time to mask timing differences
+
     const user = await this.userRepo.findByEmail(email);
+
+    // Helper to ensure constant-time response
+    const delayAndReturn = async <T>(result: T): Promise<T> => {
+      const elapsed = Date.now() - startTime;
+      const delay = Math.max(0, MIN_RESPONSE_TIME_MS - elapsed);
+      if (delay > 0) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+      return result;
+    };
 
     // Always return success to prevent email enumeration
     // But only generate token if user exists
     if (!user) {
       logger.info({ email }, 'Password reset requested for non-existent email');
-      return { success: true }; // Don't reveal that email doesn't exist
+      // SECURITY FIX: Perform dummy work to match timing of successful path
+      await this.performDummyWork();
+      return delayAndReturn({ success: true }); // Don't reveal that email doesn't exist
     }
 
     // Check if account is active
     if (user.status !== 'active') {
       logger.info({ email, status: user.status }, 'Password reset requested for inactive account');
-      return { success: true }; // Don't reveal account status
+      // SECURITY FIX: Perform dummy work to match timing
+      await this.performDummyWork();
+      return delayAndReturn({ success: true }); // Don't reveal account status
     }
 
     // Check rate limiting
@@ -265,6 +293,19 @@ export class PasswordResetService {
       logger.info({ count }, 'Expired password reset tokens cleaned up');
     }
     return count;
+  }
+
+  /**
+   * SECURITY FIX: Perform dummy work to ensure constant-time response
+   * This prevents timing attacks that could reveal if an email exists
+   */
+  private async performDummyWork(): Promise<void> {
+    // Perform operations similar to successful path timing
+    // Query that will find nothing but takes similar time
+    await this.db.query(
+      `SELECT id FROM password_reset_tokens WHERE token_hash = $1 LIMIT 1`,
+      ['dummy-token-hash-that-will-not-exist']
+    );
   }
 }
 
