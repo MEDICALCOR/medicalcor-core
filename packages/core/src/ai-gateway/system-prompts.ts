@@ -16,6 +16,7 @@
 
 import { z } from 'zod';
 import { createLogger } from '../logger.js';
+import { createIsolatedDatabaseClient, type DatabasePool } from '../database.js';
 
 const logger = createLogger({ name: 'system-prompts' });
 
@@ -315,6 +316,7 @@ export class SystemPromptsRepository {
   private config: SystemPromptsRepositoryConfig;
   private cache: Map<string, CacheEntry> = new Map();
   private initialized = false;
+  private db: DatabasePool | null = null;
 
   constructor(config: Partial<SystemPromptsRepositoryConfig> = {}) {
     this.config = {
@@ -332,7 +334,44 @@ export class SystemPromptsRepository {
     if (this.initialized) return;
 
     if (this.config.useDatabase && this.config.connectionString) {
-      // TODO: Initialize database connection and create table if not exists
+      // Initialize database connection
+      this.db = createIsolatedDatabaseClient({
+        connectionString: this.config.connectionString,
+        maxConnections: 5,
+        idleTimeoutMs: 30000,
+        connectionTimeoutMs: 5000,
+      });
+
+      // Create table if not exists
+      await this.db.query(`
+        CREATE TABLE IF NOT EXISTS system_prompts (
+          id VARCHAR(255) NOT NULL,
+          tenant_id VARCHAR(255),
+          name VARCHAR(500) NOT NULL,
+          category VARCHAR(50) NOT NULL,
+          version VARCHAR(20) NOT NULL,
+          content TEXT NOT NULL,
+          variables JSONB DEFAULT '[]'::jsonb,
+          metadata JSONB DEFAULT '{}'::jsonb,
+          is_active BOOLEAN NOT NULL DEFAULT true,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (id, COALESCE(tenant_id, '')),
+          CONSTRAINT valid_category CHECK (category IN (
+            'lead_scoring', 'reply_generation', 'triage', 'appointment',
+            'medical_info', 'voice_agent', 'whatsapp_agent', 'summary', 'consent', 'custom'
+          )),
+          CONSTRAINT valid_version CHECK (version ~ '^\\d+\\.\\d+\\.\\d+$')
+        )
+      `);
+
+      // Create indexes for efficient queries
+      await this.db.query(`
+        CREATE INDEX IF NOT EXISTS idx_system_prompts_category ON system_prompts(category);
+        CREATE INDEX IF NOT EXISTS idx_system_prompts_tenant ON system_prompts(tenant_id) WHERE tenant_id IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_system_prompts_active ON system_prompts(is_active) WHERE is_active = true;
+      `);
+
       logger.info('System prompts repository initialized with database');
     } else {
       // Load default prompts into cache
@@ -363,11 +402,46 @@ export class SystemPromptsRepository {
     if (cached) return cached;
 
     // If using database, query it
-    if (this.config.useDatabase) {
-      // TODO: Database query
-      // const prompt = await this.queryDatabase(id, tenantId);
-      // if (prompt) this.setCache(cacheKey, prompt);
-      // return prompt;
+    if (this.config.useDatabase && this.db) {
+      // Query for tenant-specific prompt first, then fall back to global
+      const result = await this.db.query<{
+        id: string;
+        tenant_id: string | null;
+        name: string;
+        category: string;
+        version: string;
+        content: string;
+        variables: string[];
+        metadata: Record<string, unknown>;
+        is_active: boolean;
+        created_at: Date;
+        updated_at: Date;
+      }>(
+        `SELECT * FROM system_prompts
+         WHERE id = $1 AND (tenant_id = $2 OR tenant_id IS NULL)
+         ORDER BY tenant_id NULLS LAST
+         LIMIT 1`,
+        [id, tenantId ?? null]
+      );
+
+      if (result.rows.length > 0) {
+        const row = result.rows[0]!;
+        const prompt: SystemPrompt = {
+          id: row.id,
+          name: row.name,
+          category: row.category as PromptCategory,
+          version: row.version,
+          content: row.content,
+          variables: row.variables,
+          metadata: row.metadata as SystemPrompt['metadata'],
+          tenantId: row.tenant_id ?? undefined,
+          isActive: row.is_active,
+          createdAt: new Date(row.created_at),
+          updatedAt: new Date(row.updated_at),
+        };
+        this.setCache(cacheKey, prompt);
+        return prompt;
+      }
     }
 
     // Fallback to default prompts
@@ -395,7 +469,50 @@ export class SystemPromptsRepository {
   ): Promise<SystemPrompt[]> {
     const prompts: SystemPrompt[] = [];
 
-    // Check defaults
+    // Query database for prompts if enabled
+    if (this.config.useDatabase && this.db) {
+      const result = await this.db.query<{
+        id: string;
+        tenant_id: string | null;
+        name: string;
+        category: string;
+        version: string;
+        content: string;
+        variables: string[];
+        metadata: Record<string, unknown>;
+        is_active: boolean;
+        created_at: Date;
+        updated_at: Date;
+      }>(
+        `SELECT * FROM system_prompts
+         WHERE category = $1 AND (tenant_id = $2 OR tenant_id IS NULL)
+         ORDER BY tenant_id NULLS LAST, updated_at DESC`,
+        [category, tenantId ?? null]
+      );
+
+      for (const row of result.rows) {
+        prompts.push({
+          id: row.id,
+          name: row.name,
+          category: row.category as PromptCategory,
+          version: row.version,
+          content: row.content,
+          variables: row.variables,
+          metadata: row.metadata as SystemPrompt['metadata'],
+          tenantId: row.tenant_id ?? undefined,
+          isActive: row.is_active,
+          createdAt: new Date(row.created_at),
+          updatedAt: new Date(row.updated_at),
+        });
+      }
+
+      // If we found database prompts, return them (tenant-specific overrides defaults)
+      if (prompts.length > 0) {
+        return prompts;
+      }
+    }
+
+    // Fallback to defaults if no database prompts found
     for (const [id, prompt] of Object.entries(DEFAULT_PROMPTS)) {
       if (prompt.category === category) {
         prompts.push({
@@ -407,8 +524,6 @@ export class SystemPromptsRepository {
         });
       }
     }
-
-    // TODO: Query database for tenant-specific prompts
 
     return prompts;
   }
@@ -447,8 +562,37 @@ export class SystemPromptsRepository {
     // Validate prompt
     SystemPromptSchema.parse(fullPrompt);
 
-    if (this.config.useDatabase) {
-      // TODO: Database upsert
+    if (this.config.useDatabase && this.db) {
+      // Database upsert using PostgreSQL ON CONFLICT
+      await this.db.query(
+        `INSERT INTO system_prompts (
+          id, tenant_id, name, category, version, content,
+          variables, metadata, is_active, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        ON CONFLICT (id, COALESCE(tenant_id, ''))
+        DO UPDATE SET
+          name = EXCLUDED.name,
+          category = EXCLUDED.category,
+          version = EXCLUDED.version,
+          content = EXCLUDED.content,
+          variables = EXCLUDED.variables,
+          metadata = EXCLUDED.metadata,
+          is_active = EXCLUDED.is_active,
+          updated_at = EXCLUDED.updated_at`,
+        [
+          prompt.id,
+          prompt.tenantId ?? null,
+          prompt.name,
+          prompt.category,
+          prompt.version,
+          prompt.content,
+          JSON.stringify(prompt.variables ?? []),
+          JSON.stringify(prompt.metadata ?? {}),
+          prompt.isActive,
+          fullPrompt.createdAt,
+          fullPrompt.updatedAt,
+        ]
+      );
     }
 
     // Update cache
@@ -549,6 +693,19 @@ export class SystemPromptsRepository {
   clearCache(): void {
     this.cache.clear();
     logger.debug('System prompts cache cleared');
+  }
+
+  /**
+   * Close database connection and cleanup resources
+   */
+  async close(): Promise<void> {
+    this.clearCache();
+    if (this.db) {
+      await this.db.end();
+      this.db = null;
+      this.initialized = false;
+      logger.info('System prompts repository closed');
+    }
   }
 
   // Private helpers
