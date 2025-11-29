@@ -80,20 +80,30 @@ class PostgresPool implements DatabasePool {
     try {
       const pg = await import('pg');
 
-      // SECURITY: Enforce SSL/TLS for all database connections in production
+      // SECURITY FIX: Enforce SSL/TLS for ALL database connections
       // This ensures data in transit is encrypted (HIPAA/GDPR compliance)
+      // SSL is now MANDATORY in all environments for medical data protection
       const isProduction = process.env.NODE_ENV === 'production';
-      const sslConfig = isProduction
-        ? {
-            // In production, require valid SSL certificates
-            rejectUnauthorized: true,
-          }
-        : process.env.DATABASE_SSL === 'true'
-          ? {
-              // In development, allow self-signed certs if SSL is explicitly enabled
-              rejectUnauthorized: false,
-            }
-          : undefined;
+      const isTest = process.env.NODE_ENV === 'test';
+
+      // SECURITY: SSL configuration - required in all environments except test
+      let sslConfig: { rejectUnauthorized: boolean } | undefined;
+
+      if (isTest && process.env.DATABASE_SSL !== 'true') {
+        // Only in test environment, SSL can be disabled for local testing
+        sslConfig = undefined;
+      } else if (isProduction) {
+        // Production: Strict SSL with certificate validation
+        sslConfig = { rejectUnauthorized: true };
+      } else {
+        // Development/Staging: SSL required, but allow self-signed certs
+        // This ensures developers use encrypted connections too
+        sslConfig = { rejectUnauthorized: false };
+      }
+
+      // Log SSL status for audit
+      this.logger.info({ ssl: !!sslConfig, rejectUnauthorized: sslConfig?.rejectUnauthorized },
+        'Database SSL configuration');
 
       // TYPE SAFETY FIX: Cast only once at creation time
       this.pool = new pg.default.Pool({

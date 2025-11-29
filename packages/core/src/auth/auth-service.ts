@@ -23,14 +23,19 @@ import type {
 
 const logger: Logger = createLogger({ name: 'auth-service' });
 
-/** Password policy configuration */
+/**
+ * Password policy configuration
+ * SECURITY FIX: Enabled special character requirement for HIPAA/GDPR compliance
+ * Medical applications require stronger password policies
+ */
 const PASSWORD_POLICY = {
   minLength: 8,
   maxLength: 128,
   requireUppercase: true,
   requireLowercase: true,
   requireNumber: true,
-  requireSpecial: false,
+  /** SECURITY FIX: Now required for medical application security */
+  requireSpecial: true,
   specialChars: '!@#$%^&*()_+-=[]{}|;:,.<>?',
 };
 

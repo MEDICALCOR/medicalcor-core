@@ -17,11 +17,12 @@ import { tasks } from '@trigger.dev/sdk/v3';
 
 /**
  * Timestamp validation configuration for replay attack prevention
- * - MAX_TIMESTAMP_AGE_SECONDS: Maximum allowed age of a message timestamp (5 minutes)
- * - MAX_TIMESTAMP_FUTURE_SECONDS: Maximum allowed future timestamp (60 seconds for clock skew)
+ * SECURITY FIX: Reduced window from 5 to 3 minutes for tighter security
+ * - MAX_TIMESTAMP_AGE_SECONDS: Maximum allowed age of a message timestamp (3 minutes)
+ * - MAX_TIMESTAMP_FUTURE_SECONDS: Maximum allowed future timestamp (30 seconds for clock skew)
  */
-const MAX_TIMESTAMP_AGE_SECONDS = 300; // 5 minutes
-const MAX_TIMESTAMP_FUTURE_SECONDS = 60; // 1 minute clock skew tolerance
+const MAX_TIMESTAMP_AGE_SECONDS = 180; // 3 minutes - SECURITY FIX: reduced from 5 min
+const MAX_TIMESTAMP_FUTURE_SECONDS = 30; // 30 seconds - SECURITY FIX: reduced from 60 sec
 
 /**
  * Validate a WhatsApp message timestamp

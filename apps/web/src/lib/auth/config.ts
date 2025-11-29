@@ -119,5 +119,43 @@ export const authConfig: NextAuthConfig = {
     maxAge: 8 * 60 * 60, // 8 hours
   },
 
-  trustHost: true,
+  /**
+   * SECURITY FIX: Cookie configuration for session security
+   * These flags protect against XSS, CSRF, and session hijacking
+   */
+  cookies: {
+    sessionToken: {
+      name: `__Secure-next-auth.session-token`,
+      options: {
+        httpOnly: true,     // Prevents JavaScript access (XSS protection)
+        sameSite: 'lax',    // CSRF protection while allowing OAuth redirects
+        path: '/',
+        secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+      },
+    },
+    callbackUrl: {
+      name: `__Secure-next-auth.callback-url`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
+    },
+    csrfToken: {
+      name: `__Host-next-auth.csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
+    },
+  },
+
+  /**
+   * SECURITY FIX: Only trust host header in production if behind a trusted proxy
+   * This prevents host header injection attacks
+   */
+  trustHost: process.env.NODE_ENV === 'production' ? !!process.env.TRUSTED_PROXY : true,
 };
