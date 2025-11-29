@@ -44,6 +44,14 @@ export {
   PasswordResetService,
   PASSWORD_RESET_CONFIG,
 } from './password-reset-service.js';
+export {
+  MfaService,
+  MFA_CONFIG,
+  type MfaMethod,
+  type MfaStatus,
+  type MfaSetupResult,
+  type MfaVerifyResult,
+} from './mfa-service.js';
 
 // Re-export database client for convenience
 export { createDatabaseClient } from '../database.js';

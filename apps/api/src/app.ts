@@ -9,6 +9,8 @@ import {
   validateEnv,
   getMissingSecrets,
   logSecretsStatus,
+  validateSecretsAtStartup,
+  printSetupInstructions,
 } from '@medicalcor/core';
 import {
   healthRoutes,
@@ -34,6 +36,7 @@ const logger = createLogger({ name: 'api' });
 
 /**
  * Validate environment and secrets on boot
+ * SECURITY: Fail-fast in production if critical secrets are missing
  */
 function validateEnvironment(): void {
   const isProduction = process.env.NODE_ENV === 'production';
@@ -46,6 +49,23 @@ function validateEnvironment(): void {
     if (isProduction) {
       process.exit(1);
     }
+  }
+
+  // SECURITY: Comprehensive secrets validation at startup
+  // In production, this will throw and exit if required secrets are missing
+  try {
+    const summary = validateSecretsAtStartup({
+      failOnMissing: isProduction,
+      failOnRecommended: false, // Only warn about recommended secrets
+    });
+
+    if (!summary.valid || summary.warnings > 0) {
+      // Print setup instructions for missing secrets
+      printSetupInstructions(summary);
+    }
+  } catch (error) {
+    logger.error({ error }, 'FATAL: Secrets validation failed');
+    process.exit(1);
   }
 
   // Log secrets status (without revealing values)

@@ -321,6 +321,7 @@ export {
   // Services
   AuthService,
   PasswordResetService,
+  MfaService,
   // Repositories
   UserRepository,
   SessionRepository,
@@ -332,6 +333,7 @@ export {
   SESSION_CONFIG,
   RATE_LIMIT_CONFIG,
   PASSWORD_RESET_CONFIG,
+  MFA_CONFIG,
   // Types
   type UserRole,
   type UserStatus,
@@ -352,7 +354,37 @@ export {
   type AuthContext,
   type LoginResult,
   type PasswordValidationResult,
+  type MfaMethod,
+  type MfaStatus,
+  type MfaSetupResult,
+  type MfaVerifyResult,
 } from './auth/index.js';
+
+// Encryption Service (PHI/PII at-rest encryption)
+export {
+  EncryptionService,
+  createEncryptionService,
+  encryptValue,
+  decryptValue,
+  type DataClassification,
+  type EncryptedField,
+  type EncryptionResult,
+  type DecryptionOptions,
+} from './encryption.js';
+
+// Secrets Validation (Boot-time security checks)
+export {
+  validateSecrets,
+  validateSecretsAtStartup,
+  getSecretsFingerprint,
+  generateSecureKey,
+  printSetupInstructions,
+  DEFAULT_SECRET_RULES,
+  type SecretRequirement,
+  type SecretRule,
+  type SecretValidationResult,
+  type ValidationSummary,
+} from './secrets-validator.js';
 
 // Infrastructure - Redis with TLS
 export {
