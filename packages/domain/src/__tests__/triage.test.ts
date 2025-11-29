@@ -6,7 +6,7 @@ describe('TriageService', () => {
 
   describe('assess', () => {
     it('should return high_priority for pain/discomfort keywords (not emergency)', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Am durere puternica si umflatura',
@@ -21,7 +21,7 @@ describe('TriageService', () => {
     });
 
     it('should return high_priority for urgent keywords', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Am nevoie urgent de o programare',
@@ -33,7 +33,7 @@ describe('TriageService', () => {
     });
 
     it('should prioritize HOT leads', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'HOT',
         channel: 'whatsapp',
         messageContent: 'Vreau sa fac all-on-4',
@@ -45,7 +45,7 @@ describe('TriageService', () => {
     });
 
     it('should prioritize existing patients', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Am o intrebare',
@@ -58,7 +58,7 @@ describe('TriageService', () => {
     });
 
     it('should route COLD leads to nurture sequence', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'COLD',
         channel: 'whatsapp',
         messageContent: 'Informatii generale',
@@ -69,7 +69,7 @@ describe('TriageService', () => {
     });
 
     it('should suggest implant team for procedure interest', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Ma intereseaza implanturi',
@@ -81,7 +81,7 @@ describe('TriageService', () => {
     });
 
     it('should flag re-engagement opportunities', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Buna, revin cu o intrebare',
@@ -94,7 +94,7 @@ describe('TriageService', () => {
     });
 
     it('should include comprehensive notes with safety disclaimer', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'HOT',
         channel: 'voice',
         messageContent: 'Urgent, all-on-4',
@@ -110,7 +110,7 @@ describe('TriageService', () => {
     });
 
     it('should detect priority scheduling request', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Vreau o programare cat mai repede posibil',
@@ -124,7 +124,7 @@ describe('TriageService', () => {
     });
 
     it('should not flag priority scheduling for normal requests', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Vreau informatii despre implanturi',
@@ -136,7 +136,7 @@ describe('TriageService', () => {
     });
 
     it('should route priority scheduling requests to same_day', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'COLD',
         channel: 'web',
         messageContent: 'Am nevoie de o programare imediat pentru consultatie',
@@ -154,7 +154,7 @@ describe('TriageService', () => {
     // =====================================================================
 
     it('should flag potential emergency for accident keywords', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Am avut un accident si mi-am spart un dinte',
@@ -165,7 +165,7 @@ describe('TriageService', () => {
     });
 
     it('should detect infection symptoms', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Am o infectie la gingie si febra',
@@ -178,7 +178,7 @@ describe('TriageService', () => {
     });
 
     it('should detect abscess symptoms', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Cred ca am un abces la masea',
@@ -190,7 +190,7 @@ describe('TriageService', () => {
     });
 
     it('should detect "nu pot manca" symptom', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Nu pot manca de cand mi s-a stricat masea',
@@ -202,7 +202,7 @@ describe('TriageService', () => {
     });
 
     it('should detect "nu pot dormi" symptom', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Am durere si nu pot dormi de 2 nopti',
@@ -213,7 +213,7 @@ describe('TriageService', () => {
     });
 
     it('should route voice channel to next_business_day for WARM leads', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'voice',
         messageContent: 'Am sunat pentru informatii despre implanturi',
@@ -224,7 +224,7 @@ describe('TriageService', () => {
     });
 
     it('should suggest implant team for All-on-X procedure', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Ma intereseaza',
@@ -236,7 +236,7 @@ describe('TriageService', () => {
     });
 
     it('should suggest reception team for general inquiries', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Informatii generale',
@@ -247,7 +247,7 @@ describe('TriageService', () => {
     });
 
     it('should suggest scheduling team for high_priority cases', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Am durere puternica',
@@ -258,7 +258,7 @@ describe('TriageService', () => {
     });
 
     it('should not flag re-engagement for recent contacts', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Am o intrebare',
@@ -271,7 +271,7 @@ describe('TriageService', () => {
     });
 
     it('should flag re-engagement at 180+ days threshold', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Am o intrebare',
@@ -284,7 +284,7 @@ describe('TriageService', () => {
     });
 
     it('should include existing patient count in notes', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Am o intrebare',
@@ -296,7 +296,7 @@ describe('TriageService', () => {
     });
 
     it('should include safety disclaimer for high_priority cases', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Am durere foarte mare',
@@ -308,7 +308,7 @@ describe('TriageService', () => {
     });
 
     it('should handle UNQUALIFIED leads with nurture routing', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'UNQUALIFIED',
         channel: 'web',
         messageContent: 'Test message',
@@ -319,7 +319,7 @@ describe('TriageService', () => {
     });
 
     it('should detect "azi" urgency keyword', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Pot veni azi la o consultatie?',
@@ -330,7 +330,7 @@ describe('TriageService', () => {
     });
 
     it('should detect "acum" urgency keyword', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Am nevoie de ajutor acum',
@@ -341,7 +341,7 @@ describe('TriageService', () => {
     });
 
     it('should detect "prima programare" urgency keyword', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Vreau prima programare disponibila',
@@ -352,7 +352,7 @@ describe('TriageService', () => {
     });
 
     it('should handle existing patient with no previous appointments', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Am o intrebare',
@@ -365,7 +365,7 @@ describe('TriageService', () => {
     });
 
     it('should handle email channel', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'email',
         messageContent: 'Informatii despre implanturi',
@@ -376,7 +376,7 @@ describe('TriageService', () => {
     });
 
     it('should include procedure interest in notes', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Ma intereseaza',
@@ -389,7 +389,7 @@ describe('TriageService', () => {
     });
 
     it('should combine multiple urgency indicators', () => {
-      const result = service.assess({
+      const result = service.assessSync({
         leadScore: 'HOT',
         channel: 'whatsapp',
         messageContent: 'Am durere urgenta si abces',
@@ -455,7 +455,7 @@ describe('TriageService', () => {
         priorityKeywords: ['custom_symptom'],
       });
 
-      const result = customService.assess({
+      const result = customService.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Am custom_symptom',
@@ -474,7 +474,7 @@ describe('TriageService', () => {
         },
       });
 
-      const result = customService.assess({
+      const result = customService.assessSync({
         leadScore: 'WARM',
         channel: 'whatsapp',
         messageContent: 'Info',

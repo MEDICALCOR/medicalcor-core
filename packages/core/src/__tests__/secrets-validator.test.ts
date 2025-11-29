@@ -72,7 +72,7 @@ describe('SecretsValidator', () => {
       vi.stubEnv('DATABASE_URL', 'invalid-url');
 
       const result = validateSecrets();
-      const dbResult = result.results.find(r => r.envVar === 'DATABASE_URL');
+      const dbResult = result.results.find((r) => r.envVar === 'DATABASE_URL');
 
       expect(dbResult?.valid).toBe(false);
       expect(dbResult?.error).toBe('Invalid format');
@@ -82,17 +82,18 @@ describe('SecretsValidator', () => {
       vi.stubEnv('API_SECRET_KEY', 'tooshort');
 
       const result = validateSecrets();
-      const keyResult = result.results.find(r => r.envVar === 'API_SECRET_KEY');
+      const keyResult = result.results.find((r) => r.envVar === 'API_SECRET_KEY');
 
       expect(keyResult?.valid).toBe(false);
       expect(keyResult?.error).toContain('Too short');
     });
 
     it('should validate encryption key format (64 hex chars)', () => {
-      vi.stubEnv('MFA_ENCRYPTION_KEY', 'not-valid-hex');
+      // Use a 64-char string with invalid hex characters to test format validation
+      vi.stubEnv('MFA_ENCRYPTION_KEY', 'g'.repeat(64)); // 'g' is not a valid hex char
 
       const result = validateSecrets();
-      const mfaResult = result.results.find(r => r.envVar === 'MFA_ENCRYPTION_KEY');
+      const mfaResult = result.results.find((r) => r.envVar === 'MFA_ENCRYPTION_KEY');
 
       expect(mfaResult?.valid).toBe(false);
       expect(mfaResult?.error).toBe('Invalid format');
@@ -102,7 +103,7 @@ describe('SecretsValidator', () => {
       vi.stubEnv('MFA_ENCRYPTION_KEY', 'a'.repeat(64));
 
       const result = validateSecrets();
-      const mfaResult = result.results.find(r => r.envVar === 'MFA_ENCRYPTION_KEY');
+      const mfaResult = result.results.find((r) => r.envVar === 'MFA_ENCRYPTION_KEY');
 
       expect(mfaResult?.valid).toBe(true);
     });
@@ -139,17 +140,15 @@ describe('SecretsValidator', () => {
       vi.stubEnv('NODE_ENV', 'production');
       // Missing all required secrets
 
-      expect(() =>
-        validateSecretsAtStartup({ failOnMissing: true })
-      ).toThrow(/FATAL.*missing required secrets/);
+      expect(() => validateSecretsAtStartup({ failOnMissing: true })).toThrow(
+        /FATAL.*missing required secrets/
+      );
     });
 
     it('should not throw when failOnMissing is false', () => {
       vi.stubEnv('NODE_ENV', 'production');
 
-      expect(() =>
-        validateSecretsAtStartup({ failOnMissing: false })
-      ).not.toThrow();
+      expect(() => validateSecretsAtStartup({ failOnMissing: false })).not.toThrow();
     });
 
     it('should throw on missing recommended secrets when failOnRecommended is true', () => {
@@ -232,14 +231,14 @@ describe('SecretsValidator', () => {
       ];
 
       for (const secret of criticalSecrets) {
-        const rule = DEFAULT_SECRET_RULES.find(r => r.envVar === secret);
+        const rule = DEFAULT_SECRET_RULES.find((r) => r.envVar === secret);
         expect(rule).toBeDefined();
         expect(rule?.requirement).toBe('required');
       }
     });
 
     it('should have proper patterns for format validation', () => {
-      const patterned = DEFAULT_SECRET_RULES.filter(r => r.pattern);
+      const patterned = DEFAULT_SECRET_RULES.filter((r) => r.pattern);
 
       for (const rule of patterned) {
         expect(rule.pattern).toBeInstanceOf(RegExp);
