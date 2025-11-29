@@ -34,6 +34,9 @@ export const HubSpotContactPropertiesSchema = z.object({
   consent_marketing: z.string().optional(),
   consent_medical_data: z.string().optional(),
   first_touch_channel: z.string().optional(),
+  // AI Scoring properties
+  ai_confidence: z.string().optional(), // 0.0-1.0 stored as string
+  ai_reasoning: z.string().optional(), // AI explanation for the score
   utm_source: z.string().optional(),
   utm_medium: z.string().optional(),
   utm_campaign: z.string().optional(),

@@ -17,6 +17,13 @@ export interface TriageResult {
   suggestedOwner?: string;
   prioritySchedulingRequested: boolean;
   notes: string;
+  /** Actual available slot if routing is next_available_slot or same_day */
+  availableSlot?: {
+    id: string;
+    date: string;
+    startTime: string;
+    practitioner?: string;
+  };
 }
 
 export interface TriageInput {
@@ -37,6 +44,48 @@ export interface TriageConfig {
   defaultOwners: Record<string, string>;
 }
 
+/**
+ * Database client interface for loading triage rules
+ */
+export interface TriageConfigClient {
+  query<T>(sql: string, params?: unknown[]): Promise<{ rows: T[] }>;
+}
+
+/**
+ * Scheduling service interface for slot validation
+ */
+export interface SchedulingServiceInterface {
+  getAvailableSlots(options: {
+    procedureType?: string;
+    preferredDates?: string[];
+    limit?: number;
+  }): Promise<
+    Array<{
+      id: string;
+      date: string;
+      startTime: string;
+      practitioner?: string;
+      procedureTypes: string[];
+    }>
+  >;
+}
+
+/**
+ * Database row types for triage rules
+ */
+interface TriageRuleRow {
+  rule_type: string;
+  value: string;
+}
+
+interface TriageOwnerRow {
+  owner_key: string;
+  owner_value: string;
+}
+
+/**
+ * Default configuration (fallback when database is not available)
+ */
 const DEFAULT_CONFIG: TriageConfig = {
   // Keywords indicating patient discomfort requiring priority scheduling
   // NOTE: These are NOT medical emergencies - they indicate high purchase intent
@@ -73,16 +122,238 @@ const DEFAULT_CONFIG: TriageConfig = {
 
 export class TriageService {
   private config: TriageConfig;
+  private configClient: TriageConfigClient | null = null;
+  private schedulingService: SchedulingServiceInterface | null = null;
+  private configLoaded = false;
+  private configLoadPromise: Promise<void> | null = null;
 
-  constructor(config?: Partial<TriageConfig>) {
+  constructor(
+    config?: Partial<TriageConfig>,
+    options?: {
+      configClient?: TriageConfigClient;
+      schedulingService?: SchedulingServiceInterface;
+    }
+  ) {
     this.config = { ...DEFAULT_CONFIG, ...config };
+    this.configClient = options?.configClient ?? null;
+    this.schedulingService = options?.schedulingService ?? null;
+  }
+
+  /**
+   * Load configuration from database (triage_rules table)
+   * This allows runtime updates without code deployment
+   */
+  async loadConfigFromDatabase(): Promise<void> {
+    if (!this.configClient) {
+      return;
+    }
+
+    // Prevent concurrent loads
+    if (this.configLoadPromise) {
+      return this.configLoadPromise;
+    }
+
+    this.configLoadPromise = this._loadConfig();
+    await this.configLoadPromise;
+    this.configLoadPromise = null;
+  }
+
+  private async _loadConfig(): Promise<void> {
+    if (!this.configClient) return;
+
+    try {
+      // Load rules from database
+      const rulesResult = await this.configClient.query<TriageRuleRow>(
+        `SELECT rule_type, value FROM triage_rules WHERE active = true ORDER BY priority DESC`
+      );
+
+      const priorityKeywords: string[] = [];
+      const emergencyKeywords: string[] = [];
+      const schedulingKeywords: string[] = [];
+      const vipPhones: string[] = [];
+
+      for (const row of rulesResult.rows) {
+        switch (row.rule_type) {
+          case 'priority_keyword':
+            priorityKeywords.push(row.value);
+            break;
+          case 'emergency_keyword':
+            emergencyKeywords.push(row.value);
+            break;
+          case 'scheduling_keyword':
+            schedulingKeywords.push(row.value);
+            break;
+          case 'vip_phone':
+            vipPhones.push(row.value);
+            break;
+        }
+      }
+
+      // Load owners from database
+      const ownersResult = await this.configClient.query<TriageOwnerRow>(
+        `SELECT owner_key, owner_value FROM triage_owners WHERE active = true`
+      );
+
+      const defaultOwners: Record<string, string> = {};
+      for (const row of ownersResult.rows) {
+        defaultOwners[row.owner_key] = row.owner_value;
+      }
+
+      // Update config only if we got data
+      if (priorityKeywords.length > 0) {
+        this.config.priorityKeywords = priorityKeywords;
+      }
+      if (emergencyKeywords.length > 0) {
+        this.config.medicalEmergencyKeywords = emergencyKeywords;
+      }
+      if (schedulingKeywords.length > 0) {
+        this.config.prioritySchedulingKeywords = schedulingKeywords;
+      }
+      if (vipPhones.length > 0) {
+        this.config.vipPhones = vipPhones;
+      }
+      if (Object.keys(defaultOwners).length > 0) {
+        this.config.defaultOwners = { ...this.config.defaultOwners, ...defaultOwners };
+      }
+
+      this.configLoaded = true;
+    } catch {
+      // Silently fall back to default config on error
+      // In production, this should log to monitoring
+    }
   }
 
   /**
    * Perform triage assessment on a lead
    * Determines priority scheduling based on patient needs and purchase intent
    */
-  assess(input: TriageInput): TriageResult {
+  async assess(input: TriageInput): Promise<TriageResult> {
+    // Ensure config is loaded from database
+    if (!this.configLoaded && this.configClient) {
+      await this.loadConfigFromDatabase();
+    }
+
+    const {
+      leadScore,
+      channel,
+      messageContent,
+      procedureInterest,
+      hasExistingRelationship,
+      previousAppointments,
+      lastContactDays,
+    } = input;
+
+    const lowerContent = messageContent.toLowerCase();
+    const medicalFlags: string[] = [];
+    let urgencyLevel: TriageResult['urgencyLevel'] = 'normal';
+    let prioritySchedulingRequested = false;
+
+    // Check for medical emergency keywords - advise calling 112
+    const hasEmergencyKeywords = this.config.medicalEmergencyKeywords.some((k) =>
+      lowerContent.includes(k)
+    );
+    if (hasEmergencyKeywords) {
+      medicalFlags.push('potential_emergency_refer_112');
+    }
+
+    // Check for priority keywords (pain/discomfort indicating high purchase intent)
+    const prioritySymptoms = this.config.priorityKeywords.filter((k) => lowerContent.includes(k));
+    if (prioritySymptoms.length > 0) {
+      urgencyLevel = 'high_priority';
+      prioritySchedulingRequested = true;
+      medicalFlags.push('priority_scheduling_requested');
+      medicalFlags.push(...prioritySymptoms.map((s) => `symptom:${s.replace(/\s+/g, '_')}`));
+    }
+
+    // Check for explicit priority scheduling request
+    const hasSchedulingKeywords = this.config.prioritySchedulingKeywords.some((k) =>
+      lowerContent.includes(k)
+    );
+    if (hasSchedulingKeywords && !prioritySchedulingRequested) {
+      prioritySchedulingRequested = true;
+      medicalFlags.push('priority_scheduling_requested');
+      if (urgencyLevel === 'normal') {
+        urgencyLevel = 'high';
+      }
+    }
+
+    // Score-based urgency adjustment
+    if (leadScore === 'HOT' && urgencyLevel === 'normal') {
+      urgencyLevel = 'high';
+    }
+
+    // Existing patient priority
+    if (hasExistingRelationship && previousAppointments && previousAppointments > 0) {
+      medicalFlags.push('existing_patient');
+      if (urgencyLevel === 'normal') {
+        urgencyLevel = 'high';
+      }
+    }
+
+    // Re-engagement priority
+    if (lastContactDays && lastContactDays > 180) {
+      medicalFlags.push('re_engagement_opportunity');
+    }
+
+    // Determine routing
+    let routingRecommendation = this.determineRouting(
+      urgencyLevel,
+      leadScore,
+      channel,
+      prioritySchedulingRequested
+    );
+
+    // CRITICAL: Validate slot availability for urgent routing
+    let availableSlot: TriageResult['availableSlot'] | undefined;
+    if (
+      this.schedulingService &&
+      (routingRecommendation === 'next_available_slot' || routingRecommendation === 'same_day')
+    ) {
+      availableSlot = await this.findAvailableSlot(routingRecommendation, procedureInterest);
+
+      // If no slot available, downgrade routing recommendation
+      if (!availableSlot) {
+        medicalFlags.push('no_immediate_slot_available');
+        if (routingRecommendation === 'next_available_slot') {
+          routingRecommendation = 'same_day';
+          // Try again for same_day
+          availableSlot = await this.findAvailableSlot('same_day', procedureInterest);
+        }
+        if (!availableSlot && routingRecommendation === 'same_day') {
+          routingRecommendation = 'next_business_day';
+          availableSlot = await this.findAvailableSlot('next_business_day', procedureInterest);
+        }
+      }
+    }
+
+    // Determine owner
+    const suggestedOwner = this.determineSuggestedOwner(procedureInterest, urgencyLevel);
+
+    // Build notes (includes safety disclaimer)
+    const notes = this.buildTriageNotes(
+      input,
+      medicalFlags,
+      urgencyLevel,
+      prioritySchedulingRequested,
+      availableSlot
+    );
+
+    return {
+      urgencyLevel,
+      routingRecommendation,
+      medicalFlags,
+      suggestedOwner,
+      prioritySchedulingRequested,
+      notes,
+      availableSlot,
+    };
+  }
+
+  /**
+   * Synchronous assess method for backward compatibility
+   * @deprecated Use async assess() method instead for slot validation
+   */
+  assessSync(input: TriageInput): Omit<TriageResult, 'availableSlot'> {
     const {
       leadScore,
       channel,
@@ -175,6 +446,71 @@ export class TriageService {
   }
 
   /**
+   * Find available slot based on routing recommendation
+   */
+  private async findAvailableSlot(
+    routing: TriageResult['routingRecommendation'],
+    procedureInterest?: string[]
+  ): Promise<TriageResult['availableSlot'] | undefined> {
+    if (!this.schedulingService) {
+      return undefined;
+    }
+
+    const today = new Date();
+    const preferredDates: string[] = [];
+
+    switch (routing) {
+      case 'next_available_slot':
+        // Today only
+        preferredDates.push(today.toISOString().split('T')[0]!);
+        break;
+      case 'same_day':
+        // Today and tomorrow
+        preferredDates.push(today.toISOString().split('T')[0]!);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        preferredDates.push(tomorrow.toISOString().split('T')[0]!);
+        break;
+      case 'next_business_day':
+        // Next 3 business days
+        for (let i = 1; i <= 5; i++) {
+          const date = new Date(today);
+          date.setDate(date.getDate() + i);
+          const dayOfWeek = date.getDay();
+          // Skip weekends (0 = Sunday, 6 = Saturday)
+          if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+            preferredDates.push(date.toISOString().split('T')[0]!);
+            if (preferredDates.length >= 3) break;
+          }
+        }
+        break;
+      default:
+        return undefined;
+    }
+
+    try {
+      const slots = await this.schedulingService.getAvailableSlots({
+        procedureType: procedureInterest?.[0],
+        preferredDates,
+        limit: 1,
+      });
+
+      if (slots.length > 0 && slots[0]) {
+        return {
+          id: slots[0].id,
+          date: slots[0].date,
+          startTime: slots[0].startTime,
+          practitioner: slots[0].practitioner,
+        };
+      }
+    } catch {
+      // Silently fail - slot validation is enhancement, not requirement
+    }
+
+    return undefined;
+  }
+
+  /**
    * Determine routing based on urgency, score, and priority scheduling request
    * Priority scheduling routes to next available slot during business hours
    */
@@ -232,7 +568,8 @@ export class TriageService {
     input: TriageInput,
     medicalFlags: string[],
     urgencyLevel: TriageResult['urgencyLevel'],
-    prioritySchedulingRequested: boolean
+    prioritySchedulingRequested: boolean,
+    availableSlot?: TriageResult['availableSlot']
   ): string {
     const parts: string[] = [];
 
@@ -242,6 +579,13 @@ export class TriageService {
 
     if (prioritySchedulingRequested) {
       parts.push('PRIORITY SCHEDULING REQUESTED');
+    }
+
+    if (availableSlot) {
+      parts.push(`Available Slot: ${availableSlot.date} ${availableSlot.startTime}`);
+      if (availableSlot.practitioner) {
+        parts.push(`Practitioner: ${availableSlot.practitioner}`);
+      }
     }
 
     if (input.procedureInterest?.length) {
@@ -287,11 +631,32 @@ export class TriageService {
     }
     return [];
   }
+
+  /**
+   * Get current configuration (for debugging/admin)
+   */
+  getConfig(): Readonly<TriageConfig> {
+    return this.config;
+  }
+
+  /**
+   * Force reload configuration from database
+   */
+  async reloadConfig(): Promise<void> {
+    this.configLoaded = false;
+    await this.loadConfigFromDatabase();
+  }
 }
 
 /**
  * Create a configured triage service
  */
-export function createTriageService(config?: Partial<TriageConfig>): TriageService {
-  return new TriageService(config);
+export function createTriageService(
+  config?: Partial<TriageConfig>,
+  options?: {
+    configClient?: TriageConfigClient;
+    schedulingService?: SchedulingServiceInterface;
+  }
+): TriageService {
+  return new TriageService(config, options);
 }

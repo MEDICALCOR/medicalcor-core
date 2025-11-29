@@ -431,9 +431,33 @@ export class LeadAggregate extends AggregateRoot<LeadState> {
 // LEAD REPOSITORY
 // ============================================================================
 
+/**
+ * Lead lookup result from projection table
+ */
+export interface LeadLookup {
+  id: string;
+  phone: string;
+  channel: LeadState['channel'];
+  classification?: LeadState['classification'];
+  score?: number;
+  hubspotContactId?: string;
+  assignedTo?: string;
+  status: LeadState['status'];
+}
+
+/**
+ * Database client interface for lead projections
+ */
+export interface LeadProjectionClient {
+  query<T>(sql: string, params: unknown[]): Promise<{ rows: T[] }>;
+}
+
 export class LeadRepository extends EventSourcedRepository<LeadAggregate> {
-  constructor(eventStore: EventStoreInterface) {
+  private projectionClient: LeadProjectionClient | null = null;
+
+  constructor(eventStore: EventStoreInterface, projectionClient?: LeadProjectionClient) {
     super(eventStore, 'Lead');
+    this.projectionClient = projectionClient ?? null;
   }
 
   protected createEmpty(id: string): LeadAggregate {
@@ -442,11 +466,28 @@ export class LeadRepository extends EventSourcedRepository<LeadAggregate> {
   }
 
   /**
-   * Find lead by phone number
+   * Find lead by phone number using SQL projection (O(1) lookup)
+   *
+   * PERFORMANCE: Uses leads_lookup table instead of scanning Event Store.
+   * Falls back to Event Store scan if projection client is not configured.
    */
   async findByPhone(phone: string): Promise<LeadAggregate | null> {
-    // This would need a projection/read model in production
-    // For now, we'd need to search all leads
+    // OPTIMIZED PATH: Use SQL projection for O(1) lookup
+    if (this.projectionClient) {
+      const result = await this.projectionClient.query<{ id: string }>(
+        'SELECT id FROM leads_lookup WHERE phone = $1 LIMIT 1',
+        [phone]
+      );
+
+      if (result.rows.length > 0 && result.rows[0]) {
+        return this.getById(result.rows[0].id);
+      }
+
+      return null;
+    }
+
+    // FALLBACK: Event Store scan (O(N)) - only for development/testing
+    // WARNING: This will be slow with large datasets
     const events = await this.eventStore.getByType('LeadCreated');
 
     for (const event of events) {
@@ -456,5 +497,63 @@ export class LeadRepository extends EventSourcedRepository<LeadAggregate> {
     }
 
     return null;
+  }
+
+  /**
+   * Find lead by phone using projection only (returns lookup data without hydrating aggregate)
+   * Use this when you only need the lead metadata, not the full aggregate.
+   */
+  async findLookupByPhone(phone: string): Promise<LeadLookup | null> {
+    if (!this.projectionClient) {
+      return null;
+    }
+
+    const result = await this.projectionClient.query<{
+      id: string;
+      phone: string;
+      channel: string;
+      classification: string | null;
+      score: number | null;
+      hubspot_contact_id: string | null;
+      assigned_to: string | null;
+      status: string;
+    }>(
+      `SELECT id, phone, channel, classification, score, hubspot_contact_id, assigned_to, status
+       FROM leads_lookup WHERE phone = $1 LIMIT 1`,
+      [phone]
+    );
+
+    if (result.rows.length === 0 || !result.rows[0]) {
+      return null;
+    }
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      phone: row.phone,
+      channel: row.channel as LeadState['channel'],
+      classification: row.classification as LeadState['classification'] | undefined,
+      score: row.score ?? undefined,
+      hubspotContactId: row.hubspot_contact_id ?? undefined,
+      assignedTo: row.assigned_to ?? undefined,
+      status: row.status as LeadState['status'],
+    };
+  }
+
+  /**
+   * Check if a lead exists by phone (uses projection for efficiency)
+   */
+  async existsByPhone(phone: string): Promise<boolean> {
+    if (this.projectionClient) {
+      const result = await this.projectionClient.query<{ exists: boolean }>(
+        'SELECT EXISTS(SELECT 1 FROM leads_lookup WHERE phone = $1) as exists',
+        [phone]
+      );
+      return result.rows[0]?.exists ?? false;
+    }
+
+    // Fallback to event scan
+    const lead = await this.findByPhone(phone);
+    return lead !== null;
   }
 }

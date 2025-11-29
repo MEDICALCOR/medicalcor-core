@@ -216,6 +216,40 @@ export interface FallbackMetrics {
 }
 
 /**
+ * AI Metrics record for persistence
+ */
+export interface AIMetricsRecord {
+  provider: AIProvider;
+  model: string;
+  operation: string;
+  tokensPrompt: number;
+  tokensCompletion: number;
+  tokensTotal: number;
+  costUsd: number;
+  latencyMs: number;
+  success: boolean;
+  errorMessage?: string;
+  usedFallback: boolean;
+  correlationId?: string;
+}
+
+/**
+ * Metrics persistence interface
+ * Implement this interface to persist AI metrics to database
+ */
+export interface AIMetricsRepository {
+  /**
+   * Log a single AI call metric to persistent storage
+   */
+  logMetric(metric: AIMetricsRecord): Promise<void>;
+
+  /**
+   * Batch insert metrics (for buffered writes)
+   */
+  logMetricsBatch?(metrics: AIMetricsRecord[]): Promise<void>;
+}
+
+/**
  * Multi-Provider AI Gateway
  */
 export class MultiProviderGateway {
@@ -224,10 +258,17 @@ export class MultiProviderGateway {
   private providerHealth: Map<AIProvider, ProviderHealth> = new Map();
   private timeoutManager: AdaptiveTimeoutManager;
   private metrics: FallbackMetrics;
+  private metricsRepository: AIMetricsRepository | null = null;
+  private metricsBuffer: AIMetricsRecord[] = [];
+  private metricsFlushInterval: ReturnType<typeof setInterval> | null = null;
 
-  constructor(config: Partial<MultiProviderGatewayConfig> = {}) {
+  constructor(
+    config: Partial<MultiProviderGatewayConfig> = {},
+    metricsRepository?: AIMetricsRepository
+  ) {
     this.config = MultiProviderGatewayConfigSchema.parse(config);
     this.timeoutManager = createAdaptiveTimeoutManager();
+    this.metricsRepository = metricsRepository ?? null;
 
     // Initialize providers from config
     this.initializeProviders();
@@ -243,6 +284,69 @@ export class MultiProviderGateway {
       errorsByProvider: { openai: 0, anthropic: 0, llama: 0, ollama: 0 },
       costByProvider: { openai: 0, anthropic: 0, llama: 0, ollama: 0 },
     };
+
+    // Start metrics flush interval if repository is configured
+    if (this.metricsRepository) {
+      this.startMetricsFlush();
+    }
+  }
+
+  /**
+   * Start periodic metrics flush to database
+   */
+  private startMetricsFlush(): void {
+    // Flush every 10 seconds
+    this.metricsFlushInterval = setInterval(() => {
+      void this.flushMetrics();
+    }, 10000);
+  }
+
+  /**
+   * Stop metrics flush interval
+   */
+  stopMetricsFlush(): void {
+    if (this.metricsFlushInterval) {
+      clearInterval(this.metricsFlushInterval);
+      this.metricsFlushInterval = null;
+    }
+    // Flush remaining metrics
+    void this.flushMetrics();
+  }
+
+  /**
+   * Flush buffered metrics to database
+   */
+  private async flushMetrics(): Promise<void> {
+    if (!this.metricsRepository || this.metricsBuffer.length === 0) {
+      return;
+    }
+
+    const toFlush = [...this.metricsBuffer];
+    this.metricsBuffer = [];
+
+    try {
+      if (this.metricsRepository.logMetricsBatch) {
+        await this.metricsRepository.logMetricsBatch(toFlush);
+      } else {
+        // Fall back to individual inserts
+        await Promise.all(toFlush.map((m) => this.metricsRepository!.logMetric(m)));
+      }
+    } catch {
+      // Re-add to buffer on failure (with limit to prevent memory issues)
+      if (this.metricsBuffer.length < 1000) {
+        this.metricsBuffer.push(...toFlush);
+      }
+    }
+  }
+
+  /**
+   * Set metrics repository (for late binding)
+   */
+  setMetricsRepository(repository: AIMetricsRepository): void {
+    this.metricsRepository = repository;
+    if (!this.metricsFlushInterval) {
+      this.startMetricsFlush();
+    }
   }
 
   /**
@@ -304,6 +408,7 @@ export class MultiProviderGateway {
 
     for (let i = 0; i < providersToTry.length; i++) {
       const provider = providersToTry[i]!;
+      const providerStartTime = Date.now();
       const isFirstAttempt = i === 0;
 
       if (!isFirstAttempt) {
@@ -313,9 +418,24 @@ export class MultiProviderGateway {
 
       try {
         const result = await this.executeWithProvider(provider, options, operation);
+        const latencyMs = Date.now() - providerStartTime;
 
         // Record success
-        this.recordSuccess(provider, Date.now() - startTime);
+        this.recordSuccess(provider, latencyMs);
+
+        // Persist metric to database
+        this.persistMetric({
+          provider,
+          model: result.model,
+          operation,
+          tokensPrompt: result.tokensUsed.prompt,
+          tokensCompletion: result.tokensUsed.completion,
+          tokensTotal: result.tokensUsed.total,
+          costUsd: result.cost,
+          latencyMs,
+          success: true,
+          usedFallback,
+        });
 
         if (usedFallback) {
           this.metrics.fallbackSuccesses++;
@@ -328,9 +448,26 @@ export class MultiProviderGateway {
         };
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
+        const latencyMs = Date.now() - providerStartTime;
+        const config = this.providers.get(provider);
 
         // Record failure
         this.recordFailure(provider, lastError.message);
+
+        // Persist failure metric to database
+        this.persistMetric({
+          provider,
+          model: options.model ?? config?.defaultModel ?? 'unknown',
+          operation,
+          tokensPrompt: 0,
+          tokensCompletion: 0,
+          tokensTotal: 0,
+          costUsd: 0,
+          latencyMs,
+          success: false,
+          errorMessage: lastError.message,
+          usedFallback,
+        });
 
         // Skip fallback if explicitly disabled
         if (options.skipFallback) {
@@ -348,6 +485,22 @@ export class MultiProviderGateway {
     throw new Error(
       `All providers failed. Last error: ${lastError?.message ?? 'Unknown error'}`
     );
+  }
+
+  /**
+   * Persist a metric record to the buffer for database storage
+   */
+  private persistMetric(metric: AIMetricsRecord): void {
+    if (!this.metricsRepository) {
+      return;
+    }
+
+    this.metricsBuffer.push(metric);
+
+    // Flush immediately if buffer is large
+    if (this.metricsBuffer.length >= 100) {
+      void this.flushMetrics();
+    }
   }
 
   /**

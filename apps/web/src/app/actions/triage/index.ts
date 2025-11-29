@@ -76,6 +76,8 @@ const TRIAGE_PROPERTIES = [
   'procedure_interest',
   'hs_lead_status',
   'firstname',
+  'ai_confidence',
+  'ai_reasoning',
 ] as const;
 
 /**
@@ -89,13 +91,18 @@ function mapContactToTriageLead(
   const score = parseInt(contact.properties.lead_score ?? '0', 10);
   const procedureInterest = parseProcedureInterest(contact.properties.procedure_interest) ?? [];
 
-  // Generate reasoning based on score
+  // Parse AI confidence from HubSpot property (stored as string "0.0" - "1.0")
+  const aiConfidenceRaw = contact.properties.ai_confidence;
+  const confidence = aiConfidenceRaw ? parseFloat(aiConfidenceRaw) : undefined;
+
+  // Use AI reasoning if available, otherwise generate based on score
   const reasoning =
-    score >= 4
+    contact.properties.ai_reasoning ??
+    (score >= 4
       ? 'High intent detected from conversation'
       : score >= 2
         ? 'Moderate interest shown'
-        : 'Initial inquiry';
+        : 'Initial inquiry');
 
   return {
     id: contact.id,
@@ -103,7 +110,7 @@ function mapContactToTriageLead(
     source: mapLeadSource(contact.properties.lead_source),
     time: formatRelativeTime(contact.createdAt),
     score: score > 0 ? score : undefined,
-    confidence: undefined, // Requires AI scoring integration
+    confidence: confidence && !isNaN(confidence) ? confidence : undefined,
     reasoning,
     procedureInterest,
     appointment: appointment ? `${appointment.date} ${appointment.startTime}` : undefined,
