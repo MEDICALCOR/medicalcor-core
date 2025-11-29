@@ -14,6 +14,7 @@ export default tseslint.config(
       '**/coverage/**',
       '**/*.test.ts',
       '**/__tests__/**',
+      'scripts/**', // CLI scripts have different requirements
     ],
   },
 

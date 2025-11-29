@@ -53,4 +53,5 @@ export {
   weeklyAnalyticsReport,
   staleLeadCleanup,
   gdprConsentAudit,
+  crmHealthMonitor,
 } from './jobs/cron-jobs.js';
