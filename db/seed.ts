@@ -5,12 +5,43 @@
  * Run with: pnpm db:seed
  *
  * This creates realistic test data so developers don't have to work with empty interfaces.
+ *
+ * SECURITY: This script should NEVER be run in production environments.
  */
 
 import { randomUUID } from 'crypto';
 import pg from 'pg';
 
 const { Client } = pg;
+
+// =============================================================================
+// Environment Safety Check
+// =============================================================================
+
+if (process.env.NODE_ENV === 'production') {
+  console.error('ERROR: Cannot run seed script in production environment!');
+  console.error('This script is only for development/testing.');
+  process.exit(1);
+}
+
+// =============================================================================
+// Error Tracking for Comprehensive Reporting
+// =============================================================================
+
+interface SeedError {
+  table: string;
+  operation: string;
+  error: unknown;
+}
+
+const seedErrors: SeedError[] = [];
+
+function logSeedError(table: string, operation: string, error: unknown): void {
+  seedErrors.push({ table, operation, error });
+  if (process.env.DEBUG === 'true') {
+    console.error(`  [ERROR] ${table}:${operation}:`, error instanceof Error ? error.message : error);
+  }
+}
 
 // =============================================================================
 // Configuration
@@ -367,8 +398,8 @@ async function seedDomainEvents(client: pg.Client, leads: LeadData[]): Promise<n
         ['lead.created', JSON.stringify(payload), correlationId, idempotencyKey, randomDate(30)]
       );
       inserted++;
-    } catch {
-      // Ignore duplicates
+    } catch (error) {
+      logSeedError('domain_events', 'insert', error);
     }
   }
 
@@ -403,8 +434,8 @@ async function seedMessageLog(client: pg.Client, leads: LeadData[]): Promise<num
           ]
         );
         inserted++;
-      } catch {
-        // Ignore errors
+      } catch (error) {
+        logSeedError('message_log', 'insert', error);
       }
     }
   }
@@ -444,8 +475,8 @@ async function seedLeadScoringHistory(client: pg.Client, leads: LeadData[]): Pro
           ]
         );
         inserted++;
-      } catch {
-        // Ignore errors
+      } catch (error) {
+        logSeedError('lead_scoring_history', 'insert', error);
       }
     }
   }
@@ -475,8 +506,8 @@ async function seedConsentRecords(client: pg.Client, leads: LeadData[]): Promise
           ]
         );
         inserted++;
-      } catch {
-        // Ignore errors
+      } catch (error) {
+        logSeedError('consent_records', 'insert', error);
       }
     }
 
@@ -498,8 +529,8 @@ async function seedConsentRecords(client: pg.Client, leads: LeadData[]): Promise
           ]
         );
         inserted++;
-      } catch {
-        // Ignore errors
+      } catch (error) {
+        logSeedError('consent_records', 'insert', error);
       }
     }
 
@@ -521,8 +552,8 @@ async function seedConsentRecords(client: pg.Client, leads: LeadData[]): Promise
           ]
         );
         inserted++;
-      } catch {
-        // Ignore errors
+      } catch (error) {
+        logSeedError('consent_records', 'insert', error);
       }
     }
   }
@@ -556,8 +587,8 @@ async function seedAIBudgetUsage(client: pg.Client): Promise<number> {
         ]
       );
       inserted++;
-    } catch {
-      // Ignore errors
+    } catch (error) {
+      logSeedError('ai_budget_usage', 'insert', error);
     }
   }
 
@@ -579,8 +610,8 @@ async function seedAIBudgetUsage(client: pg.Client): Promise<number> {
       ]
     );
     inserted++;
-  } catch {
-    // Ignore errors
+  } catch (error) {
+    logSeedError('ai_budget_usage', 'insert', error);
   }
 
   return inserted;
@@ -619,8 +650,8 @@ async function seedAIProviderMetrics(client: pg.Client): Promise<number> {
         ]
       );
       inserted++;
-    } catch {
-      // Ignore errors
+    } catch (error) {
+      logSeedError('ai_provider_metrics', 'insert', error);
     }
   }
 
@@ -668,8 +699,8 @@ async function seedMedicalProcedures(client: pg.Client): Promise<number> {
         [proc.name, proc.category, proc.priceMin, proc.priceMax, proc.duration, proc.isHighValue]
       );
       inserted++;
-    } catch {
-      // Ignore errors
+    } catch (error) {
+      logSeedError('medical_procedures', 'insert', error);
     }
   }
 
@@ -731,8 +762,8 @@ async function seedWhatsAppTemplates(client: pg.Client): Promise<number> {
         ]
       );
       inserted++;
-    } catch {
-      // Ignore errors
+    } catch (error) {
+      logSeedError('whatsapp_templates', 'insert', error);
     }
   }
 
@@ -863,8 +894,8 @@ RĂSPUNS JSON:
         ]
       );
       inserted++;
-    } catch {
-      // Ignore errors
+    } catch (error) {
+      logSeedError('system_prompts', 'insert', error);
     }
   }
 
@@ -926,7 +957,43 @@ async function main(): Promise<void> {
 
     console.log();
     console.log('='.repeat(60));
-    console.log('  Seed completed successfully!');
+    // Report any errors that occurred during seeding
+    if (seedErrors.length > 0) {
+      console.log();
+      console.log('='.repeat(60));
+      console.log(`  ⚠️  Seed completed with ${seedErrors.length} error(s)`);
+      console.log('='.repeat(60));
+      console.log();
+
+      // Group errors by table
+      const errorsByTable = seedErrors.reduce((acc, err) => {
+        const key = err.table;
+        acc[key] = (acc[key] ?? 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      console.log('Errors by table:');
+      for (const [table, count] of Object.entries(errorsByTable)) {
+        console.log(`  ${table}: ${count} error(s)`);
+      }
+
+      if (process.env.DEBUG === 'true') {
+        console.log();
+        console.log('Detailed errors:');
+        for (const err of seedErrors.slice(0, 10)) {
+          console.log(`  - ${err.table}:${err.operation}: ${err.error instanceof Error ? err.error.message : String(err.error)}`);
+        }
+        if (seedErrors.length > 10) {
+          console.log(`  ... and ${seedErrors.length - 10} more`);
+        }
+      } else {
+        console.log();
+        console.log('Run with DEBUG=true for detailed error output');
+      }
+    } else {
+      console.log('  ✅ Seed completed successfully!');
+    }
+
     console.log('='.repeat(60));
     console.log();
     console.log('Sample leads created:');
@@ -941,11 +1008,25 @@ async function main(): Promise<void> {
       console.log();
     }
   } catch (error) {
-    console.error('Seed failed:', error);
+    console.error();
+    console.error('='.repeat(60));
+    console.error('  ❌ SEED FAILED');
+    console.error('='.repeat(60));
+    console.error();
+    console.error('Error:', error instanceof Error ? error.message : error);
+    if (error instanceof Error && error.stack) {
+      console.error();
+      console.error('Stack trace:');
+      console.error(error.stack);
+    }
     process.exit(1);
   } finally {
     await client.end();
+    console.log('Database connection closed.');
   }
 }
 
-main().catch(console.error);
+main().catch((error: unknown) => {
+  console.error('Unhandled error:', error instanceof Error ? error.message : error);
+  process.exit(1);
+});
