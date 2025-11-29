@@ -223,7 +223,22 @@ export function createDatabaseClient(connectionString?: string): DatabasePool {
   const connString = connectionString ?? process.env.DATABASE_URL;
 
   if (!connString) {
-    // Return in-memory mock if no connection string
+    // CRITICAL FIX: In production, DATABASE_URL MUST be configured
+    // Medical data MUST NOT be stored in volatile memory
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'CRITICAL: DATABASE_URL must be configured in production. ' +
+          'Medical/PHI data cannot be stored in volatile in-memory database. ' +
+          'This is a HIPAA compliance requirement.'
+      );
+    }
+
+    // Development/test only: Use in-memory mock with clear warning
+    const logger = createLogger({ name: 'database' });
+    logger.warn(
+      { environment: process.env.NODE_ENV },
+      'DEVELOPMENT WARNING: Using in-memory database - all data will be lost on restart!'
+    );
     globalPool ??= new InMemoryDatabase();
     return globalPool;
   }

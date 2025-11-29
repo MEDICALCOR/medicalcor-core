@@ -79,15 +79,92 @@ export class EncryptionService {
 
   /**
    * Load master key from environment
+   * SECURITY FIX: Strict validation for production environments
    */
   private loadMasterKey(): void {
     const keyHex = process.env.DATA_ENCRYPTION_KEY;
-    if (keyHex && keyHex.length === 64) {
-      this.masterKey = Buffer.from(keyHex, 'hex');
-      logger.info('Data encryption key loaded');
-    } else {
-      logger.warn('DATA_ENCRYPTION_KEY not configured or invalid. Encryption will fail.');
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    if (!keyHex) {
+      if (isProduction) {
+        // CRITICAL: In production, encryption key MUST be configured for HIPAA/GDPR compliance
+        throw new Error(
+          'CRITICAL: DATA_ENCRYPTION_KEY must be configured in production. ' +
+            'PHI/PII data cannot be stored without encryption. ' +
+            'Generate a key with: openssl rand -hex 32'
+        );
+      }
+      logger.warn(
+        'DATA_ENCRYPTION_KEY not configured. Encryption will fail. ' +
+          'This is only acceptable in development/testing.'
+      );
+      return;
     }
+
+    // Validate key format
+    if (keyHex.length !== 64) {
+      throw new Error(
+        `DATA_ENCRYPTION_KEY must be 32 bytes (64 hex characters), got ${keyHex.length} characters`
+      );
+    }
+
+    // Validate key is valid hex
+    if (!/^[0-9a-fA-F]+$/.test(keyHex)) {
+      throw new Error('DATA_ENCRYPTION_KEY must be a valid hexadecimal string');
+    }
+
+    // SECURITY: Validate key isn't a weak/obvious pattern
+    const keyBuffer = Buffer.from(keyHex, 'hex');
+    if (this.isWeakKey(keyBuffer)) {
+      throw new Error(
+        'DATA_ENCRYPTION_KEY appears to be a weak key (repeated patterns, all zeros, etc.). ' +
+          'Generate a cryptographically secure key with: openssl rand -hex 32'
+      );
+    }
+
+    this.masterKey = keyBuffer;
+    logger.info('Data encryption key loaded and validated');
+  }
+
+  /**
+   * Check if a key is weak (repeated patterns, all zeros, etc.)
+   * SECURITY: Prevents common mistakes like using test keys in production
+   */
+  private isWeakKey(key: Buffer): boolean {
+    // Check for all zeros
+    if (key.every((byte) => byte === 0)) {
+      return true;
+    }
+
+    // Check for all same byte
+    if (key.every((byte) => byte === key[0])) {
+      return true;
+    }
+
+    // Check for repeating 2-byte pattern
+    if (key.length >= 4) {
+      const pattern = key.slice(0, 2);
+      let isRepeating = true;
+      for (let i = 0; i < key.length; i += 2) {
+        if (key[i] !== pattern[0] || key[i + 1] !== pattern[1]) {
+          isRepeating = false;
+          break;
+        }
+      }
+      if (isRepeating) return true;
+    }
+
+    // Check for sequential bytes (0x01, 0x02, 0x03, ...)
+    let isSequential = true;
+    for (let i = 1; i < key.length; i++) {
+      if (key[i] !== (key[i - 1]! + 1) % 256) {
+        isSequential = false;
+        break;
+      }
+    }
+    if (isSequential) return true;
+
+    return false;
   }
 
   /**

@@ -7,6 +7,9 @@ export {
   type CreateLoggerOptions,
 } from './logger.js';
 
+// PII Masking utilities for safe logging (HIPAA/GDPR compliant)
+export { maskPhone, maskEmail, maskName } from './logger/redaction.js';
+
 export {
   AppError,
   ValidationError,
