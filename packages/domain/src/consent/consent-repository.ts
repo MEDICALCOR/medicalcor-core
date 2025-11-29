@@ -26,10 +26,7 @@ export interface ConsentRepository {
   /**
    * Find consent by contact ID and type
    */
-  findByContactAndType(
-    contactId: string,
-    consentType: ConsentType
-  ): Promise<ConsentRecord | null>;
+  findByContactAndType(contactId: string, consentType: ConsentType): Promise<ConsentRecord | null>;
 
   /**
    * Find all consents for a contact
@@ -75,6 +72,9 @@ export interface ConsentRepository {
 /**
  * In-memory implementation for development/testing
  * WARNING: Not suitable for production - data is lost on restart
+ *
+ * Note: Methods are async to match the ConsentRepository interface,
+ * but use synchronous operations internally for the in-memory store.
  */
 export class InMemoryConsentRepository implements ConsentRepository {
   private consents = new Map<string, ConsentRecord>();
@@ -84,47 +84,56 @@ export class InMemoryConsentRepository implements ConsentRepository {
     return `${contactId}:${consentType}`;
   }
 
-  async save(consent: ConsentRecord): Promise<ConsentRecord> {
+  save(consent: ConsentRecord): Promise<ConsentRecord> {
     const key = this.getKey(consent.contactId, consent.consentType);
     this.consents.set(key, consent);
-    return consent;
+    return Promise.resolve(consent);
   }
 
-  async upsert(consent: ConsentRecord): Promise<{ record: ConsentRecord; wasCreated: boolean }> {
+  upsert(consent: ConsentRecord): Promise<{ record: ConsentRecord; wasCreated: boolean }> {
     const key = this.getKey(consent.contactId, consent.consentType);
-    const wasCreated = !this.consents.has(key);
-    this.consents.set(key, consent);
-    return { record: consent, wasCreated };
+    const existing = this.consents.get(key);
+    const wasCreated = !existing;
+
+    // When updating, preserve the original ID
+    const recordToSave = wasCreated
+      ? consent
+      : {
+          ...consent,
+          id: existing.id,
+          createdAt: existing.createdAt,
+        };
+
+    this.consents.set(key, recordToSave);
+    return Promise.resolve({ record: recordToSave, wasCreated });
   }
 
-  async findByContactAndType(
-    contactId: string,
-    consentType: ConsentType
-  ): Promise<ConsentRecord | null> {
+  findByContactAndType(contactId: string, consentType: ConsentType): Promise<ConsentRecord | null> {
     const key = this.getKey(contactId, consentType);
-    return this.consents.get(key) ?? null;
+    return Promise.resolve(this.consents.get(key) ?? null);
   }
 
-  async findByContact(contactId: string): Promise<ConsentRecord[]> {
+  findByContact(contactId: string): Promise<ConsentRecord[]> {
     const results: ConsentRecord[] = [];
     for (const consent of this.consents.values()) {
       if (consent.contactId === contactId) {
         results.push(consent);
       }
     }
-    return results;
+    return Promise.resolve(results);
   }
 
-  async delete(consentId: string): Promise<void> {
+  delete(consentId: string): Promise<void> {
     for (const [key, consent] of this.consents.entries()) {
       if (consent.id === consentId) {
         this.consents.delete(key);
         break;
       }
     }
+    return Promise.resolve();
   }
 
-  async deleteByContact(contactId: string): Promise<number> {
+  deleteByContact(contactId: string): Promise<number> {
     let count = 0;
     for (const [key, consent] of this.consents.entries()) {
       if (consent.contactId === contactId) {
@@ -132,10 +141,10 @@ export class InMemoryConsentRepository implements ConsentRepository {
         count++;
       }
     }
-    return count;
+    return Promise.resolve(count);
   }
 
-  async findExpiringSoon(withinDays: number): Promise<ConsentRecord[]> {
+  findExpiringSoon(withinDays: number): Promise<ConsentRecord[]> {
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + withinDays);
 
@@ -149,30 +158,32 @@ export class InMemoryConsentRepository implements ConsentRepository {
         results.push(consent);
       }
     }
-    return results;
+    return Promise.resolve(results);
   }
 
-  async findByStatus(status: ConsentStatus): Promise<ConsentRecord[]> {
+  findByStatus(status: ConsentStatus): Promise<ConsentRecord[]> {
     const results: ConsentRecord[] = [];
     for (const consent of this.consents.values()) {
       if (consent.status === status) {
         results.push(consent);
       }
     }
-    return results;
+    return Promise.resolve(results);
   }
 
-  async appendAuditEntry(entry: ConsentAuditEntry): Promise<void> {
+  appendAuditEntry(entry: ConsentAuditEntry): Promise<void> {
     this.auditLog.push(entry);
+    return Promise.resolve();
   }
 
-  async getAuditTrail(consentId: string): Promise<ConsentAuditEntry[]> {
-    return this.auditLog.filter((e) => e.consentId === consentId);
+  getAuditTrail(consentId: string): Promise<ConsentAuditEntry[]> {
+    return Promise.resolve(this.auditLog.filter((e) => e.consentId === consentId));
   }
 
-  async getContactAuditTrail(contactId: string): Promise<ConsentAuditEntry[]> {
-    const consents = await this.findByContact(contactId);
-    const consentIds = new Set(consents.map((c) => c.id));
-    return this.auditLog.filter((e) => consentIds.has(e.consentId));
+  getContactAuditTrail(contactId: string): Promise<ConsentAuditEntry[]> {
+    return this.findByContact(contactId).then((consents) => {
+      const consentIds = new Set(consents.map((c) => c.id));
+      return this.auditLog.filter((e) => consentIds.has(e.consentId));
+    });
   }
 }

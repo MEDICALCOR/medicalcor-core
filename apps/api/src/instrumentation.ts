@@ -39,10 +39,14 @@ if (!isDisabled) {
     url: `${otlpEndpoint}/v1/traces`,
   });
 
+  // Note: Using type assertion to handle OpenTelemetry version mismatches
+  // between different packages in the dependency tree
+
   const sdk = new NodeSDK({
-    resource,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    spanProcessor: new BatchSpanProcessor(exporter) as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+    resource: resource as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+    spanProcessor: new BatchSpanProcessor(exporter as any),
     textMapPropagator: new W3CTraceContextPropagator(),
     instrumentations: [
       getNodeAutoInstrumentations({
@@ -60,21 +64,21 @@ if (!isDisabled) {
         '@opentelemetry/instrumentation-fastify': { enabled: true },
         // Enable PostgreSQL instrumentation for DB tracing
         '@opentelemetry/instrumentation-pg': { enabled: true },
-        // Enable Redis instrumentation
-        '@opentelemetry/instrumentation-redis-4': { enabled: true },
+        // Note: redis-4 instrumentation not available in current config map
       }),
     ],
   });
 
   sdk.start();
 
-  console.log(`[OpenTelemetry] Initialized for ${serviceName} -> ${otlpEndpoint}`);
+  console.info(`[OpenTelemetry] Initialized for ${serviceName} -> ${otlpEndpoint}`);
 
   // Graceful shutdown
   const shutdown = async () => {
     try {
       await sdk.shutdown();
-      console.log('[OpenTelemetry] SDK shut down successfully');
+
+      console.info('[OpenTelemetry] SDK shut down successfully');
     } catch (error) {
       console.error('[OpenTelemetry] Error shutting down SDK:', error);
     }
