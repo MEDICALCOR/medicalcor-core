@@ -502,3 +502,15 @@ export {
   type ConsentCheckResult,
   type ConsentEnforcementOptions,
 } from './middleware/consent-enforcement.js';
+
+// ============================================================================
+// BATCH INSERT - Optimized Bulk Operations
+// ============================================================================
+
+export {
+  batchInsert,
+  batchInsertStream,
+  type BatchInsertOptions,
+  type BatchInsertResult,
+  type BatchProgress,
+} from './batch-insert.js';

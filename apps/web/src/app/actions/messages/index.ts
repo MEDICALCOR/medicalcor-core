@@ -167,55 +167,261 @@ export async function getConversationsActionPaginated(options?: {
 // ============================================================================
 
 /**
- * Fetches messages for a conversation
+ * Fetches messages for a conversation from the message_log table
  *
- * **Note:** Currently returns empty array. Full implementation requires:
- * 1. WhatsApp Business API integration for message history
- * 2. Database table to store incoming/outgoing messages
+ * Messages are stored in the message_log table with optional encrypted content.
+ * For privacy, only content hashes are stored by default unless encryption is enabled.
  *
- * @param _conversationId - Conversation/contact ID (unused until integration)
- * @returns Array of messages (currently empty)
- *
- * @todo Implement WhatsApp Business API message fetching
- * @todo Implement message storage with PostgreSQL
+ * @param conversationId - Conversation/contact ID (HubSpot contact ID)
+ * @param options - Fetch options
+ * @param options.limit - Maximum messages to fetch (default 50)
+ * @param options.before - Fetch messages before this timestamp
+ * @returns Array of messages
  *
  * @example
  * ```typescript
- * // Future usage when implemented
  * const messages = await getMessagesAction('12345');
  * const inbound = messages.filter(m => m.direction === 'IN');
  * ```
  */
-export async function getMessagesAction(_conversationId: string): Promise<Message[]> {
-  // Real implementation requires:
-  // 1. WhatsApp Business API integration to fetch message history
-  // 2. Or a database table to store incoming/outgoing messages
-  // Currently no messaging storage is configured
+export async function getMessagesAction(
+  conversationId: string,
+  options?: { limit?: number; before?: Date }
+): Promise<Message[]> {
+  const { limit = 50, before } = options ?? {};
 
-  await Promise.resolve(); // Async placeholder
+  try {
+    await requirePermission('VIEW_MESSAGES');
 
-  return [];
+    // Get phone number for the contact from HubSpot
+    const hubspot = getHubSpotClient();
+    const contact = await hubspot.getContact(conversationId, ['phone']);
+
+    if (!contact?.properties?.phone) {
+      return [];
+    }
+
+    const phone = contact.properties.phone;
+
+    // Fetch messages from database
+    const { createDatabaseClient } = await import('@medicalcor/core');
+    const db = createDatabaseClient();
+
+    let query = `
+      SELECT
+        id,
+        external_message_id,
+        phone,
+        direction,
+        channel,
+        content_encrypted,
+        content_hash,
+        status,
+        correlation_id,
+        created_at
+      FROM message_log
+      WHERE phone = $1
+        AND deleted_at IS NULL
+    `;
+    const params: unknown[] = [phone];
+
+    if (before) {
+      query += ` AND created_at < $${params.length + 1}`;
+      params.push(before);
+    }
+
+    query += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
+    params.push(limit);
+
+    const result = await db.query(query, params);
+
+    // Map database rows to Message type
+    const messages: Message[] = result.rows.map(
+      (row: {
+        id: string;
+        external_message_id: string;
+        direction: 'IN' | 'OUT';
+        channel: string;
+        content_encrypted?: string;
+        content_hash?: string;
+        status: string;
+        created_at: Date;
+      }) => ({
+        id: row.id,
+        conversationId,
+        externalId: row.external_message_id,
+        direction: row.direction,
+        channel: row.channel as 'whatsapp' | 'voice' | 'sms' | 'email',
+        // Content is encrypted - show placeholder or decrypt if available
+        content: row.content_encrypted
+          ? '[Encrypted message - view in secure context]'
+          : `[Message hash: ${row.content_hash?.slice(0, 8)}...]`,
+        status: row.status as 'sent' | 'delivered' | 'read' | 'failed',
+        timestamp: new Date(row.created_at),
+      })
+    );
+
+    // Return in chronological order (oldest first)
+    return messages.reverse();
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[getMessagesAction] Failed to fetch messages:', error);
+    }
+    return [];
+  }
 }
 
 /**
- * Sends a message in a conversation
+ * Sends a message in a conversation via WhatsApp
  *
- * **Note:** Stub implementation. Requires WhatsApp Business API integration.
+ * This action:
+ * 1. Validates consent for communication
+ * 2. Sends the message via WhatsApp Business API
+ * 3. Logs the message to the database
  *
- * @param conversationId - Conversation/contact ID
- * @param content - Message content
- * @returns Success status
+ * @param conversationId - Conversation/contact ID (HubSpot contact ID)
+ * @param content - Message content to send
+ * @param options - Send options
+ * @param options.channel - Channel to use (default: 'whatsapp')
+ * @returns Success status with message ID
  *
- * @todo Implement WhatsApp Business API message sending
+ * @example
+ * ```typescript
+ * const result = await sendMessageAction('12345', 'Hello!');
+ * if (result.success) {
+ *   console.log('Message sent:', result.messageId);
+ * }
+ * ```
  */
 export async function sendMessageAction(
-  _conversationId: string,
-  _content: string
-): Promise<{ success: boolean; messageId?: string }> {
-  // Stub implementation - requires WhatsApp Business API
-  await Promise.resolve();
+  conversationId: string,
+  content: string,
+  options?: { channel?: 'whatsapp' | 'sms' }
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const { channel = 'whatsapp' } = options ?? {};
 
-  return { success: false };
+  try {
+    await requirePermission('SEND_MESSAGES');
+
+    // Validate input
+    if (!content || content.trim().length === 0) {
+      return { success: false, error: 'Message content cannot be empty' };
+    }
+
+    if (content.length > 4096) {
+      return { success: false, error: 'Message content too long (max 4096 characters)' };
+    }
+
+    // Get phone number for the contact from HubSpot
+    const hubspot = getHubSpotClient();
+    const contact = await hubspot.getContact(conversationId, ['phone', 'firstname']);
+
+    if (!contact?.properties?.phone) {
+      return { success: false, error: 'Contact has no phone number' };
+    }
+
+    const phone = contact.properties.phone;
+
+    // Check consent before sending
+    const { checkConsent } = await import('@medicalcor/core');
+    const consentResult = await checkConsent(phone, 'communication');
+
+    if (!consentResult.allowed) {
+      return {
+        success: false,
+        error: `Cannot send message: ${consentResult.reason ?? 'No consent for communication'}`,
+      };
+    }
+
+    // Generate message ID and correlation ID
+    const { randomUUID } = await import('crypto');
+    const messageId = randomUUID();
+    const correlationId = randomUUID();
+
+    // Hash content for logging (privacy)
+    const { createHash } = await import('crypto');
+    const contentHash = createHash('sha256').update(content).digest('hex');
+
+    // Log the outgoing message to database
+    const { createDatabaseClient } = await import('@medicalcor/core');
+    const db = createDatabaseClient();
+
+    await db.query(
+      `INSERT INTO message_log
+       (id, external_message_id, phone, direction, channel, content_hash, status, correlation_id, created_at)
+       VALUES ($1, $2, $3, 'OUT', $4, $5, 'pending', $6, NOW())`,
+      [messageId, messageId, phone, channel, contentHash, correlationId]
+    );
+
+    // Send via WhatsApp Business API (if configured)
+    if (process.env.WHATSAPP_API_URL && process.env.WHATSAPP_API_TOKEN) {
+      try {
+        const response = await fetch(`${process.env.WHATSAPP_API_URL}/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${process.env.WHATSAPP_API_TOKEN}`,
+          },
+          body: JSON.stringify({
+            messaging_product: 'whatsapp',
+            to: phone.replace(/\D/g, ''), // Strip non-digits
+            type: 'text',
+            text: { body: content },
+          }),
+        });
+
+        if (response.ok) {
+          const data = (await response.json()) as { messages?: [{ id: string }] };
+          const externalId = data.messages?.[0]?.id ?? messageId;
+
+          // Update message status and external ID
+          await db.query(
+            `UPDATE message_log SET status = 'sent', external_message_id = $1 WHERE id = $2`,
+            [externalId, messageId]
+          );
+
+          return { success: true, messageId: externalId };
+        } else {
+          const errorText = await response.text();
+          await db.query(
+            `UPDATE message_log SET status = 'failed' WHERE id = $1`,
+            [messageId]
+          );
+          return { success: false, messageId, error: `WhatsApp API error: ${errorText}` };
+        }
+      } catch (apiError) {
+        await db.query(
+          `UPDATE message_log SET status = 'failed' WHERE id = $1`,
+          [messageId]
+        );
+        return {
+          success: false,
+          messageId,
+          error: `Failed to send: ${apiError instanceof Error ? apiError.message : 'Unknown error'}`,
+        };
+      }
+    } else {
+      // No WhatsApp API configured - mark as queued for manual processing
+      await db.query(
+        `UPDATE message_log SET status = 'queued' WHERE id = $1`,
+        [messageId]
+      );
+
+      return {
+        success: true,
+        messageId,
+        error: 'Message queued (WhatsApp API not configured)',
+      };
+    }
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[sendMessageAction] Failed to send message:', error);
+    }
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to send message',
+    };
+  }
 }
 
 // ============================================================================

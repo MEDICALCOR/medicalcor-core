@@ -412,26 +412,191 @@ export async function getPatientByIdAction(patientId: string): Promise<PatientDe
 }
 
 /**
- * Fetches patient timeline events from HubSpot
+ * Fetches patient timeline events combining data from:
+ * - Lead scoring history
+ * - Message log
+ * - Consent records
+ * - Domain events
  *
  * @param patientId - HubSpot contact ID
+ * @param options - Fetch options
+ * @param options.limit - Maximum events to return (default 50)
+ * @param options.types - Filter by event types
  * @requires VIEW_PATIENTS permission + patient access check
  *
- * @returns Array of timeline events (currently empty - requires HubSpot Engagements API)
- *
- * @todo Implement HubSpot Engagements API integration for notes, calls, emails
+ * @returns Array of timeline events sorted by date (newest first)
  */
-export async function getPatientTimelineAction(patientId: string): Promise<PatientTimelineEvent[]> {
+export async function getPatientTimelineAction(
+  patientId: string,
+  options?: {
+    limit?: number;
+    types?: Array<'scoring' | 'message' | 'consent' | 'appointment' | 'call'>;
+  }
+): Promise<PatientTimelineEvent[]> {
+  const { limit = 50, types } = options ?? {};
+
   try {
     await requirePermission('VIEW_PATIENTS');
     await requirePatientAccess(patientId);
 
-    // Timeline events require HubSpot Engagements API or custom timeline events
-    // Currently returning empty array - requires additional HubSpot API calls
-    return [];
+    // Get patient phone from HubSpot
+    const hubspot = getHubSpotClient();
+    const contact = await hubspot.getContact(patientId, ['phone']);
+
+    if (!contact?.properties?.phone) {
+      return [];
+    }
+
+    const phone = contact.properties.phone;
+    const { createDatabaseClient } = await import('@medicalcor/core');
+    const db = createDatabaseClient();
+
+    const events: PatientTimelineEvent[] = [];
+
+    // Fetch scoring history
+    if (!types || types.includes('scoring')) {
+      const scoringResult = await db.query(
+        `SELECT id, score, classification, reasoning, model_version, created_at
+         FROM lead_scoring_history
+         WHERE (phone = $1 OR hubspot_contact_id = $2)
+         ORDER BY created_at DESC
+         LIMIT $3`,
+        [phone, patientId, Math.ceil(limit / 4)]
+      );
+
+      for (const row of scoringResult.rows as Array<{
+        id: string;
+        score: number;
+        classification: string;
+        reasoning: string;
+        model_version: string;
+        created_at: Date;
+      }>) {
+        events.push({
+          id: row.id,
+          type: 'scoring',
+          title: `Lead scored: ${row.classification} (${row.score}/5)`,
+          description: row.reasoning ?? 'AI lead scoring completed',
+          timestamp: new Date(row.created_at),
+          metadata: {
+            score: row.score,
+            classification: row.classification,
+            modelVersion: row.model_version,
+          },
+        });
+      }
+    }
+
+    // Fetch message history
+    if (!types || types.includes('message')) {
+      const messageResult = await db.query(
+        `SELECT id, direction, channel, status, created_at
+         FROM message_log
+         WHERE phone = $1 AND deleted_at IS NULL
+         ORDER BY created_at DESC
+         LIMIT $2`,
+        [phone, Math.ceil(limit / 4)]
+      );
+
+      for (const row of messageResult.rows as Array<{
+        id: string;
+        direction: string;
+        channel: string;
+        status: string;
+        created_at: Date;
+      }>) {
+        events.push({
+          id: row.id,
+          type: 'message',
+          title: `${row.direction === 'IN' ? 'Received' : 'Sent'} ${row.channel} message`,
+          description: `Status: ${row.status}`,
+          timestamp: new Date(row.created_at),
+          metadata: {
+            direction: row.direction,
+            channel: row.channel,
+            status: row.status,
+          },
+        });
+      }
+    }
+
+    // Fetch consent changes
+    if (!types || types.includes('consent')) {
+      const consentResult = await db.query(
+        `SELECT id, consent_type, granted, granted_at, withdrawn_at, created_at
+         FROM consent_records
+         WHERE (phone = $1 OR hubspot_contact_id = $2) AND deleted_at IS NULL
+         ORDER BY created_at DESC
+         LIMIT $3`,
+        [phone, patientId, Math.ceil(limit / 4)]
+      );
+
+      for (const row of consentResult.rows as Array<{
+        id: string;
+        consent_type: string;
+        granted: boolean;
+        granted_at: Date | null;
+        withdrawn_at: Date | null;
+        created_at: Date;
+      }>) {
+        const isWithdrawn = row.withdrawn_at !== null;
+        events.push({
+          id: row.id,
+          type: 'consent',
+          title: `${row.consent_type} consent ${isWithdrawn ? 'withdrawn' : row.granted ? 'granted' : 'denied'}`,
+          description: `GDPR consent record ${isWithdrawn ? 'withdrawal' : 'update'}`,
+          timestamp: new Date(isWithdrawn ? row.withdrawn_at! : row.created_at),
+          metadata: {
+            consentType: row.consent_type,
+            granted: row.granted && !isWithdrawn,
+          },
+        });
+      }
+    }
+
+    // Fetch domain events (appointments, calls, etc.)
+    if (!types || types.includes('appointment') || types.includes('call')) {
+      const eventsResult = await db.query(
+        `SELECT id, type, payload, created_at
+         FROM domain_events
+         WHERE (
+           (payload->>'phone' = $1) OR
+           (payload->>'hubspot_contact_id' = $2) OR
+           (payload->>'contactId' = $2)
+         )
+         AND type IN ('appointment.scheduled', 'appointment.confirmed', 'appointment.cancelled', 'call.completed', 'call.missed')
+         ORDER BY created_at DESC
+         LIMIT $3`,
+        [phone, patientId, Math.ceil(limit / 4)]
+      );
+
+      for (const row of eventsResult.rows as Array<{
+        id: string;
+        type: string;
+        payload: Record<string, unknown>;
+        created_at: Date;
+      }>) {
+        const eventType = row.type.startsWith('appointment') ? 'appointment' : 'call';
+        events.push({
+          id: row.id,
+          type: eventType,
+          title: row.type.replace('.', ' ').replace(/_/g, ' '),
+          description: (row.payload.procedureType as string) ?? (row.payload.summary as string) ?? '',
+          timestamp: new Date(row.created_at),
+          metadata: row.payload,
+        });
+      }
+    }
+
+    // Sort all events by timestamp (newest first) and limit
+    events.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+    return events.slice(0, limit);
   } catch (error) {
     if (error instanceof AuthorizationError) throw error;
-    // Error logged server-side
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[getPatientTimelineAction] Failed to fetch timeline:', error);
+    }
     return [];
   }
 }
