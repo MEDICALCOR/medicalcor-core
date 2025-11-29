@@ -49,6 +49,14 @@ const OpenAIEnvSchema = z.object({
   OPENAI_MODEL: z.string().default('gpt-4o'),
 });
 
+// Anthropic config (for multi-provider gateway fallback)
+const AnthropicEnvSchema = z.object({
+  /** Anthropic API key for Claude models (optional - used as fallback) */
+  ANTHROPIC_API_KEY: z.string().optional(),
+  /** Default Anthropic model */
+  ANTHROPIC_MODEL: z.string().default('claude-sonnet-4-5-20250929'),
+});
+
 // RAG (Retrieval-Augmented Generation) config
 const RAGEnvSchema = z.object({
   /** Enable RAG for AI scoring and reply generation */
@@ -210,6 +218,7 @@ export const ApiEnvSchema = ServerEnvSchema.merge(WhatsAppEnvSchema)
   .merge(StripeEnvSchema)
   .merge(HubSpotEnvSchema)
   .merge(OpenAIEnvSchema)
+  .merge(AnthropicEnvSchema)
   .merge(RAGEnvSchema)
   .merge(TriggerEnvSchema)
   .merge(DatabaseEnvSchema)
@@ -228,6 +237,7 @@ export const DevEnvSchema = ServerEnvSchema.merge(
     STRIPE_WEBHOOK_SECRET: z.string().optional(),
     HUBSPOT_ACCESS_TOKEN: z.string().optional(),
     OPENAI_API_KEY: z.string().optional(),
+    ANTHROPIC_API_KEY: z.string().optional(),
   })
 );
 
@@ -303,6 +313,7 @@ export function logSecretsStatus(logger: { info: (msg: string, data?: object) =>
     'STRIPE_WEBHOOK_SECRET',
     'HUBSPOT_ACCESS_TOKEN',
     'OPENAI_API_KEY',
+    'ANTHROPIC_API_KEY',
     'TRIGGER_SECRET_KEY',
     'DATABASE_URL',
     'REDIS_URL',

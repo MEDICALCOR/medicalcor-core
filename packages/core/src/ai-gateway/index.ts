@@ -167,7 +167,16 @@ export {
   type ProviderConfig,
   type MultiProviderGatewayConfig,
   type FallbackMetrics,
+  type AIMetricsRecord,
+  type AIMetricsRepository,
 } from './multi-provider-gateway.js';
+
+// AI Metrics Repository - PostgreSQL persistence for AI metrics
+export {
+  PostgresAIMetricsRepository,
+  createPostgresAIMetricsRepository,
+  type DatabaseClient as AIMetricsDatabaseClient,
+} from './ai-metrics-repository.js';
 
 // Token Estimator - Pre-call cost estimation
 export {
