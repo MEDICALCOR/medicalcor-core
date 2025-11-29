@@ -190,9 +190,9 @@ export interface AggregateRepository<T extends AggregateRoot> {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export abstract class EventSourcedRepository<T extends AggregateRoot<any>>
-  implements AggregateRepository<T>
-{
+export abstract class EventSourcedRepository<
+  T extends AggregateRoot<any>,
+> implements AggregateRepository<T> {
   constructor(
     protected readonly eventStore: EventStoreInterface,
     protected readonly aggregateType: string
@@ -535,7 +535,7 @@ export class LeadRepository extends EventSourcedRepository<LeadAggregate> {
       channel: row.channel as LeadState['channel'],
       status: row.status as LeadState['status'],
     };
-    
+
     // Only add optional properties if defined (exactOptionalPropertyTypes compliance)
     // Note: DB query types have | null, not | undefined, so we only check for null
     if (row.classification !== null) {
@@ -550,7 +550,7 @@ export class LeadRepository extends EventSourcedRepository<LeadAggregate> {
     if (row.assigned_to !== null) {
       lookup.assignedTo = row.assigned_to;
     }
-    
+
     return lookup;
   }
 
@@ -569,5 +569,63 @@ export class LeadRepository extends EventSourcedRepository<LeadAggregate> {
     // Fallback to event scan
     const lead = await this.findByPhone(phone);
     return lead !== null;
+  }
+
+  /**
+   * Find leads by status using SQL projection (O(1) lookup with index)
+   * Optimized for Triage Board queries.
+   *
+   * @param status - Lead status to filter by
+   * @param limit - Maximum number of results (default: 50)
+   * @returns Array of LeadAggregates hydrated from Event Store
+   */
+  async findByStatus(status: string, limit = 50): Promise<LeadAggregate[]> {
+    if (!this.projectionClient) {
+      // Fallback: No projection client, return empty array
+      // In production, projectionClient should always be provided
+      return [];
+    }
+
+    const result = await this.projectionClient.query<{ id: string }>(
+      `SELECT id FROM leads_lookup
+       WHERE status = $1
+       ORDER BY created_at DESC
+       LIMIT $2`,
+      [status, limit]
+    );
+
+    // Hydrate aggregates from Event Store in parallel for consistency
+    const leads = await Promise.all(result.rows.map((row) => this.getById(row.id)));
+
+    return leads.filter((lead): lead is LeadAggregate => lead !== null);
+  }
+
+  /**
+   * Find leads by classification using SQL projection
+   * Useful for filtering HOT/WARM/COLD leads in the UI.
+   *
+   * @param classification - Lead classification to filter by
+   * @param limit - Maximum number of results (default: 50)
+   * @returns Array of LeadAggregates hydrated from Event Store
+   */
+  async findByClassification(
+    classification: 'HOT' | 'WARM' | 'COLD' | 'UNQUALIFIED',
+    limit = 50
+  ): Promise<LeadAggregate[]> {
+    if (!this.projectionClient) {
+      return [];
+    }
+
+    const result = await this.projectionClient.query<{ id: string }>(
+      `SELECT id FROM leads_lookup
+       WHERE classification = $1
+       ORDER BY created_at DESC
+       LIMIT $2`,
+      [classification, limit]
+    );
+
+    const leads = await Promise.all(result.rows.map((row) => this.getById(row.id)));
+
+    return leads.filter((lead): lead is LeadAggregate => lead !== null);
   }
 }
