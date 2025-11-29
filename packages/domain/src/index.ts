@@ -2,34 +2,153 @@
  * @fileoverview Domain Package Exports
  *
  * Central export point for all domain services, types, and utilities.
+ * Banking/Medical Grade DDD Architecture for Dental OS.
  *
  * @module @medicalcor/domain
+ *
+ * ## Architecture Overview
+ *
+ * This package implements Domain-Driven Design (DDD) principles:
+ *
+ * ### Bounded Contexts
+ * - **Patient Acquisition**: Lead scoring, triage, qualification
+ * - **Consent Management**: GDPR compliance, consent tracking
+ * - **Clinical Planning**: Scheduling, appointments
+ *
+ * ### Shared Kernel
+ * - **Value Objects**: LeadScore, PhoneNumber (immutable, self-validating)
+ * - **Repository Interfaces**: ILeadRepository, ICrmGateway, IAIGateway
+ * - **Domain Events**: Strictly typed events for event sourcing
+ *
+ * ### Legacy Services (being migrated)
+ * - ScoringService, TriageService, ConsentService, etc.
  *
  * @example
  * ```typescript
  * import {
- *   // Services
+ *   // Value Objects (Banking Grade)
+ *   LeadScore,
+ *   PhoneNumber,
+ *
+ *   // Repository Interfaces
+ *   ILeadRepository,
+ *   ICrmGateway,
+ *   IAIGateway,
+ *
+ *   // Use Cases
+ *   ScoreLeadUseCase,
+ *
+ *   // Domain Events
+ *   LeadScoredEvent,
+ *   LeadQualifiedEvent,
+ *
+ *   // Legacy Services
  *   createScoringService,
  *   createTriageService,
- *   createConsentService,
- *   createLanguageService,
- *   SchedulingService,
- *
- *   // Types
- *   Result,
- *   ok,
- *   err,
- *   DomainError,
- *
- *   // Schemas
- *   ConsentRequestSchema,
- *   TriageInputSchema,
  * } from '@medicalcor/domain';
  * ```
  */
 
 // ============================================================================
-// DOMAIN SERVICES
+// SHARED KERNEL (Banking/Medical Grade DDD)
+// ============================================================================
+
+// Value Objects - Immutable, self-validating domain primitives
+export * from './shared-kernel/value-objects/index.js';
+
+// Repository Interfaces - Contracts for persistence & integrations
+// Note: Selectively export to avoid conflicts with language service types
+export {
+  // Lead Repository
+  type Lead,
+  type LeadSource,
+  type LeadStatus,
+  type ConversationEntry,
+  type CreateLeadInput,
+  type UpdateLeadInput,
+  type LeadSpecification,
+  type LeadByScoreSpec,
+  type LeadByStatusSpec,
+  type LeadNeedingFollowUpSpec,
+  type LeadBySourceSpec,
+  type LeadSpec,
+  type ILeadRepository,
+  type LeadRepositoryResult,
+  type LeadRepositoryError,
+  type LeadRepositoryErrorCode,
+  type QueryOptions,
+  type ScoringMetadata,
+  type TransactionContext,
+  hotLeadsSpec,
+  needsFollowUpSpec,
+  byStatusSpec,
+  bySourceSpec,
+} from './shared-kernel/repository-interfaces/lead-repository.js';
+
+export {
+  // CRM Gateway
+  type CrmContact,
+  type CreateCrmContactInput,
+  type UpdateCrmContactInput,
+  type CrmDeal,
+  type CreateCrmDealInput,
+  type CrmTask,
+  type CreateCrmTaskInput,
+  type CrmNote,
+  type CreateCrmNoteInput,
+  type ICrmGateway,
+  type CrmGatewayResult,
+  type CrmGatewayError,
+  type CrmGatewayErrorCode,
+  type ScoreUpdateMetadata,
+  type CrmPipeline,
+  type CrmPipelineStage,
+  type CrmOwner,
+  type CrmHealthStatus,
+  rateLimitedError,
+  connectionError,
+  notFoundError,
+} from './shared-kernel/repository-interfaces/crm-gateway.js';
+
+export {
+  // AI Gateway (with renamed types to avoid conflicts)
+  type LeadScoringContext,
+  type MessageEntry,
+  type AIScoringResult,
+  type LanguageDetectionRequest as AILanguageDetectionRequest,
+  type LanguageDetectionResult as AILanguageDetectionResult,
+  type TranslationRequest as AITranslationRequest,
+  type TranslationResult as AITranslationResult,
+  type ConversationResponseRequest,
+  type ConversationResponseResult,
+  type TranscriptionRequest,
+  type TranscriptionResult,
+  type TranscriptionSegment,
+  type IAIGateway,
+  type AIGatewayResult,
+  type AIGatewayError,
+  type AIGatewayErrorCode,
+  type SentimentAnalysisResult,
+  type AIHealthStatus,
+  type AIUsageStats,
+  aiRateLimitedError,
+  aiQuotaExceededError,
+  aiModelUnavailableError,
+  aiContentFilteredError,
+} from './shared-kernel/repository-interfaces/ai-gateway.js';
+
+// Domain Events - Strictly typed events for event sourcing
+export * from './shared-kernel/domain-events/index.js';
+
+// ============================================================================
+// BOUNDED CONTEXTS
+// ============================================================================
+
+// Patient Acquisition Context - Lead scoring, triage, qualification
+export * from './patient-acquisition/index.js';
+
+// ============================================================================
+// LEGACY DOMAIN SERVICES (being migrated to use cases)
 // ============================================================================
 
 export * from './scoring/index.js';
