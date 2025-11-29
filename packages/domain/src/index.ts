@@ -147,6 +147,9 @@ export * from './shared-kernel/domain-events/index.js';
 // Patient Acquisition Context - Lead scoring, triage, qualification
 export * from './patient-acquisition/index.js';
 
+// OSAX Context - Obstructive Sleep Apnea case management
+export * from './osax/index.js';
+
 // ============================================================================
 // LEGACY DOMAIN SERVICES (being migrated to use cases)
 // ============================================================================
