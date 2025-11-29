@@ -99,7 +99,12 @@ function parseCorsOrigins(): string[] | false {
     // SECURITY FIX: In development, use explicit localhost origins instead of wildcard
     // This provides security while maintaining developer convenience
     logger.warn('CORS_ORIGIN is "*" - using localhost defaults for development');
-    return ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173', 'http://127.0.0.1:3000'];
+    return [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:5173',
+      'http://127.0.0.1:3000',
+    ];
   }
 
   // Parse comma-separated origins and validate each
@@ -327,10 +332,18 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
   await fastify.register(rateLimitPlugin, rateLimitConfig);
 
   // API Key authentication for protected endpoints
-  // SECURITY: All execution endpoints require API key authentication
+  // SECURITY: All execution endpoints and sensitive diagnostics require API key authentication
   await fastify.register(apiAuthPlugin, {
     apiKeys: process.env.API_SECRET_KEY ? [process.env.API_SECRET_KEY] : [],
-    protectedPaths: ['/workflows', '/webhooks/booking', '/ai/execute'],
+    protectedPaths: [
+      '/workflows',
+      '/webhooks/booking',
+      '/ai/execute',
+      // SECURITY FIX: Protect metrics and diagnostics endpoints
+      // These expose sensitive internal information (traces, system resources, metrics)
+      '/metrics',
+      '/diagnostics',
+    ],
   });
 
   // SECURITY FIX: Custom JSON parser that preserves raw body for webhook signature verification
@@ -344,6 +357,7 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
         // Store raw body on request for signature verification
         // Using type assertion since Fastify's request type doesn't include rawBody
         (request as unknown as { rawBody: string }).rawBody = rawBody;
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- JSON.parse returns any, but this is expected for webhook payloads
         const parsed = JSON.parse(rawBody);
         done(null, parsed);
       } catch (error) {

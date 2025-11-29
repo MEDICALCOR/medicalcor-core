@@ -17,6 +17,9 @@ import { createHealthIndicator } from '@medicalcor/core/observability/instrument
  * - Diagnostic snapshots (/diagnostics)
  * - Trace lookup (/diagnostics/traces)
  * - Health checks (/diagnostics/health)
+ *
+ * SECURITY: All endpoints require API key authentication via X-API-Key header.
+ * Authentication is enforced by the apiAuthPlugin configured in app.ts.
  */
 
 // Register default health indicators
@@ -46,6 +49,7 @@ export const diagnosticsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /metrics
    *
    * Prometheus-compatible metrics endpoint
+   * SECURITY: Requires API key authentication (X-API-Key header)
    */
   fastify.get('/metrics', {
     schema: {
@@ -66,6 +70,7 @@ export const diagnosticsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /metrics/json
    *
    * JSON format metrics for debugging
+   * SECURITY: Requires API key authentication (X-API-Key header)
    */
   fastify.get('/metrics/json', async (_request: FastifyRequest, reply: FastifyReply) => {
     return reply.send(getMetricsJSON());
@@ -75,6 +80,7 @@ export const diagnosticsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /diagnostics
    *
    * Full diagnostic snapshot (target: <100ms)
+   * SECURITY: Requires API key authentication (X-API-Key header)
    */
   fastify.get('/diagnostics', async (_request: FastifyRequest, reply: FastifyReply) => {
     const startTime = performance.now();
@@ -95,6 +101,7 @@ export const diagnosticsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /diagnostics/quick
    *
    * Quick health check (target: <10ms)
+   * SECURITY: Requires API key authentication (X-API-Key header)
    */
   fastify.get('/diagnostics/quick', async (_request: FastifyRequest, reply: FastifyReply) => {
     const startTime = performance.now();
@@ -111,6 +118,7 @@ export const diagnosticsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /diagnostics/traces/:traceId
    *
    * Lookup a specific trace
+   * SECURITY: Requires API key authentication (X-API-Key header)
    */
   fastify.get<{ Params: { traceId: string } }>('/diagnostics/traces/:traceId', {
     schema: {
@@ -141,6 +149,7 @@ export const diagnosticsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /diagnostics/traces
    *
    * Search traces with filters
+   * SECURITY: Requires API key authentication (X-API-Key header)
    */
   fastify.get<{
     Querystring: {
@@ -187,6 +196,7 @@ export const diagnosticsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /diagnostics/health
    *
    * Detailed health check with all indicators
+   * SECURITY: Requires API key authentication (X-API-Key header)
    */
   fastify.get('/diagnostics/health', async (_request: FastifyRequest, reply: FastifyReply) => {
     const snapshot = await diagnostics.getSnapshot();
@@ -206,6 +216,7 @@ export const diagnosticsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /diagnostics/system
    *
    * System resource information
+   * SECURITY: Requires API key authentication (X-API-Key header)
    */
   fastify.get('/diagnostics/system', async (_request: FastifyRequest, reply: FastifyReply) => {
     const snapshot = await diagnostics.getSnapshot();
