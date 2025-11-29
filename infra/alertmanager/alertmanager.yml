@@ -1,6 +1,7 @@
 # =============================================================================
 # AlertManager Configuration
 # MedicalCor Medical CRM - Production Alerting
+# HIPAA/GDPR Compliant Alert Routing
 # =============================================================================
 
 global:
@@ -17,8 +18,18 @@ global:
   # PagerDuty integration key
   pagerduty_url: 'https://events.pagerduty.com/v2/enqueue'
 
-  # Global resolve timeout
-  resolve_timeout: 5m
+  # Opsgenie integration for backup notification channel
+  opsgenie_api_url: 'https://api.opsgenie.com/'
+  opsgenie_api_key: '${OPSGENIE_API_KEY}'
+
+  # Global resolve timeout - reduced from 5m for faster resolution tracking
+  resolve_timeout: 3m
+
+  # SECURITY: Enable HTTP basic auth for webhook receivers
+  http_config:
+    basic_auth:
+      username: '${ALERTMANAGER_WEBHOOK_USER}'
+      password: '${ALERTMANAGER_WEBHOOK_PASSWORD}'
 
 # Route tree configuration
 route:
@@ -34,25 +45,39 @@ route:
   # Wait before sending subsequent notifications for a group
   group_interval: 5m
 
-  # Wait before resending a notification
-  repeat_interval: 4h
+  # Wait before resending a notification - reduced for faster escalation
+  repeat_interval: 2h
 
   # Child routes for specific alert types
   routes:
-    # Critical alerts - immediate notification
+    # =======================================================================
+    # MEDICAL COMPLIANCE ALERTS - HIPAA/GDPR (Highest Priority)
+    # =======================================================================
+    - match:
+        compliance: hipaa
+      receiver: 'compliance-alerts'
+      group_wait: 5s
+      repeat_interval: 30m
+      continue: true  # Also send to severity-based receivers
+
+    # =======================================================================
+    # CRITICAL ALERTS - Immediate notification (reduced repeat interval)
+    # =======================================================================
     - match:
         severity: critical
       receiver: 'critical-alerts'
       group_wait: 10s
-      repeat_interval: 1h
+      repeat_interval: 30m  # Reduced from 1h for critical alerts
       continue: false
 
-    # Warning alerts - less urgent
+    # =======================================================================
+    # WARNING ALERTS - Less urgent (reduced repeat interval)
+    # =======================================================================
     - match:
         severity: warning
       receiver: 'warning-alerts'
       group_wait: 1m
-      repeat_interval: 4h
+      repeat_interval: 2h  # Reduced from 4h
       continue: false
 
     # Business hours alerts (leads, scoring)
@@ -87,6 +112,46 @@ receivers:
   - name: 'default-receiver'
     email_configs:
       - to: 'devops@medicalcor.io'
+        send_resolved: true
+
+  # ==========================================================================
+  # COMPLIANCE ALERTS - HIPAA/GDPR Violations
+  # Multi-channel notification for regulatory compliance
+  # ==========================================================================
+  - name: 'compliance-alerts'
+    pagerduty_configs:
+      - service_key: '${PAGERDUTY_COMPLIANCE_KEY}'
+        severity: critical
+        description: '🏥 COMPLIANCE ALERT: {{ .GroupLabels.alertname }}'
+        details:
+          compliance: '{{ .CommonLabels.compliance }}'
+          service: '{{ .CommonLabels.service }}'
+          description: '{{ .CommonAnnotations.description }}'
+    opsgenie_configs:
+      - api_key: '${OPSGENIE_API_KEY}'
+        message: 'COMPLIANCE: {{ .GroupLabels.alertname }}'
+        priority: P1
+        tags: ['compliance', 'hipaa', 'gdpr', '{{ .CommonLabels.service }}']
+    slack_configs:
+      - channel: '#alerts-compliance'
+        send_resolved: true
+        title: '🏥 COMPLIANCE ALERT: {{ .GroupLabels.alertname }}'
+        text: |
+          *Compliance Type:* {{ .CommonLabels.compliance }}
+          *Service:* {{ .CommonLabels.service }}
+          *Description:* {{ .CommonAnnotations.description }}
+          *Action Required:* {{ .CommonAnnotations.action }}
+          *Runbook:* {{ .CommonAnnotations.runbook }}
+        color: 'danger'
+    email_configs:
+      - to: 'compliance@medicalcor.io, dpo@medicalcor.io, cto@medicalcor.io'
+        send_resolved: true
+        headers:
+          priority: 'urgent'
+          X-Compliance-Alert: 'true'
+    # Webhook for audit logging
+    webhook_configs:
+      - url: '${COMPLIANCE_WEBHOOK_URL}'
         send_resolved: true
 
   - name: 'critical-alerts'

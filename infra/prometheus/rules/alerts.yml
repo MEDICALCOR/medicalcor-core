@@ -137,6 +137,203 @@ groups:
           summary: "Low disk space"
           description: "Less than 10% disk space available"
 
+  # ==========================================================================
+  # DATABASE ALERTS - HIPAA/Banking-Grade Monitoring
+  # ==========================================================================
+  - name: medicalcor-database
+    interval: 30s
+    rules:
+      # Database down
+      - alert: DatabaseDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: database
+          compliance: hipaa
+        annotations:
+          summary: "PostgreSQL database is down"
+          description: "Database has been unreachable for more than 1 minute. PHI data unavailable."
+          runbook: "Check Cloud SQL status, network connectivity, and failover status."
+
+      # Database connection pool exhausted
+      - alert: DatabaseConnectionPoolExhausted
+        expr: |
+          pg_stat_activity_count{state="active"}
+          /
+          pg_settings_max_connections
+          > 0.9
+        for: 5m
+        labels:
+          severity: critical
+          service: database
+        annotations:
+          summary: "Database connection pool nearly exhausted"
+          description: "{{ $value | humanizePercentage }} of connections in use"
+
+      # Slow queries
+      - alert: DatabaseSlowQueries
+        expr: |
+          rate(pg_stat_statements_seconds_total{statement_type="select"}[5m])
+          /
+          rate(pg_stat_statements_calls_total{statement_type="select"}[5m])
+          > 1
+        for: 10m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "Database queries are slow"
+          description: "Average query time is {{ $value }}s"
+
+      # Replication lag (if replica exists)
+      - alert: DatabaseReplicationLag
+        expr: pg_replication_lag_seconds > 30
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "Database replication lag detected"
+          description: "Replication lag is {{ $value }}s"
+
+      # Transaction deadlocks
+      - alert: DatabaseDeadlocks
+        expr: rate(pg_stat_database_deadlocks_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "Database deadlocks detected"
+          description: "Deadlocks occurring at rate of {{ $value }}/s"
+
+  # ==========================================================================
+  # SECURITY ALERTS - HIPAA/GDPR Compliance
+  # ==========================================================================
+  - name: medicalcor-security
+    interval: 30s
+    rules:
+      # Failed authentication attempts (brute force detection)
+      - alert: BruteForceAttempt
+        expr: |
+          sum(rate(auth_login_failures_total[5m])) by (ip_address) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          service: security
+          compliance: hipaa
+        annotations:
+          summary: "Possible brute force attack detected"
+          description: "High rate of failed logins from IP {{ $labels.ip_address }}"
+          action: "Consider blocking IP and investigating source"
+
+      # Unusual data access patterns (HIPAA requirement)
+      - alert: UnusualDataAccess
+        expr: |
+          sum(rate(sensitive_data_access_total[1h])) by (user_id) > 100
+        for: 30m
+        labels:
+          severity: warning
+          service: security
+          compliance: hipaa
+        annotations:
+          summary: "Unusual PHI access pattern detected"
+          description: "User {{ $labels.user_id }} accessed unusually high volume of sensitive data"
+
+      # Failed authorization attempts
+      - alert: AuthorizationFailures
+        expr: |
+          sum(rate(auth_authorization_failures_total[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          service: security
+        annotations:
+          summary: "High rate of authorization failures"
+          description: "Possible privilege escalation attempt or misconfiguration"
+
+      # Certificate expiry warning
+      - alert: CertificateExpiringSoon
+        expr: |
+          (probe_ssl_earliest_cert_expiry - time()) / 86400 < 30
+        for: 1h
+        labels:
+          severity: warning
+          service: security
+        annotations:
+          summary: "TLS certificate expiring soon"
+          description: "Certificate expires in {{ $value }} days"
+
+      # Certificate expired
+      - alert: CertificateExpired
+        expr: |
+          (probe_ssl_earliest_cert_expiry - time()) < 0
+        for: 5m
+        labels:
+          severity: critical
+          service: security
+        annotations:
+          summary: "TLS certificate has expired"
+          description: "Certificate expired {{ $value | humanizeDuration }} ago"
+
+      # Webhook signature failures (tampering detection)
+      - alert: WebhookSignatureFailures
+        expr: |
+          sum(rate(webhook_signature_failures_total[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          service: security
+        annotations:
+          summary: "Webhook signature verification failures"
+          description: "Possible webhook tampering or misconfiguration"
+
+  # ==========================================================================
+  # BACKUP ALERTS - Data Protection
+  # ==========================================================================
+  - name: medicalcor-backup
+    interval: 60s
+    rules:
+      # Backup hasn't run in 24 hours
+      - alert: BackupOverdue
+        expr: |
+          time() - backup_last_success_timestamp_seconds > 86400
+        for: 1h
+        labels:
+          severity: critical
+          service: backup
+          compliance: hipaa
+        annotations:
+          summary: "Database backup is overdue"
+          description: "No successful backup in the last 24 hours"
+
+      # Backup failed
+      - alert: BackupFailed
+        expr: backup_last_status == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: backup
+        annotations:
+          summary: "Database backup failed"
+          description: "Last backup attempt failed. Check backup service logs."
+
+      # Backup size anomaly
+      - alert: BackupSizeAnomaly
+        expr: |
+          abs(
+            backup_size_bytes
+            - avg_over_time(backup_size_bytes[7d])
+          ) / avg_over_time(backup_size_bytes[7d]) > 0.5
+        for: 1h
+        labels:
+          severity: warning
+          service: backup
+        annotations:
+          summary: "Backup size anomaly detected"
+          description: "Backup size differs significantly from 7-day average"
+
   - name: medicalcor-business
     interval: 60s
     rules:

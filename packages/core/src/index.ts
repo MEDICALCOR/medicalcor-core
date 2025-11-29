@@ -486,3 +486,19 @@ export {
 
 // Re-export all types from the types module
 export * from './types/index.js';
+
+// ============================================================================
+// CONSENT ENFORCEMENT - GDPR Article 7 Compliance
+// ============================================================================
+
+export {
+  checkConsent,
+  enforceConsent,
+  logConsentEnforcement,
+  createConsentMiddleware,
+  invalidateConsentCache,
+  ConsentDeniedError,
+  type ConsentType,
+  type ConsentCheckResult,
+  type ConsentEnforcementOptions,
+} from './middleware/consent-enforcement.js';

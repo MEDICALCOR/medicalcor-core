@@ -317,9 +317,18 @@ export const batchRetentionScoring = task({
           highRisk++;
         }
 
-        // Rate limiting - avoid HubSpot API limits
-        if (scored % 10 === 0) {
-          await new Promise((resolve) => setTimeout(resolve, 100));
+        // Rate limiting - HubSpot API limits:
+        // - Standard: 100 requests / 10 seconds
+        // - Enterprise: 150 requests / 10 seconds
+        // We use conservative limits: 80 requests / 10 seconds = 125ms per request
+        // Apply after every request, not just every 10
+        const HUBSPOT_RATE_LIMIT_MS = parseInt(process.env.HUBSPOT_RATE_LIMIT_MS ?? '125', 10);
+        await new Promise((resolve) => setTimeout(resolve, HUBSPOT_RATE_LIMIT_MS));
+
+        // Additional burst protection: longer pause every 50 requests
+        if (scored % 50 === 0) {
+          logger.info('Rate limit checkpoint', { scored, totalPatients: patients.length });
+          await new Promise((resolve) => setTimeout(resolve, 2000)); // 2 second pause
         }
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error';
