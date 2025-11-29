@@ -338,12 +338,14 @@ export class EncryptionService {
     let rotatedCount = 0;
 
     for (const row of result.rows) {
+      // Save key state outside try block so it's accessible in finally
+      const oldMasterKey = this.masterKey;
+      const oldKeyVersion = this.currentKeyVersion;
       try {
         // Decrypt with old key
         const plaintext = this.decrypt(row.encrypted_value as string);
 
         // Re-encrypt with new key
-        const oldMasterKey = this.masterKey;
         this.masterKey = newMasterKey;
         this.currentKeyVersion = newKeyVersion;
 
@@ -357,10 +359,12 @@ export class EncryptionService {
         );
 
         rotatedCount++;
-        this.masterKey = oldMasterKey;
-        this.currentKeyVersion = newKeyVersion - 1;
       } catch (error) {
         logger.error({ id: row.id, error }, 'Failed to rotate encryption for record');
+      } finally {
+        // Always restore old key state for next iteration's decrypt
+        this.masterKey = oldMasterKey;
+        this.currentKeyVersion = oldKeyVersion;
       }
     }
 
