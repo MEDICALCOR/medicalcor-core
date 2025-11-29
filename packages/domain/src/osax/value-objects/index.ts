@@ -1,7 +1,4 @@
 /**
- * @fileoverview OSAX Value Objects
- *
- * Re-exports all OSAX-related value objects.
  * @fileoverview OSAX Value Objects Index
  *
  * Re-exports all value objects for the OSAX domain.
@@ -9,6 +6,37 @@
  * @module domain/osax/value-objects
  */
 
-export { OsaxSubjectId, type OsaxSubjectType } from './OsaxSubjectId.js';
-export * from './OsaxClinicalScore.js';
-export * from './OsaxSubjectId.js';
+// OsaxClinicalScore exports
+export {
+  OsaxClinicalScore,
+  InvalidOsaxScoreError,
+  isOsaxClinicalScore,
+  isSuccessfulParse,
+  CLINICAL_INDICATOR_RANGES,
+  SEVERITY_THRESHOLDS,
+  CLINICAL_SLA_HOURS,
+  type OsaxSeverity,
+  type OsaxCardiovascularRisk,
+  type OsaxTreatmentRecommendation,
+  type FollowUpUrgency,
+  type ClinicalTaskPriority,
+  type OsaxClinicalIndicators,
+  type OsaxClinicalScoreDTO,
+  type OsaxClinicalScoreParseResult,
+  type InvalidOsaxScoreErrorDetails,
+  type ValidatedAHI,
+  type ValidatedSpO2,
+  type ValidatedCompositeScore,
+  type ValidatedConfidence,
+} from './OsaxClinicalScore.js';
+
+// OsaxSubjectId exports
+export {
+  OsaxSubjectId,
+  InvalidOsaxSubjectIdError,
+  type OsaxSubjectIdType,
+  type OsaxSubjectType,
+  type OsaxSubjectDemographics,
+  type OsaxSubjectIdDTO,
+  type OsaxSubjectIdParseResult,
+} from './OsaxSubjectId.js';

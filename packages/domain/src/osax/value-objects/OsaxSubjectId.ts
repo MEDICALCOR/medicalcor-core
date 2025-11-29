@@ -1,10 +1,6 @@
 /**
  * @fileoverview OsaxSubjectId Value Object
  *
- * Value Object pentru identificarea subiectului unui caz OSAX.
- * Poate fi fie Lead (pre-consult), fie Patient (post-consult).
- *
- * @module domain/osax/value-objects/OsaxSubjectId
  * Banking/Medical Grade DDD Value Object for OSAX subject identification.
  * Immutable, self-validating, and encapsulated.
  *
@@ -13,18 +9,6 @@
  * DESIGN PRINCIPLES:
  * 1. IMMUTABILITY - Once created, cannot be changed
  * 2. SELF-VALIDATION - Invalid states are impossible
- * 3. EQUALITY BY VALUE - Two OsaxSubjectIds with same type+id are equal
- * 4. TYPE SAFETY - Discriminated union for lead vs patient
- */
-
-import { type Result, ok, err, DomainError } from '../../shared/types.js';
-
-/**
- * Subject type discriminator for OSAX cases
- * - 'lead': Pre-consult subject (potential patient)
- * - 'patient': Post-consult subject (confirmed patient)
- */
-export type OsaxSubjectType = 'lead' | 'patient';
  * 3. EQUALITY BY VALUE - Two OsaxSubjectIds with same value are equal
  * 4. GDPR COMPLIANCE - Pseudonymization support for clinical data
  *
@@ -33,6 +17,13 @@ export type OsaxSubjectType = 'lead' | 'patient';
  * maintaining GDPR compliance through pseudonymization. The ID format
  * supports both internal references and external study identifiers.
  */
+
+/**
+ * Subject type discriminator for OSAX cases
+ * - 'lead': Pre-consult subject (potential patient)
+ * - 'patient': Post-consult subject (confirmed patient)
+ */
+export type OsaxSubjectType = 'lead' | 'patient';
 
 /**
  * Subject ID type - internal vs external study
@@ -56,32 +47,6 @@ export interface OsaxSubjectDemographics {
 /**
  * OsaxSubjectId Value Object
  *
- * Represents the subject of an OSAX case, which can be either a Lead
- * (pre-consultation) or a Patient (post-consultation).
- *
- * This is a true Value Object following DDD principles:
- * - Immutable (all properties readonly, Object.freeze applied)
- * - Self-validating (returns Result on invalid input)
- * - Equality by value (equals method)
- * - Business logic encapsulated (type discrimination)
- *
- * @example
- * ```typescript
- * // Create from lead
- * const leadResult = OsaxSubjectId.createFromLead('lead-123');
- * if (leadResult.success) {
- *   console.log(leadResult.value.isLead()); // true
- *   console.log(leadResult.value.toString()); // 'lead:lead-123'
- * }
- *
- * // Create from patient
- * const patientResult = OsaxSubjectId.createFromPatient('patient-456');
- * if (patientResult.success) {
- *   console.log(patientResult.value.isPatient()); // true
- * }
- *
- * // Reconstitute from database
- * const restored = OsaxSubjectId.reconstitute('lead', 'lead-123');
  * Represents a pseudonymized subject identifier for OSAX clinical data.
  * Designed for GDPR compliance while maintaining research utility.
  *
@@ -92,9 +57,9 @@ export interface OsaxSubjectDemographics {
  * console.log(subjectId.formatted); // 'OSAX-2025-001'
  * console.log(subjectId.isInternal()); // true
  *
- * // Create from patient record (with pseudonymization)
- * const pseudonymized = OsaxSubjectId.fromPatientId('patient-uuid', 'study-salt');
- * console.log(pseudonymized.type); // 'INTERNAL'
+ * // Generate new ID
+ * const newId = OsaxSubjectId.generate(1, 2025);
+ * console.log(newId.formatted); // 'OSAX-2025-001'
  *
  * // Create for external study
  * const externalId = OsaxSubjectId.forExternalStudy('NCT12345678', 'SUB-042');
@@ -103,15 +68,7 @@ export interface OsaxSubjectDemographics {
  */
 export class OsaxSubjectId {
   /**
-   * The type of subject (lead or patient)
-   */
-  public readonly type: OsaxSubjectType;
-
-  /**
-   * The unique identifier for the subject
-   */
-  public readonly id: string;
-   * Unique subject identifier
+   * Unique subject identifier (internal value)
    */
   public readonly value: string;
 
@@ -128,22 +85,22 @@ export class OsaxSubjectId {
   /**
    * Study year for internal IDs
    */
-  public readonly studyYear?: number;
+  public readonly studyYear: number | undefined;
 
   /**
    * Sequence number within year
    */
-  public readonly sequenceNumber?: number;
+  public readonly sequenceNumber: number | undefined;
 
   /**
    * External study reference (e.g., NCT number)
    */
-  public readonly studyReference?: string;
+  public readonly studyReference: string | undefined;
 
   /**
    * Subject demographics for stratification
    */
-  public readonly demographics?: OsaxSubjectDemographics;
+  public readonly demographics: OsaxSubjectDemographics | undefined;
 
   /**
    * Creation timestamp
@@ -153,9 +110,6 @@ export class OsaxSubjectId {
   /**
    * Private constructor - use static factory methods
    */
-  private constructor(type: OsaxSubjectType, id: string) {
-    this.type = type;
-    this.id = id;
   private constructor(
     value: string,
     formatted: string,
@@ -184,43 +138,6 @@ export class OsaxSubjectId {
   // ============================================================================
 
   /**
-   * Create OsaxSubjectId from a Lead ID
-   *
-   * @param leadId - The lead identifier
-   * @returns Result containing OsaxSubjectId or DomainError
-   */
-  static createFromLead(leadId: string): Result<OsaxSubjectId, DomainError> {
-    if (!leadId || leadId.trim().length === 0) {
-      return err(new DomainError('VALIDATION_ERROR', 'Lead ID cannot be empty', { leadId }));
-    }
-    return ok(new OsaxSubjectId('lead', leadId.trim()));
-  }
-
-  /**
-   * Create OsaxSubjectId from a Patient ID
-   *
-   * @param patientId - The patient identifier
-   * @returns Result containing OsaxSubjectId or DomainError
-   */
-  static createFromPatient(patientId: string): Result<OsaxSubjectId, DomainError> {
-    if (!patientId || patientId.trim().length === 0) {
-      return err(new DomainError('VALIDATION_ERROR', 'Patient ID cannot be empty', { patientId }));
-    }
-    return ok(new OsaxSubjectId('patient', patientId.trim()));
-  }
-
-  /**
-   * Reconstitute from database/serialized data
-   *
-   * Use this method when hydrating from persistence layer.
-   * Assumes data has already been validated.
-   *
-   * @param type - The subject type
-   * @param id - The subject identifier
-   * @returns OsaxSubjectId instance
-   */
-  static reconstitute(type: OsaxSubjectType, id: string): OsaxSubjectId {
-    return new OsaxSubjectId(type, id);
    * Create OsaxSubjectId from formatted string
    *
    * Expected format: OSAX-YYYY-NNN or OSAX-YYYY-NNN-EXT
@@ -240,8 +157,8 @@ export class OsaxSubjectId {
   /**
    * Generate new internal subject ID
    *
-   * @param year - Study year (defaults to current year)
    * @param sequenceNumber - Sequence number within year
+   * @param year - Study year (defaults to current year)
    * @param demographics - Optional demographic info
    * @returns New OsaxSubjectId
    */
@@ -280,7 +197,7 @@ export class OsaxSubjectId {
   /**
    * Create pseudonymized ID from patient UUID
    *
-   * Uses SHA-256 hashing with salt for GDPR-compliant pseudonymization.
+   * Uses hashing with salt for GDPR-compliant pseudonymization.
    *
    * @param patientId - Original patient UUID
    * @param salt - Salt for hashing (should be kept secure)
@@ -457,64 +374,6 @@ export class OsaxSubjectId {
   // ============================================================================
 
   /**
-   * Check if this subject is a Lead (pre-consult)
-   */
-  isLead(): boolean {
-    return this.type === 'lead';
-  }
-
-  /**
-   * Check if this subject is a Patient (post-consult)
-   */
-  isPatient(): boolean {
-    return this.type === 'patient';
-  }
-
-  // ============================================================================
-  // EQUALITY & COMPARISON
-  // ============================================================================
-
-  /**
-   * Value equality check
-   *
-   * Two OsaxSubjectIds are equal if they have the same type and id.
-   *
-   * @param other - The other OsaxSubjectId to compare
-   * @returns True if equal by value
-   */
-  equals(other: OsaxSubjectId): boolean {
-    return this.type === other.type && this.id === other.id;
-  }
-
-  // ============================================================================
-  // SERIALIZATION
-  // ============================================================================
-
-  /**
-   * Convert to string representation
-   *
-   * Format: `{type}:{id}`
-   *
-   * @example
-   * ```typescript
-   * const subject = OsaxSubjectId.reconstitute('lead', '123');
-   * console.log(subject.toString()); // 'lead:123'
-   * ```
-   */
-  toString(): string {
-    return `${this.type}:${this.id}`;
-  }
-
-  /**
-   * Convert to plain object (for JSON serialization)
-   */
-  toJSON(): { type: OsaxSubjectType; id: string } {
-    return {
-      type: this.type,
-      id: this.id,
-    };
-  }
-}
    * Check if this is an internal subject ID
    */
   public isInternal(): boolean {
@@ -671,13 +530,7 @@ export class OsaxSubjectId {
     // Convert to hex and pad
     const hexHash = Math.abs(hash).toString(16).padStart(8, '0');
 
-    // Use crypto if available for better randomness
-    if (typeof globalThis !== 'undefined' && globalThis.crypto?.randomUUID) {
-      const uuid = globalThis.crypto.randomUUID().replace(/-/g, '');
-      return `${hexHash}${uuid.substring(0, 8)}`;
-    }
-
-    // Fallback: extend with timestamp
+    // Extend with timestamp for uniqueness
     const timestamp = Date.now().toString(16).substring(0, 8);
     return `${hexHash}${timestamp}`;
   }

@@ -7,98 +7,44 @@
  * @module domain/osax
  */
 
-// Value Objects
-export * from './value-objects/index.js';
- * Central export point for the OSAX (Obstructive Sleep Apnea Extended) domain.
- * Banking/Medical Grade DDD implementation for sleep apnea case management.
- *
- * @module domain/osax
- *
- * ## Overview
- *
- * This module implements Domain-Driven Design patterns for OSAX clinical workflows:
- *
- * ### Value Objects
- * - `OsaxClinicalScore` - Composite clinical scoring with AASM guidelines
- * - `OsaxSubjectId` - GDPR-compliant subject identification
- *
- * ### Entities
- * - `OsaxCase` - Aggregate root for sleep apnea case management
- *
- * ### Domain Services
- * - `OsaxScoringPolicy` - Pure scoring logic and treatment eligibility
- *
- * ### Repository Interfaces
- * - `IOsaxCaseRepository` - Persistence contract for cases
- *
- * ### Domain Events
- * - Case lifecycle events (created, scored, reviewed, closed)
- * - Treatment events (initiated, status changed, completed)
- * - Follow-up events (scheduled, completed, missed)
- * - GDPR compliance events (consent, export, deletion)
- *
- * @example
- * ```typescript
- * import {
- *   // Value Objects
- *   OsaxClinicalScore,
- *   OsaxSubjectId,
- *
- *   // Entities
- *   createOsaxCase,
- *   type OsaxCase,
- *
- *   // Scoring Policy
- *   calculateScore,
- *   determineTreatmentEligibility,
- *
- *   // Repository
- *   type IOsaxCaseRepository,
- *   pendingReviewSpec,
- *
- *   // Events
- *   createOsaxCaseScoredEvent,
- *   isOsaxCaseScoredEvent,
- * } from '@medicalcor/domain/osax';
- *
- * // Create a new case
- * const subjectId = OsaxSubjectId.generate(1, 2025);
- * const osaxCase = createOsaxCase({ subjectId, patientId: 'patient-123' }, 1);
- *
- * // Score from clinical indicators
- * const score = OsaxClinicalScore.fromIndicators({
- *   ahi: 25,
- *   odi: 22,
- *   spo2Nadir: 78,
- *   spo2Average: 94,
- *   sleepEfficiency: 82,
- *   essScore: 14,
- * });
- *
- * console.log(score.severity); // 'MODERATE'
- * console.log(score.requiresCPAP()); // true
- * ```
- */
-
 // ============================================================================
 // VALUE OBJECTS
 // ============================================================================
 
 export {
-  // OsaxClinicalScore
+  // OsaxClinicalScore - Class and Error
   OsaxClinicalScore,
   InvalidOsaxScoreError,
+
+  // Type guards and utilities
+  isOsaxClinicalScore,
+  isSuccessfulParse,
+
+  // Constants
+  CLINICAL_INDICATOR_RANGES,
+  SEVERITY_THRESHOLDS,
+  CLINICAL_SLA_HOURS,
+
+  // Types
   type OsaxSeverity,
   type OsaxCardiovascularRisk,
   type OsaxTreatmentRecommendation,
+  type FollowUpUrgency,
+  type ClinicalTaskPriority,
   type OsaxClinicalIndicators,
   type OsaxClinicalScoreDTO,
   type OsaxClinicalScoreParseResult,
+  type InvalidOsaxScoreErrorDetails,
+  type ValidatedAHI,
+  type ValidatedSpO2,
+  type ValidatedCompositeScore,
+  type ValidatedConfidence,
 
   // OsaxSubjectId
   OsaxSubjectId,
   InvalidOsaxSubjectIdError,
   type OsaxSubjectIdType,
+  type OsaxSubjectType,
   type OsaxSubjectDemographics,
   type OsaxSubjectIdDTO,
   type OsaxSubjectIdParseResult,
