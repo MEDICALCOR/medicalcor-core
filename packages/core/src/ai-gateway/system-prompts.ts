@@ -319,16 +319,13 @@ export class SystemPromptsRepository {
   private db: DatabasePool | null = null;
 
   constructor(config: Partial<SystemPromptsRepositoryConfig> = {}) {
-    const baseConfig: SystemPromptsRepositoryConfig = {
+    // Use object spread with conditional property for exactOptionalPropertyTypes compliance
+    this.config = {
       useDatabase: config.useDatabase ?? false,
       cacheTtlSeconds: config.cacheTtlSeconds ?? 300, // 5 minutes
       enableAuditLog: config.enableAuditLog ?? true,
+      ...(config.connectionString !== undefined && { connectionString: config.connectionString }),
     };
-    // Only add connectionString if it's defined (exactOptionalPropertyTypes compliance)
-    if (config.connectionString !== undefined) {
-      baseConfig.connectionString = config.connectionString;
-    }
-    this.config = baseConfig;
   }
 
   /**

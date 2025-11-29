@@ -353,7 +353,7 @@ export class ScoreLeadUseCase {
     const metadata = createEventMetadata(input.correlationId, 'score-lead-use-case');
 
     // LeadScored event (always)
-    // Build payload with only defined optional properties (exactOptionalPropertyTypes compliance)
+    // Build payload using object spread with conditional properties (exactOptionalPropertyTypes compliance)
     const scoredPayload: LeadScoredPayload = {
       phone: phone.e164,
       channel: input.channel,
@@ -363,30 +363,14 @@ export class ScoreLeadUseCase {
       method: scoringMethod,
       reasoning: scoringResult.reasoning,
       suggestedAction: scoringResult.suggestedAction,
+      budgetMentioned: scoringResult.budgetMentioned,
+      ...(input.hubspotContactId !== undefined && { hubspotContactId: input.hubspotContactId }),
+      ...(scoringResult.detectedIntent !== undefined && { detectedIntent: scoringResult.detectedIntent }),
+      ...(scoringResult.urgencyIndicators.length > 0 && { urgencyIndicators: scoringResult.urgencyIndicators }),
+      ...(scoringResult.procedureInterest.length > 0 && { procedureInterest: scoringResult.procedureInterest }),
+      ...(previousScore?.numericValue !== undefined && { previousScore: previousScore.numericValue }),
+      ...(previousScore?.classification !== undefined && { previousClassification: previousScore.classification }),
     };
-    
-    // Add optional properties only if they have values
-    if (input.hubspotContactId !== undefined) {
-      (scoredPayload as { hubspotContactId: string }).hubspotContactId = input.hubspotContactId;
-    }
-    if (scoringResult.detectedIntent !== undefined) {
-      (scoredPayload as { detectedIntent: string }).detectedIntent = scoringResult.detectedIntent;
-    }
-    if (scoringResult.urgencyIndicators.length > 0) {
-      (scoredPayload as { urgencyIndicators: readonly string[] }).urgencyIndicators = scoringResult.urgencyIndicators;
-    }
-    // budgetMentioned is always defined (boolean type) - always include it
-    (scoredPayload as { budgetMentioned: boolean }).budgetMentioned = scoringResult.budgetMentioned;
-    
-    if (scoringResult.procedureInterest.length > 0) {
-      (scoredPayload as { procedureInterest: readonly string[] }).procedureInterest = scoringResult.procedureInterest;
-    }
-    if (previousScore?.numericValue !== undefined) {
-      (scoredPayload as { previousScore: number }).previousScore = previousScore.numericValue;
-    }
-    if (previousScore?.classification !== undefined) {
-      (scoredPayload as { previousClassification: LeadClassification }).previousClassification = previousScore.classification;
-    }
     
     const scoredEvent = createLeadScoredEvent(leadId, scoredPayload, metadata);
 
@@ -396,19 +380,15 @@ export class ScoreLeadUseCase {
     // LeadQualified event (only if newly qualified)
     const wasQualified = scoringResult.score.isHot() && (!previousScore || !previousScore.isHot());
     if (wasQualified) {
-      // Build qualified payload with only defined optional properties (exactOptionalPropertyTypes compliance)
+      // Build qualified payload using object spread with conditional properties
       const qualifiedPayload: LeadQualifiedPayload = {
         phone: phone.e164,
         score: scoringResult.score.numericValue,
         classification: 'HOT',
         qualificationReason: scoringResult.reasoning,
         procedureInterest: scoringResult.procedureInterest,
+        ...(input.hubspotContactId !== undefined && { hubspotContactId: input.hubspotContactId }),
       };
-      
-      // Add optional hubspotContactId only if defined
-      if (input.hubspotContactId !== undefined) {
-        (qualifiedPayload as { hubspotContactId: string }).hubspotContactId = input.hubspotContactId;
-      }
       
       const qualifiedEvent = createLeadQualifiedEvent(leadId, qualifiedPayload, metadata);
 

@@ -125,10 +125,11 @@ function generateHotp(secret: Buffer, counter: bigint, digits = 6): string {
   const keyPadded = Buffer.alloc(64);
   secret.copy(keyPadded);
 
+  // Buffer.alloc guarantees all indices are initialized to the specified fill value (0x36 and 0x5c)
+  // so we can safely use non-null assertions here
   for (let i = 0; i < 64; i++) {
-    const keyByte = keyPadded[i] ?? 0;
-    innerKey[i] = (innerKey[i] ?? 0) ^ keyByte;
-    outerKey[i] = (outerKey[i] ?? 0) ^ keyByte;
+    innerKey[i] = innerKey[i]! ^ keyPadded[i]!;
+    outerKey[i] = outerKey[i]! ^ keyPadded[i]!;
   }
 
   // Inner hash
