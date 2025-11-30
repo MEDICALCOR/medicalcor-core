@@ -427,7 +427,9 @@ export function createOsaxCase(input: CreateOsaxCaseInput, sequenceNumber: numbe
   const now = new Date();
   const year = now.getFullYear();
 
-  const baseCase: OsaxCase = {
+  // Build case with optional properties using spread operator (immutable pattern)
+  // This avoids type assertions and mutation after object creation
+  return {
     id: generateUUID(),
     subjectId: input.subjectId,
     patientId: input.patientId,
@@ -445,19 +447,14 @@ export function createOsaxCase(input: CreateOsaxCaseInput, sequenceNumber: numbe
     version: 1,
     consentStatus: 'PENDING',
     isDeleted: false,
+    // Conditionally include optional properties (only if defined)
+    ...(input.referringPhysicianId !== undefined && {
+      referringPhysicianId: input.referringPhysicianId,
+    }),
+    ...(input.assignedSpecialistId !== undefined && {
+      assignedSpecialistId: input.assignedSpecialistId,
+    }),
   };
-
-  // Only add optional properties if they have defined values
-  if (input.referringPhysicianId !== undefined) {
-    (baseCase as { referringPhysicianId?: string }).referringPhysicianId =
-      input.referringPhysicianId;
-  }
-  if (input.assignedSpecialistId !== undefined) {
-    (baseCase as { assignedSpecialistId?: string }).assignedSpecialistId =
-      input.assignedSpecialistId;
-  }
-
-  return baseCase;
 }
 
 // ============================================================================

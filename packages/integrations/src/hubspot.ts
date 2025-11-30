@@ -567,7 +567,7 @@ export class HubSpotClient {
             types: [
               {
                 associationCategory: 'HUBSPOT_DEFINED',
-                associationTypeId: 202,
+                associationTypeId: HUBSPOT_ASSOCIATION_TYPES.NOTE_TO_CONTACT,
               },
             ],
           },

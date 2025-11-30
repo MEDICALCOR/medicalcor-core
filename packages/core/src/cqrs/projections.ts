@@ -241,8 +241,11 @@ export class ProjectionManager {
       name: projection.name,
       version: projection.version,
       state: JSON.parse(serializeProjectionState(projection.state)),
-      lastEventId: projection.lastEventId,
-      lastEventTimestamp: projection.lastEventTimestamp?.toISOString(),
+      // Conditionally include optional properties (exactOptionalPropertyTypes compliance)
+      ...(projection.lastEventId !== undefined && { lastEventId: projection.lastEventId }),
+      ...(projection.lastEventTimestamp !== undefined && {
+        lastEventTimestamp: projection.lastEventTimestamp.toISOString(),
+      }),
       updatedAt: projection.updatedAt.toISOString(),
     }));
   }
@@ -263,14 +266,15 @@ export class ProjectionManager {
         JSON.stringify(serialized.state)
       );
 
+      // Build projection with conditional optional properties (exactOptionalPropertyTypes compliance)
       const projection: Projection = {
         name: serialized.name,
         version: serialized.version,
         state: deserializedState,
-        lastEventId: serialized.lastEventId,
-        lastEventTimestamp: serialized.lastEventTimestamp
-          ? new Date(serialized.lastEventTimestamp)
-          : undefined,
+        ...(serialized.lastEventId !== undefined && { lastEventId: serialized.lastEventId }),
+        ...(serialized.lastEventTimestamp !== undefined && {
+          lastEventTimestamp: new Date(serialized.lastEventTimestamp),
+        }),
         updatedAt: new Date(serialized.updatedAt),
       };
 

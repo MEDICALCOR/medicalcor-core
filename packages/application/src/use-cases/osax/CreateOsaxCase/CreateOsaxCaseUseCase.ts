@@ -9,6 +9,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import { createLogger } from '@medicalcor/core';
 import type {
   OsaxCaseService,
   CreateCaseRequest,
@@ -26,6 +27,8 @@ import type { AuditService } from '../../../ports/secondary/external/AuditServic
 import { SecurityContext, Permission } from '../../../security/SecurityContext.js';
 import { Result, Ok, Err, isErr } from '../../../shared/Result.js';
 import { DomainError, ErrorSeverity } from '../../../shared/DomainError.js';
+
+const logger = createLogger({ name: 'create-osax-case-use-case' });
 
 /**
  * CreateOsaxCaseUseCase
@@ -286,7 +289,7 @@ export class CreateOsaxCaseUseCase implements Pick<OsaxCaseService, 'createCase'
       await this.auditService.record(auditEntry);
     } catch (error) {
       // Log but don't fail the operation if audit recording fails
-      console.error('Failed to record audit entry:', error);
+      logger.error({ error, action, resourceId }, 'Failed to record audit entry');
     }
   }
 }
