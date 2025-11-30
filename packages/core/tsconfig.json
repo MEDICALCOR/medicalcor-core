@@ -6,6 +6,16 @@
     "tsBuildInfoFile": "./tsconfig.tsbuildinfo"
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "src/**/__tests__/**", "src/**/*.test.ts"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/**/__tests__/**",
+    "src/**/*.test.ts",
+    "src/clinical/**",
+    "src/events/handlers/**",
+    "src/repositories/**",
+    "src/security/gdpr/**",
+    "src/metrics/osax.ts"
+  ],
   "references": [{ "path": "../types" }]
 }

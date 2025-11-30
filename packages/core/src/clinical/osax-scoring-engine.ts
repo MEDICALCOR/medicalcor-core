@@ -181,24 +181,28 @@ export class OsaxScoringEngine {
         input.actor
       );
 
-      const event = createOsaxCaseScoredEvent(input.caseId, {
-        caseNumber: osaxCase.caseNumber,
-        severity: score.severity,
-        indicators: {
-          ahi: input.indicators.ahi,
-          odi: input.indicators.odi,
-          spo2Nadir: input.indicators.spo2Nadir,
-          essScore: input.indicators.essScore,
+      const event = createOsaxCaseScoredEvent(
+        input.caseId,
+        {
+          caseNumber: osaxCase.caseNumber,
+          severity: score.severity,
+          indicators: {
+            ahi: input.indicators.ahi,
+            odi: input.indicators.odi,
+            spo2Nadir: input.indicators.spo2Nadir,
+            essScore: input.indicators.essScore,
+          },
+          compositeScore: score.compositeScore,
+          confidence: score.confidence,
+          scoringMethod: 'SYSTEM',
+          treatmentRecommendation: score.treatmentRecommendation,
+          cardiovascularRisk: score.cardiovascularRisk,
+          riskFlags: scoringResult.riskFlags,
+          previousSeverity: osaxCase.clinicalScore?.severity,
+          previousCompositeScore: osaxCase.clinicalScore?.compositeScore,
         },
-        compositeScore: score.compositeScore,
-        confidence: score.confidence,
-        scoringMethod: 'SYSTEM',
-        treatmentRecommendation: score.treatmentRecommendation,
-        cardiovascularRisk: score.cardiovascularRisk,
-        riskFlags: scoringResult.riskFlags,
-        previousSeverity: osaxCase.clinicalScore?.severity,
-        previousCompositeScore: osaxCase.clinicalScore?.compositeScore,
-      }, metadata);
+        metadata
+      );
 
       if (this.deps.eventPublisher) {
         await this.deps.eventPublisher.publish(event);
@@ -241,13 +245,20 @@ export class OsaxScoringEngine {
     // Extract indicators from raw study data
     const indicators = this.extractIndicators(studyData);
 
-    return this.scoreCase({
+    const input: ScoreCaseInput = {
       caseId,
       indicators,
-      patientAge: studyData.patientAge,
-      hasSymptoms: studyData.reportedSymptoms,
       correlationId,
-    });
+    };
+    // Only add optional properties if they have defined values
+    if (studyData.patientAge !== undefined) {
+      (input as { patientAge?: number }).patientAge = studyData.patientAge;
+    }
+    if (studyData.reportedSymptoms !== undefined) {
+      (input as { hasSymptoms?: boolean }).hasSymptoms = studyData.reportedSymptoms;
+    }
+
+    return this.scoreCase(input);
   }
 
   /**
@@ -274,11 +285,14 @@ export class OsaxScoringEngine {
         });
       } else {
         failureCount++;
-        results.push({
+        const failedResult: { readonly caseId: string; readonly success: false; error?: string } = {
           caseId: caseInput.caseId,
           success: false,
-          error: result.error,
-        });
+        };
+        if (result.error !== undefined) {
+          failedResult.error = result.error;
+        }
+        results.push(failedResult);
       }
     }
 
@@ -296,7 +310,7 @@ export class OsaxScoringEngine {
     caseId: string,
     updatedIndicators: Partial<OsaxClinicalIndicators>,
     correlationId: string,
-    reason: string
+    _reason: string
   ): Promise<ScoreCaseResult> {
     // Fetch current case
     const caseResult = await this.deps.caseRepository.findById(caseId);
@@ -338,21 +352,24 @@ export class OsaxScoringEngine {
     if (!osaxCase.clinicalScore) {
       return {
         hasScore: false,
-        scoreHistory: osaxCase.scoreHistory.map((h) => ({
-          scoredAt: h.scoredAt,
-          severity: h.score.severity,
-          compositeScore: h.score.compositeScore,
-          scoredBy: h.scoredBy,
-        })),
+        scoreHistory: osaxCase.scoreHistory.map(
+          (h: {
+            readonly score: OsaxClinicalScore;
+            readonly scoredAt: Date;
+            readonly scoredBy: 'SYSTEM' | 'PHYSICIAN';
+            readonly notes?: string;
+          }) => ({
+            scoredAt: h.scoredAt,
+            severity: h.score.severity,
+            compositeScore: h.score.compositeScore,
+            scoredBy: h.scoredBy,
+          })
+        ),
       };
     }
 
     const score = osaxCase.clinicalScore;
-    const treatmentEligibility = determineTreatmentEligibility(
-      score,
-      score.indicators,
-      true
-    );
+    const treatmentEligibility = determineTreatmentEligibility(score, score.indicators, true);
 
     return {
       hasScore: true,
@@ -368,12 +385,19 @@ export class OsaxScoringEngine {
         primaryRecommendation: treatmentEligibility.primaryRecommendation,
         medicareEligible: treatmentEligibility.insuranceCriteriaMet.medicareEligible,
       },
-      scoreHistory: osaxCase.scoreHistory.map((h) => ({
-        scoredAt: h.scoredAt,
-        severity: h.score.severity,
-        compositeScore: h.score.compositeScore,
-        scoredBy: h.scoredBy,
-      })),
+      scoreHistory: osaxCase.scoreHistory.map(
+        (h: {
+          readonly score: OsaxClinicalScore;
+          readonly scoredAt: Date;
+          readonly scoredBy: 'SYSTEM' | 'PHYSICIAN';
+          readonly notes?: string;
+        }) => ({
+          scoredAt: h.scoredAt,
+          severity: h.score.severity,
+          compositeScore: h.score.compositeScore,
+          scoredBy: h.scoredBy,
+        })
+      ),
     };
   }
 

@@ -382,7 +382,11 @@ export class OsaxMetrics implements OsaxMetricsCollector {
   /**
    * Update pending review gauge
    */
-  updatePendingReviewGauge(counts: { withinSla: number; nearingSla: number; overdueSla: number }): void {
+  updatePendingReviewGauge(counts: {
+    withinSla: number;
+    nearingSla: number;
+    overdueSla: number;
+  }): void {
     this.setGauge('cases_pending_review', counts.withinSla, { sla_status: 'within' });
     this.setGauge('cases_pending_review', counts.nearingSla, { sla_status: 'nearing' });
     this.setGauge('cases_pending_review', counts.overdueSla, { sla_status: 'overdue' });
@@ -420,16 +424,10 @@ export class InMemoryMetricsBackend implements MetricsBackend {
     }
   }
 
-  async query(
-    name: string,
-    timeRange: { start: Date; end: Date }
-  ): Promise<MetricDataPoint[]> {
+  async query(name: string, timeRange: { start: Date; end: Date }): Promise<MetricDataPoint[]> {
     return this.records
       .filter(
-        (r) =>
-          r.name === name &&
-          r.timestamp >= timeRange.start &&
-          r.timestamp <= timeRange.end
+        (r) => r.name === name && r.timestamp >= timeRange.start && r.timestamp <= timeRange.end
       )
       .map((r) => ({
         timestamp: r.timestamp,
@@ -460,9 +458,16 @@ export function createOsaxMetrics(options?: {
   defaultLabels?: Record<string, string>;
 }): OsaxMetrics {
   const backend = options?.backend ?? new InMemoryMetricsBackend();
-  return new OsaxMetrics({
-    backend,
-    prefix: options?.prefix,
-    defaultLabels: options?.defaultLabels,
-  });
+  const metricsOptions: {
+    backend: MetricsBackend;
+    prefix?: string;
+    defaultLabels?: Record<string, string>;
+  } = { backend };
+  if (options?.prefix !== undefined) {
+    metricsOptions.prefix = options.prefix;
+  }
+  if (options?.defaultLabels !== undefined) {
+    metricsOptions.defaultLabels = options.defaultLabels;
+  }
+  return new OsaxMetrics(metricsOptions);
 }

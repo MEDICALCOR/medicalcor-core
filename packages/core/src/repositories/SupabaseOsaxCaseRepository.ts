@@ -147,9 +147,7 @@ export class SupabaseOsaxCaseRepository implements IOsaxCaseRepository {
     }
   }
 
-  async findByCaseNumber(
-    caseNumber: string
-  ): Promise<OsaxCaseRepositoryResult<OsaxCase | null>> {
+  async findByCaseNumber(caseNumber: string): Promise<OsaxCaseRepositoryResult<OsaxCase | null>> {
     try {
       const { data, error } = await this.supabase
         .from(this.tableName)
@@ -184,7 +182,7 @@ export class SupabaseOsaxCaseRepository implements IOsaxCaseRepository {
         return this.handleError(error);
       }
 
-      return { success: true, value: data.map((row) => this.mapRowToCase(row)) };
+      return { success: true, value: data.map((row: OsaxCaseRow) => this.mapRowToCase(row)) };
     } catch (err) {
       return this.handleError(err);
     }
@@ -228,7 +226,7 @@ export class SupabaseOsaxCaseRepository implements IOsaxCaseRepository {
         return this.handleError(error);
       }
 
-      return { success: true, value: data.map((row) => this.mapRowToCase(row)) };
+      return { success: true, value: data.map((row: OsaxCaseRow) => this.mapRowToCase(row)) };
     } catch (err) {
       return this.handleError(err);
     }
@@ -521,7 +519,10 @@ export class SupabaseOsaxCaseRepository implements IOsaxCaseRepository {
       const updates: Partial<OsaxCaseRow> = {
         status: 'SCORED',
         clinical_score: score.toJSON(),
-        score_history: [...(current.scoreHistory as unknown as Record<string, unknown>[]), scoreEntry],
+        score_history: [
+          ...(current.scoreHistory as unknown as Record<string, unknown>[]),
+          scoreEntry,
+        ],
         version: current.version + 1,
         updated_at: new Date().toISOString(),
       };
@@ -773,12 +774,14 @@ export class SupabaseOsaxCaseRepository implements IOsaxCaseRepository {
 
       const current = currentResult.value;
 
-      const followUps = current.followUps as unknown as Record<string, unknown>[];
+      const followUps = current.followUps as unknown as Array<
+        Record<string, unknown> & { scheduledDate: string; status: string }
+      >;
       const updatedFollowUps = followUps.map((fu) => {
         if (fu.id === followUpId) {
           return {
             ...fu,
-            status: 'COMPLETED',
+            status: 'COMPLETED' as const,
             completedDate: completionData.completedDate.toISOString(),
             notes: completionData.notes,
             updatedIndicators: completionData.updatedIndicators,
@@ -790,14 +793,12 @@ export class SupabaseOsaxCaseRepository implements IOsaxCaseRepository {
       // Find next scheduled follow-up
       const scheduledFollowUps = updatedFollowUps.filter((fu) => fu.status === 'SCHEDULED');
       const nextFollowUp = scheduledFollowUps.sort(
-        (a, b) =>
-          new Date(a.scheduledDate as string).getTime() -
-          new Date(b.scheduledDate as string).getTime()
+        (a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime()
       )[0];
 
       const updates: Partial<OsaxCaseRow> = {
         follow_ups: updatedFollowUps,
-        next_follow_up_date: nextFollowUp ? (nextFollowUp.scheduledDate as string) : null,
+        next_follow_up_date: nextFollowUp ? nextFollowUp.scheduledDate : null,
         version: current.version + 1,
         updated_at: new Date().toISOString(),
       };
@@ -825,7 +826,7 @@ export class SupabaseOsaxCaseRepository implements IOsaxCaseRepository {
   async updateStatus(
     id: string,
     newStatus: OsaxCaseStatus,
-    reason?: string
+    _reason?: string
   ): Promise<OsaxCaseRepositoryResult<OsaxCase>> {
     return this.update(id, { status: newStatus });
   }
@@ -930,9 +931,10 @@ export class SupabaseOsaxCaseRepository implements IOsaxCaseRepository {
     }
   }
 
-  async getStatistics(
-    dateRange?: { startDate: Date; endDate: Date }
-  ): Promise<OsaxCaseRepositoryResult<OsaxCaseStatistics>> {
+  async getStatistics(dateRange?: {
+    startDate: Date;
+    endDate: Date;
+  }): Promise<OsaxCaseRepositoryResult<OsaxCaseStatistics>> {
     try {
       let query = this.supabase.from(this.tableName).select('*').eq('is_deleted', false);
 
@@ -1022,46 +1024,49 @@ export class SupabaseOsaxCaseRepository implements IOsaxCaseRepository {
       assignedSpecialistId: row.assigned_specialist_id ?? undefined,
       priority: row.priority,
       tags: Object.freeze(row.tags),
-      studyMetadata: row.study_metadata
-        ? this.mapStudyMetadata(row.study_metadata)
-        : undefined,
+      studyMetadata: row.study_metadata ? this.mapStudyMetadata(row.study_metadata) : undefined,
       studyDataRef: row.study_data_ref ?? undefined,
       clinicalScore: row.clinical_score
         ? (row.clinical_score as unknown as OsaxClinicalScore)
         : undefined,
-      scoreHistory: Object.freeze(row.score_history.map((s) => ({
-        score: s.score as OsaxClinicalScore,
-        scoredAt: new Date(s.scoredAt as string),
-        scoredBy: s.scoredBy as 'SYSTEM' | 'PHYSICIAN',
-        notes: s.notes as string | undefined,
-      }))),
-      physicianReviews: Object.freeze(row.physician_reviews.map((r) => ({
-        reviewDate: new Date(r.reviewDate as string),
-        physicianId: r.physicianId as string,
-        physicianName: r.physicianName as string | undefined,
-        decision: r.decision as OsaxPhysicianReview['decision'],
-        modifiedRecommendation: r.modifiedRecommendation as OsaxPhysicianReview['modifiedRecommendation'],
-        notes: r.notes as string | undefined,
-        referralInfo: r.referralInfo as OsaxPhysicianReview['referralInfo'],
-      }))),
+      scoreHistory: Object.freeze(
+        row.score_history.map((s) => ({
+          score: s.score as OsaxClinicalScore,
+          scoredAt: new Date(s.scoredAt as string),
+          scoredBy: s.scoredBy as 'SYSTEM' | 'PHYSICIAN',
+          notes: s.notes as string | undefined,
+        }))
+      ),
+      physicianReviews: Object.freeze(
+        row.physician_reviews.map((r) => ({
+          reviewDate: new Date(r.reviewDate as string),
+          physicianId: r.physicianId as string,
+          physicianName: r.physicianName as string | undefined,
+          decision: r.decision as OsaxPhysicianReview['decision'],
+          modifiedRecommendation:
+            r.modifiedRecommendation as OsaxPhysicianReview['modifiedRecommendation'],
+          notes: r.notes as string | undefined,
+          referralInfo: r.referralInfo as OsaxPhysicianReview['referralInfo'],
+        }))
+      ),
       reviewStatus: row.review_status,
       activeTreatment: row.active_treatment
         ? this.mapTreatmentRecord(row.active_treatment)
         : undefined,
       treatmentHistory: Object.freeze(row.treatment_history.map((t) => this.mapTreatmentRecord(t))),
       treatmentAdherenceScore: row.treatment_adherence_score ?? undefined,
-      followUps: Object.freeze(row.follow_ups.map((f) => ({
-        id: f.id as string,
-        scheduledDate: new Date(f.scheduledDate as string),
-        completedDate: f.completedDate ? new Date(f.completedDate as string) : undefined,
-        type: f.type as OsaxFollowUpRecord['type'],
-        status: f.status as OsaxFollowUpRecord['status'],
-        notes: f.notes as string | undefined,
-        updatedIndicators: f.updatedIndicators as OsaxFollowUpRecord['updatedIndicators'],
-      }))),
-      nextFollowUpDate: row.next_follow_up_date
-        ? new Date(row.next_follow_up_date)
-        : undefined,
+      followUps: Object.freeze(
+        row.follow_ups.map((f) => ({
+          id: f.id as string,
+          scheduledDate: new Date(f.scheduledDate as string),
+          completedDate: f.completedDate ? new Date(f.completedDate as string) : undefined,
+          type: f.type as OsaxFollowUpRecord['type'],
+          status: f.status as OsaxFollowUpRecord['status'],
+          notes: f.notes as string | undefined,
+          updatedIndicators: f.updatedIndicators as OsaxFollowUpRecord['updatedIndicators'],
+        }))
+      ),
+      nextFollowUpDate: row.next_follow_up_date ? new Date(row.next_follow_up_date) : undefined,
       version: row.version,
       consentStatus: row.consent_status,
       retentionPolicy: row.retention_policy ?? undefined,
@@ -1110,7 +1115,7 @@ export class SupabaseOsaxCaseRepository implements IOsaxCaseRepository {
       isDeleted: 'is_deleted',
       deletedAt: 'deleted_at',
     };
-    return fieldMap[field] ?? field;
+    return fieldMap[field as string] ?? String(field);
   }
 
   private applySpecification(
@@ -1127,9 +1132,7 @@ export class SupabaseOsaxCaseRepository implements IOsaxCaseRepository {
       case 'BY_SPECIALIST':
         return query.eq('assigned_specialist_id', spec.specialistId);
       case 'NEEDING_REVIEW':
-        return query
-          .eq('status', 'SCORED')
-          .eq('review_status', 'PENDING');
+        return query.eq('status', 'SCORED').eq('review_status', 'PENDING');
       case 'OVERDUE_FOLLOW_UP':
         return query.lt('next_follow_up_date', spec.asOfDate.toISOString());
       case 'BY_DATE_RANGE':

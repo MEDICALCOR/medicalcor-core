@@ -15,6 +15,12 @@ export default tseslint.config(
       '**/*.test.ts',
       '**/__tests__/**',
       'scripts/**', // CLI scripts have different requirements
+      // Files excluded from tsconfig due to cyclic dependency with @medicalcor/domain
+      'packages/core/src/clinical/**',
+      'packages/core/src/events/handlers/**',
+      'packages/core/src/repositories/**',
+      'packages/core/src/security/gdpr/**',
+      'packages/core/src/metrics/osax.ts',
     ],
   },
 

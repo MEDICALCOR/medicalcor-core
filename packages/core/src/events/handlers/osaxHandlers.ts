@@ -14,10 +14,6 @@ import type {
   OsaxTreatmentInitiatedEvent,
   OsaxFollowUpMissedEvent,
   OsaxConsentWithdrawnEvent,
-  isOsaxCaseScoredEvent,
-  isOsaxCaseReviewedEvent,
-  isOsaxTreatmentInitiatedEvent,
-  isOsaxFollowUpCompletedEvent,
 } from '@medicalcor/domain';
 
 // ============================================================================
@@ -493,8 +489,7 @@ export function createOsaxEventHandler(deps: OsaxEventHandlerDeps) {
     handleCaseReviewed: (event: OsaxCaseReviewedEvent) => handleOsaxCaseReviewed(event, deps),
     handleTreatmentInitiated: (event: OsaxTreatmentInitiatedEvent) =>
       handleOsaxTreatmentInitiated(event, deps),
-    handleFollowUpMissed: (event: OsaxFollowUpMissedEvent) =>
-      handleOsaxFollowUpMissed(event, deps),
+    handleFollowUpMissed: (event: OsaxFollowUpMissedEvent) => handleOsaxFollowUpMissed(event, deps),
     handleConsentWithdrawn: (event: OsaxConsentWithdrawnEvent) =>
       handleOsaxConsentWithdrawn(event, deps),
     routeEvent: (event: OsaxDomainEventUnion) => routeOsaxEvent(event, deps),
