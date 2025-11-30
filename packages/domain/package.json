@@ -27,6 +27,10 @@
     "./language": {
       "types": "./dist/language/index.d.ts",
       "import": "./dist/language/index.js"
+    },
+    "./osax": {
+      "types": "./dist/osax/index.d.ts",
+      "import": "./dist/osax/index.js"
     }
   },
   "main": "./dist/index.js",
