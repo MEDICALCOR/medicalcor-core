@@ -31,6 +31,13 @@ export interface AuditEvent {
   readonly context: AuditContext;
 }
 
+/**
+ * Mutable version of AuditEvent for builder pattern
+ */
+type MutableAuditEvent = {
+  -readonly [K in keyof AuditEvent]: AuditEvent[K];
+};
+
 export type AuditEventType =
   | 'authentication'
   | 'authorization'
@@ -166,7 +173,7 @@ export interface AuditQueryResult {
  * Builder for creating audit events
  */
 export class AuditEventBuilder {
-  private event: Partial<AuditEvent> = {};
+  private event: Partial<MutableAuditEvent> = {};
 
   /**
    * Set the event type
