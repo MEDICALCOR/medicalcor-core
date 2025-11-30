@@ -214,8 +214,9 @@ export const osaxUrgentReviewWorkflow = task({
     await wait.for({ hours: 2 });
 
     // Check if still pending (mock - in production would query database)
-    const stillPending = true as boolean; // Placeholder - will be replaced with actual check
+    const stillPending = true;
 
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- placeholder for actual database check
     if (stillPending) {
       // Escalate to department head
       logger.warn('Case still pending after 2 hours - escalating', { correlationId });
@@ -420,8 +421,9 @@ export const osaxFollowUpWorkflow = task({
     // In production: Query database for follow-up status
 
     // 5. If missed, trigger missed follow-up handling
-    const followUpCompleted = false as boolean; // Placeholder - will be replaced with actual check
+    const followUpCompleted = false;
 
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- placeholder for actual database check
     if (!followUpCompleted) {
       logger.warn('Follow-up may have been missed', { correlationId });
       // In production: Trigger missed follow-up workflow
