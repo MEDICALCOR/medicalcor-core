@@ -159,12 +159,12 @@ export interface TreatmentEligibilityResult {
  */
 export const DEFAULT_SCORING_CONFIG: OsaxScoringConfig = {
   weights: {
-    ahiWeight: 0.40,
-    odiWeight: 0.20,
+    ahiWeight: 0.4,
+    odiWeight: 0.2,
     spo2NadirWeight: 0.25,
-    essWeight: 0.10,
+    essWeight: 0.1,
     bmiWeight: 0.05,
-    ageWeight: 0.00,
+    ageWeight: 0.0,
   },
   ahiThresholds: {
     mild: 5,
@@ -212,8 +212,8 @@ export function calculateScore(
   // Calculate component scores
   const componentScores = calculateComponentScores(indicators, config);
 
-  // Calculate weighted composite
-  const compositeScore = calculateCompositeScore(componentScores, config.weights);
+  // Note: Composite score is calculated within componentScores.total
+  // calculateCompositeScore is available if needed for custom weighting
 
   // Identify risk flags
   const riskFlags = identifyRiskFlags(indicators, patientAge, config);
@@ -300,8 +300,12 @@ function calculateComponentScores(
 
 /**
  * Calculate weighted composite score
+ *
+ * Utility function for custom weighting scenarios.
+ * The standard scoring uses OsaxClinicalScore.fromIndicators() which
+ * calculates the composite score internally.
  */
-function calculateCompositeScore(
+export function calculateCompositeScore(
   components: OsaxScoringResult['componentScores'],
   weights: OsaxRiskFactorWeights
 ): number {
@@ -432,9 +436,7 @@ function generateClinicalNotes(
 
   // REM-related
   if (riskFlags.includes('REM_PREDOMINANT')) {
-    notes.push(
-      'REM-predominant OSA noted. Consider impact on memory consolidation and mood.'
-    );
+    notes.push('REM-predominant OSA noted. Consider impact on memory consolidation and mood.');
   }
 
   // Cardiovascular
@@ -495,7 +497,7 @@ function calculateConfidence(indicators: OsaxClinicalIndicators): number {
 export function determineTreatmentEligibility(
   score: OsaxClinicalScore,
   indicators: OsaxClinicalIndicators,
-  hasSymptoms: boolean = true
+  hasSymptoms = true
 ): TreatmentEligibilityResult {
   const eligibleTreatments: OsaxTreatmentRecommendation[] = [];
   const reasons: string[] = [];

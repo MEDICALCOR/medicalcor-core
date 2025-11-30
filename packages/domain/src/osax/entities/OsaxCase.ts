@@ -401,11 +401,18 @@ export function generateCaseNumber(year: number, sequence: number): string {
 
 /**
  * Generate a UUID v4
+ *
+ * Uses crypto.randomUUID when available (Node.js 19+, modern browsers),
+ * with a fallback for older environments.
  */
 function generateUUID(): string {
-  if (typeof globalThis !== 'undefined' && globalThis.crypto?.randomUUID) {
-    return globalThis.crypto.randomUUID();
+  // Modern environments have crypto.randomUUID
+  const cryptoObj = globalThis.crypto;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- fallback for older environments
+  if (cryptoObj && typeof cryptoObj.randomUUID === 'function') {
+    return cryptoObj.randomUUID();
   }
+  // Fallback for older Node.js versions
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
     const v = c === 'x' ? r : (r & 0x3) | 0x8;
@@ -416,14 +423,11 @@ function generateUUID(): string {
 /**
  * Create a new OSAX case
  */
-export function createOsaxCase(
-  input: CreateOsaxCaseInput,
-  sequenceNumber: number
-): OsaxCase {
+export function createOsaxCase(input: CreateOsaxCaseInput, sequenceNumber: number): OsaxCase {
   const now = new Date();
   const year = now.getFullYear();
 
-  return {
+  const baseCase: OsaxCase = {
     id: generateUUID(),
     subjectId: input.subjectId,
     patientId: input.patientId,
@@ -431,8 +435,6 @@ export function createOsaxCase(
     status: 'PENDING_STUDY',
     createdAt: now,
     updatedAt: now,
-    referringPhysicianId: input.referringPhysicianId,
-    assignedSpecialistId: input.assignedSpecialistId,
     priority: input.priority ?? 'NORMAL',
     tags: Object.freeze(input.tags ?? []),
     scoreHistory: Object.freeze([]),
@@ -444,6 +446,18 @@ export function createOsaxCase(
     consentStatus: 'PENDING',
     isDeleted: false,
   };
+
+  // Only add optional properties if they have defined values
+  if (input.referringPhysicianId !== undefined) {
+    (baseCase as { referringPhysicianId?: string }).referringPhysicianId =
+      input.referringPhysicianId;
+  }
+  if (input.assignedSpecialistId !== undefined) {
+    (baseCase as { assignedSpecialistId?: string }).assignedSpecialistId =
+      input.assignedSpecialistId;
+  }
+
+  return baseCase;
 }
 
 // ============================================================================
@@ -473,14 +487,14 @@ export function isValidStatusTransition(
   newStatus: OsaxCaseStatus
 ): boolean {
   const validTransitions = VALID_STATUS_TRANSITIONS[currentStatus];
-  return validTransitions?.includes(newStatus) ?? false;
+  return validTransitions.includes(newStatus);
 }
 
 /**
  * Get allowed next statuses
  */
 export function getAllowedNextStatuses(currentStatus: OsaxCaseStatus): readonly OsaxCaseStatus[] {
-  return VALID_STATUS_TRANSITIONS[currentStatus] ?? [];
+  return VALID_STATUS_TRANSITIONS[currentStatus];
 }
 
 // ============================================================================
@@ -557,7 +571,7 @@ export function calculateCaseProgress(osaxCase: OsaxCase): number {
     CANCELLED: 0,
   };
 
-  return statusProgress[osaxCase.status] ?? 0;
+  return statusProgress[osaxCase.status];
 }
 
 /**

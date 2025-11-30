@@ -15,7 +15,10 @@
  */
 
 import type { OsaxCaseStatus, OsaxStudyType, OsaxTreatmentStatus } from '../entities/OsaxCase.js';
-import type { OsaxSeverity, OsaxTreatmentRecommendation } from '../value-objects/OsaxClinicalScore.js';
+import type {
+  OsaxSeverity,
+  OsaxTreatmentRecommendation,
+} from '../value-objects/OsaxClinicalScore.js';
 
 // ============================================================================
 // BASE EVENT TYPES
@@ -142,7 +145,12 @@ export type OsaxCaseAssignedEvent = OsaxDomainEvent<'osax.case.assigned', OsaxCa
  */
 export interface OsaxCaseClosedPayload {
   readonly caseNumber: string;
-  readonly closureReason: 'TREATMENT_COMPLETE' | 'PATIENT_DECLINED' | 'TRANSFERRED' | 'NO_OSA' | 'OTHER';
+  readonly closureReason:
+    | 'TREATMENT_COMPLETE'
+    | 'PATIENT_DECLINED'
+    | 'TRANSFERRED'
+    | 'NO_OSA'
+    | 'OTHER';
   readonly closureNotes?: string;
   readonly finalSeverity?: OsaxSeverity;
   readonly treatmentOutcome?: 'SUCCESSFUL' | 'PARTIAL' | 'UNSUCCESSFUL' | 'NOT_APPLICABLE';
@@ -515,11 +523,18 @@ export type OsaxEventType = OsaxDomainEventUnion['type'];
 
 /**
  * Generate UUID v4 (browser and Node.js compatible)
+ *
+ * Uses crypto.randomUUID when available (Node.js 19+, modern browsers),
+ * with a fallback for older environments.
  */
 function generateUUID(): string {
-  if (typeof globalThis !== 'undefined' && globalThis.crypto?.randomUUID) {
-    return globalThis.crypto.randomUUID();
+  // Modern environments have crypto.randomUUID
+  const cryptoObj = globalThis.crypto;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- fallback for older environments
+  if (cryptoObj && typeof cryptoObj.randomUUID === 'function') {
+    return cryptoObj.randomUUID();
   }
+  // Fallback for older Node.js versions
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
     const v = c === 'x' ? r : (r & 0x3) | 0x8;
@@ -546,12 +561,17 @@ export function createOsaxEventMetadata(
     source,
   };
 
-  const optional: Partial<OsaxEventMetadata> = {};
-  if (causationId !== undefined) optional.causationId = causationId;
-  if (actor !== undefined) optional.actor = actor;
-  if (tenantId !== undefined) optional.tenantId = tenantId;
+  // Build optional properties to spread
+  const optionalProps: {
+    causationId?: string;
+    actor?: string;
+    tenantId?: string;
+  } = {};
+  if (causationId !== undefined) optionalProps.causationId = causationId;
+  if (actor !== undefined) optionalProps.actor = actor;
+  if (tenantId !== undefined) optionalProps.tenantId = tenantId;
 
-  return { ...metadata, ...optional };
+  return { ...metadata, ...optionalProps };
 }
 
 /**
@@ -646,18 +666,14 @@ export function createOsaxFollowUpScheduledEvent(
 /**
  * Type guard for OsaxCaseCreated event
  */
-export function isOsaxCaseCreatedEvent(
-  event: OsaxDomainEventUnion
-): event is OsaxCaseCreatedEvent {
+export function isOsaxCaseCreatedEvent(event: OsaxDomainEventUnion): event is OsaxCaseCreatedEvent {
   return event.type === 'osax.case.created';
 }
 
 /**
  * Type guard for OsaxCaseScored event
  */
-export function isOsaxCaseScoredEvent(
-  event: OsaxDomainEventUnion
-): event is OsaxCaseScoredEvent {
+export function isOsaxCaseScoredEvent(event: OsaxDomainEventUnion): event is OsaxCaseScoredEvent {
   return event.type === 'osax.case.scored';
 }
 

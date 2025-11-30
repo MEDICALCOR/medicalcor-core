@@ -8,13 +8,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type {
-  OsaxCase,
-  OsaxDomainEventUnion,
-  OsaxDataExportedEvent,
-  OsaxDataDeletedEvent,
-  createOsaxEventMetadata,
-} from '@medicalcor/domain';
+import type { OsaxCase, OsaxDomainEventUnion } from '@medicalcor/domain';
 
 // ============================================================================
 // TYPES
@@ -151,7 +145,7 @@ export class OsaxAuditService {
 
     return this.logAuditEntry({
       caseId: event.aggregateId,
-      caseNumber: (event.payload as Record<string, unknown>).caseNumber as string ?? 'UNKNOWN',
+      caseNumber: ((event.payload as Record<string, unknown>).caseNumber as string) ?? 'UNKNOWN',
       action,
       actorId: event.metadata.actor ?? 'SYSTEM',
       actorType: event.metadata.actor ? 'USER' : 'SYSTEM',
@@ -172,7 +166,7 @@ export class OsaxAuditService {
     correlationId: string,
     requestInfo?: { ipAddress?: string; userAgent?: string }
   ): Promise<string> {
-    return this.logAuditEntry({
+    const entry: Omit<OsaxAuditLogEntry, 'id' | 'timestamp'> = {
       caseId,
       caseNumber,
       action: accessType === 'EXPORT' ? 'DATA_EXPORTED' : 'DATA_ACCESSED',
@@ -183,10 +177,15 @@ export class OsaxAuditService {
         fieldsAccessed,
         piiAccessed: this.containsPII(fieldsAccessed),
       },
-      ipAddress: requestInfo?.ipAddress,
-      userAgent: requestInfo?.userAgent,
       correlationId,
-    });
+    };
+    if (requestInfo?.ipAddress !== undefined) {
+      (entry as { ipAddress?: string }).ipAddress = requestInfo.ipAddress;
+    }
+    if (requestInfo?.userAgent !== undefined) {
+      (entry as { userAgent?: string }).userAgent = requestInfo.userAgent;
+    }
+    return this.logAuditEntry(entry);
   }
 
   /**
@@ -226,7 +225,21 @@ export class OsaxAuditService {
       throw new Error(`Failed to fetch audit trail: ${error.message}`);
     }
 
-    return data.map((row) => ({
+    interface AuditLogRow {
+      id: string;
+      case_id: string;
+      case_number: string;
+      action: OsaxAuditAction;
+      actor_id: string;
+      actor_type: 'USER' | 'SYSTEM' | 'AUTOMATED';
+      created_at: string;
+      details: Record<string, unknown>;
+      ip_address?: string;
+      user_agent?: string;
+      correlation_id: string;
+    }
+
+    return data.map((row: AuditLogRow) => ({
       id: row.id,
       caseId: row.case_id,
       caseNumber: row.case_number,
@@ -336,18 +349,32 @@ export class OsaxAuditService {
             scoredAt: osaxCase.clinicalScore.scoredAt.toISOString(),
           }
         : null,
-      treatmentHistory: osaxCase.treatmentHistory.map((t) => ({
-        type: t.type,
-        startDate: t.startDate.toISOString(),
-        endDate: t.endDate?.toISOString(),
-        status: t.status,
-      })),
-      followUps: osaxCase.followUps.map((f) => ({
-        scheduledDate: f.scheduledDate.toISOString(),
-        completedDate: f.completedDate?.toISOString(),
-        type: f.type,
-        status: f.status,
-      })),
+      treatmentHistory: osaxCase.treatmentHistory.map(
+        (t: {
+          readonly type: string;
+          readonly startDate: Date;
+          readonly endDate?: Date;
+          readonly status: string;
+        }) => ({
+          type: t.type,
+          startDate: t.startDate.toISOString(),
+          endDate: t.endDate?.toISOString(),
+          status: t.status,
+        })
+      ),
+      followUps: osaxCase.followUps.map(
+        (f: {
+          readonly scheduledDate: Date;
+          readonly completedDate?: Date;
+          readonly type: string;
+          readonly status: string;
+        }) => ({
+          scheduledDate: f.scheduledDate.toISOString(),
+          completedDate: f.completedDate?.toISOString(),
+          type: f.type,
+          status: f.status,
+        })
+      ),
     };
 
     return JSON.stringify(exportData, null, 2);

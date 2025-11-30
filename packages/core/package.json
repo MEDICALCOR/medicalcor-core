@@ -64,7 +64,8 @@
     "pg": "^8.0.0",
     "ioredis": "^5.0.0",
     "@aws-sdk/client-s3": "^3.940.0",
-    "@aws-sdk/client-kms": "^3.940.0"
+    "@aws-sdk/client-kms": "^3.940.0",
+    "@supabase/supabase-js": "^2.0.0"
   },
   "peerDependenciesMeta": {
     "pg": {
@@ -78,11 +79,15 @@
     },
     "@aws-sdk/client-kms": {
       "optional": true
+    },
+    "@supabase/supabase-js": {
+      "optional": true
     }
   },
   "devDependencies": {
     "@aws-sdk/client-kms": "^3.940.0",
     "@aws-sdk/client-s3": "^3.940.0",
+    "@supabase/supabase-js": "^2.0.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.9.0",
     "@types/pg": "^8.11.0",
