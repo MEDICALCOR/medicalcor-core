@@ -11,6 +11,7 @@
     "dist",
     "src/**/__tests__/**",
     "src/**/*.test.ts",
+    "src/architecture/**",
     "src/clinical/**",
     "src/events/handlers/**",
     "src/repositories/**",
