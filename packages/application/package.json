@@ -1,0 +1,50 @@
+{
+  "name": "@medicalcor/application",
+  "version": "3.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Application layer with hexagonal ports for MedicalCor OSAX",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./ports/primary/*": {
+      "types": "./dist/ports/primary/*.d.ts",
+      "import": "./dist/ports/primary/*.js"
+    },
+    "./ports/secondary/*": {
+      "types": "./dist/ports/secondary/*.d.ts",
+      "import": "./dist/ports/secondary/*.js"
+    },
+    "./use-cases/*": {
+      "types": "./dist/use-cases/*.d.ts",
+      "import": "./dist/use-cases/*.js"
+    },
+    "./security/*": {
+      "types": "./dist/security/*.d.ts",
+      "import": "./dist/security/*.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@medicalcor/domain": "workspace:*",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}

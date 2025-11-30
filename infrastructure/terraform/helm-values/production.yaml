@@ -1,0 +1,75 @@
+# Production Environment Helm Values
+#
+# Production-specific overrides for OSAX deployment.
+# HIPAA-compliant configuration with high availability.
+
+global:
+  environment: production
+  domain: ${domain_name}
+  region: ${region}
+
+app:
+  replicas: ${replica_count}
+
+  resources:
+    requests:
+      cpu: "1000m"
+      memory: "2Gi"
+    limits:
+      cpu: "4000m"
+      memory: "8Gi"
+
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+
+  pdb:
+    enabled: true
+    minAvailable: 2
+
+database:
+  pool:
+    min: 10
+    max: 50
+
+monitoring:
+  prometheus:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      interval: 15s
+
+  alerts:
+    enabled: true
+
+security:
+  podSecurityPolicy:
+    enabled: true
+    runAsNonRoot: true
+
+  networkPolicy:
+    enabled: true
+
+ingress:
+  enabled: true
+  annotations:
+    nginx.ingress.kubernetes.io/limit-rps: "200"
+    nginx.ingress.kubernetes.io/limit-connections: "100"
+
+redis:
+  enabled: true
+  architecture: replication
+  replica:
+    replicaCount: 2
+
+worker:
+  enabled: true
+  replicas: 3
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2000m"
+      memory: "4Gi"
