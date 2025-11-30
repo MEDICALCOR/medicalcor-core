@@ -209,8 +209,9 @@ export class InMemoryEventBus implements EventBus {
     }
 
     if (filter.metadata) {
+      const metadataRecord = event.metadata as unknown as Record<string, unknown>;
       for (const [key, value] of Object.entries(filter.metadata)) {
-        if ((event.metadata as Record<string, unknown>)[key] !== value) {
+        if (metadataRecord[key] !== value) {
           return false;
         }
       }

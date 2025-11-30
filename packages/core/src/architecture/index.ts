@@ -46,11 +46,78 @@
  * ```
  */
 
-// Layer contracts and boundaries
-export * from './layers/index.js';
+// Layer contracts - export types to avoid duplicates with implementations
+export {
+  type ArchitecturalLayer,
+  type LayerMetadata,
+  type DomainComponent,
+  type ApplicationComponent,
+  type InfrastructureComponent,
+  type UIComponent,
+  type Command,
+  type CommandMetadata,
+  type CommandError,
+  type Query,
+  type QueryMetadata,
+  type QueryError,
+  type UseCaseError,
+  type SagaStatus,
+  type SagaAction,
+  type Port,
+  type Adapter,
+  type MessageBus,
+  type Outbox,
+  type Controller,
+  type Presenter,
+  type ViewModel,
+  type ViewMetadata,
+  type AuditEntry,
+  type TenantContext,
+  type TenantSettings,
+  type DomainLayerType,
+  type ApplicationLayerType,
+  type InfrastructureLayerType,
+  type UILayerType,
+} from './layers/contracts.js';
 
-// Hexagonal architecture ports
-export * from './ports/index.js';
+// Layer boundaries
+export {
+  type BoundaryViolation,
+  layerRegistry,
+  assertDomainLayer,
+  assertApplicationLayer,
+  assertInfrastructureLayer,
+  assertUILayer,
+  LayerViolationError,
+  validateDependency,
+  createLayerProxy,
+  analyzeModuleBoundaries,
+  type ModuleImport,
+  type BoundaryAnalysisResult,
+  runInLayerContext,
+  getCurrentLayerContext,
+  ensureLayer,
+} from './layers/boundaries.js';
+
+// Layer decorators
+export {
+  DomainLayer,
+  ApplicationLayer,
+  InfrastructureLayer,
+  UILayer,
+  InjectFromLayer,
+  LayerBoundary,
+  AggregateRoot as AggregateRootDecorator,
+  ValueObjectDecorator,
+  DomainEventDecorator,
+  CommandHandlerDecorator,
+  QueryHandlerDecorator,
+  UseCaseDecorator,
+  RepositoryImplementation,
+  AdapterDecorator,
+  AllowedCallers,
+  LayerInternal,
+} from './layers/decorators.js';
 
 // Domain building blocks
 export * from './domain/index.js';
@@ -58,20 +125,15 @@ export * from './domain/index.js';
 // Application layer components
 export * from './application/index.js';
 
-// Infrastructure abstractions
-export * from './infrastructure/index.js';
-
-// Security & compliance
-export * from './security/index.js';
-
-// Observability & monitoring
-export * from './observability/index.js';
-
-// Event-driven components
-export * from './events/index.js';
-
 // AI & Data infrastructure
 export * from './ai-data/index.js';
 
 // Testing infrastructure
 export * from './testing/index.js';
+
+// NOTE: Infrastructure, Security, Observability, and Events modules have duplicate exports
+// with Domain/Application. Import them directly from their submodules if needed:
+// - '@medicalcor/core/architecture/infrastructure'
+// - '@medicalcor/core/architecture/security'
+// - '@medicalcor/core/architecture/observability'
+// - '@medicalcor/core/architecture/events'

@@ -117,7 +117,7 @@ export interface MessageConsumerPort {
   readonly portName: 'message-consumer';
   readonly portType: 'inbound';
 
-  handleMessage<TPayload>(message: InboundMessage<TPayload>): Promise<MessageHandleResult>;
+  handleMessage<TPayload>(message: InboundMessage<TPayload>): Promise<InboundMessageHandleResult>;
   acknowledgeMessage(messageId: string): Promise<void>;
   rejectMessage(messageId: string, reason: string): Promise<void>;
 }
@@ -126,11 +126,11 @@ export interface InboundMessage<TPayload = unknown> {
   readonly messageId: string;
   readonly messageType: string;
   readonly payload: TPayload;
-  readonly metadata: MessageMetadata;
+  readonly metadata: InboundMessageMetadata;
   readonly receivedAt: string;
 }
 
-export interface MessageMetadata {
+export interface InboundMessageMetadata {
   readonly correlationId: string;
   readonly causationId?: string;
   readonly source: string;
@@ -139,7 +139,7 @@ export interface MessageMetadata {
   readonly headers: Record<string, string>;
 }
 
-export interface MessageHandleResult {
+export interface InboundMessageHandleResult {
   readonly success: boolean;
   readonly messageId: string;
   readonly action: 'ack' | 'nack' | 'requeue' | 'dead-letter';

@@ -16,4 +16,23 @@
 
 export * from './contracts.js';
 export * from './boundaries.js';
-export * from './decorators.js';
+
+// Export decorators with rename to avoid collision with contracts.ts AggregateRoot interface
+export {
+  DomainLayer,
+  ApplicationLayer,
+  InfrastructureLayer,
+  UILayer,
+  InjectFromLayer,
+  LayerBoundary,
+  AggregateRoot as AggregateRootDecorator,
+  ValueObjectDecorator,
+  DomainEventDecorator,
+  CommandHandlerDecorator,
+  QueryHandlerDecorator,
+  UseCaseDecorator,
+  RepositoryImplementation,
+  AdapterDecorator,
+  AllowedCallers,
+  LayerInternal,
+} from './decorators.js';

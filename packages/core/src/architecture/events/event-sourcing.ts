@@ -441,7 +441,7 @@ export class EventSourcedRepository<
 
     // Apply events
     for (const event of result.value.events) {
-      state = this.rehydrator.apply(state, event as TEvent);
+      state = this.rehydrator.apply(state, event as unknown as TEvent);
     }
 
     return this.aggregateFactory(aggregateId, state, result.value.version);
@@ -463,7 +463,10 @@ export class EventSourcedRepository<
       if (lastEvent.version % this.snapshotFrequency === 0) {
         const streamResult = await this.eventStore.readStream(aggregateId);
         if (streamResult.isOk) {
-          const state = reconstitute(streamResult.value.events as TEvent[], this.rehydrator);
+          const state = reconstitute(
+            streamResult.value.events as unknown as TEvent[],
+            this.rehydrator
+          );
           await this.snapshotStore.save({
             snapshotId: crypto.randomUUID(),
             aggregateId,

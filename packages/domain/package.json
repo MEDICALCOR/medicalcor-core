@@ -8,6 +8,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./osax": {
+      "types": "./dist/osax/index.d.ts",
+      "import": "./dist/osax/index.js"
+    },
     "./scoring": {
       "types": "./dist/scoring/index.d.ts",
       "import": "./dist/scoring/index.js"
