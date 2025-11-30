@@ -13,17 +13,17 @@
 
 export interface Feature {
   readonly name: string;
-  readonly description?: string;
+  readonly description?: string | undefined;
   readonly scenarios: Scenario[];
-  readonly background?: Background;
-  readonly tags?: string[];
+  readonly background?: Background | undefined;
+  readonly tags?: string[] | undefined;
 }
 
 export interface Scenario {
   readonly name: string;
   readonly steps: Step[];
-  readonly tags?: string[];
-  readonly examples?: Example[];
+  readonly tags?: string[] | undefined;
+  readonly examples?: Example[] | undefined;
 }
 
 export interface Background {
@@ -33,7 +33,7 @@ export interface Background {
 export interface Step {
   readonly keyword: StepKeyword;
   readonly text: string;
-  readonly argument?: StepArgument;
+  readonly argument?: StepArgument | undefined;
 }
 
 export type StepKeyword = 'Given' | 'When' | 'Then' | 'And' | 'But';
@@ -48,11 +48,11 @@ export interface DataTable {
 export interface DocString {
   readonly type: 'docString';
   readonly content: string;
-  readonly contentType?: string;
+  readonly contentType?: string | undefined;
 }
 
 export interface Example {
-  readonly name?: string;
+  readonly name?: string | undefined;
   readonly headers: string[];
   readonly rows: string[][];
 }

@@ -87,9 +87,9 @@ export interface DomainEvent {
  */
 export interface EventMetadata {
   readonly correlationId: string;
-  readonly causationId?: string;
-  readonly userId?: string;
-  readonly tenantId?: string;
+  readonly causationId?: string | undefined;
+  readonly userId?: string | undefined;
+  readonly tenantId?: string | undefined;
   readonly source: string;
   readonly timestamp: string;
 }
@@ -169,12 +169,12 @@ export interface Command<TPayload = unknown> extends ApplicationComponent {
  */
 export interface CommandMetadata {
   readonly correlationId: string;
-  readonly causationId?: string;
+  readonly causationId?: string | undefined;
   readonly userId: string;
-  readonly tenantId?: string;
+  readonly tenantId?: string | undefined;
   readonly timestamp: string;
-  readonly expectedVersion?: number;
-  readonly idempotencyKey?: string;
+  readonly expectedVersion?: number | undefined;
+  readonly idempotencyKey?: string | undefined;
 }
 
 /**
@@ -194,7 +194,7 @@ export interface CommandHandler<
 export interface CommandError {
   readonly code: string;
   readonly message: string;
-  readonly details?: Record<string, unknown>;
+  readonly details?: Record<string, unknown> | undefined;
 }
 
 /**
@@ -212,11 +212,11 @@ export interface Query<TPayload = unknown> extends ApplicationComponent {
  */
 export interface QueryMetadata {
   readonly correlationId: string;
-  readonly userId?: string;
-  readonly tenantId?: string;
+  readonly userId?: string | undefined;
+  readonly tenantId?: string | undefined;
   readonly timestamp: string;
-  readonly cacheKey?: string;
-  readonly cacheTTL?: number;
+  readonly cacheKey?: string | undefined;
+  readonly cacheTTL?: number | undefined;
 }
 
 /**
@@ -233,7 +233,7 @@ export interface QueryHandler<TQuery extends Query, TResult> extends Application
 export interface QueryError {
   readonly code: string;
   readonly message: string;
-  readonly details?: Record<string, unknown>;
+  readonly details?: Record<string, unknown> | undefined;
 }
 
 /**
@@ -257,7 +257,7 @@ export interface UseCaseError {
     | 'not_found'
     | 'conflict'
     | 'infrastructure';
-  readonly details?: Record<string, unknown>;
+  readonly details?: Record<string, unknown> | undefined;
 }
 
 /**

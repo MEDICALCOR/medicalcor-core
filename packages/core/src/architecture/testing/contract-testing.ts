@@ -31,16 +31,16 @@ export interface ContractInteraction {
 export interface InteractionRequest {
   readonly method: string;
   readonly path: string;
-  readonly headers?: Record<string, string>;
+  readonly headers?: Record<string, string> | undefined;
   readonly body?: unknown;
-  readonly matchingRules?: MatchingRule[];
+  readonly matchingRules?: MatchingRule[] | undefined;
 }
 
 export interface InteractionResponse {
   readonly status: number;
-  readonly headers?: Record<string, string>;
+  readonly headers?: Record<string, string> | undefined;
   readonly body?: unknown;
-  readonly matchingRules?: MatchingRule[];
+  readonly matchingRules?: MatchingRule[] | undefined;
 }
 
 export interface MatchingRule {
@@ -54,7 +54,7 @@ export type MatcherType = 'type' | 'regex' | 'equality' | 'include' | 'integer' 
 export interface ContractMetadata {
   readonly createdAt: Date;
   readonly updatedAt: Date;
-  readonly tags?: string[];
+  readonly tags?: string[] | undefined;
 }
 
 // ============================================================================
@@ -71,7 +71,7 @@ export interface VerificationResult {
 export interface InteractionResult {
   readonly description: string;
   readonly success: boolean;
-  readonly errors?: string[];
+  readonly errors?: string[] | undefined;
 }
 
 // ============================================================================

@@ -20,7 +20,7 @@ export interface ArchitectureDecisionRecord {
   readonly context: string;
   readonly decision: string;
   readonly consequences: string[];
-  readonly alternatives?: Alternative[];
+  readonly alternatives?: Alternative[] | undefined;
   readonly metadata: ADRMetadata;
 }
 
@@ -37,9 +37,9 @@ export interface ADRMetadata {
   readonly createdAt: Date;
   readonly updatedAt: Date;
   readonly author: string;
-  readonly reviewers?: string[];
-  readonly supersededBy?: string;
-  readonly tags?: string[];
+  readonly reviewers?: string[] | undefined;
+  readonly supersededBy?: string | undefined;
+  readonly tags?: string[] | undefined;
 }
 
 // ============================================================================

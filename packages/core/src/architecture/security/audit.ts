@@ -27,7 +27,7 @@ export interface AuditEvent {
   readonly action: string;
   readonly outcome: AuditOutcome;
   readonly details: Record<string, unknown>;
-  readonly changes?: AuditChange[];
+  readonly changes?: AuditChange[] | undefined;
   readonly context: AuditContext;
 }
 
@@ -54,11 +54,11 @@ export type AuditOutcome = 'success' | 'failure' | 'partial' | 'unknown';
 export interface AuditActor {
   readonly id: string;
   readonly type: 'user' | 'service' | 'system' | 'anonymous';
-  readonly name?: string;
-  readonly email?: string;
-  readonly roles?: string[];
-  readonly tenantId?: string;
-  readonly sessionId?: string;
+  readonly name?: string | undefined;
+  readonly email?: string | undefined;
+  readonly roles?: string[] | undefined;
+  readonly tenantId?: string | undefined;
+  readonly sessionId?: string | undefined;
 }
 
 /**
@@ -66,10 +66,10 @@ export interface AuditActor {
  */
 export interface AuditResource {
   readonly type: string;
-  readonly id?: string;
-  readonly name?: string;
-  readonly path?: string;
-  readonly tenantId?: string;
+  readonly id?: string | undefined;
+  readonly name?: string | undefined;
+  readonly path?: string | undefined;
+  readonly tenantId?: string | undefined;
 }
 
 /**
@@ -79,7 +79,7 @@ export interface AuditChange {
   readonly field: string;
   readonly oldValue?: unknown;
   readonly newValue?: unknown;
-  readonly sensitive?: boolean;
+  readonly sensitive?: boolean | undefined;
 }
 
 /**
@@ -87,15 +87,17 @@ export interface AuditChange {
  */
 export interface AuditContext {
   readonly correlationId: string;
-  readonly requestId?: string;
-  readonly ipAddress?: string;
-  readonly userAgent?: string;
-  readonly location?: {
-    readonly country?: string;
-    readonly region?: string;
-    readonly city?: string;
-  };
-  readonly source?: string;
+  readonly requestId?: string | undefined;
+  readonly ipAddress?: string | undefined;
+  readonly userAgent?: string | undefined;
+  readonly location?:
+    | {
+        readonly country?: string | undefined;
+        readonly region?: string | undefined;
+        readonly city?: string | undefined;
+      }
+    | undefined;
+  readonly source?: string | undefined;
 }
 
 // ============================================================================
@@ -163,16 +165,32 @@ export interface AuditQueryResult {
 // ============================================================================
 
 /**
+ * Mutable builder state (internal type)
+ */
+interface AuditEventBuilderState {
+  eventType?: AuditEventType;
+  category?: AuditCategory;
+  severity?: AuditSeverity;
+  actor?: AuditActor;
+  resource?: AuditResource;
+  action?: string;
+  outcome?: AuditOutcome;
+  details?: Record<string, unknown>;
+  changes?: AuditChange[];
+  context?: AuditContext;
+}
+
+/**
  * Builder for creating audit events
  */
 export class AuditEventBuilder {
-  private event: Partial<AuditEvent> = {};
+  private state: AuditEventBuilderState = {};
 
   /**
    * Set the event type
    */
   type(type: AuditEventType): this {
-    this.event.eventType = type;
+    this.state.eventType = type;
     return this;
   }
 
@@ -180,7 +198,7 @@ export class AuditEventBuilder {
    * Set the category
    */
   category(category: AuditCategory): this {
-    this.event.category = category;
+    this.state.category = category;
     return this;
   }
 
@@ -188,7 +206,7 @@ export class AuditEventBuilder {
    * Set the severity
    */
   severity(severity: AuditSeverity): this {
-    this.event.severity = severity;
+    this.state.severity = severity;
     return this;
   }
 
@@ -197,7 +215,7 @@ export class AuditEventBuilder {
    */
   actor(identity: Identity | null): this {
     if (identity) {
-      this.event.actor = {
+      this.state.actor = {
         id: identity.id,
         type:
           identity.type === 'anonymous'
@@ -211,7 +229,7 @@ export class AuditEventBuilder {
         tenantId: identity.tenantId,
       };
     } else {
-      this.event.actor = {
+      this.state.actor = {
         id: 'anonymous',
         type: 'anonymous',
       };
@@ -223,7 +241,7 @@ export class AuditEventBuilder {
    * Set the actor directly
    */
   actorRaw(actor: AuditActor): this {
-    this.event.actor = actor;
+    this.state.actor = actor;
     return this;
   }
 
@@ -231,7 +249,7 @@ export class AuditEventBuilder {
    * Set the resource
    */
   resource(type: string, id?: string, name?: string): this {
-    this.event.resource = { type, id, name };
+    this.state.resource = { type, id, name };
     return this;
   }
 
@@ -239,7 +257,7 @@ export class AuditEventBuilder {
    * Set the action
    */
   action(action: string): this {
-    this.event.action = action;
+    this.state.action = action;
     return this;
   }
 
@@ -247,7 +265,7 @@ export class AuditEventBuilder {
    * Set the outcome
    */
   outcome(outcome: AuditOutcome): this {
-    this.event.outcome = outcome;
+    this.state.outcome = outcome;
     return this;
   }
 
@@ -255,7 +273,7 @@ export class AuditEventBuilder {
    * Add details
    */
   details(details: Record<string, unknown>): this {
-    this.event.details = { ...this.event.details, ...details };
+    this.state.details = { ...this.state.details, ...details };
     return this;
   }
 
@@ -263,7 +281,7 @@ export class AuditEventBuilder {
    * Add changes
    */
   changes(changes: AuditChange[]): this {
-    this.event.changes = changes;
+    this.state.changes = changes;
     return this;
   }
 
@@ -271,10 +289,10 @@ export class AuditEventBuilder {
    * Set context
    */
   context(context: Partial<AuditContext>): this {
-    this.event.context = {
+    this.state.context = {
       correlationId: context.correlationId ?? crypto.randomUUID(),
       ...context,
-    };
+    } as AuditContext;
     return this;
   }
 
@@ -282,24 +300,24 @@ export class AuditEventBuilder {
    * Build the audit event
    */
   build(): AuditEvent {
-    if (!this.event.eventType) throw new Error('Event type is required');
-    if (!this.event.actor) throw new Error('Actor is required');
-    if (!this.event.resource) throw new Error('Resource is required');
-    if (!this.event.action) throw new Error('Action is required');
+    if (!this.state.eventType) throw new Error('Event type is required');
+    if (!this.state.actor) throw new Error('Actor is required');
+    if (!this.state.resource) throw new Error('Resource is required');
+    if (!this.state.action) throw new Error('Action is required');
 
     return {
       eventId: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
-      eventType: this.event.eventType,
-      category: this.event.category ?? 'operational',
-      severity: this.event.severity ?? 'low',
-      actor: this.event.actor,
-      resource: this.event.resource,
-      action: this.event.action,
-      outcome: this.event.outcome ?? 'success',
-      details: this.event.details ?? {},
-      changes: this.event.changes,
-      context: this.event.context ?? { correlationId: crypto.randomUUID() },
+      eventType: this.state.eventType,
+      category: this.state.category ?? 'operational',
+      severity: this.state.severity ?? 'low',
+      actor: this.state.actor,
+      resource: this.state.resource,
+      action: this.state.action,
+      outcome: this.state.outcome ?? 'success',
+      details: this.state.details ?? {},
+      changes: this.state.changes,
+      context: this.state.context ?? { correlationId: crypto.randomUUID() },
     };
   }
 }
@@ -327,8 +345,8 @@ export function Audited(
   }
 ) {
   return function (
-    target: object,
-    propertyKey: string | symbol,
+    _target: object,
+    _propertyKey: string | symbol,
     descriptor: PropertyDescriptor
   ): PropertyDescriptor {
     const original = descriptor.value as (...args: unknown[]) => Promise<unknown>;

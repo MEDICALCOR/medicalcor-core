@@ -46,32 +46,58 @@
  * ```
  */
 
-// Layer contracts and boundaries
-export * from './layers/index.js';
+// Export submodules as namespaces to avoid naming conflicts
+// These can be imported individually: import { contracts, domain } from './architecture'
+// Or specific items: import { Entity } from './architecture/domain'
 
-// Hexagonal architecture ports
-export * from './ports/index.js';
+export * as contracts from './layers/contracts.js';
+export * as boundaries from './layers/boundaries.js';
+export * as decorators from './layers/decorators.js';
 
 // Domain building blocks
-export * from './domain/index.js';
+export * as domain from './domain/index.js';
+
+// Hexagonal architecture ports
+export * as ports from './ports/index.js';
 
 // Application layer components
-export * from './application/index.js';
+export * as application from './application/index.js';
 
 // Infrastructure abstractions
-export * from './infrastructure/index.js';
+export * as infrastructure from './infrastructure/index.js';
 
 // Security & compliance
-export * from './security/index.js';
+export * as security from './security/index.js';
 
 // Observability & monitoring
-export * from './observability/index.js';
+export * as observability from './observability/index.js';
 
 // Event-driven components
-export * from './events/index.js';
+export * as events from './events/index.js';
 
 // AI & Data infrastructure
-export * from './ai-data/index.js';
+export * as aiData from './ai-data/index.js';
 
 // Testing infrastructure
-export * from './testing/index.js';
+export * as testing from './testing/index.js';
+
+// Re-export commonly used types directly for convenience
+// Layer contracts (these are the primary types)
+export type {
+  ArchitecturalLayer,
+  LayerMetadata,
+  DomainComponent,
+  ApplicationComponent,
+  InfrastructureComponent,
+  Command,
+  CommandMetadata,
+  CommandError,
+  Query,
+  QueryMetadata,
+  QueryError,
+  DomainEvent,
+  EventMetadata,
+  UseCaseError,
+  SagaStatus,
+  SagaAction,
+} from './layers/contracts.js';
