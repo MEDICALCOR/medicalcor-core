@@ -68,7 +68,7 @@ export interface ApplicationServiceError {
  * Application service with transaction management
  */
 export abstract class TransactionalApplicationService extends ApplicationService {
-  constructor(protected readonly unitOfWork: UnitOfWork) {
+  constructor(protected readonly unitOfWork: ApplicationUnitOfWork) {
     super();
   }
 
@@ -110,7 +110,7 @@ export abstract class TransactionalApplicationService extends ApplicationService
   }
 }
 
-export interface UnitOfWork {
+export interface ApplicationUnitOfWork {
   begin(): Promise<void>;
   commit(): Promise<void>;
   rollback(): Promise<void>;
@@ -126,7 +126,7 @@ export interface UnitOfWork {
  */
 export abstract class EventPublishingApplicationService extends TransactionalApplicationService {
   constructor(
-    unitOfWork: UnitOfWork,
+    unitOfWork: ApplicationUnitOfWork,
     protected readonly eventBus: EventBus
   ) {
     super(unitOfWork);

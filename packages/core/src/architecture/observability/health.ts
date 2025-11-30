@@ -208,15 +208,15 @@ export class DatabaseHealthCheck implements HealthCheck {
  * Redis/Cache health check
  */
 export class CacheHealthCheck implements HealthCheck {
-  readonly name = 'cache';
+  readonly name: string;
   readonly critical = false;
   readonly timeout = 3000;
 
   constructor(
     private pingFn: () => Promise<string>,
-    private name_ = 'cache'
+    name = 'cache'
   ) {
-    this.name = name_;
+    this.name = name;
   }
 
   async check(): Promise<HealthCheckResponse> {

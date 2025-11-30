@@ -46,14 +46,23 @@ function getWebSocketSecret(): Uint8Array {
   return new TextEncoder().encode(secret);
 }
 
-// Secret for signing WebSocket tokens - validated at runtime
-const WS_TOKEN_SECRET = getWebSocketSecret();
+// Secret for signing WebSocket tokens - lazily initialized at runtime
+// This prevents build-time errors while maintaining runtime security
+let _wsTokenSecret: Uint8Array | null = null;
+
+function getWsTokenSecretLazy(): Uint8Array {
+  _wsTokenSecret ??= getWebSocketSecret();
+  return _wsTokenSecret;
+}
 
 // Token expiry time (5 minutes)
 const TOKEN_EXPIRY = '5m';
 
 export async function POST() {
   try {
+    // Get secret lazily at runtime (not build time)
+    const WS_TOKEN_SECRET = getWsTokenSecretLazy();
+
     // Validate session
     const session = await auth();
 

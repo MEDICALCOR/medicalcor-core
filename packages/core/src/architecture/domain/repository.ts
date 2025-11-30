@@ -241,7 +241,7 @@ export class AggregateNotFoundError extends RepositoryError {
   }
 }
 
-export class ConcurrencyError extends RepositoryError {
+export class RepositoryConcurrencyError extends RepositoryError {
   readonly aggregateId: unknown;
   readonly expectedVersion: number;
   readonly actualVersion: number;
@@ -257,7 +257,7 @@ export class ConcurrencyError extends RepositoryError {
       aggregateType,
       `Concurrency conflict for ${aggregateType} ${String(aggregateId)}: expected version ${expectedVersion}, actual ${actualVersion}`
     );
-    this.name = 'ConcurrencyError';
+    this.name = 'RepositoryConcurrencyError';
     this.aggregateId = aggregateId;
     this.expectedVersion = expectedVersion;
     this.actualVersion = actualVersion;

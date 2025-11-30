@@ -196,7 +196,8 @@ export function AggregateRootDecorator(aggregateType: string) {
  * Marks a class as a Value Object
  */
 export function ValueObjectDecorator(valueObjectType: string) {
-  return function <T extends new (...args: unknown[]) => object>(constructor: T): T {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return function <T extends new (...args: any[]) => object>(constructor: T): T {
     Object.defineProperty(constructor.prototype, '__valueObjectType', {
       value: valueObjectType,
       writable: false,
@@ -207,6 +208,8 @@ export function ValueObjectDecorator(valueObjectType: string) {
     const original = constructor;
     // @ts-expect-error - Mixin pattern requires any[] constructor
     const decorated = class extends original {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const decorated = class extends (original as any) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       constructor(...args: any[]) {
         super(...args);

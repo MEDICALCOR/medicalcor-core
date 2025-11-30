@@ -122,6 +122,7 @@ export default function BookingPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [isBookingConfirmed, setIsBookingConfirmed] = useState(false);
   const [patientDetails, setPatientDetails] = useState({
     firstName: '',
     lastName: '',
@@ -129,6 +130,12 @@ export default function BookingPage() {
     email: '',
     notes: '',
   });
+
+  const handleConfirmBooking = () => {
+    // TODO: Implement actual booking API call
+    // For now, just show success state
+    setIsBookingConfirmed(true);
+  };
 
   const timeSlots = generateTimeSlots();
   const days = getDaysInMonth(currentMonth.getFullYear(), currentMonth.getMonth());
@@ -155,7 +162,7 @@ export default function BookingPage() {
         return !!selectedDate && !!selectedTime;
       case 'details':
         return patientDetails.firstName && patientDetails.lastName && patientDetails.phone;
-      default:
+      case 'confirm':
         return true;
     }
   };
@@ -607,9 +614,9 @@ export default function BookingPage() {
           Înapoi
         </Button>
         {currentStep === 'confirm' ? (
-          <Button onClick={() => alert('Programare confirmată!')}>
+          <Button onClick={handleConfirmBooking} disabled={isBookingConfirmed}>
             <Check className="h-4 w-4 mr-2" />
-            Confirmă programarea
+            {isBookingConfirmed ? 'Programare confirmată!' : 'Confirmă programarea'}
           </Button>
         ) : (
           <Button onClick={nextStep} disabled={!canProceed()}>
@@ -618,6 +625,23 @@ export default function BookingPage() {
           </Button>
         )}
       </div>
+
+      {/* Success Message */}
+      {isBookingConfirmed && (
+        <Card className="border-green-200 bg-green-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3 text-green-700">
+              <Check className="h-6 w-6" />
+              <div>
+                <p className="font-medium">Programare confirmată cu succes!</p>
+                <p className="text-sm text-green-600">
+                  Veți primi un email de confirmare în curând.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

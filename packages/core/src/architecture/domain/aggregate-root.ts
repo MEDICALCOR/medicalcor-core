@@ -285,13 +285,14 @@ export abstract class BaseAggregateFactory<
  * Decorator for invariant checks
  */
 export function Invariant(name: string, check: (instance: unknown) => boolean, message: string) {
-  return function <T extends new (...args: unknown[]) => AggregateRoot<unknown>>(
-    constructor: T
-  ): T {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return function <T extends new (...args: any[]) => AggregateRoot<unknown>>(constructor: T): T {
     const original = constructor;
 
     // @ts-expect-error - Mixin pattern requires any[] constructor
     const decorated = class extends original {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const decorated = class extends (original as any) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       constructor(...args: any[]) {
         super(...args);
@@ -309,7 +310,7 @@ export function Invariant(name: string, check: (instance: unknown) => boolean, m
       }
     };
 
-    return decorated as T;
+    return decorated as unknown as T;
   };
 }
 
