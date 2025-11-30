@@ -95,18 +95,27 @@ export interface SerializedProjection {
 /**
  * Custom JSON replacer that handles Map objects
  * Converts Map to { __type: 'Map', entries: [...] } for JSON serialization
+ * Note: For Date objects, we need to use a different approach since JSON.stringify
+ * calls toJSON() before the replacer, converting Dates to ISO strings.
  */
-function jsonReplacer(_key: string, value: unknown): unknown {
+function jsonReplacer(this: unknown, _key: string, value: unknown): unknown {
+  // Check the original object for Date instances (before toJSON is called)
+
+  const originalValue =
+    this !== undefined && typeof this === 'object' && this !== null
+      ? (this as Record<string, unknown>)[_key]
+      : value;
+
+  if (originalValue instanceof Date) {
+    return {
+      __type: 'Date',
+      value: originalValue.toISOString(),
+    };
+  }
   if (value instanceof Map) {
     return {
       __type: 'Map',
       entries: Array.from(value.entries()),
-    };
-  }
-  if (value instanceof Date) {
-    return {
-      __type: 'Date',
-      value: value.toISOString(),
     };
   }
   return value;
@@ -137,9 +146,13 @@ export function serializeProjectionState(state: unknown): string {
 
 /**
  * Deserialize a projection state from JSON
+ * @param json - JSON string to deserialize
+ * @returns The deserialized state
  */
-export function deserializeProjectionState(json: string): unknown {
-  return JSON.parse(json, jsonReviver);
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
+export function deserializeProjectionState<T>(json: string): T {
+  // The generic parameter T is necessary for callers to type the result
+  return JSON.parse(json, jsonReviver) as T;
 }
 
 // ============================================================================

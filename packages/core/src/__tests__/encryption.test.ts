@@ -7,7 +7,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { EncryptionService, createEncryptionService } from '../encryption.js';
 
 describe('EncryptionService', () => {
-  const TEST_KEY = 'a'.repeat(64); // 32-byte hex key
+  // Test key with proper entropy (looks random, not a repeating pattern)
+  const TEST_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
   beforeEach(() => {
     // Set up test encryption key
@@ -30,10 +31,9 @@ describe('EncryptionService', () => {
       expect(service.isConfigured()).toBe(false);
     });
 
-    it('should return false when encryption key is invalid length', () => {
+    it('should throw when encryption key is invalid length', () => {
       vi.stubEnv('DATA_ENCRYPTION_KEY', 'tooshort');
-      const service = new EncryptionService();
-      expect(service.isConfigured()).toBe(false);
+      expect(() => new EncryptionService()).toThrow('must be 32 bytes');
     });
   });
 
