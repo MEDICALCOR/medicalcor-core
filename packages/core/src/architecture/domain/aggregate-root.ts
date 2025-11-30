@@ -8,7 +8,7 @@
  * They enforce invariants and emit domain events.
  */
 
-import { Entity, InvalidEntityError } from './entity.js';
+import { Entity } from './entity.js';
 import type {
   AggregateRoot as IAggregateRoot,
   DomainEvent,
@@ -31,7 +31,7 @@ export abstract class AggregateRoot<TId, TEvent extends DomainEvent = DomainEven
 {
   private _version: number;
   private _uncommittedEvents: TEvent[] = [];
-  private _deletedAt?: Date;
+  private _deletedAt?: Date | undefined;
   private _isDeleted = false;
 
   constructor(id: TId, version = 0) {
@@ -289,6 +289,8 @@ export function Invariant(name: string, check: (instance: unknown) => boolean, m
   return function <T extends new (...args: any[]) => AggregateRoot<unknown>>(constructor: T): T {
     const original = constructor;
 
+    // @ts-expect-error - Mixin pattern requires any[] constructor
+    const decorated = class extends original {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const decorated = class extends (original as any) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

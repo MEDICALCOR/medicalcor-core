@@ -89,7 +89,7 @@ export class SchedulingService {
     if (!this.consentService && process.env.NODE_ENV === 'production' && !this.skipConsentCheck) {
       logger.warn(
         'ConsentService not configured - patient consent verification will be skipped. ' +
-        'This may violate GDPR/HIPAA compliance.'
+          'This may violate GDPR/HIPAA compliance.'
       );
     }
     // Note: If consent service is not configured in production, consent verification will be skipped
@@ -156,16 +156,17 @@ export class SchedulingService {
    * Throws ConsentRequiredError if consent is missing or invalid.
    */
   async bookAppointment(request: BookingRequest): Promise<{ id: string; status: string }> {
-    if (!this.pool) {
-      throw new Error('Database connection not configured - connectionString is required');
-    }
-
     // CRITICAL: Verify patient consent before processing booking (GDPR/HIPAA requirement)
+    // This check happens FIRST to ensure we don't access any data without consent
     if (this.consentService && !this.skipConsentCheck) {
       const consentCheck = await this.consentService.hasRequiredConsents(request.hubspotContactId);
       if (!consentCheck.valid) {
         throw new ConsentRequiredError(request.hubspotContactId, consentCheck.missing);
       }
+    }
+
+    if (!this.pool) {
+      throw new Error('Database connection not configured - connectionString is required');
     }
 
     const client = await this.pool.connect();

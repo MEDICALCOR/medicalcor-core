@@ -47,12 +47,8 @@ class LayerRegistry {
    * Check if a dependency is valid according to the dependency rule
    */
   isValidDependency(fromLayer: ArchitecturalLayer, toLayer: ArchitecturalLayer): boolean {
-    const layerOrder: Record<ArchitecturalLayer, number> = {
-      ui: 0,
-      application: 1,
-      domain: 2,
-      infrastructure: 3, // Infrastructure depends on domain via DI
-    };
+    // LayerOrder for reference (not used in validation logic, but documents intent):
+    // ui: 0, application: 1, domain: 2, infrastructure: 3
 
     // Domain has no outbound dependencies (except to itself)
     if (fromLayer === 'domain' && toLayer !== 'domain') {
@@ -115,7 +111,7 @@ export interface BoundaryViolation {
   readonly toComponent: string;
   readonly toLayer: ArchitecturalLayer;
   readonly message: string;
-  readonly stackTrace?: string;
+  readonly stackTrace?: string | undefined;
 }
 
 // Singleton registry
@@ -220,8 +216,8 @@ export function validateDependency(
  */
 export function createLayerProxy<T extends object>(
   target: T,
-  sourceLayer: ArchitecturalLayer,
-  componentName: string
+  _sourceLayer: ArchitecturalLayer,
+  _componentName: string
 ): T {
   return new Proxy(target, {
     get(obj, prop) {

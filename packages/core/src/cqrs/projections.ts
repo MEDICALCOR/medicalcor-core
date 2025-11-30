@@ -17,8 +17,8 @@ export interface Projection<TState = unknown> {
   name: string;
   version: number;
   state: TState;
-  lastEventId?: string;
-  lastEventTimestamp?: Date;
+  lastEventId?: string | undefined;
+  lastEventTimestamp?: Date | undefined;
   updatedAt: Date;
 }
 
@@ -87,26 +87,35 @@ export interface SerializedProjection {
   name: string;
   version: number;
   state: unknown;
-  lastEventId?: string;
-  lastEventTimestamp?: string;
+  lastEventId?: string | undefined;
+  lastEventTimestamp?: string | undefined;
   updatedAt: string;
 }
 
 /**
  * Custom JSON replacer that handles Map objects
  * Converts Map to { __type: 'Map', entries: [...] } for JSON serialization
+ * Note: For Date objects, we need to use a different approach since JSON.stringify
+ * calls toJSON() before the replacer, converting Dates to ISO strings.
  */
-function jsonReplacer(_key: string, value: unknown): unknown {
+function jsonReplacer(this: unknown, key: string, value: unknown): unknown {
+  // Check the original object for Date instances (before toJSON is called)
+
+  const originalValue =
+    this !== undefined && typeof this === 'object' && this !== null
+      ? (this as Record<string, unknown>)[key]
+      : value;
+
+  if (originalValue instanceof Date) {
+    return {
+      __type: 'Date',
+      value: originalValue.toISOString(),
+    };
+  }
   if (value instanceof Map) {
     return {
       __type: 'Map',
       entries: Array.from(value.entries()),
-    };
-  }
-  if (value instanceof Date) {
-    return {
-      __type: 'Date',
-      value: value.toISOString(),
     };
   }
   return value;
@@ -137,8 +146,12 @@ export function serializeProjectionState(state: unknown): string {
 
 /**
  * Deserialize a projection state from JSON
+ * @param json - JSON string to deserialize
+ * @returns The deserialized state
  */
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
 export function deserializeProjectionState<T>(json: string): T {
+  // The generic parameter T is necessary for callers to type the result
   return JSON.parse(json, jsonReviver) as T;
 }
 
@@ -170,7 +183,8 @@ export class ProjectionManager {
     for (const [name, definition] of this.projections) {
       const handler = definition.handlers.get(event.type);
       if (handler) {
-        const projection = this.states.get(name)!;
+        const projection = this.states.get(name);
+        if (!projection) continue;
         projection.state = handler(projection.state, event);
         projection.lastEventId = event.id;
         projection.lastEventTimestamp = new Date(event.metadata.timestamp);
@@ -240,7 +254,7 @@ export class ProjectionManager {
     return Array.from(this.states.values()).map((projection) => ({
       name: projection.name,
       version: projection.version,
-      state: JSON.parse(serializeProjectionState(projection.state)),
+      state: JSON.parse(serializeProjectionState(projection.state)) as unknown,
       lastEventId: projection.lastEventId,
       lastEventTimestamp: projection.lastEventTimestamp?.toISOString(),
       updatedAt: projection.updatedAt.toISOString(),
@@ -259,9 +273,7 @@ export class ProjectionManager {
       }
 
       // Deserialize the state (handles Map and Date restoration)
-      const deserializedState = deserializeProjectionState<unknown>(
-        JSON.stringify(serialized.state)
-      );
+      const deserializedState = deserializeProjectionState(JSON.stringify(serialized.state));
 
       const projection: Projection = {
         name: serialized.name,
@@ -513,14 +525,17 @@ export interface DailyMetricsState {
 }
 
 function getDateKey(timestamp: Date): string {
-  return timestamp.toISOString().split('T')[0]!;
+  const datePart = timestamp.toISOString().split('T')[0];
+  if (!datePart) throw new Error('Invalid timestamp');
+  return datePart;
 }
 
 function ensureMetricEntry(
   state: DailyMetricsState,
   date: string
 ): DailyMetricsState['metrics'] extends Map<string, infer V> ? V : never {
-  if (!state.metrics.has(date)) {
+  const existing = state.metrics.get(date);
+  if (!existing) {
     return {
       date,
       newLeads: 0,
@@ -531,7 +546,7 @@ function ensureMetricEntry(
       messagesSent: 0,
     };
   }
-  return state.metrics.get(date)!;
+  return existing;
 }
 
 export const DailyMetricsProjection = defineProjection<DailyMetricsState>('daily-metrics', 1, {
