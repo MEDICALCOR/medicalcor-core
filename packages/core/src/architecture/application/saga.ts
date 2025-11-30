@@ -14,10 +14,7 @@ import type {
   SagaAction,
   DomainEvent,
   ApplicationComponent,
-  Command,
 } from '../layers/contracts.js';
-import type { Result } from '../../types/result.js';
-import { Ok, Err } from '../../types/result.js';
 
 // ============================================================================
 // SAGA BASE CLASS
@@ -181,8 +178,8 @@ export interface SagaSnapshot<TState> {
   readonly version: number;
   readonly createdAt: string;
   readonly updatedAt: string;
-  readonly completedAt?: string;
-  readonly error?: string;
+  readonly completedAt?: string | undefined;
+  readonly error?: string | undefined;
 }
 
 // ============================================================================
@@ -294,7 +291,7 @@ export class SagaOrchestrator {
     return undefined;
   }
 
-  private sagaMatchesEvent(saga: Saga, event: DomainEvent): boolean {
+  private sagaMatchesEvent(_saga: Saga, _event: DomainEvent): boolean {
     // Default matching by correlation ID
     return true; // Override in subclasses for custom matching
   }

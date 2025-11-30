@@ -126,7 +126,7 @@ export abstract class ValueObject<TProps> implements IValueObject<TProps>, Domai
  */
 export class InvalidValueObjectError extends Error {
   readonly code = 'INVALID_VALUE_OBJECT';
-  readonly field?: string;
+  readonly field?: string | undefined;
   readonly value?: unknown;
 
   constructor(message: string, field?: string, value?: unknown) {
@@ -149,7 +149,7 @@ export abstract class SingleValueObject<T> extends ValueObject<{ value: T }> {
     super({ value });
   }
 
-  get value(): { value: T } {
+  override get value(): { value: T } {
     return this.props;
   }
 
@@ -157,7 +157,7 @@ export abstract class SingleValueObject<T> extends ValueObject<{ value: T }> {
     return this.props.value;
   }
 
-  toString(): string {
+  override toString(): string {
     return String(this.props.value);
   }
 }
@@ -232,7 +232,7 @@ export class Money extends ValueObject<{ amount: number; currency: string }> {
     return this.amount === 0;
   }
 
-  toString(): string {
+  override toString(): string {
     return `${this.currency} ${this.amount.toFixed(2)}`;
   }
 }
@@ -330,7 +330,7 @@ export class Percentage extends SingleValueObject<number> {
     return new Percentage(decimal * 100);
   }
 
-  toString(): string {
+  override toString(): string {
     return `${this.rawValue}%`;
   }
 }

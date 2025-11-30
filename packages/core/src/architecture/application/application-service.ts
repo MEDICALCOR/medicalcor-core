@@ -10,7 +10,7 @@
 
 import type { ApplicationComponent, DomainEvent } from '../layers/contracts.js';
 import type { Result } from '../../types/result.js';
-import { Ok, Err } from '../../types/result.js';
+import { Err } from '../../types/result.js';
 
 // ============================================================================
 // APPLICATION SERVICE BASE CLASS
@@ -57,7 +57,7 @@ export interface ApplicationServiceError {
   code: string;
   message: string;
   serviceName: string;
-  details?: Record<string, unknown>;
+  details?: Record<string, unknown> | undefined;
 }
 
 // ============================================================================
@@ -105,7 +105,7 @@ export abstract class TransactionalApplicationService extends ApplicationService
   /**
    * Publish collected events (override to implement)
    */
-  protected async publishEvents(events: DomainEvent[]): Promise<void> {
+  protected async publishEvents(_events: DomainEvent[]): Promise<void> {
     // Default: no-op. Override to publish to event bus
   }
 }
@@ -132,7 +132,7 @@ export abstract class EventPublishingApplicationService extends TransactionalApp
     super(unitOfWork);
   }
 
-  protected async publishEvents(events: DomainEvent[]): Promise<void> {
+  protected override async publishEvents(events: DomainEvent[]): Promise<void> {
     for (const event of events) {
       await this.eventBus.publish(event);
     }
@@ -204,8 +204,8 @@ export class ApplicationServiceComposer {
  */
 export function Retry(maxAttempts = 3, delayMs = 100) {
   return function (
-    target: object,
-    propertyKey: string | symbol,
+    _target: object,
+    _propertyKey: string | symbol,
     descriptor: PropertyDescriptor
   ): PropertyDescriptor {
     const original = descriptor.value as (
@@ -259,8 +259,8 @@ function isTransientError(error: ApplicationServiceError): boolean {
  */
 export function Timeout(timeoutMs: number) {
   return function (
-    target: object,
-    propertyKey: string | symbol,
+    _target: object,
+    _propertyKey: string | symbol,
     descriptor: PropertyDescriptor
   ): PropertyDescriptor {
     const original = descriptor.value as (
@@ -301,8 +301,8 @@ export function CircuitBreaker(failureThreshold = 5, resetTimeoutMs = 30000) {
   };
 
   return function (
-    target: object,
-    propertyKey: string | symbol,
+    _target: object,
+    _propertyKey: string | symbol,
     descriptor: PropertyDescriptor
   ): PropertyDescriptor {
     const original = descriptor.value as (
