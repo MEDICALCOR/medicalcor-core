@@ -242,14 +242,20 @@ export class ConsentService {
     }
 
     const previousStatus = existing.status;
-    existing.status = 'withdrawn';
-    existing.withdrawnAt = new Date().toISOString();
-    existing.updatedAt = new Date().toISOString();
+    const now = new Date().toISOString();
 
-    await this.repository.save(existing);
+    // IMMUTABILITY FIX: Create new record instead of mutating existing
+    const updatedConsent: ConsentRecord = {
+      ...existing,
+      status: 'withdrawn',
+      withdrawnAt: now,
+      updatedAt: now,
+    };
+
+    await this.repository.save(updatedConsent);
 
     await this.createAuditEntry({
-      consentId: existing.id,
+      consentId: updatedConsent.id,
       action: 'withdrawn',
       previousStatus,
       newStatus: 'withdrawn',
@@ -261,7 +267,7 @@ export class ConsentService {
 
     this.logger.info({ contactId, consentType, reason }, 'Consent withdrawn');
 
-    return existing;
+    return updatedConsent;
   }
 
   /**
@@ -438,15 +444,20 @@ Sie können Ihre Zustimmung jederzeit widerrufen, indem Sie "STOP" antworten.`,
    */
   private async expireConsent(consent: ConsentRecord): Promise<void> {
     const previousStatus = consent.status;
+    const now = new Date().toISOString();
 
-    consent.status = 'withdrawn';
-    consent.withdrawnAt = new Date().toISOString();
-    consent.updatedAt = new Date().toISOString();
+    // IMMUTABILITY FIX: Create new record instead of mutating existing
+    const expiredConsent: ConsentRecord = {
+      ...consent,
+      status: 'withdrawn',
+      withdrawnAt: now,
+      updatedAt: now,
+    };
 
-    await this.repository.save(consent);
+    await this.repository.save(expiredConsent);
 
     await this.createAuditEntry({
-      consentId: consent.id,
+      consentId: expiredConsent.id,
       action: 'expired',
       previousStatus,
       newStatus: 'withdrawn',
