@@ -1,0 +1,55 @@
+{
+  "name": "@medicalcor/infrastructure",
+  "version": "3.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Infrastructure adapters for MedicalCor OSAX hexagonal architecture",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./persistence/*": {
+      "types": "./dist/persistence/*.d.ts",
+      "import": "./dist/persistence/*.js"
+    },
+    "./messaging/*": {
+      "types": "./dist/messaging/*.d.ts",
+      "import": "./dist/messaging/*.js"
+    },
+    "./ai/*": {
+      "types": "./dist/ai/*.d.ts",
+      "import": "./dist/ai/*.js"
+    },
+    "./observability/*": {
+      "types": "./dist/observability/*.d.ts",
+      "import": "./dist/observability/*.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@medicalcor/domain": "workspace:*",
+    "@medicalcor/application": "workspace:*",
+    "@supabase/supabase-js": "^2.39.0",
+    "pg": "^8.13.1",
+    "openai": "^4.20.0",
+    "pino": "^8.17.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@types/pg": "^8.11.10",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}

@@ -1,0 +1,251 @@
+# OSAX Recording Rules
+#
+# Pre-computed metrics for dashboards and efficient alerting.
+# These rules aggregate raw metrics into SLO-focused views.
+
+groups:
+  - name: osax_recording_rules
+    interval: 30s
+    rules:
+      # ============================================================================
+      # AVAILABILITY METRICS
+      # ============================================================================
+
+      - record: osax:availability:rate1h
+        expr: |
+          sum(rate(http_requests_total{status!~"5.."}[1h]))
+          /
+          sum(rate(http_requests_total[1h]))
+
+      - record: osax:availability:rate6h
+        expr: |
+          sum(rate(http_requests_total{status!~"5.."}[6h]))
+          /
+          sum(rate(http_requests_total[6h]))
+
+      - record: osax:availability:rate24h
+        expr: |
+          sum(rate(http_requests_total{status!~"5.."}[24h]))
+          /
+          sum(rate(http_requests_total[24h]))
+
+      - record: osax:availability:rate7d
+        expr: |
+          sum(rate(http_requests_total{status!~"5.."}[7d]))
+          /
+          sum(rate(http_requests_total[7d]))
+
+      - record: osax:availability:rate30d
+        expr: |
+          sum(rate(http_requests_total{status!~"5.."}[30d]))
+          /
+          sum(rate(http_requests_total[30d]))
+
+      # ============================================================================
+      # LATENCY METRICS
+      # ============================================================================
+
+      - record: osax:latency:p50
+        expr: |
+          histogram_quantile(0.50,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          )
+
+      - record: osax:latency:p90
+        expr: |
+          histogram_quantile(0.90,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          )
+
+      - record: osax:latency:p95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          )
+
+      - record: osax:latency:p99
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          )
+
+      - record: osax:latency:mean
+        expr: |
+          sum(rate(http_request_duration_seconds_sum[5m]))
+          /
+          sum(rate(http_request_duration_seconds_count[5m]))
+
+      # By endpoint
+      - record: osax:latency:p95:by_endpoint
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, handler)
+          )
+
+      # ============================================================================
+      # ENCRYPTION METRICS (HIPAA)
+      # ============================================================================
+
+      - record: osax:encryption:success_rate
+        expr: |
+          sum(rate(osax_encryption_total{status="success"}[5m]))
+          /
+          sum(rate(osax_encryption_total[5m]))
+
+      - record: osax:decryption:success_rate
+        expr: |
+          sum(rate(osax_decryption_total{status="success"}[5m]))
+          /
+          sum(rate(osax_decryption_total[5m]))
+
+      - record: osax:encryption:operations_per_minute
+        expr: |
+          sum(rate(osax_encryption_total[1m])) * 60
+
+      # ============================================================================
+      # AUDIT METRICS
+      # ============================================================================
+
+      - record: osax:audit:logs_per_minute
+        expr: |
+          sum(rate(osax_audit_log_total[1m])) * 60
+
+      - record: osax:audit:failure_rate
+        expr: |
+          sum(rate(osax_audit_log_failures_total[5m]))
+          /
+          sum(rate(osax_audit_log_total[5m]))
+
+      # ============================================================================
+      # CASE PROCESSING METRICS
+      # ============================================================================
+
+      - record: osax:cases:created_per_hour
+        expr: |
+          sum(increase(osax_case_creation_total[1h]))
+
+      - record: osax:cases:scored_per_hour
+        expr: |
+          sum(increase(osax_case_scoring_total[1h]))
+
+      - record: osax:cases:creation_p95_latency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(osax_case_creation_duration_seconds_bucket[5m])) by (le)
+          )
+
+      - record: osax:cases:scoring_success_rate
+        expr: |
+          sum(rate(osax_case_scoring_total{status="success"}[5m]))
+          /
+          sum(rate(osax_case_scoring_total[5m]))
+
+      - record: osax:cases:by_status
+        expr: |
+          sum(osax_cases_total) by (status)
+
+      - record: osax:cases:by_risk_class
+        expr: |
+          sum(osax_cases_total) by (risk_class)
+
+      # ============================================================================
+      # DATABASE METRICS
+      # ============================================================================
+
+      - record: osax:db:connection_utilization
+        expr: |
+          pg_stat_activity_count{state="active"}
+          /
+          pg_settings_max_connections
+
+      - record: osax:db:query_duration_p95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(pg_stat_statements_seconds_bucket[5m])) by (le)
+          )
+
+      - record: osax:db:transactions_per_second
+        expr: |
+          sum(rate(pg_stat_database_xact_commit[1m]))
+          +
+          sum(rate(pg_stat_database_xact_rollback[1m]))
+
+      # ============================================================================
+      # AI/ML METRICS
+      # ============================================================================
+
+      - record: osax:ai:embedding_generation_p95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(osax_embedding_generation_duration_seconds_bucket[5m])) by (le)
+          )
+
+      - record: osax:ai:openai_success_rate
+        expr: |
+          sum(rate(osax_openai_requests_total{status="success"}[5m]))
+          /
+          sum(rate(osax_openai_requests_total[5m]))
+
+      - record: osax:ai:embeddings_generated_per_hour
+        expr: |
+          sum(increase(osax_embedding_generation_total[1h]))
+
+      - record: osax:ai:similarity_searches_per_minute
+        expr: |
+          sum(rate(osax_similarity_search_total[1m])) * 60
+
+      # ============================================================================
+      # ERROR BUDGET CALCULATIONS
+      # ============================================================================
+
+      # 30-day error budget for 99.9% availability SLO
+      - record: osax:error_budget:availability_30d
+        expr: |
+          1 - (
+            (1 - osax:availability:rate30d) / 0.001
+          )
+
+      # 30-day error budget burn rate (>1 means burning faster than allowed)
+      - record: osax:error_budget:burn_rate_1h
+        expr: |
+          (1 - osax:availability:rate1h) / 0.001
+
+      - record: osax:error_budget:burn_rate_6h
+        expr: |
+          (1 - osax:availability:rate6h) / 0.001
+
+      # ============================================================================
+      # REQUEST RATES
+      # ============================================================================
+
+      - record: osax:requests:rate_1m
+        expr: |
+          sum(rate(http_requests_total[1m]))
+
+      - record: osax:requests:rate_5m
+        expr: |
+          sum(rate(http_requests_total[5m]))
+
+      - record: osax:requests:rate_by_status
+        expr: |
+          sum(rate(http_requests_total[5m])) by (status)
+
+      - record: osax:requests:rate_by_endpoint
+        expr: |
+          sum(rate(http_requests_total[5m])) by (handler)
+
+      # ============================================================================
+      # RESOURCE UTILIZATION
+      # ============================================================================
+
+      - record: osax:resource:cpu_usage
+        expr: |
+          sum(rate(container_cpu_usage_seconds_total{container="osax"}[5m]))
+          /
+          sum(container_spec_cpu_quota{container="osax"} / container_spec_cpu_period{container="osax"})
+
+      - record: osax:resource:memory_usage
+        expr: |
+          sum(container_memory_working_set_bytes{container="osax"})
+          /
+          sum(container_spec_memory_limit_bytes{container="osax"})

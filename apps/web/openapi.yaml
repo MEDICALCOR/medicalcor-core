@@ -1,0 +1,757 @@
+openapi: 3.1.0
+info:
+  title: OSAX API
+  version: 3.0.0
+  description: |
+    Medical-grade OSAX (Oral Surgery Auxiliary eXtension) API.
+
+    ## Compliance
+    - **HIPAA**: All PHI is encrypted at rest and in transit
+    - **GDPR**: Data residency and consent management supported
+
+    ## Authentication
+    All endpoints require Bearer token authentication except `/health`.
+
+    ## Rate Limiting
+    - Standard: 100 requests/minute
+    - Premium: 500 requests/minute
+  contact:
+    name: MedicalCor API Support
+    email: api@medicalcor.ro
+    url: https://docs.medicalcor.ro
+  license:
+    name: Proprietary
+    url: https://medicalcor.ro/license
+
+servers:
+  - url: https://osax.medicalcor.ro/api/v3
+    description: Production
+  - url: https://staging-osax.medicalcor.ro/api/v3
+    description: Staging
+  - url: http://localhost:3000/api/v3
+    description: Development
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Cases
+    description: OSAX case management operations
+  - name: Scoring
+    description: Clinical scoring operations
+  - name: Health
+    description: System health endpoints
+  - name: Audit
+    description: Audit log operations (admin only)
+
+paths:
+  # ============================================================================
+  # CASE ENDPOINTS
+  # ============================================================================
+
+  /cases:
+    post:
+      tags: [Cases]
+      operationId: createCase
+      summary: Create new OSAX case
+      description: |
+        Creates a new OSAX case for a subject (lead or patient).
+
+        **Required Permission**: `osax:case:create`
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCaseRequest'
+            examples:
+              patient:
+                summary: Create case for patient
+                value:
+                  subjectId: "PAT-2025-00042"
+                  subjectType: "patient"
+                  notes: "Initial consultation for implant assessment"
+                  priority: "NORMAL"
+              lead:
+                summary: Create case for lead
+                value:
+                  subjectId: "LEAD-2025-00123"
+                  subjectType: "lead"
+                  priority: "HIGH"
+      responses:
+        '201':
+          description: Case created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateCaseResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      tags: [Cases]
+      operationId: searchCases
+      summary: Search OSAX cases
+      description: |
+        Search cases with filters and pagination.
+
+        **Required Permission**: `osax:case:read`
+      parameters:
+        - name: status
+          in: query
+          description: Filter by case status
+          schema:
+            type: string
+            enum: [PENDING_STUDY, STUDY_COMPLETED, SCORED, REVIEWED, TREATMENT_PLANNED, IN_TREATMENT, FOLLOW_UP, CLOSED, CANCELLED]
+        - name: riskClass
+          in: query
+          description: Filter by risk class
+          schema:
+            type: string
+            enum: [GREEN, YELLOW, RED]
+        - name: priority
+          in: query
+          description: Filter by priority
+          schema:
+            type: string
+            enum: [LOW, NORMAL, HIGH, URGENT]
+        - name: fromDate
+          in: query
+          description: Filter cases created after this date
+          schema:
+            type: string
+            format: date-time
+        - name: toDate
+          in: query
+          description: Filter cases created before this date
+          schema:
+            type: string
+            format: date-time
+        - name: sortBy
+          in: query
+          description: Sort field
+          schema:
+            type: string
+            enum: [createdAt, updatedAt, globalScore, priority]
+            default: createdAt
+        - name: sortDirection
+          in: query
+          description: Sort direction
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - name: limit
+          in: query
+          description: Page size (max 100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: Page offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Cases found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchCasesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /cases/{caseId}:
+    get:
+      tags: [Cases]
+      operationId: getCase
+      summary: Get case details
+      description: |
+        Retrieve detailed information about a specific case.
+
+        **Required Permission**: `osax:case:read`
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          description: Case UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Case details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OsaxCaseDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Cases]
+      operationId: deleteCase
+      summary: Delete case (soft delete)
+      description: |
+        Soft delete a case. Requires MFA verification.
+
+        **Required Permission**: `osax:case:delete`
+        **Requires**: MFA verification, business hours only
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Case deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============================================================================
+  # SCORING ENDPOINTS
+  # ============================================================================
+
+  /cases/{caseId}/score:
+    post:
+      tags: [Cases, Scoring]
+      operationId: scoreCase
+      summary: Score an OSAX case
+      description: |
+        Calculate clinical score for a case based on indicators.
+
+        **Required Permission**: `osax:case:score`
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScoreCaseRequest'
+            example:
+              boneQuality: "medium"
+              softTissueStatus: "acceptable"
+              systemicRisk: "low"
+              urgency: "medium"
+              financialFlexibility: "high"
+              notes: "Good candidate for immediate loading protocol"
+      responses:
+        '200':
+          description: Case scored successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoreCaseResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /cases/{caseId}/verify:
+    post:
+      tags: [Cases]
+      operationId: verifyCase
+      summary: Verify case (physician review)
+      description: |
+        Physician verification of a scored case.
+
+        **Required Permission**: `osax:case:verify`
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyCaseRequest'
+      responses:
+        '200':
+          description: Case verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyCaseResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============================================================================
+  # HEALTH ENDPOINTS
+  # ============================================================================
+
+  /health:
+    get:
+      tags: [Health]
+      operationId: healthCheck
+      summary: Health check
+      description: System health status. No authentication required.
+      security: []
+      responses:
+        '200':
+          description: System healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: "HEALTHY"
+                version: "3.0.0"
+                timestamp: "2025-11-30T10:00:00Z"
+                components:
+                  database:
+                    status: "HEALTHY"
+                    latencyMs: 5
+                  redis:
+                    status: "HEALTHY"
+                    latencyMs: 2
+                  vectorDb:
+                    status: "HEALTHY"
+                    latencyMs: 10
+        '503':
+          description: System unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /health/live:
+    get:
+      tags: [Health]
+      operationId: livenessCheck
+      summary: Kubernetes liveness probe
+      security: []
+      responses:
+        '200':
+          description: Service alive
+        '503':
+          description: Service dead
+
+  /health/ready:
+    get:
+      tags: [Health]
+      operationId: readinessCheck
+      summary: Kubernetes readiness probe
+      security: []
+      responses:
+        '200':
+          description: Service ready
+        '503':
+          description: Service not ready
+
+# ============================================================================
+# COMPONENTS
+# ============================================================================
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token from authentication service
+
+  schemas:
+    # Request schemas
+    CreateCaseRequest:
+      type: object
+      required: [subjectId, subjectType]
+      properties:
+        subjectId:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Subject identifier
+        subjectType:
+          type: string
+          enum: [lead, patient]
+          description: Type of subject
+        notes:
+          type: string
+          maxLength: 10000
+          description: Clinical notes
+        priority:
+          type: string
+          enum: [LOW, NORMAL, HIGH, URGENT]
+          default: NORMAL
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 50
+          maxItems: 20
+
+    ScoreCaseRequest:
+      type: object
+      required: [boneQuality, softTissueStatus, systemicRisk, urgency, financialFlexibility]
+      properties:
+        boneQuality:
+          type: string
+          enum: [low, medium, high]
+        softTissueStatus:
+          type: string
+          enum: [compromised, acceptable, ideal]
+        systemicRisk:
+          type: string
+          enum: [low, medium, high]
+        urgency:
+          type: string
+          enum: [low, medium, high]
+        financialFlexibility:
+          type: string
+          enum: [low, medium, high]
+        notes:
+          type: string
+          maxLength: 5000
+
+    VerifyCaseRequest:
+      type: object
+      required: [verifiedBy, decision]
+      properties:
+        verifiedBy:
+          type: string
+          description: Verifier ID (physician)
+        decision:
+          type: string
+          enum: [APPROVE, MODIFY, REQUEST_RESTUDY, REFER]
+        verificationNotes:
+          type: string
+          maxLength: 5000
+        modifiedRecommendation:
+          type: string
+
+    # Response schemas
+    CreateCaseResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            caseId:
+              type: string
+              format: uuid
+            caseNumber:
+              type: string
+            status:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+
+    ScoreCaseResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            caseId:
+              type: string
+              format: uuid
+            globalScore:
+              type: number
+              minimum: 0
+              maximum: 100
+            riskClass:
+              type: string
+              enum: [GREEN, YELLOW, RED]
+            newStatus:
+              type: string
+            breakdown:
+              type: object
+              properties:
+                boneQualityScore:
+                  type: number
+                softTissueScore:
+                  type: number
+                systemicRiskScore:
+                  type: number
+                urgencyScore:
+                  type: number
+                financialScore:
+                  type: number
+            recommendations:
+              type: array
+              items:
+                type: string
+
+    VerifyCaseResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            caseId:
+              type: string
+              format: uuid
+            verifiedAt:
+              type: string
+              format: date-time
+            verifiedBy:
+              type: string
+            decision:
+              type: string
+            newStatus:
+              type: string
+
+    SearchCasesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            cases:
+              type: array
+              items:
+                $ref: '#/components/schemas/OsaxCaseDto'
+            total:
+              type: integer
+            hasMore:
+              type: boolean
+            pagination:
+              type: object
+              properties:
+                limit:
+                  type: integer
+                offset:
+                  type: integer
+
+    OsaxCaseDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        caseNumber:
+          type: string
+        subjectId:
+          type: string
+        subjectType:
+          type: string
+          enum: [lead, patient]
+        status:
+          type: string
+        priority:
+          type: string
+          enum: [LOW, NORMAL, HIGH, URGENT]
+        globalScore:
+          type: number
+          nullable: true
+        riskClass:
+          type: string
+          enum: [GREEN, YELLOW, RED]
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+        reviewStatus:
+          type: string
+          enum: [PENDING, IN_REVIEW, APPROVED, NEEDS_MODIFICATION]
+        consentStatus:
+          type: string
+          enum: [PENDING, OBTAINED, WITHDRAWN]
+        verifiedBy:
+          type: string
+          nullable: true
+        verifiedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [HEALTHY, DEGRADED, UNHEALTHY]
+        version:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        components:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              status:
+                type: string
+              latencyMs:
+                type: number
+              details:
+                type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            correlationId:
+              type: string
+            details:
+              type: object
+
+  responses:
+    BadRequest:
+      description: Bad request - validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "validation.failed"
+              message: "Validation failed"
+              correlationId: "abc-123"
+              details:
+                fieldErrors:
+                  subjectId: ["Subject ID is required"]
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "security.unauthorized"
+              message: "Invalid or expired token"
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "security.permission_denied"
+              message: "Permission denied: osax:case:delete"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "osaxcase.not_found"
+              message: "OsaxCase with ID 'abc-123' not found"
+
+    Conflict:
+      description: Conflict - resource already exists
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "osax.duplicate_case"
+              message: "Active case already exists for subject"
+
+    TooManyRequests:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds to wait before retrying
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "internal.error"
+              message: "An unexpected error occurred"
+              correlationId: "abc-123"
