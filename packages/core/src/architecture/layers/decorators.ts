@@ -121,7 +121,7 @@ export function UILayer(moduleName = 'unknown') {
  * Validates that the dependency direction is correct
  */
 export function InjectFromLayer(sourceLayer: ArchitecturalLayer) {
-  return function (target: object, propertyKey: string | symbol, parameterIndex?: number): void {
+  return function (target: object, propertyKey: string | symbol, _parameterIndex?: number): void {
     const targetLayer = (target as { __layer?: ArchitecturalLayer }).__layer;
 
     if (targetLayer) {
@@ -152,7 +152,7 @@ export function LayerBoundary(
   description?: string
 ) {
   return function (
-    target: object,
+    _target: object,
     propertyKey: string | symbol,
     descriptor: PropertyDescriptor
   ): PropertyDescriptor {
@@ -180,7 +180,7 @@ export function LayerBoundary(
 /**
  * Marks a class as an Aggregate Root
  */
-export function AggregateRoot(aggregateType: string) {
+export function AggregateRootDecorator(aggregateType: string) {
   return function <T extends new (...args: unknown[]) => object>(constructor: T): T {
     Object.defineProperty(constructor.prototype, '__aggregateType', {
       value: aggregateType,
@@ -205,8 +205,10 @@ export function ValueObjectDecorator(valueObjectType: string) {
 
     // Freeze instances to ensure immutability
     const original = constructor;
+    // @ts-expect-error - Mixin pattern requires any[] constructor
     const decorated = class extends original {
-      constructor(...args: unknown[]) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      constructor(...args: any[]) {
         super(...args);
         Object.freeze(this);
       }
@@ -321,7 +323,7 @@ export function AdapterDecorator(portName: string, adapterType: 'inbound' | 'out
  */
 export function AllowedCallers(...layers: ArchitecturalLayer[]) {
   return function (
-    target: object,
+    _target: object,
     propertyKey: string | symbol,
     descriptor: PropertyDescriptor
   ): PropertyDescriptor {

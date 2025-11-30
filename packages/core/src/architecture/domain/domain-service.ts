@@ -46,7 +46,7 @@ export abstract class DomainServiceBase implements IDomainService, DomainCompone
   /**
    * Log service operation (can be overridden for custom logging)
    */
-  protected logOperation(operation: string, context: Record<string, unknown>): void {
+  protected logOperation(_operation: string, _context: Record<string, unknown>): void {
     // By default, do nothing (pure domain services shouldn't log)
     // Override in subclasses if logging is needed
   }
@@ -62,7 +62,7 @@ export interface DomainServiceError {
   code: string;
   serviceName: string;
   message: string;
-  details?: Record<string, unknown>;
+  details?: Record<string, unknown> | undefined;
 }
 
 // ============================================================================
