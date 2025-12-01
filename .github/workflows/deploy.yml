@@ -18,7 +18,7 @@ on:
           - staging
           - prod
       skip_tests:
-        description: 'Skip smoke tests (emergency only)'
+        description: 'Skip smoke tests (staging only - NOT allowed for production)'
         required: false
         default: false
         type: boolean
@@ -302,8 +302,17 @@ jobs:
       - name: Create pre-deployment database backup
         run: |
           echo "Creating database backup before deployment..."
-          # gcloud sql backups create --instance=medicalcor-db --description="Pre-deploy-${{ github.run_id }}"
-          echo "Backup created (production would trigger actual backup)"
+          # Create on-demand backup before production deployment
+          # This requires the Cloud SQL Admin API and appropriate permissions
+          if [ -n "${{ secrets.GCP_SQL_INSTANCE }}" ]; then
+            gcloud sql backups create \
+              --instance=${{ secrets.GCP_SQL_INSTANCE }} \
+              --description="Pre-deploy-${{ github.run_id }}-$(date +%Y%m%d%H%M%S)" \
+              --async || echo "Warning: Backup creation may have failed, continuing deployment"
+          else
+            echo "::warning::GCP_SQL_INSTANCE secret not configured. Skipping database backup."
+            echo "Configure GCP_SQL_INSTANCE secret for automatic pre-deployment backups."
+          fi
 
       - name: Deploy canary to Cloud Run
         id: deploy
@@ -359,12 +368,12 @@ jobs:
           echo "- **Stable Traffic:** ${STABLE_PCT}%" >> $GITHUB_STEP_SUMMARY
 
   # =============================================================================
-  # Production Canary Smoke Tests
+  # Production Canary Smoke Tests (Cannot be skipped for production)
   # =============================================================================
   smoke-prod-canary:
     name: Production Canary Smoke Tests
     needs: [deploy-prod-canary]
-    if: inputs.skip_tests != true
+    # Production smoke tests are mandatory and cannot be skipped
     uses: ./.github/workflows/smoke-tests.yml
     with:
       environment: production

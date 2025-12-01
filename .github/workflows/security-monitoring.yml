@@ -248,8 +248,11 @@ jobs:
         run: |
           npx license-checker --production --json > licenses.json
 
+          # Load allowed licenses from config file
+          ALLOWED_LICENSES=$(node -e "const c=require('./.github/license-config.json'); console.log(c.allowedLicenses.join(';'))")
+
           # Check for disallowed licenses
-          DISALLOWED=$(npx license-checker --production --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD;CC0-1.0;Unlicense;CC-BY-4.0;CC-BY-3.0;Python-2.0;BlueOak-1.0.0" 2>&1 || true)
+          DISALLOWED=$(npx license-checker --production --onlyAllow "$ALLOWED_LICENSES" 2>&1 || true)
 
           if echo "$DISALLOWED" | grep -q "LICENSES NOT IN WHITELIST"; then
             echo "## ⚠️ License Compliance Issues" >> $GITHUB_STEP_SUMMARY

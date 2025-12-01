@@ -247,7 +247,7 @@ jobs:
           TOTAL=0
           for i in {1..5}; do
             TIME=$(curl -sf -o /dev/null -w "%{time_total}" "$URL" || echo "5")
-            TIME_MS=$(echo "$TIME * 1000" | bc | cut -d. -f1)
+            TIME_MS=$(awk "BEGIN {print int($TIME * 1000)}")
             TOTAL=$((TOTAL + TIME_MS))
             echo "Request $i: ${TIME_MS}ms"
           done

@@ -1,0 +1,36 @@
+{
+  "allowedLicenses": [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "0BSD",
+    "CC0-1.0",
+    "Unlicense",
+    "CC-BY-4.0",
+    "CC-BY-3.0",
+    "Python-2.0",
+    "BlueOak-1.0.0"
+  ],
+  "deniedLicenses": ["GPL-3.0", "AGPL-3.0", "GPL-2.0", "LGPL-3.0", "LGPL-2.1"],
+  "notes": {
+    "MIT": "Permissive license - allowed",
+    "Apache-2.0": "Permissive license with patent protection - allowed",
+    "BSD-2-Clause": "Permissive license - allowed",
+    "BSD-3-Clause": "Permissive license - allowed",
+    "ISC": "Similar to MIT - allowed",
+    "0BSD": "Public domain equivalent - allowed",
+    "CC0-1.0": "Public domain dedication - allowed",
+    "Unlicense": "Public domain dedication - allowed",
+    "CC-BY-4.0": "Creative Commons Attribution - allowed for documentation",
+    "CC-BY-3.0": "Creative Commons Attribution - allowed for documentation",
+    "Python-2.0": "Permissive license - allowed",
+    "BlueOak-1.0.0": "Permissive license - allowed",
+    "GPL-3.0": "Copyleft license - NOT allowed (viral clause)",
+    "AGPL-3.0": "Copyleft license - NOT allowed (network use clause)",
+    "GPL-2.0": "Copyleft license - NOT allowed (viral clause)",
+    "LGPL-3.0": "Weak copyleft - evaluate case by case",
+    "LGPL-2.1": "Weak copyleft - evaluate case by case"
+  }
+}
