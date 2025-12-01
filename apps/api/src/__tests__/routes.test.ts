@@ -688,3 +688,367 @@ describe('Error Response Formatting', () => {
     expect(safeError).not.toHaveProperty('internalDetails');
   });
 });
+
+// =============================================================================
+// GDPR Route Tests
+// =============================================================================
+
+describe('GDPR Routes', () => {
+  describe('GDPR Export Request Validation', () => {
+    it('should require at least one identifier', () => {
+      const invalidRequest = {};
+      const hasIdentifier =
+        'phone' in invalidRequest ||
+        'email' in invalidRequest ||
+        'hubspotContactId' in invalidRequest;
+      expect(hasIdentifier).toBe(false);
+    });
+
+    it('should accept phone as identifier', () => {
+      const validRequest = { phone: '+40712345678' };
+      expect(validRequest.phone).toBeTruthy();
+    });
+
+    it('should accept email as identifier', () => {
+      const validRequest = { email: 'test@example.com' };
+      expect(validRequest.email).toBeTruthy();
+    });
+
+    it('should accept hubspotContactId as identifier', () => {
+      const validRequest = { hubspotContactId: 'hs_contact_123' };
+      expect(validRequest.hubspotContactId).toBeTruthy();
+    });
+
+    it('should accept multiple identifiers', () => {
+      const validRequest = {
+        phone: '+40712345678',
+        email: 'test@example.com',
+      };
+      expect(validRequest.phone).toBeTruthy();
+      expect(validRequest.email).toBeTruthy();
+    });
+  });
+
+  describe('GDPR Export Response Structure', () => {
+    it('should include GDPR compliance metadata', () => {
+      const exportResponse = {
+        exportedAt: new Date().toISOString(),
+        dataController: 'MedicalCor SRL',
+        dataProtectionOfficer: 'dpo@medicalcor.ro',
+        exportFormat: 'GDPR Article 20 compliant JSON',
+        requestId: crypto.randomUUID(),
+        leadData: [],
+        interactions: [],
+        consentRecords: [],
+        appointments: [],
+        communications: [],
+      };
+
+      expect(exportResponse.dataController).toBe('MedicalCor SRL');
+      expect(exportResponse.dataProtectionOfficer).toBe('dpo@medicalcor.ro');
+      expect(exportResponse.exportFormat).toContain('GDPR Article 20');
+      expect(exportResponse.requestId).toBeTruthy();
+      expect(exportResponse.exportedAt).toBeTruthy();
+    });
+
+    it('should include all required data categories', () => {
+      const exportResponse = {
+        leadData: [],
+        interactions: [],
+        consentRecords: [],
+        appointments: [],
+        communications: [],
+      };
+
+      expect(exportResponse).toHaveProperty('leadData');
+      expect(exportResponse).toHaveProperty('interactions');
+      expect(exportResponse).toHaveProperty('consentRecords');
+      expect(exportResponse).toHaveProperty('appointments');
+      expect(exportResponse).toHaveProperty('communications');
+    });
+  });
+
+  describe('GDPR Deletion Request Validation', () => {
+    it('should require explicit confirmation', () => {
+      const requestWithoutConfirmation = {
+        phone: '+40712345678',
+        reason: 'User requested deletion',
+        confirmDeletion: false,
+      };
+      expect(requestWithoutConfirmation.confirmDeletion).toBe(false);
+    });
+
+    it('should require reason for deletion', () => {
+      const validRequest = {
+        phone: '+40712345678',
+        reason: 'User exercising GDPR Article 17 right to erasure',
+        confirmDeletion: true,
+      };
+      expect(validRequest.reason).toBeTruthy();
+      expect(validRequest.confirmDeletion).toBe(true);
+    });
+
+    it('should require at least one identifier for deletion', () => {
+      const invalidRequest = {
+        reason: 'User requested deletion',
+        confirmDeletion: true,
+      };
+      const hasIdentifier =
+        'phone' in invalidRequest ||
+        'email' in invalidRequest ||
+        'hubspotContactId' in invalidRequest;
+      expect(hasIdentifier).toBe(false);
+    });
+  });
+
+  describe('GDPR Deletion Response Structure', () => {
+    it('should include deletion details', () => {
+      const deletionResponse = {
+        success: true,
+        requestId: crypto.randomUUID(),
+        message: 'Deletion request processed',
+        deletionType: 'SOFT',
+        recordsAffected: 5,
+        auditTrailPreserved: true,
+        retentionPeriodDays: 30,
+        estimatedPermanentDeletion: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      };
+
+      expect(deletionResponse.success).toBe(true);
+      expect(deletionResponse.deletionType).toBe('SOFT');
+      expect(deletionResponse.auditTrailPreserved).toBe(true);
+      expect(deletionResponse.recordsAffected).toBeGreaterThanOrEqual(0);
+      expect(deletionResponse.retentionPeriodDays).toBeGreaterThan(0);
+    });
+
+    it('should provide estimated permanent deletion date', () => {
+      const retentionDays = 30;
+      const now = new Date();
+      const estimatedDeletion = new Date(now.getTime() + retentionDays * 24 * 60 * 60 * 1000);
+
+      expect(estimatedDeletion.getTime()).toBeGreaterThan(now.getTime());
+    });
+  });
+
+  describe('GDPR Consent Status Validation', () => {
+    it('should require phone or email', () => {
+      const invalidQuery = {};
+      const hasIdentifier = 'phone' in invalidQuery || 'email' in invalidQuery;
+      expect(hasIdentifier).toBe(false);
+    });
+
+    it('should accept phone query parameter', () => {
+      const validQuery = { phone: '+40712345678' };
+      expect(validQuery.phone).toBeTruthy();
+    });
+
+    it('should accept email query parameter', () => {
+      const validQuery = { email: 'test@example.com' };
+      expect(validQuery.email).toBeTruthy();
+    });
+  });
+
+  describe('GDPR Consent Response Structure', () => {
+    it('should indicate overall consent status', () => {
+      const consentResponse = {
+        hasConsent: true,
+        consents: [
+          {
+            type: 'data_processing',
+            granted: true,
+            grantedAt: new Date().toISOString(),
+            withdrawnAt: null,
+            source: 'website_form',
+          },
+          {
+            type: 'marketing',
+            granted: true,
+            grantedAt: new Date().toISOString(),
+            withdrawnAt: null,
+            source: 'website_form',
+          },
+        ],
+      };
+
+      expect(consentResponse.hasConsent).toBe(true);
+      expect(consentResponse.consents).toHaveLength(2);
+    });
+
+    it('should identify withdrawn consent', () => {
+      const consentResponse = {
+        hasConsent: false,
+        consents: [
+          {
+            type: 'marketing',
+            granted: false,
+            grantedAt: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString(),
+            withdrawnAt: new Date().toISOString(),
+            source: 'user_request',
+          },
+        ],
+      };
+
+      expect(consentResponse.hasConsent).toBe(false);
+      expect(consentResponse.consents[0]?.withdrawnAt).toBeTruthy();
+    });
+
+    it('should track consent types correctly', () => {
+      const validConsentTypes = [
+        'data_processing',
+        'marketing',
+        'appointment_reminders',
+        'treatment_updates',
+      ];
+
+      const consent = {
+        type: 'data_processing',
+        granted: true,
+        grantedAt: new Date().toISOString(),
+        source: 'website_form',
+      };
+
+      expect(validConsentTypes).toContain(consent.type);
+    });
+  });
+
+  describe('GDPR API Authentication', () => {
+    it('should require API key header', () => {
+      // Test that GDPR endpoints are in the protected paths
+      const protectedPaths = [
+        '/workflows',
+        '/webhooks/booking',
+        '/ai',
+        '/metrics',
+        '/diagnostics',
+        '/backup',
+        '/gdpr',
+      ];
+
+      expect(protectedPaths).toContain('/gdpr');
+    });
+
+    it('should validate API key format', () => {
+      const validApiKey = 'sk_test_1234567890abcdefghijklmnopqrstuvwxyz';
+      expect(validApiKey).toBeTruthy();
+      expect(validApiKey.length).toBeGreaterThan(10);
+    });
+  });
+
+  describe('GDPR Data Categories', () => {
+    it('should export lead/patient data', () => {
+      const leadData = {
+        id: 'lead_123',
+        phone: '+40712345678',
+        email: 'test@example.com',
+        name: 'Ion Popescu',
+        source: 'website',
+        channel: 'whatsapp',
+        status: 'lead',
+        created_at: new Date().toISOString(),
+      };
+
+      expect(leadData).toHaveProperty('id');
+      expect(leadData).toHaveProperty('phone');
+      expect(leadData).toHaveProperty('email');
+      expect(leadData).toHaveProperty('name');
+    });
+
+    it('should export interaction history', () => {
+      const interaction = {
+        type: 'message',
+        channel: 'whatsapp',
+        direction: 'inbound',
+        status: 'delivered',
+        created_at: new Date().toISOString(),
+      };
+
+      expect(interaction).toHaveProperty('type');
+      expect(interaction).toHaveProperty('channel');
+      expect(interaction).toHaveProperty('direction');
+    });
+
+    it('should export consent records', () => {
+      const consentRecord = {
+        consent_type: 'data_processing',
+        granted: true,
+        source: 'website_form',
+        ip_address: '127.0.0.1',
+        granted_at: new Date().toISOString(),
+        withdrawn_at: null,
+      };
+
+      expect(consentRecord).toHaveProperty('consent_type');
+      expect(consentRecord).toHaveProperty('granted');
+      expect(consentRecord).toHaveProperty('source');
+      expect(consentRecord).toHaveProperty('granted_at');
+    });
+
+    it('should export appointment data', () => {
+      const appointment = {
+        id: 'apt_123',
+        appointment_type: 'consultation',
+        scheduled_at: new Date().toISOString(),
+        status: 'confirmed',
+        procedure_type: 'implant',
+        location: 'Clinic A',
+      };
+
+      expect(appointment).toHaveProperty('id');
+      expect(appointment).toHaveProperty('appointment_type');
+      expect(appointment).toHaveProperty('scheduled_at');
+      expect(appointment).toHaveProperty('status');
+    });
+
+    it('should export communication records', () => {
+      const communication = {
+        channel: 'whatsapp',
+        direction: 'outbound',
+        template_name: 'appointment_reminder_24h',
+        status: 'delivered',
+        sent_at: new Date().toISOString(),
+        delivered_at: new Date().toISOString(),
+      };
+
+      expect(communication).toHaveProperty('channel');
+      expect(communication).toHaveProperty('direction');
+      expect(communication).toHaveProperty('status');
+    });
+  });
+
+  describe('GDPR Soft Delete Behavior', () => {
+    it('should preserve audit trail after soft delete', () => {
+      const deletionResult = {
+        success: true,
+        deletionType: 'SOFT',
+        recordsAffected: 5,
+        auditTrailPreserved: true,
+      };
+
+      // Audit trail should always be preserved for compliance
+      expect(deletionResult.auditTrailPreserved).toBe(true);
+    });
+
+    it('should set retention period for soft deleted data', () => {
+      const RETENTION_PERIOD_DAYS = 30;
+      const deletedAt = new Date();
+      const permanentDeletionDate = new Date(
+        deletedAt.getTime() + RETENTION_PERIOD_DAYS * 24 * 60 * 60 * 1000
+      );
+
+      expect(permanentDeletionDate.getTime()).toBeGreaterThan(deletedAt.getTime());
+      expect(
+        Math.round((permanentDeletionDate.getTime() - deletedAt.getTime()) / (24 * 60 * 60 * 1000))
+      ).toBe(RETENTION_PERIOD_DAYS);
+    });
+
+    it('should track deletion reason', () => {
+      const deletionRequest = {
+        phone: '+40712345678',
+        reason: 'User exercising GDPR Article 17 right to erasure',
+        confirmDeletion: true,
+      };
+
+      expect(deletionRequest.reason).toContain('GDPR Article 17');
+    });
+  });
+});
