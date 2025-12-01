@@ -381,7 +381,7 @@ jobs:
           sbom: true
 
       - name: Generate SBOM
-        uses: anchore/sbom-action@e11c554f704a0b820cbf8c51673f6945e0731532 # v0.20.0
+        uses: anchore/sbom-action@fbfd9c6c189226748411491745178e0c2017392d # v0.20.10
         with:
           image: medicalcor-api:${{ github.sha }}
           format: spdx-json
