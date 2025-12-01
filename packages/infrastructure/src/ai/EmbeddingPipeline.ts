@@ -253,7 +253,11 @@ export class EmbeddingPipeline {
           input: text,
         });
 
-        return response.data[0]!.embedding;
+        const embeddingData = response.data[0];
+        if (!embeddingData) {
+          throw new Error('Empty embedding response from OpenAI API');
+        }
+        return embeddingData.embedding;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
 

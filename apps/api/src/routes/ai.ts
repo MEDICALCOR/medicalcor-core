@@ -533,10 +533,11 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
       };
 
       try {
-        // Execute with adaptive timeout
+        // Execute with adaptive timeout and proper cleanup
         const executePromise = router.process(parseResult.data, context);
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
         const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => {
+          timeoutId = setTimeout(() => {
             reject(new Error(`Operation timed out after ${timeoutConfig.timeoutMs}ms`));
           }, timeoutConfig.timeoutMs);
         });
@@ -581,28 +582,43 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
           } else {
             throw error;
           }
+        } finally {
+          // Clean up timeout to prevent memory leaks
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
         }
 
         const executionTime = Date.now() - startTime;
 
         // Record actual cost (if budget controller available)
+        // Wrapped in try-catch to avoid failing the request if recording fails
         if (budgetController) {
-          // Use actual tokens if available, otherwise estimate
-          const actualCost = estimatedCost.totalCost * (response.success ? 1 : 0.1);
-          await budgetController.recordCost(actualCost, {
-            userId,
-            ...(tenantId && { tenantId }),
-            model: 'gpt-4o',
-            operation: operationType,
-          });
+          try {
+            // Use actual tokens if available, otherwise estimate
+            const actualCost = estimatedCost.totalCost * (response.success ? 1 : 0.1);
+            await budgetController.recordCost(actualCost, {
+              userId,
+              ...(tenantId && { tenantId }),
+              model: 'gpt-4o',
+              operation: operationType,
+            });
+          } catch (recordError) {
+            request.log.warn({ error: recordError, correlationId }, 'Failed to record cost - continuing with response');
+          }
         }
 
         // Record token usage (if rate limiter available)
+        // Wrapped in try-catch to avoid failing the request if recording fails
         if (userRateLimiter) {
-          await userRateLimiter.recordTokenUsage(userId, estimatedTokens.input + estimatedTokens.output, {
-            tier: userTier,
-            operationType,
-          });
+          try {
+            await userRateLimiter.recordTokenUsage(userId, estimatedTokens.input + estimatedTokens.output, {
+              tier: userTier,
+              operationType,
+            });
+          } catch (recordError) {
+            request.log.warn({ error: recordError, correlationId }, 'Failed to record token usage - continuing with response');
+          }
         }
 
         // Record performance metrics for adaptive timeout
