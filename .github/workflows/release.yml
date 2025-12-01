@@ -1,0 +1,373 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/workflows/bulk-create-issues.yml'
+      - '.github/workflows/repo-meta.yml'
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      prerelease:
+        description: 'Create as prerelease'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '9.14.2'
+
+# Minimal permissions - specific permissions defined per job
+permissions:
+  contents: read
+
+jobs:
+  # =============================================================================
+  # Determine Version
+  # =============================================================================
+  version:
+    name: Determine Version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      new_version: ${{ steps.version.outputs.new_version }}
+      current_version: ${{ steps.version.outputs.current_version }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
+      should_release: ${{ steps.check.outputs.should_release }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Get current version
+        id: version
+        run: |
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+
+          # Determine release type from input or conventional commits
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            RELEASE_TYPE="${{ inputs.release_type }}"
+          else
+            # Analyze commits since last tag
+            LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+            
+            # Check for breaking changes
+            if git log ${LAST_TAG}..HEAD --pretty=format:"%s" | grep -qE "^(feat|fix|refactor)(\(.+\))?!:|BREAKING CHANGE:"; then
+              RELEASE_TYPE="major"
+            elif git log ${LAST_TAG}..HEAD --pretty=format:"%s" | grep -qE "^feat(\(.+\))?:"; then
+              RELEASE_TYPE="minor"
+            else
+              RELEASE_TYPE="patch"
+            fi
+          fi
+
+          # Calculate new version
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+          case $RELEASE_TYPE in
+            major)
+              NEW_VERSION="$((MAJOR + 1)).0.0"
+              ;;
+            minor)
+              NEW_VERSION="${MAJOR}.$((MINOR + 1)).0"
+              ;;
+            patch)
+              NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
+              ;;
+          esac
+
+          if [ "${{ inputs.prerelease }}" == "true" ]; then
+            TIMESTAMP=$(date +%Y%m%d%H%M%S)
+            NEW_VERSION="${NEW_VERSION}-rc.${TIMESTAMP}"
+          fi
+
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "release_type=$RELEASE_TYPE" >> $GITHUB_OUTPUT
+
+          echo "## Version Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Current Version | $CURRENT_VERSION |" >> $GITHUB_STEP_SUMMARY
+          echo "| New Version | $NEW_VERSION |" >> $GITHUB_STEP_SUMMARY
+          echo "| Release Type | $RELEASE_TYPE |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [ -z "$LAST_TAG" ]; then
+            COMMITS=$(git log --pretty=format:"- %s (%h)" -n 50)
+          else
+            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)")
+          fi
+
+          # Categorize commits
+          FEATURES=$(echo "$COMMITS" | grep -E "^- feat" || true)
+          FIXES=$(echo "$COMMITS" | grep -E "^- fix" || true)
+          DOCS=$(echo "$COMMITS" | grep -E "^- docs" || true)
+          CHORES=$(echo "$COMMITS" | grep -E "^- (chore|ci|build)" || true)
+          REFACTORS=$(echo "$COMMITS" | grep -E "^- refactor" || true)
+          BREAKING=$(echo "$COMMITS" | grep -E "BREAKING|!" || true)
+
+          CHANGELOG="## What's Changed in v${{ steps.version.outputs.new_version }}\n\n"
+
+          if [ -n "$BREAKING" ]; then
+            CHANGELOG="${CHANGELOG}### ⚠️ Breaking Changes\n${BREAKING}\n\n"
+          fi
+          if [ -n "$FEATURES" ]; then
+            CHANGELOG="${CHANGELOG}### ✨ Features\n${FEATURES}\n\n"
+          fi
+          if [ -n "$FIXES" ]; then
+            CHANGELOG="${CHANGELOG}### 🐛 Bug Fixes\n${FIXES}\n\n"
+          fi
+          if [ -n "$REFACTORS" ]; then
+            CHANGELOG="${CHANGELOG}### ♻️ Refactoring\n${REFACTORS}\n\n"
+          fi
+          if [ -n "$DOCS" ]; then
+            CHANGELOG="${CHANGELOG}### 📚 Documentation\n${DOCS}\n\n"
+          fi
+          if [ -n "$CHORES" ]; then
+            CHANGELOG="${CHANGELOG}### 🔧 Maintenance\n${CHORES}\n\n"
+          fi
+
+          # Store changelog for later use (escape newlines for GitHub Actions)
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Check if release needed
+        id: check
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [ -z "$LAST_TAG" ]; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          else
+            # Check if there are commits since last tag
+            COMMIT_COUNT=$(git rev-list ${LAST_TAG}..HEAD --count)
+            if [ "$COMMIT_COUNT" -gt 0 ]; then
+              echo "should_release=true" >> $GITHUB_OUTPUT
+            else
+              echo "should_release=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+  # =============================================================================
+  # Run CI Checks
+  # =============================================================================
+  ci:
+    name: CI Checks
+    needs: [version]
+    if: needs.version.outputs.should_release == 'true'
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
+  # =============================================================================
+  # Create Release
+  # =============================================================================
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [version, ci]
+    if: needs.version.outputs.should_release == 'true'
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    outputs:
+      release_url: ${{ steps.release.outputs.url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Update version in package.json
+        run: |
+          npm version ${{ needs.version.outputs.new_version }} --no-git-tag-version --allow-same-version
+
+      - name: Commit version bump
+        run: |
+          git add package.json
+          git commit -m "chore(release): v${{ needs.version.outputs.new_version }}" || echo "No changes to commit"
+          git push origin main
+
+      - name: Create and push tag
+        run: |
+          git tag -a "v${{ needs.version.outputs.new_version }}" -m "Release v${{ needs.version.outputs.new_version }}"
+          git push origin "v${{ needs.version.outputs.new_version }}"
+
+      - name: Create GitHub Release
+        id: release
+        uses: softprops/action-gh-release@7b4da11513bf3f43f9999e90eabced41ab8f3c11 # v2.2.2
+        with:
+          tag_name: v${{ needs.version.outputs.new_version }}
+          name: Release v${{ needs.version.outputs.new_version }}
+          body: ${{ needs.version.outputs.changelog }}
+          prerelease: ${{ inputs.prerelease || false }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # =============================================================================
+  # Build & Push Docker Images
+  # =============================================================================
+  docker:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [version, release]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: v${{ needs.version.outputs.new_version }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: ghcr.io/${{ github.repository }}/api
+          tags: |
+            type=semver,pattern={{version}},value=v${{ needs.version.outputs.new_version }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.version.outputs.new_version }}
+            type=semver,pattern={{major}},value=v${{ needs.version.outputs.new_version }}
+            type=raw,value=latest,enable=${{ !inputs.prerelease }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+          build-args: |
+            NODE_ENV=production
+            VERSION=${{ needs.version.outputs.new_version }}
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
+        with:
+          subject-name: ghcr.io/${{ github.repository }}/api
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+  # =============================================================================
+  # Notify
+  # =============================================================================
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: [version, release, docker]
+    if: always()
+    steps:
+      - name: Notify Slack on Success
+        if: needs.release.result == 'success'
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
+        with:
+          payload: |
+            {
+              "text": "🎉 New Release: MedicalCor v${{ needs.version.outputs.new_version }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*🎉 New Release Published*\n*Version:* `v${{ needs.version.outputs.new_version }}`\n*Release:* <${{ needs.release.outputs.release_url }}|View Release>\n*Docker:* `ghcr.io/${{ github.repository }}/api:${{ needs.version.outputs.new_version }}`"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+        continue-on-error: true
+
+      - name: Notify Slack on Failure
+        if: needs.release.result == 'failure' || needs.docker.result == 'failure'
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
+        with:
+          payload: |
+            {
+              "text": "❌ Release Failed: MedicalCor v${{ needs.version.outputs.new_version }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*❌ Release Failed*\n*Version:* `v${{ needs.version.outputs.new_version }}`\n*Workflow:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Logs>"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+        continue-on-error: true

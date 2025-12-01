@@ -1,0 +1,318 @@
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to rollback'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      version:
+        description: 'Version to rollback to (e.g., v1.0.0 or latest-stable)'
+        required: true
+        type: string
+      reason:
+        description: 'Reason for rollback'
+        required: true
+        type: string
+      skip_approval:
+        description: 'Skip approval for staging only (production always requires approval)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_REGION: europe-west3
+
+# Minimal permissions - specific permissions defined per job
+permissions:
+  contents: read
+
+jobs:
+  # =============================================================================
+  # Validate Rollback Request
+  # =============================================================================
+  validate:
+    name: Validate Rollback
+    runs-on: ubuntu-latest
+    outputs:
+      target_version: ${{ steps.resolve.outputs.target_version }}
+      target_image: ${{ steps.resolve.outputs.target_image }}
+      current_version: ${{ steps.current.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Resolve target version
+        id: resolve
+        run: |
+          VERSION="${{ inputs.version }}"
+
+          # Handle special cases
+          if [ "$VERSION" == "latest-stable" ]; then
+            # Get the latest stable (non-prerelease) tag
+            VERSION=$(git tag -l 'v*' | grep -v '-' | sort -V | tail -n 2 | head -n 1)
+            if [ -z "$VERSION" ]; then
+              echo "No stable version found to rollback to"
+              exit 1
+            fi
+          fi
+
+          # Validate version exists
+          if ! git rev-parse "$VERSION" >/dev/null 2>&1; then
+            echo "Version $VERSION does not exist"
+            exit 1
+          fi
+
+          # Remove 'v' prefix if present for image tag
+          IMAGE_TAG=$(echo "$VERSION" | sed 's/^v//')
+
+          echo "target_version=$VERSION" >> $GITHUB_OUTPUT
+          echo "target_image=ghcr.io/${{ github.repository }}/api:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+          echo "## Rollback Target" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Target Version | $VERSION |" >> $GITHUB_STEP_SUMMARY
+          echo "| Target Image | ghcr.io/${{ github.repository }}/api:$IMAGE_TAG |" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | ${{ inputs.environment }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Reason | ${{ inputs.reason }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Initiated by | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Get current deployed version
+        id: current
+        run: |
+          # This would be replaced with actual deployment query
+          # For now, we'll use a placeholder
+          echo "version=unknown" >> $GITHUB_OUTPUT
+
+      - name: Create rollback audit entry
+        run: |
+          echo "## Rollback Audit Log" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp:** $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_STEP_SUMMARY
+          echo "- **Initiated by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment:** ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **From Version:** ${{ steps.current.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **To Version:** ${{ steps.resolve.outputs.target_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Reason:** ${{ inputs.reason }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Run ID:** ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
+  # Rollback Staging
+  # =============================================================================
+  rollback-staging:
+    name: Rollback Staging
+    runs-on: ubuntu-latest
+    needs: [validate]
+    if: inputs.environment == 'staging'
+    environment: ${{ inputs.skip_approval && 'staging-no-approval' || 'staging' }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Rollback Cloud Run
+        uses: google-github-actions/deploy-cloudrun@e62f655d5754bec48078a72efd015b3a5b5f5c05 # v2.7.2
+        with:
+          service: medicalcor-api-staging
+          region: ${{ env.GCP_REGION }}
+          image: ${{ needs.validate.outputs.target_image }}
+
+      - name: Verify rollback
+        id: verify
+        run: |
+          URL=$(gcloud run services describe medicalcor-api-staging --region=${{ env.GCP_REGION }} --format='value(status.url)')
+
+          # Wait for service to be ready
+          sleep 30
+
+          # Health check with retries
+          for i in {1..10}; do
+            if curl -sf "$URL/health" | grep -q '"status"'; then
+              echo "Health check passed"
+              echo "healthy=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            echo "Health check attempt $i failed, retrying..."
+            sleep 10
+          done
+
+          echo "Health check failed after 10 attempts"
+          echo "healthy=false" >> $GITHUB_OUTPUT
+          exit 1
+
+      - name: Create incident if unhealthy
+        if: failure()
+        run: |
+          echo "## ⚠️ ROLLBACK VERIFICATION FAILED" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The rollback was deployed but health checks are failing." >> $GITHUB_STEP_SUMMARY
+          echo "Manual intervention may be required." >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
+  # Rollback Production (Always requires approval)
+  # =============================================================================
+  rollback-production:
+    name: Rollback Production
+    runs-on: ubuntu-latest
+    needs: [validate]
+    if: inputs.environment == 'production'
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Create pre-rollback snapshot
+        run: |
+          echo "Creating pre-rollback database snapshot..."
+          # In production, this would trigger a database snapshot
+          # gcloud sql instances patch medicalcor-db --backup
+          echo "Snapshot created (simulated)"
+
+      - name: Rollback Cloud Run (Canary)
+        id: canary
+        uses: google-github-actions/deploy-cloudrun@e62f655d5754bec48078a72efd015b3a5b5f5c05 # v2.7.2
+        with:
+          service: medicalcor-api-prod
+          region: ${{ env.GCP_REGION }}
+          image: ${{ needs.validate.outputs.target_image }}
+          flags: |
+            --tag=rollback-canary
+            --no-traffic
+
+      - name: Test canary deployment
+        run: |
+          CANARY_URL=$(gcloud run services describe medicalcor-api-prod --region=${{ env.GCP_REGION }} --format='value(status.url)' | sed 's|https://|https://rollback-canary---|')
+
+          echo "Testing canary at: $CANARY_URL"
+
+          # Health check
+          for i in {1..5}; do
+            if curl -sf "$CANARY_URL/health" | grep -q '"status"'; then
+              echo "Canary health check passed"
+              exit 0
+            fi
+            echo "Canary health check attempt $i failed, retrying..."
+            sleep 10
+          done
+
+          echo "Canary health check failed"
+          exit 1
+
+      - name: Gradual traffic shift
+        run: |
+          echo "Shifting traffic to rollback version..."
+
+          # Shift 10% traffic
+          gcloud run services update-traffic medicalcor-api-prod \
+            --region=${{ env.GCP_REGION }} \
+            --to-tags=rollback-canary=10
+          sleep 60
+
+          # Shift 50% traffic
+          gcloud run services update-traffic medicalcor-api-prod \
+            --region=${{ env.GCP_REGION }} \
+            --to-tags=rollback-canary=50
+          sleep 60
+
+          # Shift 100% traffic
+          gcloud run services update-traffic medicalcor-api-prod \
+            --region=${{ env.GCP_REGION }} \
+            --to-tags=rollback-canary=100
+
+      - name: Final verification
+        run: |
+          URL=$(gcloud run services describe medicalcor-api-prod --region=${{ env.GCP_REGION }} --format='value(status.url)')
+
+          # Final health check
+          for i in {1..10}; do
+            if curl -sf "$URL/health" | grep -q '"status"'; then
+              echo "Final health check passed"
+              echo "## ✅ Rollback Successful" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "Production has been rolled back to version ${{ needs.validate.outputs.target_version }}" >> $GITHUB_STEP_SUMMARY
+              exit 0
+            fi
+            echo "Final health check attempt $i failed, retrying..."
+            sleep 10
+          done
+
+          echo "Final health check failed"
+          exit 1
+
+  # =============================================================================
+  # Notify
+  # =============================================================================
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: [validate, rollback-staging, rollback-production]
+    if: always()
+    steps:
+      - name: Determine status
+        id: status
+        run: |
+          if [ "${{ inputs.environment }}" == "staging" ]; then
+            RESULT="${{ needs.rollback-staging.result }}"
+          else
+            RESULT="${{ needs.rollback-production.result }}"
+          fi
+          echo "result=$RESULT" >> $GITHUB_OUTPUT
+
+      - name: Notify Slack
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
+        with:
+          payload: |
+            {
+              "text": "${{ steps.status.outputs.result == 'success' && '🔄' || '❌' }} Rollback ${{ steps.status.outputs.result }}: ${{ inputs.environment }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*${{ steps.status.outputs.result == 'success' && '🔄 Rollback Completed' || '❌ Rollback Failed' }}*\n*Environment:* `${{ inputs.environment }}`\n*Target Version:* `${{ needs.validate.outputs.target_version }}`\n*Reason:* ${{ inputs.reason }}\n*Initiated by:* ${{ github.actor }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+        continue-on-error: true
+
+      - name: Create incident ticket on failure
+        if: steps.status.outputs.result == 'failure'
+        run: |
+          echo "## 🚨 INCIDENT: Rollback Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "An incident ticket should be created for manual investigation." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Details:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Target Version: ${{ needs.validate.outputs.target_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Initiated by: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY

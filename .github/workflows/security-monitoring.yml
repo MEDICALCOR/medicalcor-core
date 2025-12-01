@@ -1,0 +1,322 @@
+name: Security Monitoring
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      scan_type:
+        description: 'Type of security scan'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+          - full
+          - dependencies
+          - secrets
+          - containers
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '9.14.2'
+
+permissions:
+  contents: read
+
+jobs:
+  # =============================================================================
+  # Dependency Vulnerability Scan
+  # =============================================================================
+  dependency-scan:
+    name: Dependency Vulnerabilities
+    runs-on: ubuntu-latest
+    if: inputs.scan_type == 'full' || inputs.scan_type == 'dependencies' || github.event_name == 'schedule'
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run pnpm audit
+        id: audit
+        run: |
+          pnpm audit --json > audit-results.json 2>&1 || true
+
+          # Parse results
+          CRITICAL=$(node -e "try { const r=require('./audit-results.json'); console.log(r.metadata?.vulnerabilities?.critical || 0); } catch { console.log(0); }")
+          HIGH=$(node -e "try { const r=require('./audit-results.json'); console.log(r.metadata?.vulnerabilities?.high || 0); } catch { console.log(0); }")
+          MODERATE=$(node -e "try { const r=require('./audit-results.json'); console.log(r.metadata?.vulnerabilities?.moderate || 0); } catch { console.log(0); }")
+          LOW=$(node -e "try { const r=require('./audit-results.json'); console.log(r.metadata?.vulnerabilities?.low || 0); } catch { console.log(0); }")
+
+          echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+          echo "high=$HIGH" >> $GITHUB_OUTPUT
+          echo "moderate=$MODERATE" >> $GITHUB_OUTPUT
+          echo "low=$LOW" >> $GITHUB_OUTPUT
+
+          echo "## Dependency Audit Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔴 Critical | $CRITICAL |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟠 High | $HIGH |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟡 Moderate | $MODERATE |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟢 Low | $LOW |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-fs-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
+        with:
+          sarif_file: 'trivy-fs-results.sarif'
+          category: 'trivy-filesystem'
+
+      - name: Check for critical vulnerabilities
+        if: steps.audit.outputs.critical > 0 || steps.audit.outputs.high > 0
+        run: |
+          echo "::warning::Found ${{ steps.audit.outputs.critical }} critical and ${{ steps.audit.outputs.high }} high severity vulnerabilities"
+
+      - name: Upload audit results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: dependency-audit
+          path: audit-results.json
+          retention-days: 90
+
+  # =============================================================================
+  # Secrets Scan
+  # =============================================================================
+  secrets-scan:
+    name: Secrets Detection
+    runs-on: ubuntu-latest
+    if: inputs.scan_type == 'full' || inputs.scan_type == 'secrets' || github.event_name == 'schedule'
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Run GitLeaks
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Run TruffleHog
+        uses: trufflesecurity/trufflehog@4b4e7e7c5c4b2b3e1f0f7b6e5d4c3b2a1f0e9d8c # v3.88.29
+        with:
+          extra_args: --only-verified
+        continue-on-error: true
+
+  # =============================================================================
+  # Container Image Scan
+  # =============================================================================
+  container-scan:
+    name: Container Security
+    runs-on: ubuntu-latest
+    if: inputs.scan_type == 'full' || inputs.scan_type == 'containers' || github.event_name == 'schedule'
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+
+      - name: Build container for scanning
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: false
+          load: true
+          tags: medicalcor-api:scan
+          cache-from: type=gha
+
+      - name: Run Trivy container scan
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
+        with:
+          image-ref: 'medicalcor-api:scan'
+          format: 'sarif'
+          output: 'trivy-container-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          vuln-type: 'os,library'
+
+      - name: Upload Trivy container results
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
+        with:
+          sarif_file: 'trivy-container-results.sarif'
+          category: 'trivy-container'
+
+      - name: Run Grype container scan
+        uses: anchore/scan-action@57351a7c0da77bdb95bc26f9a6ff1fa8f76dfc10 # v6.3.0
+        id: grype
+        with:
+          image: 'medicalcor-api:scan'
+          fail-build: false
+          severity-cutoff: high
+
+      - name: Upload Grype results
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
+        with:
+          sarif_file: ${{ steps.grype.outputs.sarif }}
+          category: 'grype-container'
+
+  # =============================================================================
+  # SAST (Static Application Security Testing)
+  # =============================================================================
+  sast:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    if: inputs.scan_type == 'full' || github.event_name == 'schedule'
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
+        with:
+          category: 'codeql-javascript'
+
+  # =============================================================================
+  # License Compliance
+  # =============================================================================
+  license-compliance:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    if: inputs.scan_type == 'full' || inputs.scan_type == 'dependencies' || github.event_name == 'schedule'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check licenses
+        id: licenses
+        run: |
+          npx license-checker --production --json > licenses.json
+
+          # Load allowed licenses from config file
+          ALLOWED_LICENSES=$(node -e "const c=require('./.github/license-config.json'); console.log(c.allowedLicenses.join(';'))")
+
+          # Check for disallowed licenses
+          DISALLOWED=$(npx license-checker --production --onlyAllow "$ALLOWED_LICENSES" 2>&1 || true)
+
+          if echo "$DISALLOWED" | grep -q "LICENSES NOT IN WHITELIST"; then
+            echo "## ⚠️ License Compliance Issues" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The following packages have non-approved licenses:" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "$DISALLOWED" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "issues=true" >> $GITHUB_OUTPUT
+          else
+            echo "## ✅ License Compliance" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All production dependencies have approved licenses." >> $GITHUB_STEP_SUMMARY
+            echo "issues=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload license report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: license-report
+          path: licenses.json
+          retention-days: 90
+
+  # =============================================================================
+  # Report & Notify
+  # =============================================================================
+  report:
+    name: Security Report
+    runs-on: ubuntu-latest
+    needs: [dependency-scan, secrets-scan, container-scan, sast, license-compliance]
+    if: always()
+    steps:
+      - name: Generate security report
+        run: |
+          echo "## 🔒 Daily Security Scan Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** $(date -u +"%Y-%m-%d %H:%M UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Scan | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependency Scan | ${{ needs.dependency-scan.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Secrets Detection | ${{ needs.secrets-scan.result == 'success' && '✅' || '⚠️' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Container Security | ${{ needs.container-scan.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Static Analysis | ${{ needs.sast.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| License Compliance | ${{ needs.license-compliance.result == 'success' && '✅' || '⚠️' }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify on critical findings
+        if: needs.dependency-scan.result == 'failure' || needs.container-scan.result == 'failure'
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
+        with:
+          payload: |
+            {
+              "text": "🚨 Security Alert: Critical vulnerabilities detected",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*🚨 Security Alert*\n\nThe daily security scan detected critical issues that require attention.\n\n*Report:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Details>"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+        continue-on-error: true
