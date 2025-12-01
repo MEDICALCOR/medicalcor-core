@@ -88,7 +88,7 @@ jobs:
           severity: 'CRITICAL,HIGH,MEDIUM'
 
       - name: Upload Trivy results
-        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
+        uses: github/codeql-action/upload-sarif@fe4161a26a8629af62121b670040955b330f9af2 # v4.31.6
         with:
           sarif_file: 'trivy-fs-results.sarif'
           category: 'trivy-filesystem'
@@ -171,7 +171,7 @@ jobs:
           vuln-type: 'os,library'
 
       - name: Upload Trivy container results
-        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
+        uses: github/codeql-action/upload-sarif@fe4161a26a8629af62121b670040955b330f9af2 # v4.31.6
         with:
           sarif_file: 'trivy-container-results.sarif'
           category: 'trivy-container'
@@ -185,7 +185,7 @@ jobs:
           severity-cutoff: high
 
       - name: Upload Grype results
-        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
+        uses: github/codeql-action/upload-sarif@fe4161a26a8629af62121b670040955b330f9af2 # v4.31.6
         with:
           sarif_file: ${{ steps.grype.outputs.sarif }}
           category: 'grype-container'
@@ -205,16 +205,16 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
+        uses: github/codeql-action/init@fe4161a26a8629af62121b670040955b330f9af2 # v4.31.6
         with:
           languages: javascript-typescript
           queries: security-extended
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
+        uses: github/codeql-action/autobuild@fe4161a26a8629af62121b670040955b330f9af2 # v4.31.6
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
+        uses: github/codeql-action/analyze@fe4161a26a8629af62121b670040955b330f9af2 # v4.31.6
         with:
           category: 'codeql-javascript'
 
