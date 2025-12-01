@@ -1,0 +1,74 @@
+# =============================================================================
+# MedicalCor Core - Code Owners
+# =============================================================================
+# This file defines who must review changes to specific parts of the codebase.
+# These reviewers are automatically requested when a PR modifies matching files.
+#
+# Syntax: path/pattern @owner1 @owner2
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+# =============================================================================
+
+# Default owners for everything (fallback)
+* @MEDICALCOR/engineering-leads
+
+# =============================================================================
+# CI/CD & Infrastructure (Critical - requires senior approval)
+# =============================================================================
+.github/                    @MEDICALCOR/devops @MEDICALCOR/engineering-leads
+.github/workflows/          @MEDICALCOR/devops @MEDICALCOR/security
+infrastructure/             @MEDICALCOR/devops @MEDICALCOR/engineering-leads
+infra/                      @MEDICALCOR/devops
+apps/api/Dockerfile         @MEDICALCOR/devops @MEDICALCOR/security
+
+# =============================================================================
+# Security-Sensitive Files (Requires security team review)
+# =============================================================================
+**/auth/**                  @MEDICALCOR/security @MEDICALCOR/engineering-leads
+**/encryption/**            @MEDICALCOR/security
+**/secrets*.ts              @MEDICALCOR/security
+packages/core/src/auth/     @MEDICALCOR/security @MEDICALCOR/engineering-leads
+packages/infra/src/secrets/ @MEDICALCOR/security
+docs/SECURITY.md            @MEDICALCOR/security
+
+# =============================================================================
+# Database & Migrations (Requires DBA/Senior review)
+# =============================================================================
+db/                         @MEDICALCOR/engineering-leads @MEDICALCOR/dba
+db/migrations/              @MEDICALCOR/dba @MEDICALCOR/engineering-leads
+packages/infra/src/database/ @MEDICALCOR/engineering-leads
+
+# =============================================================================
+# API & Core Packages
+# =============================================================================
+apps/api/                   @MEDICALCOR/backend
+packages/core/              @MEDICALCOR/backend @MEDICALCOR/engineering-leads
+packages/domain/            @MEDICALCOR/backend
+packages/application/       @MEDICALCOR/backend
+
+# =============================================================================
+# Frontend Application
+# =============================================================================
+apps/web/                   @MEDICALCOR/frontend
+packages/types/             @MEDICALCOR/frontend @MEDICALCOR/backend
+
+# =============================================================================
+# Integrations
+# =============================================================================
+packages/integrations/      @MEDICALCOR/integrations @MEDICALCOR/backend
+apps/trigger/               @MEDICALCOR/integrations @MEDICALCOR/backend
+
+# =============================================================================
+# Configuration Files (Critical)
+# =============================================================================
+package.json                @MEDICALCOR/engineering-leads
+pnpm-lock.yaml              @MEDICALCOR/engineering-leads
+tsconfig*.json              @MEDICALCOR/engineering-leads
+turbo.json                  @MEDICALCOR/devops
+.env*                       @MEDICALCOR/devops @MEDICALCOR/security
+
+# =============================================================================
+# Documentation
+# =============================================================================
+docs/                       @MEDICALCOR/engineering-leads
+README.md                   @MEDICALCOR/engineering-leads
+*.md                        @MEDICALCOR/engineering-leads

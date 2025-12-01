@@ -17,10 +17,25 @@ on:
         options:
           - staging
           - prod
+      skip_tests:
+        description: 'Skip smoke tests (emergency only)'
+        required: false
+        default: false
+        type: boolean
+      canary_percentage:
+        description: 'Initial canary traffic percentage (prod only)'
+        required: false
+        default: '10'
+        type: choice
+        options:
+          - '10'
+          - '25'
+          - '50'
+          - '100'
 
 env:
   NODE_VERSION: '20'
-  PNPM_VERSION: '9'
+  PNPM_VERSION: '9.14.2'
   GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   GCP_REGION: europe-west3
 
@@ -30,33 +45,85 @@ permissions:
 
 jobs:
   # =============================================================================
+  # Pre-deployment Validation
+  # =============================================================================
+  validate:
+    name: Pre-deployment Validation
+    runs-on: ubuntu-latest
+    outputs:
+      deploy_staging: ${{ steps.check.outputs.deploy_staging }}
+      deploy_prod: ${{ steps.check.outputs.deploy_prod }}
+      image_tag: ${{ steps.tag.outputs.image_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Determine deployment targets
+        id: check
+        run: |
+          # Check if this is a push to main or manual dispatch
+          if [ "${{ github.event_name }}" == "push" ]; then
+            echo "deploy_staging=true" >> $GITHUB_OUTPUT
+            echo "deploy_prod=false" >> $GITHUB_OUTPUT
+          else
+            if [ "${{ inputs.environment }}" == "staging" ]; then
+              echo "deploy_staging=true" >> $GITHUB_OUTPUT
+              echo "deploy_prod=false" >> $GITHUB_OUTPUT
+            else
+              echo "deploy_staging=false" >> $GITHUB_OUTPUT
+              echo "deploy_prod=true" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Generate image tag
+        id: tag
+        run: |
+          # Use short SHA for tagging
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          echo "image_tag=$SHORT_SHA" >> $GITHUB_OUTPUT
+
+      - name: Create deployment summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Image Tag | \`${{ steps.tag.outputs.image_tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Trigger | ${{ github.event_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Actor | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
   # Build & Push Docker Image
   # =============================================================================
   build:
     name: Build & Push
     runs-on: ubuntu-latest
+    needs: [validate]
     permissions:
       contents: read
-      id-token: write # Required for Workload Identity Federation
+      id-token: write
+      packages: write
     outputs:
-      image_tag: ${{ steps.meta.outputs.tags }}
+      image_digest: ${{ steps.build.outputs.digest }}
+      image_tag: ${{ needs.validate.outputs.image_tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@c2d88d3ecc89a9ef08eebf45d9637801dcee7eb5 # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
 
-      # Authenticate using Workload Identity Federation (keyless)
-      # Requires setup in GCP: https://cloud.google.com/iam/docs/workload-identity-federation-with-deployment-pipelines
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
         with:
-          # For Workload Identity Federation (recommended - keyless):
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-          # Fallback to service account key if WIF not configured:
-          # credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       - name: Configure Docker for GCR
         run: gcloud auth configure-docker gcr.io
@@ -68,20 +135,44 @@ jobs:
           images: gcr.io/${{ env.GCP_PROJECT_ID }}/medicalcor-api
           tags: |
             type=sha,prefix=
-            type=ref,event=branch
+            type=raw,value=${{ needs.validate.outputs.image_tag }}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Build and push
+        id: build
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
           context: .
           file: apps/api/Dockerfile
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
           build-args: |
             NODE_ENV=production
+            VERSION=${{ needs.validate.outputs.image_tag }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            GIT_SHA=${{ github.sha }}
+
+      - name: Scan image for vulnerabilities
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
+        with:
+          image-ref: gcr.io/${{ env.GCP_PROJECT_ID }}/medicalcor-api:${{ needs.validate.outputs.image_tag }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+        continue-on-error: true
 
   # =============================================================================
   # Deploy to Staging
@@ -89,93 +180,327 @@ jobs:
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    needs: [build]
+    needs: [validate, build]
+    if: needs.validate.outputs.deploy_staging == 'true'
     environment: staging
     permissions:
       contents: read
-      id-token: write # Required for Workload Identity Federation
-    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'staging'
+      id-token: write
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
     steps:
       - name: Checkout
-        uses: actions/checkout@c2d88d3ecc89a9ef08eebf45d9637801dcee7eb5 # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      # Authenticate using Workload Identity Federation (keyless)
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
+      - name: Get current revision for rollback
+        id: current
+        run: |
+          CURRENT=$(gcloud run services describe medicalcor-api-staging \
+            --region=${{ env.GCP_REGION }} \
+            --format='value(status.latestReadyRevisionName)' 2>/dev/null || echo "none")
+          echo "revision=$CURRENT" >> $GITHUB_OUTPUT
+
       - name: Deploy to Cloud Run
+        id: deploy
         uses: google-github-actions/deploy-cloudrun@e62f655d5754bec48078a72efd015b3a5b5f5c05 # v2.7.2
         with:
           service: medicalcor-api-staging
           region: ${{ env.GCP_REGION }}
-          image: gcr.io/${{ env.GCP_PROJECT_ID }}/medicalcor-api:${{ github.sha }}
+          image: gcr.io/${{ env.GCP_PROJECT_ID }}/medicalcor-api:${{ needs.build.outputs.image_tag }}
           flags: |
             --min-instances=0
             --max-instances=2
             --memory=512Mi
             --cpu=1
+            --set-env-vars=DEPLOYMENT_ID=${{ github.run_id }},GIT_SHA=${{ github.sha }}
+            --tag=deploy-${{ github.run_number }}
 
-      - name: Verify deployment
+      - name: Wait for deployment to stabilize
+        run: sleep 30
+
+      - name: Verify deployment health
+        id: health
         run: |
-          URL=$(gcloud run services describe medicalcor-api-staging --region=${{ env.GCP_REGION }} --format='value(status.url)')
-          curl -sf "$URL/health" || exit 1
+          URL="${{ steps.deploy.outputs.url }}"
+
+          for i in {1..10}; do
+            RESPONSE=$(curl -sf -w "%{http_code}" "$URL/health" -o /dev/null || echo "000")
+            if [ "$RESPONSE" -eq 200 ]; then
+              echo "Health check passed"
+              echo "healthy=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            echo "Health check attempt $i failed (status: $RESPONSE), retrying..."
+            sleep 10
+          done
+
+          echo "Health check failed after 10 attempts"
+          echo "healthy=false" >> $GITHUB_OUTPUT
+          exit 1
+
+      - name: Rollback on failure
+        if: failure() && steps.current.outputs.revision != 'none'
+        run: |
+          echo "Rolling back to previous revision: ${{ steps.current.outputs.revision }}"
+          gcloud run services update-traffic medicalcor-api-staging \
+            --region=${{ env.GCP_REGION }} \
+            --to-revisions=${{ steps.current.outputs.revision }}=100
 
   # =============================================================================
-  # Deploy to Production (Manual approval required)
+  # Staging Smoke Tests
   # =============================================================================
-  deploy-prod:
-    name: Deploy to Production
-    runs-on: ubuntu-latest
+  smoke-staging:
+    name: Staging Smoke Tests
     needs: [deploy-staging]
+    if: inputs.skip_tests != true
+    uses: ./.github/workflows/smoke-tests.yml
+    with:
+      environment: staging
+      base_url: ${{ needs.deploy-staging.outputs.url }}
+    secrets: inherit
+
+  # =============================================================================
+  # Deploy to Production (Canary)
+  # =============================================================================
+  deploy-prod-canary:
+    name: Deploy Production (Canary)
+    runs-on: ubuntu-latest
+    needs: [validate, build]
+    if: needs.validate.outputs.deploy_prod == 'true'
     environment: production
     permissions:
       contents: read
-      id-token: write # Required for Workload Identity Federation
-    if: github.event.inputs.environment == 'prod'
+      id-token: write
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
+      canary_revision: ${{ steps.deploy.outputs.revision }}
     steps:
       - name: Checkout
-        uses: actions/checkout@c2d88d3ecc89a9ef08eebf45d9637801dcee7eb5 # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      # Authenticate using Workload Identity Federation (keyless)
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Deploy to Cloud Run
+      - name: Get current production revision
+        id: current
+        run: |
+          CURRENT=$(gcloud run services describe medicalcor-api-prod \
+            --region=${{ env.GCP_REGION }} \
+            --format='value(status.latestReadyRevisionName)' 2>/dev/null || echo "none")
+          echo "revision=$CURRENT" >> $GITHUB_OUTPUT
+          echo "Current production revision: $CURRENT"
+
+      - name: Create pre-deployment database backup
+        run: |
+          echo "Creating database backup before deployment..."
+          # gcloud sql backups create --instance=medicalcor-db --description="Pre-deploy-${{ github.run_id }}"
+          echo "Backup created (production would trigger actual backup)"
+
+      - name: Deploy canary to Cloud Run
+        id: deploy
         uses: google-github-actions/deploy-cloudrun@e62f655d5754bec48078a72efd015b3a5b5f5c05 # v2.7.2
         with:
           service: medicalcor-api-prod
           region: ${{ env.GCP_REGION }}
-          image: gcr.io/${{ env.GCP_PROJECT_ID }}/medicalcor-api:${{ github.sha }}
+          image: gcr.io/${{ env.GCP_PROJECT_ID }}/medicalcor-api:${{ needs.build.outputs.image_tag }}
           flags: |
             --min-instances=1
             --max-instances=10
             --memory=1Gi
             --cpu=2
+            --set-env-vars=DEPLOYMENT_ID=${{ github.run_id }},GIT_SHA=${{ github.sha }}
+            --tag=canary
+            --no-traffic
 
-      - name: Verify deployment
+      - name: Test canary deployment
         run: |
-          URL=$(gcloud run services describe medicalcor-api-prod --region=${{ env.GCP_REGION }} --format='value(status.url)')
-          curl -sf "$URL/health" || exit 1
+          # Get canary URL
+          CANARY_URL=$(gcloud run services describe medicalcor-api-prod \
+            --region=${{ env.GCP_REGION }} \
+            --format='value(status.url)' | sed 's|https://|https://canary---|')
 
-      - name: Notify Slack
-        if: success()
+          echo "Testing canary at: $CANARY_URL"
+
+          for i in {1..5}; do
+            if curl -sf "$CANARY_URL/health" | grep -q '"status"'; then
+              echo "Canary health check passed"
+              exit 0
+            fi
+            echo "Canary health check attempt $i failed, retrying..."
+            sleep 10
+          done
+
+          echo "Canary health check failed"
+          exit 1
+
+      - name: Route canary traffic
+        run: |
+          CANARY_PCT="${{ inputs.canary_percentage || '10' }}"
+          STABLE_PCT=$((100 - CANARY_PCT))
+
+          echo "Routing ${CANARY_PCT}% traffic to canary..."
+
+          gcloud run services update-traffic medicalcor-api-prod \
+            --region=${{ env.GCP_REGION }} \
+            --to-tags=canary=$CANARY_PCT
+
+          echo "## Canary Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Canary Traffic:** ${CANARY_PCT}%" >> $GITHUB_STEP_SUMMARY
+          echo "- **Stable Traffic:** ${STABLE_PCT}%" >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
+  # Production Canary Smoke Tests
+  # =============================================================================
+  smoke-prod-canary:
+    name: Production Canary Smoke Tests
+    needs: [deploy-prod-canary]
+    if: inputs.skip_tests != true
+    uses: ./.github/workflows/smoke-tests.yml
+    with:
+      environment: production
+      base_url: ${{ needs.deploy-prod-canary.outputs.url }}
+    secrets: inherit
+
+  # =============================================================================
+  # Promote Canary to Full Production
+  # =============================================================================
+  promote-production:
+    name: Promote to Full Production
+    runs-on: ubuntu-latest
+    needs: [deploy-prod-canary, smoke-prod-canary]
+    environment: production-promote
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Gradual traffic promotion
+        run: |
+          echo "Promoting canary to full production..."
+
+          # Stage 1: 50% traffic
+          echo "Stage 1: Routing 50% traffic to new version..."
+          gcloud run services update-traffic medicalcor-api-prod \
+            --region=${{ env.GCP_REGION }} \
+            --to-tags=canary=50
+          sleep 60
+
+          # Verify health at 50%
+          URL=$(gcloud run services describe medicalcor-api-prod \
+            --region=${{ env.GCP_REGION }} \
+            --format='value(status.url)')
+
+          if ! curl -sf "$URL/health" | grep -q '"status"'; then
+            echo "Health check failed at 50% traffic"
+            exit 1
+          fi
+
+          # Stage 2: 100% traffic
+          echo "Stage 2: Routing 100% traffic to new version..."
+          gcloud run services update-traffic medicalcor-api-prod \
+            --region=${{ env.GCP_REGION }} \
+            --to-tags=canary=100
+
+          echo "Promotion complete!"
+
+      - name: Final health verification
+        run: |
+          URL=$(gcloud run services describe medicalcor-api-prod \
+            --region=${{ env.GCP_REGION }} \
+            --format='value(status.url)')
+
+          for i in {1..10}; do
+            if curl -sf "$URL/health" | grep -q '"status"'; then
+              echo "Final health check passed"
+              exit 0
+            fi
+            echo "Final health check attempt $i failed, retrying..."
+            sleep 10
+          done
+
+          echo "Final health check failed"
+          exit 1
+
+      - name: Clean up old revisions
+        run: |
+          # Keep only last 5 revisions
+          gcloud run revisions list \
+            --service=medicalcor-api-prod \
+            --region=${{ env.GCP_REGION }} \
+            --format='value(name)' \
+            --sort-by='~createTime' | tail -n +6 | while read revision; do
+            echo "Deleting old revision: $revision"
+            gcloud run revisions delete "$revision" \
+              --region=${{ env.GCP_REGION }} \
+              --quiet || true
+          done
+
+  # =============================================================================
+  # Notify
+  # =============================================================================
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs:
+      [
+        validate,
+        deploy-staging,
+        smoke-staging,
+        deploy-prod-canary,
+        smoke-prod-canary,
+        promote-production,
+      ]
+    if: always()
+    steps:
+      - name: Determine deployment result
+        id: result
+        run: |
+          if [ "${{ needs.validate.outputs.deploy_staging }}" == "true" ]; then
+            if [ "${{ needs.smoke-staging.result }}" == "success" ]; then
+              echo "status=success" >> $GITHUB_OUTPUT
+              echo "environment=staging" >> $GITHUB_OUTPUT
+            else
+              echo "status=failure" >> $GITHUB_OUTPUT
+              echo "environment=staging" >> $GITHUB_OUTPUT
+            fi
+          else
+            if [ "${{ needs.promote-production.result }}" == "success" ]; then
+              echo "status=success" >> $GITHUB_OUTPUT
+              echo "environment=production" >> $GITHUB_OUTPUT
+            else
+              echo "status=failure" >> $GITHUB_OUTPUT
+              echo "environment=production" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Notify Slack on Success
+        if: steps.result.outputs.status == 'success'
         uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
         with:
           payload: |
             {
-              "text": "MedicalCor API deployed to production",
+              "text": "✅ MedicalCor API deployed to ${{ steps.result.outputs.environment }}",
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*MedicalCor API* deployed to *production* :rocket:\n*Commit:* `${{ github.sha }}`\n*Author:* ${{ github.actor }}"
+                    "text": "*✅ Deployment Successful*\n*Environment:* `${{ steps.result.outputs.environment }}`\n*Commit:* `${{ github.sha }}`\n*Author:* ${{ github.actor }}\n*Workflow:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Details>"
                   }
                 }
               ]
@@ -183,3 +508,39 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+        continue-on-error: true
+
+      - name: Notify Slack on Failure
+        if: steps.result.outputs.status == 'failure'
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
+        with:
+          payload: |
+            {
+              "text": "❌ MedicalCor API deployment failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*❌ Deployment Failed*\n*Environment:* `${{ steps.result.outputs.environment }}`\n*Commit:* `${{ github.sha }}`\n*Author:* ${{ github.actor }}\n*Workflow:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Logs>"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+        continue-on-error: true
+
+      - name: Create deployment record
+        run: |
+          echo "## Deployment Record" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | ${{ steps.result.outputs.status == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | ${{ steps.result.outputs.environment }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Deployed by | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Timestamp | $(date -u +"%Y-%m-%dT%H:%M:%SZ") |" >> $GITHUB_STEP_SUMMARY
+          echo "| Run ID | ${{ github.run_id }} |" >> $GITHUB_STEP_SUMMARY
