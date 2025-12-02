@@ -12,6 +12,8 @@ An Architecture Decision Record (ADR) captures an important architectural decisi
 |-----|-------|--------|------|
 | [001](./001-hexagonal-architecture.md) | Hexagonal Architecture (Ports & Adapters) | ACCEPTED | 2024-11-30 |
 | [002](./002-cloud-agnostic-strategy.md) | Cloud-Agnostic Multi-Cloud Strategy | ACCEPTED | 2024-11-30 |
+| [003](./003-architecture-improvements.md) | Architecture Improvements Roadmap | PROPOSED | 2024-12-02 |
+| [004](./004-cognitive-episodic-memory.md) | Cognitive Episodic Memory System | PROPOSED | 2024-12-02 |
 
 ## ADR Status Lifecycle
 
