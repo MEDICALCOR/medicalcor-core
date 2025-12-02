@@ -10,18 +10,18 @@ Following a comprehensive architecture review, several improvement opportunities
 
 ### Current Gaps Identified
 
-| Category | Gap | Impact |
-|----------|-----|--------|
-| **Database** | pgvector schema not in dbmate migrations | Production deployments may fail |
-| **Event Sourcing** | No aggregate snapshots | Performance degrades with event count |
-| **Event Sourcing** | No event schema versioning | Breaking changes corrupt projections |
-| **Observability** | No Prometheus metrics endpoint | Cannot track business metrics |
-| **Observability** | No projection health monitoring | Stale projections go undetected |
-| **CQRS** | Saga persistence is in-memory only | State lost on restart |
-| **Resilience** | DLQ lacks circuit breaker integration | May hammer failing services |
-| **RAG** | No automatic embedding refresh | Stale embeddings degrade AI quality |
-| **RAG** | No embedding caching | Redundant OpenAI API calls |
-| **Kubernetes** | ServiceMonitor not implemented | Prometheus can't scrape pods |
+| Category           | Gap                                      | Impact                                |
+| ------------------ | ---------------------------------------- | ------------------------------------- |
+| **Database**       | pgvector schema not in dbmate migrations | Production deployments may fail       |
+| **Event Sourcing** | No aggregate snapshots                   | Performance degrades with event count |
+| **Event Sourcing** | No event schema versioning               | Breaking changes corrupt projections  |
+| **Observability**  | No Prometheus metrics endpoint           | Cannot track business metrics         |
+| **Observability**  | No projection health monitoring          | Stale projections go undetected       |
+| **CQRS**           | Saga persistence is in-memory only       | State lost on restart                 |
+| **Resilience**     | DLQ lacks circuit breaker integration    | May hammer failing services           |
+| **RAG**            | No automatic embedding refresh           | Stale embeddings degrade AI quality   |
+| **RAG**            | No embedding caching                     | Redundant OpenAI API calls            |
+| **Kubernetes**     | ServiceMonitor not implemented           | Prometheus can't scrape pods          |
 
 ## Decision
 
@@ -153,7 +153,8 @@ export class ProjectionHealthMonitor {
   ) {}
 
   async checkHealth(projectionName: string): Promise<ProjectionHealth> {
-    const result = await this.pool.query(`
+    const result = await this.pool.query(
+      `
       SELECT
         pc.projection_name,
         pc.last_event_id,
@@ -162,7 +163,9 @@ export class ProjectionHealthMonitor {
         (SELECT COUNT(*) FROM domain_events WHERE id > pc.last_event_id) as events_behind
       FROM projection_checkpoints pc
       WHERE pc.projection_name = $1
-    `, [projectionName]);
+    `,
+      [projectionName]
+    );
 
     if (result.rows.length === 0) {
       return {
@@ -193,9 +196,7 @@ export class ProjectionHealthMonitor {
       SELECT DISTINCT projection_name FROM projection_checkpoints
     `);
 
-    return Promise.all(
-      result.rows.map(row => this.checkHealth(row.projection_name))
-    );
+    return Promise.all(result.rows.map((row) => this.checkHealth(row.projection_name)));
   }
 }
 ```
@@ -227,13 +228,16 @@ export class SnapshotStore {
   constructor(private pool: Pool) {}
 
   async getLatestSnapshot<T>(aggregateId: string): Promise<AggregateSnapshot<T> | null> {
-    const result = await this.pool.query(`
+    const result = await this.pool.query(
+      `
       SELECT aggregate_id, aggregate_type, version, state, created_at
       FROM aggregate_snapshots
       WHERE aggregate_id = $1
       ORDER BY version DESC
       LIMIT 1
-    `, [aggregateId]);
+    `,
+      [aggregateId]
+    );
 
     if (result.rows.length === 0) return null;
 
@@ -247,15 +251,23 @@ export class SnapshotStore {
   }
 
   async saveSnapshot<T>(snapshot: AggregateSnapshot<T>): Promise<void> {
-    await this.pool.query(`
+    await this.pool.query(
+      `
       INSERT INTO aggregate_snapshots (aggregate_id, aggregate_type, version, state)
       VALUES ($1, $2, $3, $4)
       ON CONFLICT (aggregate_id, version) DO NOTHING
-    `, [snapshot.aggregateId, snapshot.aggregateType, snapshot.version, JSON.stringify(snapshot.state)]);
+    `,
+      [
+        snapshot.aggregateId,
+        snapshot.aggregateType,
+        snapshot.version,
+        JSON.stringify(snapshot.state),
+      ]
+    );
   }
 
   shouldSnapshot(currentVersion: number, lastSnapshotVersion: number): boolean {
-    return (currentVersion - lastSnapshotVersion) >= this.snapshotInterval;
+    return currentVersion - lastSnapshotVersion >= this.snapshotInterval;
   }
 }
 ```
@@ -298,7 +310,12 @@ interface EventSchemaVersion {
 export class EventSchemaRegistry {
   private schemas = new Map<string, EventSchemaVersion[]>();
 
-  register(eventType: string, version: number, schema: z.ZodSchema, migrateTo?: (data: unknown) => unknown): void {
+  register(
+    eventType: string,
+    version: number,
+    schema: z.ZodSchema,
+    migrateTo?: (data: unknown) => unknown
+  ): void {
     const versions = this.schemas.get(eventType) || [];
     versions.push({ version, schema, migrateTo });
     versions.sort((a, b) => a.version - b.version);
@@ -309,7 +326,7 @@ export class EventSchemaRegistry {
     const versions = this.schemas.get(eventType);
     if (!versions) return true; // Unknown event types pass through
 
-    const schemaVersion = versions.find(v => v.version === version);
+    const schemaVersion = versions.find((v) => v.version === version);
     if (!schemaVersion) return false;
 
     return schemaVersion.schema.safeParse(payload).success;
@@ -338,19 +355,28 @@ export class EventSchemaRegistry {
 export const eventSchemaRegistry = new EventSchemaRegistry();
 
 // Register lead.scored event versions
-eventSchemaRegistry.register('lead.scored', 1, z.object({
-  leadId: z.string().uuid(),
-  score: z.number().int().min(1).max(5),
-}));
+eventSchemaRegistry.register(
+  'lead.scored',
+  1,
+  z.object({
+    leadId: z.string().uuid(),
+    score: z.number().int().min(1).max(5),
+  })
+);
 
-eventSchemaRegistry.register('lead.scored', 2, z.object({
-  leadId: z.string().uuid(),
-  score: z.number().int().min(1).max(5),
-  confidence: z.number().min(0).max(1), // New field in v2
-}), (v1: unknown) => ({
-  ...(v1 as object),
-  confidence: 0.5, // Default for migrated events
-}));
+eventSchemaRegistry.register(
+  'lead.scored',
+  2,
+  z.object({
+    leadId: z.string().uuid(),
+    score: z.number().int().min(1).max(5),
+    confidence: z.number().min(0).max(1), // New field in v2
+  }),
+  (v1: unknown) => ({
+    ...(v1 as object),
+    confidence: 0.5, // Default for migrated events
+  })
+);
 ```
 
 ---
@@ -374,7 +400,10 @@ export class EnhancedDeadLetterQueue extends DeadLetterQueue {
     this.circuitBreakerRegistry = circuitBreakerRegistry;
   }
 
-  async processEntry(entry: DLQEntry, handler: (entry: DLQEntry) => Promise<void>): Promise<boolean> {
+  async processEntry(
+    entry: DLQEntry,
+    handler: (entry: DLQEntry) => Promise<void>
+  ): Promise<boolean> {
     const breaker = this.circuitBreakerRegistry.get(`dlq-${entry.webhookType}`);
 
     if (!breaker.isAvailable()) {
@@ -444,7 +473,8 @@ export class PostgresSagaRepository {
   constructor(private pool: Pool) {}
 
   async save<T>(saga: SagaState<T>): Promise<void> {
-    await this.pool.query(`
+    await this.pool.query(
+      `
       INSERT INTO saga_store (saga_id, saga_type, correlation_id, state, status, current_step, started_at, updated_at)
       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
       ON CONFLICT (saga_id) DO UPDATE SET
@@ -452,13 +482,29 @@ export class PostgresSagaRepository {
         status = EXCLUDED.status,
         current_step = EXCLUDED.current_step,
         updated_at = NOW()
-    `, [saga.sagaId, saga.sagaType, saga.correlationId, JSON.stringify(saga.state), saga.status, saga.currentStep, saga.startedAt]);
+    `,
+      [
+        saga.sagaId,
+        saga.sagaType,
+        saga.correlationId,
+        JSON.stringify(saga.state),
+        saga.status,
+        saga.currentStep,
+        saga.startedAt,
+      ]
+    );
   }
 
-  async findByCorrelationId<T>(correlationId: string, sagaType: string): Promise<SagaState<T> | null> {
-    const result = await this.pool.query(`
+  async findByCorrelationId<T>(
+    correlationId: string,
+    sagaType: string
+  ): Promise<SagaState<T> | null> {
+    const result = await this.pool.query(
+      `
       SELECT * FROM saga_store WHERE correlation_id = $1 AND saga_type = $2
-    `, [correlationId, sagaType]);
+    `,
+      [correlationId, sagaType]
+    );
 
     if (result.rows.length === 0) return null;
     const row = result.rows[0];
@@ -476,14 +522,17 @@ export class PostgresSagaRepository {
   }
 
   async findPendingSagas(sagaType?: string): Promise<SagaState[]> {
-    const result = await this.pool.query(`
+    const result = await this.pool.query(
+      `
       SELECT * FROM saga_store
       WHERE status IN ('pending', 'running', 'compensating')
       ${sagaType ? 'AND saga_type = $1' : ''}
       ORDER BY started_at
-    `, sagaType ? [sagaType] : []);
+    `,
+      sagaType ? [sagaType] : []
+    );
 
-    return result.rows.map(row => ({
+    return result.rows.map((row) => ({
       sagaId: row.saga_id,
       sagaType: row.saga_type,
       correlationId: row.correlation_id,
@@ -554,11 +603,7 @@ export class EmbeddingCache {
   }
 
   async set(text: string, model: string, embedding: number[]): Promise<void> {
-    await this.redis.setex(
-      this.getKey(text, model),
-      this.ttlSeconds,
-      JSON.stringify(embedding)
-    );
+    await this.redis.setex(this.getKey(text, model), this.ttlSeconds, JSON.stringify(embedding));
   }
 
   async invalidateByPattern(pattern: string): Promise<void> {
@@ -588,17 +633,16 @@ export const embeddingRefreshJob = schedules.task({
     const currentModel = 'text-embedding-3-small';
 
     // Find entries with outdated embeddings
-    const outdatedEntries = await knowledgeBaseRepository.findByEmbeddingModel(
-      currentModel,
-      { excludeCurrent: true }
-    );
+    const outdatedEntries = await knowledgeBaseRepository.findByEmbeddingModel(currentModel, {
+      excludeCurrent: true,
+    });
 
     let refreshed = 0;
     const batchSize = 100;
 
     for (let i = 0; i < outdatedEntries.length; i += batchSize) {
       const batch = outdatedEntries.slice(i, i + batchSize);
-      const texts = batch.map(e => e.content);
+      const texts = batch.map((e) => e.content);
 
       const newEmbeddings = await embeddings.embedBatch(texts);
 
@@ -645,35 +689,43 @@ export const embeddingRefreshJob = schedules.task({
 ## Alternatives Considered
 
 ### 1. Complete Architecture Rewrite
+
 **Rejected**: The existing architecture is solid; improvements should build on it, not replace it.
 
 ### 2. Third-party Event Store (EventStoreDB)
+
 **Deferred**: Would provide snapshots and schema versioning out-of-box, but adds operational complexity. Current PostgreSQL-based solution is sufficient with proposed enhancements.
 
 ### 3. Managed Vector Database (Pinecone, Weaviate)
+
 **Deferred**: pgvector provides adequate performance for current scale. Revisit when exceeding 10M vectors.
 
 ## Implementation Checklist
 
-### Phase 1 (Critical)
-- [ ] Create `20241202000001_add_pgvector_extension.sql` migration
-- [ ] Add `/metrics` endpoint with prom-client
-- [ ] Implement `ProjectionHealthMonitor`
+### Phase 1 (Critical) - COMPLETED 2024-12-02
+
+- [x] Create `20241202000001_add_pgvector_extension.sql` migration
+- [x] Add `/metrics` endpoint with prom-client
+- [x] Implement `ProjectionHealthMonitor`
 - [ ] Add projection health to `/health/ready` endpoint
 
-### Phase 2 (Event Sourcing)
-- [ ] Create `20241202000002_add_aggregate_snapshots.sql` migration
-- [ ] Implement `SnapshotStore` class
-- [ ] Integrate snapshots into `EventStore.loadAggregate()`
-- [ ] Implement `EventSchemaRegistry`
+### Phase 2 (Event Sourcing) - COMPLETED 2024-12-02
+
+- [x] Create `20241202000002_add_aggregate_snapshots.sql` migration
+- [x] Implement `SnapshotStore` class (pre-existing in packages/core/src/cqrs/snapshot-store.ts)
+- [x] Integrate snapshots into `EventStore.loadAggregate()` (via `SnapshotEnabledRepository`)
+- [x] Implement `EventSchemaRegistry` (packages/core/src/cqrs/event-schema-registry.ts)
+- [x] Implement `SchemaValidatedEventStore` (packages/core/src/cqrs/schema-validated-event-store.ts)
 
 ### Phase 3 (Resilience)
+
 - [ ] Create `20241202000003_add_saga_store.sql` migration
 - [ ] Implement `PostgresSagaRepository`
 - [ ] Add circuit breaker to DLQ
 - [ ] Create Kubernetes ServiceMonitor
 
 ### Phase 4 (AI/RAG)
+
 - [ ] Implement `EmbeddingCache` with Redis
 - [ ] Add embedding model tracking to knowledge_base
 - [ ] Create embedding refresh Trigger.dev job

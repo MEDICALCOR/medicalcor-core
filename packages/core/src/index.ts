@@ -267,6 +267,23 @@ export {
   type ProjectionHealth,
   type ProjectionHealthSummary,
   type ProjectionHealthConfig,
+  // Event Schema Registry
+  EventSchemaRegistry,
+  eventSchemaRegistry,
+  createEventSchemaRegistry,
+  registerCommonEventSchemas,
+  type EventSchemaVersion,
+  type RegisterSchemaOptions,
+  type ValidationResult as EventValidationResult,
+  type MigrationResult,
+  type EventMigrationFn,
+  // Schema-Validated Event Store
+  SchemaValidatedEventStore,
+  EventSchemaValidationError,
+  createSchemaValidatedEventStore,
+  withSchemaValidation,
+  type SchemaValidatedEventStoreConfig,
+  type SchemaViolation,
 } from './cqrs/index.js';
 
 // AI-First API Gateway
