@@ -260,6 +260,13 @@ export {
   type LeadStatsState,
   type PatientActivityState,
   type DailyMetricsState,
+  // Projection Health Monitoring
+  ProjectionHealthMonitor,
+  createProjectionHealthMonitor,
+  DEFAULT_PROJECTION_HEALTH_CONFIG,
+  type ProjectionHealth,
+  type ProjectionHealthSummary,
+  type ProjectionHealthConfig,
 } from './cqrs/index.js';
 
 // AI-First API Gateway

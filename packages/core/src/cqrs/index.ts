@@ -176,3 +176,13 @@ export {
   type MigrationStep,
   type EventSubscriber,
 } from './event-replay.js';
+
+// Projection Health Monitoring
+export {
+  ProjectionHealthMonitor,
+  createProjectionHealthMonitor,
+  DEFAULT_PROJECTION_HEALTH_CONFIG,
+  type ProjectionHealth,
+  type ProjectionHealthSummary,
+  type ProjectionHealthConfig,
+} from './projection-health.js';
