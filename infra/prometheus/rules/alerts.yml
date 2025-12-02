@@ -18,10 +18,10 @@ groups:
           severity: critical
           service: api
         annotations:
-          summary: "High error rate detected"
-          description: "Error rate is {{ $value | humanizePercentage }} over the last 5 minutes"
+          summary: 'High error rate detected'
+          description: 'Error rate is {{ $value | humanizePercentage }} over the last 5 minutes'
 
-      # Slow response times
+      # Slow response times - overall p95
       - alert: SlowResponses
         expr: |
           histogram_quantile(0.95,
@@ -32,8 +32,50 @@ groups:
           severity: warning
           service: api
         annotations:
-          summary: "Slow API responses detected"
-          description: "P95 latency is {{ $value }}s over the last 5 minutes"
+          summary: 'Slow API responses detected'
+          description: 'P95 latency is {{ $value }}s over the last 5 minutes'
+
+      # Slow response times - p95 by endpoint (SLO: 200ms)
+      - alert: EndpointP95LatencyHigh
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, path)
+          ) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          service: api
+        annotations:
+          summary: 'Endpoint p95 latency exceeds SLO'
+          description: 'Endpoint {{ $labels.path }} p95 latency is {{ $value }}s (SLO: 200ms)'
+
+      # Critical p95 latency threshold
+      - alert: EndpointP95LatencyCritical
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, path)
+          ) > 1.0
+        for: 3m
+        labels:
+          severity: critical
+          service: api
+        annotations:
+          summary: 'Endpoint p95 latency critically high'
+          description: 'Endpoint {{ $labels.path }} p95 latency is {{ $value }}s (Critical: >1s)'
+
+      # P99 latency warning
+      - alert: P99LatencyHigh
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          service: api
+        annotations:
+          summary: 'P99 latency is high'
+          description: 'P99 latency is {{ $value }}s over the last 5 minutes'
 
       # Service down
       - alert: ServiceDown
@@ -43,8 +85,8 @@ groups:
           severity: critical
           service: api
         annotations:
-          summary: "API service is down"
-          description: "API service has been down for more than 1 minute"
+          summary: 'API service is down'
+          description: 'API service has been down for more than 1 minute'
 
       # Rate limit exhaustion
       - alert: RateLimitExhausted
@@ -58,8 +100,24 @@ groups:
           severity: warning
           service: api
         annotations:
-          summary: "High rate limit hit rate"
-          description: "Route {{ $labels.route }} is experiencing high rate limiting"
+          summary: 'High rate limit hit rate'
+          description: 'Route {{ $labels.route }} is experiencing high rate limiting'
+
+      # 4xx error rate alert
+      - alert: High4xxErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"4.."}[5m]))
+            /
+            sum(rate(http_requests_total[5m]))
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: api
+        annotations:
+          summary: 'High 4xx error rate'
+          description: '4xx error rate is {{ $value | humanizePercentage }}'
 
   - name: medicalcor-ai
     interval: 30s
@@ -68,31 +126,198 @@ groups:
       - alert: AIServiceDegraded
         expr: |
           (
-            sum(rate(lead_scoring_fallback_total[10m]))
+            sum(rate(medicalcor_ai_fallback_total[10m]))
             /
-            sum(rate(lead_scoring_total[10m]))
+            sum(rate(medicalcor_ai_requests_total[10m]))
           ) > 0.5
         for: 10m
         labels:
           severity: warning
           service: ai
         annotations:
-          summary: "AI scoring using fallback frequently"
-          description: "{{ $value | humanizePercentage }} of scoring operations are using fallback"
+          summary: 'AI scoring using fallback frequently'
+          description: '{{ $value | humanizePercentage }} of scoring operations are using fallback'
 
-      # AI scoring latency
-      - alert: AIScoringSlow
+      # AI scoring latency - p95 SLO (5s target)
+      - alert: AIScoringP95High
         expr: |
           histogram_quantile(0.95,
-            sum(rate(lead_scoring_duration_seconds_bucket[5m])) by (le, model)
+            sum(rate(medicalcor_ai_scoring_duration_seconds_bucket[5m])) by (le)
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: ai
+        annotations:
+          summary: 'AI scoring p95 latency exceeds SLO'
+          description: 'AI scoring p95 latency is {{ $value }}s (SLO: 5s)'
+
+      # AI scoring latency - critical (>10s)
+      - alert: AIScoringP95Critical
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(medicalcor_ai_scoring_duration_seconds_bucket[5m])) by (le)
+          ) > 10
+        for: 3m
+        labels:
+          severity: critical
+          service: ai
+        annotations:
+          summary: 'AI scoring p95 latency critically high'
+          description: 'AI scoring p95 latency is {{ $value }}s (Critical: >10s)'
+
+      # AI operation latency by operation type
+      - alert: AIOperationP95High
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(medicalcor_ai_operation_duration_seconds_bucket[5m])) by (le, operation)
           ) > 10
         for: 5m
         labels:
           severity: warning
           service: ai
         annotations:
-          summary: "AI scoring is slow"
-          description: "P95 scoring latency for {{ $labels.model }} is {{ $value }}s"
+          summary: 'AI operation p95 latency is high'
+          description: 'AI operation {{ $labels.operation }} p95 latency is {{ $value }}s'
+
+      # AI timeout rate
+      - alert: AITimeoutRateHigh
+        expr: |
+          (
+            sum(rate(medicalcor_ai_timeout_total[5m]))
+            /
+            sum(rate(medicalcor_ai_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: ai
+        annotations:
+          summary: 'AI timeout rate is high'
+          description: 'AI timeout rate is {{ $value | humanizePercentage }}'
+
+      # AI provider health degraded
+      - alert: AIProviderUnhealthy
+        expr: medicalcor_ai_provider_health < 0.5
+        for: 5m
+        labels:
+          severity: warning
+          service: ai
+        annotations:
+          summary: 'AI provider health degraded'
+          description: 'AI provider {{ $labels.provider }} health is {{ $value }}'
+
+  - name: medicalcor-worker
+    interval: 30s
+    rules:
+      # Worker task failure rate
+      - alert: WorkerTaskFailureRate
+        expr: |
+          (
+            sum(rate(medicalcor_worker_tasks_total{status="failure"}[5m]))
+            /
+            sum(rate(medicalcor_worker_tasks_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: worker
+        annotations:
+          summary: 'Worker task failure rate is high'
+          description: 'Worker task failure rate is {{ $value | humanizePercentage }}'
+
+      # Worker task p95 latency
+      - alert: WorkerTaskP95High
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(medicalcor_worker_task_duration_seconds_bucket[5m])) by (le, task)
+          ) > 30
+        for: 5m
+        labels:
+          severity: warning
+          service: worker
+        annotations:
+          summary: 'Worker task p95 latency is high'
+          description: 'Task {{ $labels.task }} p95 latency is {{ $value }}s'
+
+      # Worker queue depth alert
+      - alert: WorkerQueueDepthHigh
+        expr: sum(medicalcor_worker_queue_depth) > 50
+        for: 5m
+        labels:
+          severity: warning
+          service: worker
+        annotations:
+          summary: 'Worker queue depth is high'
+          description: 'Worker queue depth is {{ $value }}'
+
+      # Worker queue depth critical
+      - alert: WorkerQueueDepthCritical
+        expr: sum(medicalcor_worker_queue_depth) > 100
+        for: 3m
+        labels:
+          severity: critical
+          service: worker
+        annotations:
+          summary: 'Worker queue depth is critically high'
+          description: 'Worker queue depth is {{ $value }}'
+
+      # Queue wait time high
+      - alert: WorkerQueueWaitHigh
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(medicalcor_worker_queue_wait_seconds_bucket[5m])) by (le, queue)
+          ) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: worker
+        annotations:
+          summary: 'Queue wait time is high'
+          description: 'Queue {{ $labels.queue }} wait time p95 is {{ $value }}s'
+
+      # Workflow failure rate
+      - alert: WorkflowFailureRate
+        expr: |
+          (
+            sum(rate(medicalcor_worker_workflows_total{status="failure"}[5m]))
+            /
+            sum(rate(medicalcor_worker_workflows_total[5m]))
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: worker
+        annotations:
+          summary: 'Workflow failure rate is high'
+          description: 'Workflow failure rate is {{ $value | humanizePercentage }}'
+
+      # Cron job failure
+      - alert: CronJobFailed
+        expr: increase(medicalcor_worker_cron_jobs_total{status="failure"}[1h]) > 0
+        for: 0m
+        labels:
+          severity: warning
+          service: worker
+        annotations:
+          summary: 'Cron job failed'
+          description: 'Cron job {{ $labels.job }} has failed'
+
+      # High retry rate
+      - alert: WorkerRetryRateHigh
+        expr: |
+          (
+            sum(rate(medicalcor_worker_task_retries_total[5m]))
+            /
+            sum(rate(medicalcor_worker_tasks_total[5m]))
+          ) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          service: worker
+        annotations:
+          summary: 'Worker retry rate is high'
+          description: 'Worker retry rate is {{ $value | humanizePercentage }}'
 
   - name: medicalcor-infrastructure
     interval: 30s
@@ -105,8 +330,8 @@ groups:
           severity: critical
           service: redis
         annotations:
-          summary: "Redis is down"
-          description: "Redis service has been down for more than 1 minute"
+          summary: 'Redis is down'
+          description: 'Redis service has been down for more than 1 minute'
 
       # High memory usage (if node_exporter is available)
       - alert: HighMemoryUsage
@@ -119,8 +344,8 @@ groups:
           severity: warning
           service: infrastructure
         annotations:
-          summary: "High memory usage"
-          description: "Memory usage is above 90%"
+          summary: 'High memory usage'
+          description: 'Memory usage is above 90%'
 
       # Disk space low (if node_exporter is available)
       - alert: LowDiskSpace
@@ -134,8 +359,8 @@ groups:
           severity: warning
           service: infrastructure
         annotations:
-          summary: "Low disk space"
-          description: "Less than 10% disk space available"
+          summary: 'Low disk space'
+          description: 'Less than 10% disk space available'
 
   - name: medicalcor-business
     interval: 60s
@@ -151,8 +376,8 @@ groups:
           severity: warning
           service: business
         annotations:
-          summary: "No leads scored recently"
-          description: "No leads have been scored in the last hour during business hours"
+          summary: 'No leads scored recently'
+          description: 'No leads have been scored in the last hour during business hours'
 
       # High HOT lead volume (potential spam or anomaly)
       - alert: UnusualHotLeadVolume
@@ -163,5 +388,5 @@ groups:
           severity: warning
           service: business
         annotations:
-          summary: "Unusual volume of HOT leads"
-          description: "More than 100 HOT leads scored in the last hour"
+          summary: 'Unusual volume of HOT leads'
+          description: 'More than 100 HOT leads scored in the last hour'
