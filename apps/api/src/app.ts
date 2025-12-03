@@ -20,6 +20,7 @@ import {
   diagnosticsRoutes,
   backupRoutes,
   gdprRoutes,
+  metricsRoutes,
 } from './routes/index.js';
 import { chatgptPluginRoutes } from './routes/chatgpt-plugin.js';
 import { instrumentFastify } from '@medicalcor/core/observability/instrumentation';
@@ -404,6 +405,7 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
 
   // Register routes
   await fastify.register(healthRoutes);
+  await fastify.register(metricsRoutes);
   await fastify.register(webhookRoutes);
   await fastify.register(workflowRoutes);
   await fastify.register(aiRoutes);
