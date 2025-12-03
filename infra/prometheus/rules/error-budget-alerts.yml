@@ -1,0 +1,376 @@
+# MedicalCor Error Budget Alerts - Google SRE Workbook Multi-Window Burn Rate Strategy
+# Documentation: https://sre.google/workbook/alerting-on-slos/
+#
+# This implements Multi-Window, Multi-Burn-Rate Alerts for accurate SLO-based alerting.
+# Key insight: Alert when BOTH a short window (5m) AND long window (1h) exceed threshold.
+# This eliminates false positives from short spikes while catching real incidents.
+
+groups:
+  # =============================================================================
+  # RECORDING RULES - Pre-compute rates for dashboard performance
+  # =============================================================================
+  - name: error_budget_recording_rules
+    interval: 30s
+    rules:
+      # API Gateway Error Rate - 1h window (for burn rate calculation)
+      - record: job:api_errors_per_request:ratio_rate1h
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[1h]))
+          /
+          sum(rate(http_requests_total[1h]))
+
+      # API Gateway Error Rate - 5m window (for quick detection)
+      - record: job:api_errors_per_request:ratio_rate5m
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total[5m]))
+
+      # API Gateway Error Rate - 6h window (for slow burns)
+      - record: job:api_errors_per_request:ratio_rate6h
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[6h]))
+          /
+          sum(rate(http_requests_total[6h]))
+
+      # Lead Scoring Error Rate - 1h window
+      - record: job:scoring_errors_per_request:ratio_rate1h
+        expr: |
+          sum(rate(medicalcor_leads_scored_total{status="error"}[1h]))
+          /
+          sum(rate(medicalcor_leads_scored_total[1h]))
+
+      # Lead Scoring Error Rate - 5m window
+      - record: job:scoring_errors_per_request:ratio_rate5m
+        expr: |
+          sum(rate(medicalcor_leads_scored_total{status="error"}[5m]))
+          /
+          sum(rate(medicalcor_leads_scored_total[5m]))
+
+      # AI Gateway Error Rate - 1h window
+      - record: job:ai_errors_per_request:ratio_rate1h
+        expr: |
+          sum(rate(medicalcor_ai_function_calls_total{status="error"}[1h]))
+          /
+          sum(rate(medicalcor_ai_function_calls_total[1h]))
+
+      # AI Gateway Error Rate - 5m window
+      - record: job:ai_errors_per_request:ratio_rate5m
+        expr: |
+          sum(rate(medicalcor_ai_function_calls_total{status="error"}[5m]))
+          /
+          sum(rate(medicalcor_ai_function_calls_total[5m]))
+
+      # API Error Budget Remaining (30d rolling)
+      - record: job:api_error_budget_remaining:ratio
+        expr: |
+          clamp_min(
+            1 - (sum(rate(http_requests_total{status=~"5.."}[30d])) / sum(rate(http_requests_total[30d]))) / 0.001,
+            0
+          )
+
+      # Lead Scoring Error Budget Remaining (30d rolling)
+      - record: job:scoring_error_budget_remaining:ratio
+        expr: |
+          clamp_min(
+            1 - (sum(rate(medicalcor_leads_scored_total{status="error"}[30d])) / sum(rate(medicalcor_leads_scored_total[30d]))) / 0.005,
+            0
+          )
+
+      # AI Gateway Error Budget Remaining (30d rolling)
+      - record: job:ai_error_budget_remaining:ratio
+        expr: |
+          clamp_min(
+            1 - (sum(rate(medicalcor_ai_function_calls_total{status="error"}[30d])) / sum(rate(medicalcor_ai_function_calls_total[30d]))) / 0.01,
+            0
+          )
+
+  # =============================================================================
+  # BURN RATE ALERTS - Google SRE Workbook Multi-Window Strategy
+  # =============================================================================
+  # SLO: 99.9% API Availability => Error Budget = 0.1% (0.001)
+  # Burn rates: 14.4x consumes budget in 2 days, 6x in 5 days, 3x in 10 days, 1x in 30 days
+  - name: error_budget_burn_rate_alerts
+    rules:
+      # =========================================================================
+      # API GATEWAY - SLO 99.9% (Error Budget 0.001)
+      # =========================================================================
+
+      # CRITICAL: Fast Burn (consumes entire 30-day budget in 2 days)
+      # Burn Rate > 14.4x with multi-window verification
+      - alert: ErrorBudgetBurnCritical
+        expr: |
+          (
+            job:api_errors_per_request:ratio_rate1h > (14.4 * 0.001)
+            and
+            job:api_errors_per_request:ratio_rate5m > (14.4 * 0.001)
+          )
+        for: 2m
+        labels:
+          severity: critical
+          team: sre-core
+          service: api
+          slo: availability
+        annotations:
+          summary: "Critical Error Budget Burn (14.4x) - API Gateway"
+          description: |
+            API Gateway consuming error budget at 14.4x normal rate.
+            At current rate, 30-day budget exhausts in 2 days.
+            Error rate 1h: {{ $value | humanizePercentage }}
+            SLO: 99.9%, Error Budget: 0.1%
+          runbook_url: "https://docs.medicalcor.io/runbooks/error-budget-exhaustion"
+          dashboard_url: "/d/error-budget-burndown?orgId=1"
+
+      # WARNING: Medium Burn (consumes entire budget in 5 days)
+      # Burn Rate > 6x with multi-window verification
+      - alert: ErrorBudgetBurnWarning
+        expr: |
+          (
+            job:api_errors_per_request:ratio_rate1h > (6 * 0.001)
+            and
+            job:api_errors_per_request:ratio_rate5m > (6 * 0.001)
+          )
+        for: 15m
+        labels:
+          severity: warning
+          team: sre-core
+          service: api
+          slo: availability
+        annotations:
+          summary: "High Error Budget Burn (6x) - API Gateway"
+          description: |
+            API Gateway consuming error budget at 6x normal rate.
+            Risk of exhaustion in 5 days if not addressed.
+            Error rate 1h: {{ $value | humanizePercentage }}
+          runbook_url: "https://docs.medicalcor.io/runbooks/error-budget-warning"
+
+      # INFO: Slow Burn (consumes budget over 10 days)
+      # Burn Rate > 3x with 6h window verification (catches slow degradation)
+      - alert: ErrorBudgetBurnSlow
+        expr: |
+          (
+            job:api_errors_per_request:ratio_rate6h > (3 * 0.001)
+            and
+            job:api_errors_per_request:ratio_rate1h > (3 * 0.001)
+          )
+        for: 1h
+        labels:
+          severity: info
+          team: sre-core
+          service: api
+          slo: availability
+        annotations:
+          summary: "Elevated Error Budget Burn (3x) - Slow Degradation Detected"
+          description: |
+            API Gateway showing slow but sustained error rate increase.
+            Consider investigating trending issues before escalation.
+            Error rate 6h: {{ $value | humanizePercentage }}
+
+      # =========================================================================
+      # LEAD SCORING - SLO 99.5% (Error Budget 0.005)
+      # =========================================================================
+
+      - alert: ScoringErrorBudgetBurnCritical
+        expr: |
+          (
+            job:scoring_errors_per_request:ratio_rate1h > (14.4 * 0.005)
+            and
+            job:scoring_errors_per_request:ratio_rate5m > (14.4 * 0.005)
+          )
+        for: 2m
+        labels:
+          severity: critical
+          team: sre-core
+          service: scoring
+          slo: success_rate
+        annotations:
+          summary: "Critical Error Budget Burn (14.4x) - Lead Scoring"
+          description: |
+            Lead Scoring consuming error budget at 14.4x normal rate.
+            At current rate, budget exhausts in 2 days.
+            SLO: 99.5%, Error Budget: 0.5%
+          runbook_url: "https://docs.medicalcor.io/runbooks/scoring-degradation"
+
+      - alert: ScoringErrorBudgetBurnWarning
+        expr: |
+          (
+            job:scoring_errors_per_request:ratio_rate1h > (6 * 0.005)
+            and
+            job:scoring_errors_per_request:ratio_rate5m > (6 * 0.005)
+          )
+        for: 15m
+        labels:
+          severity: warning
+          team: sre-core
+          service: scoring
+          slo: success_rate
+        annotations:
+          summary: "High Error Budget Burn (6x) - Lead Scoring"
+          description: |
+            Lead Scoring consuming error budget at 6x normal rate.
+            Risk of exhaustion in 5 days.
+
+      # =========================================================================
+      # AI GATEWAY - SLO 99% (Error Budget 0.01)
+      # =========================================================================
+
+      - alert: AIErrorBudgetBurnCritical
+        expr: |
+          (
+            job:ai_errors_per_request:ratio_rate1h > (14.4 * 0.01)
+            and
+            job:ai_errors_per_request:ratio_rate5m > (14.4 * 0.01)
+          )
+        for: 2m
+        labels:
+          severity: critical
+          team: sre-core
+          service: ai-gateway
+          slo: availability
+        annotations:
+          summary: "Critical Error Budget Burn (14.4x) - AI Gateway"
+          description: |
+            AI Gateway consuming error budget at 14.4x normal rate.
+            Circuit breaker may activate soon.
+            SLO: 99%, Error Budget: 1%
+          runbook_url: "https://docs.medicalcor.io/runbooks/ai-gateway-degradation"
+
+      - alert: AIErrorBudgetBurnWarning
+        expr: |
+          (
+            job:ai_errors_per_request:ratio_rate1h > (6 * 0.01)
+            and
+            job:ai_errors_per_request:ratio_rate5m > (6 * 0.01)
+          )
+        for: 15m
+        labels:
+          severity: warning
+          team: sre-core
+          service: ai-gateway
+          slo: availability
+        annotations:
+          summary: "High Error Budget Burn (6x) - AI Gateway"
+          description: |
+            AI Gateway consuming error budget at 6x normal rate.
+            Consider investigating AI provider health.
+
+  # =============================================================================
+  # ERROR BUDGET EXHAUSTION ALERTS - Absolute Thresholds
+  # =============================================================================
+  - name: error_budget_exhaustion_alerts
+    rules:
+      # Budget below 50% - Caution Zone (Yellow)
+      - alert: ErrorBudgetCaution
+        expr: job:api_error_budget_remaining:ratio < 0.5 and job:api_error_budget_remaining:ratio >= 0.25
+        for: 5m
+        labels:
+          severity: warning
+          team: sre-core
+          zone: caution
+        annotations:
+          summary: "API Error Budget < 50% - Caution Zone"
+          description: |
+            API error budget at {{ $value | humanizePercentage }}.
+            ACTION: Technical review required before any releases.
+            See Error Budget Policy for details.
+          zone_color: "YELLOW"
+
+      # Budget below 25% - Warning Zone (Orange)
+      - alert: ErrorBudgetWarningZone
+        expr: job:api_error_budget_remaining:ratio < 0.25 and job:api_error_budget_remaining:ratio >= 0.1
+        for: 5m
+        labels:
+          severity: warning
+          team: sre-core
+          zone: warning
+        annotations:
+          summary: "API Error Budget < 25% - Warning Zone"
+          description: |
+            API error budget at {{ $value | humanizePercentage }}.
+            ACTION: Partial feature freeze. Bug fixes and security patches only.
+            VP approval required for any new features.
+          zone_color: "ORANGE"
+
+      # Budget below 10% - Critical Zone (Red)
+      - alert: ErrorBudgetCriticalZone
+        expr: job:api_error_budget_remaining:ratio < 0.1 and job:api_error_budget_remaining:ratio > 0
+        for: 5m
+        labels:
+          severity: critical
+          team: sre-core
+          zone: critical
+        annotations:
+          summary: "API Error Budget < 10% - Critical Zone"
+          description: |
+            API error budget at {{ $value | humanizePercentage }}.
+            ACTION: COMPLETE feature freeze. Hotfixes only. War room active.
+            Postmortem required for any incidents.
+          zone_color: "RED"
+
+      # Budget exhausted - Black Zone
+      - alert: ErrorBudgetExhausted
+        expr: job:api_error_budget_remaining:ratio <= 0
+        for: 1m
+        labels:
+          severity: critical
+          team: sre-core
+          zone: exhausted
+          escalation: vp-engineering
+        annotations:
+          summary: "API Error Budget EXHAUSTED - Incident Mode"
+          description: |
+            API error budget is EXHAUSTED (0% remaining).
+            ACTION: Incident mode activated. Mandatory postmortem in 48h.
+            No releases for 2 weeks. Leadership review required.
+          zone_color: "BLACK"
+
+  # =============================================================================
+  # CIRCUIT BREAKER ALERTS - AI Gateway Protection
+  # =============================================================================
+  - name: circuit_breaker_alerts
+    rules:
+      # Circuit Breaker OPEN - AI Gateway stopped requests for protection
+      - alert: AICircuitBreakerOpen
+        expr: medicalcor_circuit_breaker_state{service="openai"} == 1
+        for: 30s
+        labels:
+          severity: critical
+          team: sre-core
+          service: ai-gateway
+          component: circuit-breaker
+        annotations:
+          summary: "AI Gateway Circuit Breaker OPEN"
+          description: |
+            AI Gateway has opened circuit breaker for {{ $labels.service }}.
+            Requests are being failed-fast to protect the system.
+            Check AI provider status and error logs.
+          runbook_url: "https://docs.medicalcor.io/runbooks/circuit-breaker-open"
+
+      # Circuit Breaker Half-Open - Recovery attempt
+      - alert: AICircuitBreakerRecovering
+        expr: medicalcor_circuit_breaker_state{service="openai"} == 2
+        for: 1m
+        labels:
+          severity: warning
+          team: sre-core
+          service: ai-gateway
+          component: circuit-breaker
+        annotations:
+          summary: "AI Gateway Circuit Breaker HALF-OPEN - Recovering"
+          description: |
+            AI Gateway circuit breaker is in recovery mode.
+            Testing connectivity to {{ $labels.service }}.
+
+      # Any Circuit Breaker Open (HubSpot, WhatsApp, etc.)
+      - alert: ExternalServiceCircuitBreakerOpen
+        expr: medicalcor_circuit_breaker_state == 1
+        for: 1m
+        labels:
+          severity: warning
+          team: sre-core
+          component: circuit-breaker
+        annotations:
+          summary: "Circuit Breaker OPEN - {{ $labels.service }}"
+          description: |
+            Circuit breaker opened for external service: {{ $labels.service }}.
+            Requests are being failed-fast.
