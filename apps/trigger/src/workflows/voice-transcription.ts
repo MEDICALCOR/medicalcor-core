@@ -500,7 +500,6 @@ export const handleVapiWebhook = task({
     try {
       await processPostCall.trigger(postCallPayload, {
         idempotencyKey: IdempotencyKeys.vapiWebhook(call.id),
-        idempotencyKey: `vapi-postcall-${call.id}`,
       });
       logger.info('Post-call processing triggered', { callId: call.id, correlationId });
 
