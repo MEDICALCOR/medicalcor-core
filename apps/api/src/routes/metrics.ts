@@ -6,8 +6,11 @@
  * (lead scoring, DLQ status, projection health).
  *
  * @module routes/metrics
- * @security No authentication required - metrics endpoint is public but should be
- *           restricted via firewall/ingress rules to prometheus instances only
+ * @security This endpoint requires API key authentication (configured in app.ts).
+ *           The '/metrics' path is included in the protectedPaths list, ensuring
+ *           only authorized monitoring systems can access sensitive metrics.
+ *           Additional network-level security (firewall/ingress rules) should
+ *           be configured to restrict access to Prometheus instances only.
  */
 
 import type { FastifyPluginAsync } from 'fastify';

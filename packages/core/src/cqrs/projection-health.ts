@@ -245,11 +245,16 @@ export class ProjectionHealthMonitor {
   }> {
     const allHealth = await this.checkAllProjections();
 
+    // Filter out Infinity values when calculating max lag
+    const finitelagSeconds = allHealth
+      .map((h) => h.lagSeconds)
+      .filter((lag) => lag !== Infinity && !Number.isNaN(lag));
+
     const summary = {
       totalCount: allHealth.length,
       healthyCount: allHealth.filter((h) => !h.isStale).length,
       staleCount: allHealth.filter((h) => h.isStale).length,
-      maxLagSeconds: Math.max(...allHealth.map((h) => h.lagSeconds), 0),
+      maxLagSeconds: finitelagSeconds.length > 0 ? Math.max(...finitelagSeconds) : 0,
       totalEventsBehind: allHealth.reduce((sum, h) => sum + Math.max(h.eventsBehind, 0), 0),
     };
 
