@@ -86,6 +86,7 @@ export function isSymbol(value: unknown): value is symbol {
 /**
  * Type guard for function
  */
+// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type -- intentional: type guard for any callable
 export function isFunction(value: unknown): value is Function {
   return typeof value === 'function';
 }
@@ -134,7 +135,7 @@ export function isObject(value: unknown): value is object {
  */
 export function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (!isObject(value)) return false;
-  const proto = Object.getPrototypeOf(value);
+  const proto: unknown = Object.getPrototypeOf(value);
   return proto === null || proto === Object.prototype;
 }
 
@@ -148,10 +149,7 @@ export function isArray(value: unknown): value is unknown[] {
 /**
  * Type guard for typed array
  */
-export function isArrayOf<T>(
-  value: unknown,
-  guard: (item: unknown) => item is T
-): value is T[] {
+export function isArrayOf<T>(value: unknown, guard: (item: unknown) => item is T): value is T[] {
   return isArray(value) && value.every(guard);
 }
 
@@ -180,10 +178,11 @@ export function isError(value: unknown): value is Error {
  * Type guard for Promise
  */
 export function isPromise<T = unknown>(value: unknown): value is Promise<T> {
-  return value instanceof Promise || (
-    isObject(value) &&
-    isFunction((value as { then?: unknown }).then) &&
-    isFunction((value as { catch?: unknown }).catch)
+  return (
+    value instanceof Promise ||
+    (isObject(value) &&
+      isFunction((value as { then?: unknown }).then) &&
+      isFunction((value as { catch?: unknown }).catch))
   );
 }
 
@@ -282,7 +281,8 @@ const URL_REGEX = /^https?:\/\/.+/;
 /**
  * URL validation regex
  */
-const FULL_URL_REGEX = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?(\?[^\s#]*)?(#[^\s]*)?$/i;
+const FULL_URL_REGEX =
+  /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?(\?[^\s#]*)?(#[^\s]*)?$/i;
 
 /**
  * Type guard for URL
@@ -331,7 +331,17 @@ export function isJSONString(value: unknown): value is string {
 /**
  * Lead source values
  */
-const LEAD_SOURCES = ['whatsapp', 'voice', 'web_form', 'web', 'hubspot', 'facebook', 'google', 'referral', 'manual'] as const;
+const LEAD_SOURCES = [
+  'whatsapp',
+  'voice',
+  'web_form',
+  'web',
+  'hubspot',
+  'facebook',
+  'google',
+  'referral',
+  'manual',
+] as const;
 type LeadSource = (typeof LEAD_SOURCES)[number];
 
 /**
@@ -344,7 +354,16 @@ export function isLeadSource(value: unknown): value is LeadSource {
 /**
  * Lead status values
  */
-const LEAD_STATUSES = ['new', 'contacted', 'qualified', 'nurturing', 'scheduled', 'converted', 'lost', 'invalid'] as const;
+const LEAD_STATUSES = [
+  'new',
+  'contacted',
+  'qualified',
+  'nurturing',
+  'scheduled',
+  'converted',
+  'lost',
+  'invalid',
+] as const;
 type LeadStatus = (typeof LEAD_STATUSES)[number];
 
 /**
@@ -455,7 +474,10 @@ export function hasKeyOfType<K extends string, T>(
  * Base assertion error
  */
 export class AssertionError extends Error {
-  constructor(message: string, public readonly value?: unknown) {
+  constructor(
+    message: string,
+    public readonly value?: unknown
+  ) {
     super(message);
     this.name = 'AssertionError';
   }
@@ -473,10 +495,7 @@ export function assert(condition: unknown, message?: string): asserts condition 
 /**
  * Asserts that a value is defined (not null or undefined)
  */
-export function assertDefined<T>(
-  value: T,
-  message?: string
-): asserts value is NonNullable<T> {
+export function assertDefined<T>(value: T, message?: string): asserts value is NonNullable<T> {
   if (value === null || value === undefined) {
     throw new AssertionError(message ?? 'Value is null or undefined', value);
   }
@@ -528,10 +547,7 @@ export function assertSchema<T>(
 ): asserts value is T {
   const result = schema.safeParse(value);
   if (!result.success) {
-    throw new AssertionError(
-      message ?? `Schema validation failed: ${result.error.message}`,
-      value
-    );
+    throw new AssertionError(message ?? `Schema validation failed: ${result.error.message}`, value);
   }
 }
 
@@ -539,10 +555,7 @@ export function assertSchema<T>(
  * Asserts that a value is never reached (exhaustiveness check)
  */
 export function assertNever(value: never, message?: string): never {
-  throw new AssertionError(
-    message ?? `Unexpected value: ${JSON.stringify(value)}`,
-    value
-  );
+  throw new AssertionError(message ?? `Unexpected value: ${JSON.stringify(value)}`, value);
 }
 
 // =============================================================================
@@ -566,10 +579,7 @@ export type ValidationResult<T> = Result<T, ValidationError[]>;
 /**
  * Validates a value against a Zod schema
  */
-export function validate<T>(
-  value: unknown,
-  schema: ZodSchema<T>
-): ValidationResult<T> {
+export function validate<T>(value: unknown, schema: ZodSchema<T>): ValidationResult<T> {
   const result = schema.safeParse(value);
   if (result.success) {
     return Ok(result.data);
@@ -635,11 +645,7 @@ export function refine<T, S extends T>(
 /**
  * Creates a refinement from a predicate
  */
-export function refineWith<T>(
-  predicate: (value: T) => boolean,
-  value: T,
-  message?: string
-): T {
+export function refineWith<T>(predicate: (value: T) => boolean, value: T, message?: string): T {
   if (!predicate(value)) {
     throw new AssertionError(message ?? 'Refinement failed', value);
   }
@@ -649,10 +655,7 @@ export function refineWith<T>(
 /**
  * Narrowing helper - filters array to specific type
  */
-export function narrow<T, S extends T>(
-  array: T[],
-  guard: (value: T) => value is S
-): S[] {
+export function narrow<T, S extends T>(array: T[], guard: (value: T) => value is S): S[] {
   return array.filter(guard);
 }
 
@@ -669,10 +672,7 @@ export function getProperty<T, K extends keyof T>(
 /**
  * Safe nested property access
  */
-export function getNestedProperty<T>(
-  obj: unknown,
-  path: string
-): T | undefined {
+export function getNestedProperty(obj: unknown, path: string): unknown {
   const keys = path.split('.');
   let current: unknown = obj;
   for (const key of keys) {
@@ -681,7 +681,7 @@ export function getNestedProperty<T>(
     }
     current = (current as Record<string, unknown>)[key];
   }
-  return current as T;
+  return current;
 }
 
 // =============================================================================
@@ -691,19 +691,18 @@ export function getNestedProperty<T>(
 /**
  * Safely parses JSON with type inference
  */
-export function parseJSON<T>(
-  json: string,
-  schema: ZodSchema<T>
-): ValidationResult<T> {
+export function parseJSON<T>(json: string, schema: ZodSchema<T>): ValidationResult<T> {
   try {
-    const parsed = JSON.parse(json);
+    const parsed: unknown = JSON.parse(json);
     return validate(parsed, schema);
   } catch (error) {
-    return Err([{
-      path: [],
-      message: `Invalid JSON: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      code: 'invalid_json',
-    }]);
+    return Err([
+      {
+        path: [],
+        message: `Invalid JSON: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        code: 'invalid_json',
+      },
+    ]);
   }
 }
 

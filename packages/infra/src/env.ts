@@ -129,12 +129,10 @@ export function validateEnvSchema<T extends z.ZodRawShape>(
  * @param env - Environment object (defaults to process.env)
  * @throws Error with detailed validation messages
  */
-export function validateInfraEnv(
-  env: Record<string, string | undefined> = process.env
-): InfraEnv {
+export function validateInfraEnv(env: Record<string, string | undefined> = process.env): InfraEnv {
   const result = validateEnvSchema(InfraEnvSchema, env);
 
-  if (!result.success) {
+  if (!result.success || !result.data) {
     const errorMessages = Object.entries(result.errors ?? {})
       .map(([field, messages]) => `  ${field}: ${messages.join(', ')}`)
       .join('\n');
@@ -142,7 +140,7 @@ export function validateInfraEnv(
     throw new Error(`Infrastructure environment validation failed:\n${errorMessages}`);
   }
 
-  return result.data!;
+  return result.data;
 }
 
 /**

@@ -275,12 +275,14 @@ export function assertNever(value: never, message?: string): never {
  * });
  * ```
  */
- 
+
+/* eslint-disable @typescript-eslint/no-unnecessary-type-parameters -- M ensures exhaustive matcher object */
 export function exhaustiveMatch<
   T extends { _tag: string },
   R,
   M extends { [K in T['_tag']]: (value: Extract<T, { _tag: K }>) => R },
 >(value: T, matchers: M): R {
+  /* eslint-enable @typescript-eslint/no-unnecessary-type-parameters */
   const tag = value._tag;
   const matcher = matchers[tag as keyof M];
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- matcher can be undefined at runtime
@@ -294,12 +296,14 @@ export function exhaustiveMatch<
 /**
  * Match with default fallback
  */
- 
+
+/* eslint-disable @typescript-eslint/no-unnecessary-type-parameters -- M enables proper matcher inference */
 export function matchWithDefault<
   T extends { _tag: string },
   R,
   M extends Partial<{ [K in T['_tag']]: (value: Extract<T, { _tag: K }>) => R }>,
 >(value: T, matchers: M, defaultValue: R | ((value: T) => R)): R {
+  /* eslint-enable @typescript-eslint/no-unnecessary-type-parameters */
   const tag = value._tag;
   const matcher = matchers[tag as keyof M];
   if (matcher) {

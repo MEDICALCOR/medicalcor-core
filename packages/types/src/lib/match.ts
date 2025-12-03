@@ -73,12 +73,11 @@ export type PartialHandlerMap<T, K extends keyof T, R> = {
  *
  * area({ type: 'circle', radius: 5 }); // 78.54...
  */
-export function match<T, K extends keyof T, R>(
-  handlers: HandlerMap<T, K, R>
-): (value: T) => R {
+export function match<T, K extends keyof T, R>(handlers: HandlerMap<T, K, R>): (value: T) => R {
   return (value: T) => {
     const discriminant = value[Object.keys(handlers)[0] as K] as keyof typeof handlers;
     const handler = handlers[discriminant];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- handler may be undefined at runtime
     if (handler) {
       return handler(value as never);
     }
@@ -96,13 +95,16 @@ export function match<T, K extends keyof T, R>(
  *   // ... all other event types
  * });
  */
+/* eslint-disable @typescript-eslint/no-unnecessary-type-parameters -- R enables caller-side type inference */
 export function matchOn<T, K extends keyof T>(
   key: K,
   handlers: HandlerMap<T, K, unknown>
 ): <R>(value: T) => R {
+  /* eslint-enable @typescript-eslint/no-unnecessary-type-parameters */
   return (value: T) => {
     const discriminant = value[key] as keyof typeof handlers;
     const handler = handlers[discriminant];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- handler may be undefined at runtime
     if (handler) {
       return handler(value as never) as never;
     }
@@ -177,10 +179,7 @@ export class Matcher<T, R = never> {
   /**
    * Adds a conditional case with a guard
    */
-  when<U>(
-    guard: (value: T) => boolean,
-    handler: (value: T) => U
-  ): Matcher<T, R | U> {
+  when<U>(guard: (value: T) => boolean, handler: (value: T) => U): Matcher<T, R | U> {
     if (!this.matched && guard(this.value)) {
       this.result = handler(this.value) as unknown as R;
       this.matched = true;
@@ -398,8 +397,9 @@ export function matchesPattern<T>(value: T, pattern: Pattern<T>): boolean {
   if (pattern === _) return true;
   if (typeof pattern === 'function') return (pattern as (value: T) => boolean)(value);
   if (typeof pattern === 'object' && pattern !== null && '_' in pattern) {
-    if (pattern._ === 'wildcard') return true;
-    if (pattern._ === 'type') return (pattern as { _: 'type'; guard: (v: unknown) => boolean }).guard(value);
+    const patternObj = pattern as { _: string; guard?: (v: unknown) => boolean };
+    if (patternObj._ === 'wildcard') return true;
+    if (patternObj._ === 'type' && patternObj.guard) return patternObj.guard(value);
   }
   return value === pattern;
 }
@@ -471,9 +471,7 @@ class SwitchExpr<T, R> {
  *   ['Hello, User!']
  * );
  */
-export function cond<T>(
-  ...conditions: [...[boolean, T][], [T]]
-): T {
+export function cond<T>(...conditions: [...[boolean, T][], [T]]): T {
   for (const item of conditions) {
     if (item.length === 1) return item[0];
     const [condition, value] = item;
@@ -485,9 +483,7 @@ export function cond<T>(
 /**
  * Lazy conditional - evaluates handlers only when needed
  */
-export function condLazy<T>(
-  ...conditions: [...[boolean, () => T][], [() => T]]
-): T {
+export function condLazy<T>(...conditions: [...[boolean, () => T][], [() => T]]): T {
   for (const item of conditions) {
     if (item.length === 1) return (item[0] as () => T)();
     const [condition, handler] = item as [boolean, () => T];
@@ -512,7 +508,9 @@ export function coalesce<T>(...values: (T | null | undefined)[]): T | undefined 
 /**
  * First truthy value
  */
-export function firstTruthy<T>(...values: (T | null | undefined | false | 0 | '')[]): T | undefined {
+export function firstTruthy<T>(
+  ...values: (T | null | undefined | false | 0 | '')[]
+): T | undefined {
   for (const value of values) {
     if (value) return value;
   }
