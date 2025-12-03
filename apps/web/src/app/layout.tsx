@@ -56,7 +56,12 @@ export default function RootLayout({
               <MobileSidebar />
               <div className="flex flex-1 flex-col lg:pl-64 transition-all duration-300">
                 <Header />
-                <main id="main-content" className="flex-1 p-4 sm:p-6" tabIndex={-1}>
+                <main
+                  id="main-content"
+                  className="flex-1 p-4 sm:p-6"
+                  tabIndex={-1}
+                  style={{ viewTransitionName: 'main-content' }}
+                >
                   {children}
                 </main>
               </div>
