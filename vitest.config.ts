@@ -28,6 +28,10 @@ export default defineConfig({
     alias: {
       // Resolve workspace packages to their source files for testing
       '@medicalcor/types': path.resolve(__dirname, 'packages/types/src/index.ts'),
+      '@medicalcor/core/repositories': path.resolve(
+        __dirname,
+        'packages/core/src/repositories/index.ts'
+      ),
       '@medicalcor/core': path.resolve(__dirname, 'packages/core/src/index.ts'),
       '@medicalcor/domain': path.resolve(__dirname, 'packages/domain/src/index.ts'),
       '@medicalcor/infra': path.resolve(__dirname, 'packages/infra/src/index.ts'),

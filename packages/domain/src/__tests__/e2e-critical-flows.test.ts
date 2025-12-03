@@ -15,7 +15,7 @@ import {
   createConsentService,
   type ConsentSource,
 } from '../consent/consent-service.js';
-import { InMemoryConsentRepository } from '../consent/consent-repository.js';
+import { InMemoryConsentRepository } from '@medicalcor/core/repositories';
 import {
   ConsentRequiredError,
   type BookingRequest,
