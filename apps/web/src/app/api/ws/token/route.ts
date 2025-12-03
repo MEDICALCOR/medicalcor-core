@@ -18,6 +18,22 @@ import { auth } from '@/lib/auth';
 
 // CRITICAL FIX: Validate WebSocket token secret exists - no hardcoded defaults allowed
 // This prevents token forgery attacks in production
+// Development fallback uses a randomly generated secret per process (not hardcoded)
+let _devOnlyRandomSecret: Uint8Array | null = null;
+
+function getDevOnlyRandomSecret(): Uint8Array {
+  if (!_devOnlyRandomSecret) {
+    // Generate a cryptographically secure random secret for development
+    // This is NOT stored anywhere and changes on each process restart
+    _devOnlyRandomSecret = crypto.getRandomValues(new Uint8Array(32));
+    console.warn(
+      '[SECURITY WARNING] WS_TOKEN_SECRET not configured - using randomly generated secret for this dev session. ' +
+        'WebSocket tokens will be invalidated on server restart.'
+    );
+  }
+  return _devOnlyRandomSecret;
+}
+
 function getWebSocketSecret(): Uint8Array {
   const secret = process.env.WS_TOKEN_SECRET ?? process.env.NEXTAUTH_SECRET;
 
@@ -26,14 +42,11 @@ function getWebSocketSecret(): Uint8Array {
     if (process.env.NODE_ENV === 'production') {
       throw new Error(
         'CRITICAL: WS_TOKEN_SECRET or NEXTAUTH_SECRET must be configured in production. ' +
-          'Refusing to use hardcoded default to prevent token forgery attacks.'
+          'Refusing to generate random secret to prevent token persistence issues.'
       );
     }
-    // Development only: Use warning and fallback
-    console.warn(
-      '[SECURITY WARNING] WS_TOKEN_SECRET not configured - using insecure default for development only'
-    );
-    return new TextEncoder().encode('dev-only-ws-token-secret-not-for-production');
+    // Development only: Use randomly generated secret (not hardcoded)
+    return getDevOnlyRandomSecret();
   }
 
   // Validate secret length for security (at least 32 characters)
