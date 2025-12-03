@@ -1,0 +1,312 @@
+# MedicalCor HIPAA Compliance Alerts
+# Critical alerts for healthcare data security and compliance
+#
+# HIPAA Requirements Addressed:
+# - §164.312(a): Access Control - Monitor unauthorized access attempts
+# - §164.312(b): Audit Controls - Track all PHI access
+# - §164.312(c): Integrity Controls - Detect data corruption
+# - §164.312(d): Person/Entity Authentication - Monitor auth failures
+# - §164.312(e): Transmission Security - Monitor encryption status
+
+groups:
+  # =============================================================================
+  # HIPAA COMPLIANCE RECORDING RULES
+  # =============================================================================
+  - name: hipaa_compliance_recording_rules
+    interval: 30s
+    rules:
+      # Encryption Success Rate
+      - record: hipaa:encryption_success:rate5m
+        expr: |
+          sum(rate(medicalcor_encryption_operations_total{status="success"}[5m]))
+          /
+          sum(rate(medicalcor_encryption_operations_total[5m]))
+
+      # Audit Log Write Success Rate
+      - record: hipaa:audit_log_success:rate5m
+        expr: |
+          sum(rate(medicalcor_audit_log_writes_total{status="success"}[5m]))
+          /
+          sum(rate(medicalcor_audit_log_writes_total[5m]))
+
+      # Authentication Failure Rate
+      - record: hipaa:auth_failure:rate5m
+        expr: |
+          sum(rate(medicalcor_auth_attempts_total{status="failure"}[5m]))
+          /
+          sum(rate(medicalcor_auth_attempts_total[5m]))
+
+      # PHI Access Rate (for anomaly detection)
+      - record: hipaa:phi_access:rate1h
+        expr: sum(rate(medicalcor_phi_access_total[1h]))
+
+      # Consent Verification Failure Rate
+      - record: hipaa:consent_verification_failure:rate5m
+        expr: |
+          sum(rate(medicalcor_consent_checks_total{result="denied"}[5m]))
+          /
+          sum(rate(medicalcor_consent_checks_total[5m]))
+
+  # =============================================================================
+  # HIPAA CRITICAL ALERTS - Zero Tolerance for Compliance Failures
+  # =============================================================================
+  - name: hipaa_critical_alerts
+    rules:
+      # Encryption failures - CRITICAL (HIPAA §164.312(e))
+      # SLO: 99.999% encryption success rate
+      - alert: HIPAAEncryptionFailure
+        expr: hipaa:encryption_success:rate5m < 0.99999 and hipaa:encryption_success:rate5m > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: security
+          compliance: hipaa
+          regulation: '164.312(e)'
+        annotations:
+          summary: 'HIPAA CRITICAL: Encryption Failure Detected'
+          description: |
+            PHI encryption is failing at rate above tolerance.
+            Success rate: {{ $value | humanizePercentage }}
+            Required: 99.999%
+            ACTION: Immediate investigation required. Stop PHI processing if persistent.
+          runbook_url: 'https://docs.medicalcor.io/runbooks/hipaa-encryption-failure'
+
+      # Audit log write failures - CRITICAL (HIPAA §164.312(b))
+      # SLO: 100% audit log writes must succeed
+      - alert: HIPAAAuditLogFailure
+        expr: hipaa:audit_log_success:rate5m < 1.0 and hipaa:audit_log_success:rate5m > 0
+        for: 30s
+        labels:
+          severity: critical
+          team: security
+          compliance: hipaa
+          regulation: '164.312(b)'
+        annotations:
+          summary: 'HIPAA CRITICAL: Audit Log Write Failure'
+          description: |
+            Audit log writes are failing - COMPLIANCE VIOLATION.
+            Success rate: {{ $value | humanizePercentage }}
+            Required: 100%
+            ACTION: STOP PHI processing immediately. This is a compliance emergency.
+          runbook_url: 'https://docs.medicalcor.io/runbooks/hipaa-audit-failure'
+
+      # High authentication failure rate - Potential attack (§164.312(d))
+      - alert: HIPAAAuthenticationAnomaly
+        expr: hipaa:auth_failure:rate5m > 0.2
+        for: 5m
+        labels:
+          severity: critical
+          team: security
+          compliance: hipaa
+          regulation: '164.312(d)'
+        annotations:
+          summary: 'HIPAA WARNING: High Authentication Failure Rate'
+          description: |
+            Authentication failure rate above 20%.
+            Failure rate: {{ $value | humanizePercentage }}
+            ACTION: Investigate for brute force attack. Consider IP blocking.
+          runbook_url: 'https://docs.medicalcor.io/runbooks/auth-anomaly'
+
+      # Consent verification failures - GDPR/HIPAA
+      - alert: ConsentVerificationAnomaly
+        expr: hipaa:consent_verification_failure:rate5m > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          team: compliance
+          compliance: 'hipaa,gdpr'
+        annotations:
+          summary: 'Consent Verification Failure Rate High'
+          description: |
+            More than 10% of consent checks are failing.
+            Failure rate: {{ $value | humanizePercentage }}
+            ACTION: Investigate consent service and data integrity.
+
+  # =============================================================================
+  # WEBHOOK RELIABILITY SLOs
+  # =============================================================================
+  - name: webhook_reliability_alerts
+    rules:
+      # Recording Rules for Webhook Success Rates
+      - record: webhook:success:rate5m
+        expr: |
+          sum by (webhook_type) (rate(medicalcor_webhook_processed_total{status="success"}[5m]))
+          /
+          sum by (webhook_type) (rate(medicalcor_webhook_processed_total[5m]))
+
+      - record: webhook:success:rate1h
+        expr: |
+          sum by (webhook_type) (rate(medicalcor_webhook_processed_total{status="success"}[1h]))
+          /
+          sum by (webhook_type) (rate(medicalcor_webhook_processed_total[1h]))
+
+      # Dead Letter Queue depth
+      - record: webhook:dlq_depth
+        expr: sum by (webhook_type) (medicalcor_dlq_entries_total{status="pending"})
+
+      # WhatsApp Webhook Failure - Critical for patient communication
+      - alert: WhatsAppWebhookFailure
+        expr: |
+          (
+            webhook:success:rate1h{webhook_type="whatsapp"} < 0.99
+            and
+            webhook:success:rate5m{webhook_type="whatsapp"} < 0.99
+          )
+        for: 5m
+        labels:
+          severity: critical
+          team: integrations
+          service: whatsapp
+          slo: webhook_reliability
+        annotations:
+          summary: 'WhatsApp Webhook SLO Breach - Patient Communication at Risk'
+          description: |
+            WhatsApp webhook success rate below 99%.
+            1h rate: {{ $value | humanizePercentage }}
+            ACTION: Patient messages may be lost. Check 360dialog API status.
+          runbook_url: 'https://docs.medicalcor.io/runbooks/whatsapp-webhook-failure'
+
+      # Voice Webhook Failure - Critical for call handling
+      - alert: VoiceWebhookFailure
+        expr: |
+          (
+            webhook:success:rate1h{webhook_type="voice"} < 0.99
+            and
+            webhook:success:rate5m{webhook_type="voice"} < 0.99
+          )
+        for: 5m
+        labels:
+          severity: critical
+          team: integrations
+          service: voice
+          slo: webhook_reliability
+        annotations:
+          summary: 'Voice Webhook SLO Breach - Call Handling Degraded'
+          description: |
+            Voice webhook success rate below 99%.
+            1h rate: {{ $value | humanizePercentage }}
+            ACTION: Call transcription may fail. Check Vapi status.
+
+      # DLQ Growing - Messages backing up
+      - alert: WebhookDLQGrowing
+        expr: webhook:dlq_depth > 100
+        for: 15m
+        labels:
+          severity: warning
+          team: integrations
+          component: dlq
+        annotations:
+          summary: 'Webhook Dead Letter Queue Growing - {{ $labels.webhook_type }}'
+          description: |
+            DLQ has {{ $value }} pending entries for {{ $labels.webhook_type }}.
+            ACTION: Investigate failed webhooks and process retries.
+
+      # DLQ Critical - Many failed messages
+      - alert: WebhookDLQCritical
+        expr: webhook:dlq_depth > 500
+        for: 5m
+        labels:
+          severity: critical
+          team: integrations
+          component: dlq
+        annotations:
+          summary: 'Webhook DLQ CRITICAL - {{ $labels.webhook_type }}'
+          description: |
+            DLQ has {{ $value }} pending entries - data loss risk!
+            ACTION: Immediate investigation. Consider circuit breaker status.
+
+  # =============================================================================
+  # DATA INTEGRITY ALERTS
+  # =============================================================================
+  - name: data_integrity_alerts
+    rules:
+      # Event Store Write Failures
+      - alert: EventStoreWriteFailure
+        expr: |
+          sum(rate(medicalcor_events_appended_total{status="error"}[5m]))
+          /
+          sum(rate(medicalcor_events_appended_total[5m]))
+          > 0.001
+        for: 2m
+        labels:
+          severity: critical
+          team: sre-core
+          component: event-store
+        annotations:
+          summary: 'Event Store Write Failures Detected'
+          description: |
+            Event store is experiencing write failures.
+            This affects audit trail integrity and event sourcing.
+            ACTION: Check PostgreSQL health and disk space.
+
+      # Idempotency Key Collision
+      - alert: IdempotencyCollision
+        expr: sum(rate(medicalcor_idempotency_collision_total[5m])) > 0
+        for: 1m
+        labels:
+          severity: warning
+          team: sre-core
+          component: event-store
+        annotations:
+          summary: 'Idempotency Key Collision Detected'
+          description: |
+            Duplicate events are being detected.
+            This may indicate retry storms or clock issues.
+            Rate: {{ $value }} collisions/second
+
+      # Database Connection Pool Exhaustion
+      - alert: DatabasePoolExhaustion
+        expr: |
+          pg_stat_activity_count{state="active"}
+          /
+          pg_settings_max_connections
+          > 0.9
+        for: 5m
+        labels:
+          severity: critical
+          team: sre-core
+          component: database
+        annotations:
+          summary: 'Database Connection Pool Near Exhaustion'
+          description: |
+            Database connections at {{ $value | humanizePercentage }} capacity.
+            ACTION: Scale database or investigate connection leaks.
+
+  # =============================================================================
+  # RATE LIMITING ALERTS
+  # =============================================================================
+  - name: rate_limiting_alerts
+    rules:
+      # Rate Limit Circuit Breaker Open
+      - alert: RateLimiterCircuitOpen
+        expr: medicalcor_rate_limiter_circuit_state == 1
+        for: 30s
+        labels:
+          severity: warning
+          team: sre-core
+          component: rate-limiter
+        annotations:
+          summary: 'Rate Limiter Circuit Breaker OPEN'
+          description: |
+            Rate limiter circuit breaker is open.
+            Falling back to in-memory limiting.
+            Check Redis health.
+
+      # High Rate Limit Rejection Rate
+      - alert: HighRateLimitRejections
+        expr: |
+          sum(rate(medicalcor_rate_limit_rejected_total[5m]))
+          /
+          sum(rate(medicalcor_rate_limit_checked_total[5m]))
+          > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          team: sre-core
+          component: rate-limiter
+        annotations:
+          summary: 'High Rate Limit Rejection Rate'
+          description: |
+            More than 10% of requests are being rate limited.
+            Rejection rate: {{ $value | humanizePercentage }}
+            ACTION: Investigate traffic spike or adjust limits.
