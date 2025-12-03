@@ -75,6 +75,10 @@ pnpm test:coverage        # With coverage report
 pnpm db:migrate           # Run migrations
 pnpm db:migrate:status    # Check migration status
 pnpm db:seed              # Seed database
+
+# Architecture Audit
+pnpm xray-audit           # Run comprehensive architecture audit
+pnpm xray-audit:report    # Generate audit report (saves to XRAY_AUDIT_REPORT.md)
 ```
 
 ## Code Style & Conventions
