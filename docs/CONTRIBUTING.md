@@ -2,6 +2,9 @@
 
 Thank you for contributing to MedicalCor! This guide will help you get started.
 
+> **⚠️ Important**: GitHub Codespaces are disabled for security compliance. 
+> See [Development Environment Policy](./README/DEVELOPMENT_ENVIRONMENT.md) for details.
+
 ## Getting Started
 
 ### Prerequisites
@@ -10,6 +13,7 @@ Thank you for contributing to MedicalCor! This guide will help you get started.
 - pnpm >= 9.0.0
 - PostgreSQL 15+
 - Git
+- **Local development environment** (Codespaces disabled)
 
 ### Setup
 

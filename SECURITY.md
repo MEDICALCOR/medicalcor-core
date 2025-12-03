@@ -81,6 +81,26 @@ This application is designed with HIPAA and GDPR compliance in mind:
 
 ## Development Security
 
+### Development Environment Requirements
+
+**⚠️ Cloud Development Environments Disabled**
+
+For HIPAA/GDPR compliance, all development must be performed in local environments:
+
+- **GitHub Codespaces**: Disabled (organizational policy)
+- **Cloud IDEs**: Not permitted for PHI/PII data
+- **Remote Development**: Only on approved infrastructure
+
+**Required Local Security Controls:**
+
+- Full disk encryption (FileVault, BitLocker, LUKS)
+- Strong password policies
+- Screen lock after 5 minutes of inactivity
+- Up-to-date OS security patches
+- Approved antivirus/EDR software
+
+See [Development Environment Policy](./docs/README/DEVELOPMENT_ENVIRONMENT.md) for complete requirements.
+
 ### Code Security
 
 - No secrets in source code

@@ -41,6 +41,14 @@
 
 ---
 
+> **Development Environment Notice**
+>
+> **GitHub Codespaces are disabled** for this repository due to HIPAA/GDPR compliance requirements.
+> All development must be performed in local environments with proper security controls.
+> See [Development Environment Policy](./docs/README/DEVELOPMENT_ENVIRONMENT.md) for details.
+
+---
+
 AI-powered lead management system for dental clinics with omnichannel communication, intelligent lead scoring, and durable workflow processing.
 
 ## Features

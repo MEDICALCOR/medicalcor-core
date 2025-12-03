@@ -168,3 +168,6 @@ packages/integrations/src/__mocks__/*.map
 
 # Archived legacy migrations
 _archive/
+
+# Disabled devcontainer (Codespaces disabled for compliance)
+.devcontainer.disabled/
