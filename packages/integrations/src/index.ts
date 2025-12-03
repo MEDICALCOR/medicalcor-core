@@ -151,6 +151,19 @@ export {
   type ChunkOptions,
 } from './embeddings.js';
 
+export {
+  EmbeddingCache,
+  createEmbeddingCache,
+  CachedEmbeddingService,
+  createCachedEmbeddingService,
+  type RedisClient,
+  type RedisPipeline,
+  type CachedEmbedding,
+  type EmbeddingCacheConfig,
+  type EmbeddingCacheStats,
+  type CachedEmbeddingServiceConfig,
+} from './embedding-cache.js';
+
 // =============================================================================
 // CRM Integrations
 // =============================================================================
