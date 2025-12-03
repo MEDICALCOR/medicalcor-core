@@ -301,7 +301,6 @@ export class AuditEngine {
   }
 
   private async analyzeTestCoverage(): Promise<TestCoverageAnalysis> {
-    const rootPath = this.config.rootPath;
     const testFiles = await this.findTestFiles();
 
     const unitTests = testFiles.filter(
