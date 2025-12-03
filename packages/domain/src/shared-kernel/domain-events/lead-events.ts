@@ -80,7 +80,15 @@ export interface LeadCreatedPayload {
   readonly email?: string;
   readonly firstName?: string;
   readonly lastName?: string;
-  readonly source: 'whatsapp' | 'voice' | 'web_form' | 'hubspot' | 'facebook' | 'google' | 'referral' | 'manual';
+  readonly source:
+    | 'whatsapp'
+    | 'voice'
+    | 'web_form'
+    | 'hubspot'
+    | 'facebook'
+    | 'google'
+    | 'referral'
+    | 'manual';
   readonly hubspotContactId?: string;
   readonly utmSource?: string;
   readonly utmMedium?: string;
@@ -173,7 +181,15 @@ export interface LeadStatusChangedPayload {
   readonly phone: string;
   readonly hubspotContactId?: string;
   readonly previousStatus: string;
-  readonly newStatus: 'new' | 'contacted' | 'qualified' | 'nurturing' | 'scheduled' | 'converted' | 'lost' | 'invalid';
+  readonly newStatus:
+    | 'new'
+    | 'contacted'
+    | 'qualified'
+    | 'nurturing'
+    | 'scheduled'
+    | 'converted'
+    | 'lost'
+    | 'invalid';
   readonly reason?: string;
   readonly changedBy?: string;
 }
@@ -202,7 +218,14 @@ export type LeadConvertedEvent = DomainEvent<'lead.converted', LeadConvertedPayl
 export interface LeadLostPayload {
   readonly phone: string;
   readonly hubspotContactId?: string;
-  readonly reason: 'no_response' | 'competitor' | 'price' | 'timing' | 'invalid' | 'duplicate' | 'other';
+  readonly reason:
+    | 'no_response'
+    | 'competitor'
+    | 'price'
+    | 'timing'
+    | 'invalid'
+    | 'duplicate'
+    | 'other';
   readonly reasonDetails?: string;
   readonly lastContactAt?: string;
   readonly totalTouchpoints: number;
@@ -244,7 +267,10 @@ export interface LeadMessageReceivedPayload {
   readonly containsBudgetMention: boolean;
 }
 
-export type LeadMessageReceivedEvent = DomainEvent<'lead.message_received', LeadMessageReceivedPayload>;
+export type LeadMessageReceivedEvent = DomainEvent<
+  'lead.message_received',
+  LeadMessageReceivedPayload
+>;
 
 // ============================================================================
 // LEAD SCHEDULING EVENTS
@@ -319,13 +345,15 @@ export type LeadEventType = LeadDomainEvent['type'];
 
 /**
  * Generate UUID v4 (browser and Node.js compatible)
+ * Provides fallback for environments without crypto.randomUUID
  */
 function generateUUID(): string {
   // Use crypto.randomUUID if available (Node 19+, modern browsers)
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Required for older runtimes
   if (typeof globalThis !== 'undefined' && globalThis.crypto?.randomUUID) {
     return globalThis.crypto.randomUUID();
   }
-  // Fallback to manual UUID v4 generation
+  // Fallback to manual UUID v4 generation for older environments
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
     const v = c === 'x' ? r : (r & 0x3) | 0x8;
@@ -335,6 +363,12 @@ function generateUUID(): string {
 
 /**
  * Create event metadata
+ *
+ * IDEMPOTENCY KEY DESIGN:
+ * - Uses UUID instead of Date.now() to guarantee uniqueness
+ * - Date.now() has 1ms precision which can cause collisions under high load (1000+ events/sec)
+ * - UUID v4 provides 122 bits of randomness, making collisions virtually impossible
+ * - Format: {source}-{correlationId}-{uuid} for debugging/tracing
  */
 export function createEventMetadata(
   correlationId: string,
@@ -346,7 +380,8 @@ export function createEventMetadata(
     eventId: generateUUID(),
     timestamp: new Date().toISOString(),
     correlationId,
-    idempotencyKey: `${source}-${correlationId}-${Date.now()}`,
+    // SECURITY FIX: Use UUID instead of Date.now() to prevent collisions under high load
+    idempotencyKey: `${source}-${correlationId}-${generateUUID()}`,
     version: 1,
     source,
   };
@@ -475,9 +510,7 @@ export function isLeadQualifiedEvent(event: LeadDomainEvent): event is LeadQuali
 /**
  * Type guard for LeadStatusChanged event
  */
-export function isLeadStatusChangedEvent(
-  event: LeadDomainEvent
-): event is LeadStatusChangedEvent {
+export function isLeadStatusChangedEvent(event: LeadDomainEvent): event is LeadStatusChangedEvent {
   return event.type === 'lead.status_changed';
 }
 
