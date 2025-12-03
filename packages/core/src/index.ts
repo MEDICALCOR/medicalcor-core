@@ -506,11 +506,13 @@ export {
 // circular dependencies with @medicalcor/domain. They exist as reference
 // implementations in src/repositories/ and can be imported directly if needed.
 //
-// Available implementations (not exported):
-// - PostgresSchedulingRepository: implements ISchedulingRepository
-// - SupabaseOsaxCaseRepository: implements IOsaxCaseRepository
+// Available implementations:
+// - PostgresSchedulingRepository: implements ISchedulingRepository (reference in core)
+// - PostgresConsentRepository: implements ConsentRepository (in @medicalcor/integrations)
+// - SupabaseOsaxCaseRepository: implements IOsaxCaseRepository (reference in core)
 //
-// To use, import directly from the file or implement your own adapter.
+// For PostgresConsentRepository, import from '@medicalcor/integrations'.
+// For others, import directly from the file or implement your own adapter.
 
 // ============================================================================
 // TYPE SYSTEM - State of the Art TypeScript Utilities

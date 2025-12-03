@@ -11,7 +11,6 @@ import crypto from 'crypto';
 import { createLogger, type Logger } from '@medicalcor/core';
 import type { ConsentRepository } from './consent-repository.js';
 import { InMemoryConsentRepository } from './consent-repository.js';
-import { PostgresConsentRepository } from './postgres-consent-repository.js';
 
 export type ConsentType =
   | 'data_processing' // General data processing consent
@@ -187,7 +186,7 @@ export class ConsentService {
     // Create audit entry using the actual saved consent ID (important for race condition handling)
     await this.createAuditEntry({
       consentId: savedConsent.id,
-      action: wasCreated ? 'created' : (status === 'withdrawn' ? 'withdrawn' : 'updated'),
+      action: wasCreated ? 'created' : status === 'withdrawn' ? 'withdrawn' : 'updated',
       previousStatus,
       newStatus: status,
       performedBy: 'system',
@@ -513,39 +512,34 @@ export function createConsentService(options?: ConsentServiceOptions): ConsentSe
 }
 
 /**
- * Database client interface for PostgresConsentRepository
- */
-export interface ConsentDatabaseClient {
-  query(sql: string, params?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
-}
-
-/**
- * Create a consent service with PostgreSQL persistence
+ * Create a consent service with a persistent repository
  * This is the recommended way to create a consent service for production use.
  *
- * @param db - Database client (from createDatabaseClient())
+ * NOTE: The repository must be created in the infrastructure layer and injected here.
+ * Use PostgresConsentRepository from '@medicalcor/core/repositories/postgres-consent-repository'.
+ *
+ * @param repository - A ConsentRepository implementation (e.g., PostgresConsentRepository)
  * @param config - Optional consent configuration overrides
- * @returns ConsentService with PostgreSQL persistence
+ * @returns ConsentService with the provided repository
  *
  * @example
  * ```typescript
  * import { createDatabaseClient } from '@medicalcor/core';
+ * import { PostgresConsentRepository } from '@medicalcor/core/repositories/postgres-consent-repository';
  * import { createPersistentConsentService } from '@medicalcor/domain';
  *
  * const db = createDatabaseClient();
- * const consentService = createPersistentConsentService(db);
+ * const repository = new PostgresConsentRepository(db);
+ * const consentService = createPersistentConsentService(repository);
  *
  * // Check if user has valid consent
  * const hasConsent = await consentService.hasValidConsent(contactId, 'data_processing');
  * ```
  */
 export function createPersistentConsentService(
-  db: ConsentDatabaseClient,
+  repository: ConsentRepository,
   config?: Partial<ConsentConfig>
 ): ConsentService {
-  // Use PostgresConsentRepository with the provided database client
-  const repository = new PostgresConsentRepository(db);
-
   const options: ConsentServiceOptions = { repository };
   if (config) {
     options.config = config;

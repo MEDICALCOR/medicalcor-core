@@ -13,6 +13,9 @@ import {
   createInMemoryEventStore,
   createDatabaseClient,
 } from '@medicalcor/core';
+// NOTE: PostgresConsentRepository is implemented here to avoid circular dependency issues
+// (core builds before domain, but repositories depend on domain types)
+import { PostgresConsentRepository } from './consent-repository-adapter.js';
 import { createHubSpotClient, type HubSpotClient } from './hubspot.js';
 import { createWhatsAppClient, type WhatsAppClient } from './whatsapp.js';
 import { createOpenAIClient, type OpenAIClient } from './openai.js';
@@ -308,7 +311,8 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
   if (includeConsent) {
     if (databaseUrl) {
       const db = createDatabaseClient(databaseUrl);
-      consent = createPersistentConsentService(db);
+      const repository = new PostgresConsentRepository(db);
+      consent = createPersistentConsentService(repository);
     } else {
       consent = createConsentService();
     }
