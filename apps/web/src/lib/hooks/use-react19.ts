@@ -46,8 +46,8 @@ export function useOptimisticState<TState, TAction>(
  * ```
  */
 export function useFormAction<TState>(
-  action: (prevState: TState, formData: FormData) => Promise<TState>,
-  initialState: TState
+  action: (prevState: Awaited<TState>, formData: FormData) => TState | Promise<TState>,
+  initialState: Awaited<TState>
 ) {
   return useActionState(action, initialState);
 }

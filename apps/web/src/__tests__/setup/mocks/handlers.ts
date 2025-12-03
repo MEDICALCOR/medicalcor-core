@@ -14,7 +14,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 export const handlers = [
   // Lead submission endpoint
   http.post(`${API_BASE}/api/leads`, async ({ request }) => {
-    const body = await request.json();
+    const body = (await request.json()) as { phone?: string; source?: string } | null;
 
     // Simulate successful lead creation
     return HttpResponse.json(
@@ -24,8 +24,8 @@ export const handlers = [
         referenceId: 'TEST1234',
         data: {
           id: 'lead_test_123',
-          phone: body.phone,
-          source: body.source ?? 'web',
+          phone: body?.phone,
+          source: body?.source ?? 'web',
           createdAt: new Date().toISOString(),
         },
       },

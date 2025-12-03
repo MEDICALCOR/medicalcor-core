@@ -119,6 +119,10 @@ export const NoChange: Story = {
 };
 
 export const DashboardGrid: Story = {
+  args: {
+    title: 'Dashboard Grid',
+    value: 0,
+  },
   decorators: [
     () => (
       <div className="grid grid-cols-2 gap-4 w-[640px]">
@@ -156,5 +160,5 @@ export const DashboardGrid: Story = {
       </div>
     ),
   ],
-  render: () => null,
+  render: () => <></>,
 };

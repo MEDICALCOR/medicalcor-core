@@ -53,12 +53,15 @@ class MockWebSocket {
 
 let mockWsInstance: MockWebSocket | null = null;
 
-vi.stubGlobal('WebSocket', class extends MockWebSocket {
-  constructor(url: string) {
-    super(url);
-    mockWsInstance = this;
+vi.stubGlobal(
+  'WebSocket',
+  class extends MockWebSocket {
+    constructor(url: string) {
+      super(url);
+      mockWsInstance = this;
+    }
   }
-});
+);
 
 describe('useWebSocket', () => {
   beforeEach(() => {
@@ -199,9 +202,9 @@ describe('useWebSocket', () => {
       })
     );
 
-    // Subscribe to lead_created events
+    // Subscribe to lead.created events
     act(() => {
-      result.current.subscribe('lead_created', handler);
+      result.current.subscribe('lead.created', handler);
     });
 
     act(() => {
@@ -210,16 +213,16 @@ describe('useWebSocket', () => {
       mockWsInstance?.simulateMessage({ type: 'auth_success' });
     });
 
-    // Simulate receiving a lead_created event
+    // Simulate receiving a lead.created event
     act(() => {
       mockWsInstance?.simulateMessage({
-        type: 'lead_created',
+        type: 'lead.created',
         data: { leadId: '123', name: 'Test Lead' },
       });
     });
 
     expect(handler).toHaveBeenCalledWith({
-      type: 'lead_created',
+      type: 'lead.created',
       data: { leadId: '123', name: 'Test Lead' },
     });
   });
@@ -261,7 +264,7 @@ describe('useWebSocket', () => {
 
     let unsubscribe: () => void;
     act(() => {
-      unsubscribe = result.current.subscribe('test_event', handler);
+      unsubscribe = result.current.subscribe('lead.updated', handler);
     });
 
     act(() => {
@@ -441,14 +444,14 @@ describe('useWebSocket', () => {
     );
 
     act(() => {
-      result.current.subscribe('test_event', handler);
+      result.current.subscribe('lead.updated', handler);
       result.current.connect();
       mockWsInstance?.simulateOpen();
     });
 
     // Send message before auth_success
     act(() => {
-      mockWsInstance?.simulateMessage({ type: 'test_event', data: {} });
+      mockWsInstance?.simulateMessage({ type: 'lead.updated', data: {} });
     });
 
     expect(handler).not.toHaveBeenCalled();

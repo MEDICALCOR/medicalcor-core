@@ -15,15 +15,21 @@ import { useRouter } from 'next/navigation';
  */
 
 // Type for the View Transitions API
-interface ViewTransition {
+// Note: We use a separate type instead of extending Document to avoid
+// conflicts with the native DOM ViewTransition types in newer TypeScript
+interface ViewTransitionResult {
   finished: Promise<void>;
   ready: Promise<void>;
   updateCallbackDone: Promise<void>;
   skipTransition: () => void;
 }
 
-interface DocumentWithViewTransition extends Document {
-  startViewTransition?: (callback: () => void | Promise<void>) => ViewTransition;
+// Type assertion helper for accessing startViewTransition
+type StartViewTransitionFn = (callback: () => void | Promise<void>) => ViewTransitionResult;
+
+// Type for document with startViewTransition
+interface DocumentWithViewTransition {
+  startViewTransition?: StartViewTransitionFn;
 }
 
 /**
@@ -94,7 +100,9 @@ export function useViewTransition() {
  * });
  * ```
  */
-export function startViewTransition(callback: () => void | Promise<void>): ViewTransition | null {
+export function startViewTransition(
+  callback: () => void | Promise<void>
+): ViewTransitionResult | null {
   const doc = document as DocumentWithViewTransition;
 
   if (!doc.startViewTransition) {
