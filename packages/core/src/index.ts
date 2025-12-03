@@ -284,7 +284,27 @@ export {
   withSchemaValidation,
   type SchemaValidatedEventStoreConfig,
   type SchemaViolation,
+  // Saga Repository
+  InMemorySagaRepository,
+  PostgresSagaRepository,
+  createSagaRepository,
+  createInMemorySagaRepository,
+  type SagaStatus,
+  type SagaState,
+  type SagaStepHistory,
+  type CreateSagaOptions,
+  type FindSagasOptions,
+  type SagaRepository,
 } from './cqrs/index.js';
+
+// Enhanced Dead Letter Queue with Circuit Breaker
+export {
+  EnhancedDeadLetterQueueService,
+  createEnhancedDeadLetterQueueService,
+  type EnhancedDLQConfig,
+  type EnhancedRetryResult,
+  type DLQHealthStatus,
+} from './enhanced-dead-letter-queue.js';
 
 // AI-First API Gateway
 export {

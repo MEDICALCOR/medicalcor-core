@@ -7,3 +7,6 @@ coverage
 pnpm-lock.yaml
 *.min.js
 *.min.css
+
+# Helm templates (contain Go template syntax)
+infrastructure/kubernetes/helm/**/templates/**

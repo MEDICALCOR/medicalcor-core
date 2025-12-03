@@ -209,3 +209,17 @@ export {
   type SchemaValidatedEventStoreConfig,
   type SchemaViolation,
 } from './schema-validated-event-store.js';
+
+// Saga Repository - Distributed transaction persistence
+export {
+  InMemorySagaRepository,
+  PostgresSagaRepository,
+  createSagaRepository,
+  createInMemorySagaRepository,
+  type SagaStatus,
+  type SagaState,
+  type SagaStepHistory,
+  type CreateSagaOptions,
+  type FindSagasOptions,
+  type SagaRepository,
+} from './saga-repository.js';

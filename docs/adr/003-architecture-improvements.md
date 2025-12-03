@@ -717,12 +717,14 @@ export const embeddingRefreshJob = schedules.task({
 - [x] Implement `EventSchemaRegistry` (packages/core/src/cqrs/event-schema-registry.ts)
 - [x] Implement `SchemaValidatedEventStore` (packages/core/src/cqrs/schema-validated-event-store.ts)
 
-### Phase 3 (Resilience)
+### Phase 3 (Resilience) - COMPLETED 2024-12-02
 
-- [ ] Create `20241202000003_add_saga_store.sql` migration
-- [ ] Implement `PostgresSagaRepository`
-- [ ] Add circuit breaker to DLQ
-- [ ] Create Kubernetes ServiceMonitor
+- [x] Create `20241202000003_add_saga_store.sql` migration
+- [x] Implement `PostgresSagaRepository` (packages/core/src/cqrs/saga-repository.ts)
+- [x] Implement `InMemorySagaRepository` for testing
+- [x] Add circuit breaker to DLQ (packages/core/src/enhanced-dead-letter-queue.ts)
+- [x] Create Kubernetes ServiceMonitor (infrastructure/kubernetes/helm/osax/templates/servicemonitor.yaml)
+- [x] Create PrometheusRule for alerting
 
 ### Phase 4 (AI/RAG)
 
