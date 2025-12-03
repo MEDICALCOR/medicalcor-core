@@ -1,0 +1,59 @@
+{{- /*
+============================================================================
+OSAX PodDisruptionBudget Template
+
+Ensures minimum availability during voluntary disruptions
+(node drains, cluster upgrades, etc.)
+============================================================================
+*/ -}}
+{{- if .Values.app.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "osax.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "osax.labels" . | nindent 4 }}
+spec:
+  {{- if .Values.app.pdb.minAvailable }}
+  minAvailable: {{ .Values.app.pdb.minAvailable }}
+  {{- else if .Values.app.pdb.maxUnavailable }}
+  maxUnavailable: {{ .Values.app.pdb.maxUnavailable }}
+  {{- else }}
+  # Default: ensure at least 2 pods are always available
+  minAvailable: 2
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "osax.selectorLabels" . | nindent 6 }}
+{{- end }}
+---
+{{- /*
+============================================================================
+Worker PodDisruptionBudget (if worker is enabled)
+============================================================================
+*/ -}}
+{{- if and .Values.worker.enabled .Values.worker.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "osax.fullname" . }}-worker
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "osax.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  {{- if .Values.worker.pdb.minAvailable }}
+  minAvailable: {{ .Values.worker.pdb.minAvailable }}
+  {{- else if .Values.worker.pdb.maxUnavailable }}
+  maxUnavailable: {{ .Values.worker.pdb.maxUnavailable }}
+  {{- else }}
+  # Default: ensure at least 1 worker is always available
+  minAvailable: 1
+  {{- end }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "osax.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: worker
+{{- end }}

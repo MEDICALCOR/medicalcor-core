@@ -1,0 +1,57 @@
+{{- /*
+============================================================================
+OSAX Service Template
+
+Kubernetes Service for pod discovery and load balancing.
+Exposes HTTP and metrics ports.
+============================================================================
+*/ -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "osax.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "osax.labels" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type | default "ClusterIP" }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port | default 80 }}
+      targetPort: {{ .Values.service.targetPort | default 3000 }}
+      protocol: TCP
+    - name: metrics
+      port: {{ .Values.app.ports.metrics | default 9090 }}
+      targetPort: {{ .Values.app.ports.metrics | default 9090 }}
+      protocol: TCP
+  selector:
+    {{- include "osax.selectorLabels" . | nindent 4 }}
+---
+{{- /*
+============================================================================
+Headless Service for StatefulSet-style discovery (optional)
+============================================================================
+*/ -}}
+{{- if .Values.service.headless }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "osax.fullname" . }}-headless
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "osax.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: http
+      port: {{ .Values.app.ports.http | default 3000 }}
+      targetPort: {{ .Values.app.ports.http | default 3000 }}
+      protocol: TCP
+  selector:
+    {{- include "osax.selectorLabels" . | nindent 4 }}
+{{- end }}
