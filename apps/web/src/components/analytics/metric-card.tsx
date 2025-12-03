@@ -1,5 +1,6 @@
 'use client';
 
+import { memo, useMemo } from 'react';
 import { TrendingUp, TrendingDown, Minus, type LucideIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -16,7 +17,7 @@ interface MetricCardProps {
   suffix?: string;
 }
 
-export function MetricCard({
+export const MetricCard = memo(function MetricCard({
   title,
   value,
   change,
@@ -93,4 +94,6 @@ export function MetricCard({
       </CardContent>
     </Card>
   );
-}
+});
+
+MetricCard.displayName = 'MetricCard';
