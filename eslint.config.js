@@ -14,6 +14,8 @@ export default tseslint.config(
       '**/coverage/**',
       '**/*.test.ts',
       '**/__tests__/**',
+      '**/.storybook/**',
+      '**/*.stories.tsx',
       'scripts/**', // CLI scripts have different requirements
       // Files excluded from tsconfig due to cyclic dependency with @medicalcor/domain
       'packages/core/src/clinical/**',
