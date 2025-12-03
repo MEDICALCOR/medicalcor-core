@@ -95,29 +95,28 @@ export class SecurityAnalyzer {
 
   private async analyzeRLSPolicies(): Promise<string[]> {
     const policies: string[] = [];
-    const migrationsPath = join(this.config.rootPath, 'db/migrations');
-    const supabasePath = join(this.config.rootPath, 'supabase/migrations');
+    const migrationsPath = join(this.config.rootPath, 'supabase/migrations');
 
-    for (const path of [migrationsPath, supabasePath]) {
-      try {
-        const files = await this.getAllFiles(path, ['.sql']);
+    try {
+      const files = await this.getAllFiles(migrationsPath, ['.sql']);
 
-        for (const file of files) {
-          const content = await readFile(file, 'utf-8');
-          const relativePath = relative(this.config.rootPath, file);
+      for (const file of files) {
+        const content = await readFile(file, 'utf-8');
+        const relativePath = relative(this.config.rootPath, file);
 
-          // Check for RLS policies
-          if (
-            content.toUpperCase().includes('CREATE POLICY') ||
-            content.toUpperCase().includes('ALTER TABLE') &&
-            content.toUpperCase().includes('ENABLE ROW LEVEL SECURITY')
-          ) {
-            policies.push(relativePath);
-          }
+        // Check for RLS policies
+        if (
+          content.toUpperCase().includes('CREATE POLICY') ||
+          content.toUpperCase().includes('ALTER TABLE') &&
+          content.toUpperCase().includes('ENABLE ROW LEVEL SECURITY')
+        ) {
+          policies.push(relativePath);
         }
-      } catch (error) {
-        // Directory might not exist
-        continue;
+      }
+    } catch (error) {
+      // Directory might not exist
+      if (this.config.verbose) {
+        console.warn('Error analyzing RLS policies:', error);
       }
     }
 
@@ -256,7 +255,7 @@ export class SecurityAnalyzer {
     const rootPath = this.config.rootPath;
 
     // Check for encryption in database schemas
-    const schemaFiles = await this.getAllFiles(join(rootPath, 'db/migrations'), ['.sql']);
+    const schemaFiles = await this.getAllFiles(join(rootPath, 'supabase/migrations'), ['.sql']);
 
     for (const file of schemaFiles) {
       const content = await readFile(file, 'utf-8');
