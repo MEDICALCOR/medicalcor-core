@@ -65,8 +65,10 @@ export const HttpStatusCodes = {
 
 export type HttpStatusCode = (typeof HttpStatusCodes)[keyof typeof HttpStatusCodes];
 export type SuccessStatusCode = (typeof SuccessStatusCodes)[keyof typeof SuccessStatusCodes];
-export type ClientErrorStatusCode = (typeof ClientErrorStatusCodes)[keyof typeof ClientErrorStatusCodes];
-export type ServerErrorStatusCode = (typeof ServerErrorStatusCodes)[keyof typeof ServerErrorStatusCodes];
+export type ClientErrorStatusCode =
+  (typeof ClientErrorStatusCodes)[keyof typeof ClientErrorStatusCodes];
+export type ServerErrorStatusCode =
+  (typeof ServerErrorStatusCodes)[keyof typeof ServerErrorStatusCodes];
 
 // =============================================================================
 // ERROR CODES - Domain-Specific
@@ -183,51 +185,56 @@ export function createApiError(
 }
 
 /**
+ * Error code to HTTP status mapping
+ */
+const ERROR_CODE_STATUS_MAP: Record<ErrorCode, HttpStatusCode> = {
+  // 400 Bad Request
+  VALIDATION_ERROR: 400,
+  INVALID_INPUT: 400,
+  MISSING_FIELD: 400,
+  INVALID_FORMAT: 400,
+  BUSINESS_RULE_VIOLATION: 400,
+  INVALID_STATE_TRANSITION: 400,
+  OPERATION_NOT_ALLOWED: 400,
+  // 401 Unauthorized
+  UNAUTHENTICATED: 401,
+  INVALID_TOKEN: 401,
+  TOKEN_EXPIRED: 401,
+  // 403 Forbidden
+  UNAUTHORIZED: 403,
+  INSUFFICIENT_PERMISSIONS: 403,
+  RESOURCE_ACCESS_DENIED: 403,
+  // 404 Not Found
+  NOT_FOUND: 404,
+  LEAD_NOT_FOUND: 404,
+  PATIENT_NOT_FOUND: 404,
+  APPOINTMENT_NOT_FOUND: 404,
+  // 409 Conflict
+  CONFLICT: 409,
+  DUPLICATE_ENTRY: 409,
+  RESOURCE_ALREADY_EXISTS: 409,
+  OPTIMISTIC_LOCK_FAILURE: 409,
+  // 429 Too Many Requests
+  RATE_LIMIT_EXCEEDED: 429,
+  QUOTA_EXCEEDED: 429,
+  // 500 Internal Server Error
+  INTERNAL_ERROR: 500,
+  DATABASE_ERROR: 500,
+  CONFIGURATION_ERROR: 500,
+  UNKNOWN_ERROR: 500,
+  // 502 Bad Gateway
+  EXTERNAL_SERVICE_ERROR: 502,
+  HUBSPOT_ERROR: 502,
+  STRIPE_ERROR: 502,
+  WHATSAPP_ERROR: 502,
+  TWILIO_ERROR: 502,
+};
+
+/**
  * Maps error code to HTTP status
  */
 export function mapErrorCodeToStatus(code: ErrorCode): HttpStatusCode {
-  switch (code) {
-    case 'VALIDATION_ERROR':
-    case 'INVALID_INPUT':
-    case 'MISSING_FIELD':
-    case 'INVALID_FORMAT':
-    case 'BUSINESS_RULE_VIOLATION':
-    case 'INVALID_STATE_TRANSITION':
-    case 'OPERATION_NOT_ALLOWED':
-      return 400;
-    case 'UNAUTHENTICATED':
-    case 'INVALID_TOKEN':
-    case 'TOKEN_EXPIRED':
-      return 401;
-    case 'UNAUTHORIZED':
-    case 'INSUFFICIENT_PERMISSIONS':
-    case 'RESOURCE_ACCESS_DENIED':
-      return 403;
-    case 'NOT_FOUND':
-    case 'LEAD_NOT_FOUND':
-    case 'PATIENT_NOT_FOUND':
-    case 'APPOINTMENT_NOT_FOUND':
-      return 404;
-    case 'CONFLICT':
-    case 'DUPLICATE_ENTRY':
-    case 'RESOURCE_ALREADY_EXISTS':
-    case 'OPTIMISTIC_LOCK_FAILURE':
-      return 409;
-    case 'RATE_LIMIT_EXCEEDED':
-    case 'QUOTA_EXCEEDED':
-      return 429;
-    case 'INTERNAL_ERROR':
-    case 'DATABASE_ERROR':
-    case 'CONFIGURATION_ERROR':
-    case 'UNKNOWN_ERROR':
-      return 500;
-    case 'EXTERNAL_SERVICE_ERROR':
-    case 'HUBSPOT_ERROR':
-    case 'STRIPE_ERROR':
-    case 'WHATSAPP_ERROR':
-    case 'TWILIO_ERROR':
-      return 502;
-  }
+  return ERROR_CODE_STATUS_MAP[code];
 }
 
 // =============================================================================
@@ -346,7 +353,11 @@ export function validationError(
   message = 'Validation failed',
   traceId?: string
 ): ApiErrorResponse {
-  const opts: { statusCode: HttpStatusCode; fieldErrors: Record<string, string[]>; traceId?: string } = {
+  const opts: {
+    statusCode: HttpStatusCode;
+    fieldErrors: Record<string, string[]>;
+    traceId?: string;
+  } = {
     statusCode: 400,
     fieldErrors,
   };
@@ -357,14 +368,8 @@ export function validationError(
 /**
  * Creates a not found error response
  */
-export function notFoundError(
-  resource: string,
-  id?: string,
-  traceId?: string
-): ApiErrorResponse {
-  const message = id
-    ? `${resource} with ID '${id}' not found`
-    : `${resource} not found`;
+export function notFoundError(resource: string, id?: string, traceId?: string): ApiErrorResponse {
+  const message = id ? `${resource} with ID '${id}' not found` : `${resource} not found`;
   const details: Record<string, unknown> = { resource };
   if (id !== undefined) details.id = id;
   const opts: { statusCode: HttpStatusCode; details: Record<string, unknown>; traceId?: string } = {
@@ -378,10 +383,7 @@ export function notFoundError(
 /**
  * Creates an unauthorized error response
  */
-export function unauthorizedError(
-  message = 'Unauthorized',
-  traceId?: string
-): ApiErrorResponse {
+export function unauthorizedError(message = 'Unauthorized', traceId?: string): ApiErrorResponse {
   const opts: { statusCode: HttpStatusCode; traceId?: string } = { statusCode: 401 };
   if (traceId !== undefined) opts.traceId = traceId;
   return error(createApiError('UNAUTHENTICATED', message, opts));
@@ -390,10 +392,7 @@ export function unauthorizedError(
 /**
  * Creates a forbidden error response
  */
-export function forbiddenError(
-  message = 'Access denied',
-  traceId?: string
-): ApiErrorResponse {
+export function forbiddenError(message = 'Access denied', traceId?: string): ApiErrorResponse {
   const opts: { statusCode: HttpStatusCode; traceId?: string } = { statusCode: 403 };
   if (traceId !== undefined) opts.traceId = traceId;
   return error(createApiError('UNAUTHORIZED', message, opts));
@@ -407,7 +406,8 @@ export function internalError(
   traceId?: string,
   details?: Record<string, unknown>
 ): ApiErrorResponse {
-  const opts: { statusCode: HttpStatusCode; traceId?: string; details?: Record<string, unknown> } = { statusCode: 500 };
+  const opts: { statusCode: HttpStatusCode; traceId?: string; details?: Record<string, unknown> } =
+    { statusCode: 500 };
   if (traceId !== undefined) opts.traceId = traceId;
   if (details !== undefined) opts.details = details;
   return error(createApiError('INTERNAL_ERROR', message, opts));
@@ -495,10 +495,17 @@ export const ResponseMetaSchema = z.object({
  */
 export function createApiResponseSchema<T extends z.ZodTypeAny>(
   dataSchema: T
-): z.ZodDiscriminatedUnion<'success', [
-  z.ZodObject<{ success: z.ZodLiteral<true>; data: T; meta: z.ZodOptional<typeof ResponseMetaSchema> }>,
-  z.ZodObject<{ success: z.ZodLiteral<false>; error: typeof ApiErrorSchema }>
-]> {
+): z.ZodDiscriminatedUnion<
+  'success',
+  [
+    z.ZodObject<{
+      success: z.ZodLiteral<true>;
+      data: T;
+      meta: z.ZodOptional<typeof ResponseMetaSchema>;
+    }>,
+    z.ZodObject<{ success: z.ZodLiteral<false>; error: typeof ApiErrorSchema }>,
+  ]
+> {
   return z.discriminatedUnion('success', [
     z.object({
       success: z.literal(true),
@@ -528,9 +535,7 @@ export const PaginationMetaSchema = z.object({
 /**
  * Creates a paginated response schema
  */
-export function createPaginatedResponseSchema<T extends z.ZodTypeAny>(
-  itemSchema: T
-) {
+export function createPaginatedResponseSchema<T extends z.ZodTypeAny>(itemSchema: T) {
   return createApiResponseSchema(
     z.object({
       items: z.array(itemSchema),
@@ -546,10 +551,7 @@ export function createPaginatedResponseSchema<T extends z.ZodTypeAny>(
 /**
  * Maps a successful response's data
  */
-export function mapResponse<T, U>(
-  response: ApiResponse<T>,
-  fn: (data: T) => U
-): ApiResponse<U> {
+export function mapResponse<T, U>(response: ApiResponse<T>, fn: (data: T) => U): ApiResponse<U> {
   if (isSuccessResponse(response)) {
     return success(fn(response.data), response.meta);
   }
@@ -630,10 +632,7 @@ export function recoverResponse<T>(
 /**
  * Wraps a Promise into an API response
  */
-export async function wrapAsync<T>(
-  promise: Promise<T>,
-  traceId?: string
-): Promise<ApiResponse<T>> {
+export async function wrapAsync<T>(promise: Promise<T>, traceId?: string): Promise<ApiResponse<T>> {
   try {
     const data = await promise;
     const meta: Partial<ResponseMeta> = {};
@@ -648,10 +647,7 @@ export async function wrapAsync<T>(
 /**
  * Wraps a function that might throw into an API response
  */
-export function wrapSync<T>(
-  fn: () => T,
-  traceId?: string
-): ApiResponse<T> {
+export function wrapSync<T>(fn: () => T, traceId?: string): ApiResponse<T> {
   try {
     const meta: Partial<ResponseMeta> = {};
     if (traceId !== undefined) meta.traceId = traceId;
@@ -692,8 +688,8 @@ export interface BatchResponse<T> {
 export function batchSuccess<T>(
   results: BatchItemResult<T>[]
 ): ApiSuccessResponse<BatchResponse<T>> {
-  const succeeded = results.filter(r => isSuccessResponse(r.result));
-  const failed = results.filter(r => isErrorResponse(r.result));
+  const succeeded = results.filter((r) => isSuccessResponse(r.result));
+  const failed = results.filter((r) => isErrorResponse(r.result));
 
   return success({
     succeeded,

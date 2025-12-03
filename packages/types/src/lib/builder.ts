@@ -11,6 +11,9 @@
  * @version 2.0.0
  */
 
+/* eslint-disable @typescript-eslint/no-non-null-assertion -- builder pattern requires assertions for partial data */
+/* eslint-disable @typescript-eslint/no-dynamic-delete -- schema builder needs dynamic field removal */
+
 import { z } from 'zod';
 import type { LeadId, TraceId, E164PhoneNumber, EmailAddress } from './primitives.js';
 import { createLeadId, createTraceId } from './primitives.js';
@@ -36,6 +39,7 @@ import { createLeadId, createTraceId } from './primitives.js';
  * // Works!
  * personBuilder.set('name', 'John').set('age', 30).build();
  */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- intentional: {} represents empty starting state
 export class TypeSafeBuilder<TFinal, TCurrent extends Partial<TFinal> = {}> {
   private data: TCurrent;
 
@@ -81,6 +85,7 @@ export class TypeSafeBuilder<TFinal, TCurrent extends Partial<TFinal> = {}> {
  * Creates a new type-safe builder
  */
 export function createBuilder<T>(): TypeSafeBuilder<T> {
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- intentional: starts with empty state
   return new TypeSafeBuilder<T, {}>();
 }
 
@@ -97,7 +102,15 @@ export interface LeadData {
   email?: EmailAddress;
   firstName?: string;
   lastName?: string;
-  source: 'whatsapp' | 'voice' | 'web_form' | 'hubspot' | 'facebook' | 'google' | 'referral' | 'manual';
+  source:
+    | 'whatsapp'
+    | 'voice'
+    | 'web_form'
+    | 'hubspot'
+    | 'facebook'
+    | 'google'
+    | 'referral'
+    | 'manual';
   status: 'new' | 'contacted' | 'qualified' | 'nurturing' | 'scheduled' | 'converted' | 'lost';
   priority?: 'critical' | 'high' | 'medium' | 'low';
   clinicId?: string;
@@ -128,7 +141,9 @@ interface LeadBuilderState {
  *   .withName('John', 'Doe')
  *   .build();
  */
-export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; hasSource: false; hasStatus: false }> {
+export class LeadBuilder<
+  TState extends LeadBuilderState = { hasPhone: false; hasSource: false; hasStatus: false },
+> {
   private data: Partial<LeadData>;
 
   private constructor(data: Partial<LeadData> = {}) {
@@ -258,9 +273,7 @@ export class LeadBuilder<TState extends LeadBuilderState = { hasPhone: false; ha
   /**
    * Builds the Lead (only available when all required fields are set)
    */
-  build(
-    this: LeadBuilder<{ hasPhone: true; hasSource: true; hasStatus: true }>
-  ): LeadData {
+  build(this: LeadBuilder<{ hasPhone: true; hasSource: true; hasStatus: true }>): LeadData {
     const data = this.data as LeadData;
     return {
       ...data,
@@ -309,7 +322,7 @@ export interface EventData<TType extends string, TPayload> {
 export class EventBuilder<
   TType extends string,
   TPayload = undefined,
-  TState extends { hasPayload: boolean } = { hasPayload: false }
+  TState extends { hasPayload: boolean } = { hasPayload: false },
 > {
   private data: Partial<EventData<TType, TPayload>>;
 
@@ -385,9 +398,7 @@ export class EventBuilder<
   /**
    * Builds the event (requires payload)
    */
-  build(
-    this: EventBuilder<TType, TPayload, { hasPayload: true }>
-  ): EventData<TType, TPayload> {
+  build(this: EventBuilder<TType, TPayload, { hasPayload: true }>): EventData<TType, TPayload> {
     return this.data as EventData<TType, TPayload>;
   }
 }
@@ -427,11 +438,15 @@ export interface ApiRequestConfig<TBody = unknown> {
 export class ApiRequestBuilder<
   TMethod extends HttpMethod = 'GET',
   TBody = undefined,
-  TState extends { hasAuth: boolean } = { hasAuth: false }
+  TState extends { hasAuth: boolean } = { hasAuth: false },
 > {
   private config: Partial<ApiRequestConfig<TBody>>;
 
-  private constructor(method: TMethod, path: string, config: Partial<ApiRequestConfig<TBody>> = {}) {
+  private constructor(
+    method: TMethod,
+    path: string,
+    config: Partial<ApiRequestConfig<TBody>> = {}
+  ) {
     this.config = {
       method,
       path,
@@ -478,7 +493,10 @@ export class ApiRequestBuilder<
   /**
    * Adds authentication header
    */
-  withAuth(token: string, type: 'Bearer' | 'Basic' = 'Bearer'): ApiRequestBuilder<TMethod, TBody, { hasAuth: true }> {
+  withAuth(
+    token: string,
+    type: 'Bearer' | 'Basic' = 'Bearer'
+  ): ApiRequestBuilder<TMethod, TBody, { hasAuth: true }> {
     return new ApiRequestBuilder(this.config.method as TMethod, this.config.path!, {
       ...this.config,
       headers: {
@@ -518,7 +536,9 @@ export class ApiRequestBuilder<
   /**
    * Adds query parameters
    */
-  withQuery(query: Record<string, string | number | boolean>): ApiRequestBuilder<TMethod, TBody, TState> {
+  withQuery(
+    query: Record<string, string | number | boolean>
+  ): ApiRequestBuilder<TMethod, TBody, TState> {
     return new ApiRequestBuilder(this.config.method as TMethod, this.config.path!, {
       ...this.config,
       query: { ...this.config.query, ...query },
@@ -574,6 +594,7 @@ export class ApiRequestBuilder<
  *   .optional('phone', z.string())
  *   .build();
  */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- intentional: {} represents empty schema state
 export class SchemaBuilder<T extends z.ZodRawShape = {}> {
   private shape: T;
 
@@ -695,7 +716,16 @@ export class SchemaBuilder<T extends z.ZodRawShape = {}> {
 /**
  * Filter operators
  */
-export type FilterOperator = 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'contains' | 'startsWith';
+export type FilterOperator =
+  | 'eq'
+  | 'neq'
+  | 'gt'
+  | 'gte'
+  | 'lt'
+  | 'lte'
+  | 'in'
+  | 'contains'
+  | 'startsWith';
 
 /**
  * Filter condition

@@ -9,6 +9,7 @@
 
 import { CircuitBreakerRegistry, createEventStore } from '@medicalcor/core';
 import type { EventStore } from '@medicalcor/core';
+import { InMemoryConsentRepository } from '@medicalcor/core/repositories';
 import type { ScoringService, TriageService, ConsentService } from '@medicalcor/domain';
 import {
   createScoringService,
@@ -504,7 +505,9 @@ export function createEnhancedIntegrationClients(
   }
 
   if (config.includeConsent !== false) {
-    consent = createConsentService();
+    // Use in-memory repository for development/testing
+    const inMemoryRepository = new InMemoryConsentRepository();
+    consent = createConsentService({ repository: inMemoryRepository });
   }
 
   if (config.includeTemplateCatalog !== false && whatsapp) {

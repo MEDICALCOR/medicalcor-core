@@ -40,13 +40,27 @@ import {
   getDashboardStatsAction,
   getPatientByIdAction,
 } from '@/app/actions/patients/index';
-import { requirePermission, requirePatientAccess, AuthorizationError } from '@/lib/auth/server-action-auth';
+import {
+  requirePermission,
+  requirePatientAccess,
+  AuthorizationError,
+} from '@/lib/auth/server-action-auth';
+
+const mockSession = {
+  user: {
+    id: 'user_123',
+    email: 'test@example.com',
+    name: 'Test User',
+    role: 'admin' as const,
+  },
+  expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+};
 
 describe('Patient Server Actions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(requirePermission).mockResolvedValue();
-    vi.mocked(requirePatientAccess).mockResolvedValue();
+    vi.mocked(requirePermission).mockResolvedValue(mockSession);
+    vi.mocked(requirePatientAccess).mockResolvedValue(undefined);
   });
 
   describe('getPatientsActionPaginated', () => {
@@ -139,9 +153,7 @@ describe('Patient Server Actions', () => {
     });
 
     it('throws AuthorizationError when permission denied', async () => {
-      vi.mocked(requirePermission).mockRejectedValue(
-        new AuthorizationError('Permission denied')
-      );
+      vi.mocked(requirePermission).mockRejectedValue(new AuthorizationError('Permission denied'));
 
       await expect(getPatientsActionPaginated()).rejects.toThrow(AuthorizationError);
     });
@@ -208,7 +220,7 @@ describe('Patient Server Actions', () => {
       // Mock HubSpot responses
       mockHubSpotClient.searchContacts
         .mockResolvedValueOnce({ total: 150 }) // leads
-        .mockResolvedValueOnce({ total: 45 })  // patients
+        .mockResolvedValueOnce({ total: 45 }) // patients
         .mockResolvedValueOnce({ total: 12 }); // urgent
 
       // Mock scheduling service

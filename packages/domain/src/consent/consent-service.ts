@@ -14,9 +14,6 @@
 
 import { generatePrefixedId } from '../shared-kernel/utils/uuid.js';
 import type { ConsentRepository } from './consent-repository.js';
-import crypto from 'crypto';
-import type { ConsentRepository } from './consent-repository.js';
-import { InMemoryConsentRepository } from './consent-repository.js';
 
 /**
  * Logger interface for dependency injection
@@ -33,7 +30,6 @@ export interface ConsentLogger {
  * No-op logger for when no logger is provided
  * Used in development/testing environments
  */
-
 const noopLogger: ConsentLogger = {
   info: () => {
     /* intentionally empty */
@@ -168,46 +164,20 @@ export interface ConsentServiceOptions {
    * const logger = createLogger({ name: 'consent-service' });
    * const service = new ConsentService({ repository, logger });
    * ```
-   * const service = new ConsentService({ logger });
-   * ```
    */
   logger?: ConsentLogger;
   /**
    * Whether the application is running in production mode.
-   * When true, a persistent repository is required.
+   * When true, stricter validation may be applied.
    * This should be injected by the infrastructure layer rather than read from process.env.
    */
-  logger?: ConsentLogger;
+  isProduction?: boolean;
 }
 
 export class ConsentService {
   private config: ConsentConfig;
   private repository: ConsentRepository;
   private logger: ConsentLogger;
-
-  constructor(options?: ConsentServiceOptions) {
-    this.config = { ...DEFAULT_CONFIG, ...options?.config };
-
-    // HEXAGONAL ARCHITECTURE: Logger is injected to maintain domain purity
-    // If no logger provided, use no-op logger (silent operation)
-    this.logger = options?.logger ?? noopLogger;
-
-    // CRITICAL SECURITY CHECK: In production, a persistent repository is REQUIRED
-    // Using in-memory storage for GDPR consent data is a compliance violation
-    // NOTE: isProduction is now injected via options to avoid framework/env dependency in domain layer
-    const isProduction = options?.isProduction ?? false;
-
-    if (!options?.repository) {
-      if (isProduction) {
-        // FAIL FAST in production - this is a critical configuration error
-        // GDPR consent data MUST be persisted to survive restarts
-        const errorMessage =
-          'CRITICAL: ConsentService requires a persistent repository in production. ' +
-          'In-memory storage would cause GDPR compliance violations as consent records ' +
-          'would be lost on restart. Please configure PostgresConsentRepository.';
-        this.logger.fatal(errorMessage);
-        throw new Error(errorMessage);
-      }
 
   /**
    * Creates a ConsentService with required repository injection.

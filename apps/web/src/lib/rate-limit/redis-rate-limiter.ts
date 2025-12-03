@@ -152,9 +152,9 @@ function checkMemoryRateLimit(key: string, config: RateLimitConfig): RateLimitRe
 async function checkRedisRateLimit(key: string, config: RateLimitConfig): Promise<RateLimitResult> {
   try {
     // Dynamic import to avoid issues when Redis isn't configured
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const redisModule = await import('@medicalcor/core/infrastructure/redis-client');
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+
+    const redisModule = await import('@medicalcor/core');
+
     const redis = redisModule.createRedisClientFromEnv() as RedisClientInterface | null;
 
     if (redis === null) {

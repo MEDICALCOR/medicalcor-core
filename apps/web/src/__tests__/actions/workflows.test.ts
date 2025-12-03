@@ -129,6 +129,7 @@ describe('Workflow Server Actions', () => {
         name: 'New Workflow',
         triggerType: 'new_lead',
         steps: [],
+        isActive: true,
       });
 
       expect(mockRequirePermission).toHaveBeenCalledWith('workflows:write');
@@ -140,6 +141,7 @@ describe('Workflow Server Actions', () => {
           name: '', // Invalid: empty name
           triggerType: 'new_lead',
           steps: [],
+          isActive: true,
         })
       ).rejects.toThrow();
     });

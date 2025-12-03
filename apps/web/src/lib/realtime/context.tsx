@@ -22,7 +22,7 @@ import type {
   UrgencyPayload,
 } from './types';
 
-interface Lead {
+export interface Lead {
   id: string;
   phone: string;
   source: 'whatsapp' | 'voice' | 'web';
@@ -35,6 +35,9 @@ interface Lead {
   procedureInterest?: string[];
   appointment?: string;
 }
+
+/** Alias for Lead - used by live-feed component */
+export type RealtimeLead = Lead;
 
 interface Urgency {
   id: string;
