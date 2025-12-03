@@ -223,6 +223,4 @@ export {
   type FindSagasOptions,
   type SagaRepository,
 } from './saga-repository.js';
-  type ProjectionHealth,
-  type ProjectionHealthConfig,
-} from './projection-health.js';
+export { type ProjectionHealth, type ProjectionHealthConfig } from './projection-health.js';
