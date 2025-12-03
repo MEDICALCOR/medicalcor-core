@@ -237,7 +237,7 @@ export class SecurityAnalyzer {
           issues.push({
             category: 'SECURITY',
             title: `Potential ${secretType} in source code`,
-            description: `File contains what appears to be a ${secretType}`,
+            description: `File contains what appears to be a ${secretType}: "${match[0]}"`,
             filePath: relativePath,
             impact: 'Critical security vulnerability, credentials exposure',
             priority: 'HIGH',
