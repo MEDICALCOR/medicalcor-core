@@ -1,6 +1,7 @@
 import { task, logger, wait } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
 import crypto from 'crypto';
+import { IdempotencyKeys } from '@medicalcor/core';
 import {
   createIntegrationClients,
   type TimeSlot,
@@ -133,12 +134,17 @@ export const patientJourneyWorkflow = task({
       logger.info('Warm lead: Starting nurture sequence', { correlationId });
 
       // Trigger nurture sequence for warm leads
-      await nurtureSequenceWorkflow.trigger({
-        phone,
-        hubspotContactId,
-        sequenceType: 'warm_lead',
-        correlationId: `${correlationId}_nurture`,
-      });
+      await nurtureSequenceWorkflow.trigger(
+        {
+          phone,
+          hubspotContactId,
+          sequenceType: 'warm_lead',
+          correlationId: `${correlationId}_nurture`,
+        },
+        {
+          idempotencyKey: IdempotencyKeys.nurtureSequence(hubspotContactId, 'warm_lead'),
+        }
+      );
 
       // Send initial warm lead message
       if (whatsapp) {
@@ -159,12 +165,17 @@ export const patientJourneyWorkflow = task({
       });
 
       // Trigger cold lead nurture sequence
-      await nurtureSequenceWorkflow.trigger({
-        phone,
-        hubspotContactId,
-        sequenceType: 'cold_lead',
-        correlationId: `${correlationId}_nurture`,
-      });
+      await nurtureSequenceWorkflow.trigger(
+        {
+          phone,
+          hubspotContactId,
+          sequenceType: 'cold_lead',
+          correlationId: `${correlationId}_nurture`,
+        },
+        {
+          idempotencyKey: IdempotencyKeys.nurtureSequence(hubspotContactId, 'cold_lead'),
+        }
+      );
 
       // Send initial informational message
       if (whatsapp) {

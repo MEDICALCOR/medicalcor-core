@@ -1,6 +1,6 @@
 import { task, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
-import { normalizeRomanianPhone } from '@medicalcor/core';
+import { normalizeRomanianPhone, IdempotencyKeys } from '@medicalcor/core';
 import {
   createIntegrationClients,
   formatTranscriptForCRM,
@@ -499,6 +499,7 @@ export const handleVapiWebhook = task({
     // when Vapi sends duplicate webhooks on timeout/retry
     try {
       await processPostCall.trigger(postCallPayload, {
+        idempotencyKey: IdempotencyKeys.vapiWebhook(call.id),
         idempotencyKey: `vapi-postcall-${call.id}`,
       });
       logger.info('Post-call processing triggered', { callId: call.id, correlationId });

@@ -9,6 +9,7 @@
 
 import { task, logger, wait } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
+import { IdempotencyKeys } from '@medicalcor/core';
 
 // ============================================================================
 // SCHEMAS
@@ -78,25 +79,35 @@ export const osaxJourneyWorkflow = task({
     // Handle based on severity
     if (severity === 'SEVERE' || cardiovascularRisk === 'CRITICAL') {
       // Urgent case - immediate escalation
-      await osaxUrgentReviewWorkflow.trigger({
-        caseId,
-        caseNumber,
-        severity,
-        cardiovascularRisk,
-        ahi,
-        correlationId: `${correlationId}_urgent`,
-      });
+      await osaxUrgentReviewWorkflow.trigger(
+        {
+          caseId,
+          caseNumber,
+          severity,
+          cardiovascularRisk,
+          ahi,
+          correlationId: `${correlationId}_urgent`,
+        },
+        {
+          idempotencyKey: IdempotencyKeys.custom('osax-urgent', caseId),
+        }
+      );
 
       logger.info('Triggered urgent review workflow', { correlationId });
     } else {
       // Standard case - schedule review
-      await osaxStandardReviewWorkflow.trigger({
-        caseId,
-        caseNumber,
-        severity,
-        treatmentRecommendation,
-        correlationId: `${correlationId}_standard`,
-      });
+      await osaxStandardReviewWorkflow.trigger(
+        {
+          caseId,
+          caseNumber,
+          severity,
+          treatmentRecommendation,
+          correlationId: `${correlationId}_standard`,
+        },
+        {
+          idempotencyKey: IdempotencyKeys.custom('osax-standard', caseId),
+        }
+      );
 
       logger.info('Triggered standard review workflow', { correlationId });
     }
@@ -119,13 +130,18 @@ export const osaxJourneyWorkflow = task({
     if (severity !== 'NONE') {
       logger.info('Stage 3: Initiating treatment planning', { correlationId });
 
-      await osaxTreatmentPlanningWorkflow.trigger({
-        caseId,
-        caseNumber,
-        severity,
-        treatmentRecommendation,
-        correlationId: `${correlationId}_treatment`,
-      });
+      await osaxTreatmentPlanningWorkflow.trigger(
+        {
+          caseId,
+          caseNumber,
+          severity,
+          treatmentRecommendation,
+          correlationId: `${correlationId}_treatment`,
+        },
+        {
+          idempotencyKey: IdempotencyKeys.custom('osax-treatment', caseId),
+        }
+      );
     }
 
     // ============================================
@@ -136,13 +152,18 @@ export const osaxJourneyWorkflow = task({
     // Schedule follow-up based on severity
     const followUpDelayDays = severity === 'SEVERE' ? 7 : severity === 'MODERATE' ? 14 : 30;
 
-    await osaxFollowUpWorkflow.trigger({
-      caseId,
-      caseNumber,
-      followUpType: 'INITIAL',
-      scheduledForDays: followUpDelayDays,
-      correlationId: `${correlationId}_followup`,
-    });
+    await osaxFollowUpWorkflow.trigger(
+      {
+        caseId,
+        caseNumber,
+        followUpType: 'INITIAL',
+        scheduledForDays: followUpDelayDays,
+        correlationId: `${correlationId}_followup`,
+      },
+      {
+        idempotencyKey: IdempotencyKeys.custom('osax-followup', caseId, 'INITIAL'),
+      }
+    );
 
     logger.info('OSAX journey workflow completed initial stages', {
       caseId,

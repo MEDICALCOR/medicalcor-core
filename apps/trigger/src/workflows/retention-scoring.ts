@@ -1,5 +1,6 @@
 import { task, schedules, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
+import { IdempotencyKeys, getTodayString } from '@medicalcor/core';
 import { createIntegrationClients } from '@medicalcor/integrations';
 
 /**
@@ -373,9 +374,14 @@ export const dailyRetentionScoring = schedules.task({
     logger.info('Starting daily retention scoring job', { correlationId });
 
     // Trigger batch scoring
-    await batchRetentionScoring.trigger({
-      correlationId,
-    });
+    await batchRetentionScoring.trigger(
+      {
+        correlationId,
+      },
+      {
+        idempotencyKey: IdempotencyKeys.cronJob('retention-scoring', getTodayString()),
+      }
+    );
 
     return {
       triggered: true,
