@@ -32,6 +32,7 @@
     "./repositories": {
       "types": "./dist/repositories/index.d.ts",
       "import": "./dist/repositories/index.js"
+    },
     "./observability/otel-logs": {
       "types": "./dist/observability/otel-logs.d.ts",
       "import": "./dist/observability/otel-logs.js"

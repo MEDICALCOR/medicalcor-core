@@ -1,6 +1,6 @@
 import { task, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
-import { normalizeRomanianPhone } from '@medicalcor/core';
+import { normalizeRomanianPhone, IdempotencyKeys } from '@medicalcor/core';
 import {
   createIntegrationClients,
   formatTranscriptForCRM,
@@ -496,7 +496,9 @@ export const handleVapiWebhook = task({
     // CRITICAL FIX: Actually trigger post-call processing
     // Previously this was a placeholder that never triggered the task
     try {
-      await processPostCall.trigger(postCallPayload);
+      await processPostCall.trigger(postCallPayload, {
+        idempotencyKey: IdempotencyKeys.vapiWebhook(call.id),
+      });
       logger.info('Post-call processing triggered', { callId: call.id, correlationId });
 
       return {
