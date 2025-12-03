@@ -142,7 +142,7 @@ When developing locally:
 2. **Enable disk encryption** - Use FileVault (macOS), BitLocker (Windows), or LUKS (Linux)
 3. **Use strong passwords** - For database and Redis instances
 4. **Keep dependencies updated** - Run `pnpm update` regularly
-5. **Review security guidelines** - See [SECURITY.md](../../docs/README/SECURITY.md)
+5. **Review security guidelines** - See [SECURITY.md](../../SECURITY.md)
 
 ## Troubleshooting
 
@@ -177,9 +177,9 @@ pnpm install
 
 ## Need Help?
 
-- Review [CONTRIBUTING.md](../../docs/CONTRIBUTING.md) for development workflow
-- Check [ARCHITECTURE.md](../../docs/ARCHITECTURE.md) for system design
-- Consult [API_REFERENCE.md](../../docs/README/API_REFERENCE.md) for API documentation
+- Review [CONTRIBUTING.md](../CONTRIBUTING.md) for development workflow
+- Check [ARCHITECTURE.md](../ARCHITECTURE.md) for system design
+- Consult [API_REFERENCE.md](./API_REFERENCE.md) for API documentation
 
 ## Contact
 
