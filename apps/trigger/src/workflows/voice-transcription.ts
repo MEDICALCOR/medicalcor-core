@@ -495,9 +495,12 @@ export const handleVapiWebhook = task({
 
     // CRITICAL FIX: Actually trigger post-call processing
     // Previously this was a placeholder that never triggered the task
+    // IDEMPOTENCY FIX: Use callId as idempotencyKey to prevent duplicate processing
+    // when Vapi sends duplicate webhooks on timeout/retry
     try {
       await processPostCall.trigger(postCallPayload, {
         idempotencyKey: IdempotencyKeys.vapiWebhook(call.id),
+        idempotencyKey: `vapi-postcall-${call.id}`,
       });
       logger.info('Post-call processing triggered', { callId: call.id, correlationId });
 
