@@ -33,15 +33,15 @@ export type PhoneType = 'mobile' | 'landline' | 'voip' | 'unknown';
  * @example
  * ```typescript
  * // Create from raw input
- * const phone = PhoneNumber.create('+40721234567');
- * console.log(phone.e164); // '+40721234567'
+ * const phone = PhoneNumber.create('+40700000001');
+ * console.log(phone.e164); // '+40700000001'
  * console.log(phone.region); // 'RO'
  * console.log(phone.isWhatsAppEligible()); // true
  *
  * // Parse with validation
  * const result = PhoneNumber.parse('0721234567', 'RO');
  * if (result.success) {
- *   console.log(result.value.e164); // '+40721234567'
+ *   console.log(result.value.e164); // '+40700000001'
  * }
  *
  * // Format for display
@@ -51,7 +51,7 @@ export type PhoneType = 'mobile' | 'landline' | 'voip' | 'unknown';
  */
 export class PhoneNumber {
   /**
-   * E.164 formatted number (e.g., '+40721234567')
+   * E.164 formatted number (e.g., '+40700000001')
    */
   public readonly e164: string;
 

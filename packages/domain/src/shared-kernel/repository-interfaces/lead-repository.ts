@@ -207,7 +207,7 @@ export type LeadSpec =
  *
  * // Create new lead
  * const newLead = await leadRepository.create({
- *   phone: PhoneNumber.create('+40721234567'),
+ *   phone: PhoneNumber.create('+40700000001'),
  *   source: 'whatsapp',
  *   firstName: 'Ion'
  * });

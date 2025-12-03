@@ -99,13 +99,13 @@ export type CorrelationId = Brand<string, 'CorrelationId'>;
 // =============================================================================
 
 /**
- * E.164 formatted phone number (e.g., +40721234567)
+ * E.164 formatted phone number (e.g., +40700000001)
  * International format with country code
  */
 export type E164PhoneNumber = Brand<string, 'E164PhoneNumber'>;
 
 /**
- * Normalized phone number without + prefix (e.g., 40721234567)
+ * Normalized phone number without + prefix (e.g., 40700000001)
  * Format used by WhatsApp API
  */
 export type NormalizedPhoneNumber = Brand<string, 'NormalizedPhoneNumber'>;

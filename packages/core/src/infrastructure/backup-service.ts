@@ -1033,8 +1033,9 @@ export class BackupService extends EventEmitter {
             data = await fs.readFile(catalogPath, 'utf-8');
           }
           // If it's a directory, use empty array (don't try to read it)
-        } catch {
+        } catch (error) {
           // File doesn't exist yet, use empty array
+          logger.debug({ err: error, catalogPath }, 'Backup catalog file not found, using empty array');
         }
 
         const backups: BackupMetadata[] = JSON.parse(data);
@@ -1046,8 +1047,8 @@ export class BackupService extends EventEmitter {
           this.backups.set(backup.id, backup);
         }
       }
-    } catch {
-      // No existing catalog
+    } catch (error) {
+      logger.debug({ err: error }, 'No existing backup catalog found');
     }
   }
 
@@ -1113,8 +1114,8 @@ export class BackupService extends EventEmitter {
         try {
           await this.deleteBackup(backup.id);
           deletedBackups.push(backup.id);
-        } catch {
-          // Continue with other deletions
+        } catch (error) {
+          logger.warn({ err: error, backupId: backup.id }, 'Failed to delete backup during retention cleanup');
         }
       }
     }

@@ -152,7 +152,7 @@ export const ScoreLeadFunction: AIFunction = {
     properties: {
       phone: {
         type: 'string',
-        description: 'Lead phone number in E.164 format (e.g., +40721234567)',
+        description: 'Lead phone number in E.164 format (e.g., +40700000001)',
         pattern: '^\\+[1-9]\\d{1,14}$',
       },
       channel: {
@@ -201,7 +201,7 @@ export const ScoreLeadFunction: AIFunction = {
     {
       description: 'Score a WhatsApp lead asking about teeth whitening',
       input: {
-        phone: '+40721234567',
+        phone: '+40700000001',
         channel: 'whatsapp',
         messages: [
           { role: 'user', content: 'Bună, cât costă albirea dentară?' },
@@ -485,7 +485,7 @@ export const SendWhatsAppFunction: AIFunction = {
     {
       description: 'Send appointment reminder',
       input: {
-        to: '+40721234567',
+        to: '+40700000001',
         templateName: 'appointment_reminder',
         templateParams: {
           patient_name: 'Ion',

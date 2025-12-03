@@ -553,8 +553,8 @@ export async function withTransaction<T>(
       // Rollback on any error
       try {
         await client.query('ROLLBACK');
-      } catch {
-        // Ignore rollback errors
+      } catch (rollbackError) {
+        logger.warn({ err: rollbackError }, 'Failed to rollback transaction');
       }
 
       // Check if error is retryable

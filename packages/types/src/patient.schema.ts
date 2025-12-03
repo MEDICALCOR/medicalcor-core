@@ -19,7 +19,7 @@ export const PatientListItemSchema = z.object({
   id: z.string(), // HubSpot Contact ID
   firstName: z.string().optional(),
   lastName: z.string().optional(),
-  phone: z.string(), // E.164 format (ex: +40721234567)
+  phone: z.string(), // E.164 format (ex: +40700000001)
   email: z.string().email().optional(),
   status: PatientStatusSchema.default('lead'),
   lastContactDate: z.string().datetime().optional(),

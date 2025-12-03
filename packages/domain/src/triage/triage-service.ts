@@ -1,4 +1,7 @@
 import type { LeadScore, LeadChannel } from '@medicalcor/types';
+import { createLogger } from '@medicalcor/core';
+
+const logger = createLogger({ name: 'triage-service' });
 
 /**
  * Dental Triage Service
@@ -531,8 +534,9 @@ export class TriageService {
         
         return slotResult;
       }
-    } catch {
-      // Silently fail - slot validation is enhancement, not requirement
+    } catch (error) {
+      // Slot validation is enhancement, not requirement
+      logger.debug({ err: error }, 'Failed to find available slot during triage');
     }
 
     return undefined;

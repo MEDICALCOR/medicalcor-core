@@ -14,7 +14,8 @@
     "src/architecture/**",
     "src/clinical/**",
     "src/events/handlers/**",
-    "src/repositories/**",
+    "src/repositories/SupabaseOsaxCaseRepository.ts",
+    "src/repositories/postgres-scheduling-repository.ts",
     "src/security/gdpr/**",
     "src/metrics/osax.ts"
   ],

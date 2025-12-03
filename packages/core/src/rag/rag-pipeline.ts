@@ -1,6 +1,7 @@
 import type { Pool } from 'pg';
 import type { RAGContext, RAGResult, RAGConfig, SearchResult, RAGQueryLogEntry } from './types.js';
 import { VectorSearchService } from './vector-search-service.js';
+import { logger } from '../logger.js';
 
 /**
  * Embedding Service Interface
@@ -359,8 +360,9 @@ Sources: ${ragResult.sources.map((s) => s.title).join(', ')}
         entry.correlationId ?? null,
         entry.useCase ?? null,
       ]);
-    } catch {
-      // Don't fail the main operation if logging fails - silently continue
+    } catch (error) {
+      // Don't fail the main operation if logging fails
+      logger.warn({ err: error, queryId: entry.id }, 'Failed to log RAG query');
     }
   }
 

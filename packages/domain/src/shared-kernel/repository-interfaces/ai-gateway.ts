@@ -182,7 +182,7 @@ export interface TranscriptionSegment {
  * ```typescript
  * // Score a lead message
  * const result = await aiGateway.scoreLead({
- *   phone: '+40721234567',
+ *   phone: '+40700000001',
  *   channel: 'whatsapp',
  *   language: 'ro',
  *   messageHistory: [
