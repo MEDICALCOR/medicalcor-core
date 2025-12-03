@@ -202,6 +202,11 @@ export {
 // - DiagnosticsCollector, diagnostics, recordTrace, lookupTrace, searchTraces
 // - getPrometheusMetrics, getMetricsJSON
 // - Types: DiagnosticSnapshot, SystemSnapshot, HttpSnapshot, BusinessSnapshot, PerformanceSnapshot, HealthSnapshot, TraceLookup, TraceSpan
+//
+// Import from '@medicalcor/core/observability/otel-logs' when needed (server-side only):
+// - initOtelLogs, shutdownOtelLogs, createOtelLogTransport, createDualDestination
+// - emitLogRecord, getTraceContext, otelLogsConfig
+// - Types: OtelLogsConfig
 
 // CQRS + Event Sourcing
 export {
@@ -461,6 +466,17 @@ export {
   type RedisHealthStatus,
   type RedisStats,
 } from './infrastructure/redis-client.js';
+
+// Distributed Rate Limiter with Redis
+export {
+  DistributedRateLimiter,
+  createDistributedRateLimiter,
+  createRateLimiterFromEnv,
+  RATE_LIMIT_TIERS,
+  type RateLimitTier,
+  type RateLimitResult as DistributedRateLimitResult,
+  type DistributedRateLimiterConfig,
+} from './distributed-rate-limiter.js';
 
 // Infrastructure - Backup Service
 export {

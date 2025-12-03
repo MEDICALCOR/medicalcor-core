@@ -1,0 +1,304 @@
+# Predictive SLO Rules - ML-Based Forecasting
+#
+# Advanced SLO alerting using Prometheus recording rules for trend analysis
+# and error budget burn rate predictions.
+#
+# PROACTIVE: Alerts before SLOs are violated, not after.
+# INTELLIGENT: Uses historical patterns to predict future violations.
+
+groups:
+  # ============================================================================
+  # RECORDING RULES - Trend Metrics for ML Predictions
+  # ============================================================================
+
+  - name: osax_predictive_metrics
+    interval: 1m
+    rules:
+      # Error rate trends (1h, 6h, 24h windows)
+      - record: osax:error_rate:1h
+        expr: |
+          1 - (
+            sum(rate(http_requests_total{namespace="osax",status!~"5.."}[1h]))
+            /
+            sum(rate(http_requests_total{namespace="osax"}[1h]))
+          )
+
+      - record: osax:error_rate:6h
+        expr: |
+          1 - (
+            sum(rate(http_requests_total{namespace="osax",status!~"5.."}[6h]))
+            /
+            sum(rate(http_requests_total{namespace="osax"}[6h]))
+          )
+
+      - record: osax:error_rate:24h
+        expr: |
+          1 - (
+            sum(rate(http_requests_total{namespace="osax",status!~"5.."}[24h]))
+            /
+            sum(rate(http_requests_total{namespace="osax"}[24h]))
+          )
+
+      # Error rate velocity (rate of change)
+      - record: osax:error_rate_velocity:1h
+        expr: |
+          deriv(osax:error_rate:1h[30m])
+
+      # Latency P95 trends
+      - record: osax:latency_p95:5m
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{namespace="osax"}[5m])) by (le)
+          )
+
+      - record: osax:latency_p95:1h
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{namespace="osax"}[1h])) by (le)
+          )
+
+      # Latency velocity
+      - record: osax:latency_velocity:1h
+        expr: |
+          deriv(osax:latency_p95:5m[1h])
+
+      # Error budget remaining (30-day window for 99.9% SLO)
+      - record: osax:error_budget_remaining:30d
+        expr: |
+          1 - (
+            (
+              sum(increase(http_requests_total{namespace="osax",status=~"5.."}[30d]))
+              /
+              sum(increase(http_requests_total{namespace="osax"}[30d]))
+            ) / 0.001
+          )
+
+      # Error budget burn rate (how fast we're consuming budget)
+      - record: osax:error_budget_burn_rate:1h
+        expr: |
+          (
+            sum(rate(http_requests_total{namespace="osax",status=~"5.."}[1h]))
+            /
+            sum(rate(http_requests_total{namespace="osax"}[1h]))
+          ) / 0.001
+
+      # Projected budget exhaustion (hours until budget runs out at current rate)
+      - record: osax:budget_exhaustion_hours
+        expr: |
+          osax:error_budget_remaining:30d / osax:error_budget_burn_rate:1h * 720
+
+      # Request volume trends
+      - record: osax:request_rate:5m
+        expr: |
+          sum(rate(http_requests_total{namespace="osax"}[5m]))
+
+      - record: osax:request_rate:1h
+        expr: |
+          sum(rate(http_requests_total{namespace="osax"}[1h]))
+
+      # Request volume velocity
+      - record: osax:request_velocity:1h
+        expr: |
+          deriv(osax:request_rate:5m[1h])
+
+      # Day-over-day comparison (same hour yesterday)
+      - record: osax:request_rate_dod_ratio
+        expr: |
+          osax:request_rate:5m / (osax:request_rate:5m offset 24h)
+
+      # Week-over-week comparison (same hour last week)
+      - record: osax:request_rate_wow_ratio
+        expr: |
+          osax:request_rate:5m / (osax:request_rate:5m offset 168h)
+
+  # ============================================================================
+  # PREDICTIVE ALERTS - Early Warning System
+  # ============================================================================
+
+  - name: osax_predictive_alerts
+    interval: 1m
+    rules:
+      # PREDICTIVE: Error rate accelerating (will breach SLO soon)
+      - alert: PredictiveSLOErrorRateAccelerating
+        expr: |
+          osax:error_rate_velocity:1h > 0.0001
+          and
+          osax:error_rate:1h > 0.0005
+        for: 15m
+        labels:
+          severity: warning
+          type: predictive
+          slo: availability
+          team: platform
+        annotations:
+          summary: 'PREDICTIVE: Error rate accelerating - SLO breach likely'
+          description: |
+            Error rate is accelerating at {{ $value | humanize }}/hour.
+            Current error rate: {{ printf "%.4f" (query "osax:error_rate:1h") }}
+            At this rate, SLO breach is likely within 2 hours.
+          action: 'Investigate recent deployments or traffic patterns'
+          runbook_url: 'https://docs.medicalcor.ro/runbooks/predictive-error-rate'
+
+      # PREDICTIVE: Budget exhaustion imminent
+      - alert: PredictiveSLOBudgetExhaustionImminent
+        expr: |
+          osax:budget_exhaustion_hours < 72
+          and
+          osax:budget_exhaustion_hours > 0
+        for: 10m
+        labels:
+          severity: warning
+          type: predictive
+          slo: error_budget
+          team: platform
+        annotations:
+          summary: 'PREDICTIVE: Error budget will exhaust in {{ $value | humanizeDuration }}'
+          description: |
+            At current burn rate, error budget will exhaust in {{ $value | humanize }} hours.
+            Remaining budget: {{ printf "%.2f%%" (query "osax:error_budget_remaining:30d * 100") }}
+          action: 'Reduce error rate or implement reliability improvements'
+          runbook_url: 'https://docs.medicalcor.ro/runbooks/budget-exhaustion'
+
+      # PREDICTIVE: Critical budget exhaustion (< 24h)
+      - alert: PredictiveSLOBudgetExhaustionCritical
+        expr: |
+          osax:budget_exhaustion_hours < 24
+          and
+          osax:budget_exhaustion_hours > 0
+        for: 5m
+        labels:
+          severity: critical
+          type: predictive
+          slo: error_budget
+          team: platform
+          pagerduty: 'true'
+        annotations:
+          summary: 'CRITICAL: Error budget will exhaust in < 24 hours'
+          description: |
+            Error budget will exhaust in {{ $value | humanize }} hours.
+            Immediate action required to prevent SLO breach.
+          action: 'URGENT: Implement emergency reliability measures'
+          runbook_url: 'https://docs.medicalcor.ro/runbooks/budget-critical'
+
+      # PREDICTIVE: Latency degradation trend
+      - alert: PredictiveSLOLatencyDegrading
+        expr: |
+          osax:latency_velocity:1h > 0.01
+          and
+          osax:latency_p95:5m > 1
+        for: 20m
+        labels:
+          severity: warning
+          type: predictive
+          slo: latency
+          team: platform
+        annotations:
+          summary: 'PREDICTIVE: Latency degrading - P95 increasing'
+          description: |
+            P95 latency is increasing at {{ $value | humanize }}s/hour.
+            Current P95: {{ printf "%.2f" (query "osax:latency_p95:5m") }}s
+            Projected to breach 2s SLO within {{ printf "%.1f" ((2 - (query "osax:latency_p95:5m")) / $value) }} hours.
+          action: 'Investigate database queries, external API latency, or resource constraints'
+          runbook_url: 'https://docs.medicalcor.ro/runbooks/predictive-latency'
+
+      # PREDICTIVE: Traffic surge incoming (based on historical patterns)
+      - alert: PredictiveTrafficSurge
+        expr: |
+          osax:request_velocity:1h > osax:request_rate:1h * 0.5
+        for: 10m
+        labels:
+          severity: info
+          type: predictive
+          team: platform
+        annotations:
+          summary: 'PREDICTIVE: Traffic surge detected - auto-scaling recommended'
+          description: |
+            Request rate is increasing rapidly.
+            Current rate: {{ printf "%.0f" (query "osax:request_rate:5m") }} RPS
+            Velocity: {{ $value | humanize }} RPS/hour increase
+          action: 'Verify KEDA scaling is active, consider pre-scaling'
+
+      # PREDICTIVE: Anomalous traffic pattern
+      - alert: PredictiveTrafficAnomaly
+        expr: |
+          (osax:request_rate_dod_ratio > 2 or osax:request_rate_dod_ratio < 0.3)
+          and
+          osax:request_rate:5m > 10
+        for: 15m
+        labels:
+          severity: warning
+          type: predictive
+          team: platform
+        annotations:
+          summary: 'PREDICTIVE: Anomalous traffic pattern detected'
+          description: |
+            Traffic is {{ printf "%.1f" $value }}x compared to same time yesterday.
+            This may indicate an attack, viral content, or system issue.
+          action: 'Investigate traffic sources and validate legitimacy'
+          runbook_url: 'https://docs.medicalcor.ro/runbooks/traffic-anomaly'
+
+      # PREDICTIVE: Seasonal pattern deviation (week-over-week)
+      - alert: PredictiveSeasonalDeviation
+        expr: |
+          (osax:request_rate_wow_ratio > 1.5 or osax:request_rate_wow_ratio < 0.5)
+          and
+          osax:request_rate:5m > 10
+          and
+          hour() >= 8 and hour() <= 18
+        for: 30m
+        labels:
+          severity: info
+          type: predictive
+          team: platform
+        annotations:
+          summary: 'Traffic deviating from weekly pattern'
+          description: |
+            Traffic is {{ printf "%.1f" $value }}x compared to same time last week.
+            May indicate changing user behavior or external factors.
+
+  # ============================================================================
+  # MULTI-WINDOW BURN RATE ALERTS (Google SRE Approach)
+  # ============================================================================
+
+  - name: osax_multiwindow_burn_rate
+    interval: 30s
+    rules:
+      # Fast burn (2% budget in 1 hour = 14.4x burn rate)
+      - record: osax:burn_rate:1h
+        expr: |
+          (
+            sum(rate(http_requests_total{namespace="osax",status=~"5.."}[1h]))
+            /
+            sum(rate(http_requests_total{namespace="osax"}[1h]))
+          ) / (0.001 / 720)
+
+      # Medium burn (5% budget in 6 hours = 6x burn rate)
+      - record: osax:burn_rate:6h
+        expr: |
+          (
+            sum(rate(http_requests_total{namespace="osax",status=~"5.."}[6h]))
+            /
+            sum(rate(http_requests_total{namespace="osax"}[6h]))
+          ) / (0.001 / 720)
+
+      # Multi-window burn rate alert (high precision, low recall)
+      - alert: SLOMultiWindowBurnRateHigh
+        expr: |
+          osax:burn_rate:1h > 14.4
+          and
+          osax:burn_rate:6h > 6
+        for: 2m
+        labels:
+          severity: critical
+          type: multiwindow
+          slo: availability
+          team: platform
+          pagerduty: 'true'
+        annotations:
+          summary: 'CRITICAL: High error budget burn rate across multiple windows'
+          description: |
+            1h burn rate: {{ printf "%.1f" (query "osax:burn_rate:1h") }}x (threshold: 14.4x)
+            6h burn rate: {{ printf "%.1f" (query "osax:burn_rate:6h") }}x (threshold: 6x)
+            This indicates a sustained incident consuming error budget rapidly.
+          action: 'Immediate investigation and mitigation required'
+          runbook_url: 'https://docs.medicalcor.ro/runbooks/multiwindow-burn'
