@@ -33,8 +33,8 @@ docs/SECURITY.md            @MEDICALCOR/security
 # =============================================================================
 # Database & Migrations (Requires DBA/Senior review)
 # =============================================================================
-db/                         @MEDICALCOR/engineering-leads @MEDICALCOR/dba
-db/migrations/              @MEDICALCOR/dba @MEDICALCOR/engineering-leads
+supabase/                   @MEDICALCOR/engineering-leads @MEDICALCOR/dba
+supabase/migrations/        @MEDICALCOR/dba @MEDICALCOR/engineering-leads
 packages/infra/src/database/ @MEDICALCOR/engineering-leads
 
 # =============================================================================

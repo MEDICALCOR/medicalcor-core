@@ -101,7 +101,7 @@ export class EventAnalyzer {
     }
 
     // Check for outbox table in migrations
-    const migrationFiles = await this.getAllFiles(join(rootPath, 'db/migrations'), ['.sql']);
+    const migrationFiles = await this.getAllFiles(join(rootPath, 'supabase/migrations'), ['.sql']);
     
     for (const file of migrationFiles) {
       const content = await readFile(file, 'utf-8');
