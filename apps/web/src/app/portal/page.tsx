@@ -51,25 +51,28 @@ interface Invoice {
   service: string;
 }
 
+// SECURITY: Demo/placeholder data only - no real PII
+// In production, this would be loaded from the authenticated patient's session
 const patientData = {
-  firstName: 'Ion',
-  lastName: 'Popescu',
-  email: 'ion.popescu@email.com',
-  phone: '0721 234 567',
-  dateOfBirth: '15 Mar 1985',
-  cnp: '1850315******',
-  address: 'Str. Victoriei 50, București',
+  firstName: 'Demo',
+  lastName: 'Patient',
+  email: 'demo.patient@example.com',
+  phone: '000 000 0000',
+  dateOfBirth: '01 Jan 1990',
+  cnp: '0000000******',
+  address: 'Example Street 1, Example City',
   bloodType: 'A+',
   allergies: ['Penicilină', 'Polen'],
   chronicConditions: ['Hipertensiune'],
 };
 
+// SECURITY: Demo/placeholder appointment data
 const appointments: Appointment[] = [
   {
     id: 'a1',
     date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
     time: '10:00',
-    doctor: 'Dr. Maria Popescu',
+    doctor: 'Dr. Demo Internist',
     specialty: 'Medicină internă',
     service: 'Consultație generală',
     status: 'upcoming',
@@ -79,7 +82,7 @@ const appointments: Appointment[] = [
     id: 'a2',
     date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     time: '14:30',
-    doctor: 'Dr. Ion Ionescu',
+    doctor: 'Dr. Demo Cardiologist',
     specialty: 'Cardiologie',
     service: 'Control periodic',
     status: 'upcoming',
@@ -89,7 +92,7 @@ const appointments: Appointment[] = [
     id: 'a3',
     date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
     time: '09:00',
-    doctor: 'Dr. Elena Dumitrescu',
+    doctor: 'Dr. Demo Family',
     specialty: 'Medicină de familie',
     service: 'Consultație',
     status: 'completed',
@@ -99,7 +102,7 @@ const appointments: Appointment[] = [
     id: 'a4',
     date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
     time: '11:00',
-    doctor: 'Dr. Maria Popescu',
+    doctor: 'Dr. Demo Internist',
     specialty: 'Medicină internă',
     service: 'Analize laborator',
     status: 'completed',
@@ -107,13 +110,14 @@ const appointments: Appointment[] = [
   },
 ];
 
+// SECURITY: Demo/placeholder document data
 const documents: Document[] = [
   {
     id: 'd1',
     name: 'Rezultate analize sânge',
     type: 'result',
     date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
-    doctor: 'Dr. Elena Dumitrescu',
+    doctor: 'Dr. Demo Family',
     size: '245 KB',
   },
   {
@@ -121,7 +125,7 @@ const documents: Document[] = [
     name: 'Rețetă medicament',
     type: 'prescription',
     date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
-    doctor: 'Dr. Elena Dumitrescu',
+    doctor: 'Dr. Demo Family',
     size: '89 KB',
   },
   {
@@ -129,7 +133,7 @@ const documents: Document[] = [
     name: 'Ecografie abdominală',
     type: 'report',
     date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-    doctor: 'Dr. Andrei Popa',
+    doctor: 'Dr. Demo Specialist',
     size: '1.2 MB',
   },
   {
@@ -137,7 +141,7 @@ const documents: Document[] = [
     name: 'Trimitere cardiologie',
     type: 'referral',
     date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-    doctor: 'Dr. Elena Dumitrescu',
+    doctor: 'Dr. Demo Family',
     size: '56 KB',
   },
 ];

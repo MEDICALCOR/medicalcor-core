@@ -50,14 +50,16 @@ interface Clinic {
   rating: number;
 }
 
+// SECURITY: Demo/placeholder data only - no real PII or addresses
+// These are fictional example clinics for UI demonstration purposes
 const clinics: Clinic[] = [
   {
     id: 'c1',
-    name: 'MedicalCor Central',
-    address: 'Str. Victoriei 100',
-    city: 'București',
-    phone: '021 123 4567',
-    email: 'central@medicalcor.ro',
+    name: 'Demo Clinic Central',
+    address: 'Example Street 100',
+    city: 'Example City',
+    phone: '000 000 0001',
+    email: 'central@example.com',
     isMain: true,
     isActive: true,
     staffCount: 12,
@@ -67,11 +69,11 @@ const clinics: Clinic[] = [
   },
   {
     id: 'c2',
-    name: 'MedicalCor Nord',
-    address: 'Bd. Băneasa 45',
-    city: 'București',
-    phone: '021 234 5678',
-    email: 'nord@medicalcor.ro',
+    name: 'Demo Clinic North',
+    address: 'Example Boulevard 45',
+    city: 'Example City',
+    phone: '000 000 0002',
+    email: 'north@example.com',
     isMain: false,
     isActive: true,
     staffCount: 8,
@@ -81,11 +83,11 @@ const clinics: Clinic[] = [
   },
   {
     id: 'c3',
-    name: 'MedicalCor Cluj',
-    address: 'Str. Memorandumului 28',
-    city: 'Cluj-Napoca',
-    phone: '0264 123 456',
-    email: 'cluj@medicalcor.ro',
+    name: 'Demo Clinic Branch',
+    address: 'Sample Road 28',
+    city: 'Sample Town',
+    phone: '000 000 0003',
+    email: 'branch@example.com',
     isMain: false,
     isActive: true,
     staffCount: 6,
@@ -95,11 +97,11 @@ const clinics: Clinic[] = [
   },
   {
     id: 'c4',
-    name: 'MedicalCor Timișoara',
-    address: 'Piața Victoriei 10',
-    city: 'Timișoara',
-    phone: '0256 234 567',
-    email: 'timisoara@medicalcor.ro',
+    name: 'Demo Clinic Inactive',
+    address: 'Test Square 10',
+    city: 'Test City',
+    phone: '000 000 0004',
+    email: 'inactive@example.com',
     isMain: false,
     isActive: false,
     staffCount: 0,

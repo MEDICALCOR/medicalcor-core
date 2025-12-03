@@ -61,13 +61,14 @@ interface PrescriptionMedication {
   instructions?: string;
 }
 
+// SECURITY: Demo/placeholder prescription data - no real PII
 const prescriptions: Prescription[] = [
   {
     id: 'rx1',
     prescriptionNumber: 'RX-2024-001',
     patientId: 'p1',
-    patientName: 'Ion Popescu',
-    doctorName: 'Dr. Maria Ionescu',
+    patientName: 'Patient Demo A',
+    doctorName: 'Dr. Demo Doctor',
     createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
     validUntil: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000),
     status: 'active',
@@ -95,8 +96,8 @@ const prescriptions: Prescription[] = [
     id: 'rx2',
     prescriptionNumber: 'RX-2024-002',
     patientId: 'p2',
-    patientName: 'Maria Stan',
-    doctorName: 'Dr. Elena Dumitrescu',
+    patientName: 'Patient Demo B',
+    doctorName: 'Dr. Demo Specialist',
     createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
     validUntil: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
     status: 'active',
@@ -123,8 +124,8 @@ const prescriptions: Prescription[] = [
     id: 'rx3',
     prescriptionNumber: 'RX-2024-003',
     patientId: 'p3',
-    patientName: 'Andrei Georgescu',
-    doctorName: 'Dr. Andrei Popa',
+    patientName: 'Patient Demo C',
+    doctorName: 'Dr. Demo Physician',
     createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
     validUntil: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
     status: 'dispensed',
@@ -136,8 +137,8 @@ const prescriptions: Prescription[] = [
     id: 'rx4',
     prescriptionNumber: 'RX-2024-004',
     patientId: 'p4',
-    patientName: 'Elena Dumitrescu',
-    doctorName: 'Dr. Maria Ionescu',
+    patientName: 'Patient Demo D',
+    doctorName: 'Dr. Demo Doctor',
     createdAt: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000),
     validUntil: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
     status: 'expired',
@@ -216,13 +217,14 @@ export default function PrescriptionsPage() {
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Pacient</Label>
+                  {/* SECURITY: Demo patient options - no real PII */}
                   <Select>
                     <SelectTrigger>
                       <SelectValue placeholder="Selectează pacient" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="p1">Ion Popescu - CNP: 1234567890123</SelectItem>
-                      <SelectItem value="p2">Maria Stan - CNP: 2345678901234</SelectItem>
+                      <SelectItem value="p1">Patient Demo A - ID: P001</SelectItem>
+                      <SelectItem value="p2">Patient Demo B - ID: P002</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
