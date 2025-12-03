@@ -1,0 +1,81 @@
+{{- /*
+============================================================================
+OSAX HorizontalPodAutoscaler Template
+
+Automatically scales pods based on CPU and memory utilization.
+Uses behavior policies to prevent flapping.
+============================================================================
+*/ -}}
+{{- if .Values.app.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "osax.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "osax.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "osax.fullname" . }}
+  minReplicas: {{ .Values.app.autoscaling.minReplicas | default 3 }}
+  maxReplicas: {{ .Values.app.autoscaling.maxReplicas | default 10 }}
+  metrics:
+    {{- if .Values.app.autoscaling.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.app.autoscaling.targetCPUUtilizationPercentage }}
+    {{- end }}
+    {{- if .Values.app.autoscaling.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.app.autoscaling.targetMemoryUtilizationPercentage }}
+    {{- end }}
+  {{- with .Values.app.autoscaling.behavior }}
+  behavior:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+---
+{{- /*
+============================================================================
+Worker HorizontalPodAutoscaler (if worker is enabled)
+============================================================================
+*/ -}}
+{{- if and .Values.worker.enabled .Values.worker.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "osax.fullname" . }}-worker
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "osax.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "osax.fullname" . }}-worker
+  minReplicas: {{ .Values.worker.autoscaling.minReplicas | default 2 }}
+  maxReplicas: {{ .Values.worker.autoscaling.maxReplicas | default 8 }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.worker.autoscaling.targetCPUUtilizationPercentage | default 70 }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.worker.autoscaling.targetMemoryUtilizationPercentage | default 80 }}
+{{- end }}

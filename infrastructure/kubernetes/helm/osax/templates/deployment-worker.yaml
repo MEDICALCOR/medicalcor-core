@@ -1,0 +1,138 @@
+{{- /*
+============================================================================
+OSAX Worker Deployment Template
+
+Background job processing deployment with resource limits.
+Handles async tasks: lead scoring, email sending, webhook processing, etc.
+============================================================================
+*/ -}}
+{{- if .Values.worker.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "osax.fullname" . }}-worker
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "osax.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  {{- if not .Values.worker.autoscaling.enabled }}
+  replicas: {{ .Values.worker.replicas | default 2 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "osax.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: worker
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "osax.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: worker
+        {{- include "osax.labels" . | nindent 8 }}
+      annotations:
+        {{- if .Values.monitoring.prometheus.enabled }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ .Values.app.ports.metrics | default 9090 | quote }}
+        prometheus.io/path: "/metrics"
+        {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "osax.serviceAccountName" . }}
+      securityContext:
+        {{- include "osax.podSecurityContext" . | nindent 8 }}
+      {{- with .Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: worker
+          image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.app.image.pullPolicy }}
+          # Run in worker mode
+          command: ["node"]
+          args: ["dist/worker.js"]
+          securityContext:
+            {{- include "osax.containerSecurityContext" . | nindent 12 }}
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.app.ports.metrics | default 9090 }}
+              protocol: TCP
+          # Resource limits - CRITICAL for node stability
+          resources:
+            {{- toYaml .Values.worker.resources | nindent 12 }}
+          env:
+            - name: NODE_ENV
+              value: {{ .Values.global.environment | default "production" | quote }}
+            - name: WORKER_MODE
+              value: "true"
+            - name: LOG_LEVEL
+              value: {{ .Values.app.env | default (dict) | dig "LOG_LEVEL" "info" | quote }}
+            - name: LOG_FORMAT
+              value: "json"
+            - name: METRICS_ENABLED
+              value: "true"
+            # Database connection
+            - name: DATABASE_URL
+              {{- include "osax.databaseUrl" . | nindent 14 }}
+            # Redis connection
+            - name: REDIS_URL
+              {{- include "osax.redisUrl" . | nindent 14 }}
+            {{- if .Values.secrets.encryptionKey }}
+            - name: ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "osax.fullname" . }}-secrets
+                  key: encryption-key
+            {{- end }}
+            {{- if .Values.secrets.openaiApiKey }}
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "osax.fullname" . }}-secrets
+                  key: openai-api-key
+            {{- end }}
+          # Liveness probe - restart if worker hangs
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          # Readiness probe - worker ready to process jobs
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      # Longer grace period for workers to finish current jobs
+      terminationGracePeriodSeconds: 60
+{{- end }}

@@ -1,0 +1,167 @@
+{{- /*
+============================================================================
+OSAX Deployment Template
+
+Main application deployment with HIPAA-compliant security context,
+resource limits, and health checks.
+============================================================================
+*/ -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "osax.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "osax.labels" . | nindent 4 }}
+  {{- with .Values.deploymentAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if not .Values.app.autoscaling.enabled }}
+  replicas: {{ .Values.app.replicas | default 3 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "osax.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        {{- include "osax.selectorLabels" . | nindent 8 }}
+        {{- include "osax.labels" . | nindent 8 }}
+      annotations:
+        {{- include "osax.podAnnotations" . | nindent 8 }}
+        # Force rolling restart on config changes
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum | default "no-config" }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "osax.serviceAccountName" . }}
+      securityContext:
+        {{- include "osax.podSecurityContext" . | nindent 8 }}
+      {{- with .Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      # Ensure pods are spread across nodes for HA
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "osax.selectorLabels" . | nindent 14 }}
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "osax.selectorLabels" . | nindent 14 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.app.image.pullPolicy }}
+          securityContext:
+            {{- include "osax.containerSecurityContext" . | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.app.ports.http | default 3000 }}
+              protocol: TCP
+            - name: metrics
+              containerPort: {{ .Values.app.ports.metrics | default 9090 }}
+              protocol: TCP
+          # Resource limits - CRITICAL for node stability
+          resources:
+            {{- toYaml .Values.app.resources | nindent 12 }}
+          # Environment variables
+          env:
+            {{- with .Values.app.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+            # Database connection
+            - name: DATABASE_URL
+              {{- include "osax.databaseUrl" . | nindent 14 }}
+            # Redis connection
+            - name: REDIS_URL
+              {{- include "osax.redisUrl" . | nindent 14 }}
+            {{- if .Values.secrets.encryptionKey }}
+            - name: ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "osax.fullname" . }}-secrets
+                  key: encryption-key
+            {{- end }}
+            {{- if .Values.secrets.jwtSecret }}
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "osax.fullname" . }}-secrets
+                  key: jwt-secret
+            {{- end }}
+            {{- if .Values.secrets.openaiApiKey }}
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "osax.fullname" . }}-secrets
+                  key: openai-api-key
+            {{- end }}
+          # Liveness probe - restart if unhealthy
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.app.healthCheck.liveness.path | default "/api/health" }}
+              port: {{ .Values.app.healthCheck.liveness.port | default "http" }}
+            initialDelaySeconds: {{ .Values.app.healthCheck.liveness.initialDelaySeconds | default 30 }}
+            periodSeconds: {{ .Values.app.healthCheck.liveness.periodSeconds | default 10 }}
+            timeoutSeconds: {{ .Values.app.healthCheck.liveness.timeoutSeconds | default 5 }}
+            failureThreshold: {{ .Values.app.healthCheck.liveness.failureThreshold | default 3 }}
+          # Readiness probe - remove from service if not ready
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.app.healthCheck.readiness.path | default "/api/health" }}
+              port: {{ .Values.app.healthCheck.readiness.port | default "http" }}
+            initialDelaySeconds: {{ .Values.app.healthCheck.readiness.initialDelaySeconds | default 10 }}
+            periodSeconds: {{ .Values.app.healthCheck.readiness.periodSeconds | default 5 }}
+            timeoutSeconds: {{ .Values.app.healthCheck.readiness.timeoutSeconds | default 3 }}
+            failureThreshold: {{ .Values.app.healthCheck.readiness.failureThreshold | default 3 }}
+          # Startup probe - allow slow startup without killing pod
+          startupProbe:
+            httpGet:
+              path: {{ .Values.app.healthCheck.startup.path | default "/api/health" }}
+              port: {{ .Values.app.healthCheck.startup.port | default "http" }}
+            initialDelaySeconds: {{ .Values.app.healthCheck.startup.initialDelaySeconds | default 5 }}
+            periodSeconds: {{ .Values.app.healthCheck.startup.periodSeconds | default 5 }}
+            timeoutSeconds: {{ .Values.app.healthCheck.startup.timeoutSeconds | default 3 }}
+            failureThreshold: {{ .Values.app.healthCheck.startup.failureThreshold | default 30 }}
+          volumeMounts:
+            # Temporary storage for processing (ephemeral)
+            - name: tmp
+              mountPath: /tmp
+            {{- if .Values.persistence.temp.enabled }}
+            - name: temp-storage
+              mountPath: /app/temp
+            {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        {{- if .Values.persistence.temp.enabled }}
+        - name: temp-storage
+          persistentVolumeClaim:
+            claimName: {{ include "osax.fullname" . }}-temp
+        {{- end }}
+      # Graceful shutdown
+      terminationGracePeriodSeconds: 30

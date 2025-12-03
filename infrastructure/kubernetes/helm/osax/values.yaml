@@ -363,3 +363,16 @@ worker:
     limits:
       cpu: "1000m"
       memory: "2Gi"
+
+  # Worker Horizontal Pod Autoscaler
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+  # Worker Pod Disruption Budget
+  pdb:
+    enabled: true
+    minAvailable: 1
