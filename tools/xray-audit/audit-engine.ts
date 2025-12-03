@@ -16,7 +16,7 @@ import { LayerAnalyzer } from './layer-analyzer.js';
 import { SecurityAnalyzer } from './security-analyzer.js';
 import { EventAnalyzer } from './event-analyzer.js';
 import { ObservabilityAnalyzer } from './observability-analyzer.js';
-import { readdir, readFile } from 'fs/promises';
+import { readdir } from 'fs/promises';
 import { join } from 'path';
 
 export class AuditEngine {
