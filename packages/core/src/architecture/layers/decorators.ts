@@ -10,6 +10,9 @@
 
 import type { ArchitecturalLayer, LayerMetadata } from './contracts.js';
 import { layerRegistry, validateDependency, LayerViolationError } from './boundaries.js';
+import { createLogger, type Logger } from '../../logger.js';
+
+const logger: Logger = createLogger({ name: 'layer-decorators' });
 
 // ============================================================================
 // LAYER DECORATORS
@@ -133,9 +136,9 @@ export function InjectFromLayer(sourceLayer: ArchitecturalLayer) {
       );
 
       if (!isValid && process.env.NODE_ENV !== 'production') {
-        console.warn(
-          `[Architecture Warning] Suspicious dependency injection in ${target.constructor.name}: ` +
-            `injecting ${sourceLayer} layer component into ${targetLayer} layer`
+        logger.warn(
+          { component: target.constructor.name, sourceLayer, targetLayer },
+          'Suspicious dependency injection detected'
         );
       }
     }
@@ -206,8 +209,6 @@ export function ValueObjectDecorator(valueObjectType: string) {
 
     // Freeze instances to ensure immutability
     const original = constructor;
-    // @ts-expect-error - Mixin pattern requires any[] constructor
-    const decorated = class extends original {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const decorated = class extends (original as any) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

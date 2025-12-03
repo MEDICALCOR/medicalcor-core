@@ -21,10 +21,11 @@
 /* eslint-disable @typescript-eslint/no-unnecessary-condition */
 /* eslint-disable @typescript-eslint/require-await */
 /* eslint-disable @typescript-eslint/prefer-reduce-type-parameter */
-/* eslint-disable no-console */
-
 import crypto from 'crypto';
 import { EventEmitter } from 'events';
+import { createLogger, type Logger } from '../logger.js';
+
+const logger: Logger = createLogger({ name: 'backup-service' });
 
 // ============= Types =============
 
@@ -1135,7 +1136,7 @@ export class BackupService extends EventEmitter {
         try {
           await this.createBackup('full', { scheduled: 'true' });
         } catch (error) {
-          console.error('[BackupService] Scheduled full backup failed:', error);
+          logger.error({ error }, 'Scheduled full backup failed');
         }
       }, fullInterval)
     );
@@ -1150,14 +1151,18 @@ export class BackupService extends EventEmitter {
           try {
             await this.createBackup('incremental', { scheduled: 'true' });
           } catch (error) {
-            console.error('[BackupService] Scheduled incremental backup failed:', error);
+            logger.error({ error }, 'Scheduled incremental backup failed');
           }
         }, incInterval)
       );
     }
 
-    console.info(
-      `[BackupService] Scheduler started - Full: ${schedule.fullBackupFrequency}, Incremental: ${schedule.incrementalFrequency ?? 'disabled'}`
+    logger.info(
+      {
+        fullBackupFrequency: schedule.fullBackupFrequency,
+        incrementalFrequency: schedule.incrementalFrequency ?? 'disabled',
+      },
+      'Scheduler started'
     );
   }
 

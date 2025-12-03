@@ -399,6 +399,9 @@ importers:
 
   packages/application:
     dependencies:
+      '@medicalcor/core':
+        specifier: workspace:*
+        version: link:../core
       '@medicalcor/domain':
         specifier: workspace:*
         version: link:../domain

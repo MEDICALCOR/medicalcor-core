@@ -10,6 +10,9 @@
 import type { DomainEvent } from '../layers/contracts.js';
 import type { Result } from '../../types/result.js';
 import { Ok, Err } from '../../types/result.js';
+import { createLogger, type Logger } from '../../logger.js';
+
+const logger: Logger = createLogger({ name: 'process-manager' });
 
 // ============================================================================
 // PROCESS MANAGER TYPES
@@ -259,7 +262,7 @@ export class ProcessManager<TState = unknown> {
           await this.commandDispatcher.dispatch(command.commandType, command.payload);
         } catch (error) {
           // Log but continue with other compensations
-          console.error('Compensation command failed:', error);
+          logger.error({ error, commandType: command.commandType }, 'Compensation command failed');
         }
       }
     }

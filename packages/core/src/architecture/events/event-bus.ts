@@ -8,6 +8,9 @@
  */
 
 import type { DomainEvent, EventMetadata } from '../layers/contracts.js';
+import { createLogger, type Logger } from '../../logger.js';
+
+const logger: Logger = createLogger({ name: 'event-bus' });
 
 // ============================================================================
 // EVENT BUS TYPES
@@ -145,7 +148,10 @@ export class InMemoryEventBus implements EventBus {
 
     if (errors.length > 0) {
       // Log errors but don't throw - events should be fire-and-forget
-      console.error(`Event ${event.eventType} had ${errors.length} handler errors`);
+      logger.error(
+        { eventType: event.eventType, errorCount: errors.length },
+        'Event had handler errors'
+      );
     }
   }
 
@@ -339,7 +345,7 @@ export class ValidationEventMiddleware implements EventMiddleware {
   async before(event: DomainEvent): Promise<DomainEvent | null> {
     const validator = this.validators.get(event.eventType);
     if (validator && !validator(event)) {
-      console.warn(`Event ${event.eventType} failed validation`);
+      logger.warn({ eventType: event.eventType }, 'Event failed validation');
       return null;
     }
     return event;
