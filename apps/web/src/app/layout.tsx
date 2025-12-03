@@ -1,8 +1,15 @@
 import type { Metadata, Viewport } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/providers';
 import { Sidebar, SidebarProvider, MobileSidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
+
+const inter = Inter({
+  subsets: ['latin', 'latin-ext'],
+  display: 'swap',
+  variable: '--font-inter',
+});
 
 export const metadata: Metadata = {
   title: 'MedicalCor Cortex',
@@ -31,11 +38,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ro" suppressHydrationWarning>
+    <html lang="ro" className={inter.variable} suppressHydrationWarning>
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
-      <body className="font-sans">
+      <body className={inter.className}>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-4 focus:left-4 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:shadow-lg"
+        >
+          Salt la conținut
+        </a>
         <Providers>
           <SidebarProvider>
             <div className="flex min-h-screen">
@@ -43,7 +56,9 @@ export default function RootLayout({
               <MobileSidebar />
               <div className="flex flex-1 flex-col lg:pl-64 transition-all duration-300">
                 <Header />
-                <main className="flex-1 p-4 sm:p-6">{children}</main>
+                <main id="main-content" className="flex-1 p-4 sm:p-6" tabIndex={-1}>
+                  {children}
+                </main>
               </div>
             </div>
           </SidebarProvider>
