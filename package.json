@@ -33,7 +33,9 @@
     "db:schema:dump": "cd db && dbmate --migrations-dir ./migrations dump",
     "db:schema:validate": "./scripts/validate-schema.sh",
     "db:seed": "tsx db/seed.ts",
-    "db:ingest": "tsx scripts/ingest-knowledge.ts"
+    "db:ingest": "tsx scripts/ingest-knowledge.ts",
+    "xray-audit": "tsx tools/xray-audit.ts",
+    "xray-audit:report": "tsx tools/xray-audit.ts --output XRAY_AUDIT_REPORT.md"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.55",
