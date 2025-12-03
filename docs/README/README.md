@@ -165,6 +165,7 @@ For detailed setup instructions, see [GETTING_STARTED.md](./GETTING_STARTED.md).
 
 | Document | Description |
 |----------|-------------|
+| [Development Environment Policy](./DEVELOPMENT_ENVIRONMENT.md) | ⚠️ Required reading - Codespaces disabled, local setup |
 | [Development Guide](./DEVELOPMENT.md) | Contributing guidelines and code standards |
 | [Testing Guide](./TESTING.md) | Test setup, patterns, and coverage |
 | [Troubleshooting](./TROUBLESHOOTING.md) | Common issues and solutions |

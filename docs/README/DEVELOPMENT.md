@@ -14,6 +14,11 @@ Guidelines for contributing to MedicalCor Core.
 
 ---
 
+> **⚠️ Important**: GitHub Codespaces are disabled for security compliance.
+> See [Development Environment Policy](./DEVELOPMENT_ENVIRONMENT.md) for requirements.
+
+---
+
 ## Development Environment
 
 ### IDE Setup
