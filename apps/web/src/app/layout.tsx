@@ -62,6 +62,7 @@ export default function RootLayout({
                   tabIndex={-1}
                   style={{ viewTransitionName: 'main-content' }}
                 >
+                <main id="main-content" className="flex-1 p-4 sm:p-6" tabIndex={-1}>
                   {children}
                 </main>
               </div>

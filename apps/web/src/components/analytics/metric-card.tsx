@@ -96,3 +96,5 @@ export const MetricCard = memo(function MetricCard({
     </Card>
   );
 });
+
+MetricCard.displayName = 'MetricCard';

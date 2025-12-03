@@ -1,93 +1,31 @@
 'use client';
 
 import * as React from 'react';
+import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import { cn } from '@/lib/utils';
 
-interface TooltipContextValue {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
+const TooltipProvider = TooltipPrimitive.Provider;
 
-const TooltipContext = React.createContext<TooltipContextValue | undefined>(undefined);
+const Tooltip = TooltipPrimitive.Root;
 
-const TooltipProvider = ({ children }: { children: React.ReactNode }) => {
-  return <>{children}</>;
-};
+const TooltipTrigger = TooltipPrimitive.Trigger;
 
-const Tooltip = ({ children }: { children: React.ReactNode }) => {
-  const [open, setOpen] = React.useState(false);
-
-  return (
-    <TooltipContext.Provider value={{ open, onOpenChange: setOpen }}>
-      <div className="relative inline-block">{children}</div>
-    </TooltipContext.Provider>
-  );
-};
-
-const TooltipTrigger = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement> & { asChild?: boolean }
->(({ className, asChild, children, ...props }, ref) => {
-  const context = React.useContext(TooltipContext);
-
-  const handleMouseEnter = () => context?.onOpenChange(true);
-  const handleMouseLeave = () => context?.onOpenChange(false);
-  const handleFocus = () => context?.onOpenChange(true);
-  const handleBlur = () => context?.onOpenChange(false);
-
-  if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(
-      children as React.ReactElement<{
-        onMouseEnter?: () => void;
-        onMouseLeave?: () => void;
-        onFocus?: () => void;
-        onBlur?: () => void;
-      }>,
-      {
-        onMouseEnter: handleMouseEnter,
-        onMouseLeave: handleMouseLeave,
-        onFocus: handleFocus,
-        onBlur: handleBlur,
-      }
-    );
-  }
-
-  return (
-    <div
+const TooltipContent = React.forwardRef<
+  React.ElementRef<typeof TooltipPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
+>(({ className, sideOffset = 4, ...props }, ref) => (
+  <TooltipPrimitive.Portal>
+    <TooltipPrimitive.Content
       ref={ref}
-      role="button"
-      tabIndex={0}
-      className={className}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
+      sideOffset={sideOffset}
+      className={cn(
+        'z-50 overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
+        className
+      )}
       {...props}
-    >
-      {children}
-    </div>
-  );
-});
-TooltipTrigger.displayName = 'TooltipTrigger';
-
-const TooltipContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => {
-    const context = React.useContext(TooltipContext);
-
-    if (!context?.open) return null;
-
-    return (
-      <div
-        ref={ref}
-        className={cn(
-          'absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95',
-          className
-        )}
-        {...props}
-      />
-    );
-  }
-);
-TooltipContent.displayName = 'TooltipContent';
+    />
+  </TooltipPrimitive.Portal>
+));
+TooltipContent.displayName = TooltipPrimitive.Content.displayName;
 
 export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider };

@@ -805,9 +805,9 @@ describe('Voice Transcription Workflow', () => {
         type: 'call.ended' as const,
         call: {
           id: 'vapi_call_789',
-          status: 'ended',
+          status: 'ended' as const,
           type: 'inbound' as const,
-          customer: undefined, // No customer info
+          customer: undefined as { number: string; name?: string } | undefined, // No customer info
         },
       };
 
@@ -1481,7 +1481,8 @@ Conversion Rate: ${conversionRate}%`;
 
       const events = await eventStore.getByType('cron.weekly_analytics.completed');
       expect(events.length).toBe(1);
-      expect(events[0]?.payload.metrics.newLeads).toBe(85);
+      const payload = events[0]?.payload as { metrics: { newLeads: number } };
+      expect(payload.metrics.newLeads).toBe(85);
     });
   });
 

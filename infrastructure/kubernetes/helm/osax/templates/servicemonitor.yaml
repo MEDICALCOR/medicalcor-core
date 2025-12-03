@@ -1,0 +1,226 @@
+{{- if and .Values.monitoring.prometheus.enabled .Values.monitoring.prometheus.serviceMonitor.enabled }}
+# ============================================================================
+# ServiceMonitor for Prometheus Operator
+#
+# Enables automatic service discovery for Prometheus to scrape metrics from
+# the OSAX application pods. Requires Prometheus Operator to be installed.
+#
+# Metrics exposed:
+# - HTTP request latency and throughput
+# - Business metrics (lead scoring, appointments, etc.)
+# - Node.js process metrics (memory, CPU, event loop)
+# - PostgreSQL connection pool stats
+# - Circuit breaker states
+# - DLQ queue depths
+# ============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "osax.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "osax.labels" . | nindent 4 }}
+    {{- with .Values.monitoring.prometheus.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.monitoring.prometheus.serviceMonitor.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  # Match the service by selector labels
+  selector:
+    matchLabels:
+      {{- include "osax.selectorLabels" . | nindent 6 }}
+
+  # Define which service ports to scrape
+  endpoints:
+    # Main metrics endpoint
+    - port: metrics
+      path: {{ .Values.monitoring.prometheus.path | default "/metrics" }}
+      interval: {{ .Values.monitoring.prometheus.serviceMonitor.interval | default "30s" }}
+      scrapeTimeout: {{ .Values.monitoring.prometheus.serviceMonitor.scrapeTimeout | default "10s" }}
+
+      # Honor labels from the target
+      honorLabels: false
+
+      # Relabeling configuration
+      relabelings:
+        # Add pod name as a label
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        # Add node name as a label
+        - sourceLabels: [__meta_kubernetes_pod_node_name]
+          targetLabel: node
+        # Add deployment name
+        - sourceLabels: [__meta_kubernetes_pod_label_app_kubernetes_io_instance]
+          targetLabel: deployment
+
+      # Metric relabeling (post-scrape)
+      metricRelabelings:
+        # Drop high-cardinality metrics if needed
+        # - sourceLabels: [__name__]
+        #   regex: 'go_.*'
+        #   action: drop
+
+        # Add environment label
+        - targetLabel: environment
+          replacement: {{ .Values.global.environment | default "production" }}
+
+    {{- if .Values.app.ports.http }}
+    # Optional: Scrape application health endpoint
+    - port: http
+      path: /api/health
+      interval: {{ .Values.monitoring.prometheus.serviceMonitor.interval | default "30s" }}
+      scrapeTimeout: {{ .Values.monitoring.prometheus.serviceMonitor.scrapeTimeout | default "10s" }}
+      # Only keep health status metric
+      metricRelabelings:
+        - sourceLabels: [__name__]
+          regex: 'osax_health_status'
+          action: keep
+    {{- end }}
+
+  # Namespace selector - match pods in release namespace
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+
+  # Additional target labels from the service
+  targetLabels:
+    - app.kubernetes.io/name
+    - app.kubernetes.io/instance
+    - app.kubernetes.io/version
+
+---
+{{- if .Values.monitoring.alerts.enabled }}
+# ============================================================================
+# PrometheusRule for OSAX Alerting
+# ============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "osax.fullname" . }}-alerts
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "osax.labels" . | nindent 4 }}
+    {{- with .Values.monitoring.alerts.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: osax.rules
+      interval: 30s
+      rules:
+        # High Error Rate
+        - alert: OsaxHighErrorRate
+          expr: |
+            sum(rate(http_request_duration_seconds_count{job="{{ include "osax.fullname" . }}", status_code=~"5.."}[5m]))
+            /
+            sum(rate(http_request_duration_seconds_count{job="{{ include "osax.fullname" . }}"}[5m]))
+            > 0.05
+          for: 5m
+          labels:
+            severity: warning
+            {{- with .Values.monitoring.alerts.labels }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          annotations:
+            summary: "High error rate on OSAX"
+            description: "Error rate is above 5% (current: {{ "{{ $value | humanizePercentage }}" }})"
+            runbook_url: "https://docs.medicalcor.ro/runbooks/osax-high-error-rate"
+
+        # Circuit Breaker Open
+        - alert: OsaxCircuitBreakerOpen
+          expr: |
+            osax_circuit_breaker_state{state="open"} == 1
+          for: 2m
+          labels:
+            severity: warning
+            {{- with .Values.monitoring.alerts.labels }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          annotations:
+            summary: "Circuit breaker open for {{ "{{ $labels.name }}" }}"
+            description: "Circuit breaker {{ "{{ $labels.name }}" }} has been open for 2+ minutes"
+            runbook_url: "https://docs.medicalcor.ro/runbooks/circuit-breaker-open"
+
+        # DLQ Backlog
+        - alert: OsaxDLQBacklog
+          expr: |
+            osax_dlq_pending_total > 100
+          for: 10m
+          labels:
+            severity: warning
+            {{- with .Values.monitoring.alerts.labels }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          annotations:
+            summary: "DLQ backlog growing"
+            description: "Dead Letter Queue has {{ "{{ $value }}" }} pending entries"
+            runbook_url: "https://docs.medicalcor.ro/runbooks/dlq-backlog"
+
+        # Projection Lag
+        - alert: OsaxProjectionLag
+          expr: |
+            osax_projection_lag_seconds > 300
+          for: 5m
+          labels:
+            severity: warning
+            {{- with .Values.monitoring.alerts.labels }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          annotations:
+            summary: "Projection {{ "{{ $labels.projection_name }}" }} is lagging"
+            description: "Projection is {{ "{{ $value | humanizeDuration }}" }} behind"
+            runbook_url: "https://docs.medicalcor.ro/runbooks/projection-lag"
+
+        # High Lead Scoring Latency
+        - alert: OsaxSlowLeadScoring
+          expr: |
+            histogram_quantile(0.95, rate(osax_lead_scoring_duration_seconds_bucket[5m])) > 5
+          for: 5m
+          labels:
+            severity: warning
+            {{- with .Values.monitoring.alerts.labels }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          annotations:
+            summary: "Lead scoring is slow"
+            description: "P95 lead scoring latency is {{ "{{ $value | humanizeDuration }}" }}"
+            runbook_url: "https://docs.medicalcor.ro/runbooks/slow-lead-scoring"
+
+        # Pod Memory Usage
+        - alert: OsaxHighMemoryUsage
+          expr: |
+            container_memory_usage_bytes{container="{{ include "osax.fullname" . }}"}
+            /
+            container_spec_memory_limit_bytes{container="{{ include "osax.fullname" . }}"}
+            > 0.85
+          for: 10m
+          labels:
+            severity: warning
+            {{- with .Values.monitoring.alerts.labels }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          annotations:
+            summary: "High memory usage on OSAX pod"
+            description: "Pod {{ "{{ $labels.pod }}" }} is using {{ "{{ $value | humanizePercentage }}" }} of memory limit"
+            runbook_url: "https://docs.medicalcor.ro/runbooks/high-memory-usage"
+
+        # Pod Restarts
+        - alert: OsaxPodRestarts
+          expr: |
+            increase(kube_pod_container_status_restarts_total{container="{{ include "osax.fullname" . }}"}[1h]) > 3
+          for: 5m
+          labels:
+            severity: warning
+            {{- with .Values.monitoring.alerts.labels }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          annotations:
+            summary: "OSAX pod restarting frequently"
+            description: "Pod {{ "{{ $labels.pod }}" }} has restarted {{ "{{ $value }}" }} times in the last hour"
+            runbook_url: "https://docs.medicalcor.ro/runbooks/pod-restarts"
+
+{{- end }}
+{{- end }}

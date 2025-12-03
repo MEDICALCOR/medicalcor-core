@@ -20,6 +20,7 @@ import {
   diagnosticsRoutes,
   backupRoutes,
   gdprRoutes,
+  metricsRoutes,
 } from './routes/index.js';
 import { chatgptPluginRoutes } from './routes/chatgpt-plugin.js';
 import { instrumentFastify } from '@medicalcor/core/observability/instrumentation';
@@ -260,6 +261,7 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
         { name: 'Workflows', description: 'Trigger durable workflows' },
         { name: 'AI', description: 'AI function discovery and execution' },
         { name: 'Diagnostics', description: 'System diagnostics and metrics' },
+        { name: 'Metrics', description: 'Prometheus metrics for monitoring' },
         { name: 'Backup', description: 'Backup management operations' },
         { name: 'ChatGPT Plugin', description: 'ChatGPT plugin integration endpoints' },
       ],
@@ -404,6 +406,7 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
 
   // Register routes
   await fastify.register(healthRoutes);
+  await fastify.register(metricsRoutes);
   await fastify.register(webhookRoutes);
   await fastify.register(workflowRoutes);
   await fastify.register(aiRoutes);
@@ -411,6 +414,7 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
   await fastify.register(chatgptPluginRoutes);
   await fastify.register(backupRoutes);
   await fastify.register(gdprRoutes);
+  await fastify.register(metricsRoutes);
 
   // Global error handler
   fastify.setErrorHandler((error, request, reply) => {

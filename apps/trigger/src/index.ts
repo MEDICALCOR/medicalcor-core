@@ -55,3 +55,4 @@ export {
   gdprConsentAudit,
   crmHealthMonitor,
 } from './jobs/cron-jobs.js';
+export { weeklyEmbeddingRefresh, dailyEmbeddingStats } from './jobs/embedding-refresh.js';

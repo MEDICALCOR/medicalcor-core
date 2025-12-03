@@ -1,0 +1,60 @@
+apiVersion: v2
+name: osax
+description: MedicalCor OSAX - AI-powered medical CRM platform
+
+type: application
+
+# Chart version (increment for chart changes)
+version: 1.0.0
+
+# Application version (matches the deployed app version)
+appVersion: '3.0.0'
+
+# Minimum Kubernetes version
+kubeVersion: '>=1.25.0'
+
+# Chart maintainers
+maintainers:
+  - name: MedicalCor Platform Team
+    email: platform@medicalcor.ro
+    url: https://medicalcor.ro
+
+# Keywords for search
+keywords:
+  - medicalcor
+  - osax
+  - crm
+  - medical
+  - ai
+  - healthcare
+  - hipaa
+
+# Home and source URLs
+home: https://osax.medicalcor.ro
+sources:
+  - https://github.com/MEDICALCOR/medicalcor-core
+
+# Chart dependencies
+dependencies:
+  # PostgreSQL (optional - can use external)
+  - name: postgresql
+    version: '12.12.10'
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+
+  # Redis (optional - can use external)
+  - name: redis
+    version: '18.6.1'
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled
+
+# Annotations
+annotations:
+  # Category for Artifact Hub
+  category: Healthcare
+
+  # License
+  licenses: Apache-2.0
+
+  # Operator capability level
+  operatorCapabilities: Deep Insights

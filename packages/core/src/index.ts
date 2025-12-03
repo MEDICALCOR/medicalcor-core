@@ -260,7 +260,51 @@ export {
   type LeadStatsState,
   type PatientActivityState,
   type DailyMetricsState,
+  // Projection Health Monitoring
+  ProjectionHealthMonitor,
+  createProjectionHealthMonitor,
+  DEFAULT_PROJECTION_HEALTH_CONFIG,
+  type ProjectionHealth,
+  type ProjectionHealthSummary,
+  type ProjectionHealthConfig,
+  // Event Schema Registry
+  EventSchemaRegistry,
+  eventSchemaRegistry,
+  createEventSchemaRegistry,
+  registerCommonEventSchemas,
+  type EventSchemaVersion,
+  type RegisterSchemaOptions,
+  type ValidationResult as EventValidationResult,
+  type MigrationResult,
+  type EventMigrationFn,
+  // Schema-Validated Event Store
+  SchemaValidatedEventStore,
+  EventSchemaValidationError,
+  createSchemaValidatedEventStore,
+  withSchemaValidation,
+  type SchemaValidatedEventStoreConfig,
+  type SchemaViolation,
+  // Saga Repository
+  InMemorySagaRepository,
+  PostgresSagaRepository,
+  createSagaRepository,
+  createInMemorySagaRepository,
+  type SagaStatus,
+  type SagaState,
+  type SagaStepHistory,
+  type CreateSagaOptions,
+  type FindSagasOptions,
+  type SagaRepository,
 } from './cqrs/index.js';
+
+// Enhanced Dead Letter Queue with Circuit Breaker
+export {
+  EnhancedDeadLetterQueueService,
+  createEnhancedDeadLetterQueueService,
+  type EnhancedDLQConfig,
+  type EnhancedRetryResult,
+  type DLQHealthStatus,
+} from './enhanced-dead-letter-queue.js';
 
 // AI-First API Gateway
 export {

@@ -12,3 +12,4 @@ export { diagnosticsRoutes } from './diagnostics.js';
 export { chatgptPluginRoutes } from './chatgpt-plugin.js';
 export { backupRoutes } from './backup.js';
 export { gdprRoutes } from './gdpr.js';
+export { metricsRoutes } from './metrics.js';
