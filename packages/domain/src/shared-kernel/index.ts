@@ -14,3 +14,4 @@
 export * from './value-objects/index.js';
 export * from './repository-interfaces/index.js';
 export * from './domain-events/index.js';
+export * from './utils/index.js';
