@@ -15,8 +15,6 @@
 import { generatePrefixedId } from '../shared-kernel/utils/uuid.js';
 import type { ConsentRepository } from './consent-repository.js';
 import crypto from 'crypto';
-import type { ConsentRepository } from './consent-repository.js';
-import { InMemoryConsentRepository } from './consent-repository.js';
 
 /**
  * Logger interface for dependency injection
@@ -168,14 +166,6 @@ export interface ConsentServiceOptions {
    * const logger = createLogger({ name: 'consent-service' });
    * const service = new ConsentService({ repository, logger });
    * ```
-   * const service = new ConsentService({ logger });
-   * ```
-   */
-  logger?: ConsentLogger;
-  /**
-   * Whether the application is running in production mode.
-   * When true, a persistent repository is required.
-   * This should be injected by the infrastructure layer rather than read from process.env.
    */
   logger?: ConsentLogger;
 }
@@ -185,30 +175,6 @@ export class ConsentService {
   private repository: ConsentRepository;
   private logger: ConsentLogger;
 
-  constructor(options?: ConsentServiceOptions) {
-    this.config = { ...DEFAULT_CONFIG, ...options?.config };
-
-    // HEXAGONAL ARCHITECTURE: Logger is injected to maintain domain purity
-    // If no logger provided, use no-op logger (silent operation)
-    this.logger = options?.logger ?? noopLogger;
-
-    // CRITICAL SECURITY CHECK: In production, a persistent repository is REQUIRED
-    // Using in-memory storage for GDPR consent data is a compliance violation
-    // NOTE: isProduction is now injected via options to avoid framework/env dependency in domain layer
-    const isProduction = options?.isProduction ?? false;
-
-    if (!options?.repository) {
-      if (isProduction) {
-        // FAIL FAST in production - this is a critical configuration error
-        // GDPR consent data MUST be persisted to survive restarts
-        const errorMessage =
-          'CRITICAL: ConsentService requires a persistent repository in production. ' +
-          'In-memory storage would cause GDPR compliance violations as consent records ' +
-          'would be lost on restart. Please configure PostgresConsentRepository.';
-        this.logger.fatal(errorMessage);
-        throw new Error(errorMessage);
-      }
-
   /**
    * Creates a ConsentService with required repository injection.
    *
@@ -216,24 +182,13 @@ export class ConsentService {
    * Domain layer must not depend on infrastructure implementations.
    *
    * @param options - Service configuration with required repository
-   * @throws Error if repository is not provided
-   *
-   * @example
-   * ```typescript
-   * import { PostgresConsentRepository } from '@medicalcor/core/repositories';
-   *
-   * const repository = new PostgresConsentRepository({ pool: pgPool });
-   * const service = new ConsentService({ repository });
-   * ```
    */
   constructor(options: ConsentServiceOptions) {
     // HEXAGONAL ARCHITECTURE: Repository is required (enforced by TypeScript)
-    // Domain doesn't create implementations - they are injected from infrastructure layer
     this.config = { ...DEFAULT_CONFIG, ...options.config };
     this.repository = options.repository;
 
-    // HEXAGONAL ARCHITECTURE: Logger is injected to maintain domain purity
-    // If no logger provided, use no-op logger (silent operation)
+    // Logger is injected; use no-op if not provided
     this.logger = options.logger ?? noopLogger;
   }
 
@@ -657,13 +612,11 @@ export function createPersistentConsentService(
   options?: {
     config?: Partial<ConsentConfig>;
     logger?: ConsentLogger;
-    isProduction?: boolean;
   }
 ): ConsentService {
   return new ConsentService({
     repository,
     config: options?.config,
     logger: options?.logger,
-    isProduction: options?.isProduction ?? true, // Default to production safety
   });
 }

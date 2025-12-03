@@ -181,7 +181,7 @@ const csrfProtectionPlugin: FastifyPluginAsync<CsrfProtectionConfig> = (
   // Pre-handler hook for CSRF validation
   fastify.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
     const method = request.method.toUpperCase();
-    const path = request.url.split('?')[0]; // Remove query string
+    const path = request.url.split('?')[0] ?? '/'; // Remove query string
 
     // Skip non-protected methods (GET, HEAD, OPTIONS)
     if (!config.protectedMethods.includes(method)) {
@@ -193,9 +193,10 @@ const csrfProtectionPlugin: FastifyPluginAsync<CsrfProtectionConfig> = (
       return;
     }
 
-    // Get token from cookie (type-safe access)
-    const cookies = request.cookies as Record<string, string | undefined>;
-    const cookieToken: string | undefined = cookies[config.cookieName];
+    // Get token from cookie (type-safe access via @fastify/cookie)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cookies = (request as any).cookies as Record<string, string | undefined> | undefined;
+    const cookieToken: string | undefined = cookies?.[config.cookieName];
 
     // Get token from header
     const headerToken = request.headers[config.headerName.toLowerCase()] as string | undefined;
@@ -239,16 +240,17 @@ const csrfProtectionPlugin: FastifyPluginAsync<CsrfProtectionConfig> = (
 
   // Route to get/refresh CSRF token
   fastify.get('/csrf-token', async (request: FastifyRequest, reply: FastifyReply) => {
-    // Check for existing token (type-safe access)
-    const cookies = request.cookies as Record<string, string | undefined>;
-    const existingToken = cookies[config.cookieName];
+    // Check for existing token (type-safe access via @fastify/cookie)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cookies = (request as any).cookies as Record<string, string | undefined> | undefined;
+    const existingToken = cookies?.[config.cookieName];
 
     // Generate new token if none exists
     const token = existingToken ?? generateToken(config.tokenLength);
 
     // Set/refresh cookie
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- Fastify reply.setCookie is properly typed
-    void reply.setCookie(config.cookieName, token, cookieOptions);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call
+    void (reply as any).setCookie(config.cookieName, token, cookieOptions);
 
     // Return token in response (for SPA/API clients)
     return {
