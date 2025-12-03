@@ -56,6 +56,9 @@ import type {
   ConsentStatus,
   ConsentSource,
 } from './consent-service.js';
+import { createLogger, type Logger } from '@medicalcor/core';
+
+const logger: Logger = createLogger({ name: 'consent-repository' });
 
 interface DatabaseClient {
   query(sql: string, params?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
@@ -102,7 +105,7 @@ function toConsentRows(rows: Record<string, unknown>[]): ConsentRow[] {
   return rows.filter((row): row is ConsentRow => {
     if (!isConsentRow(row)) {
       // Log warning but don't throw - allows partial results
-      console.warn('[ConsentRepository] Invalid row structure detected, skipping row');
+      logger.warn('Invalid row structure detected, skipping row');
       return false;
     }
     return true;
@@ -116,7 +119,7 @@ function toConsentRows(rows: Record<string, unknown>[]): ConsentRow[] {
 function toAuditRows(rows: Record<string, unknown>[]): AuditRow[] {
   return rows.filter((row): row is AuditRow => {
     if (!isAuditRow(row)) {
-      console.warn('[ConsentRepository] Invalid audit row structure detected, skipping row');
+      logger.warn('Invalid audit row structure detected, skipping row');
       return false;
     }
     return true;

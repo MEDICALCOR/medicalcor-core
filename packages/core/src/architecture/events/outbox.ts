@@ -8,6 +8,9 @@
  */
 
 import type { DomainEvent } from '../layers/contracts.js';
+import { createLogger, type Logger } from '../../logger.js';
+
+const logger: Logger = createLogger({ name: 'outbox' });
 
 // ============================================================================
 // OUTBOX TYPES
@@ -240,7 +243,7 @@ export class OutboxProcessor {
 
     this.intervalId = setInterval(() => {
       this.processMessages().catch((error) => {
-        console.error('Outbox processing error:', error);
+        logger.error({ error }, 'Outbox processing error');
       });
     }, intervalMs);
   }

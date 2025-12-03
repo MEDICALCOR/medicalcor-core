@@ -30,6 +30,9 @@ import type {
 import type { OsaxClinicalScore } from '@medicalcor/domain';
 import type { OsaxSubjectId } from '@medicalcor/domain';
 import { createOsaxCase, isValidStatusTransition } from '@medicalcor/domain';
+import { createLogger, type Logger } from '../logger.js';
+
+const logger: Logger = createLogger({ name: 'supabase-osax-case-repository' });
 
 // ============================================================================
 // TYPES
@@ -1161,7 +1164,7 @@ export class SupabaseOsaxCaseRepository implements IOsaxCaseRepository {
         performed_at: new Date().toISOString(),
       });
     } catch (err) {
-      console.error('Failed to log audit entry:', err);
+      logger.error({ err, caseId, action }, 'Failed to log audit entry');
     }
   }
 

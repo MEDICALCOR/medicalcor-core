@@ -39,6 +39,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@medicalcor/core": "workspace:*",
     "@medicalcor/domain": "workspace:*",
     "zod": "^3.23.8"
   },

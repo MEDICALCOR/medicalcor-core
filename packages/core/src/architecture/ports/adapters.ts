@@ -11,6 +11,9 @@
 import type { Result } from '../../types/result.js';
 import { Ok, Err } from '../../types/result.js';
 import type { HealthCheckResult } from '../layers/contracts.js';
+import { createLogger, type Logger } from '../../logger.js';
+
+const logger: Logger = createLogger({ name: 'adapter-registry' });
 
 // ============================================================================
 // ADAPTER BASE CLASS
@@ -259,7 +262,7 @@ export class AdapterRegistry {
       try {
         await adapter.shutdown();
       } catch (error) {
-        console.error(`Failed to shutdown adapter ${adapter.adapterName}:`, error);
+        logger.error({ error, adapterName: adapter.adapterName }, 'Failed to shutdown adapter');
       }
     }
   }
@@ -374,7 +377,10 @@ export function WithLogging() {
         const result = await original.apply(this, args);
         return result;
       } catch (error) {
-        console.error(`[${this.adapterName}] ${operation} failed:`, error);
+        logger.error(
+          { error, adapterName: this.adapterName, operation },
+          'Adapter operation failed'
+        );
         throw error;
       }
     };

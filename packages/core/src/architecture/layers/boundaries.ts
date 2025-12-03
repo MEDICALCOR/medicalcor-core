@@ -16,6 +16,9 @@ import type {
   InfrastructureComponent,
   UIComponent,
 } from './contracts.js';
+import { createLogger, type Logger } from '../../logger.js';
+
+const logger: Logger = createLogger({ name: 'layer-boundaries' });
 
 // ============================================================================
 // LAYER REGISTRY
@@ -79,9 +82,14 @@ class LayerRegistry {
   recordViolation(violation: BoundaryViolation): void {
     this.violations.push(violation);
     if (process.env.NODE_ENV !== 'production') {
-      console.warn(
-        `[Architecture Violation] ${violation.fromComponent} (${violation.fromLayer}) ` +
-          `→ ${violation.toComponent} (${violation.toLayer}): ${violation.message}`
+      logger.warn(
+        {
+          fromComponent: violation.fromComponent,
+          fromLayer: violation.fromLayer,
+          toComponent: violation.toComponent,
+          toLayer: violation.toLayer,
+        },
+        `Architecture violation: ${violation.message}`
       );
     }
   }

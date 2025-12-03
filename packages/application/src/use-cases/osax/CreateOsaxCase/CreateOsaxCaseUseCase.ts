@@ -23,9 +23,12 @@ import type {
   DomainEvent,
 } from '../../../ports/secondary/messaging/EventPublisher.js';
 import type { AuditService } from '../../../ports/secondary/external/AuditService.js';
-import { SecurityContext, Permission } from '../../../security/SecurityContext.js';
-import { Result, Ok, Err, isErr } from '../../../shared/Result.js';
+import { type SecurityContext, Permission } from '../../../security/SecurityContext.js';
+import { type Result, Ok, Err, isErr } from '../../../shared/Result.js';
 import { DomainError, ErrorSeverity } from '../../../shared/DomainError.js';
+import { createLogger, type Logger } from '@medicalcor/core';
+
+const logger: Logger = createLogger({ name: 'create-osax-case-use-case' });
 
 /**
  * CreateOsaxCaseUseCase
@@ -82,7 +85,9 @@ export class CreateOsaxCaseUseCase implements Pick<OsaxCaseService, 'createCase'
 
       // 3. Check for duplicate cases
       const existingCases = await this.repository.findBySubjectId(request.subjectId);
-      const activeCases = existingCases.filter(c => !c.isDeleted && c.status !== 'CLOSED' && c.status !== 'CANCELLED');
+      const activeCases = existingCases.filter(
+        (c) => !c.isDeleted && c.status !== 'CLOSED' && c.status !== 'CANCELLED'
+      );
 
       if (activeCases.length > 0) {
         const error = new DomainError(
@@ -175,7 +180,6 @@ export class CreateOsaxCaseUseCase implements Pick<OsaxCaseService, 'createCase'
         status: entity.status,
         createdAt: entity.createdAt,
       });
-
     } catch (error: unknown) {
       // Handle and audit unexpected errors
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -211,47 +215,43 @@ export class CreateOsaxCaseUseCase implements Pick<OsaxCaseService, 'createCase'
 
     // Validate subject ID
     if (!request.subjectId || request.subjectId.trim().length === 0) {
-      errors['subjectId'] = ['Subject ID is required'];
+      errors.subjectId = ['Subject ID is required'];
     } else if (request.subjectId.length > 100) {
-      errors['subjectId'] = ['Subject ID must be 100 characters or less'];
+      errors.subjectId = ['Subject ID must be 100 characters or less'];
     }
 
     // Validate subject type
-    if (!request.subjectType) {
-      errors['subjectType'] = ['Subject type is required'];
-    } else if (!['lead', 'patient'].includes(request.subjectType)) {
-      errors['subjectType'] = ['Subject type must be "lead" or "patient"'];
+    if (!['lead', 'patient'].includes(request.subjectType)) {
+      errors.subjectType = ['Subject type must be "lead" or "patient"'];
     }
 
     // Validate notes (if provided)
     if (request.notes && request.notes.length > 10000) {
-      errors['notes'] = ['Notes must be 10000 characters or less'];
+      errors.notes = ['Notes must be 10000 characters or less'];
     }
 
     // Validate priority (if provided)
     if (request.priority && !['LOW', 'NORMAL', 'HIGH', 'URGENT'].includes(request.priority)) {
-      errors['priority'] = ['Priority must be LOW, NORMAL, HIGH, or URGENT'];
+      errors.priority = ['Priority must be LOW, NORMAL, HIGH, or URGENT'];
     }
 
     // Validate tags (if provided)
     if (request.tags) {
       if (!Array.isArray(request.tags)) {
-        errors['tags'] = ['Tags must be an array'];
+        errors.tags = ['Tags must be an array'];
       } else if (request.tags.length > 20) {
-        errors['tags'] = ['Maximum 20 tags allowed'];
+        errors.tags = ['Maximum 20 tags allowed'];
       } else {
-        const invalidTags = request.tags.filter(t => typeof t !== 'string' || t.length > 50);
+        const invalidTags = request.tags.filter((t) => typeof t !== 'string' || t.length > 50);
         if (invalidTags.length > 0) {
-          errors['tags'] = ['Each tag must be a string of 50 characters or less'];
+          errors.tags = ['Each tag must be a string of 50 characters or less'];
         }
       }
     }
 
     // Return validation result
     if (Object.keys(errors).length > 0) {
-      return Err(
-        DomainError.validation('Validation failed', errors)
-      );
+      return Err(DomainError.validation('Validation failed', errors));
     }
 
     return Ok(undefined);
@@ -276,17 +276,11 @@ export class CreateOsaxCaseUseCase implements Pick<OsaxCaseService, 'createCase'
     details?: Record<string, unknown>
   ): Promise<void> {
     try {
-      const auditEntry = context.createAuditEntry(
-        action,
-        'OsaxCase',
-        resourceId,
-        result,
-        details
-      );
+      const auditEntry = context.createAuditEntry(action, 'OsaxCase', resourceId, result, details);
       await this.auditService.record(auditEntry);
     } catch (error) {
       // Log but don't fail the operation if audit recording fails
-      console.error('Failed to record audit entry:', error);
+      logger.error({ error, action, resourceId }, 'Failed to record audit entry');
     }
   }
 }
