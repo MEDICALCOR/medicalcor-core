@@ -1,8 +1,9 @@
--- MedicalCor Core Database Initialization
--- Event Store and supporting tables
-
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- ============================================================================
+-- MedicalCor Core - Core Domain Tables
+-- ============================================================================
+-- Source: infra/migrations/001-init.sql (canonical)
+-- Event Store, Consent Records, Message Log, Lead Scoring
+-- ============================================================================
 
 -- =============================================================================
 -- Domain Events Table (Append-only Event Store)
@@ -16,16 +17,15 @@ CREATE TABLE IF NOT EXISTS domain_events (
     version INTEGER DEFAULT 1,
     created_at TIMESTAMPTZ DEFAULT NOW(),
 
-    -- Indexes for common queries
     CONSTRAINT domain_events_type_check CHECK (type ~ '^[a-z]+\.[a-z_]+$')
 );
 
-CREATE INDEX idx_domain_events_type ON domain_events(type);
-CREATE INDEX idx_domain_events_correlation_id ON domain_events(correlation_id);
-CREATE INDEX idx_domain_events_created_at ON domain_events(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_domain_events_type ON domain_events(type);
+CREATE INDEX IF NOT EXISTS idx_domain_events_correlation_id ON domain_events(correlation_id);
+CREATE INDEX IF NOT EXISTS idx_domain_events_created_at ON domain_events(created_at DESC);
 
 -- =============================================================================
--- Consent Records Table (GDPR Compliance)
+-- Consent Records Table (GDPR Compliance - Legacy)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS consent_records (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -42,8 +42,8 @@ CREATE TABLE IF NOT EXISTS consent_records (
     CONSTRAINT consent_type_check CHECK (consent_type IN ('marketing', 'medical_data', 'communication'))
 );
 
-CREATE INDEX idx_consent_records_phone ON consent_records(phone);
-CREATE INDEX idx_consent_records_hubspot_contact_id ON consent_records(hubspot_contact_id);
+CREATE INDEX IF NOT EXISTS idx_consent_records_phone ON consent_records(phone);
+CREATE INDEX IF NOT EXISTS idx_consent_records_hubspot_contact_id ON consent_records(hubspot_contact_id);
 
 -- =============================================================================
 -- Message Log Table (Audit Trail)
@@ -54,15 +54,15 @@ CREATE TABLE IF NOT EXISTS message_log (
     phone VARCHAR(20) NOT NULL,
     direction VARCHAR(3) NOT NULL CHECK (direction IN ('IN', 'OUT')),
     channel VARCHAR(20) NOT NULL CHECK (channel IN ('whatsapp', 'voice', 'sms', 'email')),
-    content_hash VARCHAR(64), -- SHA-256 hash, not actual content (PII protection)
+    content_hash VARCHAR(64),
     status VARCHAR(20),
     correlation_id VARCHAR(100),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_message_log_phone ON message_log(phone);
-CREATE INDEX idx_message_log_external_id ON message_log(external_message_id);
-CREATE INDEX idx_message_log_created_at ON message_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_message_log_phone ON message_log(phone);
+CREATE INDEX IF NOT EXISTS idx_message_log_external_id ON message_log(external_message_id);
+CREATE INDEX IF NOT EXISTS idx_message_log_created_at ON message_log(created_at DESC);
 
 -- =============================================================================
 -- Lead Scoring History Table
@@ -73,15 +73,15 @@ CREATE TABLE IF NOT EXISTS lead_scoring_history (
     hubspot_contact_id VARCHAR(50),
     score INTEGER NOT NULL CHECK (score >= 1 AND score <= 5),
     classification VARCHAR(20) NOT NULL CHECK (classification IN ('HOT', 'WARM', 'COLD', 'UNQUALIFIED')),
-    confidence DECIMAL(3,2) NOT NULL CHECK (confidence >= 0 AND confidence <= 1),
+    confidence DECIMAL(5,4) NOT NULL CHECK (confidence >= 0 AND confidence <= 1),
     reasoning TEXT,
     model_version VARCHAR(50),
     correlation_id VARCHAR(100),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_lead_scoring_phone ON lead_scoring_history(phone);
-CREATE INDEX idx_lead_scoring_created_at ON lead_scoring_history(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_lead_scoring_phone ON lead_scoring_history(phone);
+CREATE INDEX IF NOT EXISTS idx_lead_scoring_created_at ON lead_scoring_history(created_at DESC);
 
 -- =============================================================================
 -- Processor Registry (GDPR Data Processors)
@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS processor_registry (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Insert initial processors
+-- Seed initial processors
 INSERT INTO processor_registry (name, category, data_types, dpa_signed, status) VALUES
     ('HubSpot', 'CRM', ARRAY['contact', 'communication', 'scoring'], true, 'active'),
     ('360dialog', 'Messaging', ARRAY['phone', 'message_content'], true, 'active'),
@@ -128,7 +128,6 @@ BEGIN
     VALUES (p_type, p_payload, p_correlation_id, p_idempotency_key)
     ON CONFLICT (idempotency_key) DO NOTHING
     RETURNING id INTO v_id;
-
     RETURN v_id;
 END;
 $$ LANGUAGE plpgsql;

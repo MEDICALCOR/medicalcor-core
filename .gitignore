@@ -165,3 +165,6 @@ packages/integrations/src/__mocks__/*.map
 
 # JSCPD duplication reports
 .jscpd-report/
+
+# Archived legacy migrations
+_archive/

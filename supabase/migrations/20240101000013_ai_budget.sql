@@ -1,9 +1,12 @@
--- migrate:up
--- AI Budget Tracking Tables for cost monitoring and alerts
+-- ============================================================================
+-- MedicalCor Core - AI Budget Tracking
+-- ============================================================================
+-- Source: db/migrations/20241127000002_add_ai_budget_tracking.sql
+-- Cost monitoring and alerts for AI operations
+-- ============================================================================
 
 -- =============================================================================
 -- AI Budget Usage Table
--- Tracks daily/monthly AI spending per user and tenant
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS ai_budget_usage (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -20,12 +23,11 @@ CREATE TABLE IF NOT EXISTS ai_budget_usage (
     UNIQUE (user_id, tenant_id, period_type, period_start)
 );
 
-CREATE INDEX idx_ai_budget_usage_user ON ai_budget_usage(user_id, period_start DESC);
-CREATE INDEX idx_ai_budget_usage_tenant ON ai_budget_usage(tenant_id, period_start DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_budget_usage_user ON ai_budget_usage(user_id, period_start DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_budget_usage_tenant ON ai_budget_usage(tenant_id, period_start DESC);
 
 -- =============================================================================
 -- AI Budget Alerts Table
--- Records budget threshold alerts (50%, 75%, 90%)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS ai_budget_alerts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -42,12 +44,11 @@ CREATE TABLE IF NOT EXISTS ai_budget_alerts (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_ai_budget_alerts_scope ON ai_budget_alerts(scope, scope_id, created_at DESC);
-CREATE INDEX idx_ai_budget_alerts_unack ON ai_budget_alerts(acknowledged) WHERE acknowledged = FALSE;
+CREATE INDEX IF NOT EXISTS idx_ai_budget_alerts_scope ON ai_budget_alerts(scope, scope_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_budget_alerts_unack ON ai_budget_alerts(acknowledged) WHERE acknowledged = FALSE;
 
 -- =============================================================================
--- AI Provider Fallback Metrics Table
--- Tracks provider failures and fallback usage for monitoring
+-- AI Provider Metrics Table
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS ai_provider_metrics (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -67,13 +68,12 @@ CREATE TABLE IF NOT EXISTS ai_provider_metrics (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_ai_provider_metrics_provider ON ai_provider_metrics(provider, created_at DESC);
-CREATE INDEX idx_ai_provider_metrics_operation ON ai_provider_metrics(operation_type, created_at DESC);
-CREATE INDEX idx_ai_provider_metrics_fallback ON ai_provider_metrics(used_fallback, created_at DESC) WHERE used_fallback = TRUE;
+CREATE INDEX IF NOT EXISTS idx_ai_provider_metrics_provider ON ai_provider_metrics(provider, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_provider_metrics_operation ON ai_provider_metrics(operation_type, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_provider_metrics_fallback ON ai_provider_metrics(used_fallback, created_at DESC) WHERE used_fallback = TRUE;
 
 -- =============================================================================
 -- AI User Rate Limits Table
--- Custom rate limits per user (overrides default tier limits)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS ai_user_rate_limits (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -93,8 +93,6 @@ CREATE TABLE IF NOT EXISTS ai_user_rate_limits (
 -- =============================================================================
 -- Views for Dashboard Queries
 -- =============================================================================
-
--- Daily AI spend summary
 CREATE OR REPLACE VIEW v_ai_daily_spend AS
 SELECT
     DATE(created_at) as date,
@@ -106,12 +104,11 @@ SELECT
     SUM(cost) as total_cost,
     AVG(response_time_ms) as avg_response_time_ms,
     PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY response_time_ms) as p95_response_time_ms,
-    SUM(CASE WHEN used_fallback THEN 1 ELSE 0 END)::DECIMAL / COUNT(*) as fallback_rate,
-    SUM(CASE WHEN success THEN 1 ELSE 0 END)::DECIMAL / COUNT(*) as success_rate
+    SUM(CASE WHEN used_fallback THEN 1 ELSE 0 END)::DECIMAL / NULLIF(COUNT(*), 0) as fallback_rate,
+    SUM(CASE WHEN success THEN 1 ELSE 0 END)::DECIMAL / NULLIF(COUNT(*), 0) as success_rate
 FROM ai_provider_metrics
 GROUP BY DATE(created_at), provider, operation_type;
 
--- Provider health summary (last hour)
 CREATE OR REPLACE VIEW v_ai_provider_health AS
 SELECT
     provider,
@@ -125,11 +122,3 @@ SELECT
 FROM ai_provider_metrics
 WHERE created_at > NOW() - INTERVAL '1 hour'
 GROUP BY provider;
-
--- migrate:down
-DROP VIEW IF EXISTS v_ai_provider_health;
-DROP VIEW IF EXISTS v_ai_daily_spend;
-DROP TABLE IF EXISTS ai_user_rate_limits;
-DROP TABLE IF EXISTS ai_provider_metrics;
-DROP TABLE IF EXISTS ai_budget_alerts;
-DROP TABLE IF EXISTS ai_budget_usage;
