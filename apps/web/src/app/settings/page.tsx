@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Mail, Phone, Camera, Save } from 'lucide-react';
+import { PagePermissionGate } from '@/components/auth/require-permission';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,10 +35,11 @@ export default function ProfileSettingsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Profil Utilizator</CardTitle>
+    <PagePermissionGate pathname="/settings">
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Profil Utilizator</CardTitle>
           <CardDescription>Actualizează informațiile tale de profil</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -199,7 +201,8 @@ export default function ProfileSettingsPage() {
             <Button variant="outline">Schimbă parola</Button>
           </div>
         </CardContent>
-      </Card>
-    </div>
+        </Card>
+      </div>
+    </PagePermissionGate>
   );
 }

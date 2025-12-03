@@ -61,7 +61,11 @@ export type Permission =
   // AI Features
   | 'ai:copilot'
   | 'ai:scoring'
-  | 'ai:replies';
+  | 'ai:replies'
+  // Workflows
+  | 'workflows:read'
+  | 'workflows:write'
+  | 'workflows:delete';
 
 /**
  * Role-Permission mapping
@@ -107,6 +111,9 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'ai:copilot',
     'ai:scoring',
     'ai:replies',
+    'workflows:read',
+    'workflows:write',
+    'workflows:delete',
   ],
 
   doctor: [
@@ -131,6 +138,8 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'ai:copilot',
     'ai:scoring',
     'ai:replies',
+    'workflows:read',
+    'workflows:write',
   ],
 
   receptionist: [
@@ -153,6 +162,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'billing:create',
     'ai:copilot',
     'ai:replies',
+    'workflows:read',
   ],
 
   staff: [
@@ -268,7 +278,7 @@ export const PAGE_ACCESS: Record<string, PageAccess> = {
   '/reports': { permissions: ['analytics:view'] },
 
   // Workflows
-  '/workflows': { roles: ['admin', 'doctor'] },
+  '/workflows': { permissions: ['workflows:read'] },
 
   // Documents
   '/documents': { permissions: ['patients:view'] },
