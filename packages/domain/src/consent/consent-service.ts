@@ -12,6 +12,8 @@
  * - No framework/infrastructure imports allowed
  */
 
+import { generatePrefixedId } from '../shared-kernel/utils/uuid.js';
+import type { ConsentRepository } from './consent-repository.js';
 import crypto from 'crypto';
 import type { ConsentRepository } from './consent-repository.js';
 import { InMemoryConsentRepository } from './consent-repository.js';
@@ -131,8 +133,28 @@ const DEFAULT_CONFIG: ConsentConfig = {
 };
 
 export interface ConsentServiceOptions {
+  /**
+   * Consent repository for persistence (REQUIRED).
+   *
+   * HEXAGONAL ARCHITECTURE: Repository is injected to maintain domain purity.
+   * Domain layer must not depend on infrastructure implementations.
+   *
+   * Available implementations from @medicalcor/core/repositories:
+   * - PostgresConsentRepository: Production-grade PostgreSQL implementation
+   * - InMemoryConsentRepository: Test/development implementation
+   *
+   * @example
+   * ```typescript
+   * import { PostgresConsentRepository } from '@medicalcor/core/repositories';
+   * const repository = new PostgresConsentRepository({ pool: pgPool });
+   * const service = new ConsentService({ repository });
+   * ```
+   */
+  repository: ConsentRepository;
+  /**
+   * Consent configuration overrides (optional).
+   */
   config?: Partial<ConsentConfig>;
-  repository?: ConsentRepository;
   /**
    * Logger instance for audit and debug logging.
    * If not provided, a no-op logger is used.
@@ -144,6 +166,8 @@ export interface ConsentServiceOptions {
    * ```typescript
    * import { createLogger } from '@medicalcor/core';
    * const logger = createLogger({ name: 'consent-service' });
+   * const service = new ConsentService({ repository, logger });
+   * ```
    * const service = new ConsentService({ logger });
    * ```
    */
@@ -153,7 +177,7 @@ export interface ConsentServiceOptions {
    * When true, a persistent repository is required.
    * This should be injected by the infrastructure layer rather than read from process.env.
    */
-  isProduction?: boolean;
+  logger?: ConsentLogger;
 }
 
 export class ConsentService {
@@ -185,15 +209,32 @@ export class ConsentService {
         throw new Error(errorMessage);
       }
 
-      // Only allow in-memory for development/testing
-      this.logger.warn(
-        'ConsentService initialized with in-memory repository. ' +
-          'This is NOT suitable for production - consent data will be lost on restart!'
-      );
-      this.repository = new InMemoryConsentRepository();
-    } else {
-      this.repository = options.repository;
-    }
+  /**
+   * Creates a ConsentService with required repository injection.
+   *
+   * HEXAGONAL ARCHITECTURE: Repository is required to be injected.
+   * Domain layer must not depend on infrastructure implementations.
+   *
+   * @param options - Service configuration with required repository
+   * @throws Error if repository is not provided
+   *
+   * @example
+   * ```typescript
+   * import { PostgresConsentRepository } from '@medicalcor/core/repositories';
+   *
+   * const repository = new PostgresConsentRepository({ pool: pgPool });
+   * const service = new ConsentService({ repository });
+   * ```
+   */
+  constructor(options: ConsentServiceOptions) {
+    // HEXAGONAL ARCHITECTURE: Repository is required (enforced by TypeScript)
+    // Domain doesn't create implementations - they are injected from infrastructure layer
+    this.config = { ...DEFAULT_CONFIG, ...options.config };
+    this.repository = options.repository;
+
+    // HEXAGONAL ARCHITECTURE: Logger is injected to maintain domain purity
+    // If no logger provided, use no-op logger (silent operation)
+    this.logger = options.logger ?? noopLogger;
   }
 
   /**
@@ -546,13 +587,13 @@ Sie können Ihre Zustimmung jederzeit widerrufen, indem Sie "STOP" antworten.`,
   }
 
   /**
-   * Generate unique ID using crypto-secure randomness
+   * Generate unique ID using cryptographically secure randomness
    * @returns Unique consent ID with prefix, timestamp, and random component
    * @example "cns_1732819200000_a1b2c3d4"
-   * @security Uses crypto.randomUUID() for cryptographically secure randomness
+   * @security Uses Web Crypto API for cryptographically secure randomness
    */
   private generateId(): string {
-    return `cns_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
+    return generatePrefixedId('cns');
   }
 }
 
@@ -567,10 +608,11 @@ Sie können Ihre Zustimmung jederzeit widerrufen, indem Sie "STOP" antworten.`,
  * const service = createConsentService({ repository });
  *
  * @example
- * // Development with in-memory (not for production!)
- * const service = createConsentService();
+ * // Development with in-memory storage
+ * import { InMemoryConsentRepository } from '@medicalcor/core/repositories';
+ * const service = createConsentService({ repository: new InMemoryConsentRepository() });
  */
-export function createConsentService(options?: ConsentServiceOptions): ConsentService {
+export function createConsentService(options: ConsentServiceOptions): ConsentService {
   return new ConsentService(options);
 }
 

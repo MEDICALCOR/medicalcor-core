@@ -13,11 +13,22 @@
  * 4. IDEMPOTENT - Safe to retry with same correlation ID
  */
 
-import crypto from 'crypto';
-import type { IAIGateway, LeadScoringContext, AIScoringResult } from '../../shared-kernel/repository-interfaces/ai-gateway.js';
-import type { ILeadRepository, Lead, ScoringMetadata } from '../../shared-kernel/repository-interfaces/lead-repository.js';
+import { generateUUID } from '../../shared-kernel/utils/uuid.js';
+import type {
+  IAIGateway,
+  LeadScoringContext,
+  AIScoringResult,
+} from '../../shared-kernel/repository-interfaces/ai-gateway.js';
+import type {
+  ILeadRepository,
+  Lead,
+  ScoringMetadata,
+} from '../../shared-kernel/repository-interfaces/lead-repository.js';
 import type { ICrmGateway } from '../../shared-kernel/repository-interfaces/crm-gateway.js';
-import { LeadScore, type LeadClassification } from '../../shared-kernel/value-objects/lead-score.js';
+import {
+  LeadScore,
+  type LeadClassification,
+} from '../../shared-kernel/value-objects/lead-score.js';
 import { PhoneNumber } from '../../shared-kernel/value-objects/phone-number.js';
 import type {
   LeadScoredEvent,
@@ -278,7 +289,7 @@ export class ScoreLeadUseCase {
       language: phone.getPreferredLanguage(),
       messageHistory: this.buildMessageHistory(input),
     };
-    
+
     // Only add optional properties if defined (exactOptionalPropertyTypes compliance)
     if (lead?.utmSource !== undefined) {
       (scoringContext as { utmSource: string }).utmSource = lead.utmSource;
@@ -316,7 +327,7 @@ export class ScoreLeadUseCase {
     // STEP 7: Update Lead Score in Repository
     // =========================================================================
     // GDPR/Privacy: Generate UUID for new leads instead of using phone number as ID
-    const leadId = lead?.id ?? `lead_${crypto.randomUUID()}`;
+    const leadId = lead?.id ?? `lead_${generateUUID()}`;
 
     const scoringMetadata: ScoringMetadata = {
       method: scoringMethod,
@@ -335,17 +346,13 @@ export class ScoreLeadUseCase {
     // STEP 8: Update CRM (HubSpot)
     // =========================================================================
     if (input.hubspotContactId) {
-      await this.crmGateway.updateContactScore(
-        input.hubspotContactId,
-        scoringResult.score,
-        {
-          method: scoringMethod,
-          reasoning: scoringResult.reasoning,
-          procedureInterest: [...scoringResult.procedureInterest],
-          urgencyIndicators: [...scoringResult.urgencyIndicators],
-          budgetMentioned: scoringResult.budgetMentioned,
-        }
-      );
+      await this.crmGateway.updateContactScore(input.hubspotContactId, scoringResult.score, {
+        method: scoringMethod,
+        reasoning: scoringResult.reasoning,
+        procedureInterest: [...scoringResult.procedureInterest],
+        urgencyIndicators: [...scoringResult.urgencyIndicators],
+        budgetMentioned: scoringResult.budgetMentioned,
+      });
     }
 
     // =========================================================================
@@ -367,20 +374,30 @@ export class ScoreLeadUseCase {
       suggestedAction: scoringResult.suggestedAction,
       budgetMentioned: scoringResult.budgetMentioned,
       ...(input.hubspotContactId !== undefined && { hubspotContactId: input.hubspotContactId }),
-      ...(scoringResult.detectedIntent !== undefined && { detectedIntent: scoringResult.detectedIntent }),
-      ...(scoringResult.urgencyIndicators.length > 0 && { urgencyIndicators: scoringResult.urgencyIndicators }),
-      ...(scoringResult.procedureInterest.length > 0 && { procedureInterest: scoringResult.procedureInterest }),
-      ...(previousScore?.numericValue !== undefined && { previousScore: previousScore.numericValue }),
-      ...(previousScore?.classification !== undefined && { previousClassification: previousScore.classification }),
+      ...(scoringResult.detectedIntent !== undefined && {
+        detectedIntent: scoringResult.detectedIntent,
+      }),
+      ...(scoringResult.urgencyIndicators.length > 0 && {
+        urgencyIndicators: scoringResult.urgencyIndicators,
+      }),
+      ...(scoringResult.procedureInterest.length > 0 && {
+        procedureInterest: scoringResult.procedureInterest,
+      }),
+      ...(previousScore?.numericValue !== undefined && {
+        previousScore: previousScore.numericValue,
+      }),
+      ...(previousScore?.classification !== undefined && {
+        previousClassification: previousScore.classification,
+      }),
     };
-    
+
     const scoredEvent = createLeadScoredEvent(leadId, scoredPayload, metadata);
 
     events.push(scoredEvent);
     await this.eventPublisher.publish(scoredEvent);
 
     // LeadQualified event (only if newly qualified)
-    const wasQualified = scoringResult.score.isHot() && (!previousScore || !previousScore.isHot());
+    const wasQualified = scoringResult.score.isHot() && !previousScore?.isHot();
     if (wasQualified) {
       // Build qualified payload using object spread with conditional properties
       const qualifiedPayload: LeadQualifiedPayload = {
@@ -391,7 +408,7 @@ export class ScoreLeadUseCase {
         procedureInterest: scoringResult.procedureInterest,
         ...(input.hubspotContactId !== undefined && { hubspotContactId: input.hubspotContactId }),
       };
-      
+
       const qualifiedEvent = createLeadQualifiedEvent(leadId, qualifiedPayload, metadata);
 
       events.push(qualifiedEvent);
@@ -467,16 +484,16 @@ export class ScoreLeadUseCase {
   /**
    * Build message history for scoring context
    */
-  private buildMessageHistory(input: ScoreLeadInput): Array<{
+  private buildMessageHistory(input: ScoreLeadInput): {
     role: 'user' | 'assistant' | 'system';
     content: string;
     timestamp: Date;
-  }> {
-    const history: Array<{
+  }[] {
+    const history: {
       role: 'user' | 'assistant' | 'system';
       content: string;
       timestamp: Date;
-    }> = [];
+    }[] = [];
 
     // Add previous messages
     if (input.messageHistory) {
@@ -518,10 +535,34 @@ export class ScoreLeadUseCase {
     const procedures: string[] = [];
 
     // HOT indicators
-    const allOnXKeywords = ['all-on-4', 'all-on-x', 'all on 4', 'all on x', 'all-on-6', 'arcada completa'];
+    const allOnXKeywords = [
+      'all-on-4',
+      'all-on-x',
+      'all on 4',
+      'all on x',
+      'all-on-6',
+      'arcada completa',
+    ];
     const implantKeywords = ['implant', 'implante', 'implantologie'];
-    const budgetKeywords = ['pret', 'cost', 'buget', 'cat costa', 'finantare', 'rate', 'euro', 'lei'];
-    const urgencyKeywords = ['urgent', 'durere', 'imediat', 'cat mai repede', 'maine', 'azi', 'acum'];
+    const budgetKeywords = [
+      'pret',
+      'cost',
+      'buget',
+      'cat costa',
+      'finantare',
+      'rate',
+      'euro',
+      'lei',
+    ];
+    const urgencyKeywords = [
+      'urgent',
+      'durere',
+      'imediat',
+      'cat mai repede',
+      'maine',
+      'azi',
+      'acum',
+    ];
     const procedureKeywords = ['fatete', 'veneer', 'albire', 'whitening', 'extractie', 'coroana'];
 
     // Check for All-on-X interest
@@ -578,19 +619,22 @@ export class ScoreLeadUseCase {
       tokensUsed: 0,
       latencyMs: 0,
     };
-    
+
     // Add detectedIntent only if there are indicators
     if (indicators.length > 0 && indicators[0] !== undefined) {
       (result as { detectedIntent: string }).detectedIntent = indicators[0];
     }
-    
+
     return result;
   }
 
   /**
    * Get suggested action based on classification
    */
-  private getSuggestedAction(classification: LeadClassification, language?: 'ro' | 'en' | 'de'): string {
+  private getSuggestedAction(
+    classification: LeadClassification,
+    language?: 'ro' | 'en' | 'de'
+  ): string {
     const actions: Record<LeadClassification, Record<string, string>> = {
       HOT: {
         ro: 'Contactați imediat! Lead calificat cu interes explicit. Oferiți detalii despre prețuri și programare.',
@@ -615,6 +659,6 @@ export class ScoreLeadUseCase {
     };
 
     const lang = language ?? 'ro';
-    return actions[classification][lang] ?? actions[classification]['ro']!;
+    return actions[classification][lang] ?? actions[classification].ro!;
   }
 }

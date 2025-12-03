@@ -2,11 +2,29 @@
  * Language Detection Service
  * Detects language from text and manages translation preferences
  * Supports Romanian, English, and German for dental clinic communications
+ *
+ * ARCHITECTURE: Pure domain service - no infrastructure dependencies.
+ * Logger is injected to maintain hexagonal architecture purity.
  */
 
-import { createLogger, type Logger } from '@medicalcor/core';
-
 export type SupportedLanguage = 'ro' | 'en' | 'de';
+
+/**
+ * Logger interface for dependency injection
+ * Follows hexagonal architecture - domain defines the port, infrastructure provides the adapter
+ */
+export interface LanguageServiceLogger {
+  debug(obj: Record<string, unknown>, msg?: string): void;
+}
+
+/**
+ * No-op logger for when no logger is provided
+ */
+const noopLogger: LanguageServiceLogger = {
+  debug: () => {
+    /* intentionally empty */
+  },
+};
 
 export interface LanguageDetectionResult {
   detected: SupportedLanguage;
@@ -213,14 +231,24 @@ const LANGUAGE_PATTERNS: Record<SupportedLanguage, RegExp[]> = {
   ],
 };
 
+/**
+ * Options for creating a LanguageService
+ */
+export interface LanguageServiceOptions {
+  /** Default language to use when detection confidence is low */
+  defaultLanguage?: SupportedLanguage;
+  /** Logger instance - injected for hexagonal architecture compliance */
+  logger?: LanguageServiceLogger;
+}
+
 export class LanguageService {
   private preferences = new Map<string, LanguagePreference>();
-  private logger: Logger;
-  private defaultLanguage: SupportedLanguage;
+  private readonly logger: LanguageServiceLogger;
+  private readonly defaultLanguage: SupportedLanguage;
 
-  constructor(options?: { defaultLanguage?: SupportedLanguage }) {
+  constructor(options?: LanguageServiceOptions) {
     this.defaultLanguage = options?.defaultLanguage ?? 'ro';
-    this.logger = createLogger({ name: 'language-service' });
+    this.logger = options?.logger ?? noopLogger;
   }
 
   /**
@@ -535,9 +563,16 @@ const TEMPLATES: Record<string, Record<SupportedLanguage, string>> = {
 
 /**
  * Create a language service instance
+ *
+ * @example
+ * ```typescript
+ * // With logger injection
+ * const languageService = createLanguageService({
+ *   defaultLanguage: 'ro',
+ *   logger: createLogger({ name: 'language-service' }),
+ * });
+ * ```
  */
-export function createLanguageService(options?: {
-  defaultLanguage?: SupportedLanguage;
-}): LanguageService {
+export function createLanguageService(options?: LanguageServiceOptions): LanguageService {
   return new LanguageService(options);
 }

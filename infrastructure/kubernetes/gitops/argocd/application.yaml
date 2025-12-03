@@ -1,0 +1,231 @@
+# ArgoCD Application - MedicalCor OSAX Platform
+#
+# GitOps deployment configuration for automated continuous delivery.
+# This manifest manages the OSAX Helm chart deployment via ArgoCD.
+#
+# SECURITY: Sync policies enforce automated security updates.
+# HIPAA: Health status monitoring for compliance visibility.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: osax
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: osax
+    app.kubernetes.io/part-of: medicalcor
+    app.kubernetes.io/managed-by: argocd
+  annotations:
+    # Notification annotations for deployment events
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: medicalcor-deployments
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: medicalcor-alerts
+    notifications.argoproj.io/subscribe.on-health-degraded.pagerduty: medicalcor-oncall
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: medicalcor
+
+  # Source repository configuration
+  source:
+    repoURL: https://github.com/MEDICALCOR/medicalcor-core.git
+    targetRevision: main
+    path: infrastructure/kubernetes/helm/osax
+
+    # Helm configuration
+    helm:
+      releaseName: osax
+      valueFiles:
+        - values.yaml
+        - values-production.yaml
+
+      # Dynamic parameters (can be overridden)
+      parameters:
+        - name: global.environment
+          value: production
+        - name: app.image.tag
+          value: $ARGOCD_APP_REVISION
+
+      # Skip CRD installation (managed separately)
+      skipCrds: false
+
+  # Destination cluster and namespace
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: osax
+
+  # Sync policy for GitOps automation
+  syncPolicy:
+    automated:
+      # Auto-prune orphaned resources
+      prune: true
+      # Self-heal drift from desired state
+      selfHeal: true
+      # Allow empty resources (for initial deployment)
+      allowEmpty: false
+
+    # Sync options
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+      - ApplyOutOfSyncOnly=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+
+    # Retry policy for failed syncs
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  # Ignore differences for specific fields
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+      jsonPointers:
+        - /spec/minReplicas
+        - /spec/maxReplicas
+
+  # Health assessment configuration
+  revisionHistoryLimit: 10
+
+---
+# ArgoCD Project - MedicalCor
+#
+# Project-level configuration for RBAC and source/destination restrictions.
+
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: medicalcor
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: medicalcor
+spec:
+  description: MedicalCor OSAX Platform - Healthcare CRM
+
+  # Allowed source repositories
+  sourceRepos:
+    - https://github.com/MEDICALCOR/medicalcor-core.git
+    - https://charts.bitnami.com/bitnami
+
+  # Allowed destination clusters and namespaces
+  destinations:
+    - namespace: osax
+      server: https://kubernetes.default.svc
+    - namespace: osax-staging
+      server: https://kubernetes.default.svc
+    - namespace: monitoring
+      server: https://kubernetes.default.svc
+
+  # Cluster resource whitelist
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+    - group: scheduling.k8s.io
+      kind: PriorityClass
+
+  # Namespace resource blacklist (security)
+  namespaceResourceBlacklist:
+    - group: ''
+      kind: ResourceQuota
+    - group: ''
+      kind: LimitRange
+
+  # Orphaned resource monitoring
+  orphanedResources:
+    warn: true
+    ignore:
+      - group: ''
+        kind: ConfigMap
+        name: kube-root-ca.crt
+
+  # Role definitions for project access
+  roles:
+    - name: developer
+      description: Developer access - read-only + sync
+      policies:
+        - p, proj:medicalcor:developer, applications, get, medicalcor/*, allow
+        - p, proj:medicalcor:developer, applications, sync, medicalcor/*, allow
+      groups:
+        - medicalcor-developers
+
+    - name: admin
+      description: Admin access - full control
+      policies:
+        - p, proj:medicalcor:admin, applications, *, medicalcor/*, allow
+        - p, proj:medicalcor:admin, repositories, *, medicalcor/*, allow
+      groups:
+        - medicalcor-admins
+
+---
+# ArgoCD ApplicationSet - Multi-Environment Deployment
+#
+# Generates Application resources for each environment automatically.
+
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: osax-environments
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - env: staging
+            namespace: osax-staging
+            branch: develop
+            replicas: '2'
+            autoSync: 'true'
+          - env: production
+            namespace: osax
+            branch: main
+            replicas: '3'
+            autoSync: 'true'
+
+  template:
+    metadata:
+      name: 'osax-{{env}}'
+      namespace: argocd
+      labels:
+        app.kubernetes.io/name: osax
+        app.kubernetes.io/instance: '{{env}}'
+        environment: '{{env}}'
+    spec:
+      project: medicalcor
+      source:
+        repoURL: https://github.com/MEDICALCOR/medicalcor-core.git
+        targetRevision: '{{branch}}'
+        path: infrastructure/kubernetes/helm/osax
+        helm:
+          releaseName: 'osax-{{env}}'
+          valueFiles:
+            - values.yaml
+            - 'values-{{env}}.yaml'
+          parameters:
+            - name: global.environment
+              value: '{{env}}'
+            - name: app.replicas
+              value: '{{replicas}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{namespace}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

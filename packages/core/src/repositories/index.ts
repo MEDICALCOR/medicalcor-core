@@ -24,3 +24,9 @@ export {
   type ConsentStatus,
   type ConsentSource,
 } from './PostgresConsentRepository.js';
+
+// In-Memory Consent Repository (Test/Development)
+export {
+  InMemoryConsentRepository,
+  createInMemoryConsentRepository,
+} from './InMemoryConsentRepository.js';
