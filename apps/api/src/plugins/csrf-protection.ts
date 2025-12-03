@@ -21,6 +21,30 @@ import type { FastifyInstance, FastifyRequest, FastifyReply, FastifyPluginAsync 
 import fp from 'fastify-plugin';
 
 /**
+ * Cookie options interface (compatible with @fastify/cookie)
+ */
+interface CookieSerializeOptions {
+  domain?: string;
+  expires?: Date;
+  httpOnly?: boolean;
+  maxAge?: number;
+  path?: string;
+  sameSite?: 'strict' | 'lax' | 'none' | boolean;
+  secure?: boolean;
+  signed?: boolean;
+}
+
+// Extend FastifyRequest and FastifyReply to include cookie methods from @fastify/cookie
+declare module 'fastify' {
+  interface FastifyRequest {
+    cookies: Record<string, string | undefined>;
+  }
+  interface FastifyReply {
+    setCookie(name: string, value: string, options?: CookieSerializeOptions): FastifyReply;
+  }
+}
+
+/**
  * CSRF Protection Configuration
  */
 export interface CsrfProtectionConfig {
@@ -156,7 +180,9 @@ const csrfProtectionPlugin: FastifyPluginAsync<CsrfProtectionConfig> = (
   fastify: FastifyInstance,
   options: CsrfProtectionConfig
 ): Promise<void> => {
-  const config = {
+  // Merge with defaults to ensure all required fields are present
+  const config: Required<Omit<CsrfProtectionConfig, 'logger'>> &
+    Pick<CsrfProtectionConfig, 'logger'> = {
     ...DEFAULT_CONFIG,
     ...options,
   };
@@ -181,7 +207,7 @@ const csrfProtectionPlugin: FastifyPluginAsync<CsrfProtectionConfig> = (
   // Pre-handler hook for CSRF validation
   fastify.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
     const method = request.method.toUpperCase();
-    const path = request.url.split('?')[0]; // Remove query string
+    const path = request.url.split('?')[0] ?? request.url; // Remove query string
 
     // Skip non-protected methods (GET, HEAD, OPTIONS)
     if (!config.protectedMethods.includes(method)) {
@@ -193,9 +219,8 @@ const csrfProtectionPlugin: FastifyPluginAsync<CsrfProtectionConfig> = (
       return;
     }
 
-    // Get token from cookie (type-safe access)
-    const cookies = request.cookies as Record<string, string | undefined>;
-    const cookieToken: string | undefined = cookies[config.cookieName];
+    // Get token from cookie
+    const cookieToken = request.cookies[config.cookieName];
 
     // Get token from header
     const headerToken = request.headers[config.headerName.toLowerCase()] as string | undefined;
@@ -239,15 +264,13 @@ const csrfProtectionPlugin: FastifyPluginAsync<CsrfProtectionConfig> = (
 
   // Route to get/refresh CSRF token
   fastify.get('/csrf-token', async (request: FastifyRequest, reply: FastifyReply) => {
-    // Check for existing token (type-safe access)
-    const cookies = request.cookies as Record<string, string | undefined>;
-    const existingToken = cookies[config.cookieName];
+    // Check for existing token
+    const existingToken = request.cookies[config.cookieName];
 
     // Generate new token if none exists
     const token = existingToken ?? generateToken(config.tokenLength);
 
     // Set/refresh cookie
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- Fastify reply.setCookie is properly typed
     void reply.setCookie(config.cookieName, token, cookieOptions);
 
     // Return token in response (for SPA/API clients)

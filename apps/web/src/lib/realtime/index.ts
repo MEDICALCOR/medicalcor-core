@@ -15,6 +15,8 @@ export {
   useRealtimeConnection,
   useRealtimeLeads,
   useRealtimeUrgencies,
+  type Lead,
+  type RealtimeLead,
 } from './context';
 export {
   RealtimeMemoryMonitor,
