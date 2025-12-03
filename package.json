@@ -36,7 +36,14 @@
     "db:seed": "tsx db/seed.ts",
     "db:ingest": "tsx scripts/ingest-knowledge.ts",
     "xray-audit": "tsx tools/xray-audit.ts",
-    "xray-audit:report": "tsx tools/xray-audit.ts --output XRAY_AUDIT_REPORT.md"
+    "xray-audit:report": "tsx tools/xray-audit.ts --output XRAY_AUDIT_REPORT.md",
+    "smoke-test": "bash scripts/smoke-tests/run-all.sh",
+    "smoke-test:k6": "bash scripts/smoke-tests/run-all.sh --with-k6",
+    "smoke-test:observability": "tsx scripts/smoke-tests/observability-check.ts",
+    "smoke-test:budget": "tsx scripts/smoke-tests/ai-budget-check.ts",
+    "k6:smoke": "k6 run --env SCENARIO=smoke scripts/k6/load-test.js",
+    "k6:load": "k6 run --env SCENARIO=load scripts/k6/load-test.js",
+    "k6:stress": "k6 run --env SCENARIO=stress scripts/k6/load-test.js"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.55",
