@@ -6,6 +6,9 @@
  */
 
 import crypto from 'crypto';
+import { createLogger } from '@medicalcor/core';
+
+const logger = createLogger({ name: 'migrations' });
 
 // =============================================================================
 // Types
@@ -263,8 +266,8 @@ export function createMigrationManager(config: MigrationConfig) {
         // Rollback on failure
         try {
           await client.rollback();
-        } catch {
-          // Ignore rollback errors
+        } catch (rollbackError) {
+          logger.warn({ err: rollbackError }, 'Failed to rollback migration transaction');
         }
 
         const errorMessage = error instanceof Error ? error.message : String(error);

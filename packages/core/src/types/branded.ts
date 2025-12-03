@@ -133,7 +133,7 @@ export type TenantId = Brand<string, 'TenantId'>;
 // ============================================================================
 
 /**
- * Phone number in E.164 format (e.g., +40721234567)
+ * Phone number in E.164 format (e.g., +40700000001)
  * This is the canonical format for phone numbers in the system.
  */
 export type E164PhoneNumber = Brand<string, 'E164PhoneNumber'>;

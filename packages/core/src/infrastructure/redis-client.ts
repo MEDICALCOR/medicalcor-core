@@ -306,8 +306,8 @@ export class SecureRedisClient {
     if (this.connection) {
       try {
         await this.connection.quit();
-      } catch {
-        // Ignore errors during shutdown
+      } catch (error) {
+        logger.debug({ err: error }, 'Error during Redis shutdown (ignored)');
       }
       this.connection = null;
     }
@@ -803,8 +803,8 @@ export class SecureRedisClient {
       if (this.isShuttingDown) return;
       try {
         await this.healthCheck();
-      } catch {
-        // Health check failed, status already updated
+      } catch (error) {
+        logger.debug({ err: error }, 'Health check failed');
       }
     }, this.config.healthCheckInterval);
 

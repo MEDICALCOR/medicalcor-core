@@ -203,7 +203,7 @@ export interface CreateCrmNoteInput {
  * ```typescript
  * // Create or update contact (idempotent)
  * const contact = await crmGateway.upsertContact({
- *   phone: PhoneNumber.create('+40721234567'),
+ *   phone: PhoneNumber.create('+40700000001'),
  *   firstName: 'Ion',
  *   utmSource: 'google'
  * });

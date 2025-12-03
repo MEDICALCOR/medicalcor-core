@@ -13,6 +13,7 @@ import {
   createInMemoryEventStore,
   createDatabaseClient,
 } from '@medicalcor/core';
+import { PostgresConsentRepository } from '@medicalcor/core/repositories';
 import { createHubSpotClient, type HubSpotClient } from './hubspot.js';
 import { createWhatsAppClient, type WhatsAppClient } from './whatsapp.js';
 import { createOpenAIClient, type OpenAIClient } from './openai.js';
@@ -308,7 +309,8 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
   if (includeConsent) {
     if (databaseUrl) {
       const db = createDatabaseClient(databaseUrl);
-      consent = createPersistentConsentService(db);
+      const consentRepository = new PostgresConsentRepository(db);
+      consent = createPersistentConsentService(consentRepository);
     } else {
       consent = createConsentService();
     }

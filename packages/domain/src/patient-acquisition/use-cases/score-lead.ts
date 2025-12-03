@@ -189,7 +189,7 @@ export interface IdempotencyStore {
  * });
  *
  * const result = await useCase.execute({
- *   phone: '+40721234567',
+ *   phone: '+40700000001',
  *   message: 'Vreau All-on-4, cat costa?',
  *   channel: 'whatsapp',
  *   correlationId: 'trace-123'

@@ -11,6 +11,7 @@
 
 import { z } from 'zod';
 import type { SecureRedisClient } from '../infrastructure/redis-client.js';
+import { logger } from '../logger.js';
 
 /**
  * User tier for rate limit configuration
@@ -349,8 +350,8 @@ export class UserRateLimiter {
       // Record monthly token usage
       const monthlyTokenKey = this.getTokenKey(userId, 'month');
       await this.incrementCounter(monthlyTokenKey, 2592000, tokensUsed); // 30 days
-    } catch {
-      // Failed to record token usage - continue silently
+    } catch (error) {
+      logger.warn({ err: error, userId }, 'Failed to record token usage');
     }
   }
 
@@ -369,8 +370,9 @@ export class UserRateLimiter {
     try {
       const current = await this.incrementCounter(key, 300); // 5 minute TTL for safety
       return current <= limits.maxConcurrent;
-    } catch {
+    } catch (error) {
       // Graceful degradation - allow if Redis fails
+      logger.warn({ err: error, userId }, 'Failed to acquire concurrent slot, allowing request');
       return true;
     }
   }
@@ -387,8 +389,8 @@ export class UserRateLimiter {
 
     try {
       await this.decrementCounter(key);
-    } catch {
-      // Failed to release slot - continue silently
+    } catch (error) {
+      logger.warn({ err: error, userId }, 'Failed to release concurrent slot');
     }
   }
 

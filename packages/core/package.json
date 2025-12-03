@@ -28,6 +28,10 @@
     "./observability/diagnostics": {
       "types": "./dist/observability/diagnostics.d.ts",
       "import": "./dist/observability/diagnostics.js"
+    },
+    "./repositories": {
+      "types": "./dist/repositories/index.d.ts",
+      "import": "./dist/repositories/index.js"
     }
   },
   "main": "./dist/index.js",

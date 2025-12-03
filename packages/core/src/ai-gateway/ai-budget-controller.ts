@@ -13,6 +13,7 @@ import { z } from 'zod';
 import crypto from 'crypto';
 import type { SecureRedisClient } from '../infrastructure/redis-client.js';
 import { MODEL_PRICING } from './token-estimator.js';
+import { logger } from '../logger.js';
 
 /**
  * Budget alert thresholds
@@ -582,8 +583,8 @@ export class AIBudgetController {
     if (this.config.onAlert) {
       try {
         await this.config.onAlert(alert);
-      } catch {
-        // Alert handler failed, continue silently
+      } catch (error) {
+        logger.warn({ err: error, alertId: alert.id }, 'Budget alert handler failed');
       }
     }
   }

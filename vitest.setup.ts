@@ -1,17 +1,9 @@
-import { beforeAll, afterAll, afterEach } from 'vitest';
-import { server } from './packages/integrations/src/__mocks__/server.js';
+/**
+ * Vitest Setup File
+ * Global test configuration and mocks
+ */
 
-// Start MSW server before all tests
-beforeAll(() => {
-  server.listen({ onUnhandledRequest: 'warn' });
-});
+// Mock environment variables for tests
+process.env.NODE_ENV = "test";
+process.env.LOG_LEVEL = "silent";
 
-// Reset handlers after each test
-afterEach(() => {
-  server.resetHandlers();
-});
-
-// Close server after all tests
-afterAll(() => {
-  server.close();
-});

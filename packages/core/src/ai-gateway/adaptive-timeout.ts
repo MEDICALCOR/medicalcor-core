@@ -6,6 +6,7 @@
  */
 
 import { z } from 'zod';
+import { logger } from '../logger.js';
 
 /**
  * AI operation types with their characteristics
@@ -356,8 +357,8 @@ export class AdaptiveTimeoutManager {
               provider: 'fallback',
               primaryError: error instanceof Error ? error : new Error(String(error)),
             };
-          } catch {
-            // Fallback also failed
+          } catch (fallbackError) {
+            logger.warn({ err: fallbackError, operation, primaryError: error instanceof Error ? error.message : String(error) }, 'Both primary and fallback operations failed');
           }
         }
 
