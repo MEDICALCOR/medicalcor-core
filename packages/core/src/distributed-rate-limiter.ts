@@ -25,6 +25,7 @@ import {
   CircuitBreakerError,
   type CircuitState,
   type CircuitBreakerConfig,
+  type CircuitBreakerStats,
 } from './circuit-breaker.js';
 
 /**
@@ -247,10 +248,7 @@ export class DistributedRateLimiter {
     context?: string
   ): Promise<RateLimitResult> {
     // Resolve tier configuration
-    const tier: RateLimitTier =
-      typeof tierOrConfig === 'string'
-        ? (RATE_LIMIT_TIERS[tierOrConfig] ?? RATE_LIMIT_TIERS[this.defaultTier])
-        : (tierOrConfig ?? RATE_LIMIT_TIERS[this.defaultTier]);
+    const tier = this.resolveTier(tierOrConfig);
 
     // Generate key
     const key = this.generateKey(identifier, tier.name, context);
@@ -264,11 +262,10 @@ export class DistributedRateLimiter {
     } catch (error) {
       // Handle circuit breaker open or Redis errors
       if (error instanceof CircuitBreakerError) {
-        this.logger.warn('Rate limiter circuit breaker open, using fallback', {
-          identifier,
-          tier: tier.name,
-          circuitState: error.state,
-        });
+        this.logger.warn(
+          { identifier, tier: tier.name, circuitState: error.state },
+          'Rate limiter circuit breaker open, using fallback'
+        );
       } else {
         this.logger.error(
           { err: error, identifier, tier: tier.name },
@@ -344,15 +341,10 @@ export class DistributedRateLimiter {
     `;
 
     // Execute Lua script atomically
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- Redis eval returns dynamic types
     const result: unknown = await this.redis.eval(
       luaScript,
-      1,
-      key,
-      now.toString(),
-      windowStart.toString(),
-      tier.windowSeconds.toString(),
-      limit.toString()
+      [key],
+      [now.toString(), windowStart.toString(), tier.windowSeconds.toString(), limit.toString()]
     );
 
     // Safely extract values from Lua script result
@@ -370,6 +362,40 @@ export class DistributedRateLimiter {
       resetAt: resetAtSeconds,
       tier: tier.name,
       fallback: false,
+    };
+  }
+
+  /**
+   * Resolve tier configuration from string or object
+   * Guarantees a valid RateLimitTier is returned
+   */
+  private resolveTier(tierOrConfig?: string | RateLimitTier): RateLimitTier {
+    // If it's already a tier object, return it
+    if (tierOrConfig && typeof tierOrConfig === 'object') {
+      return tierOrConfig;
+    }
+
+    // Look up by name or use default
+    const tierName = typeof tierOrConfig === 'string' ? tierOrConfig : this.defaultTier;
+    const tier = RATE_LIMIT_TIERS[tierName];
+
+    if (tier) {
+      return tier;
+    }
+
+    // Fallback to default tier
+    const defaultTier = RATE_LIMIT_TIERS[this.defaultTier];
+    if (defaultTier) {
+      return defaultTier;
+    }
+
+    // Ultimate fallback - create a safe default tier inline
+    // This ensures we always return a valid RateLimitTier
+    return {
+      name: 'default',
+      maxRequests: 100,
+      windowSeconds: 60,
+      burstAllowance: 10,
     };
   }
 
@@ -392,10 +418,7 @@ export class DistributedRateLimiter {
     tierOrConfig?: string | RateLimitTier,
     context?: string
   ): Promise<RateLimitResult & { windowStart: number }> {
-    const tier =
-      typeof tierOrConfig === 'string'
-        ? (RATE_LIMIT_TIERS[tierOrConfig] ?? RATE_LIMIT_TIERS[this.defaultTier])
-        : (tierOrConfig ?? RATE_LIMIT_TIERS[this.defaultTier]);
+    const tier = this.resolveTier(tierOrConfig);
 
     const key = this.generateKey(identifier, tier.name, context);
     const limit = tier.maxRequests + (tier.burstAllowance ?? 0);
@@ -404,7 +427,6 @@ export class DistributedRateLimiter {
 
     try {
       // Count entries in current window
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call -- Redis zcount returns number
       const current: number = await this.redis.zcount(key, windowStart.toString(), '+inf');
 
       return {
@@ -461,7 +483,7 @@ export class DistributedRateLimiter {
    */
   getMetrics(): {
     circuitState: CircuitState;
-    circuitStats: { requests: number; failures: number; successes: number };
+    circuitStats: CircuitBreakerStats;
   } {
     return {
       circuitState: this.circuitBreaker.getState(),

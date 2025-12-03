@@ -121,6 +121,9 @@ interface RedisConnection {
     options?: { WITHSCORES?: boolean }
   ) => Promise<string[]>;
   zrem: (key: string, ...members: string[]) => Promise<number>;
+  zcount: (key: string, min: string | number, max: string | number) => Promise<number>;
+  zremrangebyscore: (key: string, min: string | number, max: string | number) => Promise<number>;
+  zcard: (key: string) => Promise<number>;
   publish: (channel: string, message: string) => Promise<number>;
   subscribe: (channel: string, callback: (message: string) => void) => Promise<void>;
   unsubscribe: (channel: string) => Promise<void>;
@@ -676,6 +679,46 @@ export class SecureRedisClient {
     return this.executeCommand(async () => {
       const conn = this.ensureConnection();
       return conn.zrem(this.prefixKey(key), ...members);
+    });
+  }
+
+  async zcount(key: string, min: string | number, max: string | number): Promise<number> {
+    return this.executeCommand(async () => {
+      const conn = this.ensureConnection();
+      return conn.zcount(this.prefixKey(key), min, max);
+    });
+  }
+
+  async zremrangebyscore(key: string, min: string | number, max: string | number): Promise<number> {
+    return this.executeCommand(async () => {
+      const conn = this.ensureConnection();
+      return conn.zremrangebyscore(this.prefixKey(key), min, max);
+    });
+  }
+
+  async zcard(key: string): Promise<number> {
+    return this.executeCommand(async () => {
+      const conn = this.ensureConnection();
+      return conn.zcard(this.prefixKey(key));
+    });
+  }
+
+  // ============= Scripting Commands =============
+
+  /**
+   * Execute a Lua script atomically
+   * SECURITY: Use for atomic operations like rate limiting to prevent race conditions
+   *
+   * @param script - Lua script to execute
+   * @param keys - Array of keys used in the script
+   * @param args - Array of arguments passed to the script
+   * @returns Result of the Lua script execution
+   */
+  async eval(script: string, keys: string[], args: (string | number)[]): Promise<unknown> {
+    return this.executeCommand(async () => {
+      const conn = this.ensureConnection();
+      const prefixedKeys = keys.map((k) => this.prefixKey(k));
+      return conn.eval(script, prefixedKeys.length, ...prefixedKeys, ...args);
     });
   }
 
