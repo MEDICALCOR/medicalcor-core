@@ -181,6 +181,48 @@ export {
 export {
   ProjectionHealthMonitor,
   createProjectionHealthMonitor,
+  DEFAULT_PROJECTION_HEALTH_CONFIG,
+  type ProjectionHealth,
+  type ProjectionHealthSummary,
+  type ProjectionHealthConfig,
+} from './projection-health.js';
+
+// Event Schema Registry - Versioned event schemas and migrations
+export {
+  EventSchemaRegistry,
+  eventSchemaRegistry,
+  createEventSchemaRegistry,
+  registerCommonEventSchemas,
+  type EventSchemaVersion,
+  type RegisterSchemaOptions,
+  type ValidationResult,
+  type MigrationResult,
+  type EventMigrationFn,
+} from './event-schema-registry.js';
+
+// Schema-Validated Event Store - Validated and versioned events
+export {
+  SchemaValidatedEventStore,
+  EventSchemaValidationError,
+  createSchemaValidatedEventStore,
+  withSchemaValidation,
+  type SchemaValidatedEventStoreConfig,
+  type SchemaViolation,
+} from './schema-validated-event-store.js';
+
+// Saga Repository - Distributed transaction persistence
+export {
+  InMemorySagaRepository,
+  PostgresSagaRepository,
+  createSagaRepository,
+  createInMemorySagaRepository,
+  type SagaStatus,
+  type SagaState,
+  type SagaStepHistory,
+  type CreateSagaOptions,
+  type FindSagasOptions,
+  type SagaRepository,
+} from './saga-repository.js';
   type ProjectionHealth,
   type ProjectionHealthConfig,
 } from './projection-health.js';

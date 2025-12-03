@@ -261,6 +261,7 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
         { name: 'Workflows', description: 'Trigger durable workflows' },
         { name: 'AI', description: 'AI function discovery and execution' },
         { name: 'Diagnostics', description: 'System diagnostics and metrics' },
+        { name: 'Metrics', description: 'Prometheus metrics for monitoring' },
         { name: 'Backup', description: 'Backup management operations' },
         { name: 'ChatGPT Plugin', description: 'ChatGPT plugin integration endpoints' },
       ],
@@ -413,6 +414,7 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
   await fastify.register(chatgptPluginRoutes);
   await fastify.register(backupRoutes);
   await fastify.register(gdprRoutes);
+  await fastify.register(metricsRoutes);
 
   // Global error handler
   fastify.setErrorHandler((error, request, reply) => {
