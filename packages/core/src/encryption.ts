@@ -238,7 +238,7 @@ export class LocalKmsProvider implements KmsProvider {
 const ENCRYPTION_CONFIG = {
   algorithm: 'aes-256-gcm' as const,
   keyLength: 32, // 256 bits
-  ivLength: 16, // 128 bits (recommended for GCM)
+  ivLength: 12, // 96 bits - NIST SP 800-38D recommended for AES-GCM (optimal performance)
   authTagLength: 16, // 128 bits
   saltLength: 32,
 };
@@ -837,6 +837,12 @@ export class EncryptionService {
       `UPDATE encryption_keys SET status = 'active' WHERE version = $1`,
       [newKeyVersion]
     );
+
+    // SECURITY: Zero out old master key from memory before replacement
+    // This prevents the old key from being exposed in heap dumps or memory analysis
+    if (this.masterKey) {
+      this.masterKey.fill(0);
+    }
 
     // Update service to use new key
     this.masterKey = newMasterKey;
