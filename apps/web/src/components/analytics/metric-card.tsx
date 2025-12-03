@@ -17,6 +17,10 @@ interface MetricCardProps {
   suffix?: string;
 }
 
+/**
+ * Memoized MetricCard component
+ * Prevents re-renders when parent updates but props haven't changed
+ */
 export const MetricCard = memo(function MetricCard({
   title,
   value,
@@ -28,7 +32,7 @@ export const MetricCard = memo(function MetricCard({
   prefix,
   suffix,
 }: MetricCardProps) {
-  const formatValue = () => {
+  const formattedValue = useMemo(() => {
     if (typeof value === 'string') return value;
 
     switch (format) {
@@ -42,26 +46,23 @@ export const MetricCard = memo(function MetricCard({
         return `${value.toFixed(1)}%`;
       case 'time':
         return `${value.toFixed(1)} min`;
+      case 'number':
       default:
         return new Intl.NumberFormat('ro-RO').format(value);
     }
-  };
+  }, [value, format]);
 
-  const getTrendIcon = () => {
-    if (change === undefined || change === 0) {
-      return <Minus className="h-3 w-3" />;
-    }
-    return change > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />;
-  };
-
-  const getTrendColor = () => {
+  const trendColor = useMemo(() => {
     if (change === undefined || change === 0) return 'text-muted-foreground';
     // For response time, lower is better
     if (format === 'time') {
       return change < 0 ? 'text-green-600' : 'text-red-600';
     }
     return change > 0 ? 'text-green-600' : 'text-red-600';
-  };
+  }, [change, format]);
+
+  const TrendIcon =
+    change === undefined || change === 0 ? Minus : change > 0 ? TrendingUp : TrendingDown;
 
   return (
     <Card>
@@ -71,7 +72,7 @@ export const MetricCard = memo(function MetricCard({
             <p className="text-sm text-muted-foreground">{title}</p>
             <p className="text-2xl font-bold">
               {prefix}
-              {formatValue()}
+              {formattedValue}
               {suffix}
             </p>
           </div>
@@ -84,8 +85,8 @@ export const MetricCard = memo(function MetricCard({
 
         {change !== undefined && (
           <div className="mt-2 flex items-center gap-1 text-xs">
-            <span className={cn('flex items-center gap-0.5 font-medium', getTrendColor())}>
-              {getTrendIcon()}
+            <span className={cn('flex items-center gap-0.5 font-medium', trendColor)}>
+              <TrendIcon className="h-3 w-3" />
               {Math.abs(change).toFixed(1)}%
             </span>
             <span className="text-muted-foreground">{changeLabel}</span>

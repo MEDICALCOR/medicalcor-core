@@ -27,6 +27,7 @@ import { QuickSearchProvider } from '@/components/quick-search';
 import { ServiceWorkerRegistration } from '@/components/pwa/service-worker-registration';
 import { I18nProvider } from '@/lib/i18n';
 import { PageErrorBoundary } from '@/components/error-boundary';
+import { initWebVitalsReporting } from '@/lib/vitals/web-vitals';
 
 // ============================================================================
 // QUERY CLIENT CONFIGURATION
@@ -139,12 +140,7 @@ function InfrastructureProviders({
  */
 function UIFoundationProviders({ children }: { children: ReactNode }) {
   return (
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="system"
-      enableSystem
-      disableTransitionOnChange
-    >
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <I18nProvider>{children}</I18nProvider>
     </ThemeProvider>
   );
@@ -179,12 +175,17 @@ function ApplicationFeatureProviders({ children }: { children: ReactNode }) {
 // ============================================================================
 
 /**
- * PWA features: Service worker registration
+ * PWA features: Service worker registration, Web Vitals
  *
  * @param props.children - Child components
  * @internal
  */
 function PWAFeatures({ children }: { children: ReactNode }) {
+  // Initialize Web Vitals reporting on mount
+  useEffect(() => {
+    initWebVitalsReporting();
+  }, []);
+
   return (
     <>
       <ServiceWorkerRegistration />

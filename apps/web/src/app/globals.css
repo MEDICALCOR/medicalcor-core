@@ -131,3 +131,77 @@
     box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
   }
 }
+
+/* View Transitions API - SOTA smooth navigation */
+@view-transition {
+  navigation: auto;
+}
+
+/* Default page transition animation */
+::view-transition-old(root) {
+  animation: fade-out 150ms ease-out;
+}
+
+::view-transition-new(root) {
+  animation: fade-in 150ms ease-in;
+}
+
+/* Slide transitions for main content */
+::view-transition-old(main-content) {
+  animation: slide-out-left 200ms ease-out;
+}
+
+::view-transition-new(main-content) {
+  animation: slide-in-right 200ms ease-in;
+}
+
+/* Card transitions for modals and dialogs */
+::view-transition-old(dialog) {
+  animation: scale-down 150ms ease-out;
+}
+
+::view-transition-new(dialog) {
+  animation: scale-up 150ms ease-in;
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-out-left {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(-20px); opacity: 0; }
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes scale-down {
+  from { transform: scale(1); opacity: 1; }
+  to { transform: scale(0.95); opacity: 0; }
+}
+
+@keyframes scale-up {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  ::view-transition-old(main-content),
+  ::view-transition-new(main-content),
+  ::view-transition-old(dialog),
+  ::view-transition-new(dialog) {
+    animation: none;
+  }
+}

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useCallback, useEffect, useTransition, useOptimistic } from 'react';
 import { useState, useCallback, useEffect, useTransition } from 'react';
 import dynamic from 'next/dynamic';
 import { Plus, Zap, LayoutTemplate, List, Loader2 } from 'lucide-react';
@@ -56,6 +57,26 @@ function StatsSkeleton() {
   );
 }
 
+// Action types for optimistic updates
+type WorkflowAction =
+  | { type: 'toggle'; id: string; isActive: boolean }
+  | { type: 'delete'; id: string }
+  | { type: 'add'; workflow: Workflow };
+
+// Reducer for optimistic state updates
+function workflowReducer(state: Workflow[], action: WorkflowAction): Workflow[] {
+  switch (action.type) {
+    case 'toggle':
+      return state.map((wf) => (wf.id === action.id ? { ...wf, isActive: action.isActive } : wf));
+    case 'delete':
+      return state.filter((wf) => wf.id !== action.id);
+    case 'add':
+      return [action.workflow, ...state];
+    default:
+      return state;
+  }
+}
+
 export default function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [templates, setTemplates] = useState<WorkflowTemplate[]>([]);
@@ -64,6 +85,9 @@ export default function WorkflowsPage() {
   const [isLoadingWorkflows, startWorkflowsTransition] = useTransition();
   const [isLoadingTemplates, startTemplatesTransition] = useTransition();
   const [isCreating, startCreatingTransition] = useTransition();
+
+  // React 19 useOptimistic for instant UI updates
+  const [optimisticWorkflows, addOptimisticUpdate] = useOptimistic(workflows, workflowReducer);
 
   // Fetch workflows on mount
   useEffect(() => {
@@ -91,35 +115,46 @@ export default function WorkflowsPage() {
     }
   }, [activeTab, templates.length]);
 
-  const handleToggle = useCallback((id: string, isActive: boolean) => {
-    // Optimistic update
-    setWorkflows((prev) => prev.map((wf) => (wf.id === id ? { ...wf, isActive } : wf)));
+  const handleToggle = useCallback(
+    async (id: string, isActive: boolean) => {
+      // React 19 optimistic update - shows immediately, auto-reverts on error
+      addOptimisticUpdate({ type: 'toggle', id, isActive });
 
-    // Server update
-    toggleWorkflowAction(id, isActive).catch(() => {
-      // Revert on error
-      setWorkflows((prev) =>
-        prev.map((wf) => (wf.id === id ? { ...wf, isActive: !isActive } : wf))
-      );
-    });
-  }, []);
+      try {
+        await toggleWorkflowAction(id, isActive);
+        // Update the actual state on success
+        setWorkflows((prev) => prev.map((wf) => (wf.id === id ? { ...wf, isActive } : wf)));
+      } catch {
+        // useOptimistic automatically reverts on error (when promise rejects)
+        // No manual rollback needed with React 19's useOptimistic
+      }
+    },
+    [addOptimisticUpdate]
+  );
 
   const handleEdit = useCallback((_workflow: Workflow) => {
     // TODO: Implement workflow editor
     // For now, this is a placeholder
   }, []);
 
-  const handleDelete = useCallback((id: string) => {
-    // Optimistic update
-    setWorkflows((prev) => prev.filter((wf) => wf.id !== id));
+  const handleDelete = useCallback(
+    async (id: string) => {
+      // React 19 optimistic update
+      addOptimisticUpdate({ type: 'delete', id });
 
-    // Server delete
-    deleteWorkflowAction(id).catch((error: unknown) => {
-      console.error('[Workflows] Failed to delete workflow:', error);
-      // Refetch on error
-      void getWorkflowsAction().then(setWorkflows);
-    });
-  }, []);
+      try {
+        await deleteWorkflowAction(id);
+        // Update actual state on success
+        setWorkflows((prev) => prev.filter((wf) => wf.id !== id));
+      } catch (error: unknown) {
+        console.error('[Workflows] Failed to delete workflow:', error);
+        // useOptimistic auto-reverts, but refetch to ensure sync
+        const fresh = await getWorkflowsAction();
+        setWorkflows(fresh);
+      }
+    },
+    [addOptimisticUpdate]
+  );
 
   const handleDuplicate = useCallback((workflow: Workflow) => {
     duplicateWorkflowAction(workflow.id)
@@ -150,8 +185,9 @@ export default function WorkflowsPage() {
     });
   }, [selectedTemplate]);
 
-  const activeCount = workflows.filter((w) => w.isActive).length;
-  const totalExecutions = workflows.reduce((sum, w) => sum + w.executionCount, 0);
+  // Use optimistic state for display, actual state for persistence
+  const activeCount = optimisticWorkflows.filter((w) => w.isActive).length;
+  const totalExecutions = optimisticWorkflows.reduce((sum, w) => sum + w.executionCount, 0);
 
   return (
     <div className="space-y-6">
@@ -195,7 +231,7 @@ export default function WorkflowsPage() {
         <TabsList>
           <TabsTrigger value="workflows" className="gap-2">
             <List className="h-4 w-4" />
-            Workflow-uri ({workflows.length})
+            Workflow-uri ({optimisticWorkflows.length})
           </TabsTrigger>
           <TabsTrigger value="templates" className="gap-2">
             <LayoutTemplate className="h-4 w-4" />
@@ -204,9 +240,9 @@ export default function WorkflowsPage() {
         </TabsList>
 
         <TabsContent value="workflows" className="mt-6">
-          {isLoadingWorkflows && workflows.length === 0 ? (
+          {isLoadingWorkflows && optimisticWorkflows.length === 0 ? (
             <WorkflowsSkeleton />
-          ) : workflows.length === 0 ? (
+          ) : optimisticWorkflows.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Zap className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="text-lg font-medium">Nu există workflow-uri</p>
@@ -218,7 +254,7 @@ export default function WorkflowsPage() {
             </div>
           ) : (
             <WorkflowList
-              workflows={workflows}
+              workflows={optimisticWorkflows}
               onToggle={handleToggle}
               onEdit={handleEdit}
               onDelete={handleDelete}

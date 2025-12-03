@@ -22,7 +22,7 @@ Sentry.init({
   replaysOnErrorSampleRate: 1.0, // Always capture replays when an error occurs
   replaysSessionSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 0, // Sample 10% of sessions in prod
 
-  // You can remove this option if you're not planning to use the Sentry Session Replay feature:
+  // Performance and Web Vitals integrations
   integrations: [
     Sentry.replayIntegration({
       // Additional Replay configuration goes in here
@@ -30,10 +30,18 @@ Sentry.init({
       blockAllMedia: true, // Block media for privacy
     }),
     Sentry.browserTracingIntegration({
-      // Set up performance monitoring
-      enableInp: true, // Interaction to Next Paint
+      // Set up performance monitoring with Web Vitals
+      enableInp: true, // Interaction to Next Paint (Core Web Vital)
     }),
+    // Browser profiling for detailed performance insights
+    Sentry.browserProfilingIntegration(),
   ],
+
+  // Enable profiling for detailed performance data
+  profilesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+
+  // Enable all Web Vitals metrics
+  enableTracing: true,
 
   // Configure error filtering
   beforeSend(event, hint) {
