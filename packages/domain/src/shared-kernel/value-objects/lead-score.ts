@@ -159,13 +159,22 @@ export class LeadScore {
 
   /**
    * Create from classification string
+   *
+   * @param classification - Lead classification (HOT, WARM, COLD, UNQUALIFIED)
+   * @param confidence - Confidence level (0-1), defaults to 0.8
+   * @param isMaxQualified - For HOT classification, if true creates score 5 (max); otherwise 4
+   *                         This parameter is ignored for non-HOT classifications
+   *
+   * Note: HOT classification maps to scores 4-5. Use isMaxQualified=true for score 5
+   * when the lead has explicit intent + budget + urgency signals.
    */
   public static fromClassification(
     classification: LeadClassification,
-    confidence: number = 0.8
+    confidence: number = 0.8,
+    isMaxQualified: boolean = false
   ): LeadScore {
     const numericMap: Record<LeadClassification, number> = {
-      HOT: 4,
+      HOT: isMaxQualified ? 5 : 4, // HOT can be 4 or 5 based on qualification level
       WARM: 3,
       COLD: 2,
       UNQUALIFIED: 1,

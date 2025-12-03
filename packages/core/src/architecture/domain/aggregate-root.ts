@@ -286,15 +286,13 @@ export abstract class BaseAggregateFactory<
  */
 export function Invariant(name: string, check: (instance: unknown) => boolean, message: string) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return function <T extends new (...args: any[]) => AggregateRoot<unknown>>(constructor: T): T {
+  return function <T extends new (...args: unknown[]) => AggregateRoot<unknown>>(constructor: T): T {
     const original = constructor;
 
-    // @ts-expect-error - Mixin pattern requires any[] constructor
-    const decorated = class extends original {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const decorated = class extends (original as any) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      constructor(...args: any[]) {
+    // Mixin pattern requires type assertion for class extension
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-declaration-merging
+    const decorated = class extends (original as new (...args: unknown[]) => AggregateRoot<unknown>) {
+      constructor(...args: unknown[]) {
         super(...args);
         this.checkInvariant(name, check, message);
       }

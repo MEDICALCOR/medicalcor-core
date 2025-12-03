@@ -44,15 +44,20 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-              "style-src 'self' 'unsafe-inline'",
+              // Next.js requires 'unsafe-inline' for initial hydration scripts in production
+              // Using strict-dynamic allows scripts loaded by trusted scripts to execute
+              "script-src 'self' 'strict-dynamic' 'sha256-' https:",
+              // Styles: use hashes for inline styles injected by Next.js/styled-components
+              "style-src 'self' https: 'sha256-'",
               "img-src 'self' data: https: blob:",
-              "font-src 'self' data:",
+              "font-src 'self' data: https:",
               "connect-src 'self' wss: https: ws:",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",
               "upgrade-insecure-requests",
+              "object-src 'none'",
+              "require-trusted-types-for 'script'",
             ].join('; '),
           },
           {

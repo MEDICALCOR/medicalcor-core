@@ -13,6 +13,7 @@
  * 4. IDEMPOTENT - Safe to retry with same correlation ID
  */
 
+import crypto from 'crypto';
 import type { IAIGateway, LeadScoringContext, AIScoringResult } from '../../shared-kernel/repository-interfaces/ai-gateway.js';
 import type { ILeadRepository, Lead, ScoringMetadata } from '../../shared-kernel/repository-interfaces/lead-repository.js';
 import type { ICrmGateway } from '../../shared-kernel/repository-interfaces/crm-gateway.js';
@@ -314,7 +315,8 @@ export class ScoreLeadUseCase {
     // =========================================================================
     // STEP 7: Update Lead Score in Repository
     // =========================================================================
-    const leadId = lead?.id ?? phone.e164; // Use phone as fallback ID
+    // GDPR/Privacy: Generate UUID for new leads instead of using phone number as ID
+    const leadId = lead?.id ?? `lead_${crypto.randomUUID()}`;
 
     const scoringMetadata: ScoringMetadata = {
       method: scoringMethod,
