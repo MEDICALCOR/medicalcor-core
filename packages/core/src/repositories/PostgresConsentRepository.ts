@@ -2,67 +2,108 @@
  * PostgreSQL Consent Repository
  * Persistent storage for GDPR consent records
  *
- * IMPORTANT: Run the migration SQL below before using this repository:
+ * HEXAGONAL ARCHITECTURE: This is an ADAPTER implementing the ConsentRepository PORT
+ * defined in the domain layer (@medicalcor/domain/consent)
  *
- * ```sql
- * CREATE TABLE IF NOT EXISTS consents (
- *   id VARCHAR(50) PRIMARY KEY,
- *   contact_id VARCHAR(100) NOT NULL,
- *   phone VARCHAR(20) NOT NULL,
- *   consent_type VARCHAR(50) NOT NULL,
- *   status VARCHAR(20) NOT NULL,
- *   version INTEGER NOT NULL DEFAULT 1,
- *   granted_at TIMESTAMP WITH TIME ZONE,
- *   withdrawn_at TIMESTAMP WITH TIME ZONE,
- *   expires_at TIMESTAMP WITH TIME ZONE,
- *   source_channel VARCHAR(20) NOT NULL,
- *   source_method VARCHAR(20) NOT NULL,
- *   evidence_url TEXT,
- *   witnessed_by VARCHAR(100),
- *   ip_address VARCHAR(45),
- *   user_agent TEXT,
- *   metadata JSONB DEFAULT '{}',
- *   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
- *   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
- *   UNIQUE(contact_id, consent_type)
- * );
+ * IMPORTANT: Run the migration SQL in db/migrations/20241127000001_create_core_tables.sql
+ * before using this repository.
  *
- * CREATE INDEX idx_consents_contact_id ON consents(contact_id);
- * CREATE INDEX idx_consents_status ON consents(status);
- * CREATE INDEX idx_consents_expires_at ON consents(expires_at) WHERE status = 'granted';
- *
- * CREATE TABLE IF NOT EXISTS consent_audit_log (
- *   id VARCHAR(50) PRIMARY KEY,
- *   consent_id VARCHAR(50) NOT NULL REFERENCES consents(id) ON DELETE CASCADE,
- *   action VARCHAR(20) NOT NULL,
- *   previous_status VARCHAR(20),
- *   new_status VARCHAR(20) NOT NULL,
- *   performed_by VARCHAR(100) NOT NULL,
- *   reason TEXT,
- *   ip_address VARCHAR(45),
- *   metadata JSONB DEFAULT '{}',
- *   timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
- * );
- *
- * CREATE INDEX idx_consent_audit_consent_id ON consent_audit_log(consent_id);
- * ```
+ * @module @medicalcor/core/repositories/PostgresConsentRepository
  */
 
-import type { ConsentRepository } from './consent-repository.js';
-import type {
-  ConsentRecord,
-  ConsentAuditEntry,
-  ConsentType,
-  ConsentStatus,
-  ConsentSource,
-} from './consent-service.js';
-import { createLogger, type Logger } from '@medicalcor/core';
+import { createLogger, type Logger } from '../logger.js';
 
-const logger: Logger = createLogger({ name: 'consent-repository' });
-
-interface DatabaseClient {
+/**
+ * Database client interface
+ * Matches the interface from @medicalcor/core/database
+ */
+export interface ConsentDatabaseClient {
   query(sql: string, params?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
 }
+
+/**
+ * Consent type enum matching domain layer
+ */
+export type ConsentType =
+  | 'data_processing'
+  | 'marketing_whatsapp'
+  | 'marketing_email'
+  | 'marketing_sms'
+  | 'appointment_reminders'
+  | 'treatment_updates'
+  | 'third_party_sharing';
+
+/**
+ * Consent status enum matching domain layer
+ */
+export type ConsentStatus = 'granted' | 'denied' | 'withdrawn' | 'pending';
+
+/**
+ * Consent source interface matching domain layer
+ */
+export interface ConsentSource {
+  channel: 'whatsapp' | 'web' | 'phone' | 'in_person' | 'email';
+  method: 'explicit' | 'implicit' | 'double_opt_in';
+  evidenceUrl: string | null;
+  witnessedBy: string | null;
+}
+
+/**
+ * Consent record interface matching domain layer
+ */
+export interface ConsentRecord {
+  id: string;
+  contactId: string;
+  phone: string;
+  consentType: ConsentType;
+  status: ConsentStatus;
+  version: number;
+  grantedAt: string | null;
+  withdrawnAt: string | null;
+  expiresAt: string | null;
+  source: ConsentSource;
+  ipAddress: string | null;
+  userAgent: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Consent audit entry interface matching domain layer
+ */
+export interface ConsentAuditEntry {
+  id: string;
+  consentId: string;
+  action: 'created' | 'granted' | 'denied' | 'withdrawn' | 'expired' | 'updated';
+  previousStatus: ConsentStatus | null;
+  newStatus: ConsentStatus;
+  performedBy: string;
+  reason: string | null;
+  ipAddress: string | null;
+  timestamp: string;
+  metadata: Record<string, unknown>;
+}
+
+/**
+ * Repository interface (Port) - same as defined in domain layer
+ * This is the contract that this adapter implements
+ */
+export interface IConsentRepository {
+  save(consent: ConsentRecord): Promise<ConsentRecord>;
+  upsert(consent: ConsentRecord): Promise<{ record: ConsentRecord; wasCreated: boolean }>;
+  findByContactAndType(contactId: string, consentType: ConsentType): Promise<ConsentRecord | null>;
+  findByContact(contactId: string): Promise<ConsentRecord[]>;
+  delete(consentId: string): Promise<void>;
+  deleteByContact(contactId: string): Promise<number>;
+  findExpiringSoon(withinDays: number): Promise<ConsentRecord[]>;
+  findByStatus(status: ConsentStatus): Promise<ConsentRecord[]>;
+  appendAuditEntry(entry: ConsentAuditEntry): Promise<void>;
+  getAuditTrail(consentId: string): Promise<ConsentAuditEntry[]>;
+  getContactAuditTrail(contactId: string): Promise<ConsentAuditEntry[]>;
+}
+
+const logger: Logger = createLogger({ name: 'postgres-consent-repository' });
 
 /**
  * Type guard to validate a database row has the expected ConsentRow shape
@@ -104,7 +145,6 @@ function isAuditRow(row: Record<string, unknown>): row is AuditRow {
 function toConsentRows(rows: Record<string, unknown>[]): ConsentRow[] {
   return rows.filter((row): row is ConsentRow => {
     if (!isConsentRow(row)) {
-      // Log warning but don't throw - allows partial results
       logger.warn('Invalid row structure detected, skipping row');
       return false;
     }
@@ -126,8 +166,21 @@ function toAuditRows(rows: Record<string, unknown>[]): AuditRow[] {
   });
 }
 
-export class PostgresConsentRepository implements ConsentRepository {
-  constructor(private readonly db: DatabaseClient) {}
+/**
+ * PostgreSQL implementation of the Consent Repository
+ *
+ * HEXAGONAL ARCHITECTURE:
+ * - This is an ADAPTER (infrastructure layer)
+ * - Implements the IConsentRepository PORT (domain layer interface)
+ * - Contains all PostgreSQL-specific logic
+ *
+ * GDPR COMPLIANCE:
+ * - All operations maintain audit trail
+ * - Supports soft delete for right-to-erasure
+ * - Atomic upsert prevents race conditions
+ */
+export class PostgresConsentRepository implements IConsentRepository {
+  constructor(private readonly db: ConsentDatabaseClient) {}
 
   async save(consent: ConsentRecord): Promise<ConsentRecord> {
     const sql = `
@@ -263,7 +316,6 @@ export class PostgresConsentRepository implements ConsentRepository {
   async findByContact(contactId: string): Promise<ConsentRecord[]> {
     const sql = `SELECT * FROM consents WHERE contact_id = $1 ORDER BY created_at DESC`;
     const result = await this.db.query(sql, [contactId]);
-    // TYPE SAFETY FIX: Use validated type conversion instead of unsafe cast
     return toConsentRows(result.rows).map((row) => this.rowToConsent(row));
   }
 
@@ -289,14 +341,12 @@ export class PostgresConsentRepository implements ConsentRepository {
       ORDER BY expires_at ASC
     `;
     const result = await this.db.query(sql, [withinDays]);
-    // TYPE SAFETY FIX: Use validated type conversion instead of unsafe cast
     return toConsentRows(result.rows).map((row) => this.rowToConsent(row));
   }
 
   async findByStatus(status: ConsentStatus): Promise<ConsentRecord[]> {
     const sql = `SELECT * FROM consents WHERE status = $1 ORDER BY updated_at DESC`;
     const result = await this.db.query(sql, [status]);
-    // TYPE SAFETY FIX: Use validated type conversion instead of unsafe cast
     return toConsentRows(result.rows).map((row) => this.rowToConsent(row));
   }
 
@@ -328,7 +378,6 @@ export class PostgresConsentRepository implements ConsentRepository {
       ORDER BY timestamp DESC
     `;
     const result = await this.db.query(sql, [consentId]);
-    // TYPE SAFETY FIX: Use validated type conversion instead of unsafe cast
     return toAuditRows(result.rows).map((row) => this.rowToAuditEntry(row));
   }
 
@@ -340,7 +389,6 @@ export class PostgresConsentRepository implements ConsentRepository {
       ORDER BY cal.timestamp DESC
     `;
     const result = await this.db.query(sql, [contactId]);
-    // TYPE SAFETY FIX: Use validated type conversion instead of unsafe cast
     return toAuditRows(result.rows).map((row) => this.rowToAuditEntry(row));
   }
 
@@ -389,6 +437,17 @@ export class PostgresConsentRepository implements ConsentRepository {
           : row.metadata,
     };
   }
+}
+
+/**
+ * Factory function to create a PostgresConsentRepository
+ * @param db - Database client
+ * @returns PostgresConsentRepository instance
+ */
+export function createPostgresConsentRepository(
+  db: ConsentDatabaseClient
+): PostgresConsentRepository {
+  return new PostgresConsentRepository(db);
 }
 
 interface ConsentRow {

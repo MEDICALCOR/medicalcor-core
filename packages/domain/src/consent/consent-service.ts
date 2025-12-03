@@ -5,13 +5,50 @@
  *
  * IMPORTANT: Use with a persistent repository (PostgresConsentRepository)
  * for GDPR compliance. The in-memory repository is only for development/testing.
+ *
+ * HEXAGONAL ARCHITECTURE:
+ * - This is a DOMAIN SERVICE (pure business logic)
+ * - Dependencies (logger, repository) are injected via constructor
+ * - No framework/infrastructure imports allowed
  */
 
 import crypto from 'crypto';
-import { createLogger, type Logger } from '@medicalcor/core';
 import type { ConsentRepository } from './consent-repository.js';
 import { InMemoryConsentRepository } from './consent-repository.js';
-import { PostgresConsentRepository } from './postgres-consent-repository.js';
+
+/**
+ * Logger interface for dependency injection
+ * Matches the interface from @medicalcor/core but avoids direct import
+ */
+export interface ConsentLogger {
+  info(obj: Record<string, unknown>, msg?: string): void;
+  warn(obj: Record<string, unknown> | string, msg?: string): void;
+  error(obj: Record<string, unknown>, msg?: string): void;
+  fatal(msg: string): void;
+}
+
+/**
+ * No-op logger for when no logger is provided
+ * Used in development/testing environments
+ */
+
+const noopLogger: ConsentLogger = {
+  info: () => {
+    /* intentionally empty */
+  },
+
+  warn: () => {
+    /* intentionally empty */
+  },
+
+  error: () => {
+    /* intentionally empty */
+  },
+
+  fatal: () => {
+    /* intentionally empty */
+  },
+};
 
 export type ConsentType =
   | 'data_processing' // General data processing consent
@@ -97,6 +134,21 @@ export interface ConsentServiceOptions {
   config?: Partial<ConsentConfig>;
   repository?: ConsentRepository;
   /**
+   * Logger instance for audit and debug logging.
+   * If not provided, a no-op logger is used.
+   *
+   * HEXAGONAL ARCHITECTURE: Logger is injected to avoid domain layer
+   * depending on infrastructure (e.g., @medicalcor/core/logger).
+   *
+   * @example
+   * ```typescript
+   * import { createLogger } from '@medicalcor/core';
+   * const logger = createLogger({ name: 'consent-service' });
+   * const service = new ConsentService({ logger });
+   * ```
+   */
+  logger?: ConsentLogger;
+  /**
    * Whether the application is running in production mode.
    * When true, a persistent repository is required.
    * This should be injected by the infrastructure layer rather than read from process.env.
@@ -107,11 +159,14 @@ export interface ConsentServiceOptions {
 export class ConsentService {
   private config: ConsentConfig;
   private repository: ConsentRepository;
-  private logger: Logger;
+  private logger: ConsentLogger;
 
   constructor(options?: ConsentServiceOptions) {
     this.config = { ...DEFAULT_CONFIG, ...options?.config };
-    this.logger = createLogger({ name: 'consent-service' });
+
+    // HEXAGONAL ARCHITECTURE: Logger is injected to maintain domain purity
+    // If no logger provided, use no-op logger (silent operation)
+    this.logger = options?.logger ?? noopLogger;
 
     // CRITICAL SECURITY CHECK: In production, a persistent repository is REQUIRED
     // Using in-memory storage for GDPR consent data is a compliance violation
@@ -194,7 +249,7 @@ export class ConsentService {
     // Create audit entry using the actual saved consent ID (important for race condition handling)
     await this.createAuditEntry({
       consentId: savedConsent.id,
-      action: wasCreated ? 'created' : (status === 'withdrawn' ? 'withdrawn' : 'updated'),
+      action: wasCreated ? 'created' : status === 'withdrawn' ? 'withdrawn' : 'updated',
       previousStatus,
       newStatus: status,
       performedBy: 'system',
@@ -521,6 +576,7 @@ export function createConsentService(options?: ConsentServiceOptions): ConsentSe
 
 /**
  * Database client interface for PostgresConsentRepository
+ * @deprecated Import from '@medicalcor/core/repositories' instead
  */
 export interface ConsentDatabaseClient {
   query(sql: string, params?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
@@ -530,33 +586,42 @@ export interface ConsentDatabaseClient {
  * Create a consent service with PostgreSQL persistence
  * This is the recommended way to create a consent service for production use.
  *
- * @param db - Database client (from createDatabaseClient())
- * @param config - Optional consent configuration overrides
- * @returns ConsentService with PostgreSQL persistence
+ * HEXAGONAL ARCHITECTURE:
+ * - Repository is created in the infrastructure layer and injected here
+ * - Logger should also be injected for proper observability
+ *
+ * @param repository - ConsentRepository implementation (e.g., PostgresConsentRepository from @medicalcor/core)
+ * @param options - Optional configuration and logger
+ * @returns ConsentService with provided repository
  *
  * @example
  * ```typescript
- * import { createDatabaseClient } from '@medicalcor/core';
+ * import { createDatabaseClient, createLogger } from '@medicalcor/core';
+ * import { PostgresConsentRepository } from '@medicalcor/core/repositories';
  * import { createPersistentConsentService } from '@medicalcor/domain';
  *
  * const db = createDatabaseClient();
- * const consentService = createPersistentConsentService(db);
+ * const repository = new PostgresConsentRepository(db);
+ * const logger = createLogger({ name: 'consent-service' });
+ *
+ * const consentService = createPersistentConsentService(repository, { logger });
  *
  * // Check if user has valid consent
  * const hasConsent = await consentService.hasValidConsent(contactId, 'data_processing');
  * ```
  */
 export function createPersistentConsentService(
-  db: ConsentDatabaseClient,
-  config?: Partial<ConsentConfig>
-): ConsentService {
-  // Use PostgresConsentRepository with the provided database client
-  const repository = new PostgresConsentRepository(db);
-
-  const options: ConsentServiceOptions = { repository };
-  if (config) {
-    options.config = config;
+  repository: ConsentRepository,
+  options?: {
+    config?: Partial<ConsentConfig>;
+    logger?: ConsentLogger;
+    isProduction?: boolean;
   }
-
-  return new ConsentService(options);
+): ConsentService {
+  return new ConsentService({
+    repository,
+    config: options?.config,
+    logger: options?.logger,
+    isProduction: options?.isProduction ?? true, // Default to production safety
+  });
 }

@@ -9,6 +9,7 @@
  * Repositories here are **ADAPTERS** implementing domain **PORTS**:
  * - PostgresSchedulingRepository implements ISchedulingRepository
  * - SupabaseOsaxCaseRepository implements IOsaxCaseRepository
+ * - PostgresConsentRepository implements IConsentRepository
  *
  * @module @medicalcor/core/repositories
  */
@@ -22,3 +23,16 @@ export {
 
 // OSAX Case Repository
 export { SupabaseOsaxCaseRepository } from './SupabaseOsaxCaseRepository.js';
+
+// Consent Repository (GDPR compliance)
+export {
+  PostgresConsentRepository,
+  createPostgresConsentRepository,
+  type IConsentRepository,
+  type ConsentDatabaseClient,
+  type ConsentRecord,
+  type ConsentAuditEntry,
+  type ConsentType,
+  type ConsentStatus,
+  type ConsentSource,
+} from './PostgresConsentRepository.js';
