@@ -11,7 +11,7 @@
  * @module domain/__tests__/consent
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   ConsentService,
   createConsentService,
@@ -19,14 +19,13 @@ import {
   type ConsentSource,
   type ConsentType,
 } from '../consent/consent-service.js';
+import { InMemoryConsentRepository } from '@medicalcor/core/repositories';
 
 // ============================================================================
 // TEST FIXTURES
 // ============================================================================
 
-const createTestConsentSource = (
-  overrides?: Partial<ConsentSource>
-): ConsentSource => ({
+const createTestConsentSource = (overrides?: Partial<ConsentSource>): ConsentSource => ({
   channel: 'whatsapp',
   method: 'explicit',
   evidenceUrl: null,
@@ -34,9 +33,7 @@ const createTestConsentSource = (
   ...overrides,
 });
 
-const createTestConsentRequest = (
-  overrides?: Partial<ConsentRequest>
-): ConsentRequest => ({
+const createTestConsentRequest = (overrides?: Partial<ConsentRequest>): ConsentRequest => ({
   contactId: '12345',
   phone: '+40721234567',
   consentType: 'data_processing' as ConsentType,
@@ -51,9 +48,11 @@ const createTestConsentRequest = (
 
 describe('ConsentService', () => {
   let service: ConsentService;
+  let repository: InMemoryConsentRepository;
 
   beforeEach(() => {
-    service = createConsentService();
+    repository = new InMemoryConsentRepository();
+    service = createConsentService({ repository });
   });
 
   describe('recordConsent', () => {
@@ -206,9 +205,9 @@ describe('ConsentService', () => {
     });
 
     it('should throw when withdrawing non-existent consent', async () => {
-      await expect(
-        service.withdrawConsent('nonexistent', 'data_processing')
-      ).rejects.toThrow('Consent record not found');
+      await expect(service.withdrawConsent('nonexistent', 'data_processing')).rejects.toThrow(
+        'Consent record not found'
+      );
     });
   });
 
@@ -232,9 +231,7 @@ describe('ConsentService', () => {
     });
 
     it('should return false for denied consent', async () => {
-      await service.recordConsent(
-        createTestConsentRequest({ status: 'denied' })
-      );
+      await service.recordConsent(createTestConsentRequest({ status: 'denied' }));
 
       const result = await service.hasValidConsent('12345', 'data_processing');
 
@@ -293,9 +290,7 @@ describe('ConsentService', () => {
   describe('getConsentsForContact', () => {
     it('should retrieve all consents for a contact', async () => {
       await service.recordConsent(createTestConsentRequest());
-      await service.recordConsent(
-        createTestConsentRequest({ consentType: 'marketing_whatsapp' })
-      );
+      await service.recordConsent(createTestConsentRequest({ consentType: 'marketing_whatsapp' }));
 
       const result = await service.getConsentsForContact('12345');
 
@@ -330,8 +325,8 @@ describe('ConsentService', () => {
       const trail = await service.getAuditTrail(consent.id);
 
       expect(trail).toHaveLength(2);
-      expect(trail.map(e => e.action)).toContain('created');
-      expect(trail.map(e => e.action)).toContain('withdrawn');
+      expect(trail.map((e) => e.action)).toContain('created');
+      expect(trail.map((e) => e.action)).toContain('withdrawn');
     });
   });
 
@@ -430,33 +425,34 @@ describe('ConsentService', () => {
 });
 
 // ============================================================================
-// PRODUCTION GUARD TESTS
+// REPOSITORY INJECTION TESTS
 // ============================================================================
 
-describe('ConsentService Production Guard', () => {
-  const originalEnv = process.env.NODE_ENV;
+describe('ConsentService Repository Injection', () => {
+  it('should accept InMemoryConsentRepository for testing', () => {
+    const repository = new InMemoryConsentRepository();
 
-  afterEach(() => {
-    process.env.NODE_ENV = originalEnv;
+    expect(() => createConsentService({ repository })).not.toThrow();
   });
 
-  it('should throw in production without persistent repository', () => {
-    process.env.NODE_ENV = 'production';
+  it('should work with injected repository', async () => {
+    const repository = new InMemoryConsentRepository();
+    const service = createConsentService({ repository });
 
-    expect(() => createConsentService()).toThrow(
-      /persistent repository/i
-    );
-  });
+    const result = await service.recordConsent({
+      contactId: 'test-123',
+      phone: '+40721234567',
+      consentType: 'data_processing',
+      status: 'granted',
+      source: {
+        channel: 'whatsapp',
+        method: 'explicit',
+        evidenceUrl: null,
+        witnessedBy: null,
+      },
+    });
 
-  it('should allow in-memory repository in development', () => {
-    process.env.NODE_ENV = 'development';
-
-    expect(() => createConsentService()).not.toThrow();
-  });
-
-  it('should allow in-memory repository in test', () => {
-    process.env.NODE_ENV = 'test';
-
-    expect(() => createConsentService()).not.toThrow();
+    expect(result.contactId).toBe('test-123');
+    expect(repository.size()).toBe(1);
   });
 });
