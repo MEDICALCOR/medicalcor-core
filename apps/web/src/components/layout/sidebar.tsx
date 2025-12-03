@@ -22,8 +22,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect, createContext, useContext, useMemo } from 'react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { usePermissions } from '@/components/auth/require-permission';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -76,10 +77,20 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
 
 function SidebarNav({ collapsed, onLinkClick }: { collapsed?: boolean; onLinkClick?: () => void }) {
   const pathname = usePathname();
+  const { canAccessPage, isLoading } = usePermissions();
+
+  // Filter navigation items based on page access permissions
+  const filteredNavigation = useMemo(() => {
+    if (isLoading) return navigation; // Show all while loading to avoid flash
+    return navigation.filter((item) => {
+      const { allowed } = canAccessPage(item.href);
+      return allowed;
+    });
+  }, [canAccessPage, isLoading]);
 
   return (
     <nav className="flex-1 space-y-1 p-2 overflow-y-auto">
-      {navigation.map((item) => {
+      {filteredNavigation.map((item) => {
         const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
         return (
           <Link

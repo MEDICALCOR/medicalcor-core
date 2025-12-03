@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
+import { PagePermissionGate } from '@/components/auth/require-permission';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -212,12 +213,13 @@ export default function ImportPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Upload className="h-6 w-6 text-primary" />
-          Import Date
+    <PagePermissionGate pathname="/import">
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Upload className="h-6 w-6 text-primary" />
+            Import Date
         </h1>
         <p className="text-muted-foreground mt-1">Importă pacienți din fișiere CSV sau Excel</p>
       </div>
@@ -552,8 +554,9 @@ export default function ImportPage() {
               </p>
             </CardContent>
           </Card>
-        </div>
-      )}
-    </div>
+          </div>
+        )}
+      </div>
+    </PagePermissionGate>
   );
 }

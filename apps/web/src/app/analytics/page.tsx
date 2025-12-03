@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition } from 'react';
 import { Users, CalendarCheck, TrendingUp, Clock, Euro, Flame, Loader2 } from 'lucide-react';
+import { PagePermissionGate } from '@/components/auth/require-permission';
 import {
   getAnalyticsDataAction,
   type AnalyticsData,
@@ -105,12 +106,13 @@ export default function AnalyticsPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2">
-            Analytics
+    <PagePermissionGate pathname="/analytics">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold flex items-center gap-2">
+              Analytics
             {isPending && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
           </h1>
           <p className="text-muted-foreground">Monitorizează performanța și tendințele</p>
@@ -330,8 +332,9 @@ export default function AnalyticsPage() {
               </div>
             )}
           </CardContent>
-        </Card>
+          </Card>
+        </div>
       </div>
-    </div>
+    </PagePermissionGate>
   );
 }

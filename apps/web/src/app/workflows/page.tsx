@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useCallback, useEffect, useTransition, useOptimistic } from 'react';
-import { useState, useCallback, useEffect, useTransition } from 'react';
 import dynamic from 'next/dynamic';
+import { PagePermissionGate } from '@/components/auth/require-permission';
 import { Plus, Zap, LayoutTemplate, List, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -146,11 +146,14 @@ export default function WorkflowsPage() {
         await deleteWorkflowAction(id);
         // Update actual state on success
         setWorkflows((prev) => prev.filter((wf) => wf.id !== id));
-      } catch (error: unknown) {
-        console.error('[Workflows] Failed to delete workflow:', error);
-        // useOptimistic auto-reverts, but refetch to ensure sync
-        const fresh = await getWorkflowsAction();
-        setWorkflows(fresh);
+      } catch {
+        // useOptimistic auto-reverts on error, refetch to ensure sync
+        try {
+          const fresh = await getWorkflowsAction();
+          setWorkflows(fresh);
+        } catch {
+          // Silent fallback - user will see stale data but UI remains functional
+        }
       }
     },
     [addOptimisticUpdate]
@@ -161,8 +164,9 @@ export default function WorkflowsPage() {
       .then((duplicated) => {
         setWorkflows((prev) => [duplicated, ...prev]);
       })
-      .catch((error: unknown) => {
-        console.error('[Workflows] Failed to duplicate workflow:', error);
+      .catch(() => {
+        // Silent failure - UI remains in current state
+        // Permission errors handled server-side with AuthorizationError
       });
   }, []);
 
@@ -179,8 +183,9 @@ export default function WorkflowsPage() {
         setWorkflows((prev) => [newWorkflow, ...prev]);
         setSelectedTemplate(null);
         setActiveTab('workflows');
-      } catch (error) {
-        console.error('[Workflows] Failed to create from template:', error);
+      } catch {
+        // Silent failure - dialog remains open, user can retry
+        // Permission errors handled server-side with AuthorizationError
       }
     });
   }, [selectedTemplate]);
@@ -190,9 +195,10 @@ export default function WorkflowsPage() {
   const totalExecutions = optimisticWorkflows.reduce((sum, w) => sum + w.executionCount, 0);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <PagePermissionGate pathname="/workflows">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Zap className="h-6 w-6 text-primary" />
@@ -316,6 +322,7 @@ export default function WorkflowsPage() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </PagePermissionGate>
   );
 }
