@@ -27,6 +27,7 @@
     "check:duplication": "jscpd .",
     "clean": "turbo clean && rm -rf node_modules",
     "prepare": "husky",
+    "db:reset": "supabase db reset --workdir supabase",
     "db:migrate": "tsx tools/run-migrations.ts",
     "db:migrate:legacy": "cd db && dbmate --migrations-dir ./migrations up",
     "db:migrate:status": "tsx tools/migration-status.ts",
