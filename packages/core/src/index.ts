@@ -544,6 +544,19 @@ export {
 } from './crm.db.js';
 
 // ============================================================================
+// REPOSITORIES (Infrastructure Adapters)
+// ============================================================================
+// NOTE: Repository implementations are excluded from the main build to avoid
+// circular dependencies with @medicalcor/domain. They exist as reference
+// implementations in src/repositories/ and can be imported directly if needed.
+//
+// Available implementations (not exported):
+// - PostgresSchedulingRepository: implements ISchedulingRepository
+// - SupabaseOsaxCaseRepository: implements IOsaxCaseRepository
+//
+// To use, import directly from the file or implement your own adapter.
+
+// ============================================================================
 // TYPE SYSTEM - State of the Art TypeScript Utilities
 // ============================================================================
 

@@ -661,3 +661,112 @@ export const aiProviderSuccessRate = globalMetrics.gauge(
   'Current success rate per provider (0-1)',
   ['provider']
 );
+
+// ============================================================================
+// WORKER/TRIGGER.DEV METRICS
+// ============================================================================
+
+// Task Execution Metrics
+export const workerTasksTotal = globalMetrics.counter(
+  'medicalcor_worker_tasks_total',
+  'Total worker tasks executed',
+  ['task', 'status'] // status: 'success', 'failure', 'retry'
+);
+
+export const workerTaskDuration = globalMetrics.histogram(
+  'medicalcor_worker_task_duration_seconds',
+  'Worker task execution duration',
+  ['task'],
+  [0.1, 0.5, 1, 2, 5, 10, 30, 60, 120]
+);
+
+export const workerTaskRetries = globalMetrics.counter(
+  'medicalcor_worker_task_retries_total',
+  'Total worker task retries',
+  ['task', 'reason']
+);
+
+// Queue Metrics
+export const workerQueueDepth = globalMetrics.gauge(
+  'medicalcor_worker_queue_depth',
+  'Current number of tasks in queue',
+  ['queue', 'priority']
+);
+
+export const workerQueueWaitTime = globalMetrics.histogram(
+  'medicalcor_worker_queue_wait_seconds',
+  'Time tasks spend waiting in queue',
+  ['queue'],
+  [0.1, 0.5, 1, 2, 5, 10, 30, 60]
+);
+
+// Workflow Metrics
+export const workerWorkflowsTotal = globalMetrics.counter(
+  'medicalcor_worker_workflows_total',
+  'Total workflows executed',
+  ['workflow', 'status']
+);
+
+export const workerWorkflowDuration = globalMetrics.histogram(
+  'medicalcor_worker_workflow_duration_seconds',
+  'Workflow execution duration',
+  ['workflow'],
+  [1, 5, 10, 30, 60, 120, 300, 600]
+);
+
+export const workerWorkflowSteps = globalMetrics.counter(
+  'medicalcor_worker_workflow_steps_total',
+  'Workflow steps executed',
+  ['workflow', 'step', 'status']
+);
+
+// Cron Job Metrics
+export const workerCronJobsTotal = globalMetrics.counter(
+  'medicalcor_worker_cron_jobs_total',
+  'Total cron jobs executed',
+  ['job', 'status']
+);
+
+export const workerCronJobDuration = globalMetrics.histogram(
+  'medicalcor_worker_cron_job_duration_seconds',
+  'Cron job execution duration',
+  ['job'],
+  [1, 5, 10, 30, 60, 120, 300]
+);
+
+// Worker Health Metrics
+export const workerActiveJobs = globalMetrics.gauge(
+  'medicalcor_worker_active_jobs',
+  'Number of currently executing jobs',
+  ['worker']
+);
+
+export const workerConcurrency = globalMetrics.gauge(
+  'medicalcor_worker_concurrency',
+  'Worker concurrency limit vs current usage',
+  ['worker', 'type'] // type: 'limit', 'current'
+);
+
+// ============================================================================
+// ERROR TRACKING METRICS
+// ============================================================================
+
+// Error Counts by Category
+export const errorsTotal = globalMetrics.counter(
+  'medicalcor_errors_total',
+  'Total errors by category',
+  ['category', 'code', 'service']
+);
+
+// Circuit Breaker Metrics
+export const circuitBreakerState = globalMetrics.gauge(
+  'medicalcor_circuit_breaker_state',
+  'Circuit breaker state (0=closed, 1=open, 0.5=half-open)',
+  ['service']
+);
+
+export const circuitBreakerTrips = globalMetrics.counter(
+  'medicalcor_circuit_breaker_trips_total',
+  'Total circuit breaker trips',
+  ['service']
+);

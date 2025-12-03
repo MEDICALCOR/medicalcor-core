@@ -47,8 +47,16 @@ function logSeedError(table: string, operation: string, error: unknown): void {
 // Configuration
 // =============================================================================
 
-const DATABASE_URL =
-  process.env.DATABASE_URL ?? 'postgres://postgres:postgres@localhost:5432/medicalcor_dev';
+// SECURITY FIX: Removed hardcoded credentials - DATABASE_URL must be explicitly set
+// For local development, set DATABASE_URL in your .env file or shell environment
+const DATABASE_URL = process.env.DATABASE_URL;
+
+if (!DATABASE_URL) {
+  console.error('ERROR: DATABASE_URL environment variable is required.');
+  console.error('Set it in your .env file or shell environment.');
+  console.error('Example: DATABASE_URL=postgres://user:pass@localhost:5432/medicalcor_dev');
+  process.exit(1);
+}
 
 // =============================================================================
 // Sample Data

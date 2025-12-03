@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useCallback, useEffect, useTransition } from 'react';
+import dynamic from 'next/dynamic';
 import { Plus, Zap, LayoutTemplate, List, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { WorkflowList, WorkflowTemplates } from '@/components/workflows';
 import {
   getWorkflowsAction,
   getWorkflowTemplatesAction,
@@ -34,6 +34,17 @@ function WorkflowsSkeleton() {
     </div>
   );
 }
+
+// Dynamic imports for code splitting - only load when tab is active
+const WorkflowList = dynamic(
+  () => import('@/components/workflows').then((mod) => ({ default: mod.WorkflowList })),
+  { loading: () => <WorkflowsSkeleton /> }
+);
+
+const WorkflowTemplates = dynamic(
+  () => import('@/components/workflows').then((mod) => ({ default: mod.WorkflowTemplates })),
+  { loading: () => <WorkflowsSkeleton /> }
+);
 
 function StatsSkeleton() {
   return (

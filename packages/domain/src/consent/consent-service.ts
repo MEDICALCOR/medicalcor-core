@@ -96,6 +96,12 @@ const DEFAULT_CONFIG: ConsentConfig = {
 export interface ConsentServiceOptions {
   config?: Partial<ConsentConfig>;
   repository?: ConsentRepository;
+  /**
+   * Whether the application is running in production mode.
+   * When true, a persistent repository is required.
+   * This should be injected by the infrastructure layer rather than read from process.env.
+   */
+  isProduction?: boolean;
 }
 
 export class ConsentService {
@@ -109,7 +115,8 @@ export class ConsentService {
 
     // CRITICAL SECURITY CHECK: In production, a persistent repository is REQUIRED
     // Using in-memory storage for GDPR consent data is a compliance violation
-    const isProduction = process.env.NODE_ENV === 'production';
+    // NOTE: isProduction is now injected via options to avoid framework/env dependency in domain layer
+    const isProduction = options?.isProduction ?? false;
 
     if (!options?.repository) {
       if (isProduction) {

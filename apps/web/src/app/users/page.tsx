@@ -78,13 +78,15 @@ const rolePermissions: Record<Role, string[]> = {
   receptionist: ['Vizualizare pacienți', 'Programări'],
 };
 
+// SECURITY: Demo/placeholder data only - no real PII
+// These are fictional example users for UI demonstration purposes
 const initialUsers: User[] = [
   {
     id: 'u1',
-    firstName: 'Maria',
-    lastName: 'Ionescu',
-    email: 'maria.ionescu@medicalcor.ro',
-    phone: '+40 721 123 456',
+    firstName: 'Admin',
+    lastName: 'User',
+    email: 'admin@example.com',
+    phone: '+40 700 000 001',
     role: 'admin',
     isActive: true,
     lastLogin: new Date(Date.now() - 30 * 60 * 1000),
@@ -92,10 +94,10 @@ const initialUsers: User[] = [
   },
   {
     id: 'u2',
-    firstName: 'Andrei',
-    lastName: 'Popa',
-    email: 'andrei.popa@medicalcor.ro',
-    phone: '+40 722 234 567',
+    firstName: 'Doctor',
+    lastName: 'Demo',
+    email: 'doctor@example.com',
+    phone: '+40 700 000 002',
     role: 'doctor',
     isActive: true,
     lastLogin: new Date(Date.now() - 2 * 60 * 60 * 1000),
@@ -103,10 +105,10 @@ const initialUsers: User[] = [
   },
   {
     id: 'u3',
-    firstName: 'Ana',
-    lastName: 'Popescu',
-    email: 'ana.popescu@medicalcor.ro',
-    phone: '+40 723 345 678',
+    firstName: 'Operator',
+    lastName: 'Demo',
+    email: 'operator@example.com',
+    phone: '+40 700 000 003',
     role: 'operator',
     isActive: true,
     lastLogin: new Date(Date.now() - 5 * 60 * 1000),
@@ -114,9 +116,9 @@ const initialUsers: User[] = [
   },
   {
     id: 'u4',
-    firstName: 'Elena',
-    lastName: 'Dumitrescu',
-    email: 'elena.dumitrescu@medicalcor.ro',
+    firstName: 'Reception',
+    lastName: 'Demo',
+    email: 'reception@example.com',
     role: 'receptionist',
     isActive: true,
     lastLogin: new Date(Date.now() - 24 * 60 * 60 * 1000),
@@ -124,9 +126,9 @@ const initialUsers: User[] = [
   },
   {
     id: 'u5',
-    firstName: 'Ion',
-    lastName: 'Marinescu',
-    email: 'ion.marinescu@medicalcor.ro',
+    firstName: 'Inactive',
+    lastName: 'Demo',
+    email: 'inactive@example.com',
     role: 'doctor',
     isActive: false,
     createdAt: new Date('2023-02-01'),

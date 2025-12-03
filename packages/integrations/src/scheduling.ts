@@ -507,14 +507,15 @@ export class MockSchedulingService {
 
     // Generate slots for the next 7 days, 3-4 slots per day
     const workingHours = ['09:00', '10:30', '14:00', '15:30', '17:00'];
+    // SECURITY: Demo/placeholder data - no real PII
     const locations = [
-      { id: 'loc_1', name: 'Clinica Centrală', address: 'Str. Victoriei 15, București' },
-      { id: 'loc_2', name: 'Clinica Nord', address: 'Bd. Lascăr Catargiu 42, București' },
+      { id: 'loc_1', name: 'Demo Clinic Central', address: 'Example Street 1, Demo City' },
+      { id: 'loc_2', name: 'Demo Clinic North', address: 'Example Avenue 2, Demo City' },
     ];
     const practitioners = [
-      { id: 'dr_1', name: 'Dr. Maria Popescu', specialty: 'Stomatologie Generală' },
-      { id: 'dr_2', name: 'Dr. Alexandru Ionescu', specialty: 'Ortodonție' },
-      { id: 'dr_3', name: 'Dr. Elena Dumitrescu', specialty: 'Implantologie' },
+      { id: 'dr_1', name: 'Dr. Demo General', specialty: 'Stomatologie Generală' },
+      { id: 'dr_2', name: 'Dr. Demo Ortho', specialty: 'Ortodonție' },
+      { id: 'dr_3', name: 'Dr. Demo Implant', specialty: 'Implantologie' },
     ];
 
     for (let dayOffset = 1; dayOffset <= 7 && slots.length < limit; dayOffset++) {

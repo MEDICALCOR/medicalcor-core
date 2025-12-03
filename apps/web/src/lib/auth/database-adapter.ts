@@ -11,6 +11,20 @@ import type { SafeUser, AuthContext, AuthService } from '@medicalcor/core';
 // Lazy-loaded auth service singleton
 let authServiceInstance: AuthService | null = null;
 
+// SECURITY FIX: Generate a random dummy hash at startup for timing attack prevention
+// This avoids hardcoding a predictable hash in the source code
+let _timingAttackDummyHash: string | null = null;
+
+async function getTimingAttackDummyHash(): Promise<string> {
+  if (!_timingAttackDummyHash) {
+    const bcrypt = await import('bcryptjs');
+    // Generate a random string and hash it - this happens once per process
+    const randomString = crypto.randomUUID();
+    _timingAttackDummyHash = await bcrypt.hash(randomString, 12);
+  }
+  return _timingAttackDummyHash;
+}
+
 /**
  * Get or create the AuthService singleton
  * Uses dynamic import to avoid Edge Runtime issues
@@ -97,7 +111,9 @@ async function validateCredentialsFromEnv(
 
   if (!user) {
     // Use constant-time comparison to prevent timing attacks
-    await bcrypt.compare(password, '$2a$12$dummy.hash.for.timing.attack.prevention');
+    // SECURITY FIX: Use randomly generated hash instead of hardcoded predictable value
+    const dummyHash = await getTimingAttackDummyHash();
+    await bcrypt.compare(password, dummyHash);
     return null;
   }
 

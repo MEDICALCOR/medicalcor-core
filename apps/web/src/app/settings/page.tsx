@@ -17,11 +17,13 @@ import {
 } from '@/components/ui/select';
 
 export default function ProfileSettingsPage() {
+  // SECURITY: Demo/placeholder data only - no real PII
+  // In production, this would be loaded from the authenticated user's session
   const [profile, setProfile] = useState({
-    firstName: 'Maria',
-    lastName: 'Ionescu',
-    email: 'maria.ionescu@medicalcor.ro',
-    phone: '+40 721 123 456',
+    firstName: 'Demo',
+    lastName: 'User',
+    email: 'demo@example.com',
+    phone: '+40 700 000 000',
     role: 'doctor',
     language: 'ro',
     timezone: 'Europe/Bucharest',

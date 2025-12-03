@@ -406,6 +406,7 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
 
   // Register routes
   await fastify.register(healthRoutes);
+  await fastify.register(metricsRoutes);
   await fastify.register(webhookRoutes);
   await fastify.register(workflowRoutes);
   await fastify.register(aiRoutes);
