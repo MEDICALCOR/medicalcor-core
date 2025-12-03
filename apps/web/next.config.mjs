@@ -19,6 +19,9 @@ const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@medicalcor/core', '@medicalcor/domain', '@medicalcor/types', '@medicalcor/integrations'],
   experimental: {
+    // Partial Prerendering (PPR) - Next.js 15 SOTA feature
+    // Combines static shell with dynamic streaming for optimal performance
+    ppr: 'incremental',
     serverActions: {
       bodySizeLimit: '2mb',
     },
