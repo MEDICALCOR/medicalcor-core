@@ -10,9 +10,65 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ConsentService, createConsentService, type ConsentSource } from '../consent/consent-service.js';
+import {
+  ConsentService,
+  createConsentService,
+  type ConsentSource,
+} from '../consent/consent-service.js';
 import { InMemoryConsentRepository } from '../consent/consent-repository.js';
-import { SchedulingService, ConsentRequiredError, type BookingRequest } from '../scheduling/scheduling-service.js';
+import {
+  ConsentRequiredError,
+  type BookingRequest,
+  type ISchedulingRepository,
+  type TimeSlot,
+  type BookingResult,
+  type AppointmentDetails,
+  type GetAvailableSlotsOptions,
+} from '../scheduling/scheduling-service.js';
+
+// ============================================================================
+// IN-MEMORY SCHEDULING REPOSITORY (Test Double)
+// ============================================================================
+
+/**
+ * In-memory implementation of ISchedulingRepository for testing
+ * This adapter verifies consent before booking operations
+ */
+class InMemorySchedulingRepository implements ISchedulingRepository {
+  private consentService: ConsentService | null;
+  private skipConsentCheck: boolean;
+  private slots: Map<string, TimeSlot> = new Map();
+  private appointments: Map<string, AppointmentDetails> = new Map();
+
+  constructor(options: { consentService?: ConsentService; skipConsentCheck?: boolean }) {
+    this.consentService = options.consentService ?? null;
+    this.skipConsentCheck = options.skipConsentCheck ?? false;
+  }
+
+  async getAvailableSlots(options: string | GetAvailableSlotsOptions): Promise<TimeSlot[]> {
+    const limit = typeof options === 'string' ? 20 : (options.limit ?? 20);
+    return Array.from(this.slots.values())
+      .filter((slot) => slot.available)
+      .slice(0, limit);
+  }
+
+  async bookAppointment(request: BookingRequest): Promise<BookingResult> {
+    // CRITICAL: Verify patient consent before processing booking (GDPR/HIPAA requirement)
+    if (this.consentService && !this.skipConsentCheck) {
+      const consentCheck = await this.consentService.hasRequiredConsents(request.hubspotContactId);
+      if (!consentCheck.valid) {
+        throw new ConsentRequiredError(request.hubspotContactId, consentCheck.missing);
+      }
+    }
+
+    const id = `apt_${Date.now()}`;
+    return { id, status: 'confirmed' };
+  }
+
+  async getUpcomingAppointments(_startDate: Date, _endDate: Date): Promise<AppointmentDetails[]> {
+    return Array.from(this.appointments.values());
+  }
+}
 
 // ============================================================================
 // TEST FIXTURES
@@ -83,7 +139,10 @@ describe('E2E: Consent Collection Flow', () => {
     expect(withdrawnConsent.withdrawnAt).toBeDefined();
 
     // Step 5: Verify consent is no longer valid
-    const isValidAfterWithdrawal = await consentService.hasValidConsent(testContactId, 'data_processing');
+    const isValidAfterWithdrawal = await consentService.hasValidConsent(
+      testContactId,
+      'data_processing'
+    );
     expect(isValidAfterWithdrawal).toBe(false);
   });
 
@@ -105,15 +164,25 @@ describe('E2E: Consent Collection Flow', () => {
     expect(auditTrail.length).toBeGreaterThanOrEqual(2);
 
     // Check audit entries exist for grant and withdraw
-    const actions = auditTrail.map(entry => entry.action);
+    const actions = auditTrail.map((entry) => entry.action);
     expect(actions).toContain('created');
     expect(actions).toContain('withdrawn');
   });
 
   it('should support GDPR data export', async () => {
     // Grant multiple consents
-    await consentService.grantConsent(testContactId, testPhone, 'data_processing', explicitConsentSource);
-    await consentService.grantConsent(testContactId, testPhone, 'marketing_email', explicitConsentSource);
+    await consentService.grantConsent(
+      testContactId,
+      testPhone,
+      'data_processing',
+      explicitConsentSource
+    );
+    await consentService.grantConsent(
+      testContactId,
+      testPhone,
+      'marketing_email',
+      explicitConsentSource
+    );
 
     // Export data
     const exportedData = await consentService.exportConsentData(testContactId);
@@ -125,7 +194,12 @@ describe('E2E: Consent Collection Flow', () => {
 
   it('should support GDPR data erasure', async () => {
     // Grant consent
-    await consentService.grantConsent(testContactId, testPhone, 'data_processing', explicitConsentSource);
+    await consentService.grantConsent(
+      testContactId,
+      testPhone,
+      'data_processing',
+      explicitConsentSource
+    );
 
     // Erase data
     await consentService.eraseConsentData(testContactId, 'admin', 'GDPR erasure request');
@@ -175,14 +249,14 @@ describe('E2E: Consent Collection Flow', () => {
 
 describe('E2E: Appointment Booking with Consent Verification', () => {
   let consentService: ConsentService;
-  let schedulingService: SchedulingService;
+  let schedulingRepository: ISchedulingRepository;
 
   beforeEach(() => {
     const repository = new InMemoryConsentRepository();
     consentService = createConsentService({ repository });
 
-    // Create scheduling service with consent service but without DB (will throw on actual booking)
-    schedulingService = new SchedulingService({
+    // Create in-memory scheduling repository with consent verification
+    schedulingRepository = new InMemorySchedulingRepository({
       consentService,
       skipConsentCheck: false,
     });
@@ -190,10 +264,9 @@ describe('E2E: Appointment Booking with Consent Verification', () => {
 
   it('should require consent before allowing booking', async () => {
     // Try to book without consent - should fail with ConsentRequiredError
-    // Note: This will fail at consent check before DB check since no DB is configured
-    await expect(
-      schedulingService.bookAppointment(mockBookingRequest)
-    ).rejects.toThrow(ConsentRequiredError);
+    await expect(schedulingRepository.bookAppointment(mockBookingRequest)).rejects.toThrow(
+      ConsentRequiredError
+    );
   });
 
   it('should identify missing consent types', async () => {
@@ -237,7 +310,7 @@ describe('E2E: Appointment Booking with Consent Verification', () => {
     );
 
     // Wait a moment for expiration to take effect
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 10));
 
     // Consent should be expired
     const isValid = await shortExpiryService.hasValidConsent(testContactId, 'data_processing');
@@ -302,7 +375,7 @@ describe('E2E: Consent Immutability Pattern', () => {
     const trail = await consentService.getAuditTrail(consent.id);
 
     // All entries should reference the same consent ID
-    trail.forEach(entry => {
+    trail.forEach((entry) => {
       expect(entry.consentId).toBe(consent.id);
     });
   });
@@ -330,14 +403,14 @@ describe('E2E: Concurrent Consent Operations', () => {
 
     // Grant all consents concurrently
     const results = await Promise.all(
-      consentTypes.map(type =>
+      consentTypes.map((type) =>
         consentService.grantConsent(testContactId, testPhone, type, explicitConsentSource)
       )
     );
 
     // All should succeed
     expect(results).toHaveLength(4);
-    results.forEach(consent => {
+    results.forEach((consent) => {
       expect(consent.status).toBe('granted');
     });
 

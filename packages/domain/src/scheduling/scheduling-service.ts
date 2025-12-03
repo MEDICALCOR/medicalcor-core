@@ -1,10 +1,32 @@
-import { Pool } from 'pg';
-import { v4 as uuidv4 } from 'uuid';
-import { randomBytes } from 'crypto';
-import { createLogger } from '@medicalcor/core';
+/**
+ * @fileoverview Scheduling Domain - Types, Interfaces, and Port Definitions
+ *
+ * This module defines the domain types and port interface for scheduling operations.
+ * The actual PostgreSQL implementation lives in @medicalcor/core (infrastructure layer).
+ *
+ * @module @medicalcor/domain/scheduling
+ *
+ * ## Hexagonal Architecture
+ *
+ * This is a **PORT** definition - it defines what the domain needs from infrastructure.
+ * The **ADAPTER** (PostgresSchedulingRepository) lives in @medicalcor/core.
+ *
+ * @example
+ * ```typescript
+ * import { ISchedulingRepository, TimeSlot, BookingRequest } from '@medicalcor/domain';
+ * import { PostgresSchedulingRepository } from '@medicalcor/core';
+ *
+ * // Dependency injection - infrastructure implements domain interface
+ * const repository: ISchedulingRepository = new PostgresSchedulingRepository(config);
+ * const slots = await repository.getAvailableSlots({ limit: 10 });
+ * ```
+ */
+
 import type { ConsentService } from '../consent/consent-service.js';
 
-const logger = createLogger({ name: 'scheduling-service' });
+// ============================================================================
+// DOMAIN ERROR
+// ============================================================================
 
 /**
  * Error thrown when patient has not provided required consent
@@ -24,30 +46,13 @@ export class ConsentRequiredError extends Error {
   }
 }
 
-// Configuration interface
-export interface SchedulingConfig {
-  connectionString?: string;
-  timezone?: string;
-  consentService?: ConsentService;
-  /** If true, skip consent verification (NOT RECOMMENDED - only for testing) */
-  skipConsentCheck?: boolean;
-}
+// ============================================================================
+// DOMAIN TYPES (Value Objects)
+// ============================================================================
 
-// Database row types
-interface TimeSlotRow {
-  id: string;
-  start_time: Date;
-  end_time: Date;
-  practitioner_name: string;
-  procedure_types: string[] | null;
-  is_booked: boolean;
-}
-
-interface SlotCheckRow {
-  is_booked: boolean;
-}
-
-// Domain Types
+/**
+ * Represents an available time slot for appointments
+ */
 export interface TimeSlot {
   id: string;
   date: string;
@@ -59,6 +64,9 @@ export interface TimeSlot {
   procedureTypes: string[];
 }
 
+/**
+ * Request to book an appointment
+ */
 export interface BookingRequest {
   hubspotContactId: string;
   phone: string;
@@ -68,247 +76,116 @@ export interface BookingRequest {
   notes?: string;
 }
 
-export class SchedulingService {
-  private pool: Pool | null;
-  private consentService: ConsentService | null;
-  private skipConsentCheck: boolean;
+/**
+ * Result of a successful booking
+ */
+export interface BookingResult {
+  id: string;
+  status: string;
+}
 
-  constructor(config: SchedulingConfig) {
-    // Note: timezone is accepted for future use but currently not utilized
-    void config.timezone;
-    this.pool = config.connectionString
-      ? new Pool({
-          connectionString: config.connectionString,
-          max: 10,
-        })
-      : null;
-    this.consentService = config.consentService ?? null;
-    this.skipConsentCheck = config.skipConsentCheck ?? false;
+/**
+ * Appointment details returned from queries
+ */
+export interface AppointmentDetails {
+  id: string;
+  slot: {
+    date: string;
+    startTime: string;
+    duration: number;
+  };
+  patientName?: string;
+  procedureType: string;
+  hubspotContactId: string;
+  phone: string;
+  createdAt: string;
+}
 
-    // Warn if consent service is not configured in production
-    if (!this.consentService && process.env.NODE_ENV === 'production' && !this.skipConsentCheck) {
-      logger.warn(
-        'ConsentService not configured - patient consent verification will be skipped. ' +
-          'This may violate GDPR/HIPAA compliance.'
-      );
-    }
-    // Note: If consent service is not configured in production, consent verification will be skipped
-    // This configuration should be reviewed for GDPR/HIPAA compliance requirements
-  }
+/**
+ * Options for fetching available slots
+ */
+export interface GetAvailableSlotsOptions {
+  procedureType?: string;
+  preferredDates?: string[];
+  limit?: number;
+}
 
+// ============================================================================
+// PORT INTERFACE (Hexagonal Architecture)
+// ============================================================================
+
+/**
+ * Configuration for scheduling repository implementations
+ *
+ * Note: Connection details like `connectionString` are infrastructure concerns
+ * and should be passed to the concrete implementation, not the domain interface.
+ */
+export interface SchedulingConfig {
+  timezone?: string;
+  consentService?: ConsentService;
+  /** If true, skip consent verification (NOT RECOMMENDED - only for testing) */
+  skipConsentCheck?: boolean;
+}
+
+/**
+ * Scheduling Repository Port (Hexagonal Architecture)
+ *
+ * This interface defines what the domain layer needs from the infrastructure
+ * for scheduling operations. Concrete implementations (PostgreSQL, in-memory, etc.)
+ * should implement this interface.
+ *
+ * @example
+ * ```typescript
+ * // In application layer (use case)
+ * class BookAppointmentUseCase {
+ *   constructor(private readonly schedulingRepo: ISchedulingRepository) {}
+ *
+ *   async execute(request: BookingRequest): Promise<BookingResult> {
+ *     return this.schedulingRepo.bookAppointment(request);
+ *   }
+ * }
+ * ```
+ */
+export interface ISchedulingRepository {
   /**
-   * Get available slots from Postgres
-   * @param options - Either a procedure type string or an options object
+   * Get available slots from the scheduling system
+   * @param options - Filter options (procedure type, dates, limit)
+   * @returns Array of available time slots
    */
-  async getAvailableSlots(
-    options: string | { procedureType?: string; preferredDates?: string[]; limit?: number }
-  ): Promise<TimeSlot[]> {
-    if (!this.pool) {
-      // Return empty array if no database connection configured
-      return [];
-    }
-    const opts =
-      typeof options === 'string'
-        ? { procedureType: options, limit: 20 }
-        : { procedureType: options.procedureType, limit: options.limit ?? 20 };
-
-    const client = await this.pool.connect();
-    try {
-      // Query slots that are NOT booked and are in the future
-      const sql = `
-        SELECT s.*, p.name as practitioner_name
-        FROM time_slots s
-        JOIN practitioners p ON s.practitioner_id = p.id
-        WHERE s.is_booked = false
-        AND s.start_time > NOW()
-        ORDER BY s.start_time ASC LIMIT $1
-      `;
-
-      const result = await client.query<TimeSlotRow>(sql, [opts.limit]);
-
-      return result.rows.map((row: TimeSlotRow) => {
-        const startTime = new Date(row.start_time);
-        const endTime = new Date(row.end_time);
-        const startIso = startTime.toISOString();
-        const endIso = endTime.toISOString();
-
-        return {
-          id: row.id,
-          date: startIso.split('T')[0] ?? '',
-          startTime: (startIso.split('T')[1] ?? '00:00:00').substring(0, 5),
-          endTime: (endIso.split('T')[1] ?? '00:00:00').substring(0, 5),
-          duration: 30,
-          available: true,
-          practitioner: row.practitioner_name,
-          procedureTypes: row.procedure_types ?? [],
-        };
-      });
-    } finally {
-      client.release();
-    }
-  }
+  getAvailableSlots(options: string | GetAvailableSlotsOptions): Promise<TimeSlot[]>;
 
   /**
-   * Book an appointment with Transaction Safety
+   * Book an appointment
    *
-   * GDPR/HIPAA COMPLIANCE: This method verifies patient consent before booking.
-   * If ConsentService is configured, it will check for 'data_processing' consent.
+   * GDPR/HIPAA COMPLIANCE: Implementations should verify patient consent before booking.
    * Throws ConsentRequiredError if consent is missing or invalid.
+   *
+   * @param request - Booking request details
+   * @returns Booking result with appointment ID and status
+   * @throws {ConsentRequiredError} If required consent is not present
    */
-  async bookAppointment(request: BookingRequest): Promise<{ id: string; status: string }> {
-    // CRITICAL: Verify patient consent before processing booking (GDPR/HIPAA requirement)
-    // This check happens FIRST to ensure we don't access any data without consent
-    if (this.consentService && !this.skipConsentCheck) {
-      const consentCheck = await this.consentService.hasRequiredConsents(request.hubspotContactId);
-      if (!consentCheck.valid) {
-        throw new ConsentRequiredError(request.hubspotContactId, consentCheck.missing);
-      }
-    }
-
-    if (!this.pool) {
-      throw new Error('Database connection not configured - connectionString is required');
-    }
-
-    const client = await this.pool.connect();
-    try {
-      await client.query('BEGIN');
-
-      // 1. Lock the slot to prevent race conditions
-      const slotCheck = await client.query<SlotCheckRow>(
-        `SELECT is_booked FROM time_slots WHERE id = $1 FOR UPDATE`,
-        [request.slotId]
-      );
-
-      if (slotCheck.rows.length === 0) throw new Error('Slot not found');
-      if (slotCheck.rows[0]?.is_booked) throw new Error('Slot already booked');
-
-      // SECURITY FIX: Double-check for existing active appointments (defense in depth)
-      // This prevents double-booking even if is_booked flag gets out of sync
-      const existingAppointment = await client.query(
-        `SELECT id FROM appointments
-         WHERE slot_id = $1 AND status NOT IN ('cancelled', 'no_show')
-         FOR UPDATE`,
-        [request.slotId]
-      );
-
-      if (existingAppointment.rows.length > 0) {
-        throw new Error('Slot already has an active appointment');
-      }
-
-      // 2. Create the Appointment record
-      const appointmentId = uuidv4();
-      // SECURITY: Use cryptographically secure random bytes instead of Math.random()
-      // This prevents confirmation code prediction/brute-force attacks
-      const confirmCode = randomBytes(4).toString('hex').toUpperCase().substring(0, 6);
-
-      await client.query(
-        `INSERT INTO appointments
-        (id, slot_id, hubspot_contact_id, patient_phone, patient_name, procedure_type, status, notes, confirmation_code)
-        VALUES ($1, $2, $3, $4, $5, $6, 'confirmed', $7, $8)`,
-        [
-          appointmentId,
-          request.slotId,
-          request.hubspotContactId,
-          request.phone,
-          request.patientName,
-          request.procedureType,
-          request.notes,
-          confirmCode,
-        ]
-      );
-
-      // 3. Mark Slot as Booked
-      await client.query(`UPDATE time_slots SET is_booked = true WHERE id = $1`, [request.slotId]);
-
-      await client.query('COMMIT');
-      return { id: appointmentId, status: 'confirmed' };
-    } catch (e) {
-      await client.query('ROLLBACK');
-      throw e;
-    } finally {
-      client.release();
-    }
-  }
+  bookAppointment(request: BookingRequest): Promise<BookingResult>;
 
   /**
    * Get upcoming appointments within a date range
+   * @param startDate - Start of the date range
+   * @param endDate - End of the date range
+   * @returns Array of appointment details
    */
-  async getUpcomingAppointments(
-    startDate: Date,
-    endDate: Date
-  ): Promise<
-    {
-      id: string;
-      slot: { date: string; startTime: string; duration: number };
-      patientName?: string;
-      procedureType: string;
-      hubspotContactId: string;
-      phone: string;
-      createdAt: string;
-    }[]
-  > {
-    if (!this.pool) {
-      // Return empty array if no database connection configured
-      return [];
-    }
-    const client = await this.pool.connect();
-    try {
-      const sql = `
-        SELECT a.id, s.start_time, s.end_time, a.patient_name, a.patient_phone,
-               a.procedure_type, a.hubspot_contact_id, a.created_at
-        FROM appointments a
-        JOIN time_slots s ON a.slot_id = s.id
-        WHERE s.start_time >= $1 AND s.start_time <= $2
-        AND a.status = 'confirmed'
-        ORDER BY s.start_time ASC
-      `;
-      const result = await client.query(sql, [startDate, endDate]);
-      return result.rows.map(
-        (row: {
-          id: string;
-          start_time: Date;
-          end_time: Date;
-          patient_name?: string;
-          patient_phone: string;
-          procedure_type: string;
-          hubspot_contact_id: string;
-          created_at: Date;
-        }) => {
-          const startTime = new Date(row.start_time);
-          const startIso = startTime.toISOString();
+  getUpcomingAppointments(startDate: Date, endDate: Date): Promise<AppointmentDetails[]>;
+}
 
-          const endTime = new Date(row.end_time);
-          const durationMs = endTime.getTime() - startTime.getTime();
-          const durationMinutes = Math.round(durationMs / (1000 * 60));
+// ============================================================================
+// LEGACY COMPATIBILITY
+// ============================================================================
 
-          const appointment: {
-            id: string;
-            slot: { date: string; startTime: string; duration: number };
-            patientName?: string;
-            procedureType: string;
-            hubspotContactId: string;
-            phone: string;
-            createdAt: string;
-          } = {
-            id: row.id,
-            slot: {
-              date: startIso.split('T')[0] ?? '',
-              startTime: (startIso.split('T')[1] ?? '00:00:00').substring(0, 5),
-              duration: durationMinutes,
-            },
-            procedureType: row.procedure_type,
-            hubspotContactId: row.hubspot_contact_id,
-            phone: row.patient_phone,
-            createdAt: new Date(row.created_at).toISOString(),
-          };
-          if (row.patient_name) {
-            appointment.patientName = row.patient_name;
-          }
-          return appointment;
-        }
-      );
-    } finally {
-      client.release();
-    }
-  }
+/**
+ * @deprecated Use ISchedulingRepository instead.
+ * This class is provided for backwards compatibility during migration.
+ * Import PostgresSchedulingRepository from @medicalcor/core for the actual implementation.
+ */
+export abstract class SchedulingService implements ISchedulingRepository {
+  abstract getAvailableSlots(options: string | GetAvailableSlotsOptions): Promise<TimeSlot[]>;
+  abstract bookAppointment(request: BookingRequest): Promise<BookingResult>;
+  abstract getUpcomingAppointments(startDate: Date, endDate: Date): Promise<AppointmentDetails[]>;
 }
