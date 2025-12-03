@@ -116,8 +116,13 @@ export function MobileSidebar() {
               <Stethoscope className="h-8 w-8 text-primary" />
               <span className="text-lg font-bold text-primary">Cortex</span>
             </Link>
-            <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
-              <X className="h-5 w-5" />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsOpen(false)}
+              aria-label="Închide meniul"
+            >
+              <X className="h-5 w-5" aria-hidden="true" />
             </Button>
           </div>
 
@@ -162,6 +167,7 @@ export function Sidebar() {
         'fixed left-0 top-0 z-40 h-screen border-r bg-card transition-all duration-300 hidden lg:block',
         collapsed ? 'w-16' : 'w-64'
       )}
+      aria-label="Navigare principală"
     >
       <div className="flex h-full flex-col">
         {/* Logo */}
@@ -189,8 +195,14 @@ export function Sidebar() {
             size="sm"
             className="w-full justify-center"
             onClick={() => setCollapsed(!collapsed)}
+            aria-label={collapsed ? 'Extinde bara laterală' : 'Restrânge bara laterală'}
+            aria-expanded={!collapsed}
           >
-            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            {collapsed ? (
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+            )}
           </Button>
         </div>
       </div>
