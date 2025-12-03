@@ -1,5 +1,3 @@
-
-
 /**
  * @fileoverview Lazy-Initialized Service Client Factory
  *
@@ -19,7 +17,14 @@ import {
   type MockStripeClient,
   createMockStripeClient,
 } from '@medicalcor/integrations';
-import { SchedulingService } from '@medicalcor/domain';
+import type {
+  ISchedulingRepository,
+  TimeSlot,
+  BookingRequest,
+  BookingResult,
+  AppointmentDetails,
+  GetAvailableSlotsOptions,
+} from '@medicalcor/domain';
 
 // ============================================================================
 // CONSTANTS
@@ -49,7 +54,7 @@ export const MAX_FETCH_RESULTS = 5000 as const;
 
 let hubspotClient: HubSpotClient | null = null;
 let stripeClient: StripeClient | MockStripeClient | null = null;
-let schedulingService: SchedulingService | null = null;
+let schedulingService: ISchedulingRepository | null = null;
 
 // ============================================================================
 // CLIENT FACTORY FUNCTIONS
@@ -105,8 +110,33 @@ export function getStripeClient(): StripeClient | MockStripeClient {
 }
 
 /**
+ * Mock Scheduling Repository for Web App
+ * NOTE: In production, this should be replaced with actual database calls
+ * through an API layer, not direct database access from Next.js server actions
+ */
+class MockSchedulingRepository implements ISchedulingRepository {
+  getAvailableSlots(_options: string | GetAvailableSlotsOptions): Promise<TimeSlot[]> {
+    // Mock implementation - return empty array for now
+    // TODO: Replace with API call to backend service
+    return Promise.resolve([]);
+  }
+
+  bookAppointment(_request: BookingRequest): Promise<BookingResult> {
+    // Mock implementation
+    // TODO: Replace with API call to backend service
+    return Promise.reject(new Error('Booking not implemented in web app - use API endpoint'));
+  }
+
+  getUpcomingAppointments(_startDate: Date, _endDate: Date): Promise<AppointmentDetails[]> {
+    // Mock implementation - return empty array for now
+    // TODO: Replace with API call to backend service
+    return Promise.resolve([]);
+  }
+}
+
+/**
  * Get or create Scheduling service instance
- * @returns {SchedulingService} Singleton scheduling service instance
+ * @returns {ISchedulingRepository} Singleton scheduling service instance
  *
  * @example
  * ```typescript
@@ -114,10 +144,8 @@ export function getStripeClient(): StripeClient | MockStripeClient {
  * const slots = await scheduling.getAvailableSlots({ ... });
  * ```
  */
-export function getSchedulingService(): SchedulingService {
-  schedulingService ??= new SchedulingService({
-    timezone: DEFAULT_TIMEZONE,
-  });
+export function getSchedulingService(): ISchedulingRepository {
+  schedulingService ??= new MockSchedulingRepository();
   return schedulingService;
 }
 
