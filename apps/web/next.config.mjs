@@ -19,9 +19,8 @@ const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@medicalcor/core', '@medicalcor/domain', '@medicalcor/types', '@medicalcor/integrations'],
   experimental: {
-    // Partial Prerendering (PPR) - Next.js 15 SOTA feature
-    // Combines static shell with dynamic streaming for optimal performance
-    ppr: 'incremental',
+    // Note: PPR (Partial Prerendering) requires Next.js canary version
+    // Disabled for stable 15.5.7 - can be re-enabled when canary is stable
     serverActions: {
       bodySizeLimit: '2mb',
     },
