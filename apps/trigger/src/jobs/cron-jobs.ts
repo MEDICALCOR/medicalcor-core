@@ -3,12 +3,23 @@ import crypto from 'crypto';
 import {
   createEventStore,
   createInMemoryEventStore,
+  createDatabaseClient,
+  createDeadLetterQueueService,
   IdempotencyKeys,
   getTodayString,
+  type DlqEntry,
+  type WebhookType,
 } from '@medicalcor/core';
 import { createIntegrationClients } from '@medicalcor/integrations';
 import { nurtureSequenceWorkflow } from '../workflows/patient-journey.js';
 import { scoreLeadWorkflow } from '../workflows/lead-scoring.js';
+import { handleWhatsAppMessage } from '../tasks/whatsapp-handler.js';
+import { handleVoiceCall, handleCallCompleted } from '../tasks/voice-handler.js';
+import {
+  handlePaymentSucceeded,
+  handlePaymentFailed,
+  handleRefund,
+} from '../tasks/payment-handler.js';
 
 /**
  * HubSpot contact search result type
@@ -1308,3 +1319,278 @@ async function emitJobEvent(
     logger.warn('Failed to emit job event', { type, error });
   }
 }
+
+// ============================================
+// Dead Letter Queue Processor
+// ============================================
+
+/**
+ * Retry handler map - dispatches DLQ entries to appropriate handlers
+ * Maps webhook types to their corresponding Trigger.dev tasks
+ */
+const webhookRetryHandlers: Partial<Record<WebhookType, (entry: DlqEntry) => Promise<boolean>>> = {
+  whatsapp: async (entry) => {
+    try {
+      await handleWhatsAppMessage.trigger(
+        entry.payload as Parameters<typeof handleWhatsAppMessage.trigger>[0]
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  voice: async (entry) => {
+    try {
+      // Determine if this is a call start or call completed event
+      const payload = entry.payload;
+      if (payload.type === 'call_completed' || payload.callStatus === 'completed') {
+        await handleCallCompleted.trigger(
+          entry.payload as Parameters<typeof handleCallCompleted.trigger>[0]
+        );
+      } else {
+        await handleVoiceCall.trigger(
+          entry.payload as Parameters<typeof handleVoiceCall.trigger>[0]
+        );
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  vapi: async (entry) => {
+    try {
+      // Vapi webhooks use the same voice handlers
+      const payload = entry.payload;
+      if (payload.type === 'call_completed' || payload.callStatus === 'completed') {
+        await handleCallCompleted.trigger(
+          entry.payload as Parameters<typeof handleCallCompleted.trigger>[0]
+        );
+      } else {
+        await handleVoiceCall.trigger(
+          entry.payload as Parameters<typeof handleVoiceCall.trigger>[0]
+        );
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  stripe: async (entry) => {
+    try {
+      // Route to appropriate Stripe handler based on event type
+      const payload = entry.payload;
+      const eventType = payload.type as string | undefined;
+
+      if (eventType?.includes('payment_intent.succeeded')) {
+        await handlePaymentSucceeded.trigger(
+          entry.payload as Parameters<typeof handlePaymentSucceeded.trigger>[0]
+        );
+      } else if (eventType?.includes('payment_intent.payment_failed')) {
+        await handlePaymentFailed.trigger(
+          entry.payload as Parameters<typeof handlePaymentFailed.trigger>[0]
+        );
+      } else if (eventType?.includes('refund')) {
+        await handleRefund.trigger(entry.payload as Parameters<typeof handleRefund.trigger>[0]);
+      } else {
+        // Unknown Stripe event type - log but mark as processed
+        logger.warn('Unknown Stripe event type in DLQ', {
+          eventType,
+          entryId: entry.id,
+        });
+        return true;
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  },
+};
+
+/**
+ * Dead Letter Queue Processor - processes failed webhook entries
+ * Runs every 5 minutes to retry failed webhooks
+ *
+ * CRITICAL FOR HIPAA/GDPR: Ensures no patient data is lost due to transient failures
+ */
+export const dlqProcessor = schedules.task({
+  id: 'dlq-processor',
+  cron: '*/5 * * * *', // Every 5 minutes
+  run: async () => {
+    const correlationId = generateCorrelationId();
+    logger.info('Starting DLQ processor', { correlationId });
+
+    const databaseUrl = process.env.DATABASE_URL;
+    if (!databaseUrl) {
+      logger.warn('DATABASE_URL not configured, skipping DLQ processing', { correlationId });
+      return { success: false, reason: 'Database not configured' };
+    }
+
+    const { eventStore } = getClients();
+    const db = createDatabaseClient(databaseUrl);
+    const dlq = createDeadLetterQueueService(db);
+
+    let processed = 0;
+    let expired = 0;
+    let purged = 0;
+    let errors = 0;
+
+    try {
+      // Step 1: Process entries due for retry
+      const retryHandler = async (entry: DlqEntry): Promise<boolean> => {
+        const handler = webhookRetryHandlers[entry.webhookType];
+        if (!handler) {
+          logger.warn('No retry handler for webhook type', {
+            webhookType: entry.webhookType,
+            entryId: entry.id,
+            correlationId,
+          });
+          // Return true to mark as processed (no handler available)
+          // The entry will be logged but not retried
+          return true;
+        }
+
+        logger.info('Retrying DLQ entry', {
+          entryId: entry.id,
+          webhookType: entry.webhookType,
+          retryCount: entry.retryCount,
+          correlationId: entry.correlationId,
+        });
+
+        return handler(entry);
+      };
+
+      processed = await dlq.processRetries(retryHandler, {
+        batchSize: 20,
+      });
+
+      // Step 2: Expire old entries
+      expired = await dlq.expireOldEntries();
+
+      // Step 3: Purge old processed entries (keep for 30 days)
+      purged = await dlq.purgeProcessed(30);
+
+      // Get current DLQ stats
+      const stats = await dlq.getStats();
+
+      logger.info('DLQ processor completed', {
+        processed,
+        expired,
+        purged,
+        stats,
+        correlationId,
+      });
+
+      // Emit job completion event
+      await emitJobEvent(eventStore, 'cron.dlq_processor.completed', {
+        processed,
+        expired,
+        purged,
+        stats,
+        correlationId,
+      });
+
+      // Alert if there are many pending entries
+      if (stats.pending > 100) {
+        logger.warn('High number of pending DLQ entries', {
+          pending: stats.pending,
+          failed: stats.failed,
+          correlationId,
+        });
+      }
+
+      return {
+        success: true,
+        processed,
+        expired,
+        purged,
+        stats,
+      };
+    } catch (error) {
+      errors++;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('DLQ processor failed', { error: errorMessage, correlationId });
+
+      await emitJobEvent(eventStore, 'cron.dlq_processor.failed', {
+        error: errorMessage,
+        processed,
+        expired,
+        purged,
+        correlationId,
+      });
+
+      return { success: false, error: errorMessage, processed, expired, purged, errors };
+    }
+  },
+});
+
+/**
+ * DLQ Cleanup - daily cleanup of failed and expired entries
+ * Runs every day at 5:00 AM
+ */
+export const dlqCleanup = schedules.task({
+  id: 'dlq-cleanup',
+  cron: '0 5 * * *', // 5:00 AM every day
+  run: async () => {
+    const correlationId = generateCorrelationId();
+    logger.info('Starting DLQ cleanup', { correlationId });
+
+    const databaseUrl = process.env.DATABASE_URL;
+    if (!databaseUrl) {
+      logger.warn('DATABASE_URL not configured, skipping DLQ cleanup', { correlationId });
+      return { success: false, reason: 'Database not configured' };
+    }
+
+    const { eventStore } = getClients();
+    const db = createDatabaseClient(databaseUrl);
+    const dlq = createDeadLetterQueueService(db);
+
+    try {
+      // Get stats before cleanup
+      const statsBefore = await dlq.getStats();
+
+      // Purge old processed entries (older than 30 days)
+      const purgedProcessed = await dlq.purgeProcessed(30);
+
+      // Expire any remaining old entries
+      const expiredEntries = await dlq.expireOldEntries();
+
+      // Get stats after cleanup
+      const statsAfter = await dlq.getStats();
+
+      logger.info('DLQ cleanup completed', {
+        purgedProcessed,
+        expiredEntries,
+        statsBefore,
+        statsAfter,
+        correlationId,
+      });
+
+      // Emit job completion event
+      await emitJobEvent(eventStore, 'cron.dlq_cleanup.completed', {
+        purgedProcessed,
+        expiredEntries,
+        statsBefore,
+        statsAfter,
+        correlationId,
+      });
+
+      return {
+        success: true,
+        purgedProcessed,
+        expiredEntries,
+        statsBefore,
+        statsAfter,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('DLQ cleanup failed', { error: errorMessage, correlationId });
+
+      await emitJobEvent(eventStore, 'cron.dlq_cleanup.failed', {
+        error: errorMessage,
+        correlationId,
+      });
+
+      return { success: false, error: errorMessage };
+    }
+  },
+});
