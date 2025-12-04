@@ -27,7 +27,7 @@ export {
   type Pagination,
   type CursorPagination,
   type PaginatedResponse,
-} from "./common.js";
+} from './common.js';
 
 // =============================================================================
 // Lead/Patient Schemas
@@ -69,7 +69,7 @@ export {
   type LeadContext,
   type CreateLeadContext,
   type UpdateLeadContext,
-} from "./lead.js";
+} from './lead.js';
 
 // =============================================================================
 // Voice/Telephony Schemas
@@ -104,7 +104,7 @@ export {
   type TwilioStatusCallback,
   type InitiateCall,
   type CallSummary,
-} from "./voice.js";
+} from './voice.js';
 
 // =============================================================================
 // WhatsApp Schemas
@@ -144,7 +144,7 @@ export {
   type WhatsAppWebhook,
   type WhatsAppSendMessage,
   type NormalizedWhatsAppMessage,
-} from "./whatsapp.js";
+} from './whatsapp.js';
 
 // =============================================================================
 // Advanced Scoring Schemas
@@ -158,4 +158,67 @@ export {
   type RecommendedAction,
   type AdvancedScoringOutput,
   type ScoringRequest,
-} from "./scoring.js";
+} from './scoring.js';
+
+// =============================================================================
+// Supervisor/Flex Schemas (W3 Milestone)
+// =============================================================================
+export {
+  // Permissions & Roles
+  SupervisorPermissionSchema,
+  SupervisorRoleSchema,
+  // Call Monitoring
+  MonitoredCallStateSchema,
+  MonitoredCallSchema,
+  SupervisorActionSchema,
+  SupervisorSessionSchema,
+  // Commands
+  StartMonitoringCommandSchema,
+  StopMonitoringCommandSchema,
+  WhisperCommandSchema,
+  BargeCommandSchema,
+  HandoffRequestSchema,
+  SupervisorNoteSchema,
+  // Events
+  SupervisorEventTypeSchema,
+  SupervisorEventBaseSchema,
+  CallStartedEventSchema,
+  CallUpdatedEventSchema,
+  CallEndedEventSchema,
+  TranscriptMessageEventSchema,
+  AlertEventSchema,
+  SupervisorEventSchema,
+  // Flex Workers & Queues
+  FlexWorkerActivitySchema,
+  FlexWorkerSchema,
+  FlexQueueSchema,
+  FlexTaskSchema,
+  // Dashboard
+  SupervisorDashboardStatsSchema,
+  // Types
+  type SupervisorPermission,
+  type SupervisorRole,
+  type MonitoredCallState,
+  type MonitoredCall,
+  type SupervisorAction,
+  type SupervisorSession,
+  type StartMonitoringCommand,
+  type StopMonitoringCommand,
+  type WhisperCommand,
+  type BargeCommand,
+  type HandoffRequest,
+  type SupervisorNote,
+  type SupervisorEventType,
+  type SupervisorEventBase,
+  type CallStartedEvent,
+  type CallUpdatedEvent,
+  type CallEndedEvent,
+  type TranscriptMessageEvent,
+  type AlertEvent,
+  type SupervisorEvent,
+  type FlexWorkerActivity,
+  type FlexWorker,
+  type FlexQueue,
+  type FlexTask,
+  type SupervisorDashboardStats,
+} from './supervisor.js';
