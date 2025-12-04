@@ -115,12 +115,12 @@ export const crmWebhookRoutes: FastifyPluginAsync = async (fastify) => {
       // Determine if this is a person/contact event
       const isPersonEvent =
         objectType === 'person' ||
-        (eventType !== undefined && eventType.toLowerCase().includes('person'));
+        eventType?.toLowerCase().includes('person') === true;
 
       // Determine if this is a deal event
       const isDealEvent =
         objectType === 'deal' ||
-        (eventType !== undefined && eventType.toLowerCase().includes('deal'));
+        eventType?.toLowerCase().includes('deal') === true;
 
       // Process Person -> Lead
       if (isPersonEvent) {
@@ -186,7 +186,7 @@ export const crmWebhookRoutes: FastifyPluginAsync = async (fastify) => {
         );
       }
 
-      return reply.status(200).send({ status: 'ok' });
+      return await reply.status(200).send({ status: 'ok' });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       request.log.error(

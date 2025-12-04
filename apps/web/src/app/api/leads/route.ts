@@ -11,7 +11,7 @@
  * - GDPR-compliant logging
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { tasks } from '@trigger.dev/sdk/v3';
 import crypto from 'crypto';
 

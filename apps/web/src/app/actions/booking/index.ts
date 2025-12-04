@@ -130,7 +130,7 @@ function rowToService(row: ServiceRow): Service {
   };
 }
 
-function rowToDoctor(row: DoctorRow, nextAvailable: string = 'Indisponibil'): Doctor {
+function rowToDoctor(row: DoctorRow, nextAvailable = 'Indisponibil'): Doctor {
   return {
     id: row.id,
     name: row.name,

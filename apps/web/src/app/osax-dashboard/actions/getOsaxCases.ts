@@ -214,7 +214,7 @@ export async function getOverdueFollowUpCases(): Promise<OsaxCaseListItem[]> {
 /**
  * Get severity distribution for charts
  */
-export async function getSeverityDistribution(): Promise<Array<{ severity: string; count: number }>> {
+export async function getSeverityDistribution(): Promise<{ severity: string; count: number }[]> {
   const stats = await getOsaxStatistics();
 
   return Object.entries(stats.casesBySeverity).map(([severity, count]) => ({
@@ -226,7 +226,7 @@ export async function getSeverityDistribution(): Promise<Array<{ severity: strin
 /**
  * Get treatment type distribution
  */
-export async function getTreatmentDistribution(): Promise<Array<{ type: string; count: number }>> {
+export async function getTreatmentDistribution(): Promise<{ type: string; count: number }[]> {
   // In production, aggregate from repository
   return [
     { type: 'CPAP_THERAPY', count: 52 },

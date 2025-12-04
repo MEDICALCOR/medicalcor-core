@@ -89,7 +89,7 @@ export function RequirePermission({
     return null;
   }
 
-  const userRole = session?.user?.role as UserRole | undefined;
+  const userRole = session?.user?.role;
 
   // Check role requirement first
   if (requiredRole && userRole !== requiredRole) {
@@ -136,7 +136,7 @@ export function RequireRole({ role, orHigher = false, children, fallback }: Requ
     return null;
   }
 
-  const userRole = session?.user?.role as UserRole | undefined;
+  const userRole = session?.user?.role;
 
   if (!userRole) {
     return fallback ?? null;
@@ -222,7 +222,7 @@ export function PagePermissionGate({
     );
   }
 
-  const userRole = session?.user?.role as UserRole | undefined;
+  const userRole = session?.user?.role;
   const { allowed, reason } = canAccessPage(userRole, pathname);
 
   if (!allowed) {
@@ -254,7 +254,7 @@ export function PagePermissionGate({
 export function usePermissions() {
   const { data: session, status } = useSession();
 
-  const userRole = session?.user?.role as UserRole | undefined;
+  const userRole = session?.user?.role;
 
   return {
     /** Check single permission */

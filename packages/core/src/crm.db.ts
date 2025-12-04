@@ -3,6 +3,8 @@
  * Lead Generation Machine - Upsert, Events, Interactions
  */
 
+/* eslint-disable @typescript-eslint/no-unnecessary-condition -- defensive fallbacks for optional DTO properties */
+
 import {
   createDatabaseClient,
   withTransaction,

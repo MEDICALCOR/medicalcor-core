@@ -14,6 +14,7 @@ import type { AIMetricsRecord, AIMetricsRepository } from './multi-provider-gate
  * Database client interface (compatible with pg.Pool)
  */
 export interface DatabaseClient {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- T is used for return type inference
   query<T>(sql: string, params?: unknown[]): Promise<{ rows: T[] }>;
 }
 

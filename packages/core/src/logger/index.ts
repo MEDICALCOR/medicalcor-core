@@ -64,6 +64,7 @@ function getDefaultLevel(): string {
       return 'info';
     case 'test':
       return 'silent';
+    case undefined:
     default:
       return 'debug';
   }

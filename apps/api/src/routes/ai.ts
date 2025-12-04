@@ -72,6 +72,7 @@ function initializeFunctionRegistry(): void {
     if (!inputSchema) continue;
 
     // Type assertion needed because TypeScript can't verify schema matches function type at compile time
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic function registration requires type flexibility
     registry.register(fn as any, inputSchema as any, async (args, context) => {
       // Placeholder implementation - each function would be connected
       // to the actual domain service in production

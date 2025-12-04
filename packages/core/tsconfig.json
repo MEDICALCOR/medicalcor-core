@@ -16,7 +16,7 @@
     "src/events/handlers/**",
     "src/repositories/SupabaseOsaxCaseRepository.ts",
     "src/repositories/postgres-scheduling-repository.ts",
-    "src/security/gdpr/**",
+    "src/security/gdpr/osax-audit.ts",
     "src/metrics/osax.ts"
   ],
   "references": [{ "path": "../types" }]

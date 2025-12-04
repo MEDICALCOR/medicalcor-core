@@ -1248,6 +1248,268 @@ export const crmHealthMonitor = schedules.task({
   },
 });
 
+/**
+ * GDPR Hard Deletion Executor - permanently deletes data past retention period
+ * Runs every day at 3:30 AM
+ *
+ * CRITICAL: This job executes permanent data deletion for GDPR Article 17 compliance.
+ * It processes records in the scheduled_deletions table that are past their scheduled date.
+ */
+export const gdprHardDeletionExecutor = schedules.task({
+  id: 'gdpr-hard-deletion-executor',
+  cron: '30 3 * * *', // 3:30 AM every day
+  run: async () => {
+    const correlationId = generateCorrelationId();
+    logger.info('Starting GDPR hard deletion executor', { correlationId });
+
+    const { eventStore } = getClients();
+    const databaseUrl = process.env.DATABASE_URL;
+
+    if (!databaseUrl) {
+      logger.warn('DATABASE_URL not configured, skipping hard deletion', { correlationId });
+      return { success: false, reason: 'Database not configured', deletionsProcessed: 0 };
+    }
+
+    let deletionsProcessed = 0;
+    let deletionsFailed = 0;
+    const errors: { entityType: string; entityId: string; error: string }[] = [];
+
+    try {
+      // Dynamic import for Supabase client
+      const { createClient } = await import('@supabase/supabase-js');
+
+      // Create Supabase client for direct database access
+      const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_SERVICE_KEY ?? process.env.SUPABASE_ANON_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        logger.warn('Supabase credentials not configured', { correlationId });
+        return { success: false, reason: 'Supabase not configured', deletionsProcessed: 0 };
+      }
+
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      // Get scheduled deletions that are due
+      const { data: pendingDeletions, error: fetchError } = await supabase
+        .from('scheduled_deletions')
+        .select('*')
+        .is('executed_at', null)
+        .lte('scheduled_for', new Date().toISOString())
+        .limit(100); // Process in batches
+
+      if (fetchError) {
+        throw new Error(`Failed to fetch pending deletions: ${fetchError.message}`);
+      }
+
+      // Type for scheduled deletion records
+      interface ScheduledDeletion {
+        id: string;
+        entity_type: string;
+        entity_id: string;
+        scheduled_for: string;
+        reason: string | null;
+        executed_at: string | null;
+        created_at: string;
+      }
+
+      const deletions = pendingDeletions as ScheduledDeletion[] | null;
+      if (!deletions || deletions.length === 0) {
+        logger.info('No pending deletions to process', { correlationId });
+        return { success: true, deletionsProcessed: 0, message: 'No pending deletions' };
+      }
+      logger.info(`Found ${deletions.length} deletions to process`, { correlationId });
+
+      // Table mapping for entity types
+      const tableMap: Record<string, string> = {
+        lead: 'leads',
+        patient_record: 'patients',
+        consent: 'consents',
+        message: 'message_log',
+        appointment: 'appointments',
+        subject_data: 'leads',
+        consent_records: 'consent_records',
+        lead_scoring_history: 'lead_scoring_history',
+      };
+
+      // Process each deletion
+      for (const deletion of deletions) {
+        try {
+          const tableName = tableMap[deletion.entity_type] ?? deletion.entity_type;
+
+          // Execute hard delete
+          const { error: deleteError } = await supabase
+            .from(tableName)
+            .delete()
+            .eq('id', deletion.entity_id);
+
+          if (deleteError) {
+            throw new Error(deleteError.message);
+          }
+
+          // Mark deletion as executed
+          await supabase
+            .from('scheduled_deletions')
+            .update({ executed_at: new Date().toISOString() })
+            .eq('id', deletion.id);
+
+          deletionsProcessed++;
+
+          logger.info('Hard deletion executed', {
+            entityType: deletion.entity_type,
+            entityId: deletion.entity_id,
+            reason: deletion.reason,
+            correlationId,
+          });
+        } catch (error) {
+          deletionsFailed++;
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          errors.push({
+            entityType: deletion.entity_type,
+            entityId: deletion.entity_id,
+            error: errorMessage,
+          });
+
+          logger.error('Hard deletion failed', {
+            entityType: deletion.entity_type,
+            entityId: deletion.entity_id,
+            error: errorMessage,
+            correlationId,
+          });
+        }
+      }
+
+      // Emit job completion event
+      await emitJobEvent(eventStore, 'cron.gdpr_hard_deletion.completed', {
+        deletionsProcessed,
+        deletionsFailed,
+        errorsCount: errors.length,
+        correlationId,
+      });
+
+      logger.info('GDPR hard deletion executor completed', {
+        deletionsProcessed,
+        deletionsFailed,
+        correlationId,
+      });
+    } catch (error) {
+      logger.error('GDPR hard deletion executor failed', { error, correlationId });
+
+      await emitJobEvent(eventStore, 'cron.gdpr_hard_deletion.failed', {
+        error: String(error),
+        correlationId,
+      });
+
+      return { success: false, error: String(error), deletionsProcessed };
+    }
+
+    return {
+      success: deletionsFailed === 0,
+      deletionsProcessed,
+      deletionsFailed,
+      errors: errors.length > 0 ? errors : undefined,
+    };
+  },
+});
+
+/**
+ * DSR Due Date Monitor - alerts on overdue data subject requests
+ * Runs every day at 8:00 AM
+ *
+ * GDPR requires response to DSRs within 30 days. This job monitors
+ * for requests approaching or past their due date.
+ */
+export const dsrDueDateMonitor = schedules.task({
+  id: 'dsr-due-date-monitor',
+  cron: '0 8 * * *', // 8:00 AM every day
+  run: async () => {
+    const correlationId = generateCorrelationId();
+    logger.info('Starting DSR due date monitor', { correlationId });
+
+    const { eventStore } = getClients();
+
+    try {
+      const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_SERVICE_KEY ?? process.env.SUPABASE_ANON_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        logger.warn('Supabase credentials not configured', { correlationId });
+        return { success: false, reason: 'Supabase not configured' };
+      }
+
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      const now = new Date();
+      const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+
+      // Get overdue DSRs
+      const { data: overdueDSRs } = await supabase
+        .from('data_subject_requests')
+        .select('*')
+        .not('status', 'in', '("completed","rejected","cancelled")')
+        .lt('due_date', now.toISOString());
+
+      // Get DSRs due within 3 days
+      const { data: approachingDSRs } = await supabase
+        .from('data_subject_requests')
+        .select('*')
+        .not('status', 'in', '("completed","rejected","cancelled")')
+        .gte('due_date', now.toISOString())
+        .lte('due_date', threeDaysFromNow.toISOString());
+
+      const overdueCount = overdueDSRs?.length ?? 0;
+      const approachingCount = approachingDSRs?.length ?? 0;
+
+      // Log alerts
+      if (overdueCount > 0) {
+        logger.error('GDPR ALERT: Overdue DSRs detected', {
+          overdueCount,
+          requests: overdueDSRs?.map((r: { id: string; request_type: string; due_date: string }) => ({
+            id: r.id,
+            type: r.request_type,
+            dueDate: r.due_date,
+          })),
+          correlationId,
+        });
+      }
+
+      if (approachingCount > 0) {
+        logger.warn('DSRs approaching due date', {
+          approachingCount,
+          requests: approachingDSRs?.map((r: { id: string; request_type: string; due_date: string }) => ({
+            id: r.id,
+            type: r.request_type,
+            dueDate: r.due_date,
+          })),
+          correlationId,
+        });
+      }
+
+      // Emit monitoring event
+      await emitJobEvent(eventStore, 'cron.dsr_monitor.completed', {
+        overdueCount,
+        approachingCount,
+        correlationId,
+      });
+
+      logger.info('DSR due date monitor completed', {
+        overdueCount,
+        approachingCount,
+        correlationId,
+      });
+
+      return {
+        success: true,
+        overdueCount,
+        approachingCount,
+      };
+    } catch (error) {
+      logger.error('DSR due date monitor failed', { error, correlationId });
+      return { success: false, error: String(error) };
+    }
+  },
+});
+
 // ============================================
 // Helper Functions
 // ============================================

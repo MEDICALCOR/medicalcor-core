@@ -60,6 +60,7 @@ async function addSpanAttributesLazy(
 async function withSpanLazy<T>(
   tracer: Tracer,
   name: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Span type varies across OpenTelemetry versions
   fn: (span: any) => Promise<T>,
   options?: { kind?: SpanKind }
 ): Promise<T> {

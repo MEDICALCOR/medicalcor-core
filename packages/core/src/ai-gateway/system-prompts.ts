@@ -314,7 +314,7 @@ interface CacheEntry {
  */
 export class SystemPromptsRepository {
   private config: SystemPromptsRepositoryConfig;
-  private cache: Map<string, CacheEntry> = new Map();
+  private cache = new Map<string, CacheEntry>();
   private initialized = false;
   private db: DatabasePool | null = null;
 
@@ -661,7 +661,7 @@ export class SystemPromptsRepository {
   /**
    * List all available prompts
    */
-  async listPrompts(query?: PromptQuery): Promise<SystemPrompt[]> {
+  listPrompts(query?: PromptQuery): Promise<SystemPrompt[]> {
     let prompts: SystemPrompt[] = [];
 
     // Get all default prompts
@@ -692,7 +692,7 @@ export class SystemPromptsRepository {
       }
     }
 
-    return prompts;
+    return Promise.resolve(prompts);
   }
 
   /**
@@ -757,9 +757,7 @@ export function createSystemPromptsRepository(
  * Get the singleton repository instance
  */
 export function getSystemPromptsRepository(): SystemPromptsRepository {
-  if (!repositoryInstance) {
-    repositoryInstance = createSystemPromptsRepository();
-  }
+  repositoryInstance ??= createSystemPromptsRepository();
   return repositoryInstance;
 }
 
@@ -769,9 +767,7 @@ export function getSystemPromptsRepository(): SystemPromptsRepository {
 export async function initializeSystemPrompts(
   config?: Partial<SystemPromptsRepositoryConfig>
 ): Promise<SystemPromptsRepository> {
-  if (!repositoryInstance) {
-    repositoryInstance = createSystemPromptsRepository(config);
-  }
+  repositoryInstance ??= createSystemPromptsRepository(config);
   await repositoryInstance.initialize();
   return repositoryInstance;
 }

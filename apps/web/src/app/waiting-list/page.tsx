@@ -321,7 +321,7 @@ export default function WaitingListPage() {
           ) : (
             <div className="space-y-3">
               {sortedList.map((patient, index) => {
-                const status = patient.status as keyof typeof statusConfig;
+                const status = patient.status;
                 const StatusIcon = statusConfig[status]?.icon ?? Clock;
                 const daysWaiting = getDaysWaiting(patient.addedAt);
 

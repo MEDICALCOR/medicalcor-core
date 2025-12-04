@@ -179,8 +179,8 @@ interface PerformanceMetrics {
 export class AdaptiveTimeoutManager {
   private config: AdaptiveTimeoutConfig;
   private timeoutConfigs: Record<AIOperationType, TimeoutConfig>;
-  private performanceMetrics: Map<AIOperationType, PerformanceMetrics> = new Map();
-  private adaptedTimeouts: Map<AIOperationType, number> = new Map();
+  private performanceMetrics = new Map<AIOperationType, PerformanceMetrics>();
+  private adaptedTimeouts = new Map<AIOperationType, number>();
 
   constructor(config: Partial<AdaptiveTimeoutConfig> = {}) {
     this.config = AdaptiveTimeoutConfigSchema.parse(config);
@@ -203,6 +203,7 @@ export class AdaptiveTimeoutManager {
    * Get timeout configuration for an operation
    */
   getTimeoutConfig(operation: AIOperationType): TimeoutConfig {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive fallback for runtime safety
     const config = this.timeoutConfigs[operation] ?? this.timeoutConfigs.default;
 
     // Apply global multiplier
@@ -291,6 +292,7 @@ export class AdaptiveTimeoutManager {
     const metrics = this.performanceMetrics.get(operation);
     if (!metrics || metrics.sampleCount < 10) return;
 
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive fallback for runtime safety
     const baseConfig = this.timeoutConfigs[operation] ?? this.timeoutConfigs.default;
 
     // Use p95 as base, add 50% buffer for safety
@@ -393,9 +395,9 @@ export class AdaptiveTimeoutManager {
           clearTimeout(timer);
           resolve(result);
         })
-        .catch((error) => {
+        .catch((error: unknown) => {
           clearTimeout(timer);
-          reject(error);
+          reject(error instanceof Error ? error : new Error(String(error)));
         });
     });
   }

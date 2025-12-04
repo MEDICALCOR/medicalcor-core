@@ -213,7 +213,7 @@ export default function CampaignsPage() {
           ) : (
             <div className="space-y-4">
               {campaigns.map((campaign) => {
-                const status = campaign.status as keyof typeof statusConfig;
+                const status = campaign.status;
                 const StatusIcon = statusConfig[status]?.icon ?? Edit;
                 const openRate = campaign.sent > 0 ? (campaign.opened / campaign.sent) * 100 : 0;
 
