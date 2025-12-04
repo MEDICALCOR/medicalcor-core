@@ -1,0 +1,53 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "workspaces": {
+    ".": {
+      "ignore": ["scripts/**", "tools/**"]
+    },
+    "packages/core": {
+      "ignore": ["src/architecture/**", "src/repositories/**", "src/observability/**", "src/rag/**"]
+    },
+    "packages/domain": {
+      "ignore": ["src/shared-kernel/**", "src/shared/**"]
+    },
+    "apps/web": {
+      "ignore": [
+        "e2e/**",
+        "src/__tests__/**",
+        "src/lib/a11y/**",
+        "src/lib/hooks/**",
+        "src/lib/mutations/**",
+        "src/lib/rate-limit/**",
+        "src/lib/env.ts",
+        "src/components/chat-widget.tsx",
+        "src/components/keyboard-shortcuts.tsx",
+        "src/components/onboarding-wizard.tsx",
+        "src/components/messages/**",
+        "src/components/ui/submit-button.tsx",
+        "src/app/actions/shared/**"
+      ]
+    },
+    "apps/api": {
+      "ignore": ["src/plugins/csrf-protection.ts"]
+    },
+    "apps/trigger": {
+      "ignore": ["src/workflows/**"]
+    }
+  },
+  "ignore": ["**/*osax*", "**/trigger.config.ts"],
+  "ignoreDependencies": [
+    "@anthropic-ai/claude-agent-sdk",
+    "@fastify/sensible",
+    "@opentelemetry/*",
+    "@hookform/resolvers",
+    "@radix-ui/*",
+    "@types/bcryptjs",
+    "date-fns",
+    "nuqs",
+    "react-hook-form",
+    "zod",
+    "libphonenumber-js",
+    "pino-pretty",
+    "uuid"
+  ]
+}
