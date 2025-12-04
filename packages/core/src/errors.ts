@@ -110,6 +110,67 @@ export class NotFoundError extends AppError {
 }
 
 /**
+ * Database connection error
+ */
+export class DatabaseConnectionError extends AppError {
+  constructor(message = 'Database connection failed') {
+    super(message, 'DATABASE_CONNECTION_ERROR', 503);
+    this.name = 'DatabaseConnectionError';
+  }
+}
+
+/**
+ * Database operation error (query failed, constraint violation, etc.)
+ */
+export class DatabaseOperationError extends AppError {
+  public readonly operation: string;
+  public readonly originalError: Error | undefined;
+
+  constructor(operation: string, message: string, originalError?: Error) {
+    super(`Database ${operation} failed: ${message}`, 'DATABASE_OPERATION_ERROR', 500);
+    this.name = 'DatabaseOperationError';
+    this.operation = operation;
+    this.originalError = originalError;
+  }
+}
+
+/**
+ * Lead not found error
+ */
+export class LeadNotFoundError extends AppError {
+  public readonly externalSource: string;
+  public readonly externalId: string;
+
+  constructor(externalSource: string, externalId: string) {
+    super(`Lead not found: source=${externalSource}, id=${externalId}`, 'LEAD_NOT_FOUND', 404);
+    this.name = 'LeadNotFoundError';
+    this.externalSource = externalSource;
+    this.externalId = externalId;
+  }
+}
+
+/**
+ * Lead upsert failed error
+ */
+export class LeadUpsertError extends AppError {
+  public readonly externalSource: string;
+  public readonly externalId: string;
+  public readonly originalError: Error | undefined;
+
+  constructor(externalSource: string, externalId: string, originalError?: Error) {
+    super(
+      `Lead upsert failed: source=${externalSource}, id=${externalId}`,
+      'LEAD_UPSERT_FAILED',
+      500
+    );
+    this.name = 'LeadUpsertError';
+    this.externalSource = externalSource;
+    this.externalId = externalId;
+    this.originalError = originalError;
+  }
+}
+
+/**
  * Check if an error is an operational error (expected) vs programming error
  */
 export function isOperationalError(error: unknown): error is AppError {

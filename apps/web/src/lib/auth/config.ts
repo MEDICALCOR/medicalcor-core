@@ -9,7 +9,7 @@
 import type { NextAuthConfig } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { z } from 'zod';
-import { validateCredentials } from './database-adapter';
+import { validateCredentials, logAuthEvent } from './database-adapter';
 
 // User roles for RBAC
 export type UserRole = 'admin' | 'doctor' | 'receptionist' | 'staff';
@@ -38,43 +38,76 @@ export const authConfig: NextAuthConfig = {
   },
 
   callbacks: {
+    /**
+     * Authorization callback - determines access to routes
+     * Uses explicit public paths allowlist for Platinum security standard
+     */
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
-      const isOnDashboard = !nextUrl.pathname.startsWith('/login');
-      const isPublicPath =
-        nextUrl.pathname === '/login' ||
-        nextUrl.pathname === '/offline' ||
-        nextUrl.pathname.startsWith('/api/auth');
 
+      // Explicit public paths allowlist (Platinum Standard: fail-closed with clear allowlist)
+      const publicPaths = [
+        '/login',
+        '/offline',
+        '/api/auth',
+        '/privacy',
+        '/terms',
+        '/health',
+        '/robots.txt',
+        '/sitemap.xml',
+        '/favicon.ico',
+      ];
+
+      const isPublicPath = publicPaths.some(
+        (path) => nextUrl.pathname === path || nextUrl.pathname.startsWith(`${path}/`)
+      );
+
+      // Allow access to public paths for all users
       if (isPublicPath) {
         return true;
       }
 
-      if (isOnDashboard) {
-        if (isLoggedIn) return true;
-        return false; // Redirect unauthenticated users to login
-      } else if (isLoggedIn) {
+      // All non-public paths require authentication (fail-closed)
+      if (!isLoggedIn) {
+        return false; // Redirect to login
+      }
+
+      // Logged-in users on login page should redirect to dashboard
+      if (nextUrl.pathname === '/login') {
         return Response.redirect(new URL('/', nextUrl));
       }
 
       return true;
     },
 
+    /**
+     * JWT callback - extends token with user data
+     *
+     * NOTE: The `user` check is required at runtime despite TypeScript types.
+     * NextAuth only passes `user` on initial sign-in (when JWT is created),
+     * not on subsequent token refreshes. The types don't reflect this behavior.
+     */
     jwt({ token, user }) {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime check required by NextAuth
       if (user) {
-        // Add custom fields to JWT token
-        token.id = user.id;
-        token.role = (user as AuthUser).role;
-        token.clinicId = (user as AuthUser).clinicId;
+        const authUser = user as AuthUser;
+        token.id = authUser.id;
+        token.role = authUser.role;
+        token.clinicId = authUser.clinicId;
       }
       return token;
     },
 
+    /**
+     * Session callback - extends session with token data
+     *
+     * NOTE: The `session.user && token.sub` check is a defensive guard.
+     * While types suggest these are always present, we verify at runtime
+     * for additional safety in a medical/HIPAA context.
+     */
     session({ session, token }) {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (session.user) {
-        // Add custom fields to session
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard for medical compliance
+      if (session.user && token.sub) {
         session.user.id = token.id as string;
         session.user.role = token.role as UserRole;
         session.user.clinicId = token.clinicId as string | undefined;
@@ -99,15 +132,29 @@ export const authConfig: NextAuthConfig = {
 
         const { email, password } = parsed.data;
 
-        // Extract request context for audit logging
+        // Extract request context for audit logging (HIPAA/Medical compliance)
         const context = {
-          ipAddress: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-                     request.headers.get('x-real-ip') ??
-                     'unknown',
+          ipAddress:
+            request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+            request.headers.get('x-real-ip') ??
+            'unknown',
           userAgent: request.headers.get('user-agent') ?? undefined,
         };
 
         const user = await validateCredentials(email, password, context);
+
+        // PLATINUM STANDARD: Log all login attempts for medical compliance auditing
+        // This is mandatory for HIPAA and GDPR audit trails
+        try {
+          await logAuthEvent(user ? 'login_success' : 'login_failure', user?.id, email, context);
+        } catch {
+          // Event logging should never block authentication
+          // But note: in production, failed logging should trigger alerts
+          console.error('[Auth] Failed to log authentication event', {
+            email: email.replace(/(.{2}).*@/, '$1***@'),
+            success: !!user,
+          });
+        }
 
         return user;
       },
@@ -127,8 +174,8 @@ export const authConfig: NextAuthConfig = {
     sessionToken: {
       name: `__Secure-next-auth.session-token`,
       options: {
-        httpOnly: true,     // Prevents JavaScript access (XSS protection)
-        sameSite: 'lax',    // CSRF protection while allowing OAuth redirects
+        httpOnly: true, // Prevents JavaScript access (XSS protection)
+        sameSite: 'lax', // CSRF protection while allowing OAuth redirects
         path: '/',
         secure: process.env.NODE_ENV === 'production', // HTTPS only in production
       },
