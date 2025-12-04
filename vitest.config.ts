@@ -10,6 +10,15 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
+      // COVERAGE THRESHOLDS - Progressive ratcheting approach
+      // Current: ~31% -> Interim target: 30% -> Final target: 80%
+      // Increase thresholds as coverage improves to prevent regression
+      thresholds: {
+        lines: 30,
+        functions: 25,
+        branches: 20,
+        statements: 30,
+      },
       exclude: [
         'node_modules/',
         'dist/',
@@ -19,6 +28,14 @@ export default defineConfig({
         '**/vitest.config.ts',
         '**/*.test.ts',
         '**/*.spec.ts',
+        '**/coverage/**',
+        '**/*.config.*',
+        '**/e2e/**',
+        '**/mocks/**',
+        // Exclude files that are hard to test (infra/external deps)
+        '**/index.ts',
+        '**/env.ts',
+        '**/telemetry.ts',
       ],
     },
     setupFiles: ['./vitest.setup.ts'],
