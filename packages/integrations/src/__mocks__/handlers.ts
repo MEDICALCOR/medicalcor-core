@@ -493,6 +493,219 @@ export const testFixtures = {
 };
 
 // =============================================================================
+// Twilio Flex API Mocks
+// =============================================================================
+
+const twilioFlexHandlers = [
+  // List Workers
+  http.get(/https:\/\/taskrouter\.twilio\.com\/v1\/Workspaces\/WS\w+\/Workers/, () => {
+    return HttpResponse.json({
+      workers: [
+        {
+          sid: 'WK12345678901234567890123456789012',
+          friendly_name: 'Agent Smith',
+          activity_name: 'Available',
+          activity_sid: 'WA12345678901234567890123456789012',
+          available: true,
+          attributes: JSON.stringify({ skills: ['dental'], languages: ['ro', 'en'] }),
+          date_created: '2024-01-01T00:00:00Z',
+          date_updated: '2024-01-01T00:00:00Z',
+        },
+      ],
+    });
+  }),
+
+  // List Task Queues
+  http.get(/https:\/\/taskrouter\.twilio\.com\/v1\/Workspaces\/WS\w+\/TaskQueues/, () => {
+    return HttpResponse.json({
+      task_queues: [
+        {
+          sid: 'WQ12345678901234567890123456789012',
+          friendly_name: 'Dental Inquiries',
+          target_workers: "skills HAS 'dental'",
+          current_size: 3,
+        },
+      ],
+    });
+  }),
+
+  // List Tasks
+  http.get(/https:\/\/taskrouter\.twilio\.com\/v1\/Workspaces\/WS\w+\/Tasks/, () => {
+    return HttpResponse.json({
+      tasks: [
+        {
+          sid: 'WT12345678901234567890123456789012',
+          queue_sid: 'WQ12345678901234567890123456789012',
+          worker_sid: 'WK12345678901234567890123456789012',
+          attributes: JSON.stringify({ type: 'inbound_call', phone: '+40721000001' }),
+          assignment_status: 'assigned',
+          priority: 0,
+          reason: null,
+          date_created: '2024-01-01T00:00:00Z',
+          date_updated: '2024-01-01T00:00:00Z',
+          timeout: 86400,
+        },
+      ],
+    });
+  }),
+
+  // Create Task
+  http.post(/https:\/\/taskrouter\.twilio\.com\/v1\/Workspaces\/WS\w+\/Tasks/, () => {
+    return HttpResponse.json({
+      sid: `WT${Date.now()}`,
+      queue_sid: 'WQ12345678901234567890123456789012',
+      worker_sid: null,
+      attributes: '{}',
+      assignment_status: 'pending',
+      priority: 0,
+      reason: null,
+      date_created: new Date().toISOString(),
+      date_updated: new Date().toISOString(),
+      timeout: 86400,
+    });
+  }),
+
+  // List Activities
+  http.get(/https:\/\/taskrouter\.twilio\.com\/v1\/Workspaces\/WS\w+\/Activities/, () => {
+    return HttpResponse.json({
+      activities: [
+        { sid: 'WA1', friendly_name: 'Available', available: true },
+        { sid: 'WA2', friendly_name: 'Busy', available: false },
+        { sid: 'WA3', friendly_name: 'Break', available: false },
+        { sid: 'WA4', friendly_name: 'Offline', available: false },
+      ],
+    });
+  }),
+
+  // Update Worker Activity
+  http.post(/https:\/\/taskrouter\.twilio\.com\/v1\/Workspaces\/WS\w+\/Workers\/WK\w+/, () => {
+    return HttpResponse.json({
+      sid: 'WK12345678901234567890123456789012',
+      friendly_name: 'Agent Smith',
+      activity_name: 'Available',
+      activity_sid: 'WA1',
+      available: true,
+      attributes: '{}',
+      date_created: '2024-01-01T00:00:00Z',
+      date_updated: new Date().toISOString(),
+    });
+  }),
+
+  // List Reservations
+  http.get(
+    /https:\/\/taskrouter\.twilio\.com\/v1\/Workspaces\/WS\w+\/Workers\/WK\w+\/Reservations/,
+    () => {
+      return HttpResponse.json({
+        reservations: [
+          {
+            sid: 'WR12345678901234567890123456789012',
+            task_sid: 'WT12345678901234567890123456789012',
+            worker_sid: 'WK12345678901234567890123456789012',
+            reservation_status: 'accepted',
+            date_created: '2024-01-01T00:00:00Z',
+            date_updated: '2024-01-01T00:00:00Z',
+          },
+        ],
+      });
+    }
+  ),
+
+  // Create Reservation
+  http.post(
+    /https:\/\/taskrouter\.twilio\.com\/v1\/Workspaces\/WS\w+\/Tasks\/WT\w+\/Reservations/,
+    () => {
+      return HttpResponse.json({
+        sid: `WR${Date.now()}`,
+        task_sid: 'WT12345678901234567890123456789012',
+        worker_sid: 'WK12345678901234567890123456789012',
+        reservation_status: 'pending',
+        date_created: new Date().toISOString(),
+        date_updated: new Date().toISOString(),
+      });
+    }
+  ),
+
+  // Update Reservation
+  http.post(
+    /https:\/\/taskrouter\.twilio\.com\/v1\/Workspaces\/WS\w+\/Tasks\/WT\w+\/Reservations\/WR\w+/,
+    () => {
+      return HttpResponse.json({
+        sid: 'WR12345678901234567890123456789012',
+        task_sid: 'WT12345678901234567890123456789012',
+        worker_sid: 'WK12345678901234567890123456789012',
+        reservation_status: 'accepted',
+        date_created: '2024-01-01T00:00:00Z',
+        date_updated: new Date().toISOString(),
+      });
+    }
+  ),
+
+  // List Conferences
+  http.get(/https:\/\/api\.twilio\.com\/2010-04-01\/Accounts\/AC\w+\/Conferences\.json/, () => {
+    return HttpResponse.json({
+      conferences: [
+        {
+          sid: 'CF12345678901234567890123456789012',
+          friendly_name: 'Call-123',
+          status: 'in-progress',
+          date_created: '2024-01-01T00:00:00Z',
+          date_updated: '2024-01-01T00:00:00Z',
+        },
+      ],
+    });
+  }),
+
+  // Get Conference Participants
+  http.get(
+    /https:\/\/api\.twilio\.com\/2010-04-01\/Accounts\/AC\w+\/Conferences\/CF\w+\/Participants\.json/,
+    () => {
+      return HttpResponse.json({
+        participants: [
+          {
+            call_sid: 'CA12345678901234567890123456789012',
+            conference_sid: 'CF12345678901234567890123456789012',
+            muted: false,
+            hold: false,
+            coaching: false,
+            status: 'connected',
+          },
+        ],
+      });
+    }
+  ),
+
+  // Add Participant to Conference
+  http.post(
+    /https:\/\/api\.twilio\.com\/2010-04-01\/Accounts\/AC\w+\/Conferences\/CF\w+\/Participants\.json/,
+    () => {
+      return HttpResponse.json({
+        call_sid: 'CA_SUPERVISOR',
+        conference_sid: 'CF12345678901234567890123456789012',
+        muted: true,
+        hold: false,
+        coaching: false,
+        status: 'connected',
+      });
+    }
+  ),
+
+  // Update Participant
+  http.post(
+    /https:\/\/api\.twilio\.com\/2010-04-01\/Accounts\/AC\w+\/Conferences\/CF\w+\/Participants\/CA\w+\.json/,
+    () => {
+      return HttpResponse.json({
+        call_sid: 'CA12345678901234567890123456789012',
+        conference_sid: 'CF12345678901234567890123456789012',
+        muted: true,
+        hold: false,
+        coaching: false,
+        status: 'connected',
+      });
+    }
+  ),
+];
+
+// =============================================================================
 // Export all handlers
 // =============================================================================
 
@@ -502,4 +715,5 @@ export const handlers = [
   ...openaiHandlers,
   ...stripeHandlers,
   ...vapiHandlers,
+  ...twilioFlexHandlers,
 ];

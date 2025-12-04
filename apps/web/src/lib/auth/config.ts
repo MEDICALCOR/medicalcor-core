@@ -4,12 +4,12 @@
  *
  * SECURITY NOTE: Authentication is configured via environment variables
  * or database (when DATABASE_URL is set). No hardcoded credentials allowed.
+ *
+ * NOTE: This file contains the edge-safe auth config (no Node.js dependencies).
+ * The full config with providers is in auth.ts for server-side use only.
  */
 
 import type { NextAuthConfig } from 'next-auth';
-import Credentials from 'next-auth/providers/credentials';
-import { z } from 'zod';
-import { validateCredentials, logAuthEvent } from './database-adapter';
 
 // User roles for RBAC
 export type UserRole = 'admin' | 'doctor' | 'receptionist' | 'staff';
@@ -23,14 +23,11 @@ export interface AuthUser {
   clinicId?: string;
 }
 
-// Credentials validation schema
-const CredentialsSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-});
-
-// Auth configuration uses database if DATABASE_URL is set, otherwise environment variables
-
+/**
+ * Edge-safe auth configuration
+ * This config is safe to use in middleware (Edge Runtime)
+ * Does not include providers that require Node.js dependencies
+ */
 export const authConfig: NextAuthConfig = {
   pages: {
     signIn: '/login',
@@ -119,50 +116,8 @@ export const authConfig: NextAuthConfig = {
     },
   },
 
-  providers: [
-    Credentials({
-      name: 'credentials',
-      credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
-      },
-      async authorize(credentials, request) {
-        const parsed = CredentialsSchema.safeParse(credentials);
-
-        if (!parsed.success) {
-          return null;
-        }
-
-        const { email, password } = parsed.data;
-
-        // Extract request context for audit logging (HIPAA/GDPR compliance)
-        const context = {
-          ipAddress:
-            request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-            request.headers.get('x-real-ip') ??
-            'unknown',
-          userAgent: request.headers.get('user-agent') ?? undefined,
-        };
-
-        const user = await validateCredentials(email, password, context);
-
-        // PLATINUM STANDARD: Log all login attempts for medical compliance auditing
-        // This is mandatory for HIPAA and GDPR audit trails
-        try {
-          await logAuthEvent(user ? 'login_success' : 'login_failure', user?.id, email, context);
-        } catch {
-          // Event logging should never block authentication
-          // But note: in production, failed logging should trigger alerts
-          console.error('[Auth] Failed to log authentication event', {
-            email: email.replace(/(.{2}).*@/, '$1***@'),
-            success: !!user,
-          });
-        }
-
-        return user;
-      },
-    }),
-  ],
+  // Providers are added in auth.ts (server-side only) to avoid Edge Runtime issues
+  providers: [],
 
   session: {
     strategy: 'jwt',

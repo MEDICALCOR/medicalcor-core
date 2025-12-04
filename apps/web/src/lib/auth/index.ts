@@ -1,12 +1,12 @@
 /**
  * Authentication module exports
+ *
+ * NOTE: This module exports the full auth with providers (server-side only).
+ * For middleware (Edge Runtime), import from ./config.ts instead.
  */
 
-import NextAuth from 'next-auth';
-import { authConfig, type AuthUser, type UserRole } from './config';
-
-// Create NextAuth instance
-const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
+import { handlers, auth, signIn, signOut } from './auth';
+import type { AuthUser, UserRole } from './config';
 
 export { handlers, auth, signIn, signOut };
 export type { AuthUser, UserRole };

@@ -58,6 +58,7 @@
     "@types/node": "^20.19.25",
     "@types/pg": "^8.11.10",
     "@vitest/coverage-v8": "^4.0.14",
+    "esbuild": "^0.25.0",
     "eslint": "^9.15.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
@@ -84,5 +85,10 @@
     "**/public/**/*.js": [
       "prettier --write"
     ]
+  },
+  "pnpm": {
+    "overrides": {
+      "esbuild": ">=0.25.0"
+    }
   }
 }
