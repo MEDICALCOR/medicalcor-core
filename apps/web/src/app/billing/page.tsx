@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import {
   CreditCard,
   Plus,
@@ -15,6 +15,8 @@ import {
   DollarSign,
   Receipt,
   FileText,
+  Loader2,
+  XCircle,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,108 +35,145 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import {
+  getInvoicesAction,
+  getBillingStatsAction,
+  updateInvoiceStatusAction,
+  deleteInvoiceAction,
+  type Invoice,
+  type InvoiceStatus,
+  type BillingStats,
+} from '@/app/actions';
 
-interface Invoice {
-  id: string;
-  number: string;
-  patient: string;
-  date: Date;
-  dueDate: Date;
-  amount: number;
-  status: 'paid' | 'pending' | 'overdue' | 'cancelled';
-  services: string[];
-}
-
-const invoices: Invoice[] = [
-  {
-    id: 'inv1',
-    number: 'INV-2024-001',
-    patient: 'Ion Popescu',
-    date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-    dueDate: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000),
-    amount: 350,
-    status: 'pending',
-    services: ['Consultație', 'Ecografie'],
-  },
-  {
-    id: 'inv2',
-    number: 'INV-2024-002',
-    patient: 'Maria Ionescu',
-    date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    dueDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-    amount: 150,
-    status: 'overdue',
-    services: ['Consultație generală'],
-  },
-  {
-    id: 'inv3',
-    number: 'INV-2024-003',
-    patient: 'Andrei Popa',
-    date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    amount: 500,
-    status: 'paid',
-    services: ['Analize laborator', 'Consultație', 'EKG'],
-  },
-  {
-    id: 'inv4',
-    number: 'INV-2024-004',
-    patient: 'Elena Dumitrescu',
-    date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-    dueDate: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000),
-    amount: 280,
-    status: 'paid',
-    services: ['Control periodic', 'Vaccinare'],
-  },
-  {
-    id: 'inv5',
-    number: 'INV-2024-005',
-    patient: 'Alexandru Stan',
-    date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-    dueDate: new Date(Date.now() + 13 * 24 * 60 * 60 * 1000),
-    amount: 200,
-    status: 'pending',
-    services: ['Ecografie abdominală'],
-  },
-];
-
-const statusConfig = {
-  paid: { label: 'Plătit', color: 'bg-green-100 text-green-700', icon: CheckCircle },
+const statusConfig: Record<
+  InvoiceStatus,
+  { label: string; color: string; icon: React.ElementType }
+> = {
+  draft: { label: 'Ciornă', color: 'bg-gray-100 text-gray-700', icon: FileText },
   pending: { label: 'În așteptare', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
+  paid: { label: 'Plătit', color: 'bg-green-100 text-green-700', icon: CheckCircle },
   overdue: { label: 'Restant', color: 'bg-red-100 text-red-700', icon: AlertCircle },
-  cancelled: { label: 'Anulat', color: 'bg-gray-100 text-gray-700', icon: AlertCircle },
+  cancelled: { label: 'Anulat', color: 'bg-gray-100 text-gray-700', icon: XCircle },
+  refunded: { label: 'Rambursat', color: 'bg-purple-100 text-purple-700', icon: Receipt },
 };
 
 export default function BillingPage() {
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [stats, setStats] = useState<BillingStats | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
-  const totalRevenue = invoices
-    .filter((i) => i.status === 'paid')
-    .reduce((sum, i) => sum + i.amount, 0);
-  const pendingAmount = invoices
-    .filter((i) => i.status === 'pending')
-    .reduce((sum, i) => sum + i.amount, 0);
-  const overdueAmount = invoices
-    .filter((i) => i.status === 'overdue')
-    .reduce((sum, i) => sum + i.amount, 0);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    void loadData();
+  }, []);
+
+  async function loadData() {
+    try {
+      setIsLoading(true);
+      const [invoicesData, statsData] = await Promise.all([
+        getInvoicesAction(),
+        getBillingStatsAction(),
+      ]);
+      setInvoices(invoicesData);
+      setStats(statsData);
+    } catch {
+      toast({
+        title: 'Eroare',
+        description: 'Nu s-au putut încărca facturile',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   const formatDate = (date: Date): string => {
-    return date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'short', year: 'numeric' });
+    return new Date(date).toLocaleDateString('ro-RO', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  const formatCurrency = (amount: number, currency = 'RON'): string => {
+    return `${amount.toLocaleString('ro-RO', { minimumFractionDigits: 2 })} ${currency}`;
   };
 
   const filteredInvoices = invoices.filter((inv) => {
     const matchesSearch =
       searchQuery === '' ||
-      inv.patient.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      inv.number.toLowerCase().includes(searchQuery.toLowerCase());
+      inv.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      inv.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || inv.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const handleMarkAsPaid = (invoice: Invoice) => {
+    startTransition(async () => {
+      try {
+        await updateInvoiceStatusAction({
+          id: invoice.id,
+          status: 'paid',
+          paymentMethod: 'manual',
+        });
+        setInvoices((prev) =>
+          prev.map((inv) =>
+            inv.id === invoice.id ? { ...inv, status: 'paid' as InvoiceStatus } : inv
+          )
+        );
+        toast({
+          title: 'Succes',
+          description: 'Factura a fost marcată ca plătită',
+        });
+        await loadData(); // Refresh stats
+      } catch {
+        toast({
+          title: 'Eroare',
+          description: 'Nu s-a putut actualiza factura',
+          variant: 'destructive',
+        });
+      }
+    });
+  };
+
+  const handleDelete = (id: string) => {
+    startTransition(async () => {
+      try {
+        await deleteInvoiceAction(id);
+        setInvoices((prev) => prev.filter((inv) => inv.id !== id));
+        toast({
+          title: 'Succes',
+          description: 'Factura a fost ștearsă',
+        });
+        await loadData();
+      } catch {
+        toast({
+          title: 'Eroare',
+          description: 'Nu s-a putut șterge factura',
+          variant: 'destructive',
+        });
+      }
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -146,52 +185,10 @@ export default function BillingPage() {
           </h1>
           <p className="text-muted-foreground mt-1">Gestionează facturile și plățile</p>
         </div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Factură nouă
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Creează factură nouă</DialogTitle>
-              <DialogDescription>Completează detaliile facturii</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Pacient</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selectează pacientul" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="p1">Ion Popescu</SelectItem>
-                    <SelectItem value="p2">Maria Ionescu</SelectItem>
-                    <SelectItem value="p3">Andrei Popa</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Servicii</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selectează serviciile" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="s1">Consultație generală - 150 RON</SelectItem>
-                    <SelectItem value="s2">Ecografie - 200 RON</SelectItem>
-                    <SelectItem value="s3">Analize laborator - 120 RON</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline">Anulează</Button>
-                <Button>Creează factură</Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => setIsCreateDialogOpen(true)} disabled={isPending}>
+          <Plus className="h-4 w-4 mr-2" />
+          Factură nouă
+        </Button>
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -203,7 +200,7 @@ export default function BillingPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Încasări luna aceasta</p>
-                <p className="text-xl font-bold">{totalRevenue.toLocaleString()} RON</p>
+                <p className="text-xl font-bold">{formatCurrency(stats?.monthlyRevenue ?? 0)}</p>
               </div>
             </div>
           </CardContent>
@@ -216,7 +213,7 @@ export default function BillingPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">În așteptare</p>
-                <p className="text-xl font-bold">{pendingAmount.toLocaleString()} RON</p>
+                <p className="text-xl font-bold">{formatCurrency(stats?.pendingAmount ?? 0)}</p>
               </div>
             </div>
           </CardContent>
@@ -229,7 +226,7 @@ export default function BillingPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Restanțe</p>
-                <p className="text-xl font-bold">{overdueAmount.toLocaleString()} RON</p>
+                <p className="text-xl font-bold">{formatCurrency(stats?.overdueAmount ?? 0)}</p>
               </div>
             </div>
           </CardContent>
@@ -242,7 +239,7 @@ export default function BillingPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total facturi</p>
-                <p className="text-xl font-bold">{invoices.length}</p>
+                <p className="text-xl font-bold">{stats?.totalInvoices ?? invoices.length}</p>
               </div>
             </div>
           </CardContent>
@@ -277,6 +274,7 @@ export default function BillingPage() {
                   <SelectItem value="paid">Plătite</SelectItem>
                   <SelectItem value="pending">În așteptare</SelectItem>
                   <SelectItem value="overdue">Restante</SelectItem>
+                  <SelectItem value="draft">Ciorne</SelectItem>
                 </SelectContent>
               </Select>
               <Button variant="outline" size="icon">
@@ -287,56 +285,215 @@ export default function BillingPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {filteredInvoices.map((inv) => {
-              const StatusIcon = statusConfig[inv.status].icon;
-              return (
-                <div
-                  key={inv.id}
-                  className="flex items-center justify-between p-4 border rounded-lg"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                      <FileText className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-medium">{inv.number}</h4>
-                        <Badge className={cn('text-xs', statusConfig[inv.status].color)}>
-                          <StatusIcon className="h-3 w-3 mr-1" />
-                          {statusConfig[inv.status].label}
-                        </Badge>
+            {filteredInvoices.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                Nu există facturi care să corespundă filtrelor
+              </p>
+            ) : (
+              filteredInvoices.map((inv) => {
+                const StatusIcon = statusConfig[inv.status].icon;
+                const statusStyle = statusConfig[inv.status];
+                return (
+                  <div
+                    key={inv.id}
+                    className="flex items-center justify-between p-4 border rounded-lg"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                        <FileText className="h-5 w-5 text-muted-foreground" />
                       </div>
-                      <p className="text-sm text-muted-foreground">{inv.patient}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {inv.services.join(', ')}
-                      </p>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium">{inv.invoiceNumber}</h4>
+                          <Badge className={cn('text-xs', statusStyle.color)}>
+                            <StatusIcon className="h-3 w-3 mr-1" />
+                            {statusStyle.label}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{inv.customerName}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {inv.items.map((item) => item.description).join(', ') || 'Fără servicii'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="font-bold">{formatCurrency(inv.total, inv.currency)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Scadent: {formatDate(inv.dueDate)}
+                        </p>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => setSelectedInvoice(inv)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon">
+                          <Printer className="h-4 w-4" />
+                        </Button>
+                        {inv.status === 'pending' && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleMarkAsPaid(inv)}
+                            disabled={isPending}
+                            title="Marchează ca plătit"
+                          >
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="icon">
+                          <Send className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="font-bold">{inv.amount} RON</p>
-                      <p className="text-xs text-muted-foreground">
-                        Scadent: {formatDate(inv.dueDate)}
-                      </p>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon">
-                        <Printer className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon">
-                        <Send className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </CardContent>
       </Card>
+
+      {/* Create Invoice Dialog - Placeholder */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Creează factură nouă</DialogTitle>
+            <DialogDescription>Completează detaliile facturii</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Nume client *</Label>
+              <Input placeholder="ex: Ion Popescu" />
+            </div>
+            <div className="space-y-2">
+              <Label>Email client</Label>
+              <Input type="email" placeholder="email@exemplu.ro" />
+            </div>
+            <div className="space-y-2">
+              <Label>Servicii</Label>
+              <Textarea placeholder="Descriere servicii..." rows={3} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Sumă (RON)</Label>
+                <Input type="number" placeholder="0.00" />
+              </div>
+              <div className="space-y-2">
+                <Label>Data scadentă</Label>
+                <Input type="date" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                Anulează
+              </Button>
+              <Button onClick={() => setIsCreateDialogOpen(false)}>Creează factură</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Invoice Detail Dialog */}
+      <Dialog open={!!selectedInvoice} onOpenChange={() => setSelectedInvoice(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Factură {selectedInvoice?.invoiceNumber}</DialogTitle>
+            <DialogDescription>
+              Emisă pe {selectedInvoice && formatDate(selectedInvoice.issueDate)}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedInvoice && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Client</Label>
+                  <p className="font-medium">{selectedInvoice.customerName}</p>
+                  {selectedInvoice.customerEmail && (
+                    <p className="text-sm text-muted-foreground">{selectedInvoice.customerEmail}</p>
+                  )}
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Status</Label>
+                  <Badge className={cn('mt-1', statusConfig[selectedInvoice.status].color)}>
+                    {statusConfig[selectedInvoice.status].label}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="border rounded-lg p-4">
+                <Label className="text-muted-foreground">Servicii</Label>
+                <div className="mt-2 space-y-2">
+                  {selectedInvoice.items.map((item, idx) => (
+                    <div key={idx} className="flex justify-between text-sm">
+                      <span>
+                        {item.description} x{item.quantity}
+                      </span>
+                      <span>{formatCurrency(item.total, selectedInvoice.currency)}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t mt-4 pt-4 space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span>Subtotal</span>
+                    <span>
+                      {formatCurrency(selectedInvoice.subtotal, selectedInvoice.currency)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>TVA ({selectedInvoice.taxRate}%)</span>
+                    <span>
+                      {formatCurrency(selectedInvoice.taxAmount, selectedInvoice.currency)}
+                    </span>
+                  </div>
+                  {selectedInvoice.discountAmount > 0 && (
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span>Discount</span>
+                      <span>
+                        -{formatCurrency(selectedInvoice.discountAmount, selectedInvoice.currency)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold pt-2 border-t">
+                    <span>Total</span>
+                    <span>{formatCurrency(selectedInvoice.total, selectedInvoice.currency)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-between pt-4">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    handleDelete(selectedInvoice.id);
+                    setSelectedInvoice(null);
+                  }}
+                  disabled={isPending}
+                >
+                  Șterge factura
+                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setSelectedInvoice(null)}>
+                    Închide
+                  </Button>
+                  {selectedInvoice.status === 'pending' && (
+                    <Button
+                      onClick={() => {
+                        handleMarkAsPaid(selectedInvoice);
+                        setSelectedInvoice(null);
+                      }}
+                      disabled={isPending}
+                    >
+                      Marchează ca plătit
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
