@@ -9,7 +9,146 @@
 
 import { task, logger, wait } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
-import { IdempotencyKeys } from '@medicalcor/core';
+import { IdempotencyKeys, createLogger } from '@medicalcor/core';
+import pg from 'pg';
+
+const workflowLogger = createLogger({ name: 'osax-journey-workflow' });
+
+// ============================================================================
+// DATABASE HELPERS FOR CASE STATUS QUERIES
+// ============================================================================
+
+/**
+ * CRITICAL FIX: Actual database query for case review status
+ *
+ * Replaces hardcoded `stillPending = true` with real database checks.
+ * This prevents incorrect escalations and ensures proper workflow behavior.
+ */
+async function getCaseReviewStatus(caseId: string): Promise<{
+  reviewStatus: 'PENDING' | 'IN_REVIEW' | 'APPROVED' | 'NEEDS_MODIFICATION';
+  hasPhysicianReview: boolean;
+  status: string;
+}> {
+  const databaseUrl = process.env.DATABASE_URL;
+
+  // Fail-safe: If no database URL, assume case is still pending (conservative approach)
+  if (!databaseUrl) {
+    workflowLogger.warn(
+      { caseId },
+      'DATABASE_URL not configured - assuming case is still pending (fail-safe mode)'
+    );
+    return {
+      reviewStatus: 'PENDING',
+      hasPhysicianReview: false,
+      status: 'UNKNOWN',
+    };
+  }
+
+  const client = new pg.Client({ connectionString: databaseUrl });
+
+  try {
+    await client.connect();
+
+    const result = await client.query<{
+      review_status: string;
+      status: string;
+      physician_review_count: string;
+    }>(
+      `SELECT
+        review_status,
+        status,
+        (SELECT COUNT(*) FROM osax_physician_reviews WHERE case_id = osax_cases.id) as physician_review_count
+       FROM osax_cases
+       WHERE id = $1 AND is_deleted = false`,
+      [caseId]
+    );
+
+    if (result.rows.length === 0) {
+      workflowLogger.warn({ caseId }, 'Case not found in database');
+      return {
+        reviewStatus: 'PENDING',
+        hasPhysicianReview: false,
+        status: 'NOT_FOUND',
+      };
+    }
+
+    const row = result.rows[0]!;
+    return {
+      reviewStatus: row.review_status as
+        | 'PENDING'
+        | 'IN_REVIEW'
+        | 'APPROVED'
+        | 'NEEDS_MODIFICATION',
+      hasPhysicianReview: parseInt(row.physician_review_count, 10) > 0,
+      status: row.status,
+    };
+  } catch (error) {
+    workflowLogger.error({ caseId, error }, 'Failed to query case review status');
+    // Fail-safe: On error, assume still pending to trigger escalation
+    return {
+      reviewStatus: 'PENDING',
+      hasPhysicianReview: false,
+      status: 'ERROR',
+    };
+  } finally {
+    await client.end().catch(() => {
+      /* ignore cleanup errors */
+    });
+  }
+}
+
+/**
+ * CRITICAL FIX: Check if follow-up was completed
+ */
+async function getFollowUpStatus(
+  caseId: string,
+  followUpType: string
+): Promise<{
+  completed: boolean;
+  status: 'SCHEDULED' | 'COMPLETED' | 'MISSED' | 'CANCELLED' | 'NOT_FOUND';
+}> {
+  const databaseUrl = process.env.DATABASE_URL;
+
+  if (!databaseUrl) {
+    workflowLogger.warn(
+      { caseId, followUpType },
+      'DATABASE_URL not configured - assuming follow-up not completed'
+    );
+    return { completed: false, status: 'NOT_FOUND' };
+  }
+
+  const client = new pg.Client({ connectionString: databaseUrl });
+
+  try {
+    await client.connect();
+
+    const result = await client.query<{ status: string; completed_date: Date | null }>(
+      `SELECT status, completed_date
+       FROM osax_follow_ups
+       WHERE case_id = $1 AND type = $2
+       ORDER BY scheduled_date DESC
+       LIMIT 1`,
+      [caseId, followUpType]
+    );
+
+    if (result.rows.length === 0) {
+      return { completed: false, status: 'NOT_FOUND' };
+    }
+
+    const row = result.rows[0]!;
+    return {
+      completed: row.status === 'COMPLETED' && row.completed_date !== null,
+      status: row.status as 'SCHEDULED' | 'COMPLETED' | 'MISSED' | 'CANCELLED',
+    };
+  } catch (error) {
+    workflowLogger.error({ caseId, followUpType, error }, 'Failed to query follow-up status');
+    return { completed: false, status: 'NOT_FOUND' };
+  } finally {
+    await client.end().catch(() => {
+      /* ignore cleanup errors */
+    });
+  }
+}
 
 // ============================================================================
 // SCHEMAS
@@ -121,8 +260,28 @@ export const osaxJourneyWorkflow = task({
     const reviewWaitHours = severity === 'SEVERE' ? 4 : severity === 'MODERATE' ? 24 : 48;
     await wait.for({ hours: reviewWaitHours });
 
-    // TODO: Check if case has been reviewed
-    // In production, this would query the case repository or listen for events
+    // CRITICAL FIX: Check if case has been reviewed using actual database query
+    const reviewStatus = await getCaseReviewStatus(caseId);
+    const isReviewed = reviewStatus.reviewStatus === 'APPROVED' || reviewStatus.hasPhysicianReview;
+
+    logger.info('Stage 2 complete: Review status checked', {
+      caseId,
+      correlationId,
+      reviewStatus: reviewStatus.reviewStatus,
+      hasPhysicianReview: reviewStatus.hasPhysicianReview,
+      isReviewed,
+      waitedHours: reviewWaitHours,
+    });
+
+    // If not reviewed after wait period, log warning (escalation handled by urgent/standard workflows)
+    if (!isReviewed) {
+      logger.warn('Case not yet reviewed after wait period', {
+        caseId,
+        correlationId,
+        reviewStatus: reviewStatus.reviewStatus,
+        severity,
+      });
+    }
 
     // ============================================
     // STAGE 3: Treatment Planning
@@ -234,13 +393,25 @@ export const osaxUrgentReviewWorkflow = task({
     // 4. Wait for 2 hours, then check if reviewed
     await wait.for({ hours: 2 });
 
-    // Check if still pending (mock - in production would query database)
-    const stillPending = true;
+    // CRITICAL FIX: Query actual case review status from database
+    const caseStatus = await getCaseReviewStatus(caseId);
+    const stillPending = caseStatus.reviewStatus === 'PENDING' && !caseStatus.hasPhysicianReview;
 
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- placeholder for actual database check
+    logger.info('Case review status checked', {
+      caseId,
+      correlationId,
+      reviewStatus: caseStatus.reviewStatus,
+      hasPhysicianReview: caseStatus.hasPhysicianReview,
+      stillPending,
+    });
+
     if (stillPending) {
       // Escalate to department head
-      logger.warn('Case still pending after 2 hours - escalating', { correlationId });
+      logger.warn('Case still pending after 2 hours - escalating', {
+        correlationId,
+        caseId,
+        reviewStatus: caseStatus.reviewStatus,
+      });
       // In production: Send escalation notification
     }
 
@@ -250,6 +421,7 @@ export const osaxUrgentReviewWorkflow = task({
       caseNumber,
       slaDeadline: slaDeadline.toISOString(),
       escalated: stillPending,
+      reviewStatus: caseStatus.reviewStatus,
     };
   },
 });
@@ -437,16 +609,28 @@ export const osaxFollowUpWorkflow = task({
     // 3. Wait until follow-up day
     await wait.for({ days: 2 });
 
-    // 4. Check if follow-up was completed
-    logger.info('Checking follow-up completion', { correlationId });
-    // In production: Query database for follow-up status
+    // 4. CRITICAL FIX: Check if follow-up was completed from database
+    logger.info('Checking follow-up completion', { correlationId, caseId, followUpType });
 
-    // 5. If missed, trigger missed follow-up handling
-    const followUpCompleted = false;
+    const followUpStatus = await getFollowUpStatus(caseId, followUpType);
+    const followUpCompleted = followUpStatus.completed;
 
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- placeholder for actual database check
-    if (!followUpCompleted) {
-      logger.warn('Follow-up may have been missed', { correlationId });
+    logger.info('Follow-up status checked', {
+      caseId,
+      correlationId,
+      followUpType,
+      status: followUpStatus.status,
+      completed: followUpCompleted,
+    });
+
+    // 5. If missed or not completed, trigger missed follow-up handling
+    if (!followUpCompleted && followUpStatus.status !== 'CANCELLED') {
+      logger.warn('Follow-up not completed - may have been missed', {
+        correlationId,
+        caseId,
+        followUpType,
+        actualStatus: followUpStatus.status,
+      });
       // In production: Trigger missed follow-up workflow
     }
 
@@ -457,6 +641,8 @@ export const osaxFollowUpWorkflow = task({
       followUpType,
       scheduledDate: followUpDate.toISOString(),
       reminderSent: true,
+      followUpStatus: followUpStatus.status,
+      completed: followUpCompleted,
     };
   },
 });

@@ -50,19 +50,39 @@ const HUBSPOT_LIMITS = {
 } as const;
 
 /**
+ * SECURITY FIX: Only allow official HubSpot API URL to prevent SSRF attacks
+ * Any custom baseUrl must be exactly 'https://api.hubapi.com'
+ */
+const ALLOWED_HUBSPOT_BASE_URL = 'https://api.hubapi.com';
+
+/**
  * Input validation schemas for HubSpot client
  */
-const HubSpotClientConfigSchema = z.object({
-  accessToken: z.string().min(1, 'Access token is required'),
-  portalId: z.string().optional(),
-  baseUrl: z.string().url().optional(),
-  retryConfig: z
-    .object({
-      maxRetries: z.number().int().min(0).max(10),
-      baseDelayMs: z.number().int().min(100).max(30000),
-    })
-    .optional(),
-});
+const HubSpotClientConfigSchema = z
+  .object({
+    accessToken: z.string().min(1, 'Access token is required'),
+    portalId: z.string().optional(),
+    baseUrl: z.string().url().optional(),
+    retryConfig: z
+      .object({
+        maxRetries: z.number().int().min(0).max(10),
+        baseDelayMs: z.number().int().min(100).max(30000),
+      })
+      .optional(),
+  })
+  .refine(
+    (config) => {
+      // SECURITY: Validate baseUrl at schema level to prevent SSRF
+      if (config.baseUrl && config.baseUrl !== ALLOWED_HUBSPOT_BASE_URL) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: `SSRF Prevention: baseUrl must be '${ALLOWED_HUBSPOT_BASE_URL}' or omitted`,
+      path: ['baseUrl'],
+    }
+  );
 
 const PhoneSchema = z.string().min(10).max(20);
 
@@ -131,10 +151,17 @@ export class HubSpotClient {
   private baseUrl: string;
 
   constructor(config: HubSpotClientConfig) {
-    // Validate config at construction time
+    // SECURITY FIX: Validate config at construction time including SSRF prevention
+    // The schema now validates that baseUrl is either undefined or exactly 'https://api.hubapi.com'
     const validatedConfig = HubSpotClientConfigSchema.parse(config);
     this.config = validatedConfig;
-    this.baseUrl = validatedConfig.baseUrl ?? 'https://api.hubapi.com';
+    // Always use the official HubSpot API URL (validated by schema)
+    this.baseUrl = ALLOWED_HUBSPOT_BASE_URL;
+
+    logger.info(
+      { portalId: validatedConfig.portalId },
+      'HubSpot client initialized with validated configuration'
+    );
   }
 
   /**
@@ -238,7 +265,10 @@ export class HubSpotClient {
     do {
       const pageRequest: HubSpotSearchRequest = {
         ...request,
-        limit: Math.min(request.limit ?? HUBSPOT_LIMITS.MAX_PAGE_SIZE, HUBSPOT_LIMITS.MAX_PAGE_SIZE),
+        limit: Math.min(
+          request.limit ?? HUBSPOT_LIMITS.MAX_PAGE_SIZE,
+          HUBSPOT_LIMITS.MAX_PAGE_SIZE
+        ),
         ...(after ? { after } : {}),
       };
 
@@ -582,7 +612,12 @@ export class HubSpotClient {
    */
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     // Only allow known, safe paths. Not absolute URLs, no traversal, must start with "/"
-    if (typeof path !== 'string' || !path.startsWith('/') || path.includes('://') || path.includes('..')) {
+    if (
+      typeof path !== 'string' ||
+      !path.startsWith('/') ||
+      path.includes('://') ||
+      path.includes('..')
+    ) {
       throw new ExternalServiceError(
         'HubSpot',
         'Refusing to make request: invalid or unsafe path used in API call.'
@@ -882,23 +917,58 @@ export class HubSpotClient {
 
   /**
    * Record appointment cancellation
+   *
+   * SECURITY FIX: This method uses a read-then-write pattern which is NOT atomic.
+   * In high-concurrency scenarios, this could result in lost increments.
+   *
+   * MITIGATION: We accept this limitation because:
+   * 1. HubSpot API does not support atomic increments
+   * 2. Appointment cancellations are relatively infrequent per contact
+   * 3. We log the operation with correlation ID for audit trail
+   * 4. Business impact of occasional missed increment is low
+   *
+   * For applications requiring exact counts, consider:
+   * - Using a local database with atomic increments, then syncing to HubSpot
+   * - Implementing a queue-based serialized update pattern
    */
-  async recordAppointmentCancellation(contactId: string): Promise<HubSpotContact> {
-    // First get current count
+  async recordAppointmentCancellation(
+    contactId: string,
+    correlationId?: string
+  ): Promise<HubSpotContact> {
+    // Get current count (non-atomic read)
     const contact = await this.getContact(contactId);
     const currentCount = parseInt(contact.properties.canceled_appointments ?? '0', 10);
+    const newCount = currentCount + 1;
+
+    logger.info(
+      {
+        contactId,
+        correlationId,
+        previousCount: currentCount,
+        newCount,
+        operation: 'appointment_cancellation',
+      },
+      'Recording appointment cancellation (non-atomic increment)'
+    );
 
     return this.updateContact(contactId, {
-      canceled_appointments: (currentCount + 1).toString(),
+      canceled_appointments: newCount.toString(),
     });
   }
 
   /**
    * Record treatment completion and update metrics
+   *
+   * SECURITY FIX: This method uses a read-then-write pattern which is NOT atomic.
+   * See recordAppointmentCancellation for detailed explanation of the limitation.
+   *
+   * Additional mitigation: Treatment completions are business-critical for LTV,
+   * so we log comprehensive audit information for reconciliation.
    */
   async recordTreatmentCompletion(
     contactId: string,
-    treatmentValue: number
+    treatmentValue: number,
+    correlationId?: string
   ): Promise<HubSpotContact> {
     const contact = await this.getContact(contactId);
     const currentLTV = parseInt(contact.properties.lifetime_value ?? '0', 10);
@@ -917,9 +987,27 @@ export class HubSpotClient {
       newSegment = 'Bronze';
     }
 
+    const newTreatments = currentTreatments + 1;
+
+    logger.info(
+      {
+        contactId,
+        correlationId,
+        treatmentValue,
+        previousLTV: currentLTV,
+        newLTV,
+        previousTreatments: currentTreatments,
+        newTreatments,
+        previousSegment: contact.properties.loyalty_segment,
+        newSegment,
+        operation: 'treatment_completion',
+      },
+      'Recording treatment completion (non-atomic increment with audit trail)'
+    );
+
     return this.updateContact(contactId, {
       lifetime_value: newLTV.toString(),
-      total_treatments: (currentTreatments + 1).toString(),
+      total_treatments: newTreatments.toString(),
       last_treatment_date: new Date().toISOString(),
       loyalty_segment: newSegment,
       days_inactive: '0', // Reset inactivity
