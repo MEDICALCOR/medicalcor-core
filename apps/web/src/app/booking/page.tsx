@@ -1,6 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useTransition } from 'react';
+import {
+  getServicesAction,
+  getDoctorsAction,
+  getAvailableSlotsAction,
+  createBookingAction,
+  type Service,
+  type Doctor,
+  type TimeSlot,
+} from '@/app/actions';
+import { useToast } from '@/hooks/use-toast';
 import {
   Calendar,
   Clock,
@@ -12,6 +22,7 @@ import {
   ChevronRight,
   Phone,
   Mail,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,88 +33,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
 type BookingStep = 'service' | 'doctor' | 'datetime' | 'details' | 'confirm';
-
-interface Service {
-  id: string;
-  name: string;
-  duration: number;
-  price: number;
-  category: string;
-}
-
-interface Doctor {
-  id: string;
-  name: string;
-  specialty: string;
-  avatar: string;
-  rating: number;
-  nextAvailable: string;
-}
-
-interface TimeSlot {
-  time: string;
-  available: boolean;
-}
-
-const services: Service[] = [
-  { id: 's1', name: 'Consultație generală', duration: 30, price: 150, category: 'Consultații' },
-  { id: 's2', name: 'Consultație specialist', duration: 45, price: 250, category: 'Consultații' },
-  { id: 's3', name: 'Control periodic', duration: 30, price: 100, category: 'Controale' },
-  { id: 's4', name: 'Ecografie abdominală', duration: 30, price: 200, category: 'Investigații' },
-  { id: 's5', name: 'EKG', duration: 20, price: 80, category: 'Investigații' },
-  { id: 's6', name: 'Analize laborator', duration: 15, price: 120, category: 'Laborator' },
-  { id: 's7', name: 'Vaccinare', duration: 15, price: 50, category: 'Proceduri' },
-  { id: 's8', name: 'Tratament perfuzabil', duration: 60, price: 300, category: 'Proceduri' },
-];
-
-const doctors: Doctor[] = [
-  {
-    id: 'd1',
-    name: 'Dr. Maria Popescu',
-    specialty: 'Medicină internă',
-    avatar: 'MP',
-    rating: 4.9,
-    nextAvailable: 'Mâine',
-  },
-  {
-    id: 'd2',
-    name: 'Dr. Ion Ionescu',
-    specialty: 'Cardiologie',
-    avatar: 'II',
-    rating: 4.8,
-    nextAvailable: 'Azi',
-  },
-  {
-    id: 'd3',
-    name: 'Dr. Elena Dumitrescu',
-    specialty: 'Medicină de familie',
-    avatar: 'ED',
-    rating: 4.7,
-    nextAvailable: 'Mâine',
-  },
-  {
-    id: 'd4',
-    name: 'Dr. Andrei Popa',
-    specialty: 'Gastroenterologie',
-    avatar: 'AP',
-    rating: 4.9,
-    nextAvailable: 'Joi',
-  },
-];
-
-const generateTimeSlots = (): TimeSlot[] => {
-  const slots: TimeSlot[] = [];
-  for (let hour = 8; hour <= 18; hour++) {
-    slots.push({ time: `${hour.toString().padStart(2, '0')}:00`, available: Math.random() > 0.3 });
-    if (hour < 18) {
-      slots.push({
-        time: `${hour.toString().padStart(2, '0')}:30`,
-        available: Math.random() > 0.3,
-      });
-    }
-  }
-  return slots;
-};
 
 const getDaysInMonth = (year: number, month: number): Date[] => {
   const days: Date[] = [];
@@ -116,6 +45,13 @@ const getDaysInMonth = (year: number, month: number): Date[] => {
 };
 
 export default function BookingPage() {
+  const [services, setServices] = useState<Service[]>([]);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
+
   const [currentStep, setCurrentStep] = useState<BookingStep>('service');
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
@@ -131,13 +67,112 @@ export default function BookingPage() {
     notes: '',
   });
 
+  useEffect(() => {
+    loadServices();
+  }, []);
+
+  useEffect(() => {
+    if (selectedService) {
+      loadDoctors();
+    }
+  }, [selectedService]);
+
+  useEffect(() => {
+    if (selectedDoctor && selectedDate) {
+      loadTimeSlots();
+    }
+  }, [selectedDoctor, selectedDate]);
+
+  async function loadServices() {
+    setIsLoading(true);
+    try {
+      const result = await getServicesAction();
+      if (result.services) {
+        setServices(result.services);
+      }
+    } catch (error) {
+      toast({
+        title: 'Eroare',
+        description: 'Nu s-au putut încărca serviciile',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function loadDoctors() {
+    try {
+      const result = await getDoctorsAction({ serviceId: selectedService?.id });
+      if (result.doctors) {
+        setDoctors(result.doctors);
+      }
+    } catch (error) {
+      toast({
+        title: 'Eroare',
+        description: 'Nu s-au putut încărca medicii',
+        variant: 'destructive',
+      });
+    }
+  }
+
+  async function loadTimeSlots() {
+    if (!selectedDoctor || !selectedDate) return;
+    try {
+      const result = await getAvailableSlotsAction({
+        doctorId: selectedDoctor.id,
+        date: selectedDate.toISOString(),
+      });
+      if (result.slots) {
+        setTimeSlots(result.slots);
+      }
+    } catch (error) {
+      toast({
+        title: 'Eroare',
+        description: 'Nu s-au putut încărca intervalele disponibile',
+        variant: 'destructive',
+      });
+    }
+  }
+
   const handleConfirmBooking = () => {
-    // TODO: Implement actual booking API call
-    // For now, just show success state
-    setIsBookingConfirmed(true);
+    startTransition(async () => {
+      try {
+        const result = await createBookingAction({
+          serviceId: selectedService!.id,
+          doctorId: selectedDoctor!.id,
+          date: selectedDate!.toISOString(),
+          time: selectedTime!,
+          patientFirstName: patientDetails.firstName,
+          patientLastName: patientDetails.lastName,
+          patientPhone: patientDetails.phone,
+          patientEmail: patientDetails.email,
+          notes: patientDetails.notes,
+        });
+
+        if (result.success) {
+          setIsBookingConfirmed(true);
+          toast({
+            title: 'Succes',
+            description: 'Programarea a fost confirmată',
+          });
+        } else {
+          toast({
+            title: 'Eroare',
+            description: result.error,
+            variant: 'destructive',
+          });
+        }
+      } catch (error) {
+        toast({
+          title: 'Eroare',
+          description: 'Nu s-a putut crea programarea',
+          variant: 'destructive',
+        });
+      }
+    });
   };
 
-  const timeSlots = generateTimeSlots();
   const days = getDaysInMonth(currentMonth.getFullYear(), currentMonth.getMonth());
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -199,6 +234,14 @@ export default function BookingPage() {
     'Noiembrie',
     'Decembrie',
   ];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -263,34 +306,41 @@ export default function BookingPage() {
             <CardDescription>Alege tipul de consultație sau procedură dorită</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid sm:grid-cols-2 gap-3">
-              {services.map((service) => (
-                <div
-                  key={service.id}
-                  onClick={() => setSelectedService(service)}
-                  className={cn(
-                    'p-4 border rounded-lg cursor-pointer transition-all',
-                    selectedService?.id === service.id
-                      ? 'border-primary bg-primary/5 ring-2 ring-primary'
-                      : 'hover:border-primary/50'
-                  )}
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-medium">{service.name}</h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        <Clock className="h-3 w-3 inline mr-1" />
-                        {service.duration} min
-                      </p>
+            {services.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Stethoscope className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Nu există servicii disponibile</p>
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-3">
+                {services.map((service) => (
+                  <div
+                    key={service.id}
+                    onClick={() => setSelectedService(service)}
+                    className={cn(
+                      'p-4 border rounded-lg cursor-pointer transition-all',
+                      selectedService?.id === service.id
+                        ? 'border-primary bg-primary/5 ring-2 ring-primary'
+                        : 'hover:border-primary/50'
+                    )}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-medium">{service.name}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          <Clock className="h-3 w-3 inline mr-1" />
+                          {service.duration} min
+                        </p>
+                      </div>
+                      <Badge variant="secondary">{service.price} RON</Badge>
                     </div>
-                    <Badge variant="secondary">{service.price} RON</Badge>
+                    <Badge variant="outline" className="mt-2 text-xs">
+                      {service.category}
+                    </Badge>
                   </div>
-                  <Badge variant="outline" className="mt-2 text-xs">
-                    {service.category}
-                  </Badge>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -302,38 +352,49 @@ export default function BookingPage() {
             <CardDescription>Selectează medicul pentru {selectedService?.name}</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid sm:grid-cols-2 gap-4">
-              {doctors.map((doctor) => (
-                <div
-                  key={doctor.id}
-                  onClick={() => setSelectedDoctor(doctor)}
-                  className={cn(
-                    'p-4 border rounded-lg cursor-pointer transition-all',
-                    selectedDoctor?.id === doctor.id
-                      ? 'border-primary bg-primary/5 ring-2 ring-primary'
-                      : 'hover:border-primary/50'
-                  )}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium">
-                      {doctor.avatar}
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-medium">{doctor.name}</h3>
-                      <p className="text-sm text-muted-foreground">{doctor.specialty}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="secondary" className="text-xs">
-                          ⭐ {doctor.rating}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          Disponibil: {doctor.nextAvailable}
-                        </span>
+            {doctors.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <User className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Nu există medici disponibili pentru acest serviciu</p>
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-4">
+                {doctors.map((doctor) => (
+                  <div
+                    key={doctor.id}
+                    onClick={() => setSelectedDoctor(doctor)}
+                    className={cn(
+                      'p-4 border rounded-lg cursor-pointer transition-all',
+                      selectedDoctor?.id === doctor.id
+                        ? 'border-primary bg-primary/5 ring-2 ring-primary'
+                        : 'hover:border-primary/50'
+                    )}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium">
+                        {doctor.avatar || doctor.name.split(' ').map((n) => n[0]).join('')}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-medium">{doctor.name}</h3>
+                        <p className="text-sm text-muted-foreground">{doctor.specialty}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          {doctor.rating && (
+                            <Badge variant="secondary" className="text-xs">
+                              ⭐ {doctor.rating}
+                            </Badge>
+                          )}
+                          {doctor.nextAvailable && (
+                            <span className="text-xs text-muted-foreground">
+                              Disponibil: {doctor.nextAvailable}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -422,24 +483,31 @@ export default function BookingPage() {
             </CardHeader>
             <CardContent>
               {selectedDate ? (
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                  {timeSlots.map((slot) => (
-                    <button
-                      key={slot.time}
-                      onClick={() => slot.available && setSelectedTime(slot.time)}
-                      disabled={!slot.available}
-                      className={cn(
-                        'p-2 text-sm rounded-lg border transition-colors',
-                        selectedTime === slot.time &&
-                          'bg-primary text-primary-foreground border-primary',
-                        !slot.available && 'bg-muted text-muted-foreground cursor-not-allowed',
-                        slot.available && selectedTime !== slot.time && 'hover:border-primary'
-                      )}
-                    >
-                      {slot.time}
-                    </button>
-                  ))}
-                </div>
+                timeSlots.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Nu există intervale disponibile pentru această zi</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    {timeSlots.map((slot) => (
+                      <button
+                        key={slot.time}
+                        onClick={() => slot.available && setSelectedTime(slot.time)}
+                        disabled={!slot.available}
+                        className={cn(
+                          'p-2 text-sm rounded-lg border transition-colors',
+                          selectedTime === slot.time &&
+                            'bg-primary text-primary-foreground border-primary',
+                          !slot.available && 'bg-muted text-muted-foreground cursor-not-allowed',
+                          slot.available && selectedTime !== slot.time && 'hover:border-primary'
+                        )}
+                      >
+                        {slot.time}
+                      </button>
+                    ))}
+                  </div>
+                )
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
                   <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -614,8 +682,12 @@ export default function BookingPage() {
           Înapoi
         </Button>
         {currentStep === 'confirm' ? (
-          <Button onClick={handleConfirmBooking} disabled={isBookingConfirmed}>
-            <Check className="h-4 w-4 mr-2" />
+          <Button onClick={handleConfirmBooking} disabled={isBookingConfirmed || isPending}>
+            {isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Check className="h-4 w-4 mr-2" />
+            )}
             {isBookingConfirmed ? 'Programare confirmată!' : 'Confirmă programarea'}
           </Button>
         ) : (

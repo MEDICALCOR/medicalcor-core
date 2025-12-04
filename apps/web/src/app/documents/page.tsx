@@ -1,6 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useTransition } from 'react';
+import {
+  getDocumentsAction,
+  getFoldersAction,
+  getDocumentsStatsAction,
+  deleteDocumentAction,
+  type Document,
+  type DocumentFolder,
+  type DocumentsStats,
+} from '@/app/actions';
+import { useToast } from '@/hooks/use-toast';
 import {
   FileText,
   Upload,
@@ -18,6 +28,7 @@ import {
   List,
   Filter,
   Plus,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,102 +50,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
-interface Document {
-  id: string;
-  name: string;
-  type: 'pdf' | 'image' | 'spreadsheet' | 'document';
-  category: 'consent' | 'lab_result' | 'prescription' | 'imaging' | 'report' | 'other';
-  size: string;
-  uploadedBy: string;
-  uploadedAt: Date;
-  patientId: string;
-  patientName: string;
-}
-
-interface Folder {
-  id: string;
-  name: string;
-  documentCount: number;
-  color: string;
-}
-
-const documents: Document[] = [
-  {
-    id: 'd1',
-    name: 'Consimțământ_tratament.pdf',
-    type: 'pdf',
-    category: 'consent',
-    size: '245 KB',
-    uploadedBy: 'Dr. Maria Ionescu',
-    uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-    patientId: 'p1',
-    patientName: 'Ion Popescu',
-  },
-  {
-    id: 'd2',
-    name: 'Analize_sange_15nov.pdf',
-    type: 'pdf',
-    category: 'lab_result',
-    size: '1.2 MB',
-    uploadedBy: 'Laborator',
-    uploadedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    patientId: 'p1',
-    patientName: 'Ion Popescu',
-  },
-  {
-    id: 'd3',
-    name: 'Radiografie_torace.jpg',
-    type: 'image',
-    category: 'imaging',
-    size: '3.5 MB',
-    uploadedBy: 'Dr. Andrei Popa',
-    uploadedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-    patientId: 'p2',
-    patientName: 'Maria Stan',
-  },
-  {
-    id: 'd4',
-    name: 'Reteta_hipertensiune.pdf',
-    type: 'pdf',
-    category: 'prescription',
-    size: '156 KB',
-    uploadedBy: 'Dr. Elena Dumitrescu',
-    uploadedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-    patientId: 'p2',
-    patientName: 'Maria Stan',
-  },
-  {
-    id: 'd5',
-    name: 'Ecografie_abdomen.pdf',
-    type: 'pdf',
-    category: 'imaging',
-    size: '2.8 MB',
-    uploadedBy: 'Dr. Mihai Radu',
-    uploadedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
-    patientId: 'p3',
-    patientName: 'Andrei Georgescu',
-  },
-  {
-    id: 'd6',
-    name: 'Raport_medical_anual.xlsx',
-    type: 'spreadsheet',
-    category: 'report',
-    size: '890 KB',
-    uploadedBy: 'Admin',
-    uploadedAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
-    patientId: '',
-    patientName: '',
-  },
-];
-
-const folders: Folder[] = [
-  { id: 'f1', name: 'Consimțăminte', documentCount: 45, color: 'bg-blue-500' },
-  { id: 'f2', name: 'Analize laborator', documentCount: 128, color: 'bg-green-500' },
-  { id: 'f3', name: 'Imagistică', documentCount: 67, color: 'bg-purple-500' },
-  { id: 'f4', name: 'Rețete', documentCount: 234, color: 'bg-pink-500' },
-  { id: 'f5', name: 'Rapoarte', documentCount: 23, color: 'bg-yellow-500' },
-];
-
 const typeIcons = {
   pdf: FileText,
   image: Image,
@@ -152,26 +67,87 @@ const categoryLabels = {
 };
 
 export default function DocumentsPage() {
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [folders, setFolders] = useState<DocumentFolder[]>([]);
+  const [stats, setStats] = useState<DocumentsStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  async function loadData() {
+    setIsLoading(true);
+    try {
+      const [documentsResult, foldersResult, statsResult] = await Promise.all([
+        getDocumentsAction(),
+        getFoldersAction(),
+        getDocumentsStatsAction(),
+      ]);
+
+      if (documentsResult.documents) {
+        setDocuments(documentsResult.documents);
+      }
+      if (foldersResult.folders) {
+        setFolders(foldersResult.folders);
+      }
+      if (statsResult.stats) {
+        setStats(statsResult.stats);
+      }
+    } catch (error) {
+      toast({
+        title: 'Eroare',
+        description: 'Nu s-au putut încărca documentele',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    startTransition(async () => {
+      const result = await deleteDocumentAction(id);
+      if (result.success) {
+        setDocuments((prev) => prev.filter((d) => d.id !== id));
+        toast({ title: 'Succes', description: 'Documentul a fost șters' });
+      } else {
+        toast({ title: 'Eroare', description: result.error, variant: 'destructive' });
+      }
+    });
+  }
 
   const formatDate = (date: Date): string => {
-    return date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'short', year: 'numeric' });
+    return new Date(date).toLocaleDateString('ro-RO', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
   };
 
   const filteredDocuments = documents.filter((doc) => {
     const matchesSearch =
       searchQuery === '' ||
       doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.patientName.toLowerCase().includes(searchQuery.toLowerCase());
+      (doc.patientName?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
     const matchesCategory = categoryFilter === 'all' || doc.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
 
-  const totalSize = '2.4 GB';
-  const usedSize = '1.8 GB';
-  const usedPercentage = 75;
+  const usedPercentage = stats?.usedPercentage ?? 0;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -205,7 +181,7 @@ export default function DocumentsPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total documente</p>
-              <p className="text-xl font-bold">{documents.length}</p>
+              <p className="text-xl font-bold">{stats?.totalDocuments ?? documents.length}</p>
             </div>
           </CardContent>
         </Card>
@@ -216,7 +192,7 @@ export default function DocumentsPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Foldere</p>
-              <p className="text-xl font-bold">{folders.length}</p>
+              <p className="text-xl font-bold">{stats?.totalFolders ?? folders.length}</p>
             </div>
           </CardContent>
         </Card>
@@ -225,7 +201,7 @@ export default function DocumentsPage() {
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-muted-foreground">Spațiu de stocare</p>
               <p className="text-sm font-medium">
-                {usedSize} / {totalSize}
+                {stats?.usedSize ?? '0 GB'} / {stats?.totalSize ?? '0 GB'}
               </p>
             </div>
             <Progress value={usedPercentage} className="h-2" />
@@ -240,26 +216,35 @@ export default function DocumentsPage() {
             <CardTitle className="text-base">Foldere</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {folders.map((folder) => (
-              <div
-                key={folder.id}
-                className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={cn('w-8 h-8 rounded flex items-center justify-center', folder.color)}
-                  >
-                    <Folder className="h-4 w-4 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">{folder.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {folder.documentCount} documente
-                    </p>
+            {folders.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Nu există foldere
+              </p>
+            ) : (
+              folders.map((folder) => (
+                <div
+                  key={folder.id}
+                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={cn(
+                        'w-8 h-8 rounded flex items-center justify-center',
+                        folder.color ?? 'bg-blue-500'
+                      )}
+                    >
+                      <Folder className="h-4 w-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{folder.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {folder.documentCount} documente
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
             <Button variant="ghost" className="w-full mt-2">
               <Plus className="h-4 w-4 mr-2" />
               Folder nou
@@ -320,10 +305,17 @@ export default function DocumentsPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {viewMode === 'list' ? (
+            {filteredDocuments.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Nu există documente</p>
+              </div>
+            ) : viewMode === 'list' ? (
               <div className="space-y-2">
                 {filteredDocuments.map((doc) => {
-                  const TypeIcon = typeIcons[doc.type];
+                  const docType = doc.type as keyof typeof typeIcons;
+                  const TypeIcon = typeIcons[docType] ?? File;
+                  const category = doc.category as keyof typeof categoryLabels;
                   return (
                     <div
                       key={doc.id}
@@ -343,11 +335,11 @@ export default function DocumentsPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className="text-xs">
-                          {categoryLabels[doc.category]}
+                          {categoryLabels[category] ?? doc.category}
                         </Badge>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
+                            <Button variant="ghost" size="icon" disabled={isPending}>
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -364,7 +356,10 @@ export default function DocumentsPage() {
                               <Share2 className="h-4 w-4 mr-2" />
                               Partajează
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600">
+                            <DropdownMenuItem
+                              className="text-red-600"
+                              onClick={() => handleDelete(doc.id)}
+                            >
                               <Trash2 className="h-4 w-4 mr-2" />
                               Șterge
                             </DropdownMenuItem>
@@ -378,7 +373,9 @@ export default function DocumentsPage() {
             ) : (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredDocuments.map((doc) => {
-                  const TypeIcon = typeIcons[doc.type];
+                  const docType = doc.type as keyof typeof typeIcons;
+                  const TypeIcon = typeIcons[docType] ?? File;
+                  const category = doc.category as keyof typeof categoryLabels;
                   return (
                     <div
                       key={doc.id}
@@ -391,11 +388,11 @@ export default function DocumentsPage() {
                       <p className="text-xs text-muted-foreground mt-1">{doc.size}</p>
                       <div className="flex items-center justify-between mt-3">
                         <Badge variant="outline" className="text-xs">
-                          {categoryLabels[doc.category]}
+                          {categoryLabels[category] ?? doc.category}
                         </Badge>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isPending}>
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -408,7 +405,10 @@ export default function DocumentsPage() {
                               <Download className="h-4 w-4 mr-2" />
                               Descarcă
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600">
+                            <DropdownMenuItem
+                              className="text-red-600"
+                              onClick={() => handleDelete(doc.id)}
+                            >
                               <Trash2 className="h-4 w-4 mr-2" />
                               Șterge
                             </DropdownMenuItem>

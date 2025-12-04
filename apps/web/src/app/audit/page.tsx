@@ -1,6 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useTransition } from 'react';
+import {
+  getAuditLogsAction,
+  getAuditStatsAction,
+  exportAuditLogsAction,
+  type AuditLog,
+  type AuditStats,
+} from '@/app/actions';
+import { useToast } from '@/hooks/use-toast';
 import {
   Shield,
   Search,
@@ -16,10 +24,10 @@ import {
   CheckCircle,
   XCircle,
   Eye,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -29,109 +37,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-
-interface AuditLog {
-  id: string;
-  timestamp: Date;
-  user: string;
-  userRole: string;
-  action: string;
-  category: 'patient' | 'appointment' | 'settings' | 'user' | 'system' | 'data';
-  status: 'success' | 'warning' | 'error';
-  details: string;
-  ipAddress: string;
-}
-
-const auditLogs: AuditLog[] = [
-  {
-    id: 'l1',
-    timestamp: new Date(Date.now() - 5 * 60 * 1000),
-    user: 'Dr. Maria Popescu',
-    userRole: 'Doctor',
-    action: 'Vizualizare fișă pacient',
-    category: 'patient',
-    status: 'success',
-    details: 'Pacient: Ion Popescu (#P-1234)',
-    ipAddress: '192.168.1.45',
-  },
-  {
-    id: 'l2',
-    timestamp: new Date(Date.now() - 12 * 60 * 1000),
-    user: 'Ana Ionescu',
-    userRole: 'Operator',
-    action: 'Creare programare',
-    category: 'appointment',
-    status: 'success',
-    details: 'Programare nouă pentru Ion Popescu',
-    ipAddress: '192.168.1.22',
-  },
-  {
-    id: 'l3',
-    timestamp: new Date(Date.now() - 25 * 60 * 1000),
-    user: 'Admin',
-    userRole: 'Admin',
-    action: 'Modificare setări',
-    category: 'settings',
-    status: 'success',
-    details: 'Actualizare configurare notificări',
-    ipAddress: '192.168.1.1',
-  },
-  {
-    id: 'l4',
-    timestamp: new Date(Date.now() - 45 * 60 * 1000),
-    user: 'System',
-    userRole: 'System',
-    action: 'Backup automat',
-    category: 'system',
-    status: 'success',
-    details: 'Backup zilnic completat cu succes',
-    ipAddress: 'localhost',
-  },
-  {
-    id: 'l5',
-    timestamp: new Date(Date.now() - 60 * 60 * 1000),
-    user: 'Ana Ionescu',
-    userRole: 'Operator',
-    action: 'Încercare acces neautorizat',
-    category: 'user',
-    status: 'warning',
-    details: 'Încercare acces la setări admin',
-    ipAddress: '192.168.1.22',
-  },
-  {
-    id: 'l6',
-    timestamp: new Date(Date.now() - 90 * 60 * 1000),
-    user: 'Dr. Ion Ionescu',
-    userRole: 'Doctor',
-    action: 'Export date pacienți',
-    category: 'data',
-    status: 'success',
-    details: 'Export CSV - 150 înregistrări',
-    ipAddress: '192.168.1.50',
-  },
-  {
-    id: 'l7',
-    timestamp: new Date(Date.now() - 120 * 60 * 1000),
-    user: 'Admin',
-    userRole: 'Admin',
-    action: 'Creare utilizator',
-    category: 'user',
-    status: 'success',
-    details: 'Utilizator nou: elena.popa@clinic.ro',
-    ipAddress: '192.168.1.1',
-  },
-  {
-    id: 'l8',
-    timestamp: new Date(Date.now() - 180 * 60 * 1000),
-    user: 'System',
-    userRole: 'System',
-    action: 'Eroare sincronizare',
-    category: 'system',
-    status: 'error',
-    details: 'Eșec conectare la serviciul extern',
-    ipAddress: 'localhost',
-  },
-];
 
 const categoryIcons = {
   patient: FileText,
@@ -164,18 +69,79 @@ const statusColors = {
 };
 
 export default function AuditLogPage() {
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [stats, setStats] = useState<AuditStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  async function loadData() {
+    setIsLoading(true);
+    try {
+      const [logsResult, statsResult] = await Promise.all([
+        getAuditLogsAction(),
+        getAuditStatsAction(),
+      ]);
+
+      if (logsResult.logs) {
+        setAuditLogs(logsResult.logs);
+      }
+      if (statsResult.stats) {
+        setStats(statsResult.stats);
+      }
+    } catch (error) {
+      toast({
+        title: 'Eroare',
+        description: 'Nu s-a putut încărca jurnalul de audit',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleExport() {
+    startTransition(async () => {
+      try {
+        const result = await exportAuditLogsAction();
+        if (result.success) {
+          toast({
+            title: 'Succes',
+            description: 'Jurnalul de audit a fost exportat',
+          });
+        } else {
+          toast({
+            title: 'Eroare',
+            description: result.error,
+            variant: 'destructive',
+          });
+        }
+      } catch (error) {
+        toast({
+          title: 'Eroare',
+          description: 'Nu s-a putut exporta jurnalul',
+          variant: 'destructive',
+        });
+      }
+    });
+  }
 
   const formatTimestamp = (date: Date): string => {
     const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
+    const timestamp = new Date(date);
+    const diffMs = now.getTime() - timestamp.getTime();
     const diffMins = Math.floor(diffMs / 60000);
 
     if (diffMins < 60) return `Acum ${diffMins} minute`;
     const diffHours = Math.floor(diffMins / 60);
     if (diffHours < 24) return `Acum ${diffHours} ore`;
-    return date.toLocaleDateString('ro-RO', {
+    return timestamp.toLocaleDateString('ro-RO', {
       day: 'numeric',
       month: 'short',
       hour: '2-digit',
@@ -193,6 +159,14 @@ export default function AuditLogPage() {
     return matchesSearch && matchesCategory;
   });
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -203,8 +177,12 @@ export default function AuditLogPage() {
           </h1>
           <p className="text-muted-foreground mt-1">Istoricul tuturor acțiunilor din sistem</p>
         </div>
-        <Button variant="outline">
-          <Download className="h-4 w-4 mr-2" />
+        <Button variant="outline" onClick={handleExport} disabled={isPending}>
+          {isPending ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Download className="h-4 w-4 mr-2" />
+          )}
           Export log
         </Button>
       </div>
@@ -218,7 +196,7 @@ export default function AuditLogPage() {
             <div>
               <p className="text-sm text-muted-foreground">Succese</p>
               <p className="text-xl font-bold">
-                {auditLogs.filter((l) => l.status === 'success').length}
+                {stats?.successCount ?? auditLogs.filter((l) => l.status === 'success').length}
               </p>
             </div>
           </CardContent>
@@ -231,7 +209,7 @@ export default function AuditLogPage() {
             <div>
               <p className="text-sm text-muted-foreground">Avertizări</p>
               <p className="text-xl font-bold">
-                {auditLogs.filter((l) => l.status === 'warning').length}
+                {stats?.warningCount ?? auditLogs.filter((l) => l.status === 'warning').length}
               </p>
             </div>
           </CardContent>
@@ -244,7 +222,7 @@ export default function AuditLogPage() {
             <div>
               <p className="text-sm text-muted-foreground">Erori</p>
               <p className="text-xl font-bold">
-                {auditLogs.filter((l) => l.status === 'error').length}
+                {stats?.errorCount ?? auditLogs.filter((l) => l.status === 'error').length}
               </p>
             </div>
           </CardContent>
@@ -256,7 +234,9 @@ export default function AuditLogPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Utilizatori activi</p>
-              <p className="text-xl font-bold">{new Set(auditLogs.map((l) => l.user)).size}</p>
+              <p className="text-xl font-bold">
+                {stats?.activeUsers ?? new Set(auditLogs.map((l) => l.user)).size}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -298,46 +278,57 @@ export default function AuditLogPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {filteredLogs.map((log) => {
-              const CategoryIcon = categoryIcons[log.category];
-              const StatusIcon = statusIcons[log.status];
+          {filteredLogs.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Nu există evenimente în jurnalul de audit</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredLogs.map((log) => {
+                const category = log.category as keyof typeof categoryIcons;
+                const CategoryIcon = categoryIcons[category] ?? FileText;
+                const status = log.status as keyof typeof statusIcons;
+                const StatusIcon = statusIcons[status] ?? CheckCircle;
 
-              return (
-                <div key={log.id} className="flex items-start gap-4 p-4 border rounded-lg">
-                  <div
-                    className={cn(
-                      'w-10 h-10 rounded-lg flex items-center justify-center shrink-0',
-                      categoryColors[log.category]
-                    )}
-                  >
-                    <CategoryIcon className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-medium">{log.action}</h4>
-                      <StatusIcon className={cn('h-4 w-4', statusColors[log.status])} />
+                return (
+                  <div key={log.id} className="flex items-start gap-4 p-4 border rounded-lg">
+                    <div
+                      className={cn(
+                        'w-10 h-10 rounded-lg flex items-center justify-center shrink-0',
+                        categoryColors[category] ?? 'bg-gray-100 text-gray-700'
+                      )}
+                    >
+                      <CategoryIcon className="h-5 w-5" />
                     </div>
-                    <p className="text-sm text-muted-foreground">{log.details}</p>
-                    <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <User className="h-3 w-3" />
-                        {log.user} ({log.userRole})
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {formatTimestamp(log.timestamp)}
-                      </span>
-                      <span>{log.ipAddress}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-medium">{log.action}</h4>
+                        <StatusIcon
+                          className={cn('h-4 w-4', statusColors[status] ?? 'text-gray-600')}
+                        />
+                      </div>
+                      <p className="text-sm text-muted-foreground">{log.details}</p>
+                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <User className="h-3 w-3" />
+                          {log.user} ({log.userRole})
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {formatTimestamp(log.timestamp)}
+                        </span>
+                        <span>{log.ipAddress}</span>
+                      </div>
                     </div>
+                    <Button variant="ghost" size="icon">
+                      <Eye className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button variant="ghost" size="icon">
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
