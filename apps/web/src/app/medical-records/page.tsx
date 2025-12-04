@@ -93,7 +93,7 @@ export default function MedicalRecordsPage() {
       if (prescriptionsResult.prescriptions) {
         setPrescriptions(prescriptionsResult.prescriptions);
       }
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: 'Eroare',
         description: 'Nu s-au putut încărca dosarele medicale',

@@ -105,7 +105,7 @@ function rowToApiKey(row: ApiKeyRow, fullKey?: string): ApiKey {
     lastUsedAt: row.last_used_at,
     isActive: row.is_active,
     requestsToday: row.requests_today,
-    requestsTotal: Number(row.requests_total),
+    requestsTotal: row.requests_total,
     dailyLimit: row.daily_limit,
   };
 }

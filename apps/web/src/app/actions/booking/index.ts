@@ -162,7 +162,7 @@ export async function getServicesAction(): Promise<{ services: Service[]; error?
     );
 
     return { services: result.rows.map(rowToService) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching services:', error);
     return { services: [], error: 'Failed to fetch services' };
   }
@@ -207,7 +207,7 @@ export async function getDoctorsAction(): Promise<{ doctors: Doctor[]; error?: s
     );
 
     return { doctors: doctorsWithAvailability };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching doctors:', error);
     return { doctors: [], error: 'Failed to fetch doctors' };
   }
@@ -240,7 +240,7 @@ export async function getAvailableSlotsAction(
         isBooked: row.is_booked,
       })),
     };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching available slots:', error);
     return { slots: [], error: 'Failed to fetch available slots' };
   }
@@ -278,7 +278,7 @@ export async function getBookingStatsAction(): Promise<{ stats: BookingStats | n
         availableSlotsToday: parseInt(row.available_slots_today),
       },
     };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching booking stats:', error);
     return { stats: null, error: 'Failed to fetch booking stats' };
   }
@@ -311,7 +311,7 @@ export async function createServiceAction(
     );
 
     return { service: rowToService(result.rows[0]) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error creating service:', error);
     return { service: null, error: 'Failed to create service' };
   }
@@ -370,7 +370,7 @@ export async function updateServiceAction(
     }
 
     return { service: rowToService(result.rows[0]) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error updating service:', error);
     return { service: null, error: 'Failed to update service' };
   }
@@ -392,7 +392,7 @@ export async function deleteServiceAction(id: string): Promise<{ success: boolea
     }
 
     return { success: true };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error deleting service:', error);
     return { success: false, error: 'Failed to delete service' };
   }
@@ -460,7 +460,7 @@ export async function createBookingAction(
     );
 
     return { success: true, appointmentId: appointmentResult.rows[0].id };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error creating booking:', error);
     return { success: false, error: 'Failed to create booking' };
   }

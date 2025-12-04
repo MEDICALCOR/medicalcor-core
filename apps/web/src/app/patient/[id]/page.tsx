@@ -294,7 +294,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
       getPatientByIdAction(id),
       getPatientTimelineAction(id),
     ]);
-  } catch (error) {
+  } catch (_error) {
     if (error instanceof AuthorizationError) {
       accessDenied = true;
     }

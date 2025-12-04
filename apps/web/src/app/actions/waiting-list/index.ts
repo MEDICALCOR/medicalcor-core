@@ -134,7 +134,7 @@ export async function getWaitingListAction(): Promise<{ patients: WaitingPatient
     );
 
     return { patients: result.rows.map(rowToWaitingPatient) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching waiting list:', error);
     return { patients: [], error: 'Failed to fetch waiting list' };
   }
@@ -171,7 +171,7 @@ export async function getWaitingListStatsAction(): Promise<{ stats: WaitingListS
         avgWaitDays: Math.round(parseFloat(row.avg_wait_days)),
       },
     };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching waiting list stats:', error);
     return { stats: null, error: 'Failed to fetch waiting list stats' };
   }
@@ -222,7 +222,7 @@ export async function createWaitingPatientAction(
     );
 
     return { patient: rowToWaitingPatient(result.rows[0]) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error creating waiting patient:', error);
     return { patient: null, error: 'Failed to add patient to waiting list' };
   }
@@ -278,7 +278,7 @@ export async function updateWaitingPatientAction(
     }
 
     return { patient: rowToWaitingPatient(result.rows[0]) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error updating waiting patient:', error);
     return { patient: null, error: 'Failed to update patient' };
   }
@@ -301,7 +301,7 @@ export async function removeFromWaitingListAction(id: string): Promise<{ success
     }
 
     return { success: true };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error removing from waiting list:', error);
     return { success: false, error: 'Failed to remove patient' };
   }
@@ -328,7 +328,7 @@ export async function scheduleFromWaitingListAction(
     }
 
     return { success: true };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error scheduling from waiting list:', error);
     return { success: false, error: 'Failed to schedule patient' };
   }

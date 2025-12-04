@@ -70,7 +70,7 @@ export default function InventoryPage() {
       if (statsResult.stats) {
         setStats(statsResult.stats);
       }
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: 'Eroare',
         description: 'Nu s-a putut încărca inventarul',

@@ -204,7 +204,7 @@ export async function getPrescriptionsAction(
     );
 
     return { prescriptions };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching prescriptions:', error);
     return { prescriptions: [], error: 'Failed to fetch prescriptions' };
   }
@@ -241,7 +241,7 @@ export async function getPrescriptionByIdAction(
     return {
       prescription: rowToPrescription(result.rows[0], medsResult.rows.map(rowToMedication)),
     };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching prescription:', error);
     return { prescription: null, error: 'Failed to fetch prescription' };
   }
@@ -286,7 +286,7 @@ export async function getPrescriptionStatsAction(): Promise<{ stats: Prescriptio
         todayCount: 0, // Would need additional query for today's count
       },
     };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching prescription stats:', error);
     return { stats: null, error: 'Failed to fetch prescription stats' };
   }
@@ -361,7 +361,7 @@ export async function createPrescriptionAction(
     } finally {
       client.release();
     }
-  } catch (error) {
+  } catch (_error) {
     console.error('Error creating prescription:', error);
     return { prescription: null, error: 'Failed to create prescription' };
   }
@@ -431,7 +431,7 @@ export async function updatePrescriptionAction(
     return {
       prescription: rowToPrescription(result.rows[0], medsResult.rows.map(rowToMedication)),
     };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error updating prescription:', error);
     return { prescription: null, error: 'Failed to update prescription' };
   }
@@ -454,7 +454,7 @@ export async function cancelPrescriptionAction(id: string): Promise<{ success: b
     }
 
     return { success: true };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error cancelling prescription:', error);
     return { success: false, error: 'Failed to cancel prescription' };
   }
@@ -495,7 +495,7 @@ export async function deletePrescriptionAction(id: string): Promise<{ success: b
     } finally {
       client.release();
     }
-  } catch (error) {
+  } catch (_error) {
     console.error('Error deleting prescription:', error);
     return { success: false, error: 'Failed to delete prescription' };
   }
@@ -577,7 +577,7 @@ export async function duplicatePrescriptionAction(
     } finally {
       client.release();
     }
-  } catch (error) {
+  } catch (_error) {
     console.error('Error duplicating prescription:', error);
     return { prescription: null, error: 'Failed to duplicate prescription' };
   }

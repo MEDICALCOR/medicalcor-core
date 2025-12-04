@@ -90,7 +90,7 @@ export default function BookingPage() {
       if (result.services) {
         setServices(result.services);
       }
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: 'Eroare',
         description: 'Nu s-au putut încărca serviciile',
@@ -107,7 +107,7 @@ export default function BookingPage() {
       if (result.doctors) {
         setDoctors(result.doctors);
       }
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: 'Eroare',
         description: 'Nu s-au putut încărca medicii',
@@ -126,7 +126,7 @@ export default function BookingPage() {
       if (result.slots) {
         setTimeSlots(result.slots);
       }
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: 'Eroare',
         description: 'Nu s-au putut încărca intervalele disponibile',
@@ -163,7 +163,7 @@ export default function BookingPage() {
             variant: 'destructive',
           });
         }
-      } catch (error) {
+      } catch (_error) {
         toast({
           title: 'Eroare',
           description: 'Nu s-a putut crea programarea',

@@ -95,7 +95,7 @@ export default function AuditLogPage() {
       if (statsResult.stats) {
         setStats(statsResult.stats);
       }
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: 'Eroare',
         description: 'Nu s-a putut încărca jurnalul de audit',
@@ -122,7 +122,7 @@ export default function AuditLogPage() {
             variant: 'destructive',
           });
         }
-      } catch (error) {
+      } catch (_error) {
         toast({
           title: 'Eroare',
           description: 'Nu s-a putut exporta jurnalul',

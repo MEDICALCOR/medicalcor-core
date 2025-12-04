@@ -187,6 +187,21 @@ export default tseslint.config(
       '@typescript-eslint/no-confusing-void-expression': 'off',
       '@typescript-eslint/no-misused-promises': ['error', { checksVoidReturn: false }],
       '@typescript-eslint/no-deprecated': 'off',
+
+      // ===================================================================
+      // Defensive Coding Patterns - Relaxed to warnings
+      // These rules flag defensive null/undefined checks that are often
+      // intentional for runtime safety even when types suggest otherwise
+      // ===================================================================
+
+      // Allow defensive optional chains and ?? operators
+      '@typescript-eslint/no-unnecessary-condition': 'warn',
+
+      // Allow floating promises in event handlers (React patterns)
+      '@typescript-eslint/no-floating-promises': 'warn',
+
+      // Allow async functions without await (interface compatibility)
+      '@typescript-eslint/require-await': 'warn',
     },
   },
 

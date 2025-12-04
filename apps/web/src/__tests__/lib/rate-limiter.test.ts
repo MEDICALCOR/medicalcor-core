@@ -192,7 +192,7 @@ describe('Rate Limiter', () => {
       try {
         await limitedAction();
         expect.fail('Should have thrown');
-      } catch (error) {
+      } catch (_error) {
         expect(error).toBeInstanceOf(RateLimitError);
         if (error instanceof RateLimitError) {
           expect(error.rateLimitResult).toBeDefined();
@@ -215,7 +215,7 @@ describe('Rate Limiter', () => {
       try {
         await limitedAction();
         expect.fail('Should have thrown');
-      } catch (error) {
+      } catch (_error) {
         expect(error).toBeInstanceOf(Error);
         if (error instanceof Error) {
           expect(error.message).toContain('Rate limit exceeded');

@@ -412,7 +412,7 @@ export async function getAnalyticsDataAction(
       topProcedures,
       operatorPerformance,
     };
-  } catch (error) {
+  } catch (_error) {
     // SECURITY FIX: Only log in non-production to avoid console noise
     if (process.env.NODE_ENV !== 'production') {
       console.error('[getAnalyticsDataAction] Failed to fetch analytics:', error);

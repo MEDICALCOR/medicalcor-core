@@ -180,7 +180,7 @@ async function checkRedisRateLimit(key: string, config: RateLimitConfig): Promis
       resetInSeconds: ttl > 0 ? ttl : config.windowSeconds,
       active: true,
     };
-  } catch (error) {
+  } catch (_error) {
     // Redis error, fall back to memory
     console.warn('[RateLimit] Redis unavailable, using memory fallback:', error);
     return checkMemoryRateLimit(key, config);

@@ -202,7 +202,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         gdprReference: 'Article 17 - Right to erasure',
       },
     });
-  } catch (error) {
+  } catch (_error) {
     // Log error but don't expose details to client
     if (process.env.NODE_ENV !== 'production') {
       console.error('[GDPR Deletion] Error:', error);

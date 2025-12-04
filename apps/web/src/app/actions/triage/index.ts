@@ -285,7 +285,7 @@ export async function getTriageLeadsAction(): Promise<TriageColumn[]> {
     ];
 
     return columns;
-  } catch (error) {
+  } catch (_error) {
     // Error logged server-side
     return createEmptyColumns();
   }

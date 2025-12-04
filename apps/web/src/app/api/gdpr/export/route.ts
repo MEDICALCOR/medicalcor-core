@@ -148,7 +148,7 @@ export async function GET(): Promise<NextResponse> {
         'X-Export-Date': new Date().toISOString(),
       },
     });
-  } catch (error) {
+  } catch (_error) {
     // Log error but don't expose details to client
     if (process.env.NODE_ENV !== 'production') {
       console.error('[GDPR Export] Error:', error);

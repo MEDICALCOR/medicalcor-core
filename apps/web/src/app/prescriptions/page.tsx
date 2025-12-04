@@ -86,7 +86,7 @@ export default function PrescriptionsPage() {
       if (statsResult.stats) {
         setStats(statsResult.stats);
       }
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: 'Eroare',
         description: 'Nu s-au putut încărca rețetele',

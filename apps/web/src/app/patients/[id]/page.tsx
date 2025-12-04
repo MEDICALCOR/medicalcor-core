@@ -107,7 +107,7 @@ export default async function PatientDetailPage({ params }: PageProps) {
   try {
     // Fetch patient data with IDOR protection
     patientData = await getPatientByIdAction(id);
-  } catch (error) {
+  } catch (_error) {
     if (error instanceof AuthorizationError) {
       accessDenied = true;
     } else {

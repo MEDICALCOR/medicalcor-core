@@ -89,7 +89,7 @@ export default function ApiKeysPage() {
       ]);
       setKeysList(keysData);
       setStats(statsData);
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: 'Eroare',
         description: 'Nu s-au putut încărca cheile API',
@@ -121,7 +121,7 @@ export default function ApiKeysPage() {
           title: 'Succes',
           description: `Cheia a fost ${!currentActive ? 'activată' : 'dezactivată'}`,
         });
-      } catch (error) {
+      } catch (_error) {
         toast({
           title: 'Eroare',
           description: 'Nu s-a putut actualiza starea cheii',
@@ -158,7 +158,7 @@ export default function ApiKeysPage() {
           title: 'Succes',
           description: 'Cheia API a fost creată. Copiază-o acum - nu va mai fi afișată!',
         });
-      } catch (error) {
+      } catch (_error) {
         toast({
           title: 'Eroare',
           description: 'Nu s-a putut crea cheia API',
@@ -178,7 +178,7 @@ export default function ApiKeysPage() {
           title: 'Succes',
           description: 'Cheia API a fost revocată',
         });
-      } catch (error) {
+      } catch (_error) {
         toast({
           title: 'Eroare',
           description: 'Nu s-a putut revoca cheia',
@@ -198,7 +198,7 @@ export default function ApiKeysPage() {
           title: 'Succes',
           description: 'Cheia a fost regenerată. Copiază noua cheie!',
         });
-      } catch (error) {
+      } catch (_error) {
         toast({
           title: 'Eroare',
           description: 'Nu s-a putut regenera cheia',

@@ -128,7 +128,7 @@ export async function getCampaignsAction(): Promise<{ campaigns: Campaign[]; err
     );
 
     return { campaigns: result.rows.map(rowToCampaign) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching campaigns:', error);
     return { campaigns: [], error: 'Failed to fetch campaigns' };
   }
@@ -168,7 +168,7 @@ export async function getCampaignStatsAction(): Promise<{ stats: CampaignStats |
         avgClickRate: parseFloat(row.avg_click_rate),
       },
     };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching campaign stats:', error);
     return { stats: null, error: 'Failed to fetch campaign stats' };
   }
@@ -201,7 +201,7 @@ export async function createCampaignAction(
     );
 
     return { campaign: rowToCampaign(result.rows[0]) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error creating campaign:', error);
     return { campaign: null, error: 'Failed to create campaign' };
   }
@@ -264,7 +264,7 @@ export async function updateCampaignAction(
     }
 
     return { campaign: rowToCampaign(result.rows[0]) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error updating campaign:', error);
     return { campaign: null, error: 'Failed to update campaign' };
   }
@@ -286,7 +286,7 @@ export async function deleteCampaignAction(id: string): Promise<{ success: boole
     }
 
     return { success: true };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error deleting campaign:', error);
     return { success: false, error: 'Failed to delete campaign' };
   }
@@ -312,7 +312,7 @@ export async function duplicateCampaignAction(id: string): Promise<{ campaign: C
     }
 
     return { campaign: rowToCampaign(result.rows[0]) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error duplicating campaign:', error);
     return { campaign: null, error: 'Failed to duplicate campaign' };
   }

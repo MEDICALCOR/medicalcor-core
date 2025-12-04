@@ -171,7 +171,7 @@ export async function getAuditLogsAction(
       logs: result.rows.map(rowToAuditLog),
       total: parseInt(countResult.rows[0].count),
     };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching audit logs:', error);
     return { logs: [], total: 0, error: 'Failed to fetch audit logs' };
   }
@@ -218,7 +218,7 @@ export async function getAuditStatsAction(): Promise<{ stats: AuditStats | null;
         activeUsers: uniqueUsers,
       },
     };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching audit stats:', error);
     return { stats: null, error: 'Failed to fetch audit stats' };
   }
@@ -255,7 +255,7 @@ export async function createAuditLogAction(
     );
 
     return { log: rowToAuditLog(result.rows[0]) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error creating audit log:', error);
     return { log: null, error: 'Failed to create audit log' };
   }
@@ -281,7 +281,7 @@ export async function getAuditLogsByEntityAction(
     );
 
     return { logs: result.rows.map(rowToAuditLog) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching entity audit logs:', error);
     return { logs: [], error: 'Failed to fetch entity audit logs' };
   }
@@ -351,7 +351,7 @@ export async function exportAuditLogsAction(
     const csv = [headers.join(','), ...rows.map((r) => r.map((v) => `"${v}"`).join(','))].join('\n');
 
     return { success: true, data: csv };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error exporting audit logs:', error);
     return { success: false, error: 'Failed to export audit logs' };
   }

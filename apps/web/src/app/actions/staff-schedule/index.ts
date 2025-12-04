@@ -145,7 +145,7 @@ export async function getStaffMembersAction(): Promise<{ staff: StaffMember[]; e
     );
 
     return { staff: result.rows.map(rowToStaffMember) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching staff members:', error);
     return { staff: [], error: 'Failed to fetch staff members' };
   }
@@ -183,7 +183,7 @@ export async function getStaffScheduleAction(
       staff: staffResult.rows.map(rowToStaffMember),
       shifts: shiftsResult.rows.map(rowToStaffShift),
     };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching staff schedule:', error);
     return { staff: [], shifts: [], error: 'Failed to fetch schedule' };
   }
@@ -227,7 +227,7 @@ export async function getScheduleStatsAction(): Promise<{ stats: ScheduleStats |
         onSick: parseInt(row.on_sick),
       },
     };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching schedule stats:', error);
     return { stats: null, error: 'Failed to fetch schedule stats' };
   }
@@ -277,7 +277,7 @@ export async function createShiftAction(
     );
 
     return { shift: rowToStaffShift(result.rows[0]) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error creating shift:', error);
     return { shift: null, error: 'Failed to create shift' };
   }
@@ -342,7 +342,7 @@ export async function updateShiftAction(
     }
 
     return { shift: rowToStaffShift(result.rows[0]) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error updating shift:', error);
     return { shift: null, error: 'Failed to update shift' };
   }
@@ -364,7 +364,7 @@ export async function deleteShiftAction(id: string): Promise<{ success: boolean;
     }
 
     return { success: true };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error deleting shift:', error);
     return { success: false, error: 'Failed to delete shift' };
   }
@@ -399,7 +399,7 @@ export async function copyWeekScheduleAction(
     );
 
     return { success: true, copiedCount: result.rowCount ?? 0 };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error copying week schedule:', error);
     return { success: false, copiedCount: 0, error: 'Failed to copy schedule' };
   }

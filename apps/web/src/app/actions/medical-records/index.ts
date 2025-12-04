@@ -148,7 +148,7 @@ export async function getMedicalRecordsAction(
     const result = await database.query<RecordRow>(query, params);
 
     return { records: result.rows.map(rowToMedicalRecord) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching medical records:', error);
     return { records: [], error: 'Failed to fetch medical records' };
   }
@@ -189,7 +189,7 @@ export async function getMedicalRecordStatsAction(): Promise<{ stats: MedicalRec
         activeTreatments: parseInt(row.pending_prescriptions),
       },
     };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching medical record stats:', error);
     return { stats: null, error: 'Failed to fetch stats' };
   }
@@ -237,7 +237,7 @@ export async function createMedicalRecordAction(
         attachments: 0,
       },
     };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error creating medical record:', error);
     return { record: null, error: 'Failed to create medical record' };
   }
@@ -253,7 +253,7 @@ export async function getDiagnosesAction(
     // For now, return empty as diagnoses need dedicated table
     // This would be implemented with a proper diagnoses table
     return { diagnoses: [] };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching diagnoses:', error);
     return { diagnoses: [], error: 'Failed to fetch diagnoses' };
   }
@@ -311,7 +311,7 @@ export async function getPrescriptionsAction(
         status: row.status as Prescription['status'],
       })),
     };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching prescriptions:', error);
     return { prescriptions: [], error: 'Failed to fetch prescriptions' };
   }

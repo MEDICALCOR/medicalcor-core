@@ -97,7 +97,7 @@ export default function WaitingListPage() {
       if (statsResult.stats) {
         setStats(statsResult.stats);
       }
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: 'Eroare',
         description: 'Nu s-a putut încărca lista de așteptare',

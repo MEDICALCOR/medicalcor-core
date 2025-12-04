@@ -154,7 +154,7 @@ export async function getInventoryAction(): Promise<{ items: InventoryItem[]; er
     );
 
     return { items: result.rows.map(rowToInventoryItem) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching inventory:', error);
     return { items: [], error: 'Failed to fetch inventory' };
   }
@@ -191,7 +191,7 @@ export async function getInventoryStatsAction(): Promise<{ stats: InventoryStats
         totalValue: parseFloat(row.total_value),
       },
     };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching inventory stats:', error);
     return { stats: null, error: 'Failed to fetch inventory stats' };
   }
@@ -231,7 +231,7 @@ export async function createInventoryItemAction(
     );
 
     return { item: rowToInventoryItem(result.rows[0]) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error creating inventory item:', error);
     return { item: null, error: 'Failed to create inventory item' };
   }
@@ -295,7 +295,7 @@ export async function updateInventoryItemAction(
     }
 
     return { item: rowToInventoryItem(result.rows[0]) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error updating inventory item:', error);
     return { item: null, error: 'Failed to update inventory item' };
   }
@@ -372,7 +372,7 @@ export async function adjustStockAction(
     } finally {
       client.release();
     }
-  } catch (error) {
+  } catch (_error) {
     console.error('Error adjusting stock:', error);
     return { item: null, error: 'Failed to adjust stock' };
   }
@@ -395,7 +395,7 @@ export async function deleteInventoryItemAction(id: string): Promise<{ success: 
     }
 
     return { success: true };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error deleting inventory item:', error);
     return { success: false, error: 'Failed to delete inventory item' };
   }

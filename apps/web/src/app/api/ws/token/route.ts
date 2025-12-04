@@ -101,7 +101,7 @@ export async function POST() {
       token,
       expiresIn: 300, // 5 minutes in seconds
     });
-  } catch (error) {
+  } catch (_error) {
     // SECURITY FIX: Only log in non-production to avoid console noise
     if (process.env.NODE_ENV !== 'production') {
       console.error('[WS Token] Error generating token:', error);

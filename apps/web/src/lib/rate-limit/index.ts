@@ -210,7 +210,7 @@ export async function checkRateLimit(
  *
  * try {
  *   await limitedAction(userId);
- * } catch (error) {
+ * } catch (_error) {
  *   if (error instanceof RateLimitError) {
  *     console.log('Rate limited:', error.rateLimitResult);
  *   }

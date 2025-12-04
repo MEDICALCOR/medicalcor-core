@@ -192,7 +192,7 @@ export async function getDocumentsAction(
     const result = await database.query<DocumentRow>(query, params);
 
     return { documents: result.rows.map(rowToDocument) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching documents:', error);
     return { documents: [], error: 'Failed to fetch documents' };
   }
@@ -213,7 +213,7 @@ export async function getFoldersAction(): Promise<{ folders: DocumentFolder[]; e
     );
 
     return { folders: result.rows.map(rowToFolder) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching folders:', error);
     return { folders: [], error: 'Failed to fetch folders' };
   }
@@ -256,7 +256,7 @@ export async function getDocumentStatsAction(): Promise<{ stats: DocumentStats |
         usedPercentage,
       },
     };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching document stats:', error);
     return { stats: null, error: 'Failed to fetch document stats' };
   }
@@ -295,7 +295,7 @@ export async function createDocumentRecordAction(
     );
 
     return { document: rowToDocument(result.rows[0]) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error creating document record:', error);
     return { document: null, error: 'Failed to create document record' };
   }
@@ -319,7 +319,7 @@ export async function createFolderAction(
     );
 
     return { folder: rowToFolder(result.rows[0]) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error creating folder:', error);
     return { folder: null, error: 'Failed to create folder' };
   }
@@ -376,7 +376,7 @@ export async function updateDocumentAction(
     }
 
     return { document: rowToDocument(result.rows[0]) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error updating document:', error);
     return { document: null, error: 'Failed to update document' };
   }
@@ -399,7 +399,7 @@ export async function deleteDocumentAction(id: string): Promise<{ success: boole
     }
 
     return { success: true };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error deleting document:', error);
     return { success: false, error: 'Failed to delete document' };
   }
@@ -432,7 +432,7 @@ export async function deleteFolderAction(id: string): Promise<{ success: boolean
     await database.query(`DELETE FROM document_folders WHERE id = $1 AND clinic_id = $2`, [id, user.clinicId]);
 
     return { success: true };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error deleting folder:', error);
     return { success: false, error: 'Failed to delete folder' };
   }

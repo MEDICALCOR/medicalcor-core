@@ -139,7 +139,7 @@ export async function getRemindersAction(): Promise<{ reminders: Reminder[]; err
     );
 
     return { reminders: result.rows.map(rowToReminder) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching reminders:', error);
     return { reminders: [], error: 'Failed to fetch reminders' };
   }
@@ -179,7 +179,7 @@ export async function getReminderStatsAction(): Promise<{ stats: ReminderStats |
         deliveryRate: parseFloat(row.delivery_rate),
       },
     };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error fetching reminder stats:', error);
     return { stats: null, error: 'Failed to fetch reminder stats' };
   }
@@ -215,7 +215,7 @@ export async function createReminderAction(
     );
 
     return { reminder: rowToReminder(result.rows[0]) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error creating reminder:', error);
     return { reminder: null, error: 'Failed to create reminder' };
   }
@@ -279,7 +279,7 @@ export async function updateReminderAction(
     }
 
     return { reminder: rowToReminder(result.rows[0]) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error updating reminder:', error);
     return { reminder: null, error: 'Failed to update reminder' };
   }
@@ -304,7 +304,7 @@ export async function toggleReminderAction(id: string): Promise<{ reminder: Remi
     }
 
     return { reminder: rowToReminder(result.rows[0]) };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error toggling reminder:', error);
     return { reminder: null, error: 'Failed to toggle reminder' };
   }
@@ -326,7 +326,7 @@ export async function deleteReminderAction(id: string): Promise<{ success: boole
     }
 
     return { success: true };
-  } catch (error) {
+  } catch (_error) {
     console.error('Error deleting reminder:', error);
     return { success: false, error: 'Failed to delete reminder' };
   }
