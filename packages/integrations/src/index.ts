@@ -96,6 +96,20 @@ export {
 } from './vapi.js';
 
 export {
+  FlexClient,
+  createFlexClient,
+  getFlexCredentials,
+  type FlexClientConfig,
+  type CreateTaskInput,
+  type UpdateWorkerInput,
+  type CreateConferenceInput,
+  type AddParticipantInput,
+  type SupervisorMonitorInput,
+  type QueueStats,
+  type WorkerStats,
+} from './flex.js';
+
+export {
   StripeClient,
   MockStripeClient,
   createStripeClient,

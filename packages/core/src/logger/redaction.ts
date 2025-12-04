@@ -17,142 +17,148 @@
  */
 export const REDACTION_PATHS: string[] = [
   // Direct PII fields
-  "phone",
-  "phoneNumber",
-  "phone_number",
-  "mobile",
-  "telephone",
-  "email",
-  "emailAddress",
-  "email_address",
+  'phone',
+  'phoneNumber',
+  'phone_number',
+  'mobile',
+  'telephone',
+  'email',
+  'emailAddress',
+  'email_address',
 
   // Personal identifiers
-  "firstName",
-  "first_name",
-  "lastName",
-  "last_name",
-  "fullName",
-  "full_name",
-  "name",
-  "dateOfBirth",
-  "date_of_birth",
-  "dob",
-  "ssn",
-  "socialSecurityNumber",
-  "cnp", // Romanian personal ID (Cod Numeric Personal)
+  'firstName',
+  'first_name',
+  'lastName',
+  'last_name',
+  'fullName',
+  'full_name',
+  'name',
+  'dateOfBirth',
+  'date_of_birth',
+  'dob',
+  'ssn',
+  'socialSecurityNumber',
+  'cnp', // Romanian personal ID (Cod Numeric Personal)
 
   // Medical information (HIPAA PHI)
-  "diagnosis",
-  "symptoms",
-  "medications",
-  "allergies",
-  "medicalHistory",
-  "medical_history",
-  "insurance",
-  "insuranceNumber",
-  "insurance_number",
+  'diagnosis',
+  'symptoms',
+  'medications',
+  'allergies',
+  'medicalHistory',
+  'medical_history',
+  'insurance',
+  'insuranceNumber',
+  'insurance_number',
 
   // Address information
-  "address",
-  "streetAddress",
-  "street_address",
-  "city",
-  "zipCode",
-  "zip_code",
-  "postalCode",
-  "postal_code",
+  'address',
+  'streetAddress',
+  'street_address',
+  'city',
+  'zipCode',
+  'zip_code',
+  'postalCode',
+  'postal_code',
 
   // Authentication/credentials
-  "password",
-  "token",
-  "accessToken",
-  "access_token",
-  "refreshToken",
-  "refresh_token",
-  "apiKey",
-  "api_key",
-  "secret",
-  "authorization",
+  'password',
+  'token',
+  'accessToken',
+  'access_token',
+  'refreshToken',
+  'refresh_token',
+  'apiKey',
+  'api_key',
+  'secret',
+  'authorization',
 
   // Nested paths (common in request/response bodies)
-  "req.body.phone",
-  "req.body.email",
-  "req.body.name",
-  "req.body.firstName",
-  "req.body.lastName",
-  "req.headers.authorization",
-  "res.body.phone",
-  "res.body.email",
+  'req.body.phone',
+  'req.body.email',
+  'req.body.name',
+  'req.body.firstName',
+  'req.body.lastName',
+  'req.headers.authorization',
+  'res.body.phone',
+  'res.body.email',
 
   // WhatsApp specific
-  "from",
-  "to",
-  "wa_id",
-  "profile.name",
+  'from',
+  'to',
+  'wa_id',
+  'profile.name',
 
   // Voice/Vapi specific
-  "customerPhone",
-  "customer.number",
-  "phoneNumber.number",
-  "callerPhone",
-  "recipientPhone",
-  "recipientId",
+  'customerPhone',
+  'customer.number',
+  'phoneNumber.number',
+  'callerPhone',
+  'recipientPhone',
+  'recipientId',
 
   // Lead context demographics - explicit enumeration (from PatientDemographicsSchema)
   // SECURITY: Explicitly enumerate instead of using wildcards to prevent field omission
-  "demographics.firstName",
-  "demographics.lastName",
-  "demographics.dateOfBirth",
-  "demographics.gender",
-  "demographics.city",
-  "demographics.county",
+  'demographics.firstName',
+  'demographics.lastName',
+  'demographics.dateOfBirth',
+  'demographics.gender',
+  'demographics.city',
+  'demographics.county',
 
   // Lead context medical data - explicit enumeration (from MedicalContextSchema)
   // SECURITY: HIPAA PHI - must be explicitly enumerated for audit compliance
-  "medicalContext.primarySymptoms",
-  "medicalContext.symptomDuration",
-  "medicalContext.urgencyLevel",
-  "medicalContext.preferredSpecialty",
-  "medicalContext.hasInsurance",
-  "medicalContext.insuranceProvider",
-  "medicalContext.previousTreatments",
-  "medicalContext.allergies",
-  "medicalContext.currentMedications",
+  'medicalContext.primarySymptoms',
+  'medicalContext.symptomDuration',
+  'medicalContext.urgencyLevel',
+  'medicalContext.preferredSpecialty',
+  'medicalContext.hasInsurance',
+  'medicalContext.insuranceProvider',
+  'medicalContext.previousTreatments',
+  'medicalContext.allergies',
+  'medicalContext.currentMedications',
 
-  // Conversation history content - explicit array indices
+  // Conversation history content - explicit array indices (0-99 for deep history)
   // SECURITY: Enumerate reasonable range instead of wildcard for predictable redaction
-  "conversationHistory[0].content",
-  "conversationHistory[1].content",
-  "conversationHistory[2].content",
-  "conversationHistory[3].content",
-  "conversationHistory[4].content",
-  "conversationHistory[5].content",
-  "conversationHistory[6].content",
-  "conversationHistory[7].content",
-  "conversationHistory[8].content",
-  "conversationHistory[9].content",
-  "conversationHistory[10].content",
-  "conversationHistory[11].content",
-  "conversationHistory[12].content",
-  "conversationHistory[13].content",
-  "conversationHistory[14].content",
-  "conversationHistory[15].content",
-  "conversationHistory[16].content",
-  "conversationHistory[17].content",
-  "conversationHistory[18].content",
-  "conversationHistory[19].content",
+  // Extended to 100 indices for comprehensive conversation history redaction
+  ...generateConversationHistoryPaths(100),
+
   // Additional nested content paths for deep structures
-  "content", // Generic content field fallback
-  "message.content",
-  "messages.content",
+  'content', // Generic content field fallback
+  'message.content',
+  'messages.content',
+  'messages[*].content', // Array of messages
+
+  // Nested conversation structures (AI context, RAG, etc.)
+  'context.conversationHistory[*].content',
+  'context.messages[*].content',
+  'aiContext.history[*].content',
+  'ragContext.messages[*].content',
 ];
+
+/**
+ * Generate conversation history redaction paths for a given depth
+ * Provides explicit enumeration for indices 0 to (count-1)
+ */
+function generateConversationHistoryPaths(count: number): string[] {
+  const paths: string[] = [];
+  for (let i = 0; i < count; i++) {
+    paths.push(`conversationHistory[${i}].content`);
+    // Also cover nested message structures
+    paths.push(`messages[${i}].content`);
+    paths.push(`context.messages[${i}].content`);
+    paths.push(`history[${i}].content`);
+  }
+  return paths;
+}
 
 /**
  * Create redaction censor function
  * Returns a masked value that indicates redaction occurred
  */
 export function createCensor(_value: unknown, path: string[]): string {
-  const fieldName = path[path.length - 1] ?? "unknown";
+  const fieldName = path[path.length - 1] ?? 'unknown';
   return `[REDACTED:${fieldName}]`;
 }
 
@@ -183,16 +189,16 @@ export function redactString(value: string): string {
   let result = value;
 
   // Redact phone numbers
-  result = result.replace(PII_PATTERNS.romanianPhone, "[REDACTED:phone]");
+  result = result.replace(PII_PATTERNS.romanianPhone, '[REDACTED:phone]');
 
   // Redact emails
-  result = result.replace(PII_PATTERNS.email, "[REDACTED:email]");
+  result = result.replace(PII_PATTERNS.email, '[REDACTED:email]');
 
   // Redact CNP
-  result = result.replace(PII_PATTERNS.cnp, "[REDACTED:cnp]");
+  result = result.replace(PII_PATTERNS.cnp, '[REDACTED:cnp]');
 
   // Redact credit cards
-  result = result.replace(PII_PATTERNS.creditCard, "[REDACTED:card]");
+  result = result.replace(PII_PATTERNS.creditCard, '[REDACTED:card]');
 
   return result;
 }

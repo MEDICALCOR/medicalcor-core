@@ -8,7 +8,15 @@ export {
 } from './logger.js';
 
 // PII Masking utilities for safe logging (HIPAA/GDPR compliant)
-export { maskPhone, maskEmail, maskName } from './logger/redaction.js';
+export {
+  maskPhone,
+  maskEmail,
+  maskName,
+  redactString,
+  PII_PATTERNS,
+  REDACTION_PATHS,
+  shouldRedactPath,
+} from './logger/redaction.js';
 
 export {
   AppError,
@@ -96,6 +104,16 @@ export {
   getTodayString,
   getCurrentHourString,
 } from './idempotency.js';
+
+// Redis-backed Idempotency Cache (distributed deduplication)
+export {
+  IdempotencyCache,
+  createIdempotencyCache,
+  createIdempotencyCacheFromEnv,
+  type IdempotencyCacheConfig,
+  type IdempotencyCheckResult,
+  type IdempotencyCacheStats,
+} from './idempotency-cache.js';
 
 export {
   createDatabaseClient,

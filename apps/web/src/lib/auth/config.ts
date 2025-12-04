@@ -38,8 +38,31 @@ export const authConfig: NextAuthConfig = {
   },
 
   callbacks: {
+    /**
+     * Authorization callback - determines access to routes
+     * Uses explicit public paths allowlist for Platinum security standard
+     */
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
+
+      // Explicit public paths allowlist (Platinum Standard: fail-closed with clear allowlist)
+      const publicPaths = [
+        '/login',
+        '/offline',
+        '/api/auth',
+        '/privacy',
+        '/terms',
+        '/health',
+        '/robots.txt',
+        '/sitemap.xml',
+        '/favicon.ico',
+      ];
+
+      const isPublicPath = publicPaths.some(
+        (path) => nextUrl.pathname === path || nextUrl.pathname.startsWith(`${path}/`)
+      );
+
+      // Allow access to public paths for all users
       const pathname = nextUrl.pathname;
 
       // Explicitly define public paths (allowlist approach for clarity)
@@ -55,6 +78,13 @@ export const authConfig: NextAuthConfig = {
         return true;
       }
 
+      // All non-public paths require authentication (fail-closed)
+      if (!isLoggedIn) {
+        return false; // Redirect to login
+      }
+
+      // Logged-in users on login page should redirect to dashboard
+      if (nextUrl.pathname === '/login') {
       // All non-public paths require authentication
       if (!isLoggedIn) {
         return false; // Redirect unauthenticated users to login
@@ -69,7 +99,15 @@ export const authConfig: NextAuthConfig = {
       return true;
     },
 
+    /**
+     * JWT callback - extends token with user data
+     *
+     * NOTE: The `user` check is required at runtime despite TypeScript types.
+     * NextAuth only passes `user` on initial sign-in (when JWT is created),
+     * not on subsequent token refreshes. The types don't reflect this behavior.
+     */
     jwt({ token, user }) {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime check required by NextAuth
       // Runtime guard: user is only defined during sign-in, not on subsequent requests
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- user may be undefined at runtime
       if (user) {
@@ -81,7 +119,15 @@ export const authConfig: NextAuthConfig = {
       return token;
     },
 
+    /**
+     * Session callback - extends session with token data
+     *
+     * NOTE: The `session.user && token.sub` check is a defensive guard.
+     * While types suggest these are always present, we verify at runtime
+     * for additional safety in a medical/HIPAA context.
+     */
     session({ session, token }) {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard for medical compliance
       // Runtime guard: defensive check for edge cases where session.user may be undefined
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime safety
       if (session.user && token.sub) {
@@ -109,6 +155,7 @@ export const authConfig: NextAuthConfig = {
 
         const { email, password } = parsed.data;
 
+        // Extract request context for audit logging (HIPAA/Medical compliance)
         // Extract request context for audit logging (HIPAA/GDPR compliance)
         const context = {
           ipAddress:
@@ -120,6 +167,18 @@ export const authConfig: NextAuthConfig = {
 
         const user = await validateCredentials(email, password, context);
 
+        // PLATINUM STANDARD: Log all login attempts for medical compliance auditing
+        // This is mandatory for HIPAA and GDPR audit trails
+        try {
+          await logAuthEvent(user ? 'login_success' : 'login_failure', user?.id, email, context);
+        } catch {
+          // Event logging should never block authentication
+          // But note: in production, failed logging should trigger alerts
+          console.error('[Auth] Failed to log authentication event', {
+            email: email.replace(/(.{2}).*@/, '$1***@'),
+            success: !!user,
+          });
+        }
         // Log authentication attempt for compliance audit trail
         // Fire-and-forget: don't block auth flow on logging
         void logAuthEvent(user ? 'login_success' : 'login_failure', user?.id, email, context);
