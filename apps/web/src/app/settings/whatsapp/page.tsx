@@ -96,7 +96,6 @@ export default function WhatsAppTemplatesPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    loadData();
     void loadData();
   }, []);
 
@@ -109,7 +108,6 @@ export default function WhatsAppTemplatesPage() {
       ]);
       setTemplates(templatesData);
       setStats(statsData);
-    } catch (error) {
     } catch {
       toast({
         title: 'Eroare',
@@ -136,7 +134,6 @@ export default function WhatsAppTemplatesPage() {
     setIsDialogOpen(true);
   };
 
-  const handleCreateOrUpdate = async () => {
   const handleCreateOrUpdate = () => {
     if (!formName || !formContent) {
       toast({
@@ -166,8 +163,6 @@ export default function WhatsAppTemplatesPage() {
             name: formName,
             category: formCategory,
             content: formContent,
-            language: 'ro', // Romanian
-            variables: [], // Extract from content if needed
             language: 'ro',
             variables: [],
           });
@@ -190,7 +185,6 @@ export default function WhatsAppTemplatesPage() {
     });
   };
 
-  const handleDelete = async (id: string) => {
   const handleDelete = (id: string) => {
     startTransition(async () => {
       try {
@@ -201,7 +195,6 @@ export default function WhatsAppTemplatesPage() {
           description: 'Template-ul a fost șters',
         });
         await loadData();
-      } catch (error) {
       } catch {
         toast({
           title: 'Eroare',
@@ -212,7 +205,6 @@ export default function WhatsAppTemplatesPage() {
     });
   };
 
-  const handleDuplicate = async (id: string) => {
   const handleDuplicate = (id: string) => {
     startTransition(async () => {
       try {
@@ -222,7 +214,6 @@ export default function WhatsAppTemplatesPage() {
           title: 'Succes',
           description: 'Template-ul a fost duplicat',
         });
-      } catch (error) {
       } catch {
         toast({
           title: 'Eroare',
@@ -282,7 +273,6 @@ export default function WhatsAppTemplatesPage() {
                   <Input
                     placeholder="ex: confirmare_programare"
                     value={formName}
-                    onChange={(e) => setFormName(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_'))}
                     onChange={(e) =>
                       setFormName(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_'))
                     }
@@ -413,12 +403,6 @@ export default function WhatsAppTemplatesPage() {
                             Motiv respingere: {template.rejectionReason}
                           </p>
                         )}
-                        <div className="mt-3 p-3 bg-muted/50 rounded text-sm">
-                          {template.content}
-                        </div>
-                        <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-                          <span>
-                            Variabile: {template.variables.map((v) => `{{${v}}}`).join(', ') || 'Niciuna'}
                         <div className="mt-3 p-3 bg-muted/50 rounded text-sm">
                           {template.content}
                         </div>

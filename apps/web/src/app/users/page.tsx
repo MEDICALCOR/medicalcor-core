@@ -74,12 +74,10 @@ const rolePermissions: Record<UserRole, string[]> = {
   doctor: ['Vizualizare pacienți', 'Editare fișe', 'Programări', 'Mesaje'],
   receptionist: ['Vizualizare pacienți', 'Programări'],
   staff: ['Vizualizare pacienți', 'Programări de bază'],
-  staff: ['Vizualizare pacienți', 'Programări', 'Mesaje', 'Triage'],
 };
 
 function formatRelativeTime(date: Date | null): string {
   if (!date) return 'Niciodată';
-  const diffMs = Date.now() - new Date(date).getTime();
   const d = new Date(date);
   const diffMs = Date.now() - d.getTime();
   const diffMins = Math.floor(diffMs / 60000);
@@ -101,7 +99,6 @@ function getInitials(name: string): string {
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
-  const [stats, setStats] = useState<UserStats | null>(null);
   const [stats, setStats] = useState<UserStats>({
     totalUsers: 0,
     activeUsers: 0,
@@ -114,7 +111,6 @@ export default function UsersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
 
-  // Form state for new user
   // Form state
   const [formName, setFormName] = useState('');
   const [formEmail, setFormEmail] = useState('');
@@ -125,23 +121,18 @@ export default function UsersPage() {
 
   useEffect(() => {
     void loadData();
-    loadData();
   }, []);
 
   async function loadData() {
     try {
       setIsLoading(true);
-      const [usersData, statsData] = await Promise.all([getUsersAction(), getUserStatsAction()]);
-      setUsers(usersData);
-      setStats(statsData);
-    } catch {
       const [usersData, statsData] = await Promise.all([
         getUsersAction(),
         getUserStatsAction(),
       ]);
       setUsers(usersData);
       setStats(statsData);
-    } catch (error) {
+    } catch {
       toast({
         title: 'Eroare',
         description: 'Nu s-au putut încărca utilizatorii',
@@ -173,12 +164,6 @@ export default function UsersPage() {
         const newStatus = user.status === 'active' ? 'inactive' : 'active';
         await updateUserAction({ id: user.id, status: newStatus });
         setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, status: newStatus } : u)));
-  const handleToggleActive = async (id: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-    startTransition(async () => {
-      try {
-        const updated = await updateUserAction({ id, status: newStatus as 'active' | 'inactive' });
-        setUsers((prev) => prev.map((u) => (u.id === id ? updated : u)));
         toast({
           title: 'Succes',
           description: `Utilizatorul a fost ${newStatus === 'active' ? 'activat' : 'dezactivat'}`,
@@ -186,68 +171,7 @@ export default function UsersPage() {
       } catch {
         toast({
           title: 'Eroare',
-          description: 'Nu s-a putut actualiza statusul',
-      } catch (error) {
-        toast({
-          title: 'Eroare',
           description: 'Nu s-a putut actualiza starea utilizatorului',
-          variant: 'destructive',
-        });
-      }
-    });
-  };
-
-  const handleCreateUser = async () => {
-    if (!formName || !formEmail || !formPassword) {
-      toast({
-        title: 'Eroare',
-        description: 'Completează toate câmpurile obligatorii',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    startTransition(async () => {
-      try {
-        const newUser = await createUserAction({
-          name: formName,
-          email: formEmail,
-          password: formPassword,
-          role: formRole,
-        });
-        setUsers((prev) => [newUser, ...prev]);
-        setIsAddingUser(false);
-        resetForm();
-        await loadData();
-        toast({
-          title: 'Succes',
-          description: 'Utilizatorul a fost creat',
-        });
-      } catch (error) {
-        toast({
-          title: 'Eroare',
-          description: 'Nu s-a putut crea utilizatorul',
-          variant: 'destructive',
-        });
-      }
-    });
-  };
-
-  const handleDelete = (id: string) => {
-  const handleDelete = async (id: string) => {
-    startTransition(async () => {
-      try {
-        await deleteUserAction(id);
-        setUsers((prev) => prev.filter((u) => u.id !== id));
-        await loadData();
-        toast({
-          title: 'Succes',
-          description: 'Utilizatorul a fost șters',
-        });
-      } catch {
-        toast({
-          title: 'Eroare',
-          description: 'Nu s-a putut șterge utilizatorul',
           variant: 'destructive',
         });
       }
@@ -275,16 +199,32 @@ export default function UsersPage() {
         setUsers((prev) => [newUser, ...prev]);
         setIsAddingUser(false);
         resetForm();
+        await loadData();
         toast({
           title: 'Succes',
           description: 'Utilizatorul a fost creat cu succes',
         });
-        await loadData(); // Refresh stats
       } catch (error) {
         toast({
           title: 'Eroare',
           description: error instanceof Error ? error.message : 'Nu s-a putut crea utilizatorul',
-      } catch (error) {
+          variant: 'destructive',
+        });
+      }
+    });
+  };
+
+  const handleDelete = (id: string) => {
+    startTransition(async () => {
+      try {
+        await deleteUserAction(id);
+        setUsers((prev) => prev.filter((u) => u.id !== id));
+        await loadData();
+        toast({
+          title: 'Succes',
+          description: 'Utilizatorul a fost șters',
+        });
+      } catch {
         toast({
           title: 'Eroare',
           description: 'Nu s-a putut șterge utilizatorul',
@@ -304,8 +244,6 @@ export default function UsersPage() {
     );
   }
 
-  const activeCount = users.filter((u) => u.status === 'active').length;
-
   return (
     <PagePermissionGate pathname="/users">
       <div className="space-y-6">
@@ -319,7 +257,6 @@ export default function UsersPage() {
             <p className="text-muted-foreground mt-1">Gestionează utilizatorii și permisiunile</p>
           </div>
           <Button onClick={() => setIsAddingUser(true)} disabled={isPending}>
-          <Button onClick={() => setIsAddingUser(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Utilizator nou
           </Button>
@@ -330,30 +267,24 @@ export default function UsersPage() {
           <Card>
             <CardContent className="p-4">
               <div className="text-sm text-muted-foreground">Total utilizatori</div>
-              <div className="text-2xl font-bold">{stats?.totalUsers ?? users.length}</div>
               <div className="text-2xl font-bold">{stats.totalUsers}</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <div className="text-sm text-muted-foreground">Activi</div>
-              <div className="text-2xl font-bold text-green-600">
-                {stats?.activeUsers ?? activeCount}
-              </div>
               <div className="text-2xl font-bold text-green-600">{stats.activeUsers}</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <div className="text-sm text-muted-foreground">Medici</div>
-              <div className="text-2xl font-bold">{stats?.byRole.doctor ?? 0}</div>
               <div className="text-2xl font-bold">{stats.byRole.doctor}</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <div className="text-sm text-muted-foreground">Personal</div>
-              <div className="text-2xl font-bold">{stats?.byRole.staff ?? 0}</div>
               <div className="text-2xl font-bold">{stats.byRole.staff + stats.byRole.receptionist}</div>
             </CardContent>
           </Card>
@@ -397,13 +328,6 @@ export default function UsersPage() {
             <CardTitle>Lista utilizatori ({filteredUsers.length})</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {filteredUsers.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Nu există utilizatori care să corespundă filtrelor
-                </p>
-              ) : (
-                filteredUsers.map((user) => (
             {filteredUsers.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -423,7 +347,6 @@ export default function UsersPage() {
                       <Avatar className="h-12 w-12">
                         <AvatarFallback className="bg-primary/10 text-primary">
                           {getInitials(user.name)}
-                          {user.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
                         </AvatarFallback>
                       </Avatar>
                       <div>
@@ -445,10 +368,6 @@ export default function UsersPage() {
                           </span>
                           {user.clinicName && (
                             <span className="text-xs">Clinică: {user.clinicName}</span>
-                            <span className="flex items-center gap-1">
-                              <Phone className="h-3 w-3" />
-                              {user.clinicName}
-                            </span>
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
@@ -463,86 +382,6 @@ export default function UsersPage() {
                         <Switch
                           checked={user.status === 'active'}
                           onCheckedChange={() => handleToggleActive(user)}
-                          disabled={isPending}
-                        />
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setSelectedUser(user)}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Editează
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setSelectedUser(user)}>
-                            <Shield className="h-4 w-4 mr-2" />
-                            Permisiuni
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => handleDelete(user.id)}
-                            className="text-red-600"
-                            disabled={isPending}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Șterge
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Add User Dialog */}
-        <Dialog open={isAddingUser} onOpenChange={setIsAddingUser}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Adaugă utilizator nou</DialogTitle>
-              <DialogDescription>Completează datele pentru noul utilizator</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Nume complet *</Label>
-                <Input
-                  placeholder="ex: Ion Popescu"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Email *</Label>
-                <Input
-                  type="email"
-                  placeholder="email@exemplu.ro"
-                  value={formEmail}
-                  onChange={(e) => setFormEmail(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Parolă *</Label>
-                <Input
-                  type="password"
-                  placeholder="Minim 8 caractere"
-                  value={formPassword}
-                  onChange={(e) => setFormPassword(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Rol *</Label>
-
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">Activ</span>
-                        <Switch
-                          checked={user.status === 'active'}
-                          onCheckedChange={() => handleToggleActive(user.id, user.status)}
                           disabled={isPending}
                         />
                       </div>
@@ -618,7 +457,7 @@ export default function UsersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Rol</Label>
+                <Label>Rol *</Label>
                 <Select value={formRole} onValueChange={(v) => setFormRole(v as UserRole)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selectează rol" />
@@ -637,7 +476,6 @@ export default function UsersPage() {
                   onClick={() => setIsAddingUser(false)}
                   disabled={isPending}
                 >
-                <Button variant="outline" onClick={() => setIsAddingUser(false)}>
                   Anulează
                 </Button>
                 <Button onClick={handleCreateUser} disabled={isPending}>
@@ -654,9 +492,6 @@ export default function UsersPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Permisiuni - {selectedUser?.name}</DialogTitle>
-              <DialogTitle>
-                Permisiuni - {selectedUser?.name}
-              </DialogTitle>
               <DialogDescription>
                 Rol curent: {selectedUser && roleLabels[selectedUser.role]}
               </DialogDescription>

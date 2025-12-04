@@ -3,7 +3,6 @@
 import { z } from 'zod';
 import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
 import { requirePermission, requireCurrentUser } from '@/lib/auth/server-action-auth';
-import { requirePermission, getCurrentUser } from '@/lib/auth/server-action-auth';
 
 /**
  * Server Actions for Clinic Management
@@ -177,7 +176,6 @@ export async function getClinicByIdAction(id: string): Promise<Clinic | null> {
  */
 export async function getCurrentClinicAction(): Promise<Clinic | null> {
   const user = await requireCurrentUser();
-  const user = await getCurrentUser();
   if (!user?.clinicId) {
     return null;
   }

@@ -3,7 +3,6 @@
 import { z } from 'zod';
 import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
 import { requirePermission, requireCurrentUser } from '@/lib/auth/server-action-auth';
-import { requirePermission, getCurrentUser } from '@/lib/auth/server-action-auth';
 import bcrypt from 'bcryptjs';
 
 /**
@@ -112,7 +111,6 @@ function rowToUser(row: UserRow): User {
 export async function getUsersAction(clinicId?: string): Promise<User[]> {
   await requirePermission('users:read');
   const user = await requireCurrentUser();
-  const user = await getCurrentUser();
 
   const database = getDatabase();
 
@@ -176,7 +174,6 @@ export async function getUserByIdAction(id: string): Promise<User | null> {
 export async function getUserStatsAction(): Promise<UserStats> {
   await requirePermission('users:read');
   const user = await requireCurrentUser();
-  const user = await getCurrentUser();
 
   const database = getDatabase();
 
@@ -227,7 +224,6 @@ export async function getUserStatsAction(): Promise<UserStats> {
 export async function createUserAction(data: z.infer<typeof CreateUserSchema>): Promise<User> {
   await requirePermission('users:write');
   const currentUser = await requireCurrentUser();
-  const currentUser = await getCurrentUser();
 
   const parsed = CreateUserSchema.parse(data);
   const database = getDatabase();

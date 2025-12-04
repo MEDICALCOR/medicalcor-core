@@ -11,6 +11,8 @@
  * @security API keys are never exposed to the client - server actions only
  */
 
+import 'server-only';
+
 import {
   HubSpotClient,
   StripeClient,

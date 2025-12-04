@@ -18,6 +18,8 @@ const withPWA = withPWAInit({
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@medicalcor/core', '@medicalcor/domain', '@medicalcor/types', '@medicalcor/integrations'],
+  // External packages that should not be bundled (Node.js only)
+  serverExternalPackages: ['ioredis', 'pg', 'bcryptjs', 'pino', '@opentelemetry/api', '@opentelemetry/sdk-node'],
   experimental: {
     // Note: PPR (Partial Prerendering) requires Next.js canary version
     // Disabled for stable 15.5.7 - can be re-enabled when canary is stable
