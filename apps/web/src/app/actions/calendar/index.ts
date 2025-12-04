@@ -151,7 +151,7 @@ export async function getAvailableSlotsRangeAction(
     const end = new Date(endDate);
 
     while (current <= end) {
-      dates.push(current.toISOString().split('T')[0]!);
+      dates.push(current.toISOString().split('T')[0]);
       current.setDate(current.getDate() + 1);
     }
 

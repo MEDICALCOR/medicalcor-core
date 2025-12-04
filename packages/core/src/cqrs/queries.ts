@@ -398,6 +398,7 @@ export function createGetLeadAnalyticsHandler(deps: QueryHandlerDeps): QueryHand
       case 'day':
       case 'week':
       case 'month':
+      case undefined:
       default:
         // Already have daily metrics
         for (const metric of filteredMetrics) {

@@ -25,8 +25,14 @@ export interface TraceContext {
  */
 export function extractTraceContext(carrier: TraceContext): Context {
   return propagator.extract(context.active(), carrier, {
-    get: (carrier, key) => carrier[key as keyof TraceContext],
-    keys: (carrier) => Object.keys(carrier) as (keyof TraceContext)[],
+    get: (_carrier, key) => {
+      const typedCarrier = _carrier as TraceContext;
+      return typedCarrier[key as keyof TraceContext];
+    },
+    keys: (_carrier) => {
+      const typedCarrier = _carrier as TraceContext;
+      return Object.keys(typedCarrier) as (keyof TraceContext)[];
+    },
   });
 }
 
@@ -36,8 +42,11 @@ export function extractTraceContext(carrier: TraceContext): Context {
  */
 export function injectTraceContext(carrier: TraceContext = {}): TraceContext {
   propagator.inject(context.active(), carrier, {
-    set: (carrier, key, value) => {
-      carrier[key as keyof TraceContext] = value;
+    set: (_carrier, key, value) => {
+      const typedCarrier = _carrier as TraceContext;
+      if (key === 'traceparent' || key === 'tracestate') {
+        typedCarrier[key] = value;
+      }
     },
   });
   return carrier;
@@ -54,9 +63,9 @@ export function getTriggerTracer(taskName?: string): Tracer {
  * Execute a task function within a traced span
  * Automatically extracts trace context from the payload if available
  */
-export async function withTaskSpan<T, P extends TraceContext>(
+export async function withTaskSpan<T>(
   taskName: string,
-  payload: P,
+  payload: TraceContext,
   fn: (span: Span) => Promise<T>
 ): Promise<T> {
   const tracer = getTriggerTracer(taskName);

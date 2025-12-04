@@ -145,7 +145,7 @@ export class DeadLetterQueueService {
     } = options;
 
     const id = randomUUID();
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = error instanceof Error ? error.message : (typeof error === 'string' ? error : JSON.stringify(error));
     const errorStack = error instanceof Error ? error.stack : undefined;
     const now = new Date();
     const expiresAt = new Date(now.getTime() + ttlDays * 24 * 60 * 60 * 1000);
@@ -462,7 +462,7 @@ export class DeadLetterQueueService {
       correlationId: row.correlation_id as string,
       payload:
         typeof row.payload === 'string'
-          ? JSON.parse(row.payload)
+          ? (JSON.parse(row.payload) as Record<string, unknown>)
           : (row.payload as Record<string, unknown>),
       errorMessage: row.error_message as string,
       errorStack: row.error_stack as string | undefined,
@@ -475,7 +475,7 @@ export class DeadLetterQueueService {
       expiresAt: new Date(row.expires_at as string),
       metadata:
         typeof row.metadata === 'string'
-          ? JSON.parse(row.metadata)
+          ? (JSON.parse(row.metadata) as Record<string, unknown>)
           : (row.metadata as Record<string, unknown>),
       createdAt: new Date(row.created_at as string),
       updatedAt: new Date(row.updated_at as string),

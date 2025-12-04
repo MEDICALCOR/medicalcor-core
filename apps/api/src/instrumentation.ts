@@ -46,7 +46,7 @@ if (!isDisabled) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
     resource: resource as any,
     // Note: Type assertion needed due to OpenTelemetry version mismatches between packages
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument
     spanProcessor: new BatchSpanProcessor(exporter as any) as any,
     textMapPropagator: new W3CTraceContextPropagator(),
     instrumentations: [

@@ -226,6 +226,7 @@ export class KnowledgeBaseRepository implements IKnowledgeBaseRepository {
 
     for (const [key, value] of Object.entries(updates)) {
       const snakeKey = this.camelToSnake(key);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime safety check for partial updates
       if (allowedFields.includes(snakeKey) && value !== undefined) {
         setClauses.push(`${snakeKey} = $${paramIndex}`);
         values.push(key === 'metadata' ? JSON.stringify(value) : value);

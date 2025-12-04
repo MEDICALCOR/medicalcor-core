@@ -16,7 +16,7 @@
 import { z } from 'zod';
 import crypto from 'crypto';
 import {
-  AdaptiveTimeoutManager,
+  type AdaptiveTimeoutManager,
   createAdaptiveTimeoutManager,
   type AIOperationType,
 } from './adaptive-timeout.js';
@@ -254,8 +254,8 @@ export interface AIMetricsRepository {
  */
 export class MultiProviderGateway {
   private config: MultiProviderGatewayConfig;
-  private providers: Map<AIProvider, ProviderConfig> = new Map();
-  private providerHealth: Map<AIProvider, ProviderHealth> = new Map();
+  private providers = new Map<AIProvider, ProviderConfig>();
+  private providerHealth = new Map<AIProvider, ProviderHealth>();
   private timeoutManager: AdaptiveTimeoutManager;
   private metrics: FallbackMetrics;
   private metricsRepository: AIMetricsRepository | null = null;
@@ -512,7 +512,7 @@ export class MultiProviderGateway {
     operation: AIOperationType
   ): Promise<Omit<CompletionResponse, 'usedFallback' | 'executionTimeMs'>> {
     const config = this.providers.get(provider);
-    if (!config || !config.enabled) {
+    if (!config?.enabled) {
       throw new Error(`Provider ${provider} is not available`);
     }
 
@@ -534,7 +534,7 @@ export class MultiProviderGateway {
         result = await this.callLocalLLM(config, options, model, timeoutConfig.timeoutMs);
         break;
       default:
-        throw new Error(`Unknown provider: ${provider}`);
+        throw new Error(`Unknown provider: ${provider as string}`);
     }
 
     // Calculate cost
@@ -591,12 +591,12 @@ export class MultiProviderGateway {
       }
 
       const data = (await response.json()) as {
-        choices: Array<{ message: { content: string } }>;
-        usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+        choices?: { message?: { content?: string } }[];
+        usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
       };
 
       return {
-        content: data.choices[0]?.message?.content ?? '',
+        content: data.choices?.[0]?.message?.content ?? '',
         tokensUsed: {
           prompt: data.usage?.prompt_tokens ?? 0,
           completion: data.usage?.completion_tokens ?? 0,
@@ -654,11 +654,11 @@ export class MultiProviderGateway {
       }
 
       const data = (await response.json()) as {
-        content: Array<{ type: string; text: string }>;
-        usage: { input_tokens: number; output_tokens: number };
+        content?: { type: string; text?: string }[];
+        usage?: { input_tokens?: number; output_tokens?: number };
       };
 
-      const content = data.content.find((c) => c.type === 'text')?.text ?? '';
+      const content = data.content?.find((c) => c.type === 'text')?.text ?? '';
 
       return {
         content,
@@ -715,11 +715,11 @@ export class MultiProviderGateway {
       }
 
       const data = (await response.json()) as {
-        message?: { content: string };
-        choices?: Array<{ message: { content: string } }>;
+        message?: { content?: string };
+        choices?: { message?: { content?: string } }[];
         prompt_eval_count?: number;
         eval_count?: number;
-        usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+        usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
       };
 
       // Handle both Ollama and OpenAI-compatible responses

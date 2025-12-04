@@ -12,7 +12,7 @@
  * - Schedules hard deletion after retention period
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { createDatabaseClient, withTransaction, type TransactionClient } from '@medicalcor/core';

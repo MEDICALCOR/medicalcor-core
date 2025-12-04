@@ -414,6 +414,12 @@ export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
           break;
         }
 
+        // Explicitly handle other expected event types (logged but not processed)
+        case 'payment_intent.canceled':
+        case 'customer.created':
+        case 'customer.updated':
+        case 'invoice.payment_failed':
+        case 'checkout.session.expired':
         default:
           fastify.log.info({ correlationId, eventType: event.type }, 'Unhandled Stripe event type');
       }
