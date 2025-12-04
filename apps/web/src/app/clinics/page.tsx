@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import {
   Building2,
   Plus,
@@ -13,6 +13,7 @@ import {
   MoreVertical,
   Star,
   TrendingUp,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,90 +35,132 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-
-interface Clinic {
-  id: string;
-  name: string;
-  address: string;
-  city: string;
-  phone: string;
-  email: string;
-  isMain: boolean;
-  isActive: boolean;
-  staffCount: number;
-  patientsCount: number;
-  appointmentsToday: number;
-  rating: number;
-}
-
-// SECURITY: Demo/placeholder data only - no real PII or addresses
-// These are fictional example clinics for UI demonstration purposes
-const clinics: Clinic[] = [
-  {
-    id: 'c1',
-    name: 'Demo Clinic Central',
-    address: 'Example Street 100',
-    city: 'Example City',
-    phone: '000 000 0001',
-    email: 'central@example.com',
-    isMain: true,
-    isActive: true,
-    staffCount: 12,
-    patientsCount: 2450,
-    appointmentsToday: 24,
-    rating: 4.9,
-  },
-  {
-    id: 'c2',
-    name: 'Demo Clinic North',
-    address: 'Example Boulevard 45',
-    city: 'Example City',
-    phone: '000 000 0002',
-    email: 'north@example.com',
-    isMain: false,
-    isActive: true,
-    staffCount: 8,
-    patientsCount: 1200,
-    appointmentsToday: 16,
-    rating: 4.7,
-  },
-  {
-    id: 'c3',
-    name: 'Demo Clinic Branch',
-    address: 'Sample Road 28',
-    city: 'Sample Town',
-    phone: '000 000 0003',
-    email: 'branch@example.com',
-    isMain: false,
-    isActive: true,
-    staffCount: 6,
-    patientsCount: 890,
-    appointmentsToday: 12,
-    rating: 4.8,
-  },
-  {
-    id: 'c4',
-    name: 'Demo Clinic Inactive',
-    address: 'Test Square 10',
-    city: 'Test City',
-    phone: '000 000 0004',
-    email: 'inactive@example.com',
-    isMain: false,
-    isActive: false,
-    staffCount: 0,
-    patientsCount: 0,
-    appointmentsToday: 0,
-    rating: 0,
-  },
-];
+import { useToast } from '@/hooks/use-toast';
+import {
+  getClinicsAction,
+  getClinicStatsAction,
+  createClinicAction,
+  updateClinicAction,
+  type Clinic,
+  type ClinicStats,
+} from '@/app/actions';
 
 export default function ClinicsPage() {
+  const [clinics, setClinics] = useState<Clinic[]>([]);
+  const [stats, setStats] = useState<ClinicStats>({
+    totalClinics: 0,
+    activeClinics: 0,
+    totalUsers: 0,
+  });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
 
-  const activeClinicCount = clinics.filter((c) => c.isActive).length;
-  const totalStaff = clinics.reduce((sum, c) => sum + c.staffCount, 0);
-  const totalPatients = clinics.reduce((sum, c) => sum + c.patientsCount, 0);
-  const totalAppointmentsToday = clinics.reduce((sum, c) => sum + c.appointmentsToday, 0);
+  // Form state
+  const [formName, setFormName] = useState('');
+  const [formAddress, setFormAddress] = useState('');
+  const [formCity, setFormCity] = useState('');
+  const [formPhone, setFormPhone] = useState('');
+  const [formEmail, setFormEmail] = useState('');
+
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  async function loadData() {
+    try {
+      setIsLoading(true);
+      const [clinicsData, statsData] = await Promise.all([
+        getClinicsAction(),
+        getClinicStatsAction(),
+      ]);
+      setClinics(clinicsData);
+      setStats(statsData);
+    } catch (error) {
+      toast({
+        title: 'Eroare',
+        description: 'Nu s-au putut încărca clinicile',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  const resetForm = () => {
+    setFormName('');
+    setFormAddress('');
+    setFormCity('');
+    setFormPhone('');
+    setFormEmail('');
+  };
+
+  const handleCreateClinic = async () => {
+    if (!formName) {
+      toast({
+        title: 'Eroare',
+        description: 'Numele clinicii este obligatoriu',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        const newClinic = await createClinicAction({
+          name: formName,
+          address: formAddress || undefined,
+          city: formCity || undefined,
+          phone: formPhone || undefined,
+          email: formEmail || undefined,
+        });
+        setClinics((prev) => [newClinic, ...prev]);
+        setIsDialogOpen(false);
+        resetForm();
+        await loadData();
+        toast({
+          title: 'Succes',
+          description: 'Clinica a fost adăugată',
+        });
+      } catch (error) {
+        toast({
+          title: 'Eroare',
+          description: 'Nu s-a putut adăuga clinica',
+          variant: 'destructive',
+        });
+      }
+    });
+  };
+
+  const handleToggleStatus = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    startTransition(async () => {
+      try {
+        const updated = await updateClinicAction({ id, status: newStatus as 'active' | 'inactive' });
+        setClinics((prev) => prev.map((c) => (c.id === id ? updated : c)));
+        toast({
+          title: 'Succes',
+          description: `Clinica a fost ${newStatus === 'active' ? 'activată' : 'dezactivată'}`,
+        });
+      } catch (error) {
+        toast({
+          title: 'Eroare',
+          description: 'Nu s-a putut actualiza starea clinicii',
+          variant: 'destructive',
+        });
+      }
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -129,7 +172,10 @@ export default function ClinicsPage() {
           </h1>
           <p className="text-muted-foreground mt-1">Gestionează toate locațiile clinicii</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => {
+          setIsDialogOpen(open);
+          if (!open) resetForm();
+        }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
@@ -143,34 +189,58 @@ export default function ClinicsPage() {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label>Nume clinică</Label>
-                <Input placeholder="ex: MedicalCor Sud" />
+                <Label>Nume clinică *</Label>
+                <Input
+                  placeholder="ex: MedicalCor Sud"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                />
               </div>
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Adresă</Label>
-                  <Input placeholder="Strada și număr" />
+                  <Input
+                    placeholder="Strada și număr"
+                    value={formAddress}
+                    onChange={(e) => setFormAddress(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Oraș</Label>
-                  <Input placeholder="ex: București" />
+                  <Input
+                    placeholder="ex: București"
+                    value={formCity}
+                    onChange={(e) => setFormCity(e.target.value)}
+                  />
                 </div>
               </div>
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Telefon</Label>
-                  <Input placeholder="ex: 021 123 4567" />
+                  <Input
+                    placeholder="ex: 021 123 4567"
+                    value={formPhone}
+                    onChange={(e) => setFormPhone(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Email</Label>
-                  <Input type="email" placeholder="ex: sud@medicalcor.ro" />
+                  <Input
+                    type="email"
+                    placeholder="ex: contact@clinica.ro"
+                    value={formEmail}
+                    onChange={(e) => setFormEmail(e.target.value)}
+                  />
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-4">
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Anulează
                 </Button>
-                <Button onClick={() => setIsDialogOpen(false)}>Adaugă clinică</Button>
+                <Button onClick={handleCreateClinic} disabled={isPending}>
+                  {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Adaugă clinică
+                </Button>
               </div>
             </div>
           </DialogContent>
@@ -185,7 +255,7 @@ export default function ClinicsPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Clinici active</p>
-              <p className="text-xl font-bold">{activeClinicCount}</p>
+              <p className="text-xl font-bold">{stats.activeClinics}</p>
             </div>
           </CardContent>
         </Card>
@@ -196,7 +266,7 @@ export default function ClinicsPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total angajați</p>
-              <p className="text-xl font-bold">{totalStaff}</p>
+              <p className="text-xl font-bold">{stats.totalUsers}</p>
             </div>
           </CardContent>
         </Card>
@@ -206,8 +276,8 @@ export default function ClinicsPage() {
               <TrendingUp className="h-5 w-5 text-purple-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total pacienți</p>
-              <p className="text-xl font-bold">{totalPatients.toLocaleString()}</p>
+              <p className="text-sm text-muted-foreground">Total clinici</p>
+              <p className="text-xl font-bold">{stats.totalClinics}</p>
             </div>
           </CardContent>
         </Card>
@@ -217,114 +287,139 @@ export default function ClinicsPage() {
               <Calendar className="h-5 w-5 text-yellow-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Programări azi</p>
-              <p className="text-xl font-bold">{totalAppointmentsToday}</p>
+              <p className="text-sm text-muted-foreground">HIPAA Compliant</p>
+              <p className="text-xl font-bold">{clinics.filter((c) => c.hipaaCompliant).length}</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        {clinics.map((clinic) => (
-          <Card key={clinic.id} className={cn(!clinic.isActive && 'opacity-60')}>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-3">
-                  <div
-                    className={cn(
-                      'w-12 h-12 rounded-lg flex items-center justify-center',
-                      clinic.isMain ? 'bg-primary text-primary-foreground' : 'bg-muted'
+      {clinics.length === 0 ? (
+        <Card>
+          <CardContent className="py-8">
+            <div className="text-center text-muted-foreground">
+              <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Nu există clinici</p>
+              <p className="text-sm">Adaugă prima clinică pentru a începe</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid md:grid-cols-2 gap-6">
+          {clinics.map((clinic) => (
+            <Card key={clinic.id} className={cn(clinic.status !== 'active' && 'opacity-60')}>
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={cn(
+                        'w-12 h-12 rounded-lg flex items-center justify-center',
+                        clinic.status === 'active' ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                      )}
+                    >
+                      <Building2 className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-lg">{clinic.name}</CardTitle>
+                        {clinic.status !== 'active' && <Badge variant="secondary">Inactiv</Badge>}
+                        {clinic.hipaaCompliant && (
+                          <Badge className="bg-green-100 text-green-700">HIPAA</Badge>
+                        )}
+                        {clinic.gdprCompliant && (
+                          <Badge className="bg-blue-100 text-blue-700">GDPR</Badge>
+                        )}
+                      </div>
+                      {clinic.address && (
+                        <CardDescription className="flex items-center gap-1 mt-1">
+                          <MapPin className="h-3 w-3" />
+                          {clinic.address}{clinic.city && `, ${clinic.city}`}
+                        </CardDescription>
+                      )}
+                    </div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem>
+                        <Settings className="h-4 w-4 mr-2" />
+                        Setări
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <Users className="h-4 w-4 mr-2" />
+                        Gestionează echipa
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <Calendar className="h-4 w-4 mr-2" />
+                        Vezi programări
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleToggleStatus(clinic.id, clinic.status)}
+                        disabled={isPending}
+                      >
+                        {clinic.status === 'active' ? 'Dezactivează' : 'Activează'}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    {clinic.phone && (
+                      <span className="flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
+                        {clinic.phone}
+                      </span>
                     )}
-                  >
-                    <Building2 className="h-6 w-6" />
+                    {clinic.email && (
+                      <span className="flex items-center gap-1">
+                        <Mail className="h-3 w-3" />
+                        {clinic.email}
+                      </span>
+                    )}
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <CardTitle className="text-lg">{clinic.name}</CardTitle>
-                      {clinic.isMain && <Badge className="bg-primary">Principal</Badge>}
-                      {!clinic.isActive && <Badge variant="secondary">Inactiv</Badge>}
+
+                  {clinic.status === 'active' && (
+                    <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+                      <div className="text-center">
+                        <p className="text-xl font-bold">{clinic.userCount}</p>
+                        <p className="text-xs text-muted-foreground">Angajați</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xl font-bold">{clinic.country}</p>
+                        <p className="text-xs text-muted-foreground">Țară</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xl font-bold flex items-center justify-center gap-1">
+                          <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                          {clinic.hipaaCompliant && clinic.gdprCompliant ? '5.0' : '4.5'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Compliance</p>
+                      </div>
                     </div>
-                    <CardDescription className="flex items-center gap-1 mt-1">
-                      <MapPin className="h-3 w-3" />
-                      {clinic.address}, {clinic.city}
-                    </CardDescription>
-                  </div>
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
+                  )}
+
+                  <div className="flex gap-2 pt-2">
+                    <Button variant="outline" size="sm" className="flex-1">
                       <Settings className="h-4 w-4 mr-2" />
-                      Setări
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Users className="h-4 w-4 mr-2" />
-                      Gestionează echipa
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
+                      Configurare
+                    </Button>
+                    <Button size="sm" className="flex-1">
                       <Calendar className="h-4 w-4 mr-2" />
-                      Vezi programări
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Phone className="h-3 w-3" />
-                    {clinic.phone}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Mail className="h-3 w-3" />
-                    {clinic.email}
-                  </span>
-                </div>
-
-                {clinic.isActive && (
-                  <div className="grid grid-cols-4 gap-4 pt-4 border-t">
-                    <div className="text-center">
-                      <p className="text-xl font-bold">{clinic.staffCount}</p>
-                      <p className="text-xs text-muted-foreground">Angajați</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xl font-bold">{clinic.patientsCount}</p>
-                      <p className="text-xs text-muted-foreground">Pacienți</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xl font-bold">{clinic.appointmentsToday}</p>
-                      <p className="text-xs text-muted-foreground">Azi</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xl font-bold flex items-center justify-center gap-1">
-                        <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                        {clinic.rating}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Rating</p>
-                    </div>
+                      Programări
+                    </Button>
                   </div>
-                )}
-
-                <div className="flex gap-2 pt-2">
-                  <Button variant="outline" size="sm" className="flex-1">
-                    <Settings className="h-4 w-4 mr-2" />
-                    Configurare
-                  </Button>
-                  <Button size="sm" className="flex-1">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Programări
-                  </Button>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
