@@ -107,7 +107,7 @@ const AdjustStockSchema = z.object({
 function rowToInventoryItem(row: InventoryItemRow): InventoryItem {
   const isLowStock = row.quantity <= row.min_stock;
   const isExpiringSoon =
-    row.expiry_date != null &&
+    row.expiry_date !== null &&
     new Date(row.expiry_date).getTime() - Date.now() < 30 * 24 * 60 * 60 * 1000;
 
   return {
@@ -154,13 +154,16 @@ export async function getInventoryAction(): Promise<{ items: InventoryItem[]; er
     );
 
     return { items: result.rows.map(rowToInventoryItem) };
-  } catch (_error) {
+  } catch (error) {
     console.error('Error fetching inventory:', error);
     return { items: [], error: 'Failed to fetch inventory' };
   }
 }
 
-export async function getInventoryStatsAction(): Promise<{ stats: InventoryStats | null; error?: string }> {
+export async function getInventoryStatsAction(): Promise<{
+  stats: InventoryStats | null;
+  error?: string;
+}> {
   try {
     await requirePermission('inventory:read');
     const user = await requireCurrentUser();
@@ -191,7 +194,7 @@ export async function getInventoryStatsAction(): Promise<{ stats: InventoryStats
         totalValue: parseFloat(row.total_value),
       },
     };
-  } catch (_error) {
+  } catch (error) {
     console.error('Error fetching inventory stats:', error);
     return { stats: null, error: 'Failed to fetch inventory stats' };
   }
@@ -231,7 +234,7 @@ export async function createInventoryItemAction(
     );
 
     return { item: rowToInventoryItem(result.rows[0]) };
-  } catch (_error) {
+  } catch (error) {
     console.error('Error creating inventory item:', error);
     return { item: null, error: 'Failed to create inventory item' };
   }
@@ -295,7 +298,7 @@ export async function updateInventoryItemAction(
     }
 
     return { item: rowToInventoryItem(result.rows[0]) };
-  } catch (_error) {
+  } catch (error) {
     console.error('Error updating inventory item:', error);
     return { item: null, error: 'Failed to update inventory item' };
   }
@@ -372,13 +375,15 @@ export async function adjustStockAction(
     } finally {
       client.release();
     }
-  } catch (_error) {
+  } catch (error) {
     console.error('Error adjusting stock:', error);
     return { item: null, error: 'Failed to adjust stock' };
   }
 }
 
-export async function deleteInventoryItemAction(id: string): Promise<{ success: boolean; error?: string }> {
+export async function deleteInventoryItemAction(
+  id: string
+): Promise<{ success: boolean; error?: string }> {
   try {
     await requirePermission('inventory:delete');
     const user = await requireCurrentUser();
@@ -395,7 +400,7 @@ export async function deleteInventoryItemAction(id: string): Promise<{ success: 
     }
 
     return { success: true };
-  } catch (_error) {
+  } catch (error) {
     console.error('Error deleting inventory item:', error);
     return { success: false, error: 'Failed to delete inventory item' };
   }

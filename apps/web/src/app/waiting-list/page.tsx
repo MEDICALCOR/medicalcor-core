@@ -19,8 +19,6 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  ArrowUp,
-  ArrowDown,
   MoreVertical,
   Search,
   Loader2,
@@ -112,9 +110,7 @@ export default function WaitingListPage() {
     startTransition(async () => {
       const result = await updateWaitingPatientAction({ id, status });
       if (result.patient) {
-        setWaitingList((prev) =>
-          prev.map((p) => (p.id === id ? result.patient! : p))
-        );
+        setWaitingList((prev) => prev.map((p) => (p.id === id ? result.patient! : p)));
         toast({ title: 'Succes', description: 'Statusul a fost actualizat' });
       } else {
         toast({ title: 'Eroare', description: result.error, variant: 'destructive' });
@@ -395,15 +391,22 @@ export default function WaitingListPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleUpdateStatus(patient.id, 'contacted')}>
+                            <DropdownMenuItem
+                              onClick={() => handleUpdateStatus(patient.id, 'contacted')}
+                            >
                               <Phone className="h-4 w-4 mr-2" />
                               Marchează contactat
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleUpdateStatus(patient.id, 'scheduled')}>
+                            <DropdownMenuItem
+                              onClick={() => handleUpdateStatus(patient.id, 'scheduled')}
+                            >
                               <Calendar className="h-4 w-4 mr-2" />
                               Programează
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600" onClick={() => handleRemove(patient.id)}>
+                            <DropdownMenuItem
+                              className="text-red-600"
+                              onClick={() => handleRemove(patient.id)}
+                            >
                               <XCircle className="h-4 w-4 mr-2" />
                               Elimină din listă
                             </DropdownMenuItem>

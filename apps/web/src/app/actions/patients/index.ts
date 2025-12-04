@@ -302,7 +302,7 @@ export async function getDashboardStatsAction(): Promise<DashboardStats> {
     };
 
     return DashboardStatsSchema.parse(stats);
-  } catch (error) {
+  } catch (_error) {
     // Error logged server-side
     return {
       totalLeads: 0,
@@ -329,7 +329,7 @@ async function getTodayAppointmentsCount(
 
     const appointments = await scheduling.getUpcomingAppointments(todayStart, todayEnd);
     return appointments.length;
-  } catch (error) {
+  } catch (_error) {
     // Error logged server-side
     return 0;
   }
@@ -345,7 +345,7 @@ async function getDailyRevenueAmount(
   try {
     const result = await stripe.getDailyRevenue(DEFAULT_TIMEZONE);
     return stripe.toMajorUnits(result.amount);
-  } catch (error) {
+  } catch (_error) {
     // Error logged server-side
     return undefined;
   }

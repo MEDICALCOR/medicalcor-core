@@ -6,7 +6,8 @@
  * These actions fetch OSAX case data from the repository.
  */
 
-import type { OsaxCase, OsaxCaseSpec } from '@medicalcor/domain';
+// Note: OsaxCase and OsaxCaseSpec types are defined in @medicalcor/domain
+// but this file uses its own OsaxCaseListItem interface for the list view
 
 // ============================================================================
 // TYPES

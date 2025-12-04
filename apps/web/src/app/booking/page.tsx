@@ -372,7 +372,11 @@ export default function BookingPage() {
                   >
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium">
-                        {doctor.avatar || doctor.name.split(' ').map((n) => n[0]).join('')}
+                        {doctor.avatar ??
+                          doctor.name
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')}
                       </div>
                       <div className="flex-1">
                         <h3 className="font-medium">{doctor.name}</h3>

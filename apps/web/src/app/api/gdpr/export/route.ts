@@ -13,7 +13,7 @@
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { createDatabaseClient, maskPhone } from '@medicalcor/core';
+import { createDatabaseClient } from '@medicalcor/core';
 
 /**
  * GET /api/gdpr/export
@@ -148,7 +148,7 @@ export async function GET(): Promise<NextResponse> {
         'X-Export-Date': new Date().toISOString(),
       },
     });
-  } catch (_error) {
+  } catch (error) {
     // Log error but don't expose details to client
     if (process.env.NODE_ENV !== 'production') {
       console.error('[GDPR Export] Error:', error);

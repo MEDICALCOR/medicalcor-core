@@ -1,5 +1,3 @@
-
-
 /**
  * @fileoverview Data Transformation Utilities for Server Actions
  *
@@ -49,6 +47,7 @@ export function mapHubSpotStageToStatus(stage?: string): PatientStatus {
       return 'lead';
     case 'other':
       return 'inactive';
+    case undefined:
     default:
       return 'lead';
   }
@@ -133,9 +132,7 @@ const SOURCE_ALIASES: Record<string, LeadSource> = {
  */
 export function mapLeadSource(source?: string): LeadSource {
   const normalized = source?.toLowerCase();
-  return normalized && normalized in SOURCE_ALIASES
-    ? SOURCE_ALIASES[normalized]
-    : 'manual';
+  return normalized && normalized in SOURCE_ALIASES ? SOURCE_ALIASES[normalized] : 'manual';
 }
 
 // ============================================================================
@@ -231,8 +228,10 @@ export function formatRelativeTime(date: string): string {
   const diffDays = Math.floor(diffMs / TIME_MS.DAY);
 
   if (diffMins < 1) return RELATIVE_TIME_LABELS.NOW;
-  if (diffMins < 60) return `${RELATIVE_TIME_LABELS.NOW} ${diffMins} ${RELATIVE_TIME_LABELS.MINUTES}`;
-  if (diffHours < 24) return `${RELATIVE_TIME_LABELS.NOW} ${diffHours} ${RELATIVE_TIME_LABELS.HOURS}`;
+  if (diffMins < 60)
+    return `${RELATIVE_TIME_LABELS.NOW} ${diffMins} ${RELATIVE_TIME_LABELS.MINUTES}`;
+  if (diffHours < 24)
+    return `${RELATIVE_TIME_LABELS.NOW} ${diffHours} ${RELATIVE_TIME_LABELS.HOURS}`;
   if (diffDays === 1) return RELATIVE_TIME_LABELS.YESTERDAY;
   if (diffDays < 7) return `${RELATIVE_TIME_LABELS.NOW} ${diffDays} ${RELATIVE_TIME_LABELS.DAYS}`;
 
@@ -258,7 +257,10 @@ export function formatRelativeTime(date: string): string {
  */
 export function parseProcedureInterest(procedureInterest?: string): string[] | undefined {
   if (!procedureInterest) return undefined;
-  const procedures = procedureInterest.split(',').map((p) => p.trim()).filter(Boolean);
+  const procedures = procedureInterest
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean);
   return procedures.length > 0 ? procedures : undefined;
 }
 

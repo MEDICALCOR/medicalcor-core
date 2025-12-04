@@ -31,7 +31,7 @@ const rateLimitStore = new Map<string, RateLimitEntry>();
 // Rate limit configuration
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour window
 const RATE_LIMIT_MAX_REQUESTS_PER_IP = 10; // 10 submissions per hour per IP
-const RATE_LIMIT_MAX_REQUESTS_PER_PHONE = 5; // 5 submissions per hour per phone
+// Note: Per-phone rate limiting can be added in future if needed
 
 /**
  * Check rate limit for a given key
@@ -208,7 +208,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   try {
     // Parse and validate request body
-    const body = await req.json();
+    const body: unknown = await req.json();
     const parseResult = LeadSubmissionSchema.safeParse(body);
 
     if (!parseResult.success) {
@@ -269,7 +269,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       source,
       submittedAt: new Date().toISOString(),
       userAgent: req.headers.get('user-agent'),
-      ipAddress: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip'),
+      ipAddress: req.headers.get('x-forwarded-for') ?? req.headers.get('x-real-ip'),
     };
 
     if (data.name) metadata.name = data.name;
@@ -359,7 +359,11 @@ function getAllowedOrigin(requestOrigin: string | null): string | null {
     ];
     // Development: also allow localhost
     if (process.env.NODE_ENV !== 'production') {
-      allowedOrigins.push('http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000');
+      allowedOrigins.push(
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://127.0.0.1:3000'
+      );
     }
     allowedOrigins.push(...productionDomains);
   }
@@ -430,7 +434,7 @@ export async function OPTIONS(request: NextRequest): Promise<NextResponse> {
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
       'Access-Control-Max-Age': '86400',
-      'Vary': 'Origin',
+      Vary: 'Origin',
     },
   });
 }
