@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect } from 'react';
 import {
   getStaffScheduleAction,
   getScheduleStatsAction,
@@ -60,7 +60,6 @@ export default function StaffSchedulePage() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [stats, setStats] = useState<ScheduleStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {

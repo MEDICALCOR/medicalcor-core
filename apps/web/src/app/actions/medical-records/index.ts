@@ -75,7 +75,8 @@ interface RecordRow {
   channel: string | null;
 }
 
-interface DiagnosisRow {
+// Reserved for future use when diagnoses table is implemented
+interface _DiagnosisRow {
   id: string;
   lead_id: string;
   patient_name: string | null;
@@ -243,12 +244,11 @@ export async function createMedicalRecordAction(
 }
 
 export async function getDiagnosesAction(
-  patientId?: string
+  _patientId?: string
 ): Promise<{ diagnoses: Diagnosis[]; error?: string }> {
   try {
     await requirePermission('medical_records:read');
-    const user = await requireCurrentUser();
-    const database = getDatabase();
+    await requireCurrentUser();
 
     // For now, return empty as diagnoses need dedicated table
     // This would be implemented with a proper diagnoses table

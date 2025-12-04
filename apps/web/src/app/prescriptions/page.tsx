@@ -4,7 +4,6 @@ import { useState, useEffect, useTransition } from 'react';
 import {
   getPrescriptionsAction,
   getPrescriptionsStatsAction,
-  deletePrescriptionAction,
   duplicatePrescriptionAction,
   type Prescription,
   type PrescriptionsStats,
@@ -25,7 +24,6 @@ import {
   RefreshCw,
   Loader2,
   Copy,
-  Trash2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -97,18 +95,6 @@ export default function PrescriptionsPage() {
     } finally {
       setIsLoading(false);
     }
-  }
-
-  async function handleDelete(id: string) {
-    startTransition(async () => {
-      const result = await deletePrescriptionAction(id);
-      if (result.success) {
-        setPrescriptions((prev) => prev.filter((p) => p.id !== id));
-        toast({ title: 'Succes', description: 'Rețeta a fost ștearsă' });
-      } else {
-        toast({ title: 'Eroare', description: result.error, variant: 'destructive' });
-      }
-    });
   }
 
   async function handleDuplicate(id: string) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect } from 'react';
 import {
   getMedicalRecordsAction,
   getMedicalRecordsStatsAction,
@@ -63,7 +63,6 @@ export default function MedicalRecordsPage() {
   const [prescriptions, setPrescriptions] = useState<PatientPrescription[]>([]);
   const [stats, setStats] = useState<MedicalRecordsStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isPending, startTransition] = useTransition();
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const { toast } = useToast();
