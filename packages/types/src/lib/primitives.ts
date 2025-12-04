@@ -618,6 +618,9 @@ export type Assert<T extends true> = T;
 
 /**
  * Check if two types are exactly equal
+ * Note: The T type parameters are intentionally used only once - this is a standard
+ * TypeScript pattern for type equality checking using conditional type inference.
+ */
  * Note: This uses the standard TypeScript pattern for deep type equality checking.
  * The generic T parameters are intentionally used in conditional type inference positions.
  */
