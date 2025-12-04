@@ -184,7 +184,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
  */
 export function hasPermission(role: UserRole | undefined, permission: Permission): boolean {
   if (!role) return false;
-  return ROLE_PERMISSIONS[role]?.includes(permission) ?? false;
+  return ROLE_PERMISSIONS[role].includes(permission);
 }
 
 /**
@@ -213,7 +213,7 @@ export function hasAnyPermission(
  * Get all permissions for a role
  */
 export function getPermissionsForRole(role: UserRole): Permission[] {
-  return ROLE_PERMISSIONS[role] ?? [];
+  return ROLE_PERMISSIONS[role];
 }
 
 // =============================================================================
@@ -303,7 +303,7 @@ export function canAccessPage(
   pathname: string
 ): { allowed: boolean; reason?: string } {
   // Find matching page config
-  let pageConfig = PAGE_ACCESS[pathname];
+  let pageConfig: PageAccess | undefined = PAGE_ACCESS[pathname];
 
   // Try to match dynamic routes
   if (!pageConfig) {

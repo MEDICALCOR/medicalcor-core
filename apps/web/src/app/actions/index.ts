@@ -93,17 +93,12 @@ export {
 export type { Conversation, Message } from './messages/index';
 
 // ============================================================================
-// SHARED UTILITIES (for internal use)
+// SHARED UTILITIES (types only - implementations are server-only)
 // ============================================================================
 
-export {
-  getHubSpotClient,
-  getStripeClient,
-  getSchedulingService,
-  DEFAULT_TIMEZONE,
-  HUBSPOT_PAGE_SIZE,
-  MAX_FETCH_RESULTS,
-} from './shared/clients';
+// Note: Client implementations (getHubSpotClient, getStripeClient, etc.) are NOT exported
+// from this index as they use server-only modules. Import directly from './shared/clients'
+// within server action files if needed.
 
 export {
   mapHubSpotStageToStatus,
@@ -117,14 +112,7 @@ export {
   LEAD_SCORE_THRESHOLDS,
 } from './shared/mappers';
 
-export {
-  fetchAllContacts,
-  validatePageSize,
-  emptyPaginatedResponse,
-} from './shared/pagination';
-
 export type { PatientStatus, CommunicationChannel, ConversationStatus } from './shared/mappers';
-export type { FetchAllOptions, SearchParamsWithoutPaging } from './shared/pagination';
 
 // ============================================================================
 // API KEYS ACTIONS

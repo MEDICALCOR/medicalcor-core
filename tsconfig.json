@@ -6,7 +6,10 @@
       "@medicalcor/types": ["packages/types/src"],
       "@medicalcor/core": ["packages/core/src"],
       "@medicalcor/infra": ["packages/infra/src"],
-      "@medicalcor/integrations": ["packages/integrations/src"]
+      "@medicalcor/domain": ["packages/domain/src"],
+      "@medicalcor/integrations": ["packages/integrations/src"],
+      "@medicalcor/application": ["packages/application/src"],
+      "@medicalcor/infrastructure": ["packages/infrastructure/src"]
     }
   },
   "files": [],
@@ -14,7 +17,10 @@
     { "path": "packages/types" },
     { "path": "packages/core" },
     { "path": "packages/infra" },
+    { "path": "packages/domain" },
     { "path": "packages/integrations" },
+    { "path": "packages/application" },
+    { "path": "packages/infrastructure" },
     { "path": "apps/api" },
     { "path": "apps/trigger" }
   ]

@@ -112,11 +112,6 @@ export const PERMISSIONS = {
   'campaigns:write': ['admin', 'doctor'] as UserRole[],
   'campaigns:delete': ['admin'] as UserRole[],
 
-  // Clinics
-  'clinics:read': ['admin'] as UserRole[],
-  'clinics:write': ['admin'] as UserRole[],
-  'clinics:delete': ['admin'] as UserRole[],
-
   // Documents
   'documents:read': ['admin', 'doctor', 'receptionist'] as UserRole[],
   'documents:write': ['admin', 'doctor'] as UserRole[],
@@ -155,11 +150,6 @@ export const PERMISSIONS = {
   'users:read': ['admin'] as UserRole[],
   'users:write': ['admin'] as UserRole[],
   'users:delete': ['admin'] as UserRole[],
-
-  // Billing
-  'billing:read': ['admin'] as UserRole[],
-  'billing:write': ['admin'] as UserRole[],
-  'billing:delete': ['admin'] as UserRole[],
 
   // Services
   'services:read': ['admin', 'doctor', 'receptionist'] as UserRole[],

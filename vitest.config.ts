@@ -36,6 +36,8 @@ export default defineConfig({
       '@medicalcor/domain': path.resolve(__dirname, 'packages/domain/src/index.ts'),
       '@medicalcor/infra': path.resolve(__dirname, 'packages/infra/src/index.ts'),
       '@medicalcor/integrations': path.resolve(__dirname, 'packages/integrations/src/index.ts'),
+      '@medicalcor/application': path.resolve(__dirname, 'packages/application/src/index.ts'),
+      '@medicalcor/infrastructure': path.resolve(__dirname, 'packages/infrastructure/src/index.ts'),
     },
   },
 });
