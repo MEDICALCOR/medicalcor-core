@@ -119,12 +119,19 @@ export interface GetAvailableSlotsOptions {
  *
  * Note: Connection details like `connectionString` are infrastructure concerns
  * and should be passed to the concrete implementation, not the domain interface.
+ *
+ * SECURITY: ConsentService is REQUIRED for all implementations.
+ * Patient consent verification is NON-NEGOTIABLE for GDPR/HIPAA compliance.
  */
 export interface SchedulingConfig {
   timezone?: string;
-  consentService?: ConsentService;
-  /** If true, skip consent verification (NOT RECOMMENDED - only for testing) */
-  skipConsentCheck?: boolean;
+  /**
+   * Consent service for GDPR/HIPAA compliance (REQUIRED)
+   *
+   * All patient data operations MUST verify consent before proceeding.
+   * This requirement is non-negotiable and cannot be bypassed.
+   */
+  consentService: ConsentService;
 }
 
 /**
@@ -157,12 +164,14 @@ export interface ISchedulingRepository {
   /**
    * Book an appointment
    *
-   * GDPR/HIPAA COMPLIANCE: Implementations should verify patient consent before booking.
-   * Throws ConsentRequiredError if consent is missing or invalid.
+   * GDPR/HIPAA COMPLIANCE (MANDATORY):
+   * - Implementations MUST verify patient consent before any booking operation
+   * - Consent verification is NON-NEGOTIABLE and cannot be skipped
+   * - Throws ConsentRequiredError if patient lacks required consent
    *
    * @param request - Booking request details
    * @returns Booking result with appointment ID and status
-   * @throws {ConsentRequiredError} If required consent is not present
+   * @throws {ConsentRequiredError} If required consent is not present (ALWAYS enforced)
    */
   bookAppointment(request: BookingRequest): Promise<BookingResult>;
 

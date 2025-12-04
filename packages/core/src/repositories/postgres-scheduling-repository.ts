@@ -48,6 +48,9 @@ const logger = createLogger({ name: 'postgres-scheduling-repository' });
 
 /**
  * Configuration for PostgreSQL Scheduling Repository
+ *
+ * SECURITY: ConsentService is REQUIRED for production use.
+ * All patient bookings MUST have verified consent (GDPR/HIPAA requirement).
  */
 export interface PostgresSchedulingConfig {
   /** PostgreSQL connection string */
@@ -56,10 +59,15 @@ export interface PostgresSchedulingConfig {
   maxConnections?: number;
   /** Timezone for date operations */
   timezone?: string;
-  /** Consent service for GDPR/HIPAA compliance */
-  consentService?: ConsentService;
-  /** Skip consent verification (NOT RECOMMENDED - only for testing) */
-  skipConsentCheck?: boolean;
+  /**
+   * Consent service for GDPR/HIPAA compliance (REQUIRED)
+   *
+   * @remarks
+   * This service is mandatory for production deployments to ensure
+   * all patient data processing has valid consent verification.
+   * Booking will fail with ConsentRequiredError if patient lacks proper consent.
+   */
+  consentService: ConsentService;
 }
 
 // ============================================================================
@@ -77,6 +85,7 @@ interface TimeSlotRow {
 
 interface SlotCheckRow {
   is_booked: boolean;
+  version: number;
 }
 
 interface AppointmentRow {
@@ -109,8 +118,7 @@ interface AppointmentRow {
  */
 export class PostgresSchedulingRepository implements ISchedulingRepository {
   private pool: Pool | null;
-  private consentService: ConsentService | null;
-  private skipConsentCheck: boolean;
+  private consentService: ConsentService;
 
   constructor(config: PostgresSchedulingConfig) {
     // Note: timezone is accepted for future use but currently not utilized
@@ -123,16 +131,10 @@ export class PostgresSchedulingRepository implements ISchedulingRepository {
         })
       : null;
 
-    this.consentService = config.consentService ?? null;
-    this.skipConsentCheck = config.skipConsentCheck ?? false;
+    // SECURITY: ConsentService is now mandatory (GDPR/HIPAA requirement)
+    this.consentService = config.consentService;
 
-    // Warn if consent service is not configured in production
-    if (!this.consentService && process.env.NODE_ENV === 'production' && !this.skipConsentCheck) {
-      logger.warn(
-        'ConsentService not configured - patient consent verification will be skipped. ' +
-          'This may violate GDPR/HIPAA compliance.'
-      );
-    }
+    logger.info('PostgresSchedulingRepository initialized with mandatory consent verification');
   }
 
   /**
@@ -189,19 +191,39 @@ export class PostgresSchedulingRepository implements ISchedulingRepository {
   /**
    * Book an appointment with Transaction Safety
    *
-   * GDPR/HIPAA COMPLIANCE: This method verifies patient consent before booking.
-   * If ConsentService is configured, it will check for 'data_processing' consent.
-   * Throws ConsentRequiredError if consent is missing or invalid.
+   * GDPR/HIPAA COMPLIANCE (MANDATORY):
+   * - Patient consent is ALWAYS verified before any booking operation
+   * - Consent verification is NON-NEGOTIABLE and cannot be skipped
+   * - Throws ConsentRequiredError if patient lacks required consent
+   *
+   * CONCURRENCY PROTECTION:
+   * - Uses pessimistic locking (FOR UPDATE) for transaction safety
+   * - Uses optimistic locking (version check) for defense-in-depth
+   * - Double-checks for existing appointments to prevent data inconsistency
+   *
+   * @throws ConsentRequiredError - If patient lacks required consent
+   * @throws Error - If slot not found, already booked, or concurrent modification detected
    */
   async bookAppointment(request: BookingRequest): Promise<BookingResult> {
-    // CRITICAL: Verify patient consent before processing booking (GDPR/HIPAA requirement)
+    // MANDATORY: Verify patient consent before processing booking (GDPR/HIPAA requirement)
     // This check happens FIRST to ensure we don't access any data without consent
-    if (this.consentService && !this.skipConsentCheck) {
-      const consentCheck = await this.consentService.hasRequiredConsents(request.hubspotContactId);
-      if (!consentCheck.valid) {
-        throw new ConsentRequiredError(request.hubspotContactId, consentCheck.missing);
-      }
+    // Consent verification is NON-NEGOTIABLE for all patient data operations
+    const consentCheck = await this.consentService.hasRequiredConsents(request.hubspotContactId);
+    if (!consentCheck.valid) {
+      logger.warn(
+        {
+          hubspotContactId: request.hubspotContactId,
+          missingConsents: consentCheck.missing,
+        },
+        'Booking rejected: patient lacks required consent'
+      );
+      throw new ConsentRequiredError(request.hubspotContactId, consentCheck.missing);
     }
+
+    logger.debug(
+      { hubspotContactId: request.hubspotContactId },
+      'Patient consent verified for booking'
+    );
 
     if (!this.pool) {
       throw new Error('Database connection not configured - connectionString is required');
@@ -211,14 +233,17 @@ export class PostgresSchedulingRepository implements ISchedulingRepository {
     try {
       await client.query('BEGIN');
 
-      // 1. Lock the slot to prevent race conditions
+      // 1. Lock the slot to prevent race conditions (pessimistic lock for transaction safety)
+      // Also fetch version for optimistic locking verification
       const slotCheck = await client.query<SlotCheckRow>(
-        `SELECT is_booked FROM time_slots WHERE id = $1 FOR UPDATE`,
+        `SELECT is_booked, COALESCE(version, 1) as version FROM time_slots WHERE id = $1 FOR UPDATE`,
         [request.slotId]
       );
 
       if (slotCheck.rows.length === 0) throw new Error('Slot not found');
       if (slotCheck.rows[0]?.is_booked) throw new Error('Slot already booked');
+
+      const currentVersion = slotCheck.rows[0]?.version ?? 1;
 
       // SECURITY FIX: Double-check for existing active appointments (defense in depth)
       // This prevents double-booking even if is_booked flag gets out of sync
@@ -255,8 +280,34 @@ export class PostgresSchedulingRepository implements ISchedulingRepository {
         ]
       );
 
-      // 3. Mark Slot as Booked
-      await client.query(`UPDATE time_slots SET is_booked = true WHERE id = $1`, [request.slotId]);
+      // 3. OPTIMISTIC LOCKING: Mark Slot as Booked with version check and increment
+      // This provides defense-in-depth against concurrent modifications
+      // The WHERE clause ensures we only update if version hasn't changed
+      const updateResult = await client.query(
+        `UPDATE time_slots
+         SET is_booked = true, version = COALESCE(version, 1) + 1, updated_at = NOW()
+         WHERE id = $1 AND COALESCE(version, 1) = $2 AND is_booked = false`,
+        [request.slotId, currentVersion]
+      );
+
+      // CRITICAL: Verify exactly one row was updated (optimistic lock check)
+      if (updateResult.rowCount !== 1) {
+        logger.error(
+          { slotId: request.slotId, expectedVersion: currentVersion },
+          'Optimistic lock failure: slot was modified concurrently'
+        );
+        throw new Error('Slot booking failed: concurrent modification detected. Please try again.');
+      }
+
+      logger.info(
+        {
+          appointmentId,
+          slotId: request.slotId,
+          newVersion: currentVersion + 1,
+          hubspotContactId: request.hubspotContactId,
+        },
+        'Appointment booked successfully with optimistic locking'
+      );
 
       await client.query('COMMIT');
       return { id: appointmentId, status: 'confirmed' };
