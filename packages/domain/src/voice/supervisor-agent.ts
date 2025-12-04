@@ -360,7 +360,6 @@ export class SupervisorAgent extends EventEmitter {
       | 'silence-detected'
       | 'ai-handoff-needed',
     reason?: string
-      | 'ai-handoff-needed'
   ): void {
     const call = this.activeCalls.get(callSid);
     if (!call) return;
@@ -494,7 +493,8 @@ export class SupervisorAgent extends EventEmitter {
       throw new Error('Maximum supervisor sessions reached');
     }
 
-    const sessionId = `sup_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    // Generate a valid UUID v4 for schema compliance
+    const sessionId = crypto.randomUUID();
     const session: SupervisorSession = {
       sessionId,
       supervisorId,
@@ -733,11 +733,6 @@ export class SupervisorAgent extends EventEmitter {
     const escalationsToday = this.getEscalationsToday();
     const handoffsToday = this.getHandoffsToday();
 
-    // Calculate metrics
-    const escalations = calls.filter((c) => c.flags.includes('escalation-requested'));
-    const aiHandoffs = calls.filter((c) => c.flags.includes('ai-handoff-needed'));
-    const callsWithFlags = calls.filter((c) => c.flags.length > 0);
-
     return {
       activeCalls: calls.length,
       callsInQueue: calls.filter((c) => c.state === 'ringing').length,
@@ -745,8 +740,6 @@ export class SupervisorAgent extends EventEmitter {
       activeAlerts: activeEscalations.length + aiHandoffs.length + callsWithFlags.length,
       escalationsToday: escalationsToday.length,
       handoffsToday,
-      activeAlerts: escalations.length + aiHandoffs.length + callsWithFlags.length,
-      escalationsToday: escalations.length, // Would need historical tracking
 
       aiHandledCalls: calls.filter((c) => c.assistantId && !c.agentId).length,
 

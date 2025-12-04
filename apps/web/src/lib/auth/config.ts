@@ -58,20 +58,10 @@ export const authConfig: NextAuthConfig = {
         '/favicon.ico',
       ];
 
-      const isPublicPath = publicPaths.some(
-        (path) => nextUrl.pathname === path || nextUrl.pathname.startsWith(`${path}/`)
-      );
-
-      // Allow access to public paths for all users
       const pathname = nextUrl.pathname;
-
-      // Explicitly define public paths (allowlist approach for clarity)
-      // This prevents accidental exposure of protected routes
-      const publicPaths = ['/login', '/offline', '/privacy', '/terms', '/api/auth'];
-
-      const isPublicPath =
-        publicPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`)) ||
-        pathname.startsWith('/api/auth');
+      const isPublicPath = publicPaths.some(
+        (path) => pathname === path || pathname.startsWith(`${path}/`)
+      );
 
       // Allow access to all public paths
       if (isPublicPath) {
@@ -84,14 +74,6 @@ export const authConfig: NextAuthConfig = {
       }
 
       // Logged-in users on login page should redirect to dashboard
-      if (nextUrl.pathname === '/login') {
-      // All non-public paths require authentication
-      if (!isLoggedIn) {
-        return false; // Redirect unauthenticated users to login
-      }
-
-      // Redirect logged-in users away from login page to dashboard
-      // (at this point we know isLoggedIn is true since we returned false above)
       if (pathname === '/login') {
         return Response.redirect(new URL('/', nextUrl));
       }
@@ -107,7 +89,6 @@ export const authConfig: NextAuthConfig = {
      * not on subsequent token refreshes. The types don't reflect this behavior.
      */
     jwt({ token, user }) {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime check required by NextAuth
       // Runtime guard: user is only defined during sign-in, not on subsequent requests
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- user may be undefined at runtime
       if (user) {
@@ -127,7 +108,6 @@ export const authConfig: NextAuthConfig = {
      * for additional safety in a medical/HIPAA context.
      */
     session({ session, token }) {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard for medical compliance
       // Runtime guard: defensive check for edge cases where session.user may be undefined
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime safety
       if (session.user && token.sub) {
@@ -155,7 +135,6 @@ export const authConfig: NextAuthConfig = {
 
         const { email, password } = parsed.data;
 
-        // Extract request context for audit logging (HIPAA/Medical compliance)
         // Extract request context for audit logging (HIPAA/GDPR compliance)
         const context = {
           ipAddress:
@@ -179,9 +158,6 @@ export const authConfig: NextAuthConfig = {
             success: !!user,
           });
         }
-        // Log authentication attempt for compliance audit trail
-        // Fire-and-forget: don't block auth flow on logging
-        void logAuthEvent(user ? 'login_success' : 'login_failure', user?.id, email, context);
 
         return user;
       },
