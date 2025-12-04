@@ -31,12 +31,15 @@ describe('HubSpotClient', () => {
       expect(client).toBeInstanceOf(HubSpotClient);
     });
 
-    it('should accept custom base URL', () => {
-      const client = new HubSpotClient({
-        ...config,
-        baseUrl: 'https://custom.hubapi.com',
-      });
-      expect(client).toBeInstanceOf(HubSpotClient);
+    it('should reject custom base URL for SSRF prevention', () => {
+      // SECURITY: Custom base URLs are blocked to prevent SSRF attacks
+      expect(
+        () =>
+          new HubSpotClient({
+            ...config,
+            baseUrl: 'https://custom.hubapi.com',
+          })
+      ).toThrow('SSRF Prevention');
     });
 
     it('should accept custom retry config', () => {
