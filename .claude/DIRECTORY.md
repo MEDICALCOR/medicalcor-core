@@ -49,9 +49,10 @@ The `.claude` directory contains all Claude Code configuration, skills, commands
 
 Skills are auto-invoked when users mention specific keywords. Claude Code automatically activates relevant skills based on conversation context.
 
-### Total Skills: 40
+### Total Skills: 46
 
-**Organization:** Skills are grouped by domain into 8 top-level categories with sub-skills organized hierarchically:
+**Organization:** Skills are grouped by domain into 9 top-level categories with sub-skills organized hierarchically:
+- **medicalcor/** - MedicalCor Medical CRM (6 skills) ⭐ NEW
 - **anthropic/** - AI & Claude Code tools (7 skills)
 - **aptos/** - Blockchain & Shelby Protocol (18 skills: 10 Aptos base + 8 Shelby)
 - **plaid/** - Banking API (5 skills)
@@ -62,6 +63,43 @@ Skills are auto-invoked when users mention specific keywords. Claude Code automa
 - **expo/** - React Native (4 skills)
 - **ios/** - iOS development (1 skill)
 - **toon-formatter/** - Token optimization (1 skill)
+
+---
+
+### MedicalCor Skills (6) ⭐
+
+**Path:** `skills/medicalcor/`
+**Purpose:** Domain expertise for the MedicalCor AI-powered medical CRM platform
+
+#### 1. MedicalCor Expert
+**Path:** `skills/medicalcor/skill.md`
+**Triggers:** MedicalCor, medical CRM, dental clinic, lead scoring, patient acquisition, dental leads
+**Purpose:** Core expertise on MedicalCor architecture, domain concepts, and patterns
+
+#### 2. HIPAA Compliance Expert
+**Path:** `skills/medicalcor/hipaa-compliance/skill.md`
+**Triggers:** HIPAA, PHI, protected health information, patient data, healthcare compliance, medical privacy
+**Purpose:** HIPAA compliance guidance for handling Protected Health Information
+
+#### 3. GDPR Compliance Expert
+**Path:** `skills/medicalcor/gdpr-compliance/skill.md`
+**Triggers:** GDPR, data protection, EU, European, personal data, data subject, consent, right to erasure
+**Purpose:** GDPR compliance for EU patient data handling
+
+#### 4. Fastify & Next.js Expert
+**Path:** `skills/medicalcor/fastify-nextjs/skill.md`
+**Triggers:** Fastify, Next.js, API routes, webhook, server, React, SSR, RSC, server components
+**Purpose:** MedicalCor tech stack expertise (Fastify 5 API, Next.js 15 dashboard)
+
+#### 5. GPT-4o Integration Expert
+**Path:** `skills/medicalcor/gpt4o-integration/skill.md`
+**Triggers:** GPT-4o, OpenAI, AI scoring, lead scoring, AI integration, LLM, embeddings, RAG
+**Purpose:** AI-powered features including lead scoring and RAG
+
+#### 6. Omnichannel Communication Expert
+**Path:** `skills/medicalcor/omnichannel/skill.md`
+**Triggers:** WhatsApp, voice, Vapi, messaging, SMS, communication channel, webhook, patient communication
+**Purpose:** Multi-channel patient communication (WhatsApp, Voice, Web)
 
 ---
 
