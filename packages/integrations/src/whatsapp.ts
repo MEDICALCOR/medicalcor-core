@@ -4,12 +4,65 @@ import {
   WebhookSignatureError,
   RateLimitError,
   createLogger,
+  redactString,
   type SecureRedisClient,
 } from '@medicalcor/core';
 import crypto from 'crypto';
 import { z } from 'zod';
 
 const logger = createLogger({ name: 'whatsapp' });
+
+/**
+ * Sanitize WhatsApp API error responses to remove PII
+ *
+ * WhatsApp error responses may contain:
+ * - Phone numbers in error messages
+ * - Contact names
+ * - wa_id (WhatsApp IDs)
+ * - Message content that failed
+ *
+ * @param errorBody - Raw error response body
+ * @returns Sanitized error body safe for logging
+ */
+function sanitizeWhatsAppError(errorBody: string): string {
+  let sanitized = errorBody;
+
+  // Use core redaction for known PII patterns
+  sanitized = redactString(sanitized);
+
+  // Additional WhatsApp-specific patterns
+  // wa_id format: numeric string 10-15 digits
+  sanitized = sanitized.replace(/\b\d{10,15}\b/g, '[REDACTED:wa_id]');
+
+  // WhatsApp IDs in JSON (e.g., "wa_id": "40712345678")
+  sanitized = sanitized.replace(/"wa_id"\s*:\s*"[^"]+"/gi, '"wa_id": "[REDACTED]"');
+
+  // "from" and "to" fields in JSON
+  sanitized = sanitized.replace(/"(?:from|to)"\s*:\s*"[^"]+"/gi, (match) => {
+    const field = match.includes('from') ? 'from' : 'to';
+    return `"${field}": "[REDACTED]"`;
+  });
+
+  // "input" field (recipient phone in errors)
+  sanitized = sanitized.replace(/"input"\s*:\s*"[^"]+"/gi, '"input": "[REDACTED]"');
+
+  // Contact names in errors
+  sanitized = sanitized.replace(/"name"\s*:\s*"[^"]+"/gi, '"name": "[REDACTED]"');
+
+  // Profile names
+  sanitized = sanitized.replace(
+    /"profile"\s*:\s*\{[^}]*"name"\s*:\s*"[^"]+"/gi,
+    '"profile": {"name": "[REDACTED]"'
+  );
+
+  // Message text that might be echoed in errors
+  sanitized = sanitized.replace(/"(?:body|text|preview_url)"\s*:\s*"[^"]{50,}"/gi, (match) => {
+    const field = /"(\w+)"/.exec(match)?.[1] ?? 'content';
+    return `"${field}": "[REDACTED:long_content]"`;
+  });
+
+  return sanitized;
+}
 
 /**
  * Input validation schemas for WhatsApp client
@@ -437,13 +490,15 @@ export class WhatsAppClient {
 
         if (!response.ok) {
           const errorBody = await response.text();
-          // Log full error internally (may contain PII) but don't expose in exception
+          // SECURITY: Sanitize error body to prevent PII leakage in logs
+          // WhatsApp error responses may contain phone numbers, names, or other PII
+          const sanitizedErrorBody = sanitizeWhatsAppError(errorBody);
           logger.error(
             {
               status: response.status,
               statusText: response.statusText,
               url: path,
-              errorBody, // May contain PII - only for internal logs
+              errorBody: sanitizedErrorBody, // PII-redacted for safe logging
             },
             'WhatsApp API error'
           );

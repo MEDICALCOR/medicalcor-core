@@ -241,9 +241,7 @@ export async function upsertTreatmentPlanFromDTO(
     return await withTransaction(pool, async (tx) => {
       const leadId = await findLeadIdByExternal(dto.externalSource, dto.leadExternalId, tx);
       if (!leadId) {
-        throw new LeadNotFoundError(
-          `source=${dto.externalSource}, contactId=${dto.leadExternalId}`
-        );
+        throw new LeadNotFoundError(dto.externalSource, dto.leadExternalId);
       }
 
       let doctorId: string | null = null;
