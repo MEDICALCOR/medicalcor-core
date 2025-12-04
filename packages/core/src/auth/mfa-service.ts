@@ -133,16 +133,10 @@ function generateHotp(secret: Buffer, counter: bigint, digits = 6): string {
   }
 
   // Inner hash
-  const innerHash = createHash('sha1')
-    .update(innerKey)
-    .update(counterBuffer)
-    .digest();
+  const innerHash = createHash('sha1').update(innerKey).update(counterBuffer).digest();
 
   // Outer hash
-  const hmacResult = createHash('sha1')
-    .update(outerKey)
-    .update(innerHash)
-    .digest();
+  const hmacResult = createHash('sha1').update(outerKey).update(innerHash).digest();
 
   // Dynamic truncation
   const offset = hmacResult[19]! & 0x0f;
@@ -167,12 +161,7 @@ function generateTotp(secret: Buffer, timeStep = 30): string {
 /**
  * Verify TOTP with time window allowance
  */
-function verifyTotp(
-  secret: Buffer,
-  token: string,
-  timeStep = 30,
-  window = 1
-): boolean {
+function verifyTotp(secret: Buffer, token: string, timeStep = 30, window = 1): boolean {
   const counter = BigInt(Math.floor(Date.now() / 1000 / timeStep));
 
   // Check current and adjacent time steps
@@ -207,19 +196,95 @@ function timingSafeEqual(a: string, b: string): boolean {
 
 /**
  * Multi-Factor Authentication Service
+ *
+ * SECURITY: MFA encryption is REQUIRED in production environments.
+ * Without proper encryption, TOTP secrets would be stored in plaintext,
+ * violating HIPAA/GDPR requirements for PHI/PII protection.
  */
 export class MfaService {
   private eventRepo: AuthEventRepository;
   private encryptionKey: Buffer | null = null;
+  private readonly isProduction: boolean;
 
   constructor(private db: DatabasePool) {
     this.eventRepo = new AuthEventRepository(db);
+    this.isProduction = process.env.NODE_ENV === 'production';
 
     // Load encryption key from environment
     const keyHex = process.env.MFA_ENCRYPTION_KEY;
     if (keyHex?.length === 64) {
       this.encryptionKey = Buffer.from(keyHex, 'hex');
+      logger.info('MFA encryption key loaded successfully');
+    } else if (keyHex && keyHex.length !== 64) {
+      // Invalid key format - warn but don't fail immediately
+      logger.error(
+        { keyLength: keyHex.length, expected: 64 },
+        'MFA_ENCRYPTION_KEY has invalid length (expected 64 hex characters / 32 bytes)'
+      );
     }
+
+    // SECURITY: Enforce encryption in production
+    this.enforceProductionSecurity();
+  }
+
+  /**
+   * Enforce security requirements in production
+   * Throws if MFA encryption is not properly configured
+   */
+  private enforceProductionSecurity(): void {
+    if (!this.isProduction) {
+      if (!this.encryptionKey) {
+        logger.warn(
+          'MFA encryption key not configured in development mode. ' +
+            'Set MFA_ENCRYPTION_KEY (64 hex chars) for production-like security.'
+        );
+      }
+      return;
+    }
+
+    // Production environment - encryption is REQUIRED
+    if (!this.encryptionKey) {
+      const errorMsg =
+        'SECURITY VIOLATION: MFA encryption is REQUIRED in production. ' +
+        'Set MFA_ENCRYPTION_KEY environment variable with a 64-character hex string (32 bytes). ' +
+        'Generate a secure key with: openssl rand -hex 32';
+
+      logger.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    // Validate key is not a weak/test key
+    if (this.isWeakKey(this.encryptionKey)) {
+      const errorMsg =
+        'SECURITY VIOLATION: MFA encryption key appears to be a weak or test key. ' +
+        'Use a cryptographically secure random key in production. ' +
+        'Generate with: openssl rand -hex 32';
+
+      logger.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    logger.info('MFA encryption security checks passed for production');
+  }
+
+  /**
+   * Check if the encryption key appears to be weak or a test key
+   */
+  private isWeakKey(key: Buffer): boolean {
+    const keyHex = key.toString('hex');
+
+    // Check for common weak patterns
+    const weakPatterns = [
+      /^0+$/, // All zeros
+      /^f+$/i, // All F's
+      /^(00|ff)+$/i, // Repeating 00 or FF
+      /^0123456789abcdef/i, // Sequential
+      /^(.)\\1{31,}$/, // All same character
+      /^test/i, // Starts with 'test'
+      /^(deadbeef|cafebabe|baadf00d)/i, // Common test values
+    ];
+
+    return weakPatterns.some((pattern) => pattern.test(keyHex));
   }
 
   /**
@@ -250,12 +315,12 @@ export class MfaService {
       method: row.method as MfaMethod,
       backupCodesRemaining: parseInt(row.backup_codes as string, 10),
     };
-    
+
     // Only add verifiedAt if it's defined (exactOptionalPropertyTypes compliance)
     if (row.verified_at) {
       status.verifiedAt = new Date(row.verified_at as string);
     }
-    
+
     return status;
   }
 
@@ -269,7 +334,9 @@ export class MfaService {
     method: MfaMethod = 'totp'
   ): Promise<MfaSetupResult> {
     if (method === 'totp' && !this.encryptionKey) {
-      throw new Error('MFA encryption key not configured. Set MFA_ENCRYPTION_KEY environment variable.');
+      throw new Error(
+        'MFA encryption key not configured. Set MFA_ENCRYPTION_KEY environment variable.'
+      );
     }
 
     // Generate secret
@@ -380,11 +447,7 @@ export class MfaService {
   /**
    * Verify MFA token during login
    */
-  async verify(
-    userId: string,
-    token: string,
-    context?: AuthContext
-  ): Promise<MfaVerifyResult> {
+  async verify(userId: string, token: string, context?: AuthContext): Promise<MfaVerifyResult> {
     // Check for lockout
     const lockoutResult = await this.db.query(
       `SELECT failed_attempts, locked_until FROM mfa_secrets WHERE user_id = $1`,
@@ -478,12 +541,12 @@ export class MfaService {
       error: 'Invalid verification code',
       attemptsRemaining: Math.max(0, MFA_CONFIG.maxFailedAttempts - failedAttempts),
     };
-    
+
     // Only add lockedUntil if it's defined (exactOptionalPropertyTypes compliance)
     if (newLockedUntil) {
       result.lockedUntil = newLockedUntil;
     }
-    
+
     return result;
   }
 
@@ -510,10 +573,7 @@ export class MfaService {
   /**
    * Regenerate backup codes
    */
-  async regenerateBackupCodes(
-    userId: string,
-    context?: AuthContext
-  ): Promise<string[]> {
+  async regenerateBackupCodes(userId: string, context?: AuthContext): Promise<string[]> {
     // Delete old backup codes
     await this.db.query(`DELETE FROM mfa_backup_codes WHERE user_id = $1`, [userId]);
 
