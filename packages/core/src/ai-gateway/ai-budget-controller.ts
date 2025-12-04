@@ -163,8 +163,8 @@ export interface CustomBudgetLimits {
 export class AIBudgetController {
   private config: AIBudgetControllerConfig;
   private redis: SecureRedisClient;
-  private alertsTriggered: Set<string> = new Set(); // Track triggered alerts to avoid duplicates
-  private customLimits: Map<string, CustomBudgetLimits> = new Map();
+  private alertsTriggered = new Set<string>(); // Track triggered alerts to avoid duplicates
+  private customLimits = new Map<string, CustomBudgetLimits>();
 
   constructor(redis: SecureRedisClient, config: Partial<AIBudgetControllerConfig> = {}) {
     this.config = AIBudgetControllerConfigSchema.parse(config);
@@ -482,7 +482,7 @@ export class AIBudgetController {
     const wouldExceedMonthly = usage.monthlySpend + estimatedCost > usage.monthlyBudget;
 
     // Generate threshold alerts
-    for (const threshold of this.config.alertThresholds as number[]) {
+    for (const threshold of this.config.alertThresholds) {
       // Daily threshold
       const dailyPercent = (usage.dailySpend + estimatedCost) / usage.dailyBudget;
       if (dailyPercent >= threshold && usage.dailyPercentUsed < threshold) {

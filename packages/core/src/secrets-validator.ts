@@ -6,7 +6,7 @@
  * @module @medicalcor/core/secrets-validator
  */
 
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { createLogger, type Logger } from './logger.js';
 
 const logger: Logger = createLogger({ name: 'secrets-validator' });
@@ -379,7 +379,6 @@ export function getSecretsFingerprint(): Record<string, string | null> {
  * Generate secure random keys for configuration
  */
 export function generateSecureKey(bytes = 32): string {
-  const { randomBytes } = require('crypto');
   return randomBytes(bytes).toString('hex');
 }
 
@@ -388,39 +387,39 @@ export function generateSecureKey(bytes = 32): string {
  */
 export function printSetupInstructions(summary: ValidationSummary): void {
   if (summary.valid && summary.warnings === 0) {
-    console.log('\n✅ All secrets are properly configured.\n');
+    console.info('\n✅ All secrets are properly configured.\n');
     return;
   }
 
-  console.log('\n' + '='.repeat(60));
-  console.log('SECRETS CONFIGURATION REQUIRED');
-  console.log('='.repeat(60));
+  console.info('\n' + '='.repeat(60));
+  console.info('SECRETS CONFIGURATION REQUIRED');
+  console.info('='.repeat(60));
 
   if (summary.criticalErrors > 0) {
-    console.log('\n🔴 REQUIRED (application will not start):');
+    console.info('\n🔴 REQUIRED (application will not start):');
     for (const envVar of summary.missingRequired) {
       const rule = DEFAULT_SECRET_RULES.find(r => r.envVar === envVar);
-      console.log(`  - ${envVar}`);
+      console.info(`  - ${envVar}`);
       if (rule) {
-        console.log(`    ${rule.description}`);
-        console.log(`    Impact: ${rule.securityImpact}`);
+        console.info(`    ${rule.description}`);
+        console.info(`    Impact: ${rule.securityImpact}`);
       }
     }
   }
 
   if (summary.warnings > 0) {
-    console.log('\n🟡 RECOMMENDED (some features will be limited):');
+    console.info('\n🟡 RECOMMENDED (some features will be limited):');
     for (const envVar of summary.missingRecommended) {
       const rule = DEFAULT_SECRET_RULES.find(r => r.envVar === envVar);
-      console.log(`  - ${envVar}`);
+      console.info(`  - ${envVar}`);
       if (rule) {
-        console.log(`    ${rule.description}`);
-        console.log(`    Impact: ${rule.securityImpact}`);
+        console.info(`    ${rule.description}`);
+        console.info(`    Impact: ${rule.securityImpact}`);
       }
     }
   }
 
-  console.log('\n📝 To generate encryption keys, run:');
-  console.log('  openssl rand -hex 32');
-  console.log('\n' + '='.repeat(60) + '\n');
+  console.info('\n📝 To generate encryption keys, run:');
+  console.info('  openssl rand -hex 32');
+  console.info('\n' + '='.repeat(60) + '\n');
 }

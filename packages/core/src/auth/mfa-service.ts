@@ -74,13 +74,13 @@ function base32Encode(buffer: Buffer): string {
     bits += 8;
 
     while (bits >= 5) {
-      result += BASE32_ALPHABET[(value >> (bits - 5)) & 0x1f];
+      result += BASE32_ALPHABET.charAt((value >> (bits - 5)) & 0x1f);
       bits -= 5;
     }
   }
 
   if (bits > 0) {
-    result += BASE32_ALPHABET[(value << (5 - bits)) & 0x1f];
+    result += BASE32_ALPHABET.charAt((value << (5 - bits)) & 0x1f);
   }
 
   return result;
@@ -217,7 +217,7 @@ export class MfaService {
 
     // Load encryption key from environment
     const keyHex = process.env.MFA_ENCRYPTION_KEY;
-    if (keyHex && keyHex.length === 64) {
+    if (keyHex?.length === 64) {
       this.encryptionKey = Buffer.from(keyHex, 'hex');
     }
   }
@@ -448,6 +448,7 @@ export class MfaService {
     }
 
     // Increment failed attempts
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive fallback for db null values
     const failedAttempts = ((mfaRow.failed_attempts as number) ?? 0) + 1;
     let newLockedUntil: Date | undefined;
 
@@ -585,7 +586,7 @@ export class MfaService {
       let code = '';
       const bytes = randomBytes(MFA_CONFIG.backupCodeLength);
       for (let j = 0; j < MFA_CONFIG.backupCodeLength; j++) {
-        code += chars[bytes[j]! % chars.length];
+        code += chars.charAt(bytes[j]! % chars.length);
       }
       // Format as XXXX-XXXX for readability
       codes.push(`${code.slice(0, 4)}-${code.slice(4)}`);

@@ -134,7 +134,7 @@ const SOURCE_ALIASES: Record<string, LeadSource> = {
 export function mapLeadSource(source?: string): LeadSource {
   const normalized = source?.toLowerCase();
   return normalized && normalized in SOURCE_ALIASES
-    ? SOURCE_ALIASES[normalized]!
+    ? SOURCE_ALIASES[normalized]
     : 'manual';
 }
 

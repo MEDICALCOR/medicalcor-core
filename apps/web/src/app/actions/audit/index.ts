@@ -111,8 +111,8 @@ function rowToAuditLog(row: AuditLogRow): AuditLog {
 
 export async function getAuditLogsAction(
   filters?: AuditFilters,
-  limit: number = 100,
-  offset: number = 0
+  limit = 100,
+  offset = 0
 ): Promise<{ logs: AuditLog[]; total: number; error?: string }> {
   try {
     await requirePermission('audit:read');

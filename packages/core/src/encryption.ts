@@ -198,29 +198,29 @@ export class LocalKmsProvider implements KmsProvider {
 
   constructor(masterKeyHex?: string) {
     const keyHex = masterKeyHex ?? process.env.KMS_MASTER_KEY;
-    if (!keyHex || keyHex.length !== 64) {
+    if (keyHex?.length !== 64) {
       throw new Error('KMS_MASTER_KEY must be 32 bytes (64 hex characters)');
     }
     this.masterKey = Buffer.from(keyHex, 'hex');
   }
 
-  async encryptDataKey(plainKey: Buffer): Promise<Buffer> {
+  encryptDataKey(plainKey: Buffer): Promise<Buffer> {
     // AES-GCM encryption of the data key with the master key
     const iv = randomBytes(12);
     const cipher = createCipheriv('aes-256-gcm', this.masterKey, iv);
     const encrypted = Buffer.concat([cipher.update(plainKey), cipher.final()]);
     const authTag = cipher.getAuthTag();
     // Format: iv(12) + authTag(16) + encrypted
-    return Buffer.concat([iv, authTag, encrypted]);
+    return Promise.resolve(Buffer.concat([iv, authTag, encrypted]));
   }
 
-  async decryptDataKey(encryptedKey: Buffer): Promise<Buffer> {
+  decryptDataKey(encryptedKey: Buffer): Promise<Buffer> {
     const iv = encryptedKey.subarray(0, 12);
     const authTag = encryptedKey.subarray(12, 28);
     const encrypted = encryptedKey.subarray(28);
     const decipher = createDecipheriv('aes-256-gcm', this.masterKey, iv);
     decipher.setAuthTag(authTag);
-    return Buffer.concat([decipher.update(encrypted), decipher.final()]);
+    return Promise.resolve(Buffer.concat([decipher.update(encrypted), decipher.final()]));
   }
 
   async generateDataKey(): Promise<{ plainKey: Buffer; encryptedKey: Buffer }> {
@@ -229,8 +229,8 @@ export class LocalKmsProvider implements KmsProvider {
     return { plainKey, encryptedKey };
   }
 
-  async isAvailable(): Promise<boolean> {
-    return true;
+  isAvailable(): Promise<boolean> {
+    return Promise.resolve(true);
   }
 }
 
@@ -292,10 +292,10 @@ function deriveKey(masterKey: Buffer, salt: Buffer): Buffer {
  */
 export class EncryptionService {
   private masterKey: Buffer | null = null;
-  private currentKeyVersion: number = 1;
+  private currentKeyVersion = 1;
   private kmsProvider: KmsProvider | null = null;
   private cachedDataKey: { plainKey: Buffer; encryptedKey: Buffer } | null = null;
-  private dataKeyCacheExpiry: number = 0;
+  private dataKeyCacheExpiry = 0;
   private static readonly DATA_KEY_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
   constructor(private db?: DatabasePool, kmsProvider?: KmsProvider) {

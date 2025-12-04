@@ -227,6 +227,7 @@ Sources: ${ragResult.sources.map((s) => s.title).join(', ')}
       case 'reply_generation':
         return this.searchService.searchForReply(queryEmbedding, query, context.clinicId, language);
 
+      case 'general':
       default:
         return this.searchService.hybridSearch(queryEmbedding, query, {
           topK: this.config.defaultTopK,
