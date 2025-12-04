@@ -9,7 +9,7 @@
 import type { NextAuthConfig } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { z } from 'zod';
-import { validateCredentials } from './database-adapter';
+import { validateCredentials, logAuthEvent } from './database-adapter';
 
 // User roles for RBAC
 export type UserRole = 'admin' | 'doctor' | 'receptionist' | 'staff';
@@ -40,20 +40,29 @@ export const authConfig: NextAuthConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
-      const isOnDashboard = !nextUrl.pathname.startsWith('/login');
-      const isPublicPath =
-        nextUrl.pathname === '/login' ||
-        nextUrl.pathname === '/offline' ||
-        nextUrl.pathname.startsWith('/api/auth');
+      const pathname = nextUrl.pathname;
 
+      // Explicitly define public paths (allowlist approach for clarity)
+      // This prevents accidental exposure of protected routes
+      const publicPaths = ['/login', '/offline', '/privacy', '/terms', '/api/auth'];
+
+      const isPublicPath =
+        publicPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`)) ||
+        pathname.startsWith('/api/auth');
+
+      // Allow access to all public paths
       if (isPublicPath) {
         return true;
       }
 
-      if (isOnDashboard) {
-        if (isLoggedIn) return true;
+      // All non-public paths require authentication
+      if (!isLoggedIn) {
         return false; // Redirect unauthenticated users to login
-      } else if (isLoggedIn) {
+      }
+
+      // Redirect logged-in users away from login page to dashboard
+      // (at this point we know isLoggedIn is true since we returned false above)
+      if (pathname === '/login') {
         return Response.redirect(new URL('/', nextUrl));
       }
 
@@ -61,20 +70,21 @@ export const authConfig: NextAuthConfig = {
     },
 
     jwt({ token, user }) {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      // Runtime guard: user is only defined during sign-in, not on subsequent requests
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- user may be undefined at runtime
       if (user) {
-        // Add custom fields to JWT token
-        token.id = user.id;
-        token.role = (user as AuthUser).role;
-        token.clinicId = (user as AuthUser).clinicId;
+        const authUser = user as AuthUser;
+        token.id = authUser.id;
+        token.role = authUser.role;
+        token.clinicId = authUser.clinicId;
       }
       return token;
     },
 
     session({ session, token }) {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (session.user) {
-        // Add custom fields to session
+      // Runtime guard: defensive check for edge cases where session.user may be undefined
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime safety
+      if (session.user && token.sub) {
         session.user.id = token.id as string;
         session.user.role = token.role as UserRole;
         session.user.clinicId = token.clinicId as string | undefined;
@@ -99,15 +109,20 @@ export const authConfig: NextAuthConfig = {
 
         const { email, password } = parsed.data;
 
-        // Extract request context for audit logging
+        // Extract request context for audit logging (HIPAA/GDPR compliance)
         const context = {
-          ipAddress: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-                     request.headers.get('x-real-ip') ??
-                     'unknown',
+          ipAddress:
+            request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+            request.headers.get('x-real-ip') ??
+            'unknown',
           userAgent: request.headers.get('user-agent') ?? undefined,
         };
 
         const user = await validateCredentials(email, password, context);
+
+        // Log authentication attempt for compliance audit trail
+        // Fire-and-forget: don't block auth flow on logging
+        void logAuthEvent(user ? 'login_success' : 'login_failure', user?.id, email, context);
 
         return user;
       },
@@ -127,8 +142,8 @@ export const authConfig: NextAuthConfig = {
     sessionToken: {
       name: `__Secure-next-auth.session-token`,
       options: {
-        httpOnly: true,     // Prevents JavaScript access (XSS protection)
-        sameSite: 'lax',    // CSRF protection while allowing OAuth redirects
+        httpOnly: true, // Prevents JavaScript access (XSS protection)
+        sameSite: 'lax', // CSRF protection while allowing OAuth redirects
         path: '/',
         secure: process.env.NODE_ENV === 'production', // HTTPS only in production
       },

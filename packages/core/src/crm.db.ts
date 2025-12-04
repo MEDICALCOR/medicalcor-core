@@ -16,6 +16,86 @@ import type { LeadDTO, TreatmentPlanDTO, InteractionDTO } from '@medicalcor/type
 
 const logger = createLogger({ name: 'crm-db' });
 
+// --- Structured Error Types for Platinum Standard ---
+
+/**
+ * Base class for CRM domain errors
+ * Provides structured error handling for proper HTTP status mapping
+ */
+export class CrmDatabaseError extends Error {
+  public readonly code: string;
+  public readonly httpStatus: number;
+  public readonly originalError?: Error;
+
+  constructor(message: string, code: string, httpStatus: number, originalError?: Error) {
+    super(message);
+    this.name = 'CrmDatabaseError';
+    this.code = code;
+    this.httpStatus = httpStatus;
+    this.originalError = originalError;
+    Object.setPrototypeOf(this, CrmDatabaseError.prototype);
+  }
+}
+
+export class LeadNotFoundError extends CrmDatabaseError {
+  constructor(identifier: string) {
+    super(`Lead not found: ${identifier}`, 'LEAD_NOT_FOUND', 404);
+    this.name = 'LeadNotFoundError';
+  }
+}
+
+export class LeadUpdateFailedError extends CrmDatabaseError {
+  constructor(message: string, originalError?: Error) {
+    super(message, 'LEAD_UPDATE_FAILED', 500, originalError);
+    this.name = 'LeadUpdateFailedError';
+  }
+}
+
+export class DatabaseConnectionError extends CrmDatabaseError {
+  constructor(originalError?: Error) {
+    super('Database connection failed', 'DB_CONNECTION_FAILED', 503, originalError);
+    this.name = 'DatabaseConnectionError';
+  }
+}
+
+export class DuplicateRecordError extends CrmDatabaseError {
+  constructor(entity: string, constraint: string) {
+    super(`Duplicate ${entity} violates constraint: ${constraint}`, 'DUPLICATE_RECORD', 409);
+    this.name = 'DuplicateRecordError';
+  }
+}
+
+/**
+ * Converts generic database errors into structured domain errors
+ * @param error - The original error from database operation
+ * @param context - Additional context about the operation
+ */
+function handleDatabaseError(error: unknown, context: string): never {
+  if (error instanceof CrmDatabaseError) {
+    throw error;
+  }
+
+  const err = error instanceof Error ? error : new Error(String(error));
+  const pgError = err as Error & { code?: string; constraint?: string };
+
+  // PostgreSQL error codes: https://www.postgresql.org/docs/current/errcodes-appendix.html
+  switch (pgError.code) {
+    case '23505': // unique_violation
+      throw new DuplicateRecordError(context, pgError.constraint ?? 'unknown');
+    case '08000': // connection_exception
+    case '08003': // connection_does_not_exist
+    case '08006': // connection_failure
+    case '57P01': // admin_shutdown
+    case '57P02': // crash_shutdown
+    case '57P03': // cannot_connect_now
+      throw new DatabaseConnectionError(err);
+    case undefined:
+    default:
+      logger.error({ error: err, context }, 'Unhandled database error');
+      throw new LeadUpdateFailedError(`${context}: ${err.message}`, err);
+  }
+}
+
 // --- 0. Utils ----------------------------------------------------------------
 function clamp(val: number, min: number, max: number): number {
   return Math.min(Math.max(val, min), max);
@@ -25,7 +105,7 @@ function clamp(val: number, min: number, max: number): number {
 export async function findLeadIdByExternal(
   externalSource: string,
   externalContactId: string,
-  client?: DatabasePool | TransactionClient,
+  client?: DatabasePool | TransactionClient
 ): Promise<string | null> {
   const db = client ?? createDatabaseClient();
   const result = await db.query<{ id: string }>(
@@ -33,14 +113,14 @@ export async function findLeadIdByExternal(
      WHERE external_source = $1
        AND external_contact_id = $2
      LIMIT 1`,
-    [externalSource, externalContactId],
+    [externalSource, externalContactId]
   );
   return result.rows[0]?.id ?? null;
 }
 
 export async function findPractitionerIdByExternalUserId(
   externalUserId: string,
-  client?: DatabasePool | TransactionClient,
+  client?: DatabasePool | TransactionClient
 ): Promise<string | null> {
   const db = client ?? createDatabaseClient();
   const result = await db.query<{ id: string }>(
@@ -49,7 +129,7 @@ export async function findPractitionerIdByExternalUserId(
      WHERE external_user_id = $1
        AND is_active = true
      LIMIT 1`,
-    [externalUserId],
+    [externalUserId]
   );
   return result.rows[0]?.id ?? null;
 }
@@ -68,7 +148,7 @@ export async function recordLeadEvent(params: {
   await db.query(
     `INSERT INTO lead_events (lead_id, event_type, actor, payload)
      VALUES ($1, $2, $3, $4)`,
-    [leadId, eventType, actor, payload ? JSON.stringify(payload) : null],
+    [leadId, eventType, actor, payload ? JSON.stringify(payload) : null]
   );
 }
 
@@ -79,31 +159,28 @@ export interface UpsertLeadOptions {
   actor?: string;
 }
 
-export async function upsertLeadFromDTO(
-  dto: LeadDTO,
-  opts?: UpsertLeadOptions,
-): Promise<string> {
+export async function upsertLeadFromDTO(dto: LeadDTO, opts?: UpsertLeadOptions): Promise<string> {
   const pool = createDatabaseClient();
 
-  return withTransaction(pool, async (tx) => {
-    // A. Agent
-    let assignedAgentId: string | null = null;
-    if (dto.assignedAgentExternalUserId) {
-      assignedAgentId = await findPractitionerIdByExternalUserId(
-        dto.assignedAgentExternalUserId,
-        tx,
-      );
-    }
+  try {
+    return await withTransaction(pool, async (tx) => {
+      // A. Agent
+      let assignedAgentId: string | null = null;
+      if (dto.assignedAgentExternalUserId) {
+        assignedAgentId = await findPractitionerIdByExternalUserId(
+          dto.assignedAgentExternalUserId,
+          tx
+        );
+      }
 
-    // B. Valori derivate
-    const aiScore =
-      dto.aiScore !== undefined ? clamp(dto.aiScore, 0, 100) : undefined;
+      // B. Valori derivate
+      const aiScore = dto.aiScore !== undefined ? clamp(dto.aiScore, 0, 100) : undefined;
 
-    const clinicId = dto.clinicId ?? opts?.clinicId ?? null;
+      const clinicId = dto.clinicId ?? opts?.clinicId ?? null;
 
-    // C. INSERT first
-    const insertResult = await tx.query<{ id: string }>(
-      `INSERT INTO leads (
+      // C. INSERT first
+      const insertResult = await tx.query<{ id: string }>(
+        `INSERT INTO leads (
         clinic_id, assigned_agent_id, external_contact_id, external_source, external_url,
         full_name, phone, email, source, acquisition_channel, ad_campaign_id,
         ai_score, ai_intent, ai_summary, ai_last_analysis_at, language, tags, metadata,
@@ -117,41 +194,41 @@ export async function upsertLeadFromDTO(
       )
       ON CONFLICT (external_source, external_contact_id) DO NOTHING
       RETURNING id`,
-      [
-        clinicId,
-        assignedAgentId,
-        dto.externalContactId,
-        dto.externalSource,
-        dto.externalUrl ?? null,
-        dto.fullName ?? null,
-        dto.phone,
-        dto.email ?? null,
-        dto.source ?? null,
-        dto.acquisitionChannel ?? null,
-        dto.adCampaignId ?? null,
-        aiScore ?? 0,
-        dto.aiIntent ?? null,
-        dto.aiSummary ?? null,
-        dto.aiLastAnalysisAt ?? null,
-        dto.language ?? 'ro',
-        dto.tags ?? null,
-        dto.metadata ? JSON.stringify(dto.metadata) : null,
-        dto.gdprConsent ?? false,
-        dto.gdprConsentAt ?? null,
-        dto.gdprConsentSource ?? null,
-        dto.status ?? 'new',
-        opts?.createdBy ?? null,
-        opts?.createdBy ?? null,
-      ],
-    );
+        [
+          clinicId,
+          assignedAgentId,
+          dto.externalContactId,
+          dto.externalSource,
+          dto.externalUrl ?? null,
+          dto.fullName ?? null,
+          dto.phone,
+          dto.email ?? null,
+          dto.source ?? null,
+          dto.acquisitionChannel ?? null,
+          dto.adCampaignId ?? null,
+          aiScore ?? 0,
+          dto.aiIntent ?? null,
+          dto.aiSummary ?? null,
+          dto.aiLastAnalysisAt ?? null,
+          dto.language ?? 'ro',
+          dto.tags ?? null,
+          dto.metadata ? JSON.stringify(dto.metadata) : null,
+          dto.gdprConsent ?? false,
+          dto.gdprConsentAt ?? null,
+          dto.gdprConsentSource ?? null,
+          dto.status ?? 'new',
+          opts?.createdBy ?? null,
+          opts?.createdBy ?? null,
+        ]
+      );
 
-    let leadId = insertResult.rows[0]?.id;
-    let eventType: 'lead_created' | 'lead_updated' = 'lead_created';
+      let leadId = insertResult.rows[0]?.id;
+      let eventType: 'lead_created' | 'lead_updated' = 'lead_created';
 
-    // D. UPDATE (patch) dacă există deja
-    if (!leadId) {
-      const updateResult = await tx.query<{ id: string }>(
-        `UPDATE leads SET
+      // D. UPDATE (patch) dacă există deja
+      if (!leadId) {
+        const updateResult = await tx.query<{ id: string }>(
+          `UPDATE leads SET
           clinic_id            = COALESCE($1, leads.clinic_id),
           assigned_agent_id    = COALESCE($2, leads.assigned_agent_id),
           external_url         = COALESCE($3, leads.external_url),
@@ -177,57 +254,60 @@ export async function upsertLeadFromDTO(
         WHERE external_source = $22
           AND external_contact_id = $23
         RETURNING id`,
-        [
-          clinicId,
-          assignedAgentId,
-          dto.externalUrl ?? null,
-          dto.fullName ?? null,
-          dto.phone,
-          dto.email ?? null,
-          dto.source ?? null,
-          dto.acquisitionChannel ?? null,
-          dto.adCampaignId ?? null,
-          aiScore ?? null,
-          dto.aiIntent ?? null,
-          dto.aiSummary ?? null,
-          dto.aiLastAnalysisAt ?? null,
-          dto.language ?? null,
-          dto.tags ?? null,
-          dto.metadata ? JSON.stringify(dto.metadata) : null,
-          dto.gdprConsent ?? null,
-          dto.gdprConsentAt ?? null,
-          dto.gdprConsentSource ?? null,
-          dto.status ?? null,
-          opts?.createdBy ?? null,
-          dto.externalSource,
-          dto.externalContactId,
-        ],
-      );
+          [
+            clinicId,
+            assignedAgentId,
+            dto.externalUrl ?? null,
+            dto.fullName ?? null,
+            dto.phone,
+            dto.email ?? null,
+            dto.source ?? null,
+            dto.acquisitionChannel ?? null,
+            dto.adCampaignId ?? null,
+            aiScore ?? null,
+            dto.aiIntent ?? null,
+            dto.aiSummary ?? null,
+            dto.aiLastAnalysisAt ?? null,
+            dto.language ?? null,
+            dto.tags ?? null,
+            dto.metadata ? JSON.stringify(dto.metadata) : null,
+            dto.gdprConsent ?? null,
+            dto.gdprConsentAt ?? null,
+            dto.gdprConsentSource ?? null,
+            dto.status ?? null,
+            opts?.createdBy ?? null,
+            dto.externalSource,
+            dto.externalContactId,
+          ]
+        );
 
-      if (!updateResult.rows[0]) {
-        throw new Error('Lead disappeared during upsert');
+        if (!updateResult.rows[0]) {
+          throw new Error('Lead disappeared during upsert');
+        }
+
+        leadId = updateResult.rows[0].id;
+        eventType = 'lead_updated';
       }
 
-      leadId = updateResult.rows[0].id;
-      eventType = 'lead_updated';
-    }
+      // E. Audit
+      await recordLeadEvent({
+        leadId,
+        eventType,
+        actor: opts?.actor ?? 'system',
+        payload: {
+          change: 'crm_sync',
+          source: dto.externalSource,
+          status: dto.status,
+        },
+        client: tx,
+      });
 
-    // E. Audit
-    await recordLeadEvent({
-      leadId,
-      eventType,
-      actor: opts?.actor ?? 'system',
-      payload: {
-        change: 'crm_sync',
-        source: dto.externalSource,
-        status: dto.status,
-      },
-      client: tx,
+      logger.info({ leadId, eventType, source: dto.externalSource }, 'Lead upserted');
+      return leadId;
     });
-
-    logger.info({ leadId, eventType, source: dto.externalSource }, 'Lead upserted');
-    return leadId;
-  });
+  } catch (error) {
+    handleDatabaseError(error, 'Lead upsert');
+  }
 }
 
 // --- 4. UPSERT TREATMENT PLAN (Smart Patch) ----------------------------------
@@ -237,41 +317,32 @@ export interface UpsertTreatmentPlanOptions {
 
 export async function upsertTreatmentPlanFromDTO(
   dto: TreatmentPlanDTO,
-  opts?: UpsertTreatmentPlanOptions,
+  opts?: UpsertTreatmentPlanOptions
 ): Promise<string> {
   const pool = createDatabaseClient();
 
-  return withTransaction(pool, async (tx) => {
-    const leadId = await findLeadIdByExternal(
-      dto.externalSource,
-      dto.leadExternalId,
-      tx,
-    );
-    if (!leadId) {
-      throw new Error(
-        `Lead not found for treatment plan sync (source=${dto.externalSource}, contactId=${dto.leadExternalId})`,
-      );
-    }
+  try {
+    return await withTransaction(pool, async (tx) => {
+      const leadId = await findLeadIdByExternal(dto.externalSource, dto.leadExternalId, tx);
+      if (!leadId) {
+        throw new LeadNotFoundError(
+          `source=${dto.externalSource}, contactId=${dto.leadExternalId}`
+        );
+      }
 
-    let doctorId: string | null = null;
-    if (dto.doctorExternalUserId) {
-      doctorId = await findPractitionerIdByExternalUserId(
-        dto.doctorExternalUserId,
-        tx,
-      );
-    }
+      let doctorId: string | null = null;
+      if (dto.doctorExternalUserId) {
+        doctorId = await findPractitionerIdByExternalUserId(dto.doctorExternalUserId, tx);
+      }
 
-    const probability =
-      dto.probability !== undefined
-        ? clamp(dto.probability, 0, 100)
-        : undefined;
-    const totalValue =
-      dto.totalValue !== undefined ? Math.max(0, dto.totalValue) : undefined;
-    const currency = dto.currency ?? 'EUR';
+      const probability =
+        dto.probability !== undefined ? clamp(dto.probability, 0, 100) : undefined;
+      const totalValue = dto.totalValue !== undefined ? Math.max(0, dto.totalValue) : undefined;
+      const currency = dto.currency ?? 'EUR';
 
-    // 1. INSERT
-    const insertResult = await tx.query<{ id: string }>(
-      `INSERT INTO treatment_plans (
+      // 1. INSERT
+      const insertResult = await tx.query<{ id: string }>(
+        `INSERT INTO treatment_plans (
         lead_id, doctor_id, external_deal_id, name, total_value, currency,
         stage, probability, is_accepted, accepted_at, rejected_reason,
         valid_until, notes
@@ -283,31 +354,30 @@ export async function upsertTreatmentPlanFromDTO(
       )
       ON CONFLICT (external_deal_id) DO NOTHING
       RETURNING id`,
-      [
-        leadId,
-        doctorId,
-        dto.externalDealId,
-        dto.name ?? null,
-        totalValue ?? 0,
-        currency,
-        dto.stage ?? 'draft',
-        probability ?? 0,
-        dto.isAccepted ?? false,
-        dto.acceptedAt ?? null,
-        dto.rejectedReason ?? null,
-        dto.validUntil ?? null,
-        dto.notes ?? null,
-      ],
-    );
+        [
+          leadId,
+          doctorId,
+          dto.externalDealId,
+          dto.name ?? null,
+          totalValue ?? 0,
+          currency,
+          dto.stage ?? 'draft',
+          probability ?? 0,
+          dto.isAccepted ?? false,
+          dto.acceptedAt ?? null,
+          dto.rejectedReason ?? null,
+          dto.validUntil ?? null,
+          dto.notes ?? null,
+        ]
+      );
 
-    let planId = insertResult.rows[0]?.id;
-    let eventType: 'treatment_plan_created' | 'treatment_plan_updated' =
-      'treatment_plan_created';
+      let planId = insertResult.rows[0]?.id;
+      let eventType: 'treatment_plan_created' | 'treatment_plan_updated' = 'treatment_plan_created';
 
-    // 2. UPDATE (patch)
-    if (!planId) {
-      const updateResult = await tx.query<{ id: string }>(
-        `UPDATE treatment_plans SET
+      // 2. UPDATE (patch)
+      if (!planId) {
+        const updateResult = await tx.query<{ id: string }>(
+          `UPDATE treatment_plans SET
           lead_id         = $1,
           doctor_id       = COALESCE($2, treatment_plans.doctor_id),
           name            = COALESCE($3, treatment_plans.name),
@@ -323,48 +393,51 @@ export async function upsertTreatmentPlanFromDTO(
           updated_at      = NOW()
         WHERE external_deal_id = $13
         RETURNING id`,
-        [
-          leadId,
-          doctorId,
-          dto.name ?? null,
-          totalValue ?? null,
-          currency,
-          dto.stage ?? null,
-          probability ?? null,
-          dto.isAccepted ?? null,
-          dto.acceptedAt ?? null,
-          dto.rejectedReason ?? null,
-          dto.validUntil ?? null,
-          dto.notes ?? null,
-          dto.externalDealId,
-        ],
-      );
+          [
+            leadId,
+            doctorId,
+            dto.name ?? null,
+            totalValue ?? null,
+            currency,
+            dto.stage ?? null,
+            probability ?? null,
+            dto.isAccepted ?? null,
+            dto.acceptedAt ?? null,
+            dto.rejectedReason ?? null,
+            dto.validUntil ?? null,
+            dto.notes ?? null,
+            dto.externalDealId,
+          ]
+        );
 
-      if (!updateResult.rows[0]) {
-        throw new Error('Treatment Plan disappeared during upsert');
+        if (!updateResult.rows[0]) {
+          throw new Error('Treatment Plan disappeared during upsert');
+        }
+
+        planId = updateResult.rows[0].id;
+        eventType = 'treatment_plan_updated';
       }
 
-      planId = updateResult.rows[0].id;
-      eventType = 'treatment_plan_updated';
-    }
+      await recordLeadEvent({
+        leadId,
+        eventType,
+        actor: opts?.actor ?? 'system',
+        payload: {
+          planId,
+          dealId: dto.externalDealId,
+          value: totalValue,
+          stage: dto.stage,
+          isAccepted: dto.isAccepted,
+        },
+        client: tx,
+      });
 
-    await recordLeadEvent({
-      leadId,
-      eventType,
-      actor: opts?.actor ?? 'system',
-      payload: {
-        planId,
-        dealId: dto.externalDealId,
-        value: totalValue,
-        stage: dto.stage,
-        isAccepted: dto.isAccepted,
-      },
-      client: tx,
+      logger.info({ planId, leadId, eventType }, 'Treatment plan upserted');
+      return planId;
     });
-
-    logger.info({ planId, leadId, eventType }, 'Treatment plan upserted');
-    return planId;
-  });
+  } catch (error) {
+    handleDatabaseError(error, 'Treatment plan upsert');
+  }
 }
 
 // --- 5. INTERACTION (Atomic + Last Contact) ----------------------------------
@@ -374,32 +447,27 @@ export interface InsertInteractionOptions {
 
 export async function insertInteractionFromDTO(
   dto: InteractionDTO,
-  opts?: InsertInteractionOptions,
+  opts?: InsertInteractionOptions
 ): Promise<string | null> {
   const pool = createDatabaseClient();
 
-  return withTransaction(pool, async (tx) => {
-    const leadId = await findLeadIdByExternal(
-      dto.leadExternalSource,
-      dto.leadExternalId,
-      tx,
-    );
-    if (!leadId) {
-      logger.warn(
-        { source: dto.leadExternalSource, contactId: dto.leadExternalId },
-        'Lead not found for interaction',
-      );
-      return null;
-    }
+  try {
+    return await withTransaction(pool, async (tx) => {
+      const leadId = await findLeadIdByExternal(dto.leadExternalSource, dto.leadExternalId, tx);
+      if (!leadId) {
+        logger.warn(
+          { source: dto.leadExternalSource, contactId: dto.leadExternalId },
+          'Lead not found for interaction'
+        );
+        return null;
+      }
 
-    const createdAt = dto.createdAt ?? new Date();
-    const sentiment =
-      dto.aiSentimentScore !== undefined
-        ? clamp(dto.aiSentimentScore, -1.0, 1.0)
-        : null;
+      const createdAt = dto.createdAt ?? new Date();
+      const sentiment =
+        dto.aiSentimentScore !== undefined ? clamp(dto.aiSentimentScore, -1.0, 1.0) : null;
 
-    const result = await tx.query<{ id: string }>(
-      `INSERT INTO interactions (
+      const result = await tx.query<{ id: string }>(
+        `INSERT INTO interactions (
         lead_id, external_id, thread_id, provider, channel, direction, type,
         content, media_url, ai_sentiment_score, ai_tags, status, error_message, created_at
       )
@@ -410,82 +478,82 @@ export async function insertInteractionFromDTO(
       ON CONFLICT (provider, external_id)
       DO NOTHING
       RETURNING id`,
-      [
-        leadId,
-        dto.externalId,
-        dto.threadId ?? null,
-        dto.provider,
-        dto.channel,
-        dto.direction,
-        dto.type,
-        dto.content ?? null,
-        dto.mediaUrl ?? null,
-        sentiment,
-        dto.aiTags ?? null,
-        dto.status ?? null,
-        dto.errorMessage ?? null,
-        createdAt,
-      ],
-    );
-
-    const interactionId = result.rows[0]?.id ?? null;
-
-    if (interactionId) {
-      await recordLeadEvent({
-        leadId,
-        eventType: 'interaction_added',
-        actor: opts?.actor ?? 'system',
-        payload: {
-          interactionId,
-          channel: dto.channel,
-          direction: dto.direction,
-          type: dto.type,
+        [
+          leadId,
+          dto.externalId,
+          dto.threadId ?? null,
+          dto.provider,
+          dto.channel,
+          dto.direction,
+          dto.type,
+          dto.content ?? null,
+          dto.mediaUrl ?? null,
           sentiment,
-        },
-        client: tx,
-      });
-
-      await tx.query(
-        `UPDATE leads
-         SET last_interaction_at = $1, updated_at = NOW()
-         WHERE id = $2`,
-        [createdAt, leadId],
+          dto.aiTags ?? null,
+          dto.status ?? null,
+          dto.errorMessage ?? null,
+          createdAt,
+        ]
       );
 
-      logger.info({ interactionId, leadId, channel: dto.channel }, 'Interaction added');
-    }
+      const interactionId = result.rows[0]?.id ?? null;
 
-    return interactionId;
-  });
+      if (interactionId) {
+        await recordLeadEvent({
+          leadId,
+          eventType: 'interaction_added',
+          actor: opts?.actor ?? 'system',
+          payload: {
+            interactionId,
+            channel: dto.channel,
+            direction: dto.direction,
+            type: dto.type,
+            sentiment,
+          },
+          client: tx,
+        });
+
+        await tx.query(
+          `UPDATE leads
+         SET last_interaction_at = $1, updated_at = NOW()
+         WHERE id = $2`,
+          [createdAt, leadId]
+        );
+
+        logger.info({ interactionId, leadId, channel: dto.channel }, 'Interaction added');
+      }
+
+      return interactionId;
+    });
+  } catch (error) {
+    handleDatabaseError(error, 'Interaction insert');
+  }
 }
 
 // --- 6. Query Helpers --------------------------------------------------------
 export async function getLeadById(leadId: string): Promise<Record<string, unknown> | null> {
   const db = createDatabaseClient();
-  const result = await db.query(
-    `SELECT * FROM leads WHERE id = $1 LIMIT 1`,
-    [leadId],
-  );
+  const result = await db.query(`SELECT * FROM leads WHERE id = $1 LIMIT 1`, [leadId]);
   return result.rows[0] ?? null;
 }
 
 export async function getLeadByExternal(
   externalSource: string,
-  externalContactId: string,
+  externalContactId: string
 ): Promise<Record<string, unknown> | null> {
   const db = createDatabaseClient();
   const result = await db.query(
     `SELECT * FROM leads
      WHERE external_source = $1 AND external_contact_id = $2
      LIMIT 1`,
-    [externalSource, externalContactId],
+    [externalSource, externalContactId]
   );
   return result.rows[0] ?? null;
 }
 
 export async function getLeadEvents(
   leadId: string,
-  limit = 50,
+  limit = 50
 ): Promise<Record<string, unknown>[]> {
   const db = createDatabaseClient();
   const result = await db.query(
@@ -493,27 +561,25 @@ export async function getLeadEvents(
      WHERE lead_id = $1
      ORDER BY created_at DESC
      LIMIT $2`,
-    [leadId, limit],
+    [leadId, limit]
   );
   return result.rows;
 }
 
-export async function getTreatmentPlansByLead(
-  leadId: string,
-): Promise<Record<string, unknown>[]> {
+export async function getTreatmentPlansByLead(leadId: string): Promise<Record<string, unknown>[]> {
   const db = createDatabaseClient();
   const result = await db.query(
     `SELECT * FROM treatment_plans
      WHERE lead_id = $1
      ORDER BY created_at DESC`,
-    [leadId],
+    [leadId]
   );
   return result.rows;
 }
 
 export async function getInteractionsByLead(
   leadId: string,
-  limit = 100,
+  limit = 100
 ): Promise<Record<string, unknown>[]> {
   const db = createDatabaseClient();
   const result = await db.query(
@@ -521,7 +587,7 @@ export async function getInteractionsByLead(
      WHERE lead_id = $1
      ORDER BY created_at DESC
      LIMIT $2`,
-    [leadId, limit],
+    [leadId, limit]
   );
   return result.rows;
 }
