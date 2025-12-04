@@ -124,3 +124,94 @@ export {
 
 export type { PatientStatus, CommunicationChannel, ConversationStatus } from './shared/mappers';
 export type { FetchAllOptions, SearchParamsWithoutPaging } from './shared/pagination';
+
+// ============================================================================
+// API KEYS ACTIONS
+// ============================================================================
+
+export {
+  getApiKeysAction,
+  getApiKeyStatsAction,
+  createApiKeyAction,
+  updateApiKeyAction,
+  toggleApiKeyAction,
+  revokeApiKeyAction,
+  regenerateApiKeyAction,
+} from './api-keys/index';
+
+export type { ApiKey, ApiKeyStats } from './api-keys/index';
+
+// ============================================================================
+// USERS ACTIONS
+// ============================================================================
+
+export {
+  getUsersAction,
+  getUserByIdAction,
+  getUserStatsAction,
+  createUserAction,
+  updateUserAction,
+  deleteUserAction,
+  resetUserPasswordAction,
+  unlockUserAction,
+} from './users/index';
+
+export type { User, UserRole, UserStatus, UserStats } from './users/index';
+
+// ============================================================================
+// CLINICS ACTIONS
+// ============================================================================
+
+export {
+  getClinicsAction,
+  getClinicByIdAction,
+  getCurrentClinicAction,
+  getClinicStatsAction,
+  createClinicAction,
+  updateClinicAction,
+  deleteClinicAction,
+} from './clinics/index';
+
+export type { Clinic, ClinicStatus, ClinicStats } from './clinics/index';
+
+// ============================================================================
+// WHATSAPP TEMPLATES ACTIONS
+// ============================================================================
+
+export {
+  getWhatsAppTemplatesAction,
+  getWhatsAppTemplateStatsAction,
+  getWhatsAppTemplateByIdAction,
+  createWhatsAppTemplateAction,
+  updateWhatsAppTemplateAction,
+  deleteWhatsAppTemplateAction,
+  duplicateWhatsAppTemplateAction,
+} from './whatsapp-templates/index';
+
+export type {
+  WhatsAppTemplate,
+  TemplateCategory,
+  TemplateStatus,
+  TemplateStats,
+} from './whatsapp-templates/index';
+
+// ============================================================================
+// BILLING ACTIONS
+// ============================================================================
+
+export {
+  getInvoicesAction,
+  getInvoiceByIdAction,
+  getBillingStatsAction,
+  createInvoiceAction,
+  updateInvoiceStatusAction,
+  deleteInvoiceAction,
+  getStripeRevenueAction,
+} from './billing/index';
+
+export type {
+  Invoice,
+  InvoiceItem,
+  InvoiceStatus,
+  BillingStats,
+} from './billing/index';
