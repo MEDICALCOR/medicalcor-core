@@ -559,6 +559,41 @@ export {
   type InsertInteractionOptions,
 } from './crm.db.js';
 
+// GDPR Compliance Services
+export {
+  // DSR Service (Data Subject Requests - Articles 15-22)
+  PostgresDSRService,
+  createDSRService,
+  // Data Inventory Service (Article 30)
+  PostgresDataInventoryService,
+  createDataInventoryService,
+  // Retention Service
+  PostgresRetentionService,
+  createRetentionService,
+  // Types
+  type DSRServiceDeps,
+  type DataInventoryServiceDeps,
+  type RetentionServiceDeps,
+  type DSRType,
+  type DSRStatus,
+  type DSRResponse,
+  type DataSubjectRequest,
+  type DSRService,
+  type DataCategory,
+  type LegalBasis,
+  type DataRecipient,
+  type DataProcessingActivity,
+  type ProcessingRecords,
+  type DataInventoryService,
+  type DisposalMethod,
+  type RetentionException,
+  type RetentionPolicy as GDPRRetentionPolicy,
+  type RetentionCandidate,
+  type DisposalError,
+  type DisposalResult,
+  type RetentionService,
+} from './security/gdpr/index.js';
+
 // ============================================================================
 // REPOSITORIES (Infrastructure Adapters)
 // ============================================================================
