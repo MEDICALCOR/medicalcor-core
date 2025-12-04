@@ -421,6 +421,7 @@ export const SupervisorDashboardStatsSchema = z.object({
   // Alerts
   activeAlerts: z.number().default(0),
   escalationsToday: z.number().default(0),
+  handoffsToday: z.number().default(0),
 
   // Performance (today)
   callsHandledToday: z.number().default(0),

@@ -6,7 +6,7 @@
  * using Server-Sent Events (SSE) and WebSocket connections.
  */
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
-import { generateCorrelationId } from '@medicalcor/core';
+import { generateCorrelationId, logger } from '@medicalcor/core';
 import { getSupervisorAgent } from '@medicalcor/domain';
 import type { MonitoredCall, HandoffRequest } from '@medicalcor/types';
 import { randomUUID } from 'crypto';
@@ -435,8 +435,15 @@ export function emitSupervisorEvent(event: {
   switch (event.eventType) {
     case 'call.started':
       if (event.data && event.callSid) {
-        const customerPhone =
-          typeof event.data.customerPhone === 'string' ? event.data.customerPhone : '+40000000000';
+        // Require valid phone number - no placeholders
+        if (typeof event.data.customerPhone !== 'string' || !event.data.customerPhone) {
+          logger.warn(
+            { callSid: event.callSid },
+            'Cannot register call without valid customerPhone'
+          );
+          break;
+        }
+        const customerPhone = event.data.customerPhone;
         const direction =
           event.data.direction === 'inbound' || event.data.direction === 'outbound'
             ? event.data.direction

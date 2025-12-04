@@ -121,12 +121,25 @@ function hasPermission(role: SupervisorRole, permission: SupervisorPermission): 
 // Supervisor Agent Implementation
 // =============================================================================
 
+/**
+ * Tracked escalation event for historical reporting
+ */
+interface EscalationEvent {
+  callSid: string;
+  timestamp: Date;
+  reason: string;
+}
+
 export class SupervisorAgent extends EventEmitter {
   private config: ResolvedSupervisorAgentConfig;
   private activeCalls = new Map<string, MonitoredCall>();
   private supervisorSessions = new Map<string, SupervisorSession>();
   private callNotes = new Map<string, SupervisorNote[]>();
   private callTimers = new Map<string, NodeJS.Timeout>();
+
+  // Historical tracking for daily metrics
+  private escalationHistory: EscalationEvent[] = [];
+  private handoffHistory: { callSid: string; timestamp: Date; agentId: string }[] = [];
 
   // Escalation keywords (Romanian + English)
   private readonly ESCALATION_KEYWORDS = [
@@ -345,7 +358,8 @@ export class SupervisorAgent extends EventEmitter {
       | 'complaint'
       | 'long-hold'
       | 'silence-detected'
-      | 'ai-handoff-needed'
+      | 'ai-handoff-needed',
+    reason?: string
   ): void {
     const call = this.activeCalls.get(callSid);
     if (!call) return;
@@ -354,7 +368,50 @@ export class SupervisorAgent extends EventEmitter {
     if (!flags.includes(flag)) {
       flags.push(flag);
       this.updateCall(callSid, { flags });
+
+      // Track escalation in history for reporting
+      if (flag === 'escalation-requested') {
+        this.escalationHistory.push({
+          callSid,
+          timestamp: new Date(),
+          reason: reason ?? 'Manual escalation',
+        });
+
+        // Prune old history (keep last 7 days)
+        this.pruneOldHistory();
+      }
     }
+  }
+
+  /**
+   * Prune history older than 7 days to prevent memory buildup
+   */
+  private pruneOldHistory(): void {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    this.escalationHistory = this.escalationHistory.filter((e) => e.timestamp > sevenDaysAgo);
+    this.handoffHistory = this.handoffHistory.filter((h) => h.timestamp > sevenDaysAgo);
+  }
+
+  /**
+   * Get escalations for today
+   */
+  getEscalationsToday(): EscalationEvent[] {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return this.escalationHistory.filter((e) => e.timestamp >= today);
+  }
+
+  /**
+   * Get handoffs for today
+   */
+  getHandoffsToday(): number {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return this.handoffHistory.filter((h) => h.timestamp >= today).length;
   }
 
   /**
@@ -605,6 +662,14 @@ export class SupervisorAgent extends EventEmitter {
   completeHandoff(callSid: string, agentId: string): void {
     this.unflagCall(callSid, 'ai-handoff-needed');
     this.updateCall(callSid, { agentId });
+
+    // Track handoff in history for reporting
+    this.handoffHistory.push({
+      callSid,
+      timestamp: new Date(),
+      agentId,
+    });
+
     this.emit('handoff:completed', callSid, agentId);
   }
 
@@ -654,17 +719,22 @@ export class SupervisorAgent extends EventEmitter {
   getDashboardStats(): Partial<SupervisorDashboardStats> {
     const calls = this.getActiveCalls();
 
-    // Calculate metrics
-    const escalations = calls.filter((c) => c.flags.includes('escalation-requested'));
+    // Calculate active metrics
+    const activeEscalations = calls.filter((c) => c.flags.includes('escalation-requested'));
     const aiHandoffs = calls.filter((c) => c.flags.includes('ai-handoff-needed'));
     const callsWithFlags = calls.filter((c) => c.flags.length > 0);
+
+    // Historical metrics from tracking
+    const escalationsToday = this.getEscalationsToday();
+    const handoffsToday = this.getHandoffsToday();
 
     return {
       activeCalls: calls.length,
       callsInQueue: calls.filter((c) => c.state === 'ringing').length,
 
-      activeAlerts: escalations.length + aiHandoffs.length + callsWithFlags.length,
-      escalationsToday: escalations.length, // Would need historical tracking
+      activeAlerts: activeEscalations.length + aiHandoffs.length + callsWithFlags.length,
+      escalationsToday: escalationsToday.length,
+      handoffsToday,
 
       aiHandledCalls: calls.filter((c) => c.assistantId && !c.agentId).length,
 
@@ -690,6 +760,10 @@ export class SupervisorAgent extends EventEmitter {
     this.activeCalls.clear();
     this.supervisorSessions.clear();
     this.callNotes.clear();
+
+    // Clear historical tracking
+    this.escalationHistory = [];
+    this.handoffHistory = [];
 
     // Remove all listeners
     this.removeAllListeners();

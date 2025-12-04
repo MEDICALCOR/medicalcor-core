@@ -17,6 +17,7 @@ export default tseslint.config(
       '**/.storybook/**',
       '**/*.stories.tsx',
       'scripts/**', // CLI scripts have different requirements
+      'db/**', // Database scripts not in tsconfig
       // Files excluded from tsconfig due to cyclic dependency with @medicalcor/domain
       'packages/core/src/clinical/**',
       'packages/core/src/events/handlers/**',
