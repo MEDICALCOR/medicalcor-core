@@ -39,7 +39,10 @@ const seedErrors: SeedError[] = [];
 function logSeedError(table: string, operation: string, error: unknown): void {
   seedErrors.push({ table, operation, error });
   if (process.env.DEBUG === 'true') {
-    console.error(`  [ERROR] ${table}:${operation}:`, error instanceof Error ? error.message : error);
+    console.error(
+      `  [ERROR] ${table}:${operation}:`,
+      error instanceof Error ? error.message : error
+    );
   }
 }
 
@@ -137,47 +140,250 @@ const SCORING_REASONS = [
 // Medical Procedures with realistic prices (in EUR)
 const MEDICAL_PROCEDURES = [
   // Implantology - High Value
-  { name: 'Implant dentar Premium (Nobel Biocare)', category: 'implantology', priceMin: 800, priceMax: 1200, duration: 60, isHighValue: true },
-  { name: 'Implant dentar Standard (MegaGen)', category: 'implantology', priceMin: 500, priceMax: 700, duration: 60, isHighValue: true },
-  { name: 'All-on-4 (per arcadă)', category: 'implantology', priceMin: 5000, priceMax: 8000, duration: 180, isHighValue: true },
-  { name: 'All-on-6 (per arcadă)', category: 'implantology', priceMin: 7000, priceMax: 12000, duration: 240, isHighValue: true },
-  { name: 'Sinus lift', category: 'implantology', priceMin: 600, priceMax: 1000, duration: 90, isHighValue: true },
-  { name: 'Augmentare osoasă', category: 'implantology', priceMin: 400, priceMax: 800, duration: 60, isHighValue: true },
+  {
+    name: 'Implant dentar Premium (Nobel Biocare)',
+    category: 'implantology',
+    priceMin: 800,
+    priceMax: 1200,
+    duration: 60,
+    isHighValue: true,
+  },
+  {
+    name: 'Implant dentar Standard (MegaGen)',
+    category: 'implantology',
+    priceMin: 500,
+    priceMax: 700,
+    duration: 60,
+    isHighValue: true,
+  },
+  {
+    name: 'All-on-4 (per arcadă)',
+    category: 'implantology',
+    priceMin: 5000,
+    priceMax: 8000,
+    duration: 180,
+    isHighValue: true,
+  },
+  {
+    name: 'All-on-6 (per arcadă)',
+    category: 'implantology',
+    priceMin: 7000,
+    priceMax: 12000,
+    duration: 240,
+    isHighValue: true,
+  },
+  {
+    name: 'Sinus lift',
+    category: 'implantology',
+    priceMin: 600,
+    priceMax: 1000,
+    duration: 90,
+    isHighValue: true,
+  },
+  {
+    name: 'Augmentare osoasă',
+    category: 'implantology',
+    priceMin: 400,
+    priceMax: 800,
+    duration: 60,
+    isHighValue: true,
+  },
 
   // Prosthodontics
-  { name: 'Coroană zirconiu', category: 'prosthodontics', priceMin: 300, priceMax: 450, duration: 60, isHighValue: false },
-  { name: 'Coroană metalo-ceramică', category: 'prosthodontics', priceMin: 200, priceMax: 300, duration: 45, isHighValue: false },
-  { name: 'Fațetă ceramică (e.max)', category: 'prosthodontics', priceMin: 350, priceMax: 500, duration: 45, isHighValue: true },
-  { name: 'Proteză totală mobilă', category: 'prosthodontics', priceMin: 400, priceMax: 700, duration: 90, isHighValue: false },
-  { name: 'Proteză scheletată', category: 'prosthodontics', priceMin: 500, priceMax: 800, duration: 90, isHighValue: false },
-  { name: 'Pod dentar (3 unități)', category: 'prosthodontics', priceMin: 600, priceMax: 1000, duration: 90, isHighValue: false },
+  {
+    name: 'Coroană zirconiu',
+    category: 'prosthodontics',
+    priceMin: 300,
+    priceMax: 450,
+    duration: 60,
+    isHighValue: false,
+  },
+  {
+    name: 'Coroană metalo-ceramică',
+    category: 'prosthodontics',
+    priceMin: 200,
+    priceMax: 300,
+    duration: 45,
+    isHighValue: false,
+  },
+  {
+    name: 'Fațetă ceramică (e.max)',
+    category: 'prosthodontics',
+    priceMin: 350,
+    priceMax: 500,
+    duration: 45,
+    isHighValue: true,
+  },
+  {
+    name: 'Proteză totală mobilă',
+    category: 'prosthodontics',
+    priceMin: 400,
+    priceMax: 700,
+    duration: 90,
+    isHighValue: false,
+  },
+  {
+    name: 'Proteză scheletată',
+    category: 'prosthodontics',
+    priceMin: 500,
+    priceMax: 800,
+    duration: 90,
+    isHighValue: false,
+  },
+  {
+    name: 'Pod dentar (3 unități)',
+    category: 'prosthodontics',
+    priceMin: 600,
+    priceMax: 1000,
+    duration: 90,
+    isHighValue: false,
+  },
 
   // Endodontics
-  { name: 'Tratament de canal monoradicular', category: 'endodontics', priceMin: 150, priceMax: 250, duration: 60, isHighValue: false },
-  { name: 'Tratament de canal pluriradicular', category: 'endodontics', priceMin: 200, priceMax: 350, duration: 90, isHighValue: false },
-  { name: 'Retratament endodontic', category: 'endodontics', priceMin: 250, priceMax: 400, duration: 90, isHighValue: false },
+  {
+    name: 'Tratament de canal monoradicular',
+    category: 'endodontics',
+    priceMin: 150,
+    priceMax: 250,
+    duration: 60,
+    isHighValue: false,
+  },
+  {
+    name: 'Tratament de canal pluriradicular',
+    category: 'endodontics',
+    priceMin: 200,
+    priceMax: 350,
+    duration: 90,
+    isHighValue: false,
+  },
+  {
+    name: 'Retratament endodontic',
+    category: 'endodontics',
+    priceMin: 250,
+    priceMax: 400,
+    duration: 90,
+    isHighValue: false,
+  },
 
   // Orthodontics - High Value
-  { name: 'Aparat dentar metalic (complet)', category: 'orthodontics', priceMin: 1500, priceMax: 2500, duration: 45, isHighValue: true },
-  { name: 'Aparat dentar ceramic (complet)', category: 'orthodontics', priceMin: 2000, priceMax: 3500, duration: 45, isHighValue: true },
-  { name: 'Invisalign (tratament complet)', category: 'orthodontics', priceMin: 3000, priceMax: 5000, duration: 45, isHighValue: true },
-  { name: 'Gutieră de contenție', category: 'orthodontics', priceMin: 150, priceMax: 250, duration: 30, isHighValue: false },
+  {
+    name: 'Aparat dentar metalic (complet)',
+    category: 'orthodontics',
+    priceMin: 1500,
+    priceMax: 2500,
+    duration: 45,
+    isHighValue: true,
+  },
+  {
+    name: 'Aparat dentar ceramic (complet)',
+    category: 'orthodontics',
+    priceMin: 2000,
+    priceMax: 3500,
+    duration: 45,
+    isHighValue: true,
+  },
+  {
+    name: 'Invisalign (tratament complet)',
+    category: 'orthodontics',
+    priceMin: 3000,
+    priceMax: 5000,
+    duration: 45,
+    isHighValue: true,
+  },
+  {
+    name: 'Gutieră de contenție',
+    category: 'orthodontics',
+    priceMin: 150,
+    priceMax: 250,
+    duration: 30,
+    isHighValue: false,
+  },
 
   // Aesthetics
-  { name: 'Albire dentară profesională', category: 'aesthetics', priceMin: 200, priceMax: 350, duration: 60, isHighValue: false },
-  { name: 'Albire cu lampă Zoom', category: 'aesthetics', priceMin: 300, priceMax: 450, duration: 90, isHighValue: false },
-  { name: 'Bonding estetic (per dinte)', category: 'aesthetics', priceMin: 80, priceMax: 150, duration: 30, isHighValue: false },
+  {
+    name: 'Albire dentară profesională',
+    category: 'aesthetics',
+    priceMin: 200,
+    priceMax: 350,
+    duration: 60,
+    isHighValue: false,
+  },
+  {
+    name: 'Albire cu lampă Zoom',
+    category: 'aesthetics',
+    priceMin: 300,
+    priceMax: 450,
+    duration: 90,
+    isHighValue: false,
+  },
+  {
+    name: 'Bonding estetic (per dinte)',
+    category: 'aesthetics',
+    priceMin: 80,
+    priceMax: 150,
+    duration: 30,
+    isHighValue: false,
+  },
 
   // Surgery
-  { name: 'Extractie simplă', category: 'surgery', priceMin: 50, priceMax: 100, duration: 30, isHighValue: false },
-  { name: 'Extractie chirurgicală', category: 'surgery', priceMin: 100, priceMax: 200, duration: 45, isHighValue: false },
-  { name: 'Extractie molar de minte inclus', category: 'surgery', priceMin: 200, priceMax: 400, duration: 60, isHighValue: false },
+  {
+    name: 'Extractie simplă',
+    category: 'surgery',
+    priceMin: 50,
+    priceMax: 100,
+    duration: 30,
+    isHighValue: false,
+  },
+  {
+    name: 'Extractie chirurgicală',
+    category: 'surgery',
+    priceMin: 100,
+    priceMax: 200,
+    duration: 45,
+    isHighValue: false,
+  },
+  {
+    name: 'Extractie molar de minte inclus',
+    category: 'surgery',
+    priceMin: 200,
+    priceMax: 400,
+    duration: 60,
+    isHighValue: false,
+  },
 
   // General
-  { name: 'Consultație + plan de tratament', category: 'general', priceMin: 0, priceMax: 50, duration: 30, isHighValue: false },
-  { name: 'Detartraj + periaj profesional', category: 'general', priceMin: 80, priceMax: 150, duration: 45, isHighValue: false },
-  { name: 'Plomba compozit', category: 'general', priceMin: 80, priceMax: 150, duration: 30, isHighValue: false },
-  { name: 'Plomba ceramică (inlay/onlay)', category: 'general', priceMin: 200, priceMax: 350, duration: 45, isHighValue: false },
+  {
+    name: 'Consultație + plan de tratament',
+    category: 'general',
+    priceMin: 0,
+    priceMax: 50,
+    duration: 30,
+    isHighValue: false,
+  },
+  {
+    name: 'Detartraj + periaj profesional',
+    category: 'general',
+    priceMin: 80,
+    priceMax: 150,
+    duration: 45,
+    isHighValue: false,
+  },
+  {
+    name: 'Plomba compozit',
+    category: 'general',
+    priceMin: 80,
+    priceMax: 150,
+    duration: 30,
+    isHighValue: false,
+  },
+  {
+    name: 'Plomba ceramică (inlay/onlay)',
+    category: 'general',
+    priceMin: 200,
+    priceMax: 350,
+    duration: 45,
+    isHighValue: false,
+  },
 ];
 
 // WhatsApp Message Templates (Meta-approved format)
@@ -833,7 +1039,11 @@ RĂSPUNDE ÎN FORMAT JSON:
   "suggestedAction": "<acțiune recomandată>"
 }`,
       variables: ['clinicName', 'procedures', 'priceRange'],
-      metadata: { description: 'Prompt pentru scorarea lead-urilor dentare', maxTokens: 500, temperature: 0.3 },
+      metadata: {
+        description: 'Prompt pentru scorarea lead-urilor dentare',
+        maxTokens: 500,
+        temperature: 0.3,
+      },
     },
     {
       id: 'reply_generation_v1',
@@ -876,7 +1086,11 @@ RĂSPUNS JSON:
   "triageNotes": "<note pentru echipa medicală>"
 }`,
       variables: ['patientSymptoms', 'patientAge', 'medicalHistory'],
-      metadata: { description: 'Triaj medical pentru programări urgente', maxTokens: 400, temperature: 0.2 },
+      metadata: {
+        description: 'Triaj medical pentru programări urgente',
+        maxTokens: 400,
+        temperature: 0.2,
+      },
     },
   ];
 
@@ -904,6 +1118,384 @@ RĂSPUNS JSON:
       inserted++;
     } catch (error) {
       logSeedError('system_prompts', 'insert', error);
+    }
+  }
+
+  return inserted;
+}
+
+// =============================================================================
+// Seed Supervisor Data
+// =============================================================================
+
+// Sample Supervisors with Romanian names and realistic data
+const SUPERVISORS = [
+  {
+    id: 'sup_ana_popescu',
+    name: 'Ana Popescu',
+    email: 'ana.popescu@dentalclinic.ro',
+    role: 'admin',
+    department: 'Operations',
+    phone: '+40721234567',
+    skills: ['dental', 'implantology', 'orthodontics'],
+    languages: ['ro', 'en'],
+  },
+  {
+    id: 'sup_mihai_ionescu',
+    name: 'Mihai Ionescu',
+    email: 'mihai.ionescu@dentalclinic.ro',
+    role: 'manager',
+    department: 'Customer Service',
+    phone: '+40722345678',
+    skills: ['dental', 'general'],
+    languages: ['ro', 'en', 'de'],
+  },
+  {
+    id: 'sup_elena_dumitru',
+    name: 'Elena Dumitru',
+    email: 'elena.dumitru@dentalclinic.ro',
+    role: 'supervisor',
+    department: 'Voice Support',
+    phone: '+40723456789',
+    skills: ['dental', 'aesthetics'],
+    languages: ['ro', 'en'],
+  },
+  {
+    id: 'sup_george_stan',
+    name: 'George Stan',
+    email: 'george.stan@dentalclinic.ro',
+    role: 'supervisor',
+    department: 'AI Oversight',
+    phone: '+40724567890',
+    skills: ['dental', 'endodontics'],
+    languages: ['ro'],
+  },
+  {
+    id: 'sup_cristina_rusu',
+    name: 'Cristina Rusu',
+    email: 'cristina.rusu@dentalclinic.ro',
+    role: 'supervisor',
+    department: 'Quality Assurance',
+    phone: '+40725678901',
+    skills: ['dental', 'prosthodontics'],
+    languages: ['ro', 'en', 'fr'],
+  },
+];
+
+async function seedSupervisors(client: pg.Client): Promise<number> {
+  let inserted = 0;
+
+  // Create table if not exists
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS supervisors (
+      id VARCHAR(255) PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) NOT NULL UNIQUE,
+      role VARCHAR(50) NOT NULL CHECK (role IN ('supervisor', 'manager', 'admin')),
+      department VARCHAR(255),
+      phone VARCHAR(50),
+      skills JSONB DEFAULT '[]',
+      languages JSONB DEFAULT '[]',
+      is_active BOOLEAN DEFAULT TRUE,
+      last_login TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_supervisors_role ON supervisors(role);
+    CREATE INDEX IF NOT EXISTS idx_supervisors_active ON supervisors(is_active) WHERE is_active = TRUE;
+    CREATE INDEX IF NOT EXISTS idx_supervisors_email ON supervisors(email);
+  `);
+
+  for (const sup of SUPERVISORS) {
+    try {
+      await client.query(
+        `INSERT INTO supervisors (id, name, email, role, department, phone, skills, languages, last_login)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         ON CONFLICT (id) DO UPDATE SET
+           name = EXCLUDED.name,
+           email = EXCLUDED.email,
+           role = EXCLUDED.role,
+           department = EXCLUDED.department,
+           phone = EXCLUDED.phone,
+           skills = EXCLUDED.skills,
+           languages = EXCLUDED.languages,
+           updated_at = NOW()`,
+        [
+          sup.id,
+          sup.name,
+          sup.email,
+          sup.role,
+          sup.department,
+          sup.phone,
+          JSON.stringify(sup.skills),
+          JSON.stringify(sup.languages),
+          randomDate(7), // Recent last login
+        ]
+      );
+      inserted++;
+    } catch (error) {
+      logSeedError('supervisors', 'insert', error);
+    }
+  }
+
+  return inserted;
+}
+
+async function seedCallMonitoringHistory(client: pg.Client, leads: LeadData[]): Promise<number> {
+  let inserted = 0;
+
+  // Create table if not exists
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS call_monitoring_history (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      call_sid VARCHAR(255) NOT NULL,
+      vapi_call_id VARCHAR(255),
+      customer_phone VARCHAR(50) NOT NULL,
+      direction VARCHAR(20) NOT NULL CHECK (direction IN ('inbound', 'outbound')),
+      state VARCHAR(50) NOT NULL,
+      duration_seconds INTEGER DEFAULT 0,
+      sentiment VARCHAR(20) CHECK (sentiment IN ('positive', 'neutral', 'negative')),
+      flags JSONB DEFAULT '[]',
+      escalated BOOLEAN DEFAULT FALSE,
+      escalation_reason TEXT,
+      handoff_to_agent VARCHAR(255),
+      supervisor_notes TEXT,
+      transcript_summary TEXT,
+      ai_confidence DECIMAL(5,4),
+      started_at TIMESTAMPTZ NOT NULL,
+      ended_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_call_history_phone ON call_monitoring_history(customer_phone);
+    CREATE INDEX IF NOT EXISTS idx_call_history_started ON call_monitoring_history(started_at);
+    CREATE INDEX IF NOT EXISTS idx_call_history_escalated ON call_monitoring_history(escalated) WHERE escalated = TRUE;
+  `);
+
+  const callStates = ['completed', 'transferred', 'abandoned'];
+  const sentiments = ['positive', 'neutral', 'negative'];
+  const flags = [
+    'escalation-requested',
+    'high-value-lead',
+    'complaint',
+    'long-hold',
+    'ai-handoff-needed',
+  ];
+  const escalationReasons = [
+    'Customer requested human agent',
+    'Complex dental procedure inquiry',
+    'Insurance coverage questions',
+    'Complaint about previous visit',
+    'Emergency dental situation',
+    'Multiple negative sentiment messages',
+    'High-value lead requiring specialist',
+  ];
+  const transcriptSummaries = [
+    'Patient inquired about dental implant procedure and pricing. AI provided overview and scheduled consultation.',
+    'Customer called to confirm appointment for tomorrow. AI verified details and sent confirmation.',
+    'New patient asking about orthodontic treatment options for teenager. AI explained different braces types.',
+    'Returning patient with billing question. Escalated to human agent for account access.',
+    'Emergency call about tooth pain. AI collected symptoms and fast-tracked urgent appointment.',
+    'Patient wanted to reschedule cleaning appointment. AI found new slot and confirmed.',
+    'Inquiry about teeth whitening services. AI provided pricing range and availability.',
+    'Customer complained about wait time during last visit. Escalated to supervisor.',
+    'Patient asking about payment plans for implant procedure. AI explained financing options.',
+    'Follow-up call after root canal procedure. Patient reporting good recovery.',
+  ];
+
+  // Generate 100 historical call records for the past 30 days
+  for (let i = 0; i < 100; i++) {
+    const lead = randomChoice(leads);
+    const startedAt = randomDate(30);
+    const duration = Math.floor(Math.random() * 600) + 30; // 30 seconds to 10 minutes
+    const endedAt = new Date(startedAt.getTime() + duration * 1000);
+    const isEscalated = Math.random() < 0.15; // 15% escalation rate
+    const sentiment = randomChoice(sentiments);
+    const callFlags = Math.random() < 0.3 ? [randomChoice(flags)] : [];
+    if (isEscalated && !callFlags.includes('escalation-requested')) {
+      callFlags.push('escalation-requested');
+    }
+
+    try {
+      await client.query(
+        `INSERT INTO call_monitoring_history
+         (call_sid, vapi_call_id, customer_phone, direction, state, duration_seconds,
+          sentiment, flags, escalated, escalation_reason, handoff_to_agent,
+          transcript_summary, ai_confidence, started_at, ended_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+        [
+          `CA${randomUUID().replace(/-/g, '').slice(0, 32)}`,
+          `vapi_${randomUUID().replace(/-/g, '').slice(0, 24)}`,
+          lead.phone,
+          Math.random() > 0.3 ? 'inbound' : 'outbound',
+          randomChoice(callStates),
+          duration,
+          sentiment,
+          JSON.stringify(callFlags),
+          isEscalated,
+          isEscalated ? randomChoice(escalationReasons) : null,
+          isEscalated && Math.random() > 0.3 ? randomChoice(SUPERVISORS).id : null,
+          randomChoice(transcriptSummaries),
+          (0.7 + Math.random() * 0.25).toFixed(4),
+          startedAt,
+          endedAt,
+        ]
+      );
+      inserted++;
+    } catch (error) {
+      logSeedError('call_monitoring_history', 'insert', error);
+    }
+  }
+
+  return inserted;
+}
+
+async function seedSupervisorSessions(client: pg.Client): Promise<number> {
+  let inserted = 0;
+
+  // Create table if not exists
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS supervisor_sessions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      session_id VARCHAR(255) NOT NULL UNIQUE,
+      supervisor_id VARCHAR(255) NOT NULL REFERENCES supervisors(id),
+      supervisor_name VARCHAR(255) NOT NULL,
+      role VARCHAR(50) NOT NULL,
+      permissions JSONB NOT NULL,
+      monitoring_mode VARCHAR(50) DEFAULT 'none' CHECK (monitoring_mode IN ('none', 'listen', 'whisper', 'barge')),
+      active_call_sid VARCHAR(255),
+      calls_monitored INTEGER DEFAULT 0,
+      interventions INTEGER DEFAULT 0,
+      started_at TIMESTAMPTZ DEFAULT NOW(),
+      ended_at TIMESTAMPTZ,
+      is_active BOOLEAN DEFAULT TRUE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_sessions_supervisor ON supervisor_sessions(supervisor_id);
+    CREATE INDEX IF NOT EXISTS idx_sessions_active ON supervisor_sessions(is_active) WHERE is_active = TRUE;
+    CREATE INDEX IF NOT EXISTS idx_sessions_started ON supervisor_sessions(started_at);
+  `);
+
+  const monitoringModes = ['none', 'listen', 'whisper'];
+
+  // Generate session history for past 14 days
+  for (const sup of SUPERVISORS) {
+    const sessionsCount = Math.floor(Math.random() * 10) + 5; // 5-15 sessions per supervisor
+
+    for (let i = 0; i < sessionsCount; i++) {
+      const startedAt = randomDate(14);
+      const sessionDuration = Math.floor(Math.random() * 14400) + 1800; // 30 min to 4 hours
+      const endedAt = new Date(startedAt.getTime() + sessionDuration * 1000);
+      const callsMonitored = Math.floor(Math.random() * 20) + 1;
+      const interventions = Math.floor(Math.random() * callsMonitored * 0.3);
+
+      const permissions =
+        sup.role === 'admin'
+          ? ['listen', 'whisper', 'barge', 'coach']
+          : sup.role === 'manager'
+            ? ['listen', 'whisper', 'barge']
+            : ['listen', 'whisper'];
+
+      try {
+        await client.query(
+          `INSERT INTO supervisor_sessions
+           (session_id, supervisor_id, supervisor_name, role, permissions,
+            monitoring_mode, calls_monitored, interventions, started_at, ended_at, is_active)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+           ON CONFLICT (session_id) DO NOTHING`,
+          [
+            `sess_${randomUUID().replace(/-/g, '')}`,
+            sup.id,
+            sup.name,
+            sup.role,
+            JSON.stringify(permissions),
+            randomChoice(monitoringModes),
+            callsMonitored,
+            interventions,
+            startedAt,
+            endedAt,
+            false, // Historical sessions are not active
+          ]
+        );
+        inserted++;
+      } catch (error) {
+        logSeedError('supervisor_sessions', 'insert', error);
+      }
+    }
+  }
+
+  return inserted;
+}
+
+async function seedEscalationMetrics(client: pg.Client): Promise<number> {
+  let inserted = 0;
+
+  // Create daily metrics aggregation table
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS supervisor_daily_metrics (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      date DATE NOT NULL UNIQUE,
+      total_calls INTEGER DEFAULT 0,
+      ai_handled_calls INTEGER DEFAULT 0,
+      escalated_calls INTEGER DEFAULT 0,
+      handoffs INTEGER DEFAULT 0,
+      average_handle_time_seconds INTEGER DEFAULT 0,
+      average_wait_time_seconds INTEGER DEFAULT 0,
+      customer_satisfaction_avg DECIMAL(5,2),
+      peak_concurrent_calls INTEGER DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_daily_metrics_date ON supervisor_daily_metrics(date);
+  `);
+
+  // Seed daily metrics for past 30 days
+  const today = new Date();
+  for (let daysAgo = 0; daysAgo < 30; daysAgo++) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - daysAgo);
+    const dateStr = date.toISOString().split('T')[0];
+
+    // Realistic dental clinic call volumes
+    const totalCalls = Math.floor(Math.random() * 80) + 40; // 40-120 calls per day
+    const aiHandled = Math.floor(totalCalls * (0.6 + Math.random() * 0.25)); // 60-85% AI handled
+    const escalated = Math.floor(totalCalls * (0.08 + Math.random() * 0.12)); // 8-20% escalation
+    const handoffs = Math.floor(escalated * (0.5 + Math.random() * 0.4)); // 50-90% of escalations result in handoff
+
+    try {
+      await client.query(
+        `INSERT INTO supervisor_daily_metrics
+         (date, total_calls, ai_handled_calls, escalated_calls, handoffs,
+          average_handle_time_seconds, average_wait_time_seconds,
+          customer_satisfaction_avg, peak_concurrent_calls)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         ON CONFLICT (date) DO UPDATE SET
+           total_calls = EXCLUDED.total_calls,
+           ai_handled_calls = EXCLUDED.ai_handled_calls,
+           escalated_calls = EXCLUDED.escalated_calls,
+           handoffs = EXCLUDED.handoffs,
+           average_handle_time_seconds = EXCLUDED.average_handle_time_seconds,
+           average_wait_time_seconds = EXCLUDED.average_wait_time_seconds,
+           customer_satisfaction_avg = EXCLUDED.customer_satisfaction_avg,
+           peak_concurrent_calls = EXCLUDED.peak_concurrent_calls,
+           updated_at = NOW()`,
+        [
+          dateStr,
+          totalCalls,
+          aiHandled,
+          escalated,
+          handoffs,
+          Math.floor(Math.random() * 180) + 120, // 2-5 min average handle time
+          Math.floor(Math.random() * 45) + 15, // 15-60 sec average wait time
+          (3.5 + Math.random() * 1.3).toFixed(2), // 3.5-4.8 satisfaction
+          Math.floor(Math.random() * 8) + 3, // 3-11 peak concurrent
+        ]
+      );
+      inserted++;
+    } catch (error) {
+      logSeedError('supervisor_daily_metrics', 'insert', error);
     }
   }
 
@@ -963,6 +1555,19 @@ async function main(): Promise<void> {
     const prompts = await seedSystemPrompts(client);
     console.log(`  system_prompts: ${prompts} records`);
 
+    // Supervisor data (W3 milestone)
+    const supervisors = await seedSupervisors(client);
+    console.log(`  supervisors: ${supervisors} records`);
+
+    const callHistory = await seedCallMonitoringHistory(client, leads);
+    console.log(`  call_monitoring_history: ${callHistory} records`);
+
+    const supervisorSessions = await seedSupervisorSessions(client);
+    console.log(`  supervisor_sessions: ${supervisorSessions} records`);
+
+    const dailyMetrics = await seedEscalationMetrics(client);
+    console.log(`  supervisor_daily_metrics: ${dailyMetrics} records`);
+
     console.log();
     console.log('='.repeat(60));
     // Report any errors that occurred during seeding
@@ -974,11 +1579,14 @@ async function main(): Promise<void> {
       console.log();
 
       // Group errors by table
-      const errorsByTable = seedErrors.reduce((acc, err) => {
-        const key = err.table;
-        acc[key] = (acc[key] ?? 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
+      const errorsByTable = seedErrors.reduce(
+        (acc, err) => {
+          const key = err.table;
+          acc[key] = (acc[key] ?? 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>
+      );
 
       console.log('Errors by table:');
       for (const [table, count] of Object.entries(errorsByTable)) {
@@ -989,7 +1597,9 @@ async function main(): Promise<void> {
         console.log();
         console.log('Detailed errors:');
         for (const err of seedErrors.slice(0, 10)) {
-          console.log(`  - ${err.table}:${err.operation}: ${err.error instanceof Error ? err.error.message : String(err.error)}`);
+          console.log(
+            `  - ${err.table}:${err.operation}: ${err.error instanceof Error ? err.error.message : String(err.error)}`
+          );
         }
         if (seedErrors.length > 10) {
           console.log(`  ... and ${seedErrors.length - 10} more`);

@@ -781,6 +781,7 @@ export class FlexClient {
 
       activeAlerts: 0,
       escalationsToday: 0,
+      handoffsToday: 0,
 
       callsHandledToday: 0,
       averageHandleTime: 0,
