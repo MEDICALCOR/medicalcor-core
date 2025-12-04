@@ -413,7 +413,9 @@ export default function WhatsAppTemplatesPage() {
                             Motiv respingere: {template.rejectionReason}
                           </p>
                         )}
-                        <div className="mt-3 p-3 bg-muted/50 rounded text-sm">{template.content}</div>
+                        <div className="mt-3 p-3 bg-muted/50 rounded text-sm">
+                          {template.content}
+                        </div>
                         <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
                           <span>
                             Variabile: {template.variables.map((v) => `{{${v}}}`).join(', ') || 'Niciuna'}
