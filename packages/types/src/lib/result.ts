@@ -1,4 +1,3 @@
-/* eslint-disable max-lines -- monadic types require comprehensive utility functions */
 /**
  * @fileoverview Result and Option Monads - Railway-Oriented Programming
  *
