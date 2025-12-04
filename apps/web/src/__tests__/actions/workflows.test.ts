@@ -38,6 +38,18 @@ import { requirePermission } from '@/lib/auth/server-action-auth';
 // Get mocked permission function after import
 const mockRequirePermission = vi.mocked(requirePermission);
 
+// Mock session for authorization
+const mockSession = {
+  user: {
+    id: 'user-123',
+    email: 'test@example.com',
+    name: 'Test User',
+    role: 'admin' as const,
+    clinicId: 'clinic-123',
+  },
+  expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+};
+
 // Test data factories
 const createMockWorkflowRow = (overrides = {}) => ({
   id: 'wf-123',
@@ -57,7 +69,7 @@ const createMockWorkflowRow = (overrides = {}) => ({
 describe('Workflow Server Actions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockRequirePermission.mockResolvedValue(undefined);
+    mockRequirePermission.mockResolvedValue(mockSession);
   });
 
   describe('getWorkflowsAction', () => {
@@ -289,7 +301,7 @@ describe('Workflow Server Actions', () => {
 describe('Workflow Action Error Handling', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockRequirePermission.mockResolvedValue(undefined);
+    mockRequirePermission.mockResolvedValue(mockSession);
   });
 
   it('should handle database connection errors', async () => {

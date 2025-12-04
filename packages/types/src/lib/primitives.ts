@@ -624,6 +624,12 @@ export type Assert<T extends true> = T;
 /* eslint-disable @typescript-eslint/no-unnecessary-type-parameters */
 export type Equals<X, Y> =
   (<T>() => T extends X ? 1 : 2) extends (<T>() => T extends Y ? 1 : 2) ? true : false;
+ * Note: The T type parameters are intentionally used only once - this is a standard
+ * TypeScript pattern for type equality checking using conditional type inference.
+ */
+/* eslint-disable @typescript-eslint/no-unnecessary-type-parameters -- standard pattern for type equality */
+export type Equals<X, Y> =
+  (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2 ? true : false;
 /* eslint-enable @typescript-eslint/no-unnecessary-type-parameters */
 
 /**
