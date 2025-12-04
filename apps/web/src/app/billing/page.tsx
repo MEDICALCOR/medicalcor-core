@@ -144,6 +144,8 @@ export default function BillingPage() {
           customerName: formCustomerName,
           customerEmail: formCustomerEmail || undefined,
           dueDate: new Date(formDueDate),
+          taxRate: 19, // Default Romanian VAT rate
+          discountAmount: 0,
           items: [
             {
               description: formDescription,

@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
-import { requirePermission, getCurrentUser } from '@/lib/auth/server-action-auth';
+import { requirePermission, requireCurrentUser } from '@/lib/auth/server-action-auth';
 
 /**
  * Server Actions for Reminder Management
@@ -126,7 +126,7 @@ function rowToReminder(row: ReminderRow): Reminder {
 export async function getRemindersAction(): Promise<{ reminders: Reminder[]; error?: string }> {
   try {
     await requirePermission('reminders:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query<ReminderRow>(
@@ -148,7 +148,7 @@ export async function getRemindersAction(): Promise<{ reminders: Reminder[]; err
 export async function getReminderStatsAction(): Promise<{ stats: ReminderStats | null; error?: string }> {
   try {
     await requirePermission('reminders:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query<{
@@ -190,7 +190,7 @@ export async function createReminderAction(
 ): Promise<{ reminder: Reminder | null; error?: string }> {
   try {
     await requirePermission('reminders:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const validated = CreateReminderSchema.parse(data);
@@ -226,7 +226,7 @@ export async function updateReminderAction(
 ): Promise<{ reminder: Reminder | null; error?: string }> {
   try {
     await requirePermission('reminders:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const validated = UpdateReminderSchema.parse(data);
@@ -288,7 +288,7 @@ export async function updateReminderAction(
 export async function toggleReminderAction(id: string): Promise<{ reminder: Reminder | null; error?: string }> {
   try {
     await requirePermission('reminders:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query<ReminderRow>(
@@ -313,7 +313,7 @@ export async function toggleReminderAction(id: string): Promise<{ reminder: Remi
 export async function deleteReminderAction(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     await requirePermission('reminders:delete');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query(

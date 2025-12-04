@@ -154,7 +154,7 @@ export default function AuditLogPage() {
       searchQuery === '' ||
       log.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
       log.user.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      log.details.toLowerCase().includes(searchQuery.toLowerCase());
+      (log.details?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
     const matchesCategory = categoryFilter === 'all' || log.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
@@ -222,7 +222,7 @@ export default function AuditLogPage() {
             <div>
               <p className="text-sm text-muted-foreground">Erori</p>
               <p className="text-xl font-bold">
-                {stats?.errorCount ?? auditLogs.filter((l) => l.status === 'error').length}
+                {stats?.errorCount ?? auditLogs.filter((l) => l.status === 'failure').length}
               </p>
             </div>
           </CardContent>

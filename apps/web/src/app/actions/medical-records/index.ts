@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
-import { requirePermission, getCurrentUser } from '@/lib/auth/server-action-auth';
+import { requirePermission, requireCurrentUser } from '@/lib/auth/server-action-auth';
 
 /**
  * Server Actions for Medical Records Management
@@ -42,6 +42,7 @@ export interface Diagnosis {
   date: Date;
   doctor: string;
   status: 'active' | 'resolved' | 'chronic';
+  notes: string | null;
 }
 
 export interface Prescription {
@@ -59,6 +60,9 @@ export interface MedicalRecordStats {
   consultationsThisMonth: number;
   activeDiagnoses: number;
   pendingPrescriptions: number;
+  // Alias properties for page compatibility
+  chronicConditions: number;
+  activeTreatments: number;
 }
 
 interface RecordRow {
@@ -122,7 +126,7 @@ export async function getMedicalRecordsAction(
 ): Promise<{ records: MedicalRecord[]; error?: string }> {
   try {
     await requirePermission('medical_records:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     let query = `
@@ -152,7 +156,7 @@ export async function getMedicalRecordsAction(
 export async function getMedicalRecordStatsAction(): Promise<{ stats: MedicalRecordStats | null; error?: string }> {
   try {
     await requirePermission('medical_records:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query<{
@@ -173,12 +177,15 @@ export async function getMedicalRecordStatsAction(): Promise<{ stats: MedicalRec
     );
 
     const row = result.rows[0];
+    const activeDiagnoses = parseInt(row.active_diagnoses);
     return {
       stats: {
         totalRecords: parseInt(row.total_records),
         consultationsThisMonth: parseInt(row.consultations_this_month),
-        activeDiagnoses: parseInt(row.active_diagnoses),
+        activeDiagnoses,
         pendingPrescriptions: parseInt(row.pending_prescriptions),
+        chronicConditions: activeDiagnoses,
+        activeTreatments: parseInt(row.pending_prescriptions),
       },
     };
   } catch (error) {
@@ -192,7 +199,7 @@ export async function createMedicalRecordAction(
 ): Promise<{ record: MedicalRecord | null; error?: string }> {
   try {
     await requirePermission('medical_records:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const validated = CreateRecordSchema.parse(data);
@@ -240,7 +247,7 @@ export async function getDiagnosesAction(
 ): Promise<{ diagnoses: Diagnosis[]; error?: string }> {
   try {
     await requirePermission('medical_records:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     // For now, return empty as diagnoses need dedicated table
@@ -257,7 +264,7 @@ export async function getPrescriptionsAction(
 ): Promise<{ prescriptions: Prescription[]; error?: string }> {
   try {
     await requirePermission('medical_records:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     let query = `

@@ -426,9 +426,9 @@ export default function MedicalRecordsPage() {
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <h4 className="font-medium">{prescription.medication}</h4>
+                            <h4 className="font-medium">{prescription.medications[0]?.name ?? 'N/A'}</h4>
                             <span className="text-sm text-muted-foreground">
-                              {prescription.dosage}
+                              {prescription.medications[0]?.dosage ?? ''}
                             </span>
                             <Badge
                               className={cn(
@@ -445,14 +445,13 @@ export default function MedicalRecordsPage() {
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            {prescription.frequency} • Prescris de {prescription.prescribedBy}
+                            {prescription.medications[0]?.frequency ?? ''} • Prescris de {prescription.doctor}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
                         <p className="text-sm">
-                          {formatDate(prescription.startDate)}
-                          {prescription.endDate && ` - ${formatDate(prescription.endDate)}`}
+                          {formatDate(prescription.date)}
                         </p>
                         <Button variant="ghost" size="sm" className="mt-1">
                           <Eye className="h-4 w-4 mr-1" />

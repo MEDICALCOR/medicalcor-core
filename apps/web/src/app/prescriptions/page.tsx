@@ -149,6 +149,7 @@ export default function PrescriptionsPage() {
 
   const activeCount = stats?.activeCount ?? prescriptions.filter((rx) => rx.status === 'active').length;
   const expiringCount = stats?.expiringCount ?? prescriptions.filter((rx) => {
+    if (!rx.validUntil) return false;
     const daysUntilExpiry = Math.ceil(
       (new Date(rx.validUntil).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
     );
@@ -378,9 +379,9 @@ export default function PrescriptionsPage() {
               {filteredPrescriptions.map((rx) => {
                 const status = rx.status as keyof typeof statusConfig;
                 const StatusIcon = statusConfig[status]?.icon ?? CheckCircle;
-                const daysUntilExpiry = Math.ceil(
-                  (new Date(rx.validUntil).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-                );
+                const daysUntilExpiry = rx.validUntil
+                  ? Math.ceil((new Date(rx.validUntil).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                  : 999;
                 const isExpiringSoon =
                   rx.status === 'active' && daysUntilExpiry <= 7 && daysUntilExpiry > 0;
 
@@ -429,9 +430,11 @@ export default function PrescriptionsPage() {
                       <div className="flex items-center gap-4">
                         <div className="text-right text-sm">
                           <p>Emisă: {formatDate(rx.createdAt)}</p>
-                          <p className="text-muted-foreground">
-                            Valabilă: {formatDate(rx.validUntil)}
-                          </p>
+                          {rx.validUntil && (
+                            <p className="text-muted-foreground">
+                              Valabilă: {formatDate(rx.validUntil)}
+                            </p>
+                          )}
                         </div>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon">

@@ -275,7 +275,7 @@ export {
   copyWeekScheduleAction,
 } from './staff-schedule/index';
 
-export type { StaffMember, StaffShift, ScheduleStats } from './staff-schedule/index';
+export type { StaffMember, StaffShift, Shift, ScheduleStats } from './staff-schedule/index';
 
 // ============================================================================
 // MEDICAL RECORDS ACTIONS
@@ -284,16 +284,20 @@ export type { StaffMember, StaffShift, ScheduleStats } from './staff-schedule/in
 export {
   getMedicalRecordsAction,
   getMedicalRecordStatsAction,
+  getMedicalRecordStatsAction as getMedicalRecordsStatsAction,
   createMedicalRecordAction,
   getDiagnosesAction,
   getPrescriptionsAction as getMedicalPrescriptionsAction,
+  getPrescriptionsAction as getPatientPrescriptionsAction,
 } from './medical-records/index';
 
 export type {
   MedicalRecord,
   Diagnosis,
   Prescription as MedicalPrescription,
+  Prescription as PatientPrescription,
   MedicalRecordStats,
+  MedicalRecordStats as MedicalRecordsStats,
 } from './medical-records/index';
 
 // ============================================================================
@@ -308,6 +312,7 @@ export {
   createServiceAction,
   updateServiceAction,
   deleteServiceAction,
+  createBookingAction,
 } from './booking/index';
 
 export type { Service, Doctor, TimeSlot, BookingStats } from './booking/index';
@@ -349,6 +354,7 @@ export {
   getDocumentsAction,
   getFoldersAction,
   getDocumentStatsAction,
+  getDocumentStatsAction as getDocumentsStatsAction,
   createDocumentRecordAction,
   createFolderAction,
   updateDocumentAction,
@@ -356,7 +362,12 @@ export {
   deleteFolderAction,
 } from './documents/index';
 
-export type { Document, DocumentFolder, DocumentStats } from './documents/index';
+export type {
+  Document,
+  DocumentFolder,
+  DocumentStats,
+  DocumentStats as DocumentsStats,
+} from './documents/index';
 
 // ============================================================================
 // PRESCRIPTIONS ACTIONS
@@ -366,14 +377,17 @@ export {
   getPrescriptionsAction,
   getPrescriptionByIdAction,
   getPrescriptionStatsAction,
+  getPrescriptionStatsAction as getPrescriptionsStatsAction,
   createPrescriptionAction,
   updatePrescriptionAction,
   cancelPrescriptionAction,
   duplicatePrescriptionAction,
+  deletePrescriptionAction,
 } from './prescriptions/index';
 
 export type {
   Prescription,
   PrescriptionMedication,
   PrescriptionStats,
+  PrescriptionStats as PrescriptionsStats,
 } from './prescriptions/index';

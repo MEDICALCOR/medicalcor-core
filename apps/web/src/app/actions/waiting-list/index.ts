@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
-import { requirePermission, getCurrentUser } from '@/lib/auth/server-action-auth';
+import { requirePermission, requireCurrentUser } from '@/lib/auth/server-action-auth';
 
 /**
  * Server Actions for Waiting List Management
@@ -113,7 +113,7 @@ function rowToWaitingPatient(row: WaitingPatientRow): WaitingPatient {
 export async function getWaitingListAction(): Promise<{ patients: WaitingPatient[]; error?: string }> {
   try {
     await requirePermission('waiting_list:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query<WaitingPatientRow>(
@@ -143,7 +143,7 @@ export async function getWaitingListAction(): Promise<{ patients: WaitingPatient
 export async function getWaitingListStatsAction(): Promise<{ stats: WaitingListStats | null; error?: string }> {
   try {
     await requirePermission('waiting_list:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query<{
@@ -182,7 +182,7 @@ export async function createWaitingPatientAction(
 ): Promise<{ patient: WaitingPatient | null; error?: string }> {
   try {
     await requirePermission('waiting_list:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const validated = CreateWaitingPatientSchema.parse(data);
@@ -233,7 +233,7 @@ export async function updateWaitingPatientAction(
 ): Promise<{ patient: WaitingPatient | null; error?: string }> {
   try {
     await requirePermission('waiting_list:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const validated = UpdateWaitingPatientSchema.parse(data);
@@ -287,7 +287,7 @@ export async function updateWaitingPatientAction(
 export async function removeFromWaitingListAction(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     await requirePermission('waiting_list:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query(
@@ -313,7 +313,7 @@ export async function scheduleFromWaitingListAction(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     await requirePermission('waiting_list:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query(

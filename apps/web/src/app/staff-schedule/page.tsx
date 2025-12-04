@@ -156,8 +156,8 @@ export default function StaffSchedulePage() {
   const todayShifts = shifts.filter(
     (s) =>
       new Date(s.date).toDateString() === new Date().toDateString() &&
-      s.type !== 'vacation' &&
-      s.type !== 'sick'
+      s.shiftType !== 'vacation' &&
+      s.shiftType !== 'sick'
   );
 
   if (isLoading) {
@@ -335,7 +335,7 @@ export default function StaffSchedulePage() {
                       </td>
                       {weekDays.map((day) => {
                         const shift = getShiftForStaffAndDay(member.id, day);
-                        const shiftType = shift?.type as keyof typeof shiftTypeConfig | undefined;
+                        const shiftType = shift?.shiftType as keyof typeof shiftTypeConfig | undefined;
                         const ShiftIcon = shiftType ? shiftTypeConfig[shiftType]?.icon : null;
 
                         return (

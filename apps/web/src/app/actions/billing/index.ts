@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
-import { requirePermission, getCurrentUser } from '@/lib/auth/server-action-auth';
+import { requirePermission, requireCurrentUser } from '@/lib/auth/server-action-auth';
 import { getStripeClient } from '../shared/clients';
 
 /**
@@ -197,7 +197,7 @@ function rowToInvoiceItem(row: InvoiceItemRow): InvoiceItem {
  */
 export async function getInvoicesAction(): Promise<Invoice[]> {
   await requirePermission('billing:read');
-  const user = await getCurrentUser();
+  const user = await requireCurrentUser();
   if (!user?.clinicId) {
     throw new Error('No clinic associated with user');
   }
@@ -251,7 +251,7 @@ export async function getInvoicesAction(): Promise<Invoice[]> {
  */
 export async function getInvoiceByIdAction(id: string): Promise<Invoice | null> {
   await requirePermission('billing:read');
-  const user = await getCurrentUser();
+  const user = await requireCurrentUser();
   if (!user?.clinicId) {
     throw new Error('No clinic associated with user');
   }
@@ -295,7 +295,7 @@ export async function getInvoiceByIdAction(id: string): Promise<Invoice | null> 
  */
 export async function getBillingStatsAction(): Promise<BillingStats> {
   await requirePermission('billing:read');
-  const user = await getCurrentUser();
+  const user = await requireCurrentUser();
   if (!user?.clinicId) {
     throw new Error('No clinic associated with user');
   }
@@ -337,7 +337,7 @@ export async function createInvoiceAction(
   data: z.infer<typeof CreateInvoiceSchema>
 ): Promise<Invoice> {
   await requirePermission('billing:write');
-  const user = await getCurrentUser();
+  const user = await requireCurrentUser();
   if (!user?.clinicId) {
     throw new Error('No clinic associated with user');
   }
@@ -439,7 +439,7 @@ export async function updateInvoiceStatusAction(
   data: z.infer<typeof UpdateInvoiceStatusSchema>
 ): Promise<Invoice> {
   await requirePermission('billing:write');
-  const user = await getCurrentUser();
+  const user = await requireCurrentUser();
   if (!user?.clinicId) {
     throw new Error('No clinic associated with user');
   }
@@ -499,7 +499,7 @@ export async function updateInvoiceStatusAction(
  */
 export async function deleteInvoiceAction(id: string): Promise<boolean> {
   await requirePermission('billing:delete');
-  const user = await getCurrentUser();
+  const user = await requireCurrentUser();
   if (!user?.clinicId) {
     throw new Error('No clinic associated with user');
   }
@@ -530,7 +530,7 @@ export async function getStripeRevenueAction(): Promise<{
     const dailyData = await stripe.getDailyRevenue('Europe/Bucharest');
 
     return {
-      dailyRevenue: dailyData.totalRevenue / 100,
+      dailyRevenue: dailyData.amount / 100,
       monthlyRevenue: 0, // Would need separate Stripe query
       currency: dailyData.currency,
     };

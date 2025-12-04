@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
-import { requirePermission, getCurrentUser } from '@/lib/auth/server-action-auth';
+import { requirePermission, requireCurrentUser } from '@/lib/auth/server-action-auth';
 
 /**
  * Server Actions for Campaign Management
@@ -115,7 +115,7 @@ function rowToCampaign(row: CampaignRow): Campaign {
 export async function getCampaignsAction(): Promise<{ campaigns: Campaign[]; error?: string }> {
   try {
     await requirePermission('campaigns:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query<CampaignRow>(
@@ -137,7 +137,7 @@ export async function getCampaignsAction(): Promise<{ campaigns: Campaign[]; err
 export async function getCampaignStatsAction(): Promise<{ stats: CampaignStats | null; error?: string }> {
   try {
     await requirePermission('campaigns:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query<{
@@ -179,7 +179,7 @@ export async function createCampaignAction(
 ): Promise<{ campaign: Campaign | null; error?: string }> {
   try {
     await requirePermission('campaigns:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const validated = CreateCampaignSchema.parse(data);
@@ -212,7 +212,7 @@ export async function updateCampaignAction(
 ): Promise<{ campaign: Campaign | null; error?: string }> {
   try {
     await requirePermission('campaigns:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const validated = UpdateCampaignSchema.parse(data);
@@ -273,7 +273,7 @@ export async function updateCampaignAction(
 export async function deleteCampaignAction(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     await requirePermission('campaigns:delete');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query(
@@ -295,7 +295,7 @@ export async function deleteCampaignAction(id: string): Promise<{ success: boole
 export async function duplicateCampaignAction(id: string): Promise<{ campaign: Campaign | null; error?: string }> {
   try {
     await requirePermission('campaigns:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query<CampaignRow>(

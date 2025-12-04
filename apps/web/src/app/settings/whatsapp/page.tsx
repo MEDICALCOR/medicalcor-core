@@ -163,6 +163,8 @@ export default function WhatsAppTemplatesPage() {
             name: formName,
             category: formCategory,
             content: formContent,
+            language: 'ro', // Romanian
+            variables: [], // Extract from content if needed
           });
           setTemplates((prev) => [newTemplate, ...prev]);
           toast({

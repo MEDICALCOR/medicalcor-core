@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
-import { requirePermission, getCurrentUser } from '@/lib/auth/server-action-auth';
+import { requirePermission, requireCurrentUser } from '@/lib/auth/server-action-auth';
 
 /**
  * Server Actions for Staff Schedule Management
@@ -44,9 +44,15 @@ export interface StaffShift {
 export interface ScheduleStats {
   totalStaff: number;
   scheduledToday: number;
+  workingToday: number;
+  onCallToday: number;
   onVacation: number;
+  onVacationToday: number;
   onSick: number;
 }
+
+// Alias for page compatibility
+export type Shift = StaffShift;
 
 interface StaffMemberRow {
   id: string;
@@ -146,15 +152,23 @@ export async function getStaffMembersAction(): Promise<{ staff: StaffMember[]; e
 }
 
 export async function getStaffScheduleAction(
-  startDate: string,
-  endDate: string
-): Promise<{ shifts: StaffShift[]; error?: string }> {
+  params: { startDate: string; endDate: string }
+): Promise<{ staff: StaffMember[]; shifts: StaffShift[]; error?: string }> {
   try {
     await requirePermission('staff:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
-    const result = await database.query<StaffShiftRow>(
+    // Fetch staff members
+    const staffResult = await database.query<StaffMemberRow>(
+      `SELECT id, name, role, specialty, email, phone, is_active
+       FROM practitioners
+       WHERE is_active = true
+       ORDER BY name ASC`
+    );
+
+    // Fetch shifts
+    const shiftsResult = await database.query<StaffShiftRow>(
       `SELECT ss.id, ss.staff_id, COALESCE(ss.staff_name, p.name) as staff_name,
               ss.schedule_date, ss.shift_type, ss.start_time::text, ss.end_time::text,
               ss.is_confirmed, ss.notes
@@ -162,31 +176,36 @@ export async function getStaffScheduleAction(
        LEFT JOIN practitioners p ON p.id = ss.staff_id
        WHERE ss.clinic_id = $1 AND ss.schedule_date BETWEEN $2 AND $3
        ORDER BY ss.schedule_date, ss.start_time`,
-      [user.clinicId, startDate, endDate]
+      [user.clinicId, params.startDate, params.endDate]
     );
 
-    return { shifts: result.rows.map(rowToStaffShift) };
+    return {
+      staff: staffResult.rows.map(rowToStaffMember),
+      shifts: shiftsResult.rows.map(rowToStaffShift),
+    };
   } catch (error) {
     console.error('Error fetching staff schedule:', error);
-    return { shifts: [], error: 'Failed to fetch schedule' };
+    return { staff: [], shifts: [], error: 'Failed to fetch schedule' };
   }
 }
 
 export async function getScheduleStatsAction(): Promise<{ stats: ScheduleStats | null; error?: string }> {
   try {
     await requirePermission('staff:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query<{
       total_staff: string;
       scheduled_today: string;
+      on_call_today: string;
       on_vacation: string;
       on_sick: string;
     }>(
       `SELECT
         (SELECT COUNT(*) FROM practitioners WHERE is_active = true) as total_staff,
         COUNT(*) FILTER (WHERE schedule_date = CURRENT_DATE AND shift_type NOT IN ('off', 'vacation', 'sick')) as scheduled_today,
+        COUNT(*) FILTER (WHERE schedule_date = CURRENT_DATE AND shift_type = 'on_call') as on_call_today,
         COUNT(*) FILTER (WHERE schedule_date = CURRENT_DATE AND shift_type = 'vacation') as on_vacation,
         COUNT(*) FILTER (WHERE schedule_date = CURRENT_DATE AND shift_type = 'sick') as on_sick
        FROM staff_schedules
@@ -195,11 +214,16 @@ export async function getScheduleStatsAction(): Promise<{ stats: ScheduleStats |
     );
 
     const row = result.rows[0];
+    const scheduledToday = parseInt(row.scheduled_today);
+    const onVacation = parseInt(row.on_vacation);
     return {
       stats: {
         totalStaff: parseInt(row.total_staff),
-        scheduledToday: parseInt(row.scheduled_today),
-        onVacation: parseInt(row.on_vacation),
+        scheduledToday,
+        workingToday: scheduledToday,
+        onCallToday: parseInt(row.on_call_today),
+        onVacation,
+        onVacationToday: onVacation,
         onSick: parseInt(row.on_sick),
       },
     };
@@ -214,7 +238,7 @@ export async function createShiftAction(
 ): Promise<{ shift: StaffShift | null; error?: string }> {
   try {
     await requirePermission('staff:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const validated = CreateShiftSchema.parse(data);
@@ -264,7 +288,7 @@ export async function updateShiftAction(
 ): Promise<{ shift: StaffShift | null; error?: string }> {
   try {
     await requirePermission('staff:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const validated = UpdateShiftSchema.parse(data);
@@ -327,7 +351,7 @@ export async function updateShiftAction(
 export async function deleteShiftAction(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     await requirePermission('staff:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query(
@@ -352,7 +376,7 @@ export async function copyWeekScheduleAction(
 ): Promise<{ success: boolean; copiedCount: number; error?: string }> {
   try {
     await requirePermission('staff:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query<{ count: string }>(

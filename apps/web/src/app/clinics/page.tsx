@@ -111,6 +111,7 @@ export default function ClinicsPage() {
       try {
         const newClinic = await createClinicAction({
           name: formName,
+          country: 'Romania',
           address: formAddress || undefined,
           city: formCity || undefined,
           phone: formPhone || undefined,

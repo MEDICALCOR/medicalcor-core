@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
-import { requirePermission, getCurrentUser } from '@/lib/auth/server-action-auth';
+import { requirePermission, requireCurrentUser } from '@/lib/auth/server-action-auth';
 
 /**
  * Server Actions for Prescription Management
@@ -51,9 +51,13 @@ export interface PrescriptionMedication {
 
 export interface PrescriptionStats {
   totalPrescriptions: number;
+  totalCount: number;
   activePrescriptions: number;
+  activeCount: number;
   dispensedThisMonth: number;
   expiringSoon: number;
+  expiringCount: number;
+  todayCount: number;
 }
 
 interface PrescriptionRow {
@@ -165,7 +169,7 @@ export async function getPrescriptionsAction(
 ): Promise<{ prescriptions: Prescription[]; error?: string }> {
   try {
     await requirePermission('prescriptions:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     let query = `
@@ -211,7 +215,7 @@ export async function getPrescriptionByIdAction(
 ): Promise<{ prescription: Prescription | null; error?: string }> {
   try {
     await requirePermission('prescriptions:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query<PrescriptionRow>(
@@ -246,7 +250,7 @@ export async function getPrescriptionByIdAction(
 export async function getPrescriptionStatsAction(): Promise<{ stats: PrescriptionStats | null; error?: string }> {
   try {
     await requirePermission('prescriptions:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query<{
@@ -267,12 +271,19 @@ export async function getPrescriptionStatsAction(): Promise<{ stats: Prescriptio
     );
 
     const row = result.rows[0];
+    const totalPrescriptions = parseInt(row.total_prescriptions);
+    const activePrescriptions = parseInt(row.active_prescriptions);
+    const expiringSoon = parseInt(row.expiring_soon);
     return {
       stats: {
-        totalPrescriptions: parseInt(row.total_prescriptions),
-        activePrescriptions: parseInt(row.active_prescriptions),
+        totalPrescriptions,
+        totalCount: totalPrescriptions,
+        activePrescriptions,
+        activeCount: activePrescriptions,
         dispensedThisMonth: parseInt(row.dispensed_this_month),
-        expiringSoon: parseInt(row.expiring_soon),
+        expiringSoon,
+        expiringCount: expiringSoon,
+        todayCount: 0, // Would need additional query for today's count
       },
     };
   } catch (error) {
@@ -286,7 +297,7 @@ export async function createPrescriptionAction(
 ): Promise<{ prescription: Prescription | null; error?: string }> {
   try {
     await requirePermission('prescriptions:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const validated = CreatePrescriptionSchema.parse(data);
@@ -361,7 +372,7 @@ export async function updatePrescriptionAction(
 ): Promise<{ prescription: Prescription | null; error?: string }> {
   try {
     await requirePermission('prescriptions:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const validated = UpdatePrescriptionSchema.parse(data);
@@ -429,7 +440,7 @@ export async function updatePrescriptionAction(
 export async function cancelPrescriptionAction(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     await requirePermission('prescriptions:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query(
@@ -449,12 +460,53 @@ export async function cancelPrescriptionAction(id: string): Promise<{ success: b
   }
 }
 
+export async function deletePrescriptionAction(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requirePermission('prescriptions:delete');
+    const user = await requireCurrentUser();
+    const database = getDatabase();
+
+    const client = await database.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Delete medications first
+      await client.query(
+        `DELETE FROM prescription_medications WHERE prescription_id = $1`,
+        [id]
+      );
+
+      // Delete prescription
+      const result = await client.query(
+        `DELETE FROM prescriptions WHERE id = $1 AND clinic_id = $2`,
+        [id, user.clinicId]
+      );
+
+      if (result.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return { success: false, error: 'Prescription not found' };
+      }
+
+      await client.query('COMMIT');
+      return { success: true };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error deleting prescription:', error);
+    return { success: false, error: 'Failed to delete prescription' };
+  }
+}
+
 export async function duplicatePrescriptionAction(
   id: string
 ): Promise<{ prescription: Prescription | null; error?: string }> {
   try {
     await requirePermission('prescriptions:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const client = await database.connect();

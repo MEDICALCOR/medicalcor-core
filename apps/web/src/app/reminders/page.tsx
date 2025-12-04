@@ -334,7 +334,7 @@ export default function RemindersPage() {
                         )}
                       >
                         {reminder.type === 'appointment' && <Calendar className="h-5 w-5" />}
-                        {(reminder.type === 'follow_up' || reminder.type === 'followup') && <Clock className="h-5 w-5" />}
+                        {reminder.type === 'payment' && <Clock className="h-5 w-5" />}
                         {reminder.type === 'birthday' && <Bell className="h-5 w-5" />}
                         {reminder.type === 'medication' && <Bell className="h-5 w-5" />}
                         {reminder.type === 'custom' && <Settings className="h-5 w-5" />}

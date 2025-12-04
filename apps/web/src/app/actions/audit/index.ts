@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
-import { requirePermission, getCurrentUser } from '@/lib/auth/server-action-auth';
+import { requirePermission, requireCurrentUser } from '@/lib/auth/server-action-auth';
 
 /**
  * Server Actions for Audit Log Management
@@ -39,6 +39,11 @@ export interface AuditStats {
   todayLogs: number;
   failedActions: number;
   uniqueUsers: number;
+  // Alias properties for page compatibility
+  successCount: number;
+  warningCount: number;
+  errorCount: number;
+  activeUsers: number;
 }
 
 export interface AuditFilters {
@@ -111,7 +116,7 @@ export async function getAuditLogsAction(
 ): Promise<{ logs: AuditLog[]; total: number; error?: string }> {
   try {
     await requirePermission('audit:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     let whereClause = 'WHERE clinic_id = $1';
@@ -175,7 +180,7 @@ export async function getAuditLogsAction(
 export async function getAuditStatsAction(): Promise<{ stats: AuditStats | null; error?: string }> {
   try {
     await requirePermission('audit:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query<{
@@ -183,24 +188,34 @@ export async function getAuditStatsAction(): Promise<{ stats: AuditStats | null;
       today_logs: string;
       failed_actions: string;
       unique_users: string;
+      success_count: string;
+      warning_count: string;
     }>(
       `SELECT
         COUNT(*) as total_logs,
         COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE) as today_logs,
         COUNT(*) FILTER (WHERE status = 'failure') as failed_actions,
-        COUNT(DISTINCT user_id) FILTER (WHERE user_id IS NOT NULL) as unique_users
+        COUNT(DISTINCT user_id) FILTER (WHERE user_id IS NOT NULL) as unique_users,
+        COUNT(*) FILTER (WHERE status = 'success') as success_count,
+        COUNT(*) FILTER (WHERE status = 'warning') as warning_count
        FROM audit_logs
        WHERE clinic_id = $1`,
       [user.clinicId]
     );
 
     const row = result.rows[0];
+    const uniqueUsers = parseInt(row.unique_users);
+    const failedActions = parseInt(row.failed_actions);
     return {
       stats: {
         totalLogs: parseInt(row.total_logs),
         todayLogs: parseInt(row.today_logs),
-        failedActions: parseInt(row.failed_actions),
-        uniqueUsers: parseInt(row.unique_users),
+        failedActions,
+        uniqueUsers,
+        successCount: parseInt(row.success_count),
+        warningCount: parseInt(row.warning_count),
+        errorCount: failedActions,
+        activeUsers: uniqueUsers,
       },
     };
   } catch (error) {
@@ -213,7 +228,7 @@ export async function createAuditLogAction(
   data: z.infer<typeof CreateAuditLogSchema>
 ): Promise<{ log: AuditLog | null; error?: string }> {
   try {
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const validated = CreateAuditLogSchema.parse(data);
@@ -252,7 +267,7 @@ export async function getAuditLogsByEntityAction(
 ): Promise<{ logs: AuditLog[]; error?: string }> {
   try {
     await requirePermission('audit:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query<AuditLogRow>(
@@ -274,10 +289,10 @@ export async function getAuditLogsByEntityAction(
 
 export async function exportAuditLogsAction(
   filters?: AuditFilters
-): Promise<{ data: string | null; error?: string }> {
+): Promise<{ success: boolean; data?: string; error?: string }> {
   try {
     await requirePermission('audit:export');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     let whereClause = 'WHERE clinic_id = $1';
@@ -335,9 +350,9 @@ export async function exportAuditLogsAction(
 
     const csv = [headers.join(','), ...rows.map((r) => r.map((v) => `"${v}"`).join(','))].join('\n');
 
-    return { data: csv };
+    return { success: true, data: csv };
   } catch (error) {
     console.error('Error exporting audit logs:', error);
-    return { data: null, error: 'Failed to export audit logs' };
+    return { success: false, error: 'Failed to export audit logs' };
   }
 }

@@ -66,6 +66,16 @@ export async function getCurrentUser() {
 }
 
 /**
+ * Get current user (non-null)
+ * Use after requirePermission/requireAuth has been called
+ * Throws if user is not authenticated
+ */
+export async function requireCurrentUser() {
+  const session = await requireAuth();
+  return session.user;
+}
+
+/**
  * Check if current user can access a specific patient
  * For IDOR protection - validates clinic membership for non-admin users
  */

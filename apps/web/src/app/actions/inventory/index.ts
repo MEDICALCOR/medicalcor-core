@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
-import { requirePermission, getCurrentUser } from '@/lib/auth/server-action-auth';
+import { requirePermission, requireCurrentUser } from '@/lib/auth/server-action-auth';
 
 /**
  * Server Actions for Inventory Management
@@ -138,7 +138,7 @@ function rowToInventoryItem(row: InventoryItemRow): InventoryItem {
 export async function getInventoryAction(): Promise<{ items: InventoryItem[]; error?: string }> {
   try {
     await requirePermission('inventory:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query<InventoryItemRow>(
@@ -163,7 +163,7 @@ export async function getInventoryAction(): Promise<{ items: InventoryItem[]; er
 export async function getInventoryStatsAction(): Promise<{ stats: InventoryStats | null; error?: string }> {
   try {
     await requirePermission('inventory:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query<{
@@ -202,7 +202,7 @@ export async function createInventoryItemAction(
 ): Promise<{ item: InventoryItem | null; error?: string }> {
   try {
     await requirePermission('inventory:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const validated = CreateInventoryItemSchema.parse(data);
@@ -242,7 +242,7 @@ export async function updateInventoryItemAction(
 ): Promise<{ item: InventoryItem | null; error?: string }> {
   try {
     await requirePermission('inventory:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const validated = UpdateInventoryItemSchema.parse(data);
@@ -306,7 +306,7 @@ export async function adjustStockAction(
 ): Promise<{ item: InventoryItem | null; error?: string }> {
   try {
     await requirePermission('inventory:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const validated = AdjustStockSchema.parse(data);
@@ -381,7 +381,7 @@ export async function adjustStockAction(
 export async function deleteInventoryItemAction(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     await requirePermission('inventory:delete');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query(

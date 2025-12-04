@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
-import { requirePermission, getCurrentUser } from '@/lib/auth/server-action-auth';
+import { requirePermission, requireCurrentUser } from '@/lib/auth/server-action-auth';
 
 /**
  * Server Actions for Document Management
@@ -50,6 +50,9 @@ export interface DocumentStats {
   totalFolders: number;
   totalSize: string;
   recentUploads: number;
+  // Alias properties for page compatibility
+  usedSize: string;
+  usedPercentage: number;
 }
 
 interface DocumentRow {
@@ -162,7 +165,7 @@ export async function getDocumentsAction(
 ): Promise<{ documents: Document[]; error?: string }> {
   try {
     await requirePermission('documents:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     let query = `
@@ -198,7 +201,7 @@ export async function getDocumentsAction(
 export async function getFoldersAction(): Promise<{ folders: DocumentFolder[]; error?: string }> {
   try {
     await requirePermission('documents:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query<FolderRow>(
@@ -219,7 +222,7 @@ export async function getFoldersAction(): Promise<{ folders: DocumentFolder[]; e
 export async function getDocumentStatsAction(): Promise<{ stats: DocumentStats | null; error?: string }> {
   try {
     await requirePermission('documents:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query<{
@@ -238,12 +241,19 @@ export async function getDocumentStatsAction(): Promise<{ stats: DocumentStats |
     );
 
     const row = result.rows[0];
+    const totalSizeBytes = parseInt(row.total_size);
+    const totalSizeFormatted = formatFileSize(totalSizeBytes);
+    // Assume 10GB quota for now
+    const quotaBytes = 10 * 1024 * 1024 * 1024;
+    const usedPercentage = Math.round((totalSizeBytes / quotaBytes) * 100);
     return {
       stats: {
         totalDocuments: parseInt(row.total_documents),
         totalFolders: parseInt(row.total_folders),
-        totalSize: formatFileSize(parseInt(row.total_size)),
+        totalSize: totalSizeFormatted,
         recentUploads: parseInt(row.recent_uploads),
+        usedSize: totalSizeFormatted,
+        usedPercentage,
       },
     };
   } catch (error) {
@@ -257,7 +267,7 @@ export async function createDocumentRecordAction(
 ): Promise<{ document: Document | null; error?: string }> {
   try {
     await requirePermission('documents:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const validated = CreateDocumentSchema.parse(data);
@@ -296,7 +306,7 @@ export async function createFolderAction(
 ): Promise<{ folder: DocumentFolder | null; error?: string }> {
   try {
     await requirePermission('documents:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const validated = CreateFolderSchema.parse(data);
@@ -320,7 +330,7 @@ export async function updateDocumentAction(
 ): Promise<{ document: Document | null; error?: string }> {
   try {
     await requirePermission('documents:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const validated = UpdateDocumentSchema.parse(data);
@@ -375,7 +385,7 @@ export async function updateDocumentAction(
 export async function deleteDocumentAction(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     await requirePermission('documents:delete');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query(
@@ -398,7 +408,7 @@ export async function deleteDocumentAction(id: string): Promise<{ success: boole
 export async function deleteFolderAction(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     await requirePermission('documents:delete');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     // Check if folder is empty or system folder

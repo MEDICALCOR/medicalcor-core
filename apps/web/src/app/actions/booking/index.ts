@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
-import { requirePermission, getCurrentUser } from '@/lib/auth/server-action-auth';
+import { requirePermission, requireCurrentUser } from '@/lib/auth/server-action-auth';
 
 /**
  * Server Actions for Booking Management (Services & Doctors)
@@ -39,12 +39,15 @@ export interface Doctor {
   phone: string | null;
   rating: number;
   nextAvailable: string;
+  avatar?: string;
   isActive: boolean;
 }
 
 export interface TimeSlot {
   id: string;
   doctorId: string;
+  time: string;
+  available: boolean;
   startTime: Date;
   endTime: Date;
   isBooked: boolean;
@@ -147,7 +150,7 @@ function rowToDoctor(row: DoctorRow, nextAvailable: string = 'Indisponibil'): Do
 export async function getServicesAction(): Promise<{ services: Service[]; error?: string }> {
   try {
     await requirePermission('services:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query<ServiceRow>(
@@ -211,8 +214,7 @@ export async function getDoctorsAction(): Promise<{ doctors: Doctor[]; error?: s
 }
 
 export async function getAvailableSlotsAction(
-  doctorId: string,
-  date: string
+  params: { doctorId: string; date: string }
 ): Promise<{ slots: TimeSlot[]; error?: string }> {
   try {
     await requirePermission('appointments:read');
@@ -223,15 +225,16 @@ export async function getAvailableSlotsAction(
        FROM time_slots
        WHERE practitioner_id = $1
          AND DATE(start_time) = $2
-         AND is_booked = false
        ORDER BY start_time`,
-      [doctorId, date]
+      [params.doctorId, params.date]
     );
 
     return {
       slots: result.rows.map((row) => ({
         id: row.id,
         doctorId: row.practitioner_id,
+        time: new Date(row.start_time).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' }),
+        available: !row.is_booked,
         startTime: row.start_time,
         endTime: row.end_time,
         isBooked: row.is_booked,
@@ -246,7 +249,7 @@ export async function getAvailableSlotsAction(
 export async function getBookingStatsAction(): Promise<{ stats: BookingStats | null; error?: string }> {
   try {
     await requirePermission('appointments:read');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query<{
@@ -286,7 +289,7 @@ export async function createServiceAction(
 ): Promise<{ service: Service | null; error?: string }> {
   try {
     await requirePermission('services:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const validated = CreateServiceSchema.parse(data);
@@ -319,7 +322,7 @@ export async function updateServiceAction(
 ): Promise<{ service: Service | null; error?: string }> {
   try {
     await requirePermission('services:write');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const validated = UpdateServiceSchema.parse(data);
@@ -376,7 +379,7 @@ export async function updateServiceAction(
 export async function deleteServiceAction(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     await requirePermission('services:delete');
-    const user = await getCurrentUser();
+    const user = await requireCurrentUser();
     const database = getDatabase();
 
     const result = await database.query(
@@ -392,5 +395,73 @@ export async function deleteServiceAction(id: string): Promise<{ success: boolea
   } catch (error) {
     console.error('Error deleting service:', error);
     return { success: false, error: 'Failed to delete service' };
+  }
+}
+
+const CreateBookingSchema = z.object({
+  serviceId: z.string().uuid(),
+  doctorId: z.string().uuid(),
+  date: z.string(),
+  time: z.string(),
+  patientFirstName: z.string().min(1),
+  patientLastName: z.string().min(1),
+  patientPhone: z.string().min(1),
+  patientEmail: z.string().email().optional(),
+  notes: z.string().optional(),
+});
+
+export async function createBookingAction(
+  data: z.infer<typeof CreateBookingSchema>
+): Promise<{ success: boolean; appointmentId?: string; error?: string }> {
+  try {
+    await requirePermission('appointments:write');
+    const user = await requireCurrentUser();
+    const database = getDatabase();
+
+    const validated = CreateBookingSchema.parse(data);
+
+    // Find the slot matching the date and time
+    const slotResult = await database.query<{ id: string }>(
+      `SELECT id FROM time_slots
+       WHERE practitioner_id = $1
+         AND DATE(start_time) = $2
+         AND start_time::time = $3::time
+         AND is_booked = false
+       LIMIT 1`,
+      [validated.doctorId, validated.date.split('T')[0], validated.time]
+    );
+
+    if (slotResult.rows.length === 0) {
+      return { success: false, error: 'Slot not available' };
+    }
+
+    const slotId = slotResult.rows[0].id;
+
+    // Create the appointment
+    const appointmentResult = await database.query<{ id: string }>(
+      `INSERT INTO appointments (clinic_id, slot_id, service_id, patient_name, patient_phone, patient_email, notes, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'scheduled')
+       RETURNING id`,
+      [
+        user.clinicId,
+        slotId,
+        validated.serviceId,
+        `${validated.patientFirstName} ${validated.patientLastName}`,
+        validated.patientPhone,
+        validated.patientEmail ?? null,
+        validated.notes ?? null,
+      ]
+    );
+
+    // Mark slot as booked
+    await database.query(
+      `UPDATE time_slots SET is_booked = true WHERE id = $1`,
+      [slotId]
+    );
+
+    return { success: true, appointmentId: appointmentResult.rows[0].id };
+  } catch (error) {
+    console.error('Error creating booking:', error);
+    return { success: false, error: 'Failed to create booking' };
   }
 }

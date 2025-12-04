@@ -103,7 +103,7 @@ export default function BookingPage() {
 
   async function loadDoctors() {
     try {
-      const result = await getDoctorsAction({ serviceId: selectedService?.id });
+      const result = await getDoctorsAction();
       if (result.doctors) {
         setDoctors(result.doctors);
       }
