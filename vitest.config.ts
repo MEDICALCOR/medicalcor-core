@@ -38,6 +38,8 @@ export default defineConfig({
       '@medicalcor/integrations': path.resolve(__dirname, 'packages/integrations/src/index.ts'),
       '@medicalcor/application': path.resolve(__dirname, 'packages/application/src/index.ts'),
       '@medicalcor/infrastructure': path.resolve(__dirname, 'packages/infrastructure/src/index.ts'),
+      // Resolve Next.js app aliases for testing
+      '@': path.resolve(__dirname, 'apps/web/src'),
     },
   },
 });

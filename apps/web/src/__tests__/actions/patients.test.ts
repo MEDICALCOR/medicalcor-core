@@ -32,6 +32,8 @@ vi.mock('@/app/actions/shared/clients', () => ({
   getSchedulingService: () => mockSchedulingService,
   getStripeClient: () => mockStripeClient,
   DEFAULT_TIMEZONE: 'Europe/Bucharest',
+  HUBSPOT_PAGE_SIZE: 100,
+  MAX_FETCH_RESULTS: 5000,
 }));
 
 import {
