@@ -70,10 +70,14 @@ export const PERMISSIONS = {
   // Medical records
   VIEW_MEDICAL_RECORDS: ['admin', 'doctor'] as UserRole[],
   EDIT_MEDICAL_RECORDS: ['doctor'] as UserRole[],
+  'medical_records:read': ['admin', 'doctor'] as UserRole[],
+  'medical_records:write': ['admin', 'doctor'] as UserRole[],
 
   // Appointments
   VIEW_APPOINTMENTS: ['admin', 'doctor', 'receptionist', 'staff'] as UserRole[],
   MANAGE_APPOINTMENTS: ['admin', 'doctor', 'receptionist'] as UserRole[],
+  'appointments:read': ['admin', 'doctor', 'receptionist', 'staff'] as UserRole[],
+  'appointments:write': ['admin', 'doctor', 'receptionist'] as UserRole[],
 
   // Analytics
   VIEW_ANALYTICS: ['admin', 'doctor'] as UserRole[],
@@ -98,6 +102,45 @@ export const PERMISSIONS = {
   'api_keys:write': ['admin'] as UserRole[],
   'api_keys:delete': ['admin'] as UserRole[],
 
+  // Audit
+  'audit:read': ['admin'] as UserRole[],
+  'audit:write': ['admin'] as UserRole[],
+  'audit:export': ['admin'] as UserRole[],
+
+  // Campaigns
+  'campaigns:read': ['admin', 'doctor', 'receptionist'] as UserRole[],
+  'campaigns:write': ['admin', 'doctor'] as UserRole[],
+  'campaigns:delete': ['admin'] as UserRole[],
+
+  // Clinics
+  'clinics:read': ['admin'] as UserRole[],
+  'clinics:write': ['admin'] as UserRole[],
+  'clinics:delete': ['admin'] as UserRole[],
+
+  // Documents
+  'documents:read': ['admin', 'doctor', 'receptionist'] as UserRole[],
+  'documents:write': ['admin', 'doctor'] as UserRole[],
+  'documents:delete': ['admin', 'doctor'] as UserRole[],
+
+  // Inventory
+  'inventory:read': ['admin', 'doctor', 'receptionist', 'staff'] as UserRole[],
+  'inventory:write': ['admin', 'doctor'] as UserRole[],
+  'inventory:delete': ['admin'] as UserRole[],
+
+  // Prescriptions
+  'prescriptions:read': ['admin', 'doctor'] as UserRole[],
+  'prescriptions:write': ['admin', 'doctor'] as UserRole[],
+  'prescriptions:delete': ['admin'] as UserRole[],
+
+  // Reminders
+  'reminders:read': ['admin', 'doctor', 'receptionist'] as UserRole[],
+  'reminders:write': ['admin', 'doctor', 'receptionist'] as UserRole[],
+  'reminders:delete': ['admin', 'doctor'] as UserRole[],
+
+  // Staff Schedule
+  'staff:read': ['admin', 'doctor', 'receptionist'] as UserRole[],
+  'staff:write': ['admin'] as UserRole[],
+
   // Billing
   'billing:read': ['admin', 'doctor', 'receptionist'] as UserRole[],
   'billing:write': ['admin'] as UserRole[],
@@ -113,8 +156,30 @@ export const PERMISSIONS = {
   'users:write': ['admin'] as UserRole[],
   'users:delete': ['admin'] as UserRole[],
 
+  // Billing
+  'billing:read': ['admin'] as UserRole[],
+  'billing:write': ['admin'] as UserRole[],
+  'billing:delete': ['admin'] as UserRole[],
+
+  // Services
+  'services:read': ['admin', 'doctor', 'receptionist'] as UserRole[],
+  'services:write': ['admin'] as UserRole[],
+  'services:delete': ['admin'] as UserRole[],
+
+  // Doctors
+  'doctors:read': ['admin', 'doctor', 'receptionist', 'staff'] as UserRole[],
+
   // WhatsApp Templates
   'whatsapp:read': ['admin', 'doctor', 'receptionist'] as UserRole[],
   'whatsapp:write': ['admin'] as UserRole[],
   'whatsapp:delete': ['admin'] as UserRole[],
+
+  // Waiting List
+  'waiting_list:read': ['admin', 'doctor', 'receptionist'] as UserRole[],
+  'waiting_list:write': ['admin', 'doctor', 'receptionist'] as UserRole[],
+  'waiting_list:delete': ['admin', 'doctor'] as UserRole[],
+
+  // Booking
+  'booking:read': ['admin', 'doctor', 'receptionist', 'staff'] as UserRole[],
+  'booking:write': ['admin', 'doctor', 'receptionist'] as UserRole[],
 } as const;

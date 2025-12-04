@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
+import { requirePermission, requireCurrentUser } from '@/lib/auth/server-action-auth';
 import { requirePermission, getCurrentUser } from '@/lib/auth/server-action-auth';
 import { getStripeClient } from '../shared/clients';
 
@@ -122,6 +123,14 @@ const CreateInvoiceSchema = z.object({
   customerTaxId: z.string().optional(),
   dueDate: z.coerce.date(),
   notes: z.string().optional(),
+  items: z.array(z.object({
+    description: z.string().min(1),
+    quantity: z.number().positive(),
+    unitPrice: z.number().nonnegative(),
+    serviceCode: z.string().optional(),
+    serviceName: z.string().optional(),
+    taxRate: z.number().min(0).max(100).optional(),
+  })).min(1),
   items: z
     .array(
       z.object({
@@ -201,6 +210,7 @@ function rowToInvoiceItem(row: InvoiceItemRow): InvoiceItem {
  */
 export async function getInvoicesAction(): Promise<Invoice[]> {
   await requirePermission('billing:read');
+  const user = await requireCurrentUser();
   const user = await getCurrentUser();
   if (!user?.clinicId) {
     throw new Error('No clinic associated with user');
@@ -245,6 +255,9 @@ export async function getInvoicesAction(): Promise<Invoice[]> {
     itemsByInvoice.set(row.invoice_id, items);
   }
 
+  return invoicesResult.rows.map((row) =>
+    rowToInvoice(row, itemsByInvoice.get(row.id) ?? [])
+  );
   return invoicesResult.rows.map((row) => rowToInvoice(row, itemsByInvoice.get(row.id) ?? []));
 }
 
@@ -253,6 +266,7 @@ export async function getInvoicesAction(): Promise<Invoice[]> {
  */
 export async function getInvoiceByIdAction(id: string): Promise<Invoice | null> {
   await requirePermission('billing:read');
+  const user = await requireCurrentUser();
   const user = await getCurrentUser();
   if (!user?.clinicId) {
     throw new Error('No clinic associated with user');
@@ -286,6 +300,10 @@ export async function getInvoiceByIdAction(id: string): Promise<Invoice | null> 
     [id]
   );
 
+  return rowToInvoice(
+    invoiceResult.rows[0],
+    itemsResult.rows.map(rowToInvoiceItem)
+  );
   return rowToInvoice(invoiceResult.rows[0], itemsResult.rows.map(rowToInvoiceItem));
 }
 
@@ -294,6 +312,7 @@ export async function getInvoiceByIdAction(id: string): Promise<Invoice | null> 
  */
 export async function getBillingStatsAction(): Promise<BillingStats> {
   await requirePermission('billing:read');
+  const user = await requireCurrentUser();
   const user = await getCurrentUser();
   if (!user?.clinicId) {
     throw new Error('No clinic associated with user');
@@ -336,6 +355,7 @@ export async function createInvoiceAction(
   data: z.infer<typeof CreateInvoiceSchema>
 ): Promise<Invoice> {
   await requirePermission('billing:write');
+  const user = await requireCurrentUser();
   const user = await getCurrentUser();
   if (!user?.clinicId) {
     throw new Error('No clinic associated with user');
@@ -403,6 +423,7 @@ export async function createInvoiceAction(
   for (let i = 0; i < parsed.items.length; i++) {
     const item = parsed.items[i];
     const itemTotal = item.quantity * item.unitPrice;
+    const itemTaxAmount = item.taxRate ? Math.round(itemTotal * (item.taxRate / 100) * 100) / 100 : null;
     const itemTaxAmount = item.taxRate
       ? Math.round(itemTotal * (item.taxRate / 100) * 100) / 100
       : null;
@@ -440,6 +461,7 @@ export async function updateInvoiceStatusAction(
   data: z.infer<typeof UpdateInvoiceStatusSchema>
 ): Promise<Invoice> {
   await requirePermission('billing:write');
+  const user = await requireCurrentUser();
   const user = await getCurrentUser();
   if (!user?.clinicId) {
     throw new Error('No clinic associated with user');
@@ -500,6 +522,7 @@ export async function updateInvoiceStatusAction(
  */
 export async function deleteInvoiceAction(id: string): Promise<boolean> {
   await requirePermission('billing:delete');
+  const user = await requireCurrentUser();
   const user = await getCurrentUser();
   if (!user?.clinicId) {
     throw new Error('No clinic associated with user');

@@ -1,6 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useTransition } from 'react';
+import {
+  getPrescriptionsAction,
+  getPrescriptionsStatsAction,
+  duplicatePrescriptionAction,
+  type Prescription,
+  type PrescriptionsStats,
+} from '@/app/actions';
+import { useToast } from '@/hooks/use-toast';
 import {
   Pill,
   Plus,
@@ -14,6 +22,8 @@ import {
   Calendar,
   User,
   RefreshCw,
+  Loader2,
+  Copy,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,116 +48,6 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
-interface Prescription {
-  id: string;
-  prescriptionNumber: string;
-  patientId: string;
-  patientName: string;
-  doctorName: string;
-  createdAt: Date;
-  validUntil: Date;
-  status: 'active' | 'dispensed' | 'expired' | 'cancelled';
-  medications: PrescriptionMedication[];
-  diagnosis?: string;
-  notes?: string;
-}
-
-interface PrescriptionMedication {
-  name: string;
-  dosage: string;
-  frequency: string;
-  duration: string;
-  quantity: number;
-  instructions?: string;
-}
-
-// SECURITY: Demo/placeholder prescription data - no real PII
-const prescriptions: Prescription[] = [
-  {
-    id: 'rx1',
-    prescriptionNumber: 'RX-2024-001',
-    patientId: 'p1',
-    patientName: 'Patient Demo A',
-    doctorName: 'Dr. Demo Doctor',
-    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-    validUntil: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000),
-    status: 'active',
-    diagnosis: 'Hipertensiune arterială',
-    medications: [
-      {
-        name: 'Amlodipină',
-        dosage: '5mg',
-        frequency: '1x/zi',
-        duration: '30 zile',
-        quantity: 30,
-        instructions: 'Dimineața, înainte de masă',
-      },
-      {
-        name: 'Aspirină',
-        dosage: '75mg',
-        frequency: '1x/zi',
-        duration: '30 zile',
-        quantity: 30,
-        instructions: 'Seara, după masă',
-      },
-    ],
-  },
-  {
-    id: 'rx2',
-    prescriptionNumber: 'RX-2024-002',
-    patientId: 'p2',
-    patientName: 'Patient Demo B',
-    doctorName: 'Dr. Demo Specialist',
-    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    validUntil: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-    status: 'active',
-    diagnosis: 'Infecție respiratorie',
-    medications: [
-      {
-        name: 'Amoxicilină',
-        dosage: '500mg',
-        frequency: '3x/zi',
-        duration: '7 zile',
-        quantity: 21,
-      },
-      {
-        name: 'Paracetamol',
-        dosage: '500mg',
-        frequency: 'la nevoie',
-        duration: '7 zile',
-        quantity: 20,
-        instructions: 'Max 4 comprimate/zi',
-      },
-    ],
-  },
-  {
-    id: 'rx3',
-    prescriptionNumber: 'RX-2024-003',
-    patientId: 'p3',
-    patientName: 'Patient Demo C',
-    doctorName: 'Dr. Demo Physician',
-    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-    validUntil: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-    status: 'dispensed',
-    medications: [
-      { name: 'Ibuprofen', dosage: '400mg', frequency: '2x/zi', duration: '5 zile', quantity: 10 },
-    ],
-  },
-  {
-    id: 'rx4',
-    prescriptionNumber: 'RX-2024-004',
-    patientId: 'p4',
-    patientName: 'Patient Demo D',
-    doctorName: 'Dr. Demo Doctor',
-    createdAt: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000),
-    validUntil: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    status: 'expired',
-    medications: [
-      { name: 'Metformin', dosage: '850mg', frequency: '2x/zi', duration: '30 zile', quantity: 60 },
-    ],
-  },
-];
-
 const statusConfig = {
   active: { label: 'Activă', color: 'bg-green-100 text-green-700', icon: CheckCircle },
   dispensed: { label: 'Eliberată', color: 'bg-blue-100 text-blue-700', icon: CheckCircle },
@@ -156,15 +56,65 @@ const statusConfig = {
 };
 
 export default function PrescriptionsPage() {
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [stats, setStats] = useState<PrescriptionsStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [medications, setMedications] = useState([
     { name: '', dosage: '', frequency: '', duration: '', quantity: 1 },
   ]);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  async function loadData() {
+    setIsLoading(true);
+    try {
+      const [prescriptionsResult, statsResult] = await Promise.all([
+        getPrescriptionsAction(),
+        getPrescriptionsStatsAction(),
+      ]);
+
+      if (prescriptionsResult.prescriptions) {
+        setPrescriptions(prescriptionsResult.prescriptions);
+      }
+      if (statsResult.stats) {
+        setStats(statsResult.stats);
+      }
+    } catch (error) {
+      toast({
+        title: 'Eroare',
+        description: 'Nu s-au putut încărca rețetele',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleDuplicate(id: string) {
+    startTransition(async () => {
+      const result = await duplicatePrescriptionAction(id);
+      if (result.prescription) {
+        setPrescriptions((prev) => [result.prescription!, ...prev]);
+        toast({ title: 'Succes', description: 'Rețeta a fost duplicată' });
+      } else {
+        toast({ title: 'Eroare', description: result.error, variant: 'destructive' });
+      }
+    });
+  }
 
   const formatDate = (date: Date): string => {
-    return date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'short', year: 'numeric' });
+    return new Date(date).toLocaleDateString('ro-RO', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
   };
 
   const addMedication = () => {
@@ -183,13 +133,25 @@ export default function PrescriptionsPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const activeCount = prescriptions.filter((rx) => rx.status === 'active').length;
-  const expiringCount = prescriptions.filter((rx) => {
+  const activeCount = stats?.activeCount ?? prescriptions.filter((rx) => rx.status === 'active').length;
+  const expiringCount = stats?.expiringCount ?? prescriptions.filter((rx) => {
+    if (!rx.validUntil) return false;
     const daysUntilExpiry = Math.ceil(
-      (rx.validUntil.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+      (new Date(rx.validUntil).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
     );
     return rx.status === 'active' && daysUntilExpiry <= 7 && daysUntilExpiry > 0;
   }).length;
+  const todayCount = stats?.todayCount ?? prescriptions.filter(
+    (rx) => new Date(rx.createdAt).toDateString() === new Date().toDateString()
+  ).length;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -217,7 +179,6 @@ export default function PrescriptionsPage() {
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Pacient</Label>
-                  {/* SECURITY: Demo patient options - no real PII */}
                   <Select>
                     <SelectTrigger>
                       <SelectValue placeholder="Selectează pacient" />
@@ -321,7 +282,7 @@ export default function PrescriptionsPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total rețete</p>
-              <p className="text-xl font-bold">{prescriptions.length}</p>
+              <p className="text-xl font-bold">{stats?.totalCount ?? prescriptions.length}</p>
             </div>
           </CardContent>
         </Card>
@@ -354,13 +315,7 @@ export default function PrescriptionsPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Emise azi</p>
-              <p className="text-xl font-bold">
-                {
-                  prescriptions.filter(
-                    (rx) => rx.createdAt.toDateString() === new Date().toDateString()
-                  ).length
-                }
-              </p>
+              <p className="text-xl font-bold">{todayCount}</p>
             </div>
           </CardContent>
         </Card>
@@ -400,94 +355,117 @@ export default function PrescriptionsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {filteredPrescriptions.map((rx) => {
-              const StatusIcon = statusConfig[rx.status].icon;
-              const daysUntilExpiry = Math.ceil(
-                (rx.validUntil.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-              );
-              const isExpiringSoon =
-                rx.status === 'active' && daysUntilExpiry <= 7 && daysUntilExpiry > 0;
+          {filteredPrescriptions.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Pill className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Nu există rețete</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredPrescriptions.map((rx) => {
+                const status = rx.status as keyof typeof statusConfig;
+                const StatusIcon = statusConfig[status]?.icon ?? CheckCircle;
+                const daysUntilExpiry = rx.validUntil
+                  ? Math.ceil((new Date(rx.validUntil).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                  : 999;
+                const isExpiringSoon =
+                  rx.status === 'active' && daysUntilExpiry <= 7 && daysUntilExpiry > 0;
 
-              return (
-                <div key={rx.id} className="border rounded-lg">
-                  <div className="flex items-center justify-between p-4">
-                    <div className="flex items-center gap-4">
-                      <div
-                        className={cn(
-                          'w-10 h-10 rounded-lg flex items-center justify-center',
-                          statusConfig[rx.status].color.split(' ')[0]
-                        )}
-                      >
-                        <StatusIcon className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-medium">{rx.prescriptionNumber}</h4>
-                          <Badge className={cn('text-xs', statusConfig[rx.status].color)}>
-                            {statusConfig[rx.status].label}
-                          </Badge>
-                          {isExpiringSoon && (
+                return (
+                  <div key={rx.id} className="border rounded-lg">
+                    <div className="flex items-center justify-between p-4">
+                      <div className="flex items-center gap-4">
+                        <div
+                          className={cn(
+                            'w-10 h-10 rounded-lg flex items-center justify-center',
+                            statusConfig[status]?.color?.split(' ')[0] ?? 'bg-gray-100'
+                          )}
+                        >
+                          <StatusIcon className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-medium">{rx.prescriptionNumber}</h4>
                             <Badge
-                              variant="outline"
-                              className="text-xs text-yellow-600 border-yellow-300"
+                              className={cn(
+                                'text-xs',
+                                statusConfig[status]?.color ?? 'bg-gray-100 text-gray-700'
+                              )}
                             >
-                              <AlertTriangle className="h-3 w-3 mr-1" />
-                              Expiră în {daysUntilExpiry} zile
+                              {statusConfig[status]?.label ?? rx.status}
                             </Badge>
+                            {isExpiringSoon && (
+                              <Badge
+                                variant="outline"
+                                className="text-xs text-yellow-600 border-yellow-300"
+                              >
+                                <AlertTriangle className="h-3 w-3 mr-1" />
+                                Expiră în {daysUntilExpiry} zile
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground flex items-center gap-2">
+                            <User className="h-3 w-3" />
+                            {rx.patientName} • {rx.doctorName}
+                          </p>
+                          {rx.diagnosis && (
+                            <p className="text-xs text-muted-foreground mt-1">Dg: {rx.diagnosis}</p>
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground flex items-center gap-2">
-                          <User className="h-3 w-3" />
-                          {rx.patientName} • {rx.doctorName}
-                        </p>
-                        {rx.diagnosis && (
-                          <p className="text-xs text-muted-foreground mt-1">Dg: {rx.diagnosis}</p>
-                        )}
                       </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-right text-sm">
-                        <p>Emisă: {formatDate(rx.createdAt)}</p>
-                        <p className="text-muted-foreground">
-                          Valabilă: {formatDate(rx.validUntil)}
-                        </p>
-                      </div>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon">
-                          <Printer className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon">
-                          <Send className="h-4 w-4" />
-                        </Button>
-                        {rx.status === 'active' && (
+                      <div className="flex items-center gap-4">
+                        <div className="text-right text-sm">
+                          <p>Emisă: {formatDate(rx.createdAt)}</p>
+                          {rx.validUntil && (
+                            <p className="text-muted-foreground">
+                              Valabilă: {formatDate(rx.validUntil)}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex gap-1">
                           <Button variant="ghost" size="icon">
-                            <RefreshCw className="h-4 w-4" />
+                            <Eye className="h-4 w-4" />
                           </Button>
-                        )}
+                          <Button variant="ghost" size="icon">
+                            <Printer className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon">
+                            <Send className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDuplicate(rx.id)}
+                            disabled={isPending}
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          {rx.status === 'active' && (
+                            <Button variant="ghost" size="icon">
+                              <RefreshCw className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="px-4 pb-4 border-t pt-3">
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Medicamente ({rx.medications?.length ?? 0})
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {rx.medications?.map((med, idx) => (
+                          <Badge key={idx} variant="outline" className="text-xs">
+                            <Pill className="h-3 w-3 mr-1" />
+                            {med.name} {med.dosage} - {med.frequency}
+                          </Badge>
+                        ))}
                       </div>
                     </div>
                   </div>
-                  <div className="px-4 pb-4 border-t pt-3">
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Medicamente ({rx.medications.length})
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {rx.medications.map((med, idx) => (
-                        <Badge key={idx} variant="outline" className="text-xs">
-                          <Pill className="h-3 w-3 mr-1" />
-                          {med.name} {med.dosage} - {med.frequency}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

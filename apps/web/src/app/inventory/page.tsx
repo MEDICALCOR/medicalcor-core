@@ -1,6 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useTransition } from 'react';
+import {
+  getInventoryAction,
+  getInventoryStatsAction,
+  deleteInventoryItemAction,
+  type InventoryItem,
+  type InventoryStats,
+} from '@/app/actions';
+import { useToast } from '@/hooks/use-toast';
 import {
   Package,
   Plus,
@@ -11,6 +19,7 @@ import {
   Trash2,
   Download,
   ShoppingCart,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,119 +43,64 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 
-interface InventoryItem {
-  id: string;
-  name: string;
-  category: string;
-  sku: string;
-  quantity: number;
-  minStock: number;
-  unit: string;
-  price: number;
-  supplier: string;
-  lastRestocked: Date;
-}
-
-const inventory: InventoryItem[] = [
-  {
-    id: 'i1',
-    name: 'Mănuși latex M',
-    category: 'Consumabile',
-    sku: 'MNS-001',
-    quantity: 450,
-    minStock: 100,
-    unit: 'buc',
-    price: 0.5,
-    supplier: 'MedSupply',
-    lastRestocked: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-  },
-  {
-    id: 'i2',
-    name: 'Seringi 5ml',
-    category: 'Consumabile',
-    sku: 'SRG-005',
-    quantity: 280,
-    minStock: 200,
-    unit: 'buc',
-    price: 0.3,
-    supplier: 'MedSupply',
-    lastRestocked: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
-  },
-  {
-    id: 'i3',
-    name: 'Vaccin gripal',
-    category: 'Medicamente',
-    sku: 'VAC-GRP',
-    quantity: 45,
-    minStock: 50,
-    unit: 'doze',
-    price: 35,
-    supplier: 'PharmaCo',
-    lastRestocked: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-  },
-  {
-    id: 'i4',
-    name: 'Paracetamol 500mg',
-    category: 'Medicamente',
-    sku: 'MED-001',
-    quantity: 320,
-    minStock: 100,
-    unit: 'cutii',
-    price: 8,
-    supplier: 'PharmaCo',
-    lastRestocked: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000),
-  },
-  {
-    id: 'i5',
-    name: 'Bandaje elastice',
-    category: 'Consumabile',
-    sku: 'BND-ELS',
-    quantity: 85,
-    minStock: 50,
-    unit: 'role',
-    price: 12,
-    supplier: 'MedSupply',
-    lastRestocked: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-  },
-  {
-    id: 'i6',
-    name: 'Alcool sanitar 70%',
-    category: 'Dezinfectanți',
-    sku: 'ALC-070',
-    quantity: 25,
-    minStock: 30,
-    unit: 'litri',
-    price: 15,
-    supplier: 'CleanMed',
-    lastRestocked: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-  },
-  {
-    id: 'i7',
-    name: 'Gel dezinfectant',
-    category: 'Dezinfectanți',
-    sku: 'GEL-DZF',
-    quantity: 48,
-    minStock: 20,
-    unit: 'sticle',
-    price: 18,
-    supplier: 'CleanMed',
-    lastRestocked: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-  },
-];
-
 export default function InventoryPage() {
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [stats, setStats] = useState<InventoryStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const { toast } = useToast();
 
-  const lowStockItems = inventory.filter((item) => item.quantity <= item.minStock);
-  const totalValue = inventory.reduce((sum, item) => sum + item.quantity * item.price, 0);
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  async function loadData() {
+    setIsLoading(true);
+    try {
+      const [inventoryResult, statsResult] = await Promise.all([
+        getInventoryAction(),
+        getInventoryStatsAction(),
+      ]);
+
+      if (inventoryResult.items) {
+        setInventory(inventoryResult.items);
+      }
+      if (statsResult.stats) {
+        setStats(statsResult.stats);
+      }
+    } catch (error) {
+      toast({
+        title: 'Eroare',
+        description: 'Nu s-a putut încărca inventarul',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    startTransition(async () => {
+      const result = await deleteInventoryItemAction(id);
+      if (result.success) {
+        setInventory((prev) => prev.filter((item) => item.id !== id));
+        toast({ title: 'Succes', description: 'Produsul a fost șters' });
+      } else {
+        toast({ title: 'Eroare', description: result.error, variant: 'destructive' });
+      }
+    });
+  }
+
+  const lowStockItems = inventory.filter((item) => item.isLowStock);
   const categories = [...new Set(inventory.map((item) => item.category))];
 
   const filteredInventory = inventory.filter((item) => {
     const matchesSearch =
       searchQuery === '' ||
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.sku.toLowerCase().includes(searchQuery.toLowerCase());
+      (item.sku?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
     const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
@@ -157,6 +111,14 @@ export default function InventoryPage() {
     if (ratio <= 1) return { label: 'Scăzut', color: 'bg-yellow-100 text-yellow-700' };
     return { label: 'OK', color: 'bg-green-100 text-green-700' };
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -188,7 +150,7 @@ export default function InventoryPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total produse</p>
-              <p className="text-xl font-bold">{inventory.length}</p>
+              <p className="text-xl font-bold">{stats?.totalItems ?? inventory.length}</p>
             </div>
           </CardContent>
         </Card>
@@ -199,7 +161,7 @@ export default function InventoryPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Valoare stoc</p>
-              <p className="text-xl font-bold">{totalValue.toLocaleString()} RON</p>
+              <p className="text-xl font-bold">{(stats?.totalValue ?? 0).toLocaleString()} RON</p>
             </div>
           </CardContent>
         </Card>
@@ -210,7 +172,7 @@ export default function InventoryPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Stoc scăzut</p>
-              <p className="text-xl font-bold">{lowStockItems.length} produse</p>
+              <p className="text-xl font-bold">{stats?.lowStockItems ?? lowStockItems.length} produse</p>
             </div>
           </CardContent>
         </Card>
@@ -220,8 +182,8 @@ export default function InventoryPage() {
               <ShoppingCart className="h-5 w-5 text-purple-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Comenzi în așteptare</p>
-              <p className="text-xl font-bold">3</p>
+              <p className="text-sm text-muted-foreground">Expiră curând</p>
+              <p className="text-xl font-bold">{stats?.expiringSoon ?? 0}</p>
             </div>
           </CardContent>
         </Card>
@@ -281,58 +243,70 @@ export default function InventoryPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Produs</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>Categorie</TableHead>
-                <TableHead>Stoc</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Preț/unitate</TableHead>
-                <TableHead className="text-right">Acțiuni</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredInventory.map((item) => {
-                const status = getStockStatus(item);
-                const stockRatio = Math.min((item.quantity / item.minStock) * 100, 100);
+          {filteredInventory.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Nu există produse în inventar</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Produs</TableHead>
+                  <TableHead>SKU</TableHead>
+                  <TableHead>Categorie</TableHead>
+                  <TableHead>Stoc</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Preț/unitate</TableHead>
+                  <TableHead className="text-right">Acțiuni</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredInventory.map((item) => {
+                  const status = getStockStatus(item);
+                  const stockRatio = Math.min((item.quantity / item.minStock) * 100, 100);
 
-                return (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      <div className="font-medium">{item.name}</div>
-                      <div className="text-xs text-muted-foreground">{item.supplier}</div>
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">{item.sku}</TableCell>
-                    <TableCell>{item.category}</TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="text-sm">
-                          {item.quantity} / {item.minStock} {item.unit}
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <div className="font-medium">{item.name}</div>
+                        <div className="text-xs text-muted-foreground">{item.supplier}</div>
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">{item.sku}</TableCell>
+                      <TableCell>{item.category}</TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="text-sm">
+                            {item.quantity} / {item.minStock} {item.unit}
+                          </div>
+                          <Progress value={stockRatio} className="h-1.5 w-20" />
                         </div>
-                        <Progress value={stockRatio} className="h-1.5 w-20" />
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={cn('text-xs', status.color)}>{status.label}</Badge>
-                    </TableCell>
-                    <TableCell>{item.price} RON</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={cn('text-xs', status.color)}>{status.label}</Badge>
+                      </TableCell>
+                      <TableCell>{item.price ?? 0} RON</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="icon">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(item.id)}
+                            disabled={isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

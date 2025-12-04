@@ -1,6 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useTransition } from 'react';
+import {
+  getWaitingListAction,
+  getWaitingListStatsAction,
+  updateWaitingPatientAction,
+  removeFromWaitingListAction,
+  type WaitingPatient,
+  type WaitingListStats,
+} from '@/app/actions';
+import { useToast } from '@/hooks/use-toast';
 import {
   Clock,
   Plus,
@@ -14,6 +23,7 @@ import {
   ArrowDown,
   MoreVertical,
   Search,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,94 +54,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
-interface WaitingPatient {
-  id: string;
-  patientId: string;
-  patientName: string;
-  phone: string;
-  email: string;
-  requestedService: string;
-  preferredDoctor?: string;
-  preferredDays: string[];
-  preferredTime: 'morning' | 'afternoon' | 'any';
-  priority: 'normal' | 'high' | 'urgent';
-  addedAt: Date;
-  notes?: string;
-  status: 'waiting' | 'contacted' | 'scheduled' | 'cancelled';
-}
-
-const waitingList: WaitingPatient[] = [
-  {
-    id: 'w1',
-    patientId: 'p1',
-    patientName: 'Ion Popescu',
-    phone: '0721 123 456',
-    email: 'ion@email.ro',
-    requestedService: 'Consultație cardiologie',
-    preferredDoctor: 'Dr. Elena Dumitrescu',
-    preferredDays: ['Luni', 'Miercuri'],
-    preferredTime: 'morning',
-    priority: 'high',
-    addedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-    status: 'waiting',
-  },
-  {
-    id: 'w2',
-    patientId: 'p2',
-    patientName: 'Maria Stan',
-    phone: '0722 234 567',
-    email: 'maria@email.ro',
-    requestedService: 'Ecografie abdominală',
-    preferredDays: ['Marți', 'Joi'],
-    preferredTime: 'afternoon',
-    priority: 'normal',
-    addedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    status: 'contacted',
-  },
-  {
-    id: 'w3',
-    patientId: 'p3',
-    patientName: 'Andrei Georgescu',
-    phone: '0723 345 678',
-    email: 'andrei@email.ro',
-    requestedService: 'Consultație ortopedică',
-    preferredDoctor: 'Dr. Mihai Radu',
-    preferredDays: ['Vineri'],
-    preferredTime: 'any',
-    priority: 'urgent',
-    addedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-    notes: 'Dureri acute',
-    status: 'waiting',
-  },
-  {
-    id: 'w4',
-    patientId: 'p4',
-    patientName: 'Elena Dumitrescu',
-    phone: '0724 456 789',
-    email: 'elena@email.ro',
-    requestedService: 'Analize laborator',
-    preferredDays: ['Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri'],
-    preferredTime: 'morning',
-    priority: 'normal',
-    addedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-    status: 'scheduled',
-  },
-  {
-    id: 'w5',
-    patientId: 'p5',
-    patientName: 'Alexandru Stan',
-    phone: '0725 567 890',
-    email: 'alex@email.ro',
-    requestedService: 'Consultație dermatologie',
-    preferredDays: ['Miercuri'],
-    preferredTime: 'afternoon',
-    priority: 'normal',
-    addedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-    status: 'waiting',
-  },
-];
-
 const priorityConfig = {
+  low: { label: 'Scăzut', color: 'bg-gray-100 text-gray-700' },
   normal: { label: 'Normal', color: 'bg-gray-100 text-gray-700' },
   high: { label: 'Ridicat', color: 'bg-orange-100 text-orange-700' },
   urgent: { label: 'Urgent', color: 'bg-red-100 text-red-700' },
@@ -142,26 +66,81 @@ const statusConfig = {
   contacted: { label: 'Contactat', color: 'bg-blue-100 text-blue-700', icon: Phone },
   scheduled: { label: 'Programat', color: 'bg-green-100 text-green-700', icon: CheckCircle },
   cancelled: { label: 'Anulat', color: 'bg-gray-100 text-gray-700', icon: XCircle },
-};
-
-const timeLabels = {
-  morning: 'Dimineața (09:00-13:00)',
-  afternoon: 'După-amiaza (13:00-18:00)',
-  any: 'Orice oră',
+  expired: { label: 'Expirat', color: 'bg-gray-100 text-gray-700', icon: XCircle },
 };
 
 export default function WaitingListPage() {
+  const [waitingList, setWaitingList] = useState<WaitingPatient[]>([]);
+  const [stats, setStats] = useState<WaitingListStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  async function loadData() {
+    setIsLoading(true);
+    try {
+      const [listResult, statsResult] = await Promise.all([
+        getWaitingListAction(),
+        getWaitingListStatsAction(),
+      ]);
+
+      if (listResult.patients) {
+        setWaitingList(listResult.patients);
+      }
+      if (statsResult.stats) {
+        setStats(statsResult.stats);
+      }
+    } catch (error) {
+      toast({
+        title: 'Eroare',
+        description: 'Nu s-a putut încărca lista de așteptare',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleUpdateStatus(id: string, status: WaitingPatient['status']) {
+    startTransition(async () => {
+      const result = await updateWaitingPatientAction({ id, status });
+      if (result.patient) {
+        setWaitingList((prev) =>
+          prev.map((p) => (p.id === id ? result.patient! : p))
+        );
+        toast({ title: 'Succes', description: 'Statusul a fost actualizat' });
+      } else {
+        toast({ title: 'Eroare', description: result.error, variant: 'destructive' });
+      }
+    });
+  }
+
+  async function handleRemove(id: string) {
+    startTransition(async () => {
+      const result = await removeFromWaitingListAction(id);
+      if (result.success) {
+        setWaitingList((prev) => prev.filter((p) => p.id !== id));
+        toast({ title: 'Succes', description: 'Pacientul a fost eliminat din listă' });
+      } else {
+        toast({ title: 'Eroare', description: result.error, variant: 'destructive' });
+      }
+    });
+  }
 
   const formatDate = (date: Date): string => {
-    return date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'short' });
+    return new Date(date).toLocaleDateString('ro-RO', { day: 'numeric', month: 'short' });
   };
 
   const getDaysWaiting = (date: Date): number => {
     const now = new Date();
-    const diff = now.getTime() - date.getTime();
+    const diff = now.getTime() - new Date(date).getTime();
     return Math.floor(diff / (1000 * 60 * 60 * 24));
   };
 
@@ -175,22 +154,20 @@ export default function WaitingListPage() {
   });
 
   const sortedList = [...filteredList].sort((a, b) => {
-    const priorityOrder = { urgent: 0, high: 1, normal: 2 };
+    const priorityOrder = { urgent: 0, high: 1, normal: 2, low: 3 };
     if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
       return priorityOrder[a.priority] - priorityOrder[b.priority];
     }
-    return a.addedAt.getTime() - b.addedAt.getTime();
+    return new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime();
   });
 
-  const waitingCount = waitingList.filter((p) => p.status === 'waiting').length;
-  const urgentCount = waitingList.filter(
-    (p) => p.priority === 'urgent' && p.status === 'waiting'
-  ).length;
-  const avgWaitDays = Math.round(
-    waitingList
-      .filter((p) => p.status === 'waiting')
-      .reduce((sum, p) => sum + getDaysWaiting(p.addedAt), 0) / waitingCount || 0
-  );
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -224,22 +201,12 @@ export default function WaitingListPage() {
                   <SelectContent>
                     <SelectItem value="p1">Ion Popescu</SelectItem>
                     <SelectItem value="p2">Maria Stan</SelectItem>
-                    <SelectItem value="p3">Andrei Georgescu</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label>Serviciu solicitat</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selectează serviciul" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="consult">Consultație</SelectItem>
-                    <SelectItem value="echo">Ecografie</SelectItem>
-                    <SelectItem value="lab">Analize laborator</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Input placeholder="ex: Consultație cardiologie" />
               </div>
               <div className="space-y-2">
                 <Label>Prioritate</Label>
@@ -251,19 +218,6 @@ export default function WaitingListPage() {
                     <SelectItem value="normal">Normal</SelectItem>
                     <SelectItem value="high">Ridicat</SelectItem>
                     <SelectItem value="urgent">Urgent</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Preferință oră</Label>
-                <Select defaultValue="any">
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="morning">Dimineața</SelectItem>
-                    <SelectItem value="afternoon">După-amiaza</SelectItem>
-                    <SelectItem value="any">Orice oră</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -286,7 +240,7 @@ export default function WaitingListPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">În așteptare</p>
-              <p className="text-xl font-bold">{waitingCount}</p>
+              <p className="text-xl font-bold">{stats?.totalWaiting ?? 0}</p>
             </div>
           </CardContent>
         </Card>
@@ -296,8 +250,8 @@ export default function WaitingListPage() {
               <AlertCircle className="h-5 w-5 text-red-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Urgente</p>
-              <p className="text-xl font-bold">{urgentCount}</p>
+              <p className="text-sm text-muted-foreground">Prioritate ridicată</p>
+              <p className="text-xl font-bold">{stats?.highPriority ?? 0}</p>
             </div>
           </CardContent>
         </Card>
@@ -308,7 +262,7 @@ export default function WaitingListPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Așteptare medie</p>
-              <p className="text-xl font-bold">{avgWaitDays} zile</p>
+              <p className="text-xl font-bold">{stats?.avgWaitDays ?? 0} zile</p>
             </div>
           </CardContent>
         </Card>
@@ -318,10 +272,8 @@ export default function WaitingListPage() {
               <CheckCircle className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Programați azi</p>
-              <p className="text-xl font-bold">
-                {waitingList.filter((p) => p.status === 'scheduled').length}
-              </p>
+              <p className="text-sm text-muted-foreground">Contactați azi</p>
+              <p className="text-xl font-bold">{stats?.contactedToday ?? 0}</p>
             </div>
           </CardContent>
         </Card>
@@ -361,107 +313,109 @@ export default function WaitingListPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {sortedList.map((patient, index) => {
-              const StatusIcon = statusConfig[patient.status].icon;
-              const daysWaiting = getDaysWaiting(patient.addedAt);
+          {sortedList.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Nu există pacienți în lista de așteptare</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {sortedList.map((patient, index) => {
+                const status = patient.status as keyof typeof statusConfig;
+                const StatusIcon = statusConfig[status]?.icon ?? Clock;
+                const daysWaiting = getDaysWaiting(patient.addedAt);
 
-              return (
-                <div
-                  key={patient.id}
-                  className={cn(
-                    'flex items-center justify-between p-4 border rounded-lg',
-                    patient.priority === 'urgent' && 'border-red-200 bg-red-50'
-                  )}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex flex-col items-center text-muted-foreground">
-                      <span className="text-lg font-bold">#{index + 1}</span>
-                    </div>
-                    <Avatar>
-                      <AvatarFallback>
-                        {patient.patientName
-                          .split(' ')
-                          .map((n) => n[0])
-                          .join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="font-medium">{patient.patientName}</h4>
-                        <Badge className={cn('text-xs', priorityConfig[patient.priority].color)}>
-                          {priorityConfig[patient.priority].label}
-                        </Badge>
-                        <Badge className={cn('text-xs', statusConfig[patient.status].color)}>
-                          <StatusIcon className="h-3 w-3 mr-1" />
-                          {statusConfig[patient.status].label}
-                        </Badge>
+                return (
+                  <div
+                    key={patient.id}
+                    className={cn(
+                      'flex items-center justify-between p-4 border rounded-lg',
+                      patient.priority === 'urgent' && 'border-red-200 bg-red-50'
+                    )}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="flex flex-col items-center text-muted-foreground">
+                        <span className="text-lg font-bold">#{index + 1}</span>
                       </div>
-                      <p className="text-sm text-muted-foreground">{patient.requestedService}</p>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                        <span>{patient.preferredDays.join(', ')}</span>
-                        <span>•</span>
-                        <span>{timeLabels[patient.preferredTime]}</span>
-                        {patient.preferredDoctor && (
-                          <>
-                            <span>•</span>
-                            <span>{patient.preferredDoctor}</span>
-                          </>
-                        )}
+                      <Avatar>
+                        <AvatarFallback>
+                          {patient.patientName
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="font-medium">{patient.patientName}</h4>
+                          <Badge className={cn('text-xs', priorityConfig[patient.priority]?.color)}>
+                            {priorityConfig[patient.priority]?.label}
+                          </Badge>
+                          <Badge className={cn('text-xs', statusConfig[status]?.color)}>
+                            <StatusIcon className="h-3 w-3 mr-1" />
+                            {statusConfig[status]?.label}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{patient.requestedService}</p>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                          <span>{patient.preferredDays?.join(', ') || 'Orice zi'}</span>
+                          {patient.preferredDoctor && (
+                            <>
+                              <span>•</span>
+                              <span>{patient.preferredDoctor}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="text-sm">
+                          <span
+                            className={cn('font-medium', daysWaiting > 5 ? 'text-orange-600' : '')}
+                          >
+                            {daysWaiting} zile
+                          </span>
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          de la {formatDate(patient.addedAt)}
+                        </p>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon">
+                          <Phone className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon">
+                          <Mail className="h-4 w-4" />
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" disabled={isPending}>
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleUpdateStatus(patient.id, 'contacted')}>
+                              <Phone className="h-4 w-4 mr-2" />
+                              Marchează contactat
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleUpdateStatus(patient.id, 'scheduled')}>
+                              <Calendar className="h-4 w-4 mr-2" />
+                              Programează
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-red-600" onClick={() => handleRemove(patient.id)}>
+                              <XCircle className="h-4 w-4 mr-2" />
+                              Elimină din listă
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-sm">
-                        <span
-                          className={cn('font-medium', daysWaiting > 5 ? 'text-orange-600' : '')}
-                        >
-                          {daysWaiting} zile
-                        </span>
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        de la {formatDate(patient.addedAt)}
-                      </p>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon">
-                        <Phone className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon">
-                        <Mail className="h-4 w-4" />
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Calendar className="h-4 w-4 mr-2" />
-                            Programează
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <ArrowUp className="h-4 w-4 mr-2" />
-                            Mărește prioritatea
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <ArrowDown className="h-4 w-4 mr-2" />
-                            Scade prioritatea
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600">
-                            <XCircle className="h-4 w-4 mr-2" />
-                            Elimină din listă
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

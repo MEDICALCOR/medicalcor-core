@@ -1,10 +1,11 @@
-'use server';
-
 /**
  * @fileoverview Server Actions Index
  *
  * Central export point for all server actions.
  * Provides a clean, organized API for data fetching operations.
+ *
+ * Note: This file does NOT have 'use server' directive because it exports types.
+ * Each individual action module has its own 'use server' directive.
  *
  * @module actions
  *
@@ -215,3 +216,179 @@ export type {
   InvoiceStatus,
   BillingStats,
 } from './billing/index';
+
+// ============================================================================
+// CAMPAIGNS ACTIONS
+// ============================================================================
+
+export {
+  getCampaignsAction,
+  getCampaignStatsAction,
+  createCampaignAction,
+  updateCampaignAction,
+  deleteCampaignAction,
+  duplicateCampaignAction,
+} from './campaigns/index';
+
+export type { Campaign, CampaignStats } from './campaigns/index';
+
+// ============================================================================
+// WAITING LIST ACTIONS
+// ============================================================================
+
+export {
+  getWaitingListAction,
+  getWaitingListStatsAction,
+  createWaitingPatientAction,
+  updateWaitingPatientAction,
+  removeFromWaitingListAction,
+  scheduleFromWaitingListAction,
+} from './waiting-list/index';
+
+export type { WaitingPatient, WaitingListStats } from './waiting-list/index';
+
+// ============================================================================
+// REMINDERS ACTIONS
+// ============================================================================
+
+export {
+  getRemindersAction,
+  getReminderStatsAction,
+  createReminderAction,
+  updateReminderAction,
+  toggleReminderAction,
+  deleteReminderAction,
+} from './reminders/index';
+
+export type { Reminder, ReminderStats } from './reminders/index';
+
+// ============================================================================
+// STAFF SCHEDULE ACTIONS
+// ============================================================================
+
+export {
+  getStaffMembersAction,
+  getStaffScheduleAction,
+  getScheduleStatsAction,
+  createShiftAction,
+  updateShiftAction,
+  deleteShiftAction,
+  copyWeekScheduleAction,
+} from './staff-schedule/index';
+
+export type { StaffMember, StaffShift, Shift, ScheduleStats } from './staff-schedule/index';
+
+// ============================================================================
+// MEDICAL RECORDS ACTIONS
+// ============================================================================
+
+export {
+  getMedicalRecordsAction,
+  getMedicalRecordStatsAction,
+  getMedicalRecordStatsAction as getMedicalRecordsStatsAction,
+  createMedicalRecordAction,
+  getDiagnosesAction,
+  getPrescriptionsAction as getMedicalPrescriptionsAction,
+  getPrescriptionsAction as getPatientPrescriptionsAction,
+} from './medical-records/index';
+
+export type {
+  MedicalRecord,
+  Diagnosis,
+  Prescription as MedicalPrescription,
+  Prescription as PatientPrescription,
+  MedicalRecordStats,
+  MedicalRecordStats as MedicalRecordsStats,
+} from './medical-records/index';
+
+// ============================================================================
+// BOOKING ACTIONS
+// ============================================================================
+
+export {
+  getServicesAction,
+  getDoctorsAction,
+  getAvailableSlotsAction,
+  getBookingStatsAction,
+  createServiceAction,
+  updateServiceAction,
+  deleteServiceAction,
+  createBookingAction,
+} from './booking/index';
+
+export type { Service, Doctor, TimeSlot, BookingStats } from './booking/index';
+
+// ============================================================================
+// INVENTORY ACTIONS
+// ============================================================================
+
+export {
+  getInventoryAction,
+  getInventoryStatsAction,
+  createInventoryItemAction,
+  updateInventoryItemAction,
+  adjustStockAction,
+  deleteInventoryItemAction,
+} from './inventory/index';
+
+export type { InventoryItem, InventoryStats } from './inventory/index';
+
+// ============================================================================
+// AUDIT ACTIONS
+// ============================================================================
+
+export {
+  getAuditLogsAction,
+  getAuditStatsAction,
+  createAuditLogAction,
+  getAuditLogsByEntityAction,
+  exportAuditLogsAction,
+} from './audit/index';
+
+export type { AuditLog, AuditStats, AuditFilters } from './audit/index';
+
+// ============================================================================
+// DOCUMENTS ACTIONS
+// ============================================================================
+
+export {
+  getDocumentsAction,
+  getFoldersAction,
+  getDocumentStatsAction,
+  getDocumentStatsAction as getDocumentsStatsAction,
+  createDocumentRecordAction,
+  createFolderAction,
+  updateDocumentAction,
+  deleteDocumentAction,
+  deleteFolderAction,
+} from './documents/index';
+
+export type {
+  Document,
+  DocumentFolder,
+  DocumentStats,
+  DocumentStats as DocumentsStats,
+} from './documents/index';
+
+// ============================================================================
+// PRESCRIPTIONS ACTIONS
+// ============================================================================
+
+export {
+  getPrescriptionsAction,
+  getPrescriptionByIdAction,
+  getPrescriptionStatsAction,
+  getPrescriptionStatsAction as getPrescriptionsStatsAction,
+  createPrescriptionAction,
+  updatePrescriptionAction,
+  cancelPrescriptionAction,
+  duplicatePrescriptionAction,
+  deletePrescriptionAction,
+} from './prescriptions/index';
+
+export type {
+  Prescription,
+  PrescriptionMedication,
+  PrescriptionStats,
+  PrescriptionStats as PrescriptionsStats,
+} from './prescriptions/index';
