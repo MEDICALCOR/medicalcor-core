@@ -215,3 +215,165 @@ export type {
   InvoiceStatus,
   BillingStats,
 } from './billing/index';
+
+// ============================================================================
+// CAMPAIGNS ACTIONS
+// ============================================================================
+
+export {
+  getCampaignsAction,
+  getCampaignStatsAction,
+  createCampaignAction,
+  updateCampaignAction,
+  deleteCampaignAction,
+  duplicateCampaignAction,
+} from './campaigns/index';
+
+export type { Campaign, CampaignStats } from './campaigns/index';
+
+// ============================================================================
+// WAITING LIST ACTIONS
+// ============================================================================
+
+export {
+  getWaitingListAction,
+  getWaitingListStatsAction,
+  createWaitingPatientAction,
+  updateWaitingPatientAction,
+  removeFromWaitingListAction,
+  scheduleFromWaitingListAction,
+} from './waiting-list/index';
+
+export type { WaitingPatient, WaitingListStats } from './waiting-list/index';
+
+// ============================================================================
+// REMINDERS ACTIONS
+// ============================================================================
+
+export {
+  getRemindersAction,
+  getReminderStatsAction,
+  createReminderAction,
+  updateReminderAction,
+  toggleReminderAction,
+  deleteReminderAction,
+} from './reminders/index';
+
+export type { Reminder, ReminderStats } from './reminders/index';
+
+// ============================================================================
+// STAFF SCHEDULE ACTIONS
+// ============================================================================
+
+export {
+  getStaffMembersAction,
+  getStaffScheduleAction,
+  getScheduleStatsAction,
+  createShiftAction,
+  updateShiftAction,
+  deleteShiftAction,
+  copyWeekScheduleAction,
+} from './staff-schedule/index';
+
+export type { StaffMember, StaffShift, ScheduleStats } from './staff-schedule/index';
+
+// ============================================================================
+// MEDICAL RECORDS ACTIONS
+// ============================================================================
+
+export {
+  getMedicalRecordsAction,
+  getMedicalRecordStatsAction,
+  createMedicalRecordAction,
+  getDiagnosesAction,
+  getPrescriptionsAction as getMedicalPrescriptionsAction,
+} from './medical-records/index';
+
+export type {
+  MedicalRecord,
+  Diagnosis,
+  Prescription as MedicalPrescription,
+  MedicalRecordStats,
+} from './medical-records/index';
+
+// ============================================================================
+// BOOKING ACTIONS
+// ============================================================================
+
+export {
+  getServicesAction,
+  getDoctorsAction,
+  getAvailableSlotsAction,
+  getBookingStatsAction,
+  createServiceAction,
+  updateServiceAction,
+  deleteServiceAction,
+} from './booking/index';
+
+export type { Service, Doctor, TimeSlot, BookingStats } from './booking/index';
+
+// ============================================================================
+// INVENTORY ACTIONS
+// ============================================================================
+
+export {
+  getInventoryAction,
+  getInventoryStatsAction,
+  createInventoryItemAction,
+  updateInventoryItemAction,
+  adjustStockAction,
+  deleteInventoryItemAction,
+} from './inventory/index';
+
+export type { InventoryItem, InventoryStats } from './inventory/index';
+
+// ============================================================================
+// AUDIT ACTIONS
+// ============================================================================
+
+export {
+  getAuditLogsAction,
+  getAuditStatsAction,
+  createAuditLogAction,
+  getAuditLogsByEntityAction,
+  exportAuditLogsAction,
+} from './audit/index';
+
+export type { AuditLog, AuditStats, AuditFilters } from './audit/index';
+
+// ============================================================================
+// DOCUMENTS ACTIONS
+// ============================================================================
+
+export {
+  getDocumentsAction,
+  getFoldersAction,
+  getDocumentStatsAction,
+  createDocumentRecordAction,
+  createFolderAction,
+  updateDocumentAction,
+  deleteDocumentAction,
+  deleteFolderAction,
+} from './documents/index';
+
+export type { Document, DocumentFolder, DocumentStats } from './documents/index';
+
+// ============================================================================
+// PRESCRIPTIONS ACTIONS
+// ============================================================================
+
+export {
+  getPrescriptionsAction,
+  getPrescriptionByIdAction,
+  getPrescriptionStatsAction,
+  createPrescriptionAction,
+  updatePrescriptionAction,
+  cancelPrescriptionAction,
+  duplicatePrescriptionAction,
+} from './prescriptions/index';
+
+export type {
+  Prescription,
+  PrescriptionMedication,
+  PrescriptionStats,
+} from './prescriptions/index';
