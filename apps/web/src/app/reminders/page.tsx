@@ -1,6 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useTransition } from 'react';
+import {
+  getRemindersAction,
+  getReminderStatsAction,
+  toggleReminderAction,
+  deleteReminderAction,
+  type Reminder,
+  type ReminderStats,
+} from '@/app/actions';
+import { useToast } from '@/hooks/use-toast';
 import {
   Bell,
   Plus,
@@ -13,6 +22,7 @@ import {
   Trash2,
   Check,
   Send,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,105 +48,102 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
-interface Reminder {
-  id: string;
-  name: string;
-  type: 'appointment' | 'followup' | 'birthday' | 'custom';
-  channels: ('sms' | 'email' | 'whatsapp')[];
-  timing: string;
-  isActive: boolean;
-  sentCount: number;
-  template: string;
-}
-
-const reminders: Reminder[] = [
-  {
-    id: 'r1',
-    name: 'Reminder programare - 24h',
-    type: 'appointment',
-    channels: ['sms', 'email'],
-    timing: '24 ore înainte',
-    isActive: true,
-    sentCount: 1234,
-    template: 'Bună ziua {nume}! Vă reamintim că aveți programare mâine la ora {ora}...',
-  },
-  {
-    id: 'r2',
-    name: 'Reminder programare - 2h',
-    type: 'appointment',
-    channels: ['sms'],
-    timing: '2 ore înainte',
-    isActive: true,
-    sentCount: 1189,
-    template: 'Programarea dvs. este peste 2 ore. Vă așteptăm la {adresa}!',
-  },
-  {
-    id: 'r3',
-    name: 'Follow-up post consultație',
-    type: 'followup',
-    channels: ['email'],
-    timing: '3 zile după',
-    isActive: true,
-    sentCount: 456,
-    template: 'Bună ziua {nume}! Sperăm că vă simțiți mai bine...',
-  },
-  {
-    id: 'r4',
-    name: 'Urări de ziua de naștere',
-    type: 'birthday',
-    channels: ['sms', 'whatsapp'],
-    timing: 'În ziua evenimentului',
-    isActive: false,
-    sentCount: 89,
-    template: 'La mulți ani, {nume}! Echipa MedicalCor vă urează...',
-  },
-  {
-    id: 'r5',
-    name: 'Reminder control periodic',
-    type: 'custom',
-    channels: ['email', 'sms'],
-    timing: '6 luni după ultima vizită',
-    isActive: true,
-    sentCount: 234,
-    template: 'Au trecut 6 luni de la ultima vizită. Vă recomandăm un control...',
-  },
-];
-
-const stats = {
-  totalSent: 3202,
-  smsCount: 1845,
-  emailCount: 1120,
-  whatsappCount: 237,
-  deliveryRate: 98.5,
-};
-
-const typeLabels = {
+const typeLabels: Record<string, string> = {
   appointment: 'Programare',
+  follow_up: 'Follow-up',
   followup: 'Follow-up',
+  medication: 'Medicație',
+  payment: 'Plată',
   birthday: 'Zi de naștere',
   custom: 'Personalizat',
 };
 
-const typeColors = {
+const typeColors: Record<string, string> = {
   appointment: 'bg-blue-100 text-blue-700',
+  follow_up: 'bg-green-100 text-green-700',
   followup: 'bg-green-100 text-green-700',
+  medication: 'bg-orange-100 text-orange-700',
+  payment: 'bg-yellow-100 text-yellow-700',
   birthday: 'bg-pink-100 text-pink-700',
   custom: 'bg-purple-100 text-purple-700',
 };
 
 export default function RemindersPage() {
-  const [remindersList, setRemindersList] = useState(reminders);
+  const [remindersList, setRemindersList] = useState<Reminder[]>([]);
+  const [stats, setStats] = useState<ReminderStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { toast } = useToast();
 
-  const toggleReminder = (id: string) => {
-    setRemindersList((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, isActive: !r.isActive } : r))
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  async function loadData() {
+    setIsLoading(true);
+    try {
+      const [remindersResult, statsResult] = await Promise.all([
+        getRemindersAction(),
+        getReminderStatsAction(),
+      ]);
+
+      if (remindersResult.reminders) {
+        setRemindersList(remindersResult.reminders);
+      }
+      if (statsResult.stats) {
+        setStats(statsResult.stats);
+      }
+    } catch (error) {
+      toast({
+        title: 'Eroare',
+        description: 'Nu s-au putut încărca reminderele',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleToggle(id: string) {
+    startTransition(async () => {
+      const result = await toggleReminderAction(id);
+      if (result.reminder) {
+        setRemindersList((prev) =>
+          prev.map((r) => (r.id === id ? result.reminder! : r))
+        );
+        toast({
+          title: 'Succes',
+          description: result.reminder.isActive ? 'Reminder activat' : 'Reminder dezactivat',
+        });
+      } else {
+        toast({ title: 'Eroare', description: result.error, variant: 'destructive' });
+      }
+    });
+  }
+
+  async function handleDelete(id: string) {
+    startTransition(async () => {
+      const result = await deleteReminderAction(id);
+      if (result.success) {
+        setRemindersList((prev) => prev.filter((r) => r.id !== id));
+        toast({ title: 'Succes', description: 'Reminderul a fost șters' });
+      } else {
+        toast({ title: 'Eroare', description: result.error, variant: 'destructive' });
+      }
+    });
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
     );
-  };
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -175,7 +182,8 @@ export default function RemindersPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="appointment">Programare</SelectItem>
-                      <SelectItem value="followup">Follow-up</SelectItem>
+                      <SelectItem value="follow_up">Follow-up</SelectItem>
+                      <SelectItem value="medication">Medicație</SelectItem>
                       <SelectItem value="birthday">Zi de naștere</SelectItem>
                       <SelectItem value="custom">Personalizat</SelectItem>
                     </SelectContent>
@@ -200,39 +208,6 @@ export default function RemindersPage() {
                     <MessageSquare className="h-4 w-4" />
                     <span className="text-sm">WhatsApp</span>
                   </label>
-                </div>
-              </div>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Timing</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Când să se trimită" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="24h-before">24 ore înainte</SelectItem>
-                      <SelectItem value="2h-before">2 ore înainte</SelectItem>
-                      <SelectItem value="1d-after">1 zi după</SelectItem>
-                      <SelectItem value="3d-after">3 zile după</SelectItem>
-                      <SelectItem value="1w-after">1 săptămână după</SelectItem>
-                      <SelectItem value="1m-after">1 lună după</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Oră trimitere</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Ora preferată" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="09:00">09:00</SelectItem>
-                      <SelectItem value="10:00">10:00</SelectItem>
-                      <SelectItem value="12:00">12:00</SelectItem>
-                      <SelectItem value="14:00">14:00</SelectItem>
-                      <SelectItem value="16:00">16:00</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
               <div className="space-y-2">
@@ -260,7 +235,6 @@ export default function RemindersPage() {
         </Dialog>
       </div>
 
-      {/* Stats */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4">
@@ -270,7 +244,7 @@ export default function RemindersPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total trimise</p>
-                <p className="text-xl font-bold">{stats.totalSent.toLocaleString()}</p>
+                <p className="text-xl font-bold">{(stats?.totalSent ?? 0).toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -283,7 +257,7 @@ export default function RemindersPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">SMS-uri</p>
-                <p className="text-xl font-bold">{stats.smsCount.toLocaleString()}</p>
+                <p className="text-xl font-bold">{(stats?.smsCount ?? 0).toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -296,7 +270,7 @@ export default function RemindersPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Email-uri</p>
-                <p className="text-xl font-bold">{stats.emailCount.toLocaleString()}</p>
+                <p className="text-xl font-bold">{(stats?.emailCount ?? 0).toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -309,7 +283,7 @@ export default function RemindersPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">WhatsApp</p>
-                <p className="text-xl font-bold">{stats.whatsappCount.toLocaleString()}</p>
+                <p className="text-xl font-bold">{(stats?.whatsappCount ?? 0).toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -322,94 +296,108 @@ export default function RemindersPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Rată livrare</p>
-                <p className="text-xl font-bold">{stats.deliveryRate}%</p>
+                <p className="text-xl font-bold">{stats?.deliveryRate?.toFixed(1) ?? 0}%</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Reminders List */}
       <Card>
         <CardHeader>
           <CardTitle>Remindere active</CardTitle>
           <CardDescription>Gestionează notificările automate pentru pacienți</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {remindersList.map((reminder) => (
-              <div
-                key={reminder.id}
-                className={cn(
-                  'p-4 border rounded-lg transition-opacity',
-                  !reminder.isActive && 'opacity-60'
-                )}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-4">
-                    <div
-                      className={cn(
-                        'w-10 h-10 rounded-lg flex items-center justify-center',
-                        typeColors[reminder.type]
-                      )}
-                    >
-                      {reminder.type === 'appointment' && <Calendar className="h-5 w-5" />}
-                      {reminder.type === 'followup' && <Clock className="h-5 w-5" />}
-                      {reminder.type === 'birthday' && <Bell className="h-5 w-5" />}
-                      {reminder.type === 'custom' && <Settings className="h-5 w-5" />}
+          {remindersList.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Nu există remindere configurate</p>
+              <p className="text-sm">Creează primul reminder automat</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {remindersList.map((reminder) => (
+                <div
+                  key={reminder.id}
+                  className={cn(
+                    'p-4 border rounded-lg transition-opacity',
+                    !reminder.isActive && 'opacity-60'
+                  )}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-4">
+                      <div
+                        className={cn(
+                          'w-10 h-10 rounded-lg flex items-center justify-center',
+                          typeColors[reminder.type] ?? 'bg-gray-100 text-gray-700'
+                        )}
+                      >
+                        {reminder.type === 'appointment' && <Calendar className="h-5 w-5" />}
+                        {reminder.type === 'payment' && <Clock className="h-5 w-5" />}
+                        {reminder.type === 'birthday' && <Bell className="h-5 w-5" />}
+                        {reminder.type === 'medication' && <Bell className="h-5 w-5" />}
+                        {reminder.type === 'custom' && <Settings className="h-5 w-5" />}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium">{reminder.name}</h4>
+                          <Badge variant="outline" className="text-xs">
+                            {typeLabels[reminder.type] ?? reminder.type}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">{reminder.timing}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          {reminder.channels?.includes('sms') && (
+                            <Badge variant="secondary" className="text-xs gap-1">
+                              <MessageSquare className="h-3 w-3" />
+                              SMS
+                            </Badge>
+                          )}
+                          {reminder.channels?.includes('email') && (
+                            <Badge variant="secondary" className="text-xs gap-1">
+                              <Mail className="h-3 w-3" />
+                              Email
+                            </Badge>
+                          )}
+                          {reminder.channels?.includes('whatsapp') && (
+                            <Badge variant="secondary" className="text-xs gap-1">
+                              <MessageSquare className="h-3 w-3" />
+                              WhatsApp
+                            </Badge>
+                          )}
+                          <span className="text-xs text-muted-foreground ml-2">
+                            {reminder.sentCount.toLocaleString()} trimise
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-medium">{reminder.name}</h4>
-                        <Badge variant="outline" className="text-xs">
-                          {typeLabels[reminder.type]}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">{reminder.timing}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        {reminder.channels.includes('sms') && (
-                          <Badge variant="secondary" className="text-xs gap-1">
-                            <MessageSquare className="h-3 w-3" />
-                            SMS
-                          </Badge>
-                        )}
-                        {reminder.channels.includes('email') && (
-                          <Badge variant="secondary" className="text-xs gap-1">
-                            <Mail className="h-3 w-3" />
-                            Email
-                          </Badge>
-                        )}
-                        {reminder.channels.includes('whatsapp') && (
-                          <Badge variant="secondary" className="text-xs gap-1">
-                            <MessageSquare className="h-3 w-3" />
-                            WhatsApp
-                          </Badge>
-                        )}
-                        <span className="text-xs text-muted-foreground ml-2">
-                          {reminder.sentCount.toLocaleString()} trimise
-                        </span>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={reminder.isActive}
+                        onCheckedChange={() => handleToggle(reminder.id)}
+                        disabled={isPending}
+                      />
+                      <Button variant="ghost" size="icon">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(reminder.id)}
+                        disabled={isPending}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={reminder.isActive}
-                      onCheckedChange={() => toggleReminder(reminder.id)}
-                    />
-                    <Button variant="ghost" size="icon">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                  <div className="mt-3 p-3 bg-muted/50 rounded text-sm text-muted-foreground">
+                    {reminder.template}
                   </div>
                 </div>
-                <div className="mt-3 p-3 bg-muted/50 rounded text-sm text-muted-foreground">
-                  {reminder.template}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

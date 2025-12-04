@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
+import { requirePermission, requireCurrentUser } from '@/lib/auth/server-action-auth';
 import { requirePermission, getCurrentUser } from '@/lib/auth/server-action-auth';
 import crypto from 'crypto';
 
@@ -119,6 +120,7 @@ function rowToApiKey(row: ApiKeyRow, fullKey?: string): ApiKey {
  */
 export async function getApiKeysAction(): Promise<ApiKey[]> {
   await requirePermission('api_keys:read');
+  const user = await requireCurrentUser();
   const user = await getCurrentUser();
   if (!user?.clinicId) {
     throw new Error('No clinic associated with user');
@@ -145,6 +147,7 @@ export async function getApiKeysAction(): Promise<ApiKey[]> {
  */
 export async function getApiKeyStatsAction(): Promise<ApiKeyStats> {
   await requirePermission('api_keys:read');
+  const user = await requireCurrentUser();
   const user = await getCurrentUser();
   if (!user?.clinicId) {
     throw new Error('No clinic associated with user');
@@ -182,6 +185,7 @@ export async function createApiKeyAction(
   data: z.infer<typeof CreateApiKeySchema>
 ): Promise<ApiKey> {
   await requirePermission('api_keys:write');
+  const user = await requireCurrentUser();
   const user = await getCurrentUser();
   if (!user?.clinicId || !user?.id) {
     throw new Error('No clinic associated with user');
@@ -217,6 +221,7 @@ export async function updateApiKeyAction(
   data: z.infer<typeof UpdateApiKeySchema>
 ): Promise<ApiKey> {
   await requirePermission('api_keys:write');
+  const user = await requireCurrentUser();
   const user = await getCurrentUser();
   if (!user?.clinicId) {
     throw new Error('No clinic associated with user');
@@ -274,6 +279,7 @@ export async function toggleApiKeyAction(id: string, isActive: boolean): Promise
  */
 export async function revokeApiKeyAction(id: string, reason?: string): Promise<boolean> {
   await requirePermission('api_keys:delete');
+  const user = await requireCurrentUser();
   const user = await getCurrentUser();
   if (!user?.clinicId || !user?.id) {
     throw new Error('No clinic associated with user');
@@ -300,6 +306,7 @@ export async function revokeApiKeyAction(id: string, reason?: string): Promise<b
  */
 export async function regenerateApiKeyAction(id: string): Promise<ApiKey> {
   await requirePermission('api_keys:write');
+  const user = await requireCurrentUser();
   const user = await getCurrentUser();
   if (!user?.clinicId || !user?.id) {
     throw new Error('No clinic associated with user');

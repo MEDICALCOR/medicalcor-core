@@ -1,6 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import {
+  getStaffScheduleAction,
+  getScheduleStatsAction,
+  type StaffMember,
+  type Shift,
+  type ScheduleStats,
+} from '@/app/actions';
+import { useToast } from '@/hooks/use-toast';
 import {
   CalendarDays,
   Users,
@@ -12,6 +20,7 @@ import {
   Coffee,
   Briefcase,
   AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,74 +34,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-
-interface StaffMember {
-  id: string;
-  name: string;
-  role: string;
-  department: string;
-  avatar?: string;
-}
-
-interface Shift {
-  id: string;
-  staffId: string;
-  date: Date;
-  startTime: string;
-  endTime: string;
-  type: 'regular' | 'overtime' | 'on_call' | 'vacation' | 'sick';
-}
-
-const staff: StaffMember[] = [
-  { id: 's1', name: 'Dr. Maria Ionescu', role: 'Medic', department: 'Medicină internă' },
-  { id: 's2', name: 'Dr. Elena Dumitrescu', role: 'Medic', department: 'Cardiologie' },
-  { id: 's3', name: 'Dr. Andrei Popa', role: 'Medic', department: 'Chirurgie' },
-  { id: 's4', name: 'Ana Popescu', role: 'Asistent medical', department: 'Urgențe' },
-  { id: 's5', name: 'Ion Gheorghe', role: 'Asistent medical', department: 'Medicină internă' },
-  { id: 's6', name: 'Maria Radu', role: 'Recepționer', department: 'Recepție' },
-];
-
-const generateShifts = (): Shift[] => {
-  const shifts: Shift[] = [];
-  const today = new Date();
-
-  staff.forEach((s) => {
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(today);
-      date.setDate(date.getDate() + i);
-
-      if (date.getDay() === 0 || date.getDay() === 6) {
-        if (Math.random() > 0.7) {
-          shifts.push({
-            id: `${s.id}-${i}`,
-            staffId: s.id,
-            date,
-            startTime: '08:00',
-            endTime: '14:00',
-            type: 'on_call',
-          });
-        }
-      } else {
-        const types: Shift['type'][] = ['regular', 'overtime', 'vacation', 'sick'];
-        const randomType =
-          Math.random() > 0.85 ? types[Math.floor(Math.random() * 3) + 1] : 'regular';
-
-        shifts.push({
-          id: `${s.id}-${i}`,
-          staffId: s.id,
-          date,
-          startTime: randomType === 'regular' || randomType === 'overtime' ? '09:00' : '',
-          endTime: randomType === 'regular' ? '17:00' : randomType === 'overtime' ? '20:00' : '',
-          type: randomType,
-        });
-      }
-    }
-  });
-
-  return shifts;
-};
-
-const shifts = generateShifts();
 
 const shiftTypeConfig = {
   regular: { label: 'Normal', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: Briefcase },
@@ -115,6 +56,12 @@ const shiftTypeConfig = {
 };
 
 export default function StaffSchedulePage() {
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [shifts, setShifts] = useState<Shift[]>([]);
+  const [stats, setStats] = useState<ScheduleStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
+
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const today = new Date();
     const day = today.getDay();
@@ -122,6 +69,44 @@ export default function StaffSchedulePage() {
     return new Date(today.setDate(diff));
   });
   const [departmentFilter, setDepartmentFilter] = useState('all');
+
+  useEffect(() => {
+    loadData();
+  }, [currentWeekStart]);
+
+  async function loadData() {
+    setIsLoading(true);
+    try {
+      const weekEnd = new Date(currentWeekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+
+      const [scheduleResult, statsResult] = await Promise.all([
+        getStaffScheduleAction({
+          startDate: currentWeekStart.toISOString(),
+          endDate: weekEnd.toISOString(),
+        }),
+        getScheduleStatsAction(),
+      ]);
+
+      if (scheduleResult.staff) {
+        setStaff(scheduleResult.staff);
+      }
+      if (scheduleResult.shifts) {
+        setShifts(scheduleResult.shifts);
+      }
+      if (statsResult.stats) {
+        setStats(statsResult.stats);
+      }
+    } catch (error) {
+      toast({
+        title: 'Eroare',
+        description: 'Nu s-a putut încărca programul',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   const getWeekDays = () => {
     const days = [];
@@ -158,7 +143,7 @@ export default function StaffSchedulePage() {
 
   const getShiftForStaffAndDay = (staffId: string, date: Date): Shift | undefined => {
     return shifts.find(
-      (s) => s.staffId === staffId && s.date.toDateString() === date.toDateString()
+      (s) => s.staffId === staffId && new Date(s.date).toDateString() === date.toDateString()
     );
   };
 
@@ -169,10 +154,18 @@ export default function StaffSchedulePage() {
 
   const todayShifts = shifts.filter(
     (s) =>
-      s.date.toDateString() === new Date().toDateString() &&
-      s.type !== 'vacation' &&
-      s.type !== 'sick'
+      new Date(s.date).toDateString() === new Date().toDateString() &&
+      s.shiftType !== 'vacation' &&
+      s.shiftType !== 'sick'
   );
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -198,7 +191,7 @@ export default function StaffSchedulePage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total angajați</p>
-              <p className="text-xl font-bold">{staff.length}</p>
+              <p className="text-xl font-bold">{stats?.totalStaff ?? staff.length}</p>
             </div>
           </CardContent>
         </Card>
@@ -209,7 +202,7 @@ export default function StaffSchedulePage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">La lucru azi</p>
-              <p className="text-xl font-bold">{todayShifts.length}</p>
+              <p className="text-xl font-bold">{stats?.workingToday ?? todayShifts.length}</p>
             </div>
           </CardContent>
         </Card>
@@ -220,9 +213,7 @@ export default function StaffSchedulePage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">De gardă</p>
-              <p className="text-xl font-bold">
-                {shifts.filter((s) => s.type === 'on_call' && isToday(s.date)).length}
-              </p>
+              <p className="text-xl font-bold">{stats?.onCallToday ?? 0}</p>
             </div>
           </CardContent>
         </Card>
@@ -233,9 +224,7 @@ export default function StaffSchedulePage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">În concediu</p>
-              <p className="text-xl font-bold">
-                {shifts.filter((s) => s.type === 'vacation' && isToday(s.date)).length}
-              </p>
+              <p className="text-xl font-bold">{stats?.onVacationToday ?? 0}</p>
             </div>
           </CardContent>
         </Card>
@@ -292,90 +281,98 @@ export default function StaffSchedulePage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr>
-                  <th className="text-left p-2 border-b w-48">Angajat</th>
-                  {weekDays.map((day) => (
-                    <th
-                      key={day.toISOString()}
-                      className={cn(
-                        'text-center p-2 border-b min-w-[100px]',
-                        isToday(day) && 'bg-primary/10'
-                      )}
-                    >
-                      <div className="font-medium">{formatDayName(day)}</div>
-                      <div
+          {staff.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Nu există angajați în sistem</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr>
+                    <th className="text-left p-2 border-b w-48">Angajat</th>
+                    {weekDays.map((day) => (
+                      <th
+                        key={day.toISOString()}
                         className={cn(
-                          'text-sm',
-                          isToday(day) ? 'text-primary font-bold' : 'text-muted-foreground'
+                          'text-center p-2 border-b min-w-[100px]',
+                          isToday(day) && 'bg-primary/10'
                         )}
                       >
-                        {formatDate(day)}
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredStaff.map((member) => (
-                  <tr key={member.id} className="border-b">
-                    <td className="p-2">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback className="text-xs">
-                            {member.name
-                              .split(' ')
-                              .map((n) => n[0])
-                              .join('')}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium text-sm">{member.name}</p>
-                          <p className="text-xs text-muted-foreground">{member.role}</p>
-                        </div>
-                      </div>
-                    </td>
-                    {weekDays.map((day) => {
-                      const shift = getShiftForStaffAndDay(member.id, day);
-                      const ShiftIcon = shift ? shiftTypeConfig[shift.type].icon : null;
-
-                      return (
-                        <td
-                          key={day.toISOString()}
-                          className={cn('p-1 text-center', isToday(day) && 'bg-primary/10')}
-                        >
-                          {shift ? (
-                            <div
-                              className={cn(
-                                'p-2 rounded border text-xs cursor-pointer hover:opacity-80 transition-opacity',
-                                shiftTypeConfig[shift.type].color
-                              )}
-                            >
-                              <div className="flex items-center justify-center gap-1 mb-1">
-                                {ShiftIcon && <ShiftIcon className="h-3 w-3" />}
-                                <span className="font-medium">
-                                  {shiftTypeConfig[shift.type].label}
-                                </span>
-                              </div>
-                              {shift.startTime && shift.endTime && (
-                                <div className="text-[10px] opacity-80">
-                                  {shift.startTime} - {shift.endTime}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="p-2 text-muted-foreground text-xs">-</div>
+                        <div className="font-medium">{formatDayName(day)}</div>
+                        <div
+                          className={cn(
+                            'text-sm',
+                            isToday(day) ? 'text-primary font-bold' : 'text-muted-foreground'
                           )}
-                        </td>
-                      );
-                    })}
+                        >
+                          {formatDate(day)}
+                        </div>
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {filteredStaff.map((member) => (
+                    <tr key={member.id} className="border-b">
+                      <td className="p-2">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-8 w-8">
+                            <AvatarFallback className="text-xs">
+                              {member.name
+                                .split(' ')
+                                .map((n) => n[0])
+                                .join('')}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium text-sm">{member.name}</p>
+                            <p className="text-xs text-muted-foreground">{member.role}</p>
+                          </div>
+                        </div>
+                      </td>
+                      {weekDays.map((day) => {
+                        const shift = getShiftForStaffAndDay(member.id, day);
+                        const shiftType = shift?.shiftType as keyof typeof shiftTypeConfig | undefined;
+                        const ShiftIcon = shiftType ? shiftTypeConfig[shiftType]?.icon : null;
+
+                        return (
+                          <td
+                            key={day.toISOString()}
+                            className={cn('p-1 text-center', isToday(day) && 'bg-primary/10')}
+                          >
+                            {shift && shiftType && shiftTypeConfig[shiftType] ? (
+                              <div
+                                className={cn(
+                                  'p-2 rounded border text-xs cursor-pointer hover:opacity-80 transition-opacity',
+                                  shiftTypeConfig[shiftType].color
+                                )}
+                              >
+                                <div className="flex items-center justify-center gap-1 mb-1">
+                                  {ShiftIcon && <ShiftIcon className="h-3 w-3" />}
+                                  <span className="font-medium">
+                                    {shiftTypeConfig[shiftType].label}
+                                  </span>
+                                </div>
+                                {shift.startTime && shift.endTime && (
+                                  <div className="text-[10px] opacity-80">
+                                    {shift.startTime} - {shift.endTime}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="p-2 text-muted-foreground text-xs">-</div>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
