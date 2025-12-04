@@ -161,6 +161,9 @@ export * from './scheduling/index.js';
 export * from './consent/index.js';
 export * from './language/index.js';
 
+// Voice AI & Supervisor (W3 Milestone)
+export * from './voice/index.js';
+
 // ============================================================================
 // SHARED TYPES & UTILITIES
 // ============================================================================

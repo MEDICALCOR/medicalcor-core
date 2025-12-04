@@ -13,3 +13,5 @@ export { chatgptPluginRoutes } from './chatgpt-plugin.js';
 export { backupRoutes } from './backup.js';
 export { gdprRoutes } from './gdpr.js';
 export { metricsRoutes } from './metrics.js';
+export { supervisorRoutes } from './supervisor.js';
+export { supervisorWSRoutes, emitSupervisorEvent } from './supervisor-ws.js';
