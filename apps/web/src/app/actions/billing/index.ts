@@ -122,14 +122,18 @@ const CreateInvoiceSchema = z.object({
   customerTaxId: z.string().optional(),
   dueDate: z.coerce.date(),
   notes: z.string().optional(),
-  items: z.array(z.object({
-    description: z.string().min(1),
-    quantity: z.number().positive(),
-    unitPrice: z.number().nonnegative(),
-    serviceCode: z.string().optional(),
-    serviceName: z.string().optional(),
-    taxRate: z.number().min(0).max(100).optional(),
-  })).min(1),
+  items: z
+    .array(
+      z.object({
+        description: z.string().min(1),
+        quantity: z.number().positive(),
+        unitPrice: z.number().nonnegative(),
+        serviceCode: z.string().optional(),
+        serviceName: z.string().optional(),
+        taxRate: z.number().min(0).max(100).optional(),
+      })
+    )
+    .min(1),
   taxRate: z.number().min(0).max(100).default(19),
   discountAmount: z.number().nonnegative().default(0),
 });
@@ -241,9 +245,7 @@ export async function getInvoicesAction(): Promise<Invoice[]> {
     itemsByInvoice.set(row.invoice_id, items);
   }
 
-  return invoicesResult.rows.map((row) =>
-    rowToInvoice(row, itemsByInvoice.get(row.id) ?? [])
-  );
+  return invoicesResult.rows.map((row) => rowToInvoice(row, itemsByInvoice.get(row.id) ?? []));
 }
 
 /**
@@ -284,10 +286,7 @@ export async function getInvoiceByIdAction(id: string): Promise<Invoice | null> 
     [id]
   );
 
-  return rowToInvoice(
-    invoiceResult.rows[0],
-    itemsResult.rows.map(rowToInvoiceItem)
-  );
+  return rowToInvoice(invoiceResult.rows[0], itemsResult.rows.map(rowToInvoiceItem));
 }
 
 /**
@@ -404,7 +403,9 @@ export async function createInvoiceAction(
   for (let i = 0; i < parsed.items.length; i++) {
     const item = parsed.items[i];
     const itemTotal = item.quantity * item.unitPrice;
-    const itemTaxAmount = item.taxRate ? Math.round(itemTotal * (item.taxRate / 100) * 100) / 100 : null;
+    const itemTaxAmount = item.taxRate
+      ? Math.round(itemTotal * (item.taxRate / 100) * 100) / 100
+      : null;
 
     const itemResult = await database.query<InvoiceItemRow>(
       `INSERT INTO invoice_items (
@@ -530,7 +531,7 @@ export async function getStripeRevenueAction(): Promise<{
     const dailyData = await stripe.getDailyRevenue('Europe/Bucharest');
 
     return {
-      dailyRevenue: dailyData.totalRevenue / 100,
+      dailyRevenue: dailyData.amount / 100,
       monthlyRevenue: 0, // Would need separate Stripe query
       currency: dailyData.currency,
     };

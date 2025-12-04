@@ -96,7 +96,7 @@ export default function WhatsAppTemplatesPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
   async function loadData() {
@@ -108,7 +108,7 @@ export default function WhatsAppTemplatesPage() {
       ]);
       setTemplates(templatesData);
       setStats(statsData);
-    } catch (error) {
+    } catch {
       toast({
         title: 'Eroare',
         description: 'Nu s-au putut încărca template-urile',
@@ -134,7 +134,7 @@ export default function WhatsAppTemplatesPage() {
     setIsDialogOpen(true);
   };
 
-  const handleCreateOrUpdate = async () => {
+  const handleCreateOrUpdate = () => {
     if (!formName || !formContent) {
       toast({
         title: 'Eroare',
@@ -163,6 +163,8 @@ export default function WhatsAppTemplatesPage() {
             name: formName,
             category: formCategory,
             content: formContent,
+            language: 'ro',
+            variables: [],
           });
           setTemplates((prev) => [newTemplate, ...prev]);
           toast({
@@ -183,7 +185,7 @@ export default function WhatsAppTemplatesPage() {
     });
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     startTransition(async () => {
       try {
         await deleteWhatsAppTemplateAction(id);
@@ -193,7 +195,7 @@ export default function WhatsAppTemplatesPage() {
           description: 'Template-ul a fost șters',
         });
         await loadData();
-      } catch (error) {
+      } catch {
         toast({
           title: 'Eroare',
           description: 'Nu s-a putut șterge template-ul',
@@ -203,7 +205,7 @@ export default function WhatsAppTemplatesPage() {
     });
   };
 
-  const handleDuplicate = async (id: string) => {
+  const handleDuplicate = (id: string) => {
     startTransition(async () => {
       try {
         const duplicate = await duplicateWhatsAppTemplateAction(id);
@@ -212,7 +214,7 @@ export default function WhatsAppTemplatesPage() {
           title: 'Succes',
           description: 'Template-ul a fost duplicat',
         });
-      } catch (error) {
+      } catch {
         toast({
           title: 'Eroare',
           description: 'Nu s-a putut duplica template-ul',
@@ -271,7 +273,9 @@ export default function WhatsAppTemplatesPage() {
                   <Input
                     placeholder="ex: confirmare_programare"
                     value={formName}
-                    onChange={(e) => setFormName(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_'))}
+                    onChange={(e) =>
+                      setFormName(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_'))
+                    }
                   />
                   <p className="text-xs text-muted-foreground">
                     Doar litere mici, numere și underscore
@@ -399,10 +403,13 @@ export default function WhatsAppTemplatesPage() {
                             Motiv respingere: {template.rejectionReason}
                           </p>
                         )}
-                        <div className="mt-3 p-3 bg-muted/50 rounded text-sm">{template.content}</div>
+                        <div className="mt-3 p-3 bg-muted/50 rounded text-sm">
+                          {template.content}
+                        </div>
                         <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
                           <span>
-                            Variabile: {template.variables.map((v) => `{{${v}}}`).join(', ') || 'Niciuna'}
+                            Variabile:{' '}
+                            {template.variables.map((v) => `{{${v}}}`).join(', ') || 'Niciuna'}
                           </span>
                           <span>{template.usageCount.toLocaleString()} utilizări</span>
                         </div>

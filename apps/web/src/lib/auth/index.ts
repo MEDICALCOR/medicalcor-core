@@ -92,4 +92,29 @@ export const PERMISSIONS = {
   // Messages
   VIEW_MESSAGES: ['admin', 'doctor', 'receptionist'] as UserRole[],
   SEND_MESSAGES: ['admin', 'doctor', 'receptionist'] as UserRole[],
+
+  // API Keys
+  'api_keys:read': ['admin'] as UserRole[],
+  'api_keys:write': ['admin'] as UserRole[],
+  'api_keys:delete': ['admin'] as UserRole[],
+
+  // Billing
+  'billing:read': ['admin', 'doctor', 'receptionist'] as UserRole[],
+  'billing:write': ['admin'] as UserRole[],
+  'billing:delete': ['admin'] as UserRole[],
+
+  // Clinics
+  'clinics:read': ['admin', 'doctor', 'receptionist'] as UserRole[],
+  'clinics:write': ['admin'] as UserRole[],
+  'clinics:delete': ['admin'] as UserRole[],
+
+  // Users
+  'users:read': ['admin'] as UserRole[],
+  'users:write': ['admin'] as UserRole[],
+  'users:delete': ['admin'] as UserRole[],
+
+  // WhatsApp Templates
+  'whatsapp:read': ['admin', 'doctor', 'receptionist'] as UserRole[],
+  'whatsapp:write': ['admin'] as UserRole[],
+  'whatsapp:delete': ['admin'] as UserRole[],
 } as const;
