@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
 import { requirePermission, requireCurrentUser } from '@/lib/auth/server-action-auth';
+import { requirePermission, getCurrentUser } from '@/lib/auth/server-action-auth';
 
 /**
  * Server Actions for WhatsApp Template Management
@@ -159,6 +160,7 @@ function extractVariables(content: string): string[] {
 export async function getWhatsAppTemplatesAction(): Promise<WhatsAppTemplate[]> {
   await requirePermission('whatsapp:read');
   const user = await requireCurrentUser();
+  const user = await getCurrentUser();
   if (!user?.clinicId) {
     throw new Error('No clinic associated with user');
   }
@@ -188,6 +190,7 @@ export async function getWhatsAppTemplatesAction(): Promise<WhatsAppTemplate[]> 
 export async function getWhatsAppTemplateStatsAction(): Promise<TemplateStats> {
   await requirePermission('whatsapp:read');
   const user = await requireCurrentUser();
+  const user = await getCurrentUser();
   if (!user?.clinicId) {
     throw new Error('No clinic associated with user');
   }
@@ -225,6 +228,7 @@ export async function getWhatsAppTemplateStatsAction(): Promise<TemplateStats> {
 export async function getWhatsAppTemplateByIdAction(id: string): Promise<WhatsAppTemplate | null> {
   await requirePermission('whatsapp:read');
   const user = await requireCurrentUser();
+  const user = await getCurrentUser();
   if (!user?.clinicId) {
     throw new Error('No clinic associated with user');
   }
@@ -259,6 +263,7 @@ export async function createWhatsAppTemplateAction(
 ): Promise<WhatsAppTemplate> {
   await requirePermission('whatsapp:write');
   const user = await requireCurrentUser();
+  const user = await getCurrentUser();
   if (!user?.clinicId || !user?.id) {
     throw new Error('No clinic associated with user');
   }
@@ -311,6 +316,7 @@ export async function updateWhatsAppTemplateAction(
 ): Promise<WhatsAppTemplate> {
   await requirePermission('whatsapp:write');
   const user = await requireCurrentUser();
+  const user = await getCurrentUser();
   if (!user?.clinicId) {
     throw new Error('No clinic associated with user');
   }
@@ -395,6 +401,7 @@ export async function updateWhatsAppTemplateAction(
 export async function deleteWhatsAppTemplateAction(id: string): Promise<boolean> {
   await requirePermission('whatsapp:delete');
   const user = await requireCurrentUser();
+  const user = await getCurrentUser();
   if (!user?.clinicId) {
     throw new Error('No clinic associated with user');
   }
@@ -415,6 +422,7 @@ export async function deleteWhatsAppTemplateAction(id: string): Promise<boolean>
 export async function duplicateWhatsAppTemplateAction(id: string): Promise<WhatsAppTemplate> {
   await requirePermission('whatsapp:write');
   const user = await requireCurrentUser();
+  const user = await getCurrentUser();
   if (!user?.clinicId || !user?.id) {
     throw new Error('No clinic associated with user');
   }

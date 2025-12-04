@@ -141,6 +141,16 @@ export const PERMISSIONS = {
   'staff:read': ['admin', 'doctor', 'receptionist'] as UserRole[],
   'staff:write': ['admin'] as UserRole[],
 
+  // Billing
+  'billing:read': ['admin', 'doctor', 'receptionist'] as UserRole[],
+  'billing:write': ['admin'] as UserRole[],
+  'billing:delete': ['admin'] as UserRole[],
+
+  // Clinics
+  'clinics:read': ['admin', 'doctor', 'receptionist'] as UserRole[],
+  'clinics:write': ['admin'] as UserRole[],
+  'clinics:delete': ['admin'] as UserRole[],
+
   // Users
   'users:read': ['admin'] as UserRole[],
   'users:write': ['admin'] as UserRole[],
