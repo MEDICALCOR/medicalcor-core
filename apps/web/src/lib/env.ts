@@ -87,6 +87,12 @@ const clientEnvSchema = z.object({
 // =============================================================================
 
 /**
+ * Critical environment variables that MUST be present in production
+ * The system will crash on startup if these are missing (fail-fast principle)
+ */
+const CRITICAL_PRODUCTION_VARS = ['AUTH_SECRET', 'DATABASE_URL'] as const;
+
+/**
  * Validate server environment variables
  * Only runs on the server side
  */
@@ -97,6 +103,20 @@ function validateServerEnv() {
     return {} as z.infer<typeof serverEnvSchema>;
   }
 
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  // In production, validate critical variables FIRST (fail-fast)
+  if (isProduction) {
+    const missingCritical = CRITICAL_PRODUCTION_VARS.filter((key) => !process.env[key]);
+
+    if (missingCritical.length > 0) {
+      console.error('❌ CRITICAL: Missing required production environment variables:');
+      console.error(`   ${missingCritical.join(', ')}`);
+      console.error('   The application cannot start without these variables.');
+      throw new Error(`Missing critical environment variables: ${missingCritical.join(', ')}`);
+    }
+  }
+
   const parsed = serverEnvSchema.safeParse(process.env);
 
   if (!parsed.success) {
@@ -104,7 +124,7 @@ function validateServerEnv() {
     console.error(parsed.error.flatten().fieldErrors);
 
     // In production, fail hard if critical vars are missing
-    if (process.env.NODE_ENV === 'production') {
+    if (isProduction) {
       throw new Error('Invalid server environment variables');
     }
 
