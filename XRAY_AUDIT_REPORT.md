@@ -1,8 +1,8 @@
 # 🔍 XRAY AUDIT REPORT - MedicalCor Architecture Standard
 
-**Generated:** 12/3/2025, 9:04:18 AM
+**Generated:** 12/4/2025, 9:58:49 PM
 **Repository:** https://github.com/MEDICALCOR/medicalcor-core
-**Overall Score:** 8.0/10.0
+**Overall Score:** 8.1/10.0
 
 ---
 
@@ -20,8 +20,8 @@
 
 - **Apps:** api, trigger, web
 - **Packages:** application, core, domain, infra, infrastructure, integrations, types
-- **Total Files:** 660
-- **Total Lines:** 207,548
+- **Total Files:** 886
+- **Total Lines:** 308,823
 - **Migrations:** 0
 - **CI/CD Workflows:** 0
 
@@ -48,13 +48,13 @@
 
 1. Cross-layer dependencies violate hexagonal principles
 2. Security vulnerabilities detected requiring immediate attention
-3. 39 high-priority issues requiring immediate action
+3. 54 high-priority issues requiring immediate action
 
 ## 📊 Score Breakdown
 
 | Dimension                 | Score   | Status               |
 | ------------------------- | ------- | -------------------- |
-| DDD Purity                | 9.2/10  | ✅ Excellent         |
+| DDD Purity                | 10.0/10 | ✅ Excellent         |
 | Hexagonal Adherence       | 6.0/10  | ⚠️ Needs Improvement |
 | Event-Driven Readiness    | 10.0/10 | ✅ Excellent         |
 | Security Posture          | 7.5/10  | ⚠️ Needs Improvement |
@@ -67,10 +67,10 @@
 
 ## Issue Summary
 
-- **HIGH Priority:** 39 issues
-- **MEDIUM Priority:** 57 issues
+- **HIGH Priority:** 54 issues
+- **MEDIUM Priority:** 65 issues
 - **LOW Priority:** 0 issues
-- **Total Issues:** 96
+- **Total Issues:** 119
 
 ---
 
@@ -79,11 +79,11 @@
 ## Domain Layer Analysis
 
 **Path:** `packages/domain/src, packages/core/src/domain`
-**Purity Score:** 9.2/10
+**Purity Score:** 10.0/10
 
 ### Framework Dependencies
 
-- pg
+_None detected ✅_
 
 ### Cross-Layer Imports
 
@@ -91,10 +91,7 @@ _None detected ✅_
 
 ### Violations
 
-1. **Framework dependency in domain layer** [HIGH]
-   - File: `packages/domain/src/scheduling/scheduling-service.ts`
-   - Impact: Breaks hexagonal architecture, reduces testability
-   - Fix: Remove pg import and use ports/interfaces instead
+_No violations detected ✅_
 
 ## Application Layer Analysis
 
@@ -126,21 +123,26 @@ _No violations detected ✅_
    - Fix: Move business logic to domain layer
 
 4. **Business logic in infrastructure layer** [MEDIUM]
-   - File: `packages/integrations/src/embeddings.ts`
+   - File: `packages/integrations/src/embedding-cache.ts`
    - Impact: Makes business logic hard to test and maintain
    - Fix: Move business logic to domain layer
 
 5. **Business logic in infrastructure layer** [MEDIUM]
-   - File: `packages/integrations/src/lib/result.ts`
+   - File: `packages/integrations/src/embeddings.ts`
    - Impact: Makes business logic hard to test and maintain
    - Fix: Move business logic to domain layer
 
 6. **Business logic in infrastructure layer** [MEDIUM]
-   - File: `packages/integrations/src/scheduling.ts`
+   - File: `packages/integrations/src/lib/result.ts`
    - Impact: Makes business logic hard to test and maintain
    - Fix: Move business logic to domain layer
 
 7. **Business logic in infrastructure layer** [MEDIUM]
+   - File: `packages/integrations/src/scheduling.ts`
+   - Impact: Makes business logic hard to test and maintain
+   - Fix: Move business logic to domain layer
+
+8. **Business logic in infrastructure layer** [MEDIUM]
    - File: `packages/integrations/src/whatsapp.ts`
    - Impact: Makes business logic hard to test and maintain
    - Fix: Move business logic to domain layer
@@ -153,25 +155,25 @@ _No violations detected ✅_
 
 ## Actionable Fixes
 
-1. **[HIGH]** Framework dependency in domain layer
-   - **File:** `packages/domain/src/scheduling/scheduling-service.ts`
-   - **Fix:** Remove pg import and use ports/interfaces instead
-   - **PR:** `refactor(domain): remove framework dependency from scheduling-service.ts`
-
-2. **[MEDIUM]** Business logic in infrastructure layer
+1. **[MEDIUM]** Business logic in infrastructure layer
    - **File:** `packages/infrastructure/src/ai/vector-search/PgVectorService.ts`
    - **Fix:** Move business logic to domain layer
    - **PR:** `refactor(domain): extract business logic from PgVectorService.ts`
 
-3. **[MEDIUM]** Business logic in infrastructure layer
+2. **[MEDIUM]** Business logic in infrastructure layer
    - **File:** `packages/core/src/infrastructure/__tests__/disaster-recovery.test.ts`
    - **Fix:** Move business logic to domain layer
    - **PR:** `refactor(domain): extract business logic from disaster-recovery.test.ts`
 
-4. **[MEDIUM]** Business logic in infrastructure layer
+3. **[MEDIUM]** Business logic in infrastructure layer
    - **File:** `packages/core/src/infrastructure/backup-service.ts`
    - **Fix:** Move business logic to domain layer
    - **PR:** `refactor(domain): extract business logic from backup-service.ts`
+
+4. **[MEDIUM]** Business logic in infrastructure layer
+   - **File:** `packages/integrations/src/embedding-cache.ts`
+   - **Fix:** Move business logic to domain layer
+   - **PR:** `refactor(domain): extract business logic from embedding-cache.ts`
 
 5. **[MEDIUM]** Business logic in infrastructure layer
    - **File:** `packages/integrations/src/embeddings.ts`
@@ -241,14 +243,14 @@ _No fixes needed ✅_
    - **PR:** `refactor(domain): extract business logic from backup-service.ts`
 
 4. **[MEDIUM]** Business logic in infrastructure layer
+   - **File:** `packages/integrations/src/embedding-cache.ts`
+   - **Fix:** Move business logic to domain layer
+   - **PR:** `refactor(domain): extract business logic from embedding-cache.ts`
+
+5. **[MEDIUM]** Business logic in infrastructure layer
    - **File:** `packages/integrations/src/embeddings.ts`
    - **Fix:** Move business logic to domain layer
    - **PR:** `refactor(domain): extract business logic from embeddings.ts`
-
-5. **[MEDIUM]** Business logic in infrastructure layer
-   - **File:** `packages/integrations/src/lib/result.ts`
-   - **Fix:** Move business logic to domain layer
-   - **PR:** `refactor(domain): extract business logic from result.ts`
 
 ---
 
@@ -257,22 +259,22 @@ _No fixes needed ✅_
 ## Authentication Boundary
 
 - apps/api/src/app.ts
+- apps/api/src/plugins/csrf-protection.ts
 - apps/api/src/routes/gdpr.ts
 - apps/api/src/routes/health.ts
 - apps/api/src/routes/webhooks/whatsapp.ts
 
 ## RLS (Row Level Security) Policies
 
-Found 4 RLS policies:
+Found 3 RLS policies:
 
-- db/migrations/20241129000001_add_mfa_and_soft_delete.sql
-- db/migrations/20241130000001_critical_security_fixes.sql
-- supabase/migrations/20250129_osax_audit.sql
-- supabase/migrations/20250129_osax_rls.sql
+- supabase/migrations/20240101000017_rls_policies.sql
+- supabase/migrations/20250129000002_osax_audit.sql
+- supabase/migrations/20250129000003_osax_rls.sql
 
 ## PII Exposure Analysis
 
-⚠️ 29 potential PII exposures detected
+⚠️ 30 potential PII exposures detected
 
 ## Secrets Management
 
@@ -282,7 +284,7 @@ Found 4 RLS policies:
 
 ⚠️ 1 columns may need encryption:
 
-- db/migrations/20241126000001_create_auth_tables.sql: Column 'password' may need encryption
+- supabase/migrations/20240101000002_auth_tables.sql: Column 'password' may need encryption
 
 ## Top 5 Security Risks
 
@@ -324,7 +326,7 @@ Found 4 RLS policies:
 
 ## Logging Quality
 
-**Score:** 2.2/10
+**Score:** 3.1/10
 
 ⚠️ Logging needs improvement
 
@@ -376,15 +378,15 @@ Found 8 health check endpoints:
    - **Fix:** Log error with context: logger.error({ err: error }, 'Operation failed')
    - **PR:** `fix(observability): add error logging in Result.ts`
 
-4. **[HIGH]** Silent error handling
-   - **File:** `packages/core/src/ai-gateway/function-registry.ts`
-   - **Fix:** Log error with context: logger.error({ err: error }, 'Operation failed')
-   - **PR:** `fix(observability): add error logging in function-registry.ts`
+4. **[MEDIUM]** Unstructured logging with console.log
+   - **File:** `packages/core/dist/enhanced-dead-letter-queue.d.ts`
+   - **Fix:** Replace console.log with logger from @medicalcor/core/logger
+   - **PR:** `fix(observability): replace console.log with structured logger in enhanced-dead-letter-queue.d.ts`
 
-5. **[HIGH]** Silent error handling
-   - **File:** `packages/core/src/architecture/application/application-service.ts`
-   - **Fix:** Log error with context: logger.error({ err: error }, 'Operation failed')
-   - **PR:** `fix(observability): add error logging in application-service.ts`
+5. **[MEDIUM]** Unstructured logging with console.log
+   - **File:** `packages/core/dist/resilient-fetch.d.ts`
+   - **Fix:** Replace console.log with logger from @medicalcor/core/logger
+   - **PR:** `fix(observability): replace console.log with structured logger in resilient-fetch.d.ts`
 
 ---
 
@@ -460,10 +462,10 @@ _No fixes needed ✅_
 
 ## Test Coverage by Layer
 
-- **Unit Tests:** 45
-- **Integration Tests:** 4
+- **Unit Tests:** 61
+- **Integration Tests:** 6
 - **E2E Tests:** 6
-- **Estimated Coverage:** 11%
+- **Estimated Coverage:** 14%
 
 ## Missing Test Scenarios
 
@@ -515,17 +517,17 @@ _No fixes needed ✅_
 
 ## Phase 0 — Firefighting (HIGH Priority)
 
-**Total Issues:** 39
+**Total Issues:** 54
 
-1. Framework dependency in domain layer
-   - **File:** `packages/domain/src/scheduling/scheduling-service.ts`
-   - **Impact:** Breaks hexagonal architecture, reduces testability
-   - **PR:** `refactor(domain): remove framework dependency from scheduling-service.ts`
-
-2. Potential password in source code
+1. Potential password in source code
    - **File:** `infra/alertmanager/alertmanager.yml`
    - **Impact:** Critical security vulnerability, credentials exposure
    - **PR:** `fix(security): remove hardcoded password from alertmanager.yml`
+
+2. Silent error handling
+   - **File:** `packages/application/src/shared/Result.ts`
+   - **Impact:** Errors disappear without trace, making debugging impossible
+   - **PR:** `fix(observability): add error logging in Result.ts`
 
 3. Silent error handling
    - **File:** `packages/application/src/shared/Result.ts`
@@ -533,9 +535,9 @@ _No fixes needed ✅_
    - **PR:** `fix(observability): add error logging in Result.ts`
 
 4. Silent error handling
-   - **File:** `packages/application/src/shared/Result.ts`
+   - **File:** `packages/core/src/ai-gateway/ai-budget-controller.ts`
    - **Impact:** Errors disappear without trace, making debugging impossible
-   - **PR:** `fix(observability): add error logging in Result.ts`
+   - **PR:** `fix(observability): add error logging in ai-budget-controller.ts`
 
 5. Silent error handling
    - **File:** `packages/core/src/ai-gateway/function-registry.ts`
@@ -543,30 +545,30 @@ _No fixes needed ✅_
    - **PR:** `fix(observability): add error logging in function-registry.ts`
 
 6. Silent error handling
+   - **File:** `packages/core/src/ai-gateway/user-rate-limiter.ts`
+   - **Impact:** Errors disappear without trace, making debugging impossible
+   - **PR:** `fix(observability): add error logging in user-rate-limiter.ts`
+
+7. Silent error handling
+   - **File:** `packages/core/src/ai-gateway/user-rate-limiter.ts`
+   - **Impact:** Errors disappear without trace, making debugging impossible
+   - **PR:** `fix(observability): add error logging in user-rate-limiter.ts`
+
+8. Silent error handling
+   - **File:** `packages/core/src/ai-gateway/user-rate-limiter.ts`
+   - **Impact:** Errors disappear without trace, making debugging impossible
+   - **PR:** `fix(observability): add error logging in user-rate-limiter.ts`
+
+9. Silent error handling
    - **File:** `packages/core/src/architecture/application/application-service.ts`
    - **Impact:** Errors disappear without trace, making debugging impossible
    - **PR:** `fix(observability): add error logging in application-service.ts`
 
-7. Silent error handling
-   - **File:** `packages/core/src/architecture/application/use-case.ts`
-   - **Impact:** Errors disappear without trace, making debugging impossible
-   - **PR:** `fix(observability): add error logging in use-case.ts`
-
-8. Silent error handling
-   - **File:** `packages/core/src/architecture/domain/repository.ts`
-   - **Impact:** Errors disappear without trace, making debugging impossible
-   - **PR:** `fix(observability): add error logging in repository.ts`
-
-9. Silent error handling
-   - **File:** `packages/core/src/architecture/observability/health.ts`
-   - **Impact:** Errors disappear without trace, making debugging impossible
-   - **PR:** `fix(observability): add error logging in health.ts`
-
 10. Silent error handling
 
-- **File:** `packages/core/src/architecture/observability/health.ts`
+- **File:** `packages/core/src/architecture/application/use-case.ts`
 - **Impact:** Errors disappear without trace, making debugging impossible
-- **PR:** `fix(observability): add error logging in health.ts`
+- **PR:** `fix(observability): add error logging in use-case.ts`
 
 ## Phase 1 — Hardening (MEDIUM Priority - Security)
 
@@ -576,7 +578,7 @@ _No issues in this phase ✅_
 
 ## Phase 2 — Scaling (MEDIUM Priority - Architecture)
 
-**Total Issues:** 57
+**Total Issues:** 65
 
 1. Business logic in infrastructure layer
    - **File:** `packages/infrastructure/src/ai/vector-search/PgVectorService.ts`
@@ -594,29 +596,29 @@ _No issues in this phase ✅_
    - **PR:** `refactor(domain): extract business logic from backup-service.ts`
 
 4. Business logic in infrastructure layer
+   - **File:** `packages/integrations/src/embedding-cache.ts`
+   - **Impact:** Makes business logic hard to test and maintain
+   - **PR:** `refactor(domain): extract business logic from embedding-cache.ts`
+
+5. Business logic in infrastructure layer
    - **File:** `packages/integrations/src/embeddings.ts`
    - **Impact:** Makes business logic hard to test and maintain
    - **PR:** `refactor(domain): extract business logic from embeddings.ts`
 
-5. Business logic in infrastructure layer
+6. Business logic in infrastructure layer
    - **File:** `packages/integrations/src/lib/result.ts`
    - **Impact:** Makes business logic hard to test and maintain
    - **PR:** `refactor(domain): extract business logic from result.ts`
 
-6. Business logic in infrastructure layer
+7. Business logic in infrastructure layer
    - **File:** `packages/integrations/src/scheduling.ts`
    - **Impact:** Makes business logic hard to test and maintain
    - **PR:** `refactor(domain): extract business logic from scheduling.ts`
 
-7. Business logic in infrastructure layer
+8. Business logic in infrastructure layer
    - **File:** `packages/integrations/src/whatsapp.ts`
    - **Impact:** Makes business logic hard to test and maintain
    - **PR:** `refactor(domain): extract business logic from whatsapp.ts`
-
-8. Hardcoded phone detected
-   - **File:** `packages/core/src/ai-gateway/medical-functions.ts`
-   - **Impact:** Potential privacy breach
-   - **PR:** `fix(security): remove hardcoded PII from medical-functions.ts`
 
 9. Hardcoded phone detected
    - **File:** `packages/core/src/ai-gateway/medical-functions.ts`
