@@ -535,8 +535,12 @@ export async function getStripeRevenueAction(): Promise<{
       monthlyRevenue: 0, // Would need separate Stripe query
       currency: dailyData.currency,
     };
-  } catch {
-    // Return mock data if Stripe is not configured
+  } catch (error) {
+    // Graceful fallback when Stripe is not configured or unavailable
+    // This is expected in development or when Stripe keys are not set
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[Billing] Stripe unavailable, using fallback data:', error);
+    }
     return {
       dailyRevenue: 0,
       monthlyRevenue: 0,

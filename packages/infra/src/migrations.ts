@@ -179,7 +179,8 @@ export function createMigrationManager(config: MigrationConfig) {
       await ensureTable();
       const applied = await getApplied();
       return { applied, tableExists: true };
-    } catch {
+    } catch (error) {
+      logger.debug({ error }, 'Migration table does not exist or is not accessible');
       return { applied: [], tableExists: false };
     }
   }
