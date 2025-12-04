@@ -12,16 +12,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock the database client
 const mockQuery = vi.fn();
+const mockDbClient = { query: mockQuery };
+
 vi.mock('@medicalcor/core', () => ({
-  createDatabaseClient: () => ({
-    query: mockQuery,
-  }),
+  createDatabaseClient: () => mockDbClient,
 }));
 
 // Mock the auth module
-const mockRequirePermission = vi.fn();
 vi.mock('@/lib/auth/server-action-auth', () => ({
-  requirePermission: mockRequirePermission,
+  requirePermission: vi.fn(),
 }));
 
 // Import after mocks are set up
@@ -34,6 +33,10 @@ import {
   deleteWorkflowAction,
   duplicateWorkflowAction,
 } from '@/app/actions/workflows';
+import { requirePermission } from '@/lib/auth/server-action-auth';
+
+// Get mocked permission function after import
+const mockRequirePermission = vi.mocked(requirePermission);
 
 // Test data factories
 const createMockWorkflowRow = (overrides = {}) => ({

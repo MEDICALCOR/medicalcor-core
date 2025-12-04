@@ -23,9 +23,13 @@ vi.mock('@/lib/auth', () => ({
 }));
 
 // Mock Redis client - simulate unavailable Redis to test memory fallback
-vi.mock('@medicalcor/core/infrastructure/redis-client', () => ({
-  createRedisClientFromEnv: vi.fn().mockReturnValue(null),
-}));
+vi.mock('@medicalcor/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@medicalcor/core')>();
+  return {
+    ...actual,
+    createRedisClientFromEnv: vi.fn().mockReturnValue(null),
+  };
+});
 
 import {
   checkRateLimit,
