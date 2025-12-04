@@ -1,10 +1,11 @@
-'use server';
-
 /**
  * @fileoverview Server Actions Index
  *
  * Central export point for all server actions.
  * Provides a clean, organized API for data fetching operations.
+ *
+ * Note: This file does NOT have 'use server' directive because it exports types.
+ * Each individual action module has its own 'use server' directive.
  *
  * @module actions
  *
