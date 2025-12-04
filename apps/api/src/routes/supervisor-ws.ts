@@ -7,6 +7,7 @@
  */
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { generateCorrelationId, logger } from '@medicalcor/core';
+import { generateCorrelationId } from '@medicalcor/core';
 import { getSupervisorAgent } from '@medicalcor/domain';
 import type { MonitoredCall, HandoffRequest } from '@medicalcor/types';
 import { randomUUID } from 'crypto';
@@ -444,6 +445,8 @@ export function emitSupervisorEvent(event: {
           break;
         }
         const customerPhone = event.data.customerPhone;
+        const customerPhone =
+          typeof event.data.customerPhone === 'string' ? event.data.customerPhone : '+40000000000';
         const direction =
           event.data.direction === 'inbound' || event.data.direction === 'outbound'
             ? event.data.direction

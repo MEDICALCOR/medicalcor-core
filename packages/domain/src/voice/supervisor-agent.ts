@@ -360,6 +360,7 @@ export class SupervisorAgent extends EventEmitter {
       | 'silence-detected'
       | 'ai-handoff-needed',
     reason?: string
+      | 'ai-handoff-needed'
   ): void {
     const call = this.activeCalls.get(callSid);
     if (!call) return;
@@ -412,6 +413,10 @@ export class SupervisorAgent extends EventEmitter {
     today.setHours(0, 0, 0, 0);
 
     return this.handoffHistory.filter((h) => h.timestamp >= today).length;
+  }
+
+  /**
+    }
   }
 
   /**
@@ -728,6 +733,11 @@ export class SupervisorAgent extends EventEmitter {
     const escalationsToday = this.getEscalationsToday();
     const handoffsToday = this.getHandoffsToday();
 
+    // Calculate metrics
+    const escalations = calls.filter((c) => c.flags.includes('escalation-requested'));
+    const aiHandoffs = calls.filter((c) => c.flags.includes('ai-handoff-needed'));
+    const callsWithFlags = calls.filter((c) => c.flags.length > 0);
+
     return {
       activeCalls: calls.length,
       callsInQueue: calls.filter((c) => c.state === 'ringing').length,
@@ -735,6 +745,8 @@ export class SupervisorAgent extends EventEmitter {
       activeAlerts: activeEscalations.length + aiHandoffs.length + callsWithFlags.length,
       escalationsToday: escalationsToday.length,
       handoffsToday,
+      activeAlerts: escalations.length + aiHandoffs.length + callsWithFlags.length,
+      escalationsToday: escalations.length, // Would need historical tracking
 
       aiHandledCalls: calls.filter((c) => c.assistantId && !c.agentId).length,
 
