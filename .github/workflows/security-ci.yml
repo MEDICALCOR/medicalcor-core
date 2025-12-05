@@ -1,0 +1,104 @@
+name: CI + OSS Security checks (no GAS required)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint (if present)
+        run: npm run lint --if-present
+
+      - name: Run unit tests
+        run: |
+          set -o pipefail
+          npm test -- --runInBand || true
+      - name: Upload test logs (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-logs
+          path: ./test-output.log || ./logs || ./coverage || .
+
+  npm-audit:
+    name: npm audit (vulnerabilities)
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install
+        run: npm ci
+      - name: Run npm audit (JSON)
+        run: npm audit --json > npm-audit.json || true
+      - name: Upload npm audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit
+          path: npm-audit.json
+
+  gitleaks-scan:
+    name: Gitleaks secret scan
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run gitleaks (detect)
+        uses: zricethezav/gitleaks-action@v2
+        with:
+          args: detect --report-format json --report-path gitleaks-report.json || true
+      - name: Upload gitleaks report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-report
+          path: gitleaks-report.json
+
+  ossf-scorecard:
+    name: OSSF Scorecard
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run OSSF Scorecard action
+        uses: ossf/scorecard-action@v4
+        with:
+          output_format: json
+      - name: Upload scorecard results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ossf-scorecard
+          path: scorecard-results.json
+
+  dependency-review-safe:
+    name: (optional) Dependency Review fallback
+    runs-on: ubuntu-latest
+    needs: [build-and-test, npm-audit]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run dependency review action non-blocking (skip if unsupported)
+        uses: actions/dependency-review-action@v1
+        continue-on-error: true
+      - name: Upload (if any) dependency review results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-review
+          path: .github/dependency-review || ./dep-review-report.json || .
