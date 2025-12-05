@@ -89,10 +89,12 @@ export function useKeyboardShortcuts() {
 
       // If there's a pending sequence
       if (sequenceRef.current.buffer.length > 0) {
+        // Save buffer before clearing (clearSequence resets it)
+        const currentBuffer = [...sequenceRef.current.buffer];
         clearSequence();
 
         // Try to match the sequence
-        const sequenceKey = [...sequenceRef.current.buffer, key].join('+');
+        const sequenceKey = [...currentBuffer, key].join('+');
         const handler = shortcutsRef.current.get(sequenceKey);
 
         if (handler) {

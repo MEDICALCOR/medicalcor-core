@@ -1,11 +1,20 @@
 /**
+ * useWebSocket - Platinum Standard Tests
+ *
+ * Pattern: AAA (Arrange–Act–Assert)
+ * Coverage: connection lifecycle + auth flow + messaging + reconnection + heartbeat
+ * Cleanup: timers, mocks, WebSocket stubs - all properly isolated
+ *
  * @vitest-environment jsdom
  */
+
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useWebSocket } from '@/lib/realtime/use-websocket';
 
-// Mock WebSocket
+/**
+ * Mock WebSocket implementation
+ */
 class MockWebSocket {
   static CONNECTING = 0;
   static OPEN = 1;
@@ -35,7 +44,6 @@ class MockWebSocket {
     this.onclose?.();
   }
 
-  // Add addEventListener and removeEventListener for MSW compatibility
   addEventListener(event: string, listener: EventListener) {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
@@ -69,7 +77,6 @@ class MockWebSocket {
 
 let mockWsInstance: MockWebSocket | null = null;
 
-// Create the WebSocket mock class
 class WebSocketMock extends MockWebSocket {
   constructor(url: string) {
     super(url);
@@ -77,419 +84,520 @@ class WebSocketMock extends MockWebSocket {
   }
 }
 
-describe('useWebSocket', () => {
+describe('useWebSocket (platinum standard)', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     mockWsInstance = null;
-    // Override WebSocket globally for each test using vi.stubGlobal
     vi.stubGlobal('WebSocket', WebSocketMock);
   });
 
   afterEach(() => {
+    vi.runOnlyPendingTimers();
     vi.useRealTimers();
     vi.clearAllMocks();
     vi.unstubAllGlobals();
+    mockWsInstance = null;
   });
 
-  it('should initialize with disconnected state', () => {
-    const { result } = renderHook(() =>
-      useWebSocket({
-        url: 'wss://test.example.com',
-        authToken: 'test-token',
-      })
-    );
+  describe('Initial state', () => {
+    it('initializes with disconnected state', () => {
+      // ARRANGE & ACT
+      const { result } = renderHook(() =>
+        useWebSocket({
+          url: 'wss://test.example.com',
+          authToken: 'test-token',
+        })
+      );
 
-    expect(result.current.connectionState.status).toBe('disconnected');
-    expect(result.current.isConnected).toBe(false);
+      // ASSERT
+      expect(result.current.connectionState.status).toBe('disconnected');
+      expect(result.current.isConnected).toBe(false);
+    });
   });
 
-  it('should connect and send auth message', async () => {
-    const onOpen = vi.fn();
-    const { result } = renderHook(() =>
-      useWebSocket({
-        url: 'wss://test.example.com',
-        authToken: 'test-token',
-        onOpen,
-      })
-    );
+  describe('Connection lifecycle', () => {
+    it('transitions to connecting state when connect is called', () => {
+      // ARRANGE
+      const { result } = renderHook(() =>
+        useWebSocket({
+          url: 'wss://test.example.com',
+          authToken: 'test-token',
+        })
+      );
 
-    act(() => {
-      result.current.connect();
-    });
-
-    expect(result.current.connectionState.status).toBe('connecting');
-
-    // Simulate WebSocket open
-    act(() => {
-      mockWsInstance?.simulateOpen();
-    });
-
-    expect(onOpen).toHaveBeenCalled();
-    expect(result.current.connectionState.status).toBe('authenticating');
-
-    // Verify auth message was sent (without token in URL)
-    expect(mockWsInstance?.sentMessages).toHaveLength(1);
-    const authMessage = JSON.parse(mockWsInstance?.sentMessages[0] ?? '{}');
-    expect(authMessage.type).toBe('auth');
-    expect(authMessage.token).toBe('test-token');
-    expect(authMessage.timestamp).toBeDefined();
-  });
-
-  it('should set connected status after auth_success', async () => {
-    const onAuthSuccess = vi.fn();
-    const { result } = renderHook(() =>
-      useWebSocket({
-        url: 'wss://test.example.com',
-        authToken: 'test-token',
-        onAuthSuccess,
-      })
-    );
-
-    act(() => {
-      result.current.connect();
-    });
-
-    act(() => {
-      mockWsInstance?.simulateOpen();
-    });
-
-    // Simulate auth success
-    act(() => {
-      mockWsInstance?.simulateMessage({ type: 'auth_success' });
-    });
-
-    expect(result.current.connectionState.status).toBe('connected');
-    expect(result.current.isConnected).toBe(true);
-    expect(onAuthSuccess).toHaveBeenCalled();
-  });
-
-  it('should handle auth_error and not reconnect', async () => {
-    const onAuthError = vi.fn();
-    const { result } = renderHook(() =>
-      useWebSocket({
-        url: 'wss://test.example.com',
-        authToken: 'invalid-token',
-        onAuthError,
-      })
-    );
-
-    act(() => {
-      result.current.connect();
-    });
-
-    act(() => {
-      mockWsInstance?.simulateOpen();
-    });
-
-    // Simulate auth error - note that the hook sets status to 'error' then closes connection
-    // The close may trigger onclose which sets status to 'disconnected'
-    // But we set isManualDisconnectRef to true, so onclose returns early
-    act(() => {
-      mockWsInstance?.simulateMessage({
-        type: 'auth_error',
-        data: { message: 'Invalid token' },
+      // ACT
+      act(() => {
+        result.current.connect();
       });
+
+      // ASSERT
+      expect(result.current.connectionState.status).toBe('connecting');
     });
 
-    // After auth error, status should be 'error' (not 'disconnected') because of manual disconnect flag
-    // However, due to timing, the status may be set to 'disconnected' then 'error'
-    // In a real scenario, we expect 'error' state when auth fails
-    expect(onAuthError).toHaveBeenCalledWith('Invalid token');
-    // The implementation closes the connection after auth error, which may set status to disconnected
-    // This is acceptable behavior - the important part is that onAuthError was called
-    expect(['error', 'disconnected']).toContain(result.current.connectionState.status);
+    it('sends auth message on connection open', () => {
+      // ARRANGE
+      const onOpen = vi.fn();
+      const { result } = renderHook(() =>
+        useWebSocket({
+          url: 'wss://test.example.com',
+          authToken: 'test-token',
+          onOpen,
+        })
+      );
+
+      // ACT
+      act(() => {
+        result.current.connect();
+      });
+
+      act(() => {
+        mockWsInstance?.simulateOpen();
+      });
+
+      // ASSERT
+      expect(onOpen).toHaveBeenCalled();
+      expect(result.current.connectionState.status).toBe('authenticating');
+      expect(mockWsInstance?.sentMessages).toHaveLength(1);
+
+      const authMessage = JSON.parse(mockWsInstance?.sentMessages[0] ?? '{}');
+      expect(authMessage.type).toBe('auth');
+      expect(authMessage.token).toBe('test-token');
+      expect(authMessage.timestamp).toBeDefined();
+    });
+
+    it('transitions to connected after auth_success', () => {
+      // ARRANGE
+      const onAuthSuccess = vi.fn();
+      const { result } = renderHook(() =>
+        useWebSocket({
+          url: 'wss://test.example.com',
+          authToken: 'test-token',
+          onAuthSuccess,
+        })
+      );
+
+      act(() => {
+        result.current.connect();
+        mockWsInstance?.simulateOpen();
+      });
+
+      // ACT
+      act(() => {
+        mockWsInstance?.simulateMessage({ type: 'auth_success' });
+      });
+
+      // ASSERT
+      expect(result.current.connectionState.status).toBe('connected');
+      expect(result.current.isConnected).toBe(true);
+      expect(onAuthSuccess).toHaveBeenCalled();
+    });
+
+    it('handles disconnect correctly', () => {
+      // ARRANGE
+      const onClose = vi.fn();
+      const { result } = renderHook(() =>
+        useWebSocket({
+          url: 'wss://test.example.com',
+          authToken: 'test-token',
+          onClose,
+        })
+      );
+
+      act(() => {
+        result.current.connect();
+        mockWsInstance?.simulateOpen();
+        mockWsInstance?.simulateMessage({ type: 'auth_success' });
+      });
+
+      expect(result.current.isConnected).toBe(true);
+
+      // ACT
+      act(() => {
+        result.current.disconnect();
+      });
+
+      // ASSERT
+      expect(result.current.connectionState.status).toBe('disconnected');
+      expect(result.current.isConnected).toBe(false);
+    });
   });
 
-  it('should require auth token', () => {
-    const onAuthError = vi.fn();
-    const { result } = renderHook(() =>
-      useWebSocket({
-        url: 'wss://test.example.com',
-        onAuthError,
-      })
-    );
+  describe('Authentication errors', () => {
+    it('handles auth_error and calls onAuthError', () => {
+      // ARRANGE
+      const onAuthError = vi.fn();
+      const { result } = renderHook(() =>
+        useWebSocket({
+          url: 'wss://test.example.com',
+          authToken: 'invalid-token',
+          onAuthError,
+        })
+      );
 
-    act(() => {
-      result.current.connect();
+      act(() => {
+        result.current.connect();
+        mockWsInstance?.simulateOpen();
+      });
+
+      // ACT
+      act(() => {
+        mockWsInstance?.simulateMessage({
+          type: 'auth_error',
+          data: { message: 'Invalid token' },
+        });
+      });
+
+      // ASSERT
+      expect(onAuthError).toHaveBeenCalledWith('Invalid token');
+      expect(['error', 'disconnected']).toContain(result.current.connectionState.status);
     });
 
-    expect(result.current.connectionState.status).toBe('error');
-    expect(onAuthError).toHaveBeenCalledWith('Authentication token required');
+    it('requires auth token to connect', () => {
+      // ARRANGE
+      const onAuthError = vi.fn();
+      const { result } = renderHook(() =>
+        useWebSocket({
+          url: 'wss://test.example.com',
+          onAuthError,
+        })
+      );
+
+      // ACT
+      act(() => {
+        result.current.connect();
+      });
+
+      // ASSERT
+      expect(result.current.connectionState.status).toBe('error');
+      expect(onAuthError).toHaveBeenCalledWith('Authentication token required');
+    });
   });
 
-  it('should subscribe to events and receive messages', async () => {
-    const handler = vi.fn();
-    const { result } = renderHook(() =>
-      useWebSocket({
-        url: 'wss://test.example.com',
-        authToken: 'test-token',
-      })
-    );
+  describe('Message subscription', () => {
+    it('subscribes to events and receives messages', () => {
+      // ARRANGE
+      const handler = vi.fn();
+      const { result } = renderHook(() =>
+        useWebSocket({
+          url: 'wss://test.example.com',
+          authToken: 'test-token',
+        })
+      );
 
-    // Subscribe to lead.created events
-    act(() => {
-      result.current.subscribe('lead.created', handler);
-    });
+      act(() => {
+        result.current.subscribe('lead.created', handler);
+        result.current.connect();
+        mockWsInstance?.simulateOpen();
+        mockWsInstance?.simulateMessage({ type: 'auth_success' });
+      });
 
-    act(() => {
-      result.current.connect();
-      mockWsInstance?.simulateOpen();
-      mockWsInstance?.simulateMessage({ type: 'auth_success' });
-    });
+      // ACT
+      act(() => {
+        mockWsInstance?.simulateMessage({
+          type: 'lead.created',
+          data: { leadId: '123', name: 'Test Lead' },
+        });
+      });
 
-    // Simulate receiving a lead.created event
-    act(() => {
-      mockWsInstance?.simulateMessage({
+      // ASSERT
+      expect(handler).toHaveBeenCalledWith({
         type: 'lead.created',
         data: { leadId: '123', name: 'Test Lead' },
       });
     });
 
-    expect(handler).toHaveBeenCalledWith({
-      type: 'lead.created',
-      data: { leadId: '123', name: 'Test Lead' },
+    it('supports wildcard subscription', () => {
+      // ARRANGE
+      const handler = vi.fn();
+      const { result } = renderHook(() =>
+        useWebSocket({
+          url: 'wss://test.example.com',
+          authToken: 'test-token',
+        })
+      );
+
+      act(() => {
+        result.current.subscribe('*', handler);
+        result.current.connect();
+        mockWsInstance?.simulateOpen();
+        mockWsInstance?.simulateMessage({ type: 'auth_success' });
+      });
+
+      // ACT
+      act(() => {
+        mockWsInstance?.simulateMessage({ type: 'any_event', data: {} });
+      });
+
+      // ASSERT
+      expect(handler).toHaveBeenCalled();
+    });
+
+    it('unsubscribes correctly', () => {
+      // ARRANGE
+      const handler = vi.fn();
+      const { result } = renderHook(() =>
+        useWebSocket({
+          url: 'wss://test.example.com',
+          authToken: 'test-token',
+        })
+      );
+
+      let unsubscribe: () => void;
+      act(() => {
+        unsubscribe = result.current.subscribe('lead.updated', handler);
+        result.current.connect();
+        mockWsInstance?.simulateOpen();
+        mockWsInstance?.simulateMessage({ type: 'auth_success' });
+      });
+
+      // ACT
+      act(() => {
+        unsubscribe();
+      });
+
+      act(() => {
+        mockWsInstance?.simulateMessage({ type: 'lead.updated', data: {} });
+      });
+
+      // ASSERT
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('ignores messages before authentication', () => {
+      // ARRANGE
+      const handler = vi.fn();
+      const { result } = renderHook(() =>
+        useWebSocket({
+          url: 'wss://test.example.com',
+          authToken: 'test-token',
+        })
+      );
+
+      act(() => {
+        result.current.subscribe('lead.updated', handler);
+        result.current.connect();
+        mockWsInstance?.simulateOpen();
+      });
+
+      // ACT - send message before auth_success
+      act(() => {
+        mockWsInstance?.simulateMessage({ type: 'lead.updated', data: {} });
+      });
+
+      // ASSERT
+      expect(handler).not.toHaveBeenCalled();
+
+      // ACT - authenticate
+      act(() => {
+        mockWsInstance?.simulateMessage({ type: 'auth_success' });
+      });
+
+      // ACT - send message after authentication
+      act(() => {
+        mockWsInstance?.simulateMessage({ type: 'lead.updated', data: { id: '123' } });
+      });
+
+      // ASSERT
+      expect(handler).toHaveBeenCalledTimes(1);
     });
   });
 
-  it('should support wildcard subscription', async () => {
-    const handler = vi.fn();
-    const { result } = renderHook(() =>
-      useWebSocket({
-        url: 'wss://test.example.com',
-        authToken: 'test-token',
-      })
-    );
+  describe('Sending messages', () => {
+    it('sends messages after authentication', () => {
+      // ARRANGE
+      const { result } = renderHook(() =>
+        useWebSocket({
+          url: 'wss://test.example.com',
+          authToken: 'test-token',
+        })
+      );
 
-    act(() => {
-      result.current.subscribe('*', handler);
-    });
+      act(() => {
+        result.current.connect();
+        mockWsInstance?.simulateOpen();
+        mockWsInstance?.simulateMessage({ type: 'auth_success' });
+      });
 
-    act(() => {
-      result.current.connect();
-      mockWsInstance?.simulateOpen();
-      mockWsInstance?.simulateMessage({ type: 'auth_success' });
-    });
+      // ACT
+      act(() => {
+        result.current.send({ type: 'test', data: 'hello' });
+      });
 
-    act(() => {
-      mockWsInstance?.simulateMessage({ type: 'any_event', data: {} });
-    });
-
-    expect(handler).toHaveBeenCalled();
-  });
-
-  it('should unsubscribe correctly', async () => {
-    const handler = vi.fn();
-    const { result } = renderHook(() =>
-      useWebSocket({
-        url: 'wss://test.example.com',
-        authToken: 'test-token',
-      })
-    );
-
-    let unsubscribe: () => void;
-    act(() => {
-      unsubscribe = result.current.subscribe('lead.updated', handler);
-    });
-
-    act(() => {
-      result.current.connect();
-      mockWsInstance?.simulateOpen();
-      mockWsInstance?.simulateMessage({ type: 'auth_success' });
-    });
-
-    // Unsubscribe
-    act(() => {
-      unsubscribe();
-    });
-
-    act(() => {
-      mockWsInstance?.simulateMessage({ type: 'test_event', data: {} });
-    });
-
-    expect(handler).not.toHaveBeenCalled();
-  });
-
-  it('should send messages', async () => {
-    const { result } = renderHook(() =>
-      useWebSocket({
-        url: 'wss://test.example.com',
-        authToken: 'test-token',
-      })
-    );
-
-    act(() => {
-      result.current.connect();
-      mockWsInstance?.simulateOpen();
-      mockWsInstance?.simulateMessage({ type: 'auth_success' });
-    });
-
-    act(() => {
-      result.current.send({ type: 'test', data: 'hello' });
-    });
-
-    // First message is auth, second is our test message
-    expect(mockWsInstance?.sentMessages).toHaveLength(2);
-    expect(JSON.parse(mockWsInstance?.sentMessages[1] ?? '{}')).toEqual({
-      type: 'test',
-      data: 'hello',
+      // ASSERT - first message is auth, second is our test message
+      expect(mockWsInstance?.sentMessages).toHaveLength(2);
+      expect(JSON.parse(mockWsInstance?.sentMessages[1] ?? '{}')).toEqual({
+        type: 'test',
+        data: 'hello',
+      });
     });
   });
 
-  it('should handle disconnect', async () => {
-    const onClose = vi.fn();
-    const { result } = renderHook(() =>
-      useWebSocket({
-        url: 'wss://test.example.com',
-        authToken: 'test-token',
-        onClose,
-      })
-    );
+  describe('Auto-reconnection', () => {
+    it('auto-reconnects on unexpected connection close', async () => {
+      // ARRANGE
+      const { result } = renderHook(() =>
+        useWebSocket({
+          url: 'wss://test.example.com',
+          authToken: 'test-token',
+          reconnectInterval: 1000,
+          maxReconnectAttempts: 3,
+        })
+      );
 
-    act(() => {
-      result.current.connect();
-      mockWsInstance?.simulateOpen();
-      mockWsInstance?.simulateMessage({ type: 'auth_success' });
+      act(() => {
+        result.current.connect();
+        mockWsInstance?.simulateOpen();
+        mockWsInstance?.simulateMessage({ type: 'auth_success' });
+      });
+
+      // ACT - simulate unexpected close
+      act(() => {
+        mockWsInstance?.simulateClose();
+      });
+
+      expect(result.current.connectionState.status).toBe('disconnected');
+
+      // Fast forward to trigger reconnect
+      await act(async () => {
+        vi.advanceTimersByTime(1500);
+      });
+
+      // ASSERT
+      expect(result.current.connectionState.reconnectAttempts).toBe(1);
     });
-
-    expect(result.current.isConnected).toBe(true);
-
-    act(() => {
-      result.current.disconnect();
-    });
-
-    expect(result.current.connectionState.status).toBe('disconnected');
-    expect(result.current.isConnected).toBe(false);
   });
 
-  it('should auto-reconnect on connection close', async () => {
-    const { result } = renderHook(() =>
-      useWebSocket({
-        url: 'wss://test.example.com',
-        authToken: 'test-token',
-        reconnectInterval: 1000,
-        maxReconnectAttempts: 3,
-      })
-    );
+  describe('Heartbeat mechanism', () => {
+    it('sends ping after heartbeat interval', async () => {
+      // ARRANGE
+      const { result } = renderHook(() =>
+        useWebSocket({
+          url: 'wss://test.example.com',
+          authToken: 'test-token',
+          enableHeartbeat: true,
+          heartbeatInterval: 5000,
+          heartbeatTimeout: 2000,
+        })
+      );
 
-    act(() => {
-      result.current.connect();
-      mockWsInstance?.simulateOpen();
-      mockWsInstance?.simulateMessage({ type: 'auth_success' });
+      act(() => {
+        result.current.connect();
+        mockWsInstance?.simulateOpen();
+        mockWsInstance?.simulateMessage({ type: 'auth_success' });
+      });
+
+      // ACT - fast forward past heartbeat interval
+      await act(async () => {
+        vi.advanceTimersByTime(5100);
+      });
+
+      // ASSERT - ping should have been sent
+      const sentMessages = mockWsInstance?.sentMessages ?? [];
+      const pingMessage = sentMessages.find((msg) => {
+        const parsed = JSON.parse(msg);
+        return parsed.type === 'ping';
+      });
+      expect(pingMessage).toBeDefined();
     });
 
-    // Simulate unexpected close
-    act(() => {
-      mockWsInstance?.simulateClose();
+    it('clears heartbeat timeout on pong', async () => {
+      // ARRANGE
+      const { result } = renderHook(() =>
+        useWebSocket({
+          url: 'wss://test.example.com',
+          authToken: 'test-token',
+          enableHeartbeat: true,
+          heartbeatInterval: 5000,
+          heartbeatTimeout: 2000,
+        })
+      );
+
+      act(() => {
+        result.current.connect();
+        mockWsInstance?.simulateOpen();
+        mockWsInstance?.simulateMessage({ type: 'auth_success' });
+      });
+
+      // Trigger heartbeat
+      await act(async () => {
+        vi.advanceTimersByTime(5100);
+      });
+
+      // ACT - simulate pong response
+      act(() => {
+        mockWsInstance?.simulateMessage({ type: 'pong' });
+      });
+
+      // Advance past heartbeat timeout
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      // ASSERT - connection should still be open
+      expect(result.current.isConnected).toBe(true);
     });
-
-    expect(result.current.connectionState.status).toBe('disconnected');
-
-    // Fast forward to trigger reconnect
-    await act(async () => {
-      vi.advanceTimersByTime(1500);
-    });
-
-    expect(result.current.connectionState.reconnectAttempts).toBe(1);
   });
 
-  it('should handle heartbeat timeout', async () => {
-    const { result } = renderHook(() =>
-      useWebSocket({
-        url: 'wss://test.example.com',
-        authToken: 'test-token',
-        enableHeartbeat: true,
-        heartbeatInterval: 5000,
-        heartbeatTimeout: 2000,
-      })
-    );
+  describe('Multiple subscriptions', () => {
+    it('handles multiple handlers for same event', () => {
+      // ARRANGE
+      const handler1 = vi.fn();
+      const handler2 = vi.fn();
+      const { result } = renderHook(() =>
+        useWebSocket({
+          url: 'wss://test.example.com',
+          authToken: 'test-token',
+        })
+      );
 
-    act(() => {
-      result.current.connect();
-      mockWsInstance?.simulateOpen();
-      mockWsInstance?.simulateMessage({ type: 'auth_success' });
+      act(() => {
+        result.current.subscribe('lead.created', handler1);
+        result.current.subscribe('lead.created', handler2);
+        result.current.connect();
+        mockWsInstance?.simulateOpen();
+        mockWsInstance?.simulateMessage({ type: 'auth_success' });
+      });
+
+      // ACT
+      act(() => {
+        mockWsInstance?.simulateMessage({
+          type: 'lead.created',
+          data: { id: '123' },
+        });
+      });
+
+      // ASSERT
+      expect(handler1).toHaveBeenCalledTimes(1);
+      expect(handler2).toHaveBeenCalledTimes(1);
     });
 
-    // Fast forward past heartbeat interval
-    await act(async () => {
-      vi.advanceTimersByTime(5100);
+    it('handles different event subscriptions independently', () => {
+      // ARRANGE
+      const leadHandler = vi.fn();
+      const patientHandler = vi.fn();
+      const { result } = renderHook(() =>
+        useWebSocket({
+          url: 'wss://test.example.com',
+          authToken: 'test-token',
+        })
+      );
+
+      act(() => {
+        result.current.subscribe('lead.created', leadHandler);
+        result.current.subscribe('patient.updated', patientHandler);
+        result.current.connect();
+        mockWsInstance?.simulateOpen();
+        mockWsInstance?.simulateMessage({ type: 'auth_success' });
+      });
+
+      // ACT
+      act(() => {
+        mockWsInstance?.simulateMessage({ type: 'lead.created', data: {} });
+      });
+
+      // ASSERT
+      expect(leadHandler).toHaveBeenCalledTimes(1);
+      expect(patientHandler).not.toHaveBeenCalled();
     });
-
-    // Ping should have been sent
-    const sentMessages = mockWsInstance?.sentMessages ?? [];
-    const pingMessage = sentMessages.find((msg) => {
-      const parsed = JSON.parse(msg);
-      return parsed.type === 'ping';
-    });
-    expect(pingMessage).toBeDefined();
-  });
-
-  it('should clear heartbeat timeout on pong', async () => {
-    const { result } = renderHook(() =>
-      useWebSocket({
-        url: 'wss://test.example.com',
-        authToken: 'test-token',
-        enableHeartbeat: true,
-        heartbeatInterval: 5000,
-        heartbeatTimeout: 2000,
-      })
-    );
-
-    act(() => {
-      result.current.connect();
-      mockWsInstance?.simulateOpen();
-      mockWsInstance?.simulateMessage({ type: 'auth_success' });
-    });
-
-    // Trigger heartbeat
-    await act(async () => {
-      vi.advanceTimersByTime(5100);
-    });
-
-    // Simulate pong response
-    act(() => {
-      mockWsInstance?.simulateMessage({ type: 'pong' });
-    });
-
-    // Connection should still be open after heartbeat timeout would have expired
-    await act(async () => {
-      vi.advanceTimersByTime(3000);
-    });
-
-    expect(result.current.isConnected).toBe(true);
-  });
-
-  it('should ignore messages before authentication', async () => {
-    const handler = vi.fn();
-    const { result } = renderHook(() =>
-      useWebSocket({
-        url: 'wss://test.example.com',
-        authToken: 'test-token',
-      })
-    );
-
-    act(() => {
-      result.current.subscribe('lead.updated', handler);
-      result.current.connect();
-      mockWsInstance?.simulateOpen();
-    });
-
-    // Send message before auth_success
-    act(() => {
-      mockWsInstance?.simulateMessage({ type: 'lead.updated', data: {} });
-    });
-
-    expect(handler).not.toHaveBeenCalled();
-
-    // Now authenticate
-    act(() => {
-      mockWsInstance?.simulateMessage({ type: 'auth_success' });
-    });
-
-    // Send message after auth (must match subscription)
-    act(() => {
-      mockWsInstance?.simulateMessage({ type: 'lead.updated', data: { id: '123' } });
-    });
-
-    expect(handler).toHaveBeenCalledTimes(1);
   });
 });
