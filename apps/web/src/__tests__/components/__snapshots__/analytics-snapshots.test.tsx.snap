@@ -1,0 +1,532 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`MetricCard Snapshots > renders basic metric card 1`] = `
+<div>
+  <div
+    class="rounded-lg border bg-card text-card-foreground shadow-sm"
+  >
+    <div
+      class="p-4"
+    >
+      <div
+        class="flex items-start justify-between"
+      >
+        <div
+          class="space-y-1"
+        >
+          <p
+            class="text-sm text-muted-foreground"
+          >
+            Total Patients
+          </p>
+          <p
+            class="text-2xl font-bold"
+          >
+            1.234
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`MetricCard Snapshots > renders metric card with custom change label 1`] = `
+<div>
+  <div
+    class="rounded-lg border bg-card text-card-foreground shadow-sm"
+  >
+    <div
+      class="p-4"
+    >
+      <div
+        class="flex items-start justify-between"
+      >
+        <div
+          class="space-y-1"
+        >
+          <p
+            class="text-sm text-muted-foreground"
+          >
+            Weekly Active
+          </p>
+          <p
+            class="text-2xl font-bold"
+          >
+            890
+          </p>
+        </div>
+      </div>
+      <div
+        class="mt-2 flex items-center gap-1 text-xs"
+      >
+        <span
+          class="flex items-center gap-0.5 font-medium text-green-600"
+        >
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-trending-up h-3 w-3"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M16 7h6v6"
+            />
+            <path
+              d="m22 7-8.5 8.5-5-5L2 17"
+            />
+          </svg>
+          5.2
+          %
+        </span>
+        <span
+          class="text-muted-foreground"
+        >
+          fata de saptamana trecuta
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`MetricCard Snapshots > renders metric card with icon 1`] = `
+<div>
+  <div
+    class="rounded-lg border bg-card text-card-foreground shadow-sm"
+  >
+    <div
+      class="p-4"
+    >
+      <div
+        class="flex items-start justify-between"
+      >
+        <div
+          class="space-y-1"
+        >
+          <p
+            class="text-sm text-muted-foreground"
+          >
+            Total Users
+          </p>
+          <p
+            class="text-2xl font-bold"
+          >
+            5.678
+          </p>
+        </div>
+        <div
+          class="p-2 rounded-lg bg-primary/10 text-primary"
+        >
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-users h-5 w-5"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"
+            />
+            <path
+              d="M16 3.128a4 4 0 0 1 0 7.744"
+            />
+            <path
+              d="M22 21v-2a4 4 0 0 0-3-3.87"
+            />
+            <circle
+              cx="9"
+              cy="7"
+              r="4"
+            />
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`MetricCard Snapshots > renders metric card with negative change 1`] = `
+<div>
+  <div
+    class="rounded-lg border bg-card text-card-foreground shadow-sm"
+  >
+    <div
+      class="p-4"
+    >
+      <div
+        class="flex items-start justify-between"
+      >
+        <div
+          class="space-y-1"
+        >
+          <p
+            class="text-sm text-muted-foreground"
+          >
+            Bounce Rate
+          </p>
+          <p
+            class="text-2xl font-bold"
+          >
+            35.2%
+          </p>
+        </div>
+        <div
+          class="p-2 rounded-lg bg-primary/10 text-primary"
+        >
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-trending-up h-5 w-5"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M16 7h6v6"
+            />
+            <path
+              d="m22 7-8.5 8.5-5-5L2 17"
+            />
+          </svg>
+        </div>
+      </div>
+      <div
+        class="mt-2 flex items-center gap-1 text-xs"
+      >
+        <span
+          class="flex items-center gap-0.5 font-medium text-red-600"
+        >
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-trending-down h-3 w-3"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M16 17h6v-6"
+            />
+            <path
+              d="m22 17-8.5-8.5-5 5L2 7"
+            />
+          </svg>
+          8.3
+          %
+        </span>
+        <span
+          class="text-muted-foreground"
+        >
+          vs perioada anterioară
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`MetricCard Snapshots > renders metric card with positive change 1`] = `
+<div>
+  <div
+    class="rounded-lg border bg-card text-card-foreground shadow-sm"
+  >
+    <div
+      class="p-4"
+    >
+      <div
+        class="flex items-start justify-between"
+      >
+        <div
+          class="space-y-1"
+        >
+          <p
+            class="text-sm text-muted-foreground"
+          >
+            Revenue
+          </p>
+          <p
+            class="text-2xl font-bold"
+          >
+            25.000 EUR
+          </p>
+        </div>
+        <div
+          class="p-2 rounded-lg bg-primary/10 text-primary"
+        >
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-dollar-sign h-5 w-5"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <line
+              x1="12"
+              x2="12"
+              y1="2"
+              y2="22"
+            />
+            <path
+              d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
+            />
+          </svg>
+        </div>
+      </div>
+      <div
+        class="mt-2 flex items-center gap-1 text-xs"
+      >
+        <span
+          class="flex items-center gap-0.5 font-medium text-green-600"
+        >
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-trending-up h-3 w-3"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M16 7h6v6"
+            />
+            <path
+              d="m22 7-8.5 8.5-5-5L2 17"
+            />
+          </svg>
+          12.5
+          %
+        </span>
+        <span
+          class="text-muted-foreground"
+        >
+          vs perioada anterioară
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`MetricCard Snapshots > renders metric card with prefix and suffix 1`] = `
+<div>
+  <div
+    class="rounded-lg border bg-card text-card-foreground shadow-sm"
+  >
+    <div
+      class="p-4"
+    >
+      <div
+        class="flex items-start justify-between"
+      >
+        <div
+          class="space-y-1"
+        >
+          <p
+            class="text-sm text-muted-foreground"
+          >
+            Custom Metric
+          </p>
+          <p
+            class="text-2xl font-bold"
+          >
+            ~
+            42
+             units
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`MetricCard Snapshots > renders metric card with time format 1`] = `
+<div>
+  <div
+    class="rounded-lg border bg-card text-card-foreground shadow-sm"
+  >
+    <div
+      class="p-4"
+    >
+      <div
+        class="flex items-start justify-between"
+      >
+        <div
+          class="space-y-1"
+        >
+          <p
+            class="text-sm text-muted-foreground"
+          >
+            Response Time
+          </p>
+          <p
+            class="text-2xl font-bold"
+          >
+            2.5 min
+          </p>
+        </div>
+        <div
+          class="p-2 rounded-lg bg-primary/10 text-primary"
+        >
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-clock h-5 w-5"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M12 6v6l4 2"
+            />
+            <circle
+              cx="12"
+              cy="12"
+              r="10"
+            />
+          </svg>
+        </div>
+      </div>
+      <div
+        class="mt-2 flex items-center gap-1 text-xs"
+      >
+        <span
+          class="flex items-center gap-0.5 font-medium text-green-600"
+        >
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-trending-down h-3 w-3"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M16 17h6v-6"
+            />
+            <path
+              d="m22 17-8.5-8.5-5 5L2 7"
+            />
+          </svg>
+          15.0
+          %
+        </span>
+        <span
+          class="text-muted-foreground"
+        >
+          vs perioada anterioară
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`MetricCard Snapshots > renders metric card with zero change 1`] = `
+<div>
+  <div
+    class="rounded-lg border bg-card text-card-foreground shadow-sm"
+  >
+    <div
+      class="p-4"
+    >
+      <div
+        class="flex items-start justify-between"
+      >
+        <div
+          class="space-y-1"
+        >
+          <p
+            class="text-sm text-muted-foreground"
+          >
+            Active Users
+          </p>
+          <p
+            class="text-2xl font-bold"
+          >
+            100
+          </p>
+        </div>
+      </div>
+      <div
+        class="mt-2 flex items-center gap-1 text-xs"
+      >
+        <span
+          class="flex items-center gap-0.5 font-medium text-muted-foreground"
+        >
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-minus h-3 w-3"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M5 12h14"
+            />
+          </svg>
+          0.0
+          %
+        </span>
+        <span
+          class="text-muted-foreground"
+        >
+          vs perioada anterioară
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+`;
