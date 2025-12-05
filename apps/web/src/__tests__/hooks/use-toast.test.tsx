@@ -1,240 +1,378 @@
+/**
+ * useToast - Platinum Standard Tests
+ *
+ * Pattern: AAA (Arrange–Act–Assert)
+ * Coverage: happy path + error path + edge cases + state sharing
+ * Cleanup: timers, mocks, global toast state - all properly isolated
+ */
+
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useToast, toast } from '../../hooks/use-toast';
 
-describe('useToast', () => {
+/**
+ * Helper to clear all toasts between tests
+ */
+function clearAllToasts() {
+  const { result } = renderHook(() => useToast());
+  act(() => {
+    result.current.toasts.forEach((t) => {
+      result.current.dismiss(t.id);
+    });
+  });
+}
+
+describe('useToast (platinum standard)', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    // Clear all existing toasts before each test
-    const { result } = renderHook(() => useToast());
-    act(() => {
-      result.current.toasts.forEach((t) => {
-        result.current.dismiss(t.id);
-      });
-    });
+    clearAllToasts();
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
+    vi.clearAllMocks();
+    clearAllToasts();
   });
 
-  it('should initialize with empty toasts array', () => {
-    const { result } = renderHook(() => useToast());
-    expect(result.current.toasts).toEqual([]);
-  });
+  describe('Basic functionality', () => {
+    it('initializes with empty toasts array', () => {
+      // ARRANGE & ACT
+      const { result } = renderHook(() => useToast());
 
-  it('should add a toast', () => {
-    const { result } = renderHook(() => useToast());
-
-    act(() => {
-      result.current.toast({ title: 'Test Toast' });
+      // ASSERT
+      expect(result.current.toasts).toEqual([]);
     });
 
-    expect(result.current.toasts).toHaveLength(1);
-    expect(result.current.toasts[0].title).toBe('Test Toast');
-  });
+    it('adds a toast with title', () => {
+      // ARRANGE
+      const { result } = renderHook(() => useToast());
 
-  it('should add a toast with description', () => {
-    const { result } = renderHook(() => useToast());
-
-    act(() => {
-      result.current.toast({
-        title: 'Test Toast',
-        description: 'Test Description',
+      // ACT
+      act(() => {
+        result.current.toast({ title: 'Test Toast' });
       });
+
+      // ASSERT
+      expect(result.current.toasts).toHaveLength(1);
+      expect(result.current.toasts[0].title).toBe('Test Toast');
     });
 
-    expect(result.current.toasts[0].title).toBe('Test Toast');
-    expect(result.current.toasts[0].description).toBe('Test Description');
-  });
+    it('adds a toast with title and description', () => {
+      // ARRANGE
+      const { result } = renderHook(() => useToast());
 
-  it('should add a toast with variant', () => {
-    const { result } = renderHook(() => useToast());
-
-    act(() => {
-      result.current.toast({
-        title: 'Success',
-        variant: 'success',
+      // ACT
+      act(() => {
+        result.current.toast({
+          title: 'Test Toast',
+          description: 'Test Description',
+        });
       });
+
+      // ASSERT
+      expect(result.current.toasts[0].title).toBe('Test Toast');
+      expect(result.current.toasts[0].description).toBe('Test Description');
     });
 
-    expect(result.current.toasts[0].variant).toBe('success');
+    it('adds a toast with variant', () => {
+      // ARRANGE
+      const { result } = renderHook(() => useToast());
+
+      // ACT
+      act(() => {
+        result.current.toast({
+          title: 'Success',
+          variant: 'success',
+        });
+      });
+
+      // ASSERT
+      expect(result.current.toasts[0].variant).toBe('success');
+    });
+
+    it('generates unique IDs for multiple toasts', () => {
+      // ARRANGE
+      const { result } = renderHook(() => useToast());
+
+      // ACT
+      act(() => {
+        result.current.toast({ title: 'Toast 1' });
+        result.current.toast({ title: 'Toast 2' });
+      });
+
+      // ASSERT
+      expect(result.current.toasts).toHaveLength(2);
+      expect(result.current.toasts[0].id).not.toBe(result.current.toasts[1].id);
+    });
+
+    it('returns toast ID when creating a toast', () => {
+      // ARRANGE
+      const { result } = renderHook(() => useToast());
+      let toastId: string;
+
+      // ACT
+      act(() => {
+        toastId = result.current.toast({ title: 'Test Toast' });
+      });
+
+      // ASSERT
+      expect(toastId!).toBeDefined();
+      expect(result.current.toasts[0].id).toBe(toastId!);
+    });
   });
 
-  it('should generate unique IDs for toasts', () => {
-    const { result } = renderHook(() => useToast());
+  describe('Dismissing toasts', () => {
+    it('dismisses a specific toast by ID', () => {
+      // ARRANGE
+      const { result } = renderHook(() => useToast());
+      let toastId: string;
 
-    act(() => {
-      result.current.toast({ title: 'Toast 1' });
-      result.current.toast({ title: 'Toast 2' });
+      act(() => {
+        toastId = result.current.toast({ title: 'Test Toast' });
+      });
+
+      expect(result.current.toasts).toHaveLength(1);
+
+      // ACT
+      act(() => {
+        result.current.dismiss(toastId);
+      });
+
+      // ASSERT
+      expect(result.current.toasts).toHaveLength(0);
     });
 
-    expect(result.current.toasts).toHaveLength(2);
-    expect(result.current.toasts[0].id).not.toBe(result.current.toasts[1].id);
+    it('dismisses only the specified toast when multiple exist', () => {
+      // ARRANGE
+      const { result } = renderHook(() => useToast());
+      let toast1Id: string;
+      let toast2Id: string;
+
+      act(() => {
+        toast1Id = result.current.toast({ title: 'Toast 1' });
+        toast2Id = result.current.toast({ title: 'Toast 2' });
+      });
+
+      expect(result.current.toasts).toHaveLength(2);
+
+      // ACT
+      act(() => {
+        result.current.dismiss(toast1Id);
+      });
+
+      // ASSERT
+      expect(result.current.toasts).toHaveLength(1);
+      expect(result.current.toasts[0].id).toBe(toast2Id);
+    });
+
+    it('handles dismissing non-existent toast gracefully', () => {
+      // ARRANGE
+      const { result } = renderHook(() => useToast());
+
+      act(() => {
+        result.current.toast({ title: 'Test Toast' });
+      });
+
+      // ACT & ASSERT - should not throw
+      act(() => {
+        result.current.dismiss('non-existent-id');
+      });
+
+      expect(result.current.toasts).toHaveLength(1);
+    });
   });
 
-  it('should dismiss a toast', () => {
-    const { result } = renderHook(() => useToast());
+  describe('Auto-dismiss behavior', () => {
+    it('auto-dismisses toast after 5 seconds', async () => {
+      // ARRANGE
+      const { result } = renderHook(() => useToast());
 
-    let toastId: string;
+      act(() => {
+        result.current.toast({ title: 'Test Toast' });
+      });
 
-    act(() => {
-      toastId = result.current.toast({ title: 'Test Toast' });
+      expect(result.current.toasts).toHaveLength(1);
+
+      // ACT - advance time by 5 seconds
+      await act(async () => {
+        vi.advanceTimersByTime(5000);
+        await Promise.resolve();
+      });
+
+      // ASSERT
+      expect(result.current.toasts).toHaveLength(0);
     });
 
-    expect(result.current.toasts).toHaveLength(1);
+    it('does not dismiss toast before 5 seconds', () => {
+      // ARRANGE
+      const { result } = renderHook(() => useToast());
 
-    act(() => {
-      result.current.dismiss(toastId);
+      act(() => {
+        result.current.toast({ title: 'Test Toast' });
+      });
+
+      expect(result.current.toasts).toHaveLength(1);
+
+      // ACT - advance time by 3 seconds (less than 5)
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      // ASSERT
+      expect(result.current.toasts).toHaveLength(1);
     });
 
-    expect(result.current.toasts).toHaveLength(0);
+    it('auto-dismisses multiple toasts independently', async () => {
+      // ARRANGE
+      const { result } = renderHook(() => useToast());
+
+      act(() => {
+        result.current.toast({ title: 'Toast 1' });
+      });
+
+      // Add second toast after 2 seconds
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+
+      act(() => {
+        result.current.toast({ title: 'Toast 2' });
+      });
+
+      expect(result.current.toasts).toHaveLength(2);
+
+      // ACT - advance 3 more seconds (5 total for first toast)
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+        await Promise.resolve();
+      });
+
+      // ASSERT - first toast dismissed, second still present
+      expect(result.current.toasts).toHaveLength(1);
+      expect(result.current.toasts[0].title).toBe('Toast 2');
+
+      // Advance 2 more seconds (5 total for second toast)
+      await act(async () => {
+        vi.advanceTimersByTime(2000);
+        await Promise.resolve();
+      });
+
+      expect(result.current.toasts).toHaveLength(0);
+    });
   });
 
-  it('should auto-dismiss toast after 5 seconds', async () => {
-    const { result } = renderHook(() => useToast());
+  describe('Multiple toasts', () => {
+    it('handles multiple toasts correctly', () => {
+      // ARRANGE
+      const { result } = renderHook(() => useToast());
 
-    act(() => {
-      result.current.toast({ title: 'Test Toast' });
+      // ACT
+      act(() => {
+        result.current.toast({ title: 'Toast 1' });
+        result.current.toast({ title: 'Toast 2' });
+        result.current.toast({ title: 'Toast 3' });
+      });
+
+      // ASSERT
+      expect(result.current.toasts).toHaveLength(3);
     });
 
-    expect(result.current.toasts).toHaveLength(1);
+    it('maintains order when adding multiple toasts', () => {
+      // ARRANGE
+      const { result } = renderHook(() => useToast());
 
-    // Fast-forward time by 5 seconds
-    await act(async () => {
-      vi.advanceTimersByTime(5000);
-      await Promise.resolve();
+      // ACT
+      act(() => {
+        result.current.toast({ title: 'First' });
+        result.current.toast({ title: 'Second' });
+        result.current.toast({ title: 'Third' });
+      });
+
+      // ASSERT
+      expect(result.current.toasts[0].title).toBe('First');
+      expect(result.current.toasts[1].title).toBe('Second');
+      expect(result.current.toasts[2].title).toBe('Third');
     });
-
-    expect(result.current.toasts).toHaveLength(0);
-  });
-
-  it('should not dismiss toast before 5 seconds', () => {
-    const { result } = renderHook(() => useToast());
-
-    act(() => {
-      result.current.toast({ title: 'Test Toast' });
-    });
-
-    expect(result.current.toasts).toHaveLength(1);
-
-    // Fast-forward time by 3 seconds (less than 5)
-    act(() => {
-      vi.advanceTimersByTime(3000);
-    });
-
-    expect(result.current.toasts).toHaveLength(1);
-  });
-
-  it('should handle multiple toasts', () => {
-    const { result } = renderHook(() => useToast());
-
-    act(() => {
-      result.current.toast({ title: 'Toast 1' });
-      result.current.toast({ title: 'Toast 2' });
-      result.current.toast({ title: 'Toast 3' });
-    });
-
-    expect(result.current.toasts).toHaveLength(3);
-  });
-
-  it('should maintain order when adding multiple toasts', () => {
-    const { result } = renderHook(() => useToast());
-
-    act(() => {
-      result.current.toast({ title: 'First' });
-      result.current.toast({ title: 'Second' });
-      result.current.toast({ title: 'Third' });
-    });
-
-    expect(result.current.toasts[0].title).toBe('First');
-    expect(result.current.toasts[1].title).toBe('Second');
-    expect(result.current.toasts[2].title).toBe('Third');
-  });
-
-  it('should dismiss only the specified toast', () => {
-    const { result } = renderHook(() => useToast());
-
-    let toast1Id: string;
-    let toast2Id: string;
-
-    act(() => {
-      toast1Id = result.current.toast({ title: 'Toast 1' });
-      toast2Id = result.current.toast({ title: 'Toast 2' });
-    });
-
-    expect(result.current.toasts).toHaveLength(2);
-
-    act(() => {
-      result.current.dismiss(toast1Id);
-    });
-
-    expect(result.current.toasts).toHaveLength(1);
-    expect(result.current.toasts[0].id).toBe(toast2Id);
   });
 
   describe('Convenience methods', () => {
-    it('should create success toast', () => {
+    it('creates success toast with correct variant', () => {
+      // ARRANGE
       const { result } = renderHook(() => useToast());
 
+      // ACT
       act(() => {
         toast.success('Success!', 'Operation completed');
       });
 
+      // ASSERT
       expect(result.current.toasts[0].title).toBe('Success!');
       expect(result.current.toasts[0].description).toBe('Operation completed');
       expect(result.current.toasts[0].variant).toBe('success');
     });
 
-    it('should create error toast', () => {
+    it('creates error toast with correct variant', () => {
+      // ARRANGE
       const { result } = renderHook(() => useToast());
 
+      // ACT
       act(() => {
         toast.error('Error!', 'Something went wrong');
       });
 
+      // ASSERT
       expect(result.current.toasts[0].title).toBe('Error!');
       expect(result.current.toasts[0].description).toBe('Something went wrong');
       expect(result.current.toasts[0].variant).toBe('error');
     });
 
-    it('should create warning toast', () => {
+    it('creates warning toast with correct variant', () => {
+      // ARRANGE
       const { result } = renderHook(() => useToast());
 
+      // ACT
       act(() => {
         toast.warning('Warning!', 'Be careful');
       });
 
+      // ASSERT
       expect(result.current.toasts[0].title).toBe('Warning!');
       expect(result.current.toasts[0].description).toBe('Be careful');
       expect(result.current.toasts[0].variant).toBe('warning');
     });
 
-    it('should create default toast', () => {
+    it('creates default toast with correct variant', () => {
+      // ARRANGE
       const { result } = renderHook(() => useToast());
 
+      // ACT
       act(() => {
         toast.default('Info', 'Some information');
       });
 
+      // ASSERT
       expect(result.current.toasts[0].title).toBe('Info');
       expect(result.current.toasts[0].description).toBe('Some information');
       expect(result.current.toasts[0].variant).toBe('default');
     });
 
-    it('should work without description', () => {
+    it('works without description', () => {
+      // ARRANGE
       const { result } = renderHook(() => useToast());
 
+      // ACT
       act(() => {
         toast.success('Success!');
       });
 
+      // ASSERT
       expect(result.current.toasts[0].title).toBe('Success!');
       expect(result.current.toasts[0].description).toBeUndefined();
     });
 
-    it('should auto-dismiss convenience method toasts', async () => {
+    it('auto-dismisses convenience method toasts', async () => {
+      // ARRANGE
       const { result } = renderHook(() => useToast());
 
       act(() => {
@@ -243,30 +381,36 @@ describe('useToast', () => {
 
       expect(result.current.toasts).toHaveLength(1);
 
+      // ACT
       await act(async () => {
         vi.advanceTimersByTime(5000);
         await Promise.resolve();
       });
 
+      // ASSERT
       expect(result.current.toasts).toHaveLength(0);
     });
   });
 
-  describe('State sharing', () => {
-    it('should share state across multiple hook instances', () => {
+  describe('State sharing across hook instances', () => {
+    it('shares state across multiple hook instances', () => {
+      // ARRANGE
       const { result: result1 } = renderHook(() => useToast());
       const { result: result2 } = renderHook(() => useToast());
 
+      // ACT
       act(() => {
         result1.current.toast({ title: 'Shared Toast' });
       });
 
+      // ASSERT
       expect(result1.current.toasts).toHaveLength(1);
       expect(result2.current.toasts).toHaveLength(1);
       expect(result1.current.toasts[0].id).toBe(result2.current.toasts[0].id);
     });
 
-    it('should update all hook instances when toast is dismissed', () => {
+    it('updates all hook instances when toast is dismissed', () => {
+      // ARRANGE
       const { result: result1 } = renderHook(() => useToast());
       const { result: result2 } = renderHook(() => useToast());
 
@@ -279,12 +423,30 @@ describe('useToast', () => {
       expect(result1.current.toasts).toHaveLength(1);
       expect(result2.current.toasts).toHaveLength(1);
 
+      // ACT - dismiss from second instance
       act(() => {
         result2.current.dismiss(toastId);
       });
 
+      // ASSERT - both instances reflect the change
       expect(result1.current.toasts).toHaveLength(0);
       expect(result2.current.toasts).toHaveLength(0);
+    });
+
+    it('reflects toasts created from any instance', () => {
+      // ARRANGE
+      const { result: result1 } = renderHook(() => useToast());
+      const { result: result2 } = renderHook(() => useToast());
+
+      // ACT
+      act(() => {
+        result1.current.toast({ title: 'From Instance 1' });
+        result2.current.toast({ title: 'From Instance 2' });
+      });
+
+      // ASSERT
+      expect(result1.current.toasts).toHaveLength(2);
+      expect(result2.current.toasts).toHaveLength(2);
     });
   });
 });
