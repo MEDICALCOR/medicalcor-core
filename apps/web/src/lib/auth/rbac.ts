@@ -190,10 +190,7 @@ export function hasPermission(role: UserRole | undefined, permission: Permission
 /**
  * Check if a role has ALL of the specified permissions
  */
-export function hasAllPermissions(
-  role: UserRole | undefined,
-  permissions: Permission[]
-): boolean {
+export function hasAllPermissions(role: UserRole | undefined, permissions: Permission[]): boolean {
   if (!role) return false;
   return permissions.every((p) => hasPermission(role, p));
 }
@@ -201,10 +198,7 @@ export function hasAllPermissions(
 /**
  * Check if a role has ANY of the specified permissions
  */
-export function hasAnyPermission(
-  role: UserRole | undefined,
-  permissions: Permission[]
-): boolean {
+export function hasAnyPermission(role: UserRole | undefined, permissions: Permission[]): boolean {
   if (!role) return false;
   return permissions.some((p) => hasPermission(role, p));
 }
@@ -296,24 +290,32 @@ export const PAGE_ACCESS: Record<string, PageAccess> = {
 };
 
 /**
+ * Find page access configuration for a given pathname
+ */
+function findPageConfig(pathname: string): PageAccess | undefined {
+  // Direct match first
+  if (Object.hasOwn(PAGE_ACCESS, pathname)) {
+    return PAGE_ACCESS[pathname];
+  }
+
+  // Try to match dynamic routes
+  for (const [pattern, config] of Object.entries(PAGE_ACCESS)) {
+    if (pattern.includes('[') && matchDynamicRoute(pathname, pattern)) {
+      return config;
+    }
+  }
+
+  return undefined;
+}
+
+/**
  * Check if a user can access a specific page
  */
 export function canAccessPage(
   role: UserRole | undefined,
   pathname: string
 ): { allowed: boolean; reason?: string } {
-  // Find matching page config
-  let pageConfig: PageAccess | undefined = PAGE_ACCESS[pathname];
-
-  // Try to match dynamic routes
-  if (!pageConfig) {
-    for (const [pattern, config] of Object.entries(PAGE_ACCESS)) {
-      if (pattern.includes('[') && matchDynamicRoute(pathname, pattern)) {
-        pageConfig = config;
-        break;
-      }
-    }
-  }
+  const pageConfig = findPageConfig(pathname);
 
   // If no config found, allow by default (public pages)
   if (!pageConfig) {
