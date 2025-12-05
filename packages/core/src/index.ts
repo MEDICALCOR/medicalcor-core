@@ -636,3 +636,61 @@ export {
 
 // Re-export all types from the types module
 export * from './types/index.js';
+
+// =============================================================================
+// COGNITIVE EPISODIC MEMORY (ADR-004)
+// =============================================================================
+// AI-powered patient interaction memory for contextual responses and pattern detection
+
+export {
+  // Factory
+  createCognitiveSystem,
+  // Services
+  EpisodeBuilder,
+  createEpisodeBuilder,
+  MemoryRetrievalService,
+  createMemoryRetrievalService,
+  // Configuration
+  DEFAULT_COGNITIVE_CONFIG,
+  // Schemas
+  SubjectTypeSchema,
+  SourceChannelSchema,
+  EventCategorySchema,
+  SentimentSchema,
+  PatternTypeSchema,
+  InsightTypeSchema,
+  SentimentTrendSchema,
+  KeyEntitySchema,
+  EpisodicEventSchema,
+  CreateEpisodicEventSchema,
+  BehavioralPatternSchema,
+  MemoryQuerySchema,
+  CognitiveInsightSchema,
+  // Types
+  type SubjectType,
+  type SourceChannel,
+  type EventCategory,
+  type Sentiment,
+  type PatternType,
+  type InsightType,
+  type SentimentTrend,
+  type KeyEntity,
+  type EpisodicEvent,
+  type EpisodicEventWithEmbedding,
+  type CreateEpisodicEvent,
+  type BehavioralPattern,
+  type MemoryQuery,
+  type SubjectMemorySummary,
+  type CognitiveInsight,
+  type CognitiveInsightWithEvents,
+  type RawEventContext,
+  type EventAnalysisResult,
+  type PatternDetectionResult,
+  type LLMPattern,
+  type MemoryContext,
+  type CognitiveSystemConfig,
+  type CognitiveSystemDependencies,
+  type CognitiveSystem,
+  type IOpenAIClient,
+  // Note: IEmbeddingService is exported from './rag/index.js' to avoid duplicate
+} from './cognitive/index.js';
