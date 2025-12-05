@@ -51,7 +51,7 @@ export interface GetOsaxCasesOptions {
 /**
  * Get OSAX cases with optional filtering
  */
-export function getOsaxCases(options: GetOsaxCasesOptions = {}): Promise<OsaxCaseListItem[]> {
+export async function getOsaxCases(options: GetOsaxCasesOptions = {}): Promise<OsaxCaseListItem[]> {
   // In production, this would use the actual repository
   // For now, return mock data
 
@@ -156,7 +156,7 @@ export async function getOsaxCaseById(id: string): Promise<OsaxCaseListItem | nu
 /**
  * Get OSAX dashboard statistics
  */
-export function getOsaxStatistics(): Promise<OsaxStatistics> {
+export async function getOsaxStatistics(): Promise<OsaxStatistics> {
   // In production, this would aggregate from the repository
   return Promise.resolve({
     totalCases: 247,
@@ -224,7 +224,7 @@ export async function getSeverityDistribution(): Promise<{ severity: string; cou
 /**
  * Get treatment type distribution
  */
-export function getTreatmentDistribution(): Promise<{ type: string; count: number }[]> {
+export async function getTreatmentDistribution(): Promise<{ type: string; count: number }[]> {
   // In production, aggregate from repository
   return Promise.resolve([
     { type: 'CPAP_THERAPY', count: 52 },

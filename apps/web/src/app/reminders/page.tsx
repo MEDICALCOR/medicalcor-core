@@ -290,7 +290,7 @@ export default function RemindersPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Rată livrare</p>
-                <p className="text-xl font-bold">{stats.deliveryRate.toFixed(1)}%</p>
+                <p className="text-xl font-bold">{(stats?.deliveryRate ?? 0).toFixed(1)}%</p>
               </div>
             </div>
           </CardContent>

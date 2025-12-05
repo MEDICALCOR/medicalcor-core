@@ -108,7 +108,8 @@ export default function WaitingListPage() {
     startTransition(async () => {
       const result = await updateWaitingPatientAction({ id, status });
       if (result.patient) {
-        setWaitingList((prev) => prev.map((p) => (p.id === id ? result.patient : p)));
+        const updatedPatient = result.patient;
+        setWaitingList((prev) => prev.map((p) => (p.id === id ? updatedPatient : p)));
         toast({ title: 'Succes', description: 'Statusul a fost actualizat' });
       } else {
         toast({ title: 'Eroare', description: result.error, variant: 'destructive' });
