@@ -15,7 +15,7 @@
 import { trace, context, SpanStatusCode, SpanKind } from '@opentelemetry/api';
 import type { Span, Tracer, SpanOptions, Context } from '@opentelemetry/api';
 import { NodeSDK } from '@opentelemetry/sdk-node';
-import { Resource } from '@opentelemetry/resources';
+import { resourceFromAttributes } from '@opentelemetry/resources';
 import {
   SEMRESATTRS_SERVICE_NAME,
   SEMRESATTRS_SERVICE_VERSION,
@@ -75,7 +75,7 @@ export function initTelemetry(config: TelemetryConfig): void {
   }
 
   try {
-    const resource = new Resource({
+    const resource = resourceFromAttributes({
       [SEMRESATTRS_SERVICE_NAME]: serviceName,
       [SEMRESATTRS_SERVICE_VERSION]: serviceVersion,
       [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: environment,
