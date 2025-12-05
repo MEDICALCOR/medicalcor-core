@@ -3,12 +3,16 @@ name: Repo Meta Setup
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   labels:
     runs-on: ubuntu-latest
     steps:
       - name: Apply default labels
-        uses: actions-ecosystem/action-create-labels@v1
+        uses: actions-ecosystem/action-create-labels@e86c9dc1bdfdc6d0e21c076c87d6ea7e188bf3b7 # v1.1.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           labels: |
