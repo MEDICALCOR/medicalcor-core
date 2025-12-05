@@ -9,6 +9,8 @@
 
 import type {
   OsaxDomainEventUnion,
+  OsaxCaseCreatedEvent,
+  OsaxCaseStatusChangedEvent,
   OsaxCaseScoredEvent,
   OsaxCaseReviewedEvent,
   OsaxTreatmentInitiatedEvent,
@@ -89,6 +91,189 @@ export interface EventHandlerResult {
 // ============================================================================
 // EVENT HANDLERS
 // ============================================================================
+
+/**
+ * Handle OsaxCaseCreated event
+ *
+ * Side effects:
+ * - Record audit log entry
+ * - Record metrics
+ * - Create initial CRM record
+ * - Notify assigned specialist if any
+ */
+export async function handleOsaxCaseCreated(
+  event: OsaxCaseCreatedEvent,
+  deps: OsaxEventHandlerDeps
+): Promise<EventHandlerResult> {
+  const handledBy: string[] = [];
+  const errors: string[] = [];
+
+  const { payload, aggregateId } = event;
+
+  try {
+    // 1. Record metrics
+    if (deps.metricsCollector) {
+      deps.metricsCollector.incrementCounter('osax.case.created', {
+        priority: payload.priority,
+        consent_status: payload.consentStatus,
+      });
+      handledBy.push('metrics:recorded');
+    }
+
+    // 2. Create CRM record
+    if (deps.crmGateway) {
+      await deps.crmGateway.logActivity(
+        aggregateId,
+        'osax_case_created',
+        `OSAX Case ${payload.caseNumber} created with priority ${payload.priority}`
+      );
+      handledBy.push('crm:log_activity');
+    }
+
+    // 3. Notify assigned specialist if urgent
+    if (deps.notificationService && payload.assignedSpecialistId && payload.priority === 'URGENT') {
+      await deps.notificationService.sendPushNotification(
+        payload.assignedSpecialistId,
+        'New Urgent OSAX Case',
+        `Case ${payload.caseNumber} requires immediate attention`
+      );
+      handledBy.push('notification:specialist');
+    }
+
+    // 4. Trigger intake workflow for new cases
+    if (deps.workflowTrigger) {
+      await deps.workflowTrigger.triggerWorkflow('osax-case-intake', {
+        caseId: aggregateId,
+        caseNumber: payload.caseNumber,
+        priority: payload.priority,
+        patientId: payload.patientId,
+        correlationId: event.metadata.correlationId,
+      });
+      handledBy.push('workflow:intake');
+    }
+
+    // 5. Audit log
+    if (deps.auditLogger) {
+      await deps.auditLogger.log(event);
+      handledBy.push('audit:logged');
+    }
+
+    return { success: true, handledBy };
+  } catch (err) {
+    errors.push(err instanceof Error ? err.message : 'Unknown error');
+    return { success: false, handledBy, errors };
+  }
+}
+
+/**
+ * Handle OsaxCaseStatusChanged event
+ *
+ * Side effects:
+ * - Record status transition metrics
+ * - Update CRM lifecycle stage
+ * - Trigger appropriate workflows based on new status
+ * - Notify relevant parties
+ */
+export async function handleOsaxCaseStatusChanged(
+  event: OsaxCaseStatusChangedEvent,
+  deps: OsaxEventHandlerDeps
+): Promise<EventHandlerResult> {
+  const handledBy: string[] = [];
+  const errors: string[] = [];
+
+  const { payload, aggregateId } = event;
+
+  try {
+    // 1. Record metrics
+    if (deps.metricsCollector) {
+      deps.metricsCollector.incrementCounter('osax.case.status_changed', {
+        from_status: payload.previousStatus,
+        to_status: payload.newStatus,
+      });
+      handledBy.push('metrics:recorded');
+    }
+
+    // 2. Update CRM with new status
+    if (deps.crmGateway) {
+      await deps.crmGateway.updateContact(aggregateId, {
+        osax_case_status: payload.newStatus,
+        osax_status_changed_at: new Date().toISOString(),
+        osax_status_changed_by: payload.changedBy,
+      });
+
+      await deps.crmGateway.logActivity(
+        aggregateId,
+        'osax_status_changed',
+        `Case ${payload.caseNumber} status changed from ${payload.previousStatus} to ${payload.newStatus}${payload.reason ? `: ${payload.reason}` : ''}`
+      );
+      handledBy.push('crm:updated');
+    }
+
+    // 3. Trigger workflows based on new status
+    if (deps.workflowTrigger) {
+      switch (payload.newStatus) {
+        case 'SCORING':
+          await deps.workflowTrigger.triggerWorkflow('osax-scoring-queue', {
+            caseId: aggregateId,
+            caseNumber: payload.caseNumber,
+            correlationId: event.metadata.correlationId,
+          });
+          handledBy.push('workflow:scoring');
+          break;
+
+        case 'AWAITING_REVIEW':
+          await deps.workflowTrigger.triggerWorkflow('osax-review-queue', {
+            caseId: aggregateId,
+            caseNumber: payload.caseNumber,
+            correlationId: event.metadata.correlationId,
+          });
+          handledBy.push('workflow:review');
+          break;
+
+        case 'TREATMENT_PLANNED':
+          await deps.workflowTrigger.triggerWorkflow('osax-treatment-planning', {
+            caseId: aggregateId,
+            caseNumber: payload.caseNumber,
+            correlationId: event.metadata.correlationId,
+          });
+          handledBy.push('workflow:treatment');
+          break;
+
+        case 'CLOSED':
+        case 'CANCELLED':
+          await deps.workflowTrigger.triggerWorkflow('osax-case-closure', {
+            caseId: aggregateId,
+            caseNumber: payload.caseNumber,
+            finalStatus: payload.newStatus,
+            correlationId: event.metadata.correlationId,
+          });
+          handledBy.push('workflow:closure');
+          break;
+      }
+    }
+
+    // 4. Notify if case is stalled (ON_HOLD for too long could trigger separate check)
+    if (deps.notificationService && payload.newStatus === 'ON_HOLD') {
+      await deps.notificationService.sendPushNotification(
+        'care-coordinators',
+        'Case On Hold',
+        `Case ${payload.caseNumber} has been placed on hold${payload.reason ? `: ${payload.reason}` : ''}`
+      );
+      handledBy.push('notification:on_hold');
+    }
+
+    // 5. Audit log
+    if (deps.auditLogger) {
+      await deps.auditLogger.log(event);
+      handledBy.push('audit:logged');
+    }
+
+    return { success: true, handledBy };
+  } catch (err) {
+    errors.push(err instanceof Error ? err.message : 'Unknown error');
+    return { success: false, handledBy, errors };
+  }
+}
 
 /**
  * Handle OsaxCaseScored event
@@ -461,6 +646,10 @@ export async function routeOsaxEvent(
   deps: OsaxEventHandlerDeps
 ): Promise<EventHandlerResult> {
   switch (event.type) {
+    case 'osax.case.created':
+      return handleOsaxCaseCreated(event, deps);
+    case 'osax.case.status_changed':
+      return handleOsaxCaseStatusChanged(event, deps);
     case 'osax.case.scored':
       return handleOsaxCaseScored(event, deps);
     case 'osax.case.reviewed':
@@ -485,6 +674,9 @@ export async function routeOsaxEvent(
  */
 export function createOsaxEventHandler(deps: OsaxEventHandlerDeps) {
   return {
+    handleCaseCreated: (event: OsaxCaseCreatedEvent) => handleOsaxCaseCreated(event, deps),
+    handleCaseStatusChanged: (event: OsaxCaseStatusChangedEvent) =>
+      handleOsaxCaseStatusChanged(event, deps),
     handleCaseScored: (event: OsaxCaseScoredEvent) => handleOsaxCaseScored(event, deps),
     handleCaseReviewed: (event: OsaxCaseReviewedEvent) => handleOsaxCaseReviewed(event, deps),
     handleTreatmentInitiated: (event: OsaxTreatmentInitiatedEvent) =>
