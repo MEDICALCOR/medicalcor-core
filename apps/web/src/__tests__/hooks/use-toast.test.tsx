@@ -146,8 +146,8 @@ describe('useToast (platinum standard)', () => {
     it('dismisses only the specified toast when multiple exist', () => {
       // ARRANGE
       const { result } = renderHook(() => useToast());
-      let toast1Id: string;
-      let toast2Id: string;
+      let toast1Id = '';
+      let toast2Id = '';
 
       act(() => {
         toast1Id = result.current.toast({ title: 'Toast 1' });

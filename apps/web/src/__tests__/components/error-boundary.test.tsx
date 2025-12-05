@@ -235,7 +235,7 @@ describe('PageErrorBoundary', () => {
 
   it('should show error stack in development mode', () => {
     const originalEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'development';
+    vi.stubEnv('NODE_ENV', 'development');
 
     render(
       <PageErrorBoundary>
@@ -246,7 +246,7 @@ describe('PageErrorBoundary', () => {
     const stackElement = screen.getByText(/Test error message/i).closest('pre');
     expect(stackElement).toBeInTheDocument();
 
-    process.env.NODE_ENV = originalEnv;
+    vi.stubEnv('NODE_ENV', originalEnv!);
   });
 
   it('should show reload button', () => {
@@ -266,7 +266,9 @@ describe('PageErrorBoundary', () => {
       </PageErrorBoundary>
     );
 
-    expect(screen.getByRole('button', { name: /inapoi la pagina principala/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /inapoi la pagina principala/i })
+    ).toBeInTheDocument();
   });
 
   it('should show report feedback button when event ID exists', () => {
