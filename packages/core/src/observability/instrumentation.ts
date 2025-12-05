@@ -18,6 +18,9 @@ import {
   externalServiceRequests,
   externalServiceDuration,
 } from './metrics.js';
+import { createLogger } from '../logger.js';
+
+const logger = createLogger({ name: 'instrumentation' });
 
 // ============================================================================
 // LAZY TELEMETRY IMPORTS (Edge Runtime Compatible)
@@ -140,8 +143,8 @@ export function instrumentFastify(
       'http.route': request.routeOptions?.url ?? request.url,
       'http.user_agent': request.headers['user-agent'] ?? '',
       correlation_id: correlationId,
-    }).catch(() => {
-      // Silently fail if telemetry is not available (e.g., Edge Runtime)
+    }).catch((error: unknown) => {
+      logger.debug({ error }, 'Telemetry unavailable in Edge Runtime - span attributes not set');
     });
   });
 
@@ -162,8 +165,8 @@ export function instrumentFastify(
     await addSpanAttributesLazy({
       'http.status_code': reply.statusCode,
       'http.response_time_ms': duration * 1000,
-    }).catch(() => {
-      // Silently fail if telemetry is not available (e.g., Edge Runtime)
+    }).catch((error: unknown) => {
+      logger.debug({ error }, 'Telemetry unavailable in Edge Runtime - response attributes not set');
     });
   });
 
@@ -176,8 +179,8 @@ export function instrumentFastify(
       error: true,
       'error.type': error.name,
       'error.message': error.message,
-    }).catch(() => {
-      // Silently fail if telemetry is not available (e.g., Edge Runtime)
+    }).catch((telemetryError: unknown) => {
+      logger.debug({ error: telemetryError }, 'Telemetry unavailable in Edge Runtime - error attributes not set');
     });
   });
 }

@@ -91,8 +91,8 @@ async function getCaseReviewStatus(caseId: string): Promise<{
       status: 'ERROR',
     };
   } finally {
-    await client.end().catch(() => {
-      /* ignore cleanup errors */
+    await client.end().catch((error: unknown) => {
+      workflowLogger.debug({ error, caseId }, 'Database cleanup error in case review status');
     });
   }
 }
@@ -144,8 +144,8 @@ async function getFollowUpStatus(
     workflowLogger.error({ caseId, followUpType, error }, 'Failed to query follow-up status');
     return { completed: false, status: 'NOT_FOUND' };
   } finally {
-    await client.end().catch(() => {
-      /* ignore cleanup errors */
+    await client.end().catch((cleanupError: unknown) => {
+      workflowLogger.debug({ error: cleanupError, caseId, followUpType }, 'Database cleanup error in follow-up status');
     });
   }
 }

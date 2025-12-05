@@ -164,9 +164,11 @@ export default function WorkflowsPage() {
       .then((duplicated) => {
         setWorkflows((prev) => [duplicated, ...prev]);
       })
-      .catch(() => {
-        // Silent failure - UI remains in current state
-        // Permission errors handled server-side with AuthorizationError
+      .catch((error: unknown) => {
+        // UI remains in current state - permission errors handled server-side with AuthorizationError
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[workflows] Failed to duplicate workflow:', error);
+        }
       });
   }, []);
 
@@ -183,9 +185,11 @@ export default function WorkflowsPage() {
         setWorkflows((prev) => [newWorkflow, ...prev]);
         setSelectedTemplate(null);
         setActiveTab('workflows');
-      } catch {
-        // Silent failure - dialog remains open, user can retry
-        // Permission errors handled server-side with AuthorizationError
+      } catch (error) {
+        // Dialog remains open, user can retry - permission errors handled server-side with AuthorizationError
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[workflows] Failed to create workflow from template:', error);
+        }
       }
     });
   }, [selectedTemplate]);

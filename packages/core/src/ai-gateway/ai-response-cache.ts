@@ -12,6 +12,9 @@
 import crypto from 'crypto';
 import { z } from 'zod';
 import type { SecureRedisClient } from '../infrastructure/redis-client.js';
+import { createLogger } from '../logger.js';
+
+const logger = createLogger({ name: 'ai-response-cache' });
 
 /**
  * Cached AI response structure
@@ -186,8 +189,8 @@ export class AIResponseCache {
 
       this.stats.hits++;
       return response;
-    } catch {
-      // Failed to get cached response - graceful degradation
+    } catch (error) {
+      logger.debug({ error }, 'Failed to get cached response - graceful degradation');
       this.stats.misses++;
       return null;
     }
@@ -262,8 +265,8 @@ export class AIResponseCache {
       this.stats.responseCount++;
 
       return true;
-    } catch {
-      // Failed to cache response - continue without caching
+    } catch (error) {
+      logger.debug({ error }, 'Failed to cache response - continuing without caching');
       return false;
     }
   }
@@ -292,8 +295,8 @@ export class AIResponseCache {
     try {
       const deleted = await this.redis.del(cacheKey);
       return deleted > 0;
-    } catch {
-      // Failed to invalidate cache - continue
+    } catch (error) {
+      logger.debug({ error, cacheKey }, 'Failed to invalidate cache entry');
       return false;
     }
   }
@@ -314,8 +317,8 @@ export class AIResponseCache {
       await this.redis.del(indexKey);
 
       return deleted;
-    } catch {
-      // Failed to invalidate clinic cache - continue
+    } catch (error) {
+      logger.debug({ error, clinicId }, 'Failed to invalidate clinic cache');
       return 0;
     }
   }
@@ -336,8 +339,8 @@ export class AIResponseCache {
       }
 
       return await this.redis.del(...keys);
-    } catch {
-      // Failed to invalidate by type - continue
+    } catch (error) {
+      logger.debug({ error, responseType }, 'Failed to invalidate cache by type');
       return 0;
     }
   }
@@ -355,8 +358,8 @@ export class AIResponseCache {
       }
 
       return await this.redis.del(...keys);
-    } catch {
-      // Failed to invalidate patient cache - continue
+    } catch (error) {
+      logger.debug({ error, contextHash }, 'Failed to invalidate patient cache');
       return 0;
     }
   }

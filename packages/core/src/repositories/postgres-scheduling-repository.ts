@@ -13,12 +13,12 @@
  *
  * @example
  * ```typescript
- * import { PostgresSchedulingRepository } from '@medicalcor/core';
- * import type { ISchedulingRepository } from '@medicalcor/domain';
+ * import { PostgresSchedulingRepository } from '@medicalcor/core/repositories';
  *
- * const repository: ISchedulingRepository = new PostgresSchedulingRepository({
+ * const repository = new PostgresSchedulingRepository({
  *   connectionString: process.env.DATABASE_URL,
  *   timezone: 'Europe/Bucharest',
+ *   consentService: myConsentService,
  * });
  *
  * const slots = await repository.getAvailableSlots({ limit: 10 });
@@ -29,18 +29,115 @@ import { Pool } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { randomBytes } from 'crypto';
 import { createLogger } from '../logger.js';
-import type {
-  ISchedulingRepository,
-  TimeSlot,
-  BookingRequest,
-  BookingResult,
-  AppointmentDetails,
-  GetAvailableSlotsOptions,
-} from '@medicalcor/domain';
-import { ConsentRequiredError } from '@medicalcor/domain';
-import type { ConsentService } from '@medicalcor/domain';
 
 const logger = createLogger({ name: 'postgres-scheduling-repository' });
+
+// ============================================================================
+// LOCAL TYPE DEFINITIONS
+// These types mirror the domain types to avoid circular dependencies
+// ============================================================================
+
+/**
+ * Represents an available time slot for appointments
+ */
+export interface TimeSlot {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  duration: number;
+  available: boolean;
+  practitioner?: string;
+  procedureTypes: string[];
+}
+
+/**
+ * Request to book an appointment
+ */
+export interface BookingRequest {
+  hubspotContactId: string;
+  phone: string;
+  patientName?: string;
+  slotId: string;
+  procedureType: string;
+  notes?: string;
+}
+
+/**
+ * Result of a successful booking
+ */
+export interface BookingResult {
+  id: string;
+  status: string;
+}
+
+/**
+ * Appointment details returned from queries
+ */
+export interface AppointmentDetails {
+  id: string;
+  slot: {
+    date: string;
+    startTime: string;
+    duration: number;
+  };
+  patientName?: string;
+  procedureType: string;
+  hubspotContactId: string;
+  phone: string;
+  createdAt: string;
+}
+
+/**
+ * Options for fetching available slots
+ */
+export interface GetAvailableSlotsOptions {
+  procedureType?: string;
+  preferredDates?: string[];
+  limit?: number;
+}
+
+/**
+ * Consent verification result
+ */
+export interface ConsentCheckResult {
+  valid: boolean;
+  missing: string[];
+}
+
+/**
+ * Consent service interface for GDPR/HIPAA compliance
+ */
+export interface ConsentService {
+  hasRequiredConsents(contactId: string): Promise<ConsentCheckResult>;
+}
+
+/**
+ * Scheduling Repository Port Interface
+ */
+export interface ISchedulingRepository {
+  getAvailableSlots(options: string | GetAvailableSlotsOptions): Promise<TimeSlot[]>;
+  bookAppointment(request: BookingRequest): Promise<BookingResult>;
+  getUpcomingAppointments(startDate: Date, endDate: Date): Promise<AppointmentDetails[]>;
+}
+
+/**
+ * Error thrown when patient has not provided required consent
+ */
+export class ConsentRequiredError extends Error {
+  public readonly code = 'CONSENT_REQUIRED';
+  public readonly contactId: string;
+  public readonly missingConsents: string[];
+
+  constructor(contactId: string, missingConsents: string[]) {
+    super(
+      `Patient consent required before scheduling. Missing consents: ${missingConsents.join(', ')}`
+    );
+    this.name = 'ConsentRequiredError';
+    this.contactId = contactId;
+    this.missingConsents = missingConsents;
+  }
+}
 
 // ============================================================================
 // CONFIGURATION
@@ -311,9 +408,10 @@ export class PostgresSchedulingRepository implements ISchedulingRepository {
 
       await client.query('COMMIT');
       return { id: appointmentId, status: 'confirmed' };
-    } catch (e) {
+    } catch (error) {
       await client.query('ROLLBACK');
-      throw e;
+      logger.error({ error, slotId: request.slotId }, 'Failed to book appointment');
+      throw error;
     } finally {
       client.release();
     }

@@ -1,5 +1,8 @@
 import { ScoringOutputSchema } from '@medicalcor/types';
 import type { AIScoringContext, ScoringOutput, LeadScore } from '@medicalcor/types';
+import { createLogger } from '@medicalcor/core';
+
+const logger = createLogger({ name: 'scoring-service' });
 
 /**
  * AI Scoring Service
@@ -299,8 +302,8 @@ Provide your scoring analysis in JSON format.`;
       }
 
       return parseResult.data;
-    } catch {
-      // Return safe fallback
+    } catch (error) {
+      logger.warn({ error }, 'Failed to parse AI scoring response - using safe fallback');
       return {
         score: 2,
         classification: 'COLD',

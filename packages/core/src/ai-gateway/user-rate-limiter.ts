@@ -321,8 +321,8 @@ export class UserRateLimiter {
         resetAt,
         tier,
       };
-    } catch {
-      // Graceful degradation - allow request if Redis fails
+    } catch (error) {
+      logger.warn({ error, userId }, 'Redis rate limit check failed - allowing request (graceful degradation)');
       return this.allowedResult(userId, tier);
     }
   }
@@ -431,8 +431,8 @@ export class UserRateLimiter {
         dailyResetAt: dailyReset,
         monthlyResetAt: monthlyReset,
       };
-    } catch {
-      // Return empty stats on error
+    } catch (error) {
+      logger.warn({ error, userId }, 'Failed to get usage stats - returning empty stats');
       return {
         userId,
         tier: userTier,

@@ -9,6 +9,9 @@
 
 import { type Result, ok, err } from './result.js';
 import { incrementCounter, observeHistogram, setGauge } from './telemetry.js';
+import { createLogger } from '@medicalcor/core';
+
+const logger = createLogger({ name: 'resilience' });
 
 // =============================================================================
 // Bulkhead Pattern - Isolate Failures
@@ -299,7 +302,8 @@ export class RequestDeduplicator<T = unknown> {
     this.cache.set(key, entry);
 
     // Remove entry on error (allow retry)
-    promise.catch(() => {
+    promise.catch((error: unknown) => {
+      logger.debug({ error, key }, 'Request deduplication cache entry removed due to error');
       if (this.cache.get(key) === entry) {
         this.cache.delete(key);
       }

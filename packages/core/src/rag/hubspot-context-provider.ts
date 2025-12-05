@@ -11,6 +11,9 @@
  */
 
 import { z } from 'zod';
+import { createLogger } from '../logger.js';
+
+const logger = createLogger({ name: 'hubspot-context-provider' });
 
 /**
  * HubSpot Contact interface for RAG context
@@ -178,8 +181,8 @@ export class HubSpotContextProvider {
     try {
       const contact = await this.hubspotClient.getContact(contactId);
       return this.formatPatientContext(contact);
-    } catch {
-      // Failed to fetch contact - return null for graceful degradation
+    } catch (error) {
+      logger.debug({ error, contactId }, 'Failed to fetch HubSpot contact - graceful degradation');
       return null;
     }
   }
@@ -208,8 +211,8 @@ export class HubSpotContextProvider {
       }
 
       return this.formatPatientContext(contact);
-    } catch {
-      // Failed to search contacts - return null for graceful degradation
+    } catch (error) {
+      logger.debug({ error, phone }, 'Failed to search HubSpot contacts by phone - graceful degradation');
       return null;
     }
   }

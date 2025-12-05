@@ -22,8 +22,11 @@ function getStoredPreferences(): NotificationPreferences {
         ...JSON.parse(stored),
       } as NotificationPreferences;
     }
-  } catch {
-    // Invalid JSON, use defaults
+  } catch (error) {
+    // Invalid JSON stored in localStorage, use defaults
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[notifications] Failed to parse stored preferences:', error);
+    }
   }
   return DEFAULT_NOTIFICATION_PREFERENCES;
 }
@@ -196,10 +199,16 @@ function playNotificationSound() {
   try {
     const audio = new Audio('/sounds/notification.mp3');
     audio.volume = 0.5;
-    audio.play().catch(() => {
-      // Audio playback failed, ignore
+    audio.play().catch((error: unknown) => {
+      // Audio playback failed - common in browsers without user interaction
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('[notifications] Audio playback failed:', error);
+      }
     });
-  } catch {
-    // Audio not supported
+  } catch (error) {
+    // Audio API not supported in this environment
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[notifications] Audio not supported:', error);
+    }
   }
 }

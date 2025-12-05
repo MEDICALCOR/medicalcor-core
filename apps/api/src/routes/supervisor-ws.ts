@@ -6,7 +6,7 @@
  * using Server-Sent Events (SSE) and WebSocket connections.
  */
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
-import { generateCorrelationId, logger } from '@medicalcor/core';
+import { generateCorrelationId, logger, deepRedactObject, redactString } from '@medicalcor/core';
 import { getSupervisorAgent } from '@medicalcor/domain';
 import type { MonitoredCall, HandoffRequest } from '@medicalcor/types';
 import { randomUUID } from 'crypto';
@@ -83,6 +83,7 @@ class SupervisorSSEManager {
     );
 
     // Transcript events
+    // SECURITY: Transcript text is sanitized via redactString to remove embedded PII
     this.agent.on(
       'transcript:message',
       (callSid: string, speaker: 'customer' | 'agent' | 'assistant', text: string) => {
@@ -92,7 +93,7 @@ class SupervisorSSEManager {
           timestamp: new Date(),
           callSid,
           speaker,
-          text,
+          text: redactString(text), // GDPR: Redact PII patterns from transcript
         });
       }
     );
@@ -261,27 +262,36 @@ class SupervisorSSEManager {
 
   /**
    * Send event to specific client
+   *
+   * GDPR/HIPAA: Events are sanitized before transmission to remove PII
    */
   private sendToClient(client: SSEClient, event: Record<string, unknown>): void {
     try {
-      const data = `data: ${JSON.stringify(event)}\n\n`;
+      // SECURITY: Apply deep PII redaction before transmission
+      const sanitizedEvent = deepRedactObject(event);
+      const data = `data: ${JSON.stringify(sanitizedEvent)}\n\n`;
       client.response.raw.write(data);
-    } catch {
-      // Client disconnected, remove it
+    } catch (error) {
+      logger.debug({ error, clientId: client.id }, 'Failed to send event to client - client disconnected');
       this.clients.delete(client.id);
     }
   }
 
   /**
    * Broadcast event to all connected clients
+   *
+   * GDPR/HIPAA: All events are sanitized to remove PII before broadcasting
    */
   private broadcast(event: Record<string, unknown>): void {
+    // SECURITY: Apply deep PII redaction once before broadcasting to all clients
+    const sanitizedEvent = deepRedactObject(event);
+    const data = `data: ${JSON.stringify(sanitizedEvent)}\n\n`;
+
     for (const [clientId, client] of this.clients.entries()) {
       try {
-        const data = `data: ${JSON.stringify(event)}\n\n`;
         client.response.raw.write(data);
-      } catch {
-        // Client disconnected, remove it
+      } catch (error) {
+        logger.debug({ error, clientId }, 'Failed to broadcast to client - client disconnected');
         this.clients.delete(clientId);
       }
     }
