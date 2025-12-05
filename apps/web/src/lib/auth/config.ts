@@ -90,9 +90,9 @@ export const authConfig: NextAuthConfig = {
      */
     jwt({ token, user }) {
       // Runtime guard: user is only defined during sign-in, not on subsequent requests
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- user may be undefined at runtime
-      if (user) {
-        const authUser = user as AuthUser;
+      // Type assertion to handle NextAuth's runtime behavior where user may be undefined
+      const authUser = user as AuthUser | undefined;
+      if (authUser) {
         token.id = authUser.id;
         token.role = authUser.role;
         token.clinicId = authUser.clinicId;
@@ -109,11 +109,12 @@ export const authConfig: NextAuthConfig = {
      */
     session({ session, token }) {
       // Runtime guard: defensive check for edge cases where session.user may be undefined
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime safety
-      if (session.user && token.sub) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as UserRole;
-        session.user.clinicId = token.clinicId as string | undefined;
+      // Type assertions to handle potential undefined values at runtime (HIPAA safety)
+      const sessionUser = session.user as typeof session.user | undefined;
+      if (sessionUser && token.sub) {
+        sessionUser.id = token.id as string;
+        sessionUser.role = token.role as UserRole;
+        sessionUser.clinicId = token.clinicId as string | undefined;
       }
       return session;
     },

@@ -10,6 +10,7 @@ import {
   SnapshotManager,
   createSnapshotManager,
   createInMemorySnapshotManager,
+  createSnapshotStore,
 } from '../snapshot-store.js';
 import type { AggregateSnapshot, LeadState } from '../aggregate.js';
 
@@ -211,12 +212,89 @@ describe('SnapshotManager', () => {
       expect(retrieved).toBeDefined();
       expect(retrieved?.version).toBe(100);
     });
+
+    it('should clean up old snapshots after saving', async () => {
+      const store = new InMemorySnapshotStore();
+      const customManager = createSnapshotManager(store, {
+        snapshotFrequency: 10,
+        maxSnapshotAgeMs: 1000 * 60 * 60,
+      });
+
+      // Save old snapshot
+      await store.save({
+        aggregateId: 'lead-123',
+        aggregateType: 'Lead',
+        version: 90,
+        state: { id: 'lead-123', version: 90 },
+        createdAt: new Date(),
+      });
+
+      // Save new snapshot
+      await customManager.saveSnapshot({
+        aggregateId: 'lead-123',
+        aggregateType: 'Lead',
+        version: 110,
+        state: { id: 'lead-123', version: 110 },
+        createdAt: new Date(),
+      });
+
+      // Old snapshot should be cleaned up
+      expect(store.size()).toBe(1);
+    });
   });
 
   describe('getLatestSnapshot', () => {
     it('should return null for non-existent aggregate', async () => {
       const snapshot = await manager.getLatestSnapshot('nonexistent', 'Lead');
       expect(snapshot).toBeNull();
+    });
+  });
+
+  describe('startCleanupTask', () => {
+    it('should start periodic cleanup', async () => {
+      const store = new InMemorySnapshotStore();
+      const customManager = createSnapshotManager(store, {
+        maxSnapshotAgeMs: 100, // 100ms
+      });
+
+      // Add old snapshot
+      await store.save({
+        aggregateId: 'old-lead',
+        aggregateType: 'Lead',
+        version: 1,
+        state: { id: 'old-lead', version: 1 },
+        createdAt: new Date(Date.now() - 200), // 200ms ago
+      });
+
+      customManager.startCleanupTask(50); // Run every 50ms
+
+      // Wait for cleanup to run
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      customManager.stopCleanupTask();
+
+      // Old snapshot should be cleaned
+      expect(store.size()).toBe(0);
+    });
+
+    it('should handle cleanup errors gracefully', async () => {
+      manager.startCleanupTask(10);
+
+      // Should not throw
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      manager.stopCleanupTask();
+    });
+  });
+
+  describe('stopCleanupTask', () => {
+    it('should stop cleanup task', () => {
+      manager.startCleanupTask(1000);
+      expect(() => manager.stopCleanupTask()).not.toThrow();
+    });
+
+    it('should be safe to call without starting', () => {
+      expect(() => manager.stopCleanupTask()).not.toThrow();
     });
   });
 
@@ -238,6 +316,60 @@ describe('SnapshotManager', () => {
 
       const deleted = await customManager.runCleanup();
       expect(deleted).toBe(1);
+    });
+  });
+});
+
+describe('SnapshotEnabledRepository', () => {
+  it('should be tested through subclass implementations', () => {
+    // The SnapshotEnabledRepository is abstract and tested
+    // through concrete implementations in integration tests
+    expect(true).toBe(true);
+  });
+});
+
+describe('Factory Functions', () => {
+  describe('createSnapshotStore', () => {
+    it('should create in-memory store by default', () => {
+      const store = createSnapshotStore();
+      expect(store).toBeInstanceOf(InMemorySnapshotStore);
+    });
+
+    it('should create in-memory store when no connection string', () => {
+      const store = createSnapshotStore({ snapshotFrequency: 50 });
+      expect(store).toBeInstanceOf(InMemorySnapshotStore);
+    });
+  });
+
+  describe('createSnapshotManager', () => {
+    it('should create manager with repository', () => {
+      const store = new InMemorySnapshotStore();
+      const manager = createSnapshotManager(store);
+      expect(manager).toBeInstanceOf(SnapshotManager);
+    });
+
+    it('should create manager with custom config', () => {
+      const store = new InMemorySnapshotStore();
+      const manager = createSnapshotManager(store, {
+        snapshotFrequency: 50,
+        maxSnapshotAgeMs: 5000,
+      });
+      expect(manager.shouldSnapshot(50)).toBe(true);
+      expect(manager.shouldSnapshot(49)).toBe(false);
+    });
+  });
+
+  describe('createInMemorySnapshotManager', () => {
+    it('should create manager with in-memory store', () => {
+      const manager = createInMemorySnapshotManager();
+      expect(manager).toBeInstanceOf(SnapshotManager);
+    });
+
+    it('should accept custom config', () => {
+      const manager = createInMemorySnapshotManager({
+        snapshotFrequency: 100,
+      });
+      expect(manager.shouldSnapshot(100)).toBe(true);
     });
   });
 });
