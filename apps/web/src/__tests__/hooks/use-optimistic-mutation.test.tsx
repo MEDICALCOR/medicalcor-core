@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -8,6 +8,9 @@ import {
 } from '@/lib/mutations/use-optimistic-mutation';
 import { ReactNode } from 'react';
 
+// Shared QueryClient reference for cleanup
+let activeQueryClient: QueryClient | null = null;
+
 // Create a wrapper with QueryClientProvider
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -16,6 +19,7 @@ function createWrapper() {
       mutations: { retry: false },
     },
   });
+  activeQueryClient = queryClient;
 
   return {
     queryClient,
@@ -28,6 +32,12 @@ function createWrapper() {
 describe('useOptimisticMutation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    // Clean up QueryClient to prevent state leakage
+    activeQueryClient?.clear();
+    activeQueryClient = null;
   });
 
   it('should execute mutation and update state on success', async () => {
