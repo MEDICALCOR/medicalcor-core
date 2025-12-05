@@ -1,7 +1,7 @@
 /**
  * @fileoverview Application Layer Package
  *
- * Hexagonal Architecture Application Layer for MedicalCor OSAX.
+ * Hexagonal Architecture Application Layer for MedicalCor AllOnX.
  *
  * This package contains:
  * - **Primary Ports**: Interfaces that define what the application offers (driving side)
@@ -38,16 +38,16 @@
  * ```typescript
  * import {
  *   // Primary Ports
- *   OsaxCaseService,
+ *   AllOnXCaseService,
  *   CreateCaseRequest,
  *
  *   // Secondary Ports
- *   OsaxCaseRepository,
+ *   AllOnXCaseRepository,
  *   EventPublisher,
  *   AuditService,
  *
  *   // Use Cases
- *   CreateOsaxCaseUseCase,
+ *   CreateAllOnXCaseUseCase,
  *
  *   // Security
  *   SecurityContext,

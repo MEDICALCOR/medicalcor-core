@@ -1,7 +1,7 @@
 /**
  * @fileoverview Infrastructure Layer Package
  *
- * Hexagonal Architecture Infrastructure Layer for MedicalCor OSAX.
+ * Hexagonal Architecture Infrastructure Layer for MedicalCor AllOnX.
  *
  * This package contains adapters that implement the secondary ports
  * defined in the application layer, connecting the application to
@@ -20,7 +20,7 @@
  *   │  (Interfaces)   │                  │  │ Repository    │  │
  *   │                 │                  │  └───────────────┘  │
  *   │                 │                  │                     │
- *   │  OsaxCase       │                  │  ┌───────────────┐  │
+ *   │  AllOnXCase     │                  │  ┌───────────────┐  │
  *   │  Repository     │─────implements──▶│  │ Supabase      │  │
  *   │                 │                  │  │ Repository    │  │
  *   │                 │                  │  └───────────────┘  │

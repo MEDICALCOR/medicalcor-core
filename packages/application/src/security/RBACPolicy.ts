@@ -7,7 +7,7 @@
  * @module application/security/RBACPolicy
  */
 
-import { Permission, SecurityPrincipal, SecurityPrincipalType } from './SecurityContext.js';
+import { Permission, type SecurityPrincipal, SecurityPrincipalType } from './SecurityContext.js';
 
 /**
  * System roles
@@ -52,22 +52,22 @@ export enum Role {
  */
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   [Role.DOCTOR]: [
-    Permission.OSAX_CASE_CREATE,
-    Permission.OSAX_CASE_READ,
-    Permission.OSAX_CASE_UPDATE,
-    Permission.OSAX_CASE_SCORE,
-    Permission.OSAX_CASE_VERIFY,
+    Permission.ALLONX_CASE_CREATE,
+    Permission.ALLONX_CASE_READ,
+    Permission.ALLONX_CASE_UPDATE,
+    Permission.ALLONX_CASE_SCORE,
+    Permission.ALLONX_CASE_VERIFY,
     Permission.PHI_READ,
     Permission.REPORT_VIEW,
   ],
 
   [Role.SURGEON]: [
-    Permission.OSAX_CASE_CREATE,
-    Permission.OSAX_CASE_READ,
-    Permission.OSAX_CASE_UPDATE,
-    Permission.OSAX_CASE_DELETE,
-    Permission.OSAX_CASE_SCORE,
-    Permission.OSAX_CASE_VERIFY,
+    Permission.ALLONX_CASE_CREATE,
+    Permission.ALLONX_CASE_READ,
+    Permission.ALLONX_CASE_UPDATE,
+    Permission.ALLONX_CASE_DELETE,
+    Permission.ALLONX_CASE_SCORE,
+    Permission.ALLONX_CASE_VERIFY,
     Permission.PHI_READ,
     Permission.PHI_WRITE,
     Permission.PHI_EXPORT,
@@ -76,16 +76,13 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ],
 
   [Role.NURSE]: [
-    Permission.OSAX_CASE_READ,
-    Permission.OSAX_CASE_UPDATE,
+    Permission.ALLONX_CASE_READ,
+    Permission.ALLONX_CASE_UPDATE,
     Permission.PHI_READ,
     Permission.REPORT_VIEW,
   ],
 
-  [Role.RECEPTIONIST]: [
-    Permission.OSAX_CASE_CREATE,
-    Permission.OSAX_CASE_READ,
-  ],
+  [Role.RECEPTIONIST]: [Permission.ALLONX_CASE_CREATE, Permission.ALLONX_CASE_READ],
 
   [Role.ADMIN]: Object.values(Permission),
 
@@ -93,24 +90,15 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
 
   [Role.AUDITOR]: [
     Permission.ADMIN_AUDIT_VIEW,
-    Permission.OSAX_CASE_READ,
+    Permission.ALLONX_CASE_READ,
     Permission.REPORT_VIEW,
   ],
 
-  [Role.RESEARCHER]: [
-    Permission.OSAX_CASE_READ,
-    Permission.REPORT_VIEW,
-  ],
+  [Role.RESEARCHER]: [Permission.ALLONX_CASE_READ, Permission.REPORT_VIEW],
 
-  [Role.CONSULTANT]: [
-    Permission.OSAX_CASE_READ,
-  ],
+  [Role.CONSULTANT]: [Permission.ALLONX_CASE_READ],
 
-  [Role.BILLING]: [
-    Permission.OSAX_CASE_READ,
-    Permission.REPORT_VIEW,
-    Permission.REPORT_EXPORT,
-  ],
+  [Role.BILLING]: [Permission.ALLONX_CASE_READ, Permission.REPORT_VIEW, Permission.REPORT_EXPORT],
 };
 
 /**
@@ -210,7 +198,7 @@ export const TIME_BASED_POLICY: AccessPolicy = {
     const sensitiveActions = [
       Permission.PHI_EXPORT,
       Permission.PHI_DELETE,
-      Permission.OSAX_CASE_DELETE,
+      Permission.ALLONX_CASE_DELETE,
       Permission.ADMIN_USER_MANAGE,
       Permission.ADMIN_ROLE_MANAGE,
     ];
@@ -252,7 +240,7 @@ export const MFA_POLICY: AccessPolicy = {
     const mfaRequiredActions = [
       Permission.PHI_EXPORT,
       Permission.PHI_DELETE,
-      Permission.OSAX_CASE_DELETE,
+      Permission.ALLONX_CASE_DELETE,
       Permission.ADMIN_USER_MANAGE,
       Permission.ADMIN_ROLE_MANAGE,
       Permission.ADMIN_SYSTEM_CONFIG,
@@ -365,7 +353,7 @@ export class PolicyEnforcer {
     resource: ResourceContext,
     action: string
   ): PolicyResult[] {
-    return this.policies.map(policy => policy.check(principal, resource, action));
+    return this.policies.map((policy) => policy.check(principal, resource, action));
   }
 }
 
@@ -380,7 +368,7 @@ export function getPermissionsForRoles(roles: string[]): Permission[] {
 
   for (const roleName of roles) {
     const role = roleName as Role;
-    const rolePermissions = ROLE_PERMISSIONS[role];
+    const rolePermissions = ROLE_PERMISSIONS[role] as Permission[] | undefined;
     if (rolePermissions) {
       for (const permission of rolePermissions) {
         permissions.add(permission);

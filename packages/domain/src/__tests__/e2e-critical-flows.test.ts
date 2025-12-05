@@ -4,7 +4,7 @@
  * These tests verify the complete flow of critical business operations:
  * 1. Consent collection and verification
  * 2. Appointment booking with consent check
- * 3. OSAX case creation flow
+ * 3. AllOnX case creation flow
  *
  * @module domain/__tests__/e2e-critical-flows
  */

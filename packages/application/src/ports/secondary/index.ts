@@ -8,7 +8,8 @@
  */
 
 // Persistence ports
-export * from './persistence/OsaxCaseRepository.js';
+// AllOnXCaseRepository will be added when implemented
+// export * from './persistence/AllOnXCaseRepository.js';
 
 // Messaging ports
 export * from './messaging/EventPublisher.js';

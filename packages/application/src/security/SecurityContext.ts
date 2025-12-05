@@ -35,14 +35,14 @@ export enum SecurityPrincipalType {
  * Format: domain:resource:action
  */
 export enum Permission {
-  // OSAX Case permissions
-  OSAX_CASE_CREATE = 'osax:case:create',
-  OSAX_CASE_READ = 'osax:case:read',
-  OSAX_CASE_UPDATE = 'osax:case:update',
-  OSAX_CASE_DELETE = 'osax:case:delete',
-  OSAX_CASE_SCORE = 'osax:case:score',
-  OSAX_CASE_VERIFY = 'osax:case:verify',
-  OSAX_CASE_EXPORT = 'osax:case:export',
+  // AllOnX Case permissions
+  ALLONX_CASE_CREATE = 'allonx:case:create',
+  ALLONX_CASE_READ = 'allonx:case:read',
+  ALLONX_CASE_UPDATE = 'allonx:case:update',
+  ALLONX_CASE_DELETE = 'allonx:case:delete',
+  ALLONX_CASE_SCORE = 'allonx:case:score',
+  ALLONX_CASE_VERIFY = 'allonx:case:verify',
+  ALLONX_CASE_EXPORT = 'allonx:case:export',
 
   // PHI permissions (Protected Health Information)
   PHI_READ = 'phi:read',
@@ -172,12 +172,7 @@ export class SecurityContext {
    * @returns New SecurityContext instance
    */
   static create(principal: SecurityPrincipal, correlationId: string): SecurityContext {
-    return new SecurityContext(
-      principal,
-      correlationId,
-      new Date(),
-      randomUUID()
-    );
+    return new SecurityContext(principal, correlationId, new Date(), randomUUID());
   }
 
   /**
@@ -187,7 +182,7 @@ export class SecurityContext {
    * @param systemId - System identifier
    * @returns SecurityContext with system permissions
    */
-  static createSystemContext(correlationId: string, systemId: string = 'SYSTEM'): SecurityContext {
+  static createSystemContext(correlationId: string, systemId = 'SYSTEM'): SecurityContext {
     const systemPrincipal: SecurityPrincipal = {
       id: systemId,
       type: SecurityPrincipalType.SYSTEM,
@@ -241,7 +236,7 @@ export class SecurityContext {
    * @returns True if principal has at least one
    */
   hasAnyPermission(permissions: Permission[]): boolean {
-    return permissions.some(p => this.hasPermission(p));
+    return permissions.some((p) => this.hasPermission(p));
   }
 
   /**
@@ -251,7 +246,7 @@ export class SecurityContext {
    * @returns True if principal has all
    */
   hasAllPermissions(permissions: Permission[]): boolean {
-    return permissions.every(p => this.hasPermission(p));
+    return permissions.every((p) => this.hasPermission(p));
   }
 
   /**
@@ -337,7 +332,7 @@ export class SecurityContext {
    * @returns Audit entry ready for recording
    */
   createAuditEntry(
-    action: AuditAction | string,
+    action: AuditAction,
     resourceType: string,
     resourceId: string,
     result: 'SUCCESS' | 'FAILURE' | 'DENIED',
@@ -350,7 +345,7 @@ export class SecurityContext {
       principalId: this.principal.id,
       principalType: this.principal.type,
       principalRoles: this.principal.roles,
-      action: action as AuditAction,
+      action: action,
       resourceType,
       resourceId,
       organizationId: this.principal.organizationId,

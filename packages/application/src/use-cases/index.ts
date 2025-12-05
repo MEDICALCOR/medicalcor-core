@@ -6,4 +6,5 @@
  * @module application/use-cases
  */
 
-export * from './osax/index.js';
+// AllOnX use cases will be added when implemented
+// export * from './allonx/index.js';

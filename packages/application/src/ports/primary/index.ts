@@ -7,4 +7,5 @@
  * @module application/ports/primary
  */
 
-export * from './OsaxCaseService.js';
+// AllOnX case service will be added when implemented
+// export * from './AllOnXCaseService.js';
