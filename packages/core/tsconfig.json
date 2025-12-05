@@ -15,7 +15,6 @@
     "src/clinical/**",
     "src/events/handlers/**",
     "src/repositories/SupabaseOsaxCaseRepository.ts",
-    "src/repositories/postgres-scheduling-repository.ts",
     "src/security/gdpr/osax-audit.ts",
     "src/metrics/osax.ts"
   ],

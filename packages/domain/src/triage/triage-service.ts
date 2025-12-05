@@ -220,9 +220,8 @@ export class TriageService {
       }
 
       this.configLoaded = true;
-    } catch {
-      // Silently fall back to default config on error
-      // In production, this should log to monitoring
+    } catch (error) {
+      logger.warn({ error }, 'Failed to load triage config from database - using default config');
     }
   }
 

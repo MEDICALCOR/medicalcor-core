@@ -164,43 +164,119 @@ export function createCensor(_value: unknown, path: string[]): string {
 
 /**
  * Patterns for runtime PII detection in string values
+ *
+ * GDPR Article 4(1): Personal data means any information relating to an
+ * identified or identifiable natural person.
+ *
+ * HIPAA 18 Safe Harbor Identifiers covered where applicable.
  */
 export const PII_PATTERNS = {
   // Romanian phone numbers
   romanianPhone: /(\+40|0)[0-9]{9}/g,
 
+  // International phone numbers (E.164 format: +countrycode followed by 6-14 digits)
+  internationalPhone: /\+[1-9]\d{6,14}/g,
+
   // Email addresses
   email: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
 
-  // Romanian CNP (personal ID)
+  // Romanian CNP (personal ID - Cod Numeric Personal)
   cnp: /\b[1-8]\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{6}\b/g,
 
-  // Credit card numbers (basic pattern)
+  // Credit card numbers (Visa, MasterCard, Amex, etc.)
   creditCard: /\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/g,
 
-  // IP addresses
-  ipAddress: /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g,
+  // IPv4 addresses (HIPAA device identifier)
+  ipv4Address: /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g,
+
+  // IPv6 addresses (full and compressed formats)
+  ipv6Address: /\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b|\b(?:[0-9a-fA-F]{1,4}:){1,7}:\b|\b(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}\b/g,
+
+  // IBAN (European bank account numbers)
+  iban: /\b[A-Z]{2}\d{2}[A-Z0-9]{4,30}\b/g,
+
+  // JWT tokens (Bearer tokens in logs)
+  jwtToken: /\beyJ[A-Za-z0-9_-]*\.eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*/g,
+
+  // Date of birth patterns (DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD)
+  dateOfBirth: /\b(?:0[1-9]|[12]\d|3[01])[/\-.](?:0[1-9]|1[0-2])[/\-.](?:19|20)\d{2}\b|\b(?:19|20)\d{2}[/\-.](?:0[1-9]|1[0-2])[/\-.](?:0[1-9]|[12]\d|3[01])\b/g,
+
+  // Social Security Number (US SSN format)
+  ssn: /\b\d{3}[- ]?\d{2}[- ]?\d{4}\b/g,
+
+  // UK National Insurance Number
+  ukNin: /\b[A-Za-z]{2}\d{6}[A-Za-z]\b/g,
 } as const;
 
 /**
  * Redact PII patterns from a string value
+ *
+ * SECURITY: Order matters - more specific patterns should be applied
+ * before more general ones to prevent double-redaction.
  */
 export function redactString(value: string): string {
   let result = value;
 
-  // Redact phone numbers
-  result = result.replace(PII_PATTERNS.romanianPhone, '[REDACTED:phone]');
+  // JWT tokens first (to avoid partial matching with other patterns)
+  result = result.replace(PII_PATTERNS.jwtToken, '[REDACTED:token]');
 
-  // Redact emails
+  // Phone numbers (Romanian specific first, then international)
+  result = result.replace(PII_PATTERNS.romanianPhone, '[REDACTED:phone]');
+  result = result.replace(PII_PATTERNS.internationalPhone, '[REDACTED:phone]');
+
+  // Emails
   result = result.replace(PII_PATTERNS.email, '[REDACTED:email]');
 
-  // Redact CNP
+  // Personal IDs
   result = result.replace(PII_PATTERNS.cnp, '[REDACTED:cnp]');
+  result = result.replace(PII_PATTERNS.ssn, '[REDACTED:ssn]');
+  result = result.replace(PII_PATTERNS.ukNin, '[REDACTED:nin]');
 
-  // Redact credit cards
+  // Financial
   result = result.replace(PII_PATTERNS.creditCard, '[REDACTED:card]');
+  result = result.replace(PII_PATTERNS.iban, '[REDACTED:iban]');
+
+  // Network identifiers (HIPAA device identifiers)
+  result = result.replace(PII_PATTERNS.ipv6Address, '[REDACTED:ip]');
+  result = result.replace(PII_PATTERNS.ipv4Address, '[REDACTED:ip]');
+
+  // Dates (potential DOB)
+  result = result.replace(PII_PATTERNS.dateOfBirth, '[REDACTED:date]');
 
   return result;
+}
+
+/**
+ * Deep redact an object, applying PII redaction to all string values
+ * Useful for sanitizing objects before WebSocket transmission or logging
+ */
+export function deepRedactObject<T>(obj: T): T {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+
+  if (typeof obj === 'string') {
+    return redactString(obj) as T;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map((item: unknown) => deepRedactObject(item)) as T;
+  }
+
+  if (typeof obj === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      // Check if key itself should be redacted
+      if (shouldRedactPath(key)) {
+        result[key] = `[REDACTED:${key}]`;
+      } else {
+        result[key] = deepRedactObject(value);
+      }
+    }
+    return result as T;
+  }
+
+  return obj;
 }
 
 /**

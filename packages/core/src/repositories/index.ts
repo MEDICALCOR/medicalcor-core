@@ -8,6 +8,7 @@
  *
  * Repositories here are **ADAPTERS** implementing domain **PORTS**:
  * - PostgresConsentRepository implements IConsentRepository
+ * - PostgresSchedulingRepository implements ISchedulingRepository
  *
  * @module @medicalcor/core/repositories
  */
@@ -30,3 +31,10 @@ export {
   InMemoryConsentRepository,
   createInMemoryConsentRepository,
 } from './InMemoryConsentRepository.js';
+
+// Scheduling Repository (Appointment Management)
+export {
+  PostgresSchedulingRepository,
+  createPostgresSchedulingRepository,
+  type PostgresSchedulingConfig,
+} from './postgres-scheduling-repository.js';

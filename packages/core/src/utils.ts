@@ -2,6 +2,10 @@
  * Utility functions for the application
  */
 
+import { createLogger } from './logger.js';
+
+const logger = createLogger({ name: 'utils' });
+
 /**
  * Normalize Romanian phone number to E.164 format
  * Supports: 07xx, +40, 0040, with/without spaces/dashes
@@ -119,7 +123,8 @@ export function createIdempotencyKey(...components: string[]): string {
 export function safeJsonParse<T>(json: string, fallback: T): T {
   try {
     return JSON.parse(json) as T;
-  } catch {
+  } catch (error) {
+    logger.debug({ error, jsonLength: json.length }, 'JSON parse failed - using fallback');
     return fallback;
   }
 }

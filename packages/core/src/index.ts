@@ -13,6 +13,7 @@ export {
   maskEmail,
   maskName,
   redactString,
+  deepRedactObject,
   PII_PATTERNS,
   REDACTION_PATHS,
   shouldRedactPath,
@@ -616,14 +617,18 @@ export {
 // REPOSITORIES (Infrastructure Adapters)
 // ============================================================================
 // NOTE: Repository implementations are excluded from the main build to avoid
-// circular dependencies with @medicalcor/domain. They exist as reference
-// implementations in src/repositories/ and can be imported directly if needed.
+// circular dependencies with @medicalcor/domain. They are exported from
+// the @medicalcor/core/repositories submodule.
 //
-// Available implementations (not exported):
+// Available implementations (exported from @medicalcor/core/repositories):
+// - PostgresConsentRepository: implements IConsentRepository
+// - InMemoryConsentRepository: implements IConsentRepository (test/dev)
 // - PostgresSchedulingRepository: implements ISchedulingRepository
+//
+// Not exported (reference implementations):
 // - SupabaseOsaxCaseRepository: implements IOsaxCaseRepository
 //
-// To use, import directly from the file or implement your own adapter.
+// To use, import from '@medicalcor/core/repositories' or implement your own adapter.
 
 // ============================================================================
 // TYPE SYSTEM - State of the Art TypeScript Utilities
