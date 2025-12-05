@@ -412,3 +412,238 @@ describe('useOptimisticList', () => {
     expect(result.current.getData()).toEqual(initialData);
   });
 });
+
+describe('useOptimisticMutation - Concurrent Mutations', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    activeQueryClient?.clear();
+    activeQueryClient = null;
+  });
+
+  it('should handle multiple concurrent mutations without interference', async () => {
+    const { queryClient, wrapper } = createWrapper();
+    const queryKey = ['concurrent-items'];
+
+    queryClient.setQueryData(queryKey, [
+      { id: '1', name: 'Item 1' },
+      { id: '2', name: 'Item 2' },
+      { id: '3', name: 'Item 3' },
+    ]);
+
+    // Create delayed mutation functions
+    const mutation1 = vi
+      .fn()
+      .mockImplementation(
+        () =>
+          new Promise((resolve) => setTimeout(() => resolve({ id: '1', name: 'Updated 1' }), 100))
+      );
+    const mutation2 = vi
+      .fn()
+      .mockImplementation(
+        () =>
+          new Promise((resolve) => setTimeout(() => resolve({ id: '2', name: 'Updated 2' }), 50))
+      );
+    const mutation3 = vi
+      .fn()
+      .mockImplementation(
+        () =>
+          new Promise((resolve) => setTimeout(() => resolve({ id: '3', name: 'Updated 3' }), 150))
+      );
+
+    const { result: result1 } = renderHook(
+      () =>
+        useOptimisticMutation({
+          mutationFn: mutation1,
+          optimisticUpdate: (vars: { id: string; name: string }) => ({
+            queryKey,
+            updater: (old: { id: string; name: string }[] | undefined) =>
+              (old ?? []).map((item) =>
+                item.id === vars.id ? { ...item, name: vars.name } : item
+              ),
+          }),
+        }),
+      { wrapper }
+    );
+
+    const { result: result2 } = renderHook(
+      () =>
+        useOptimisticMutation({
+          mutationFn: mutation2,
+          optimisticUpdate: (vars: { id: string; name: string }) => ({
+            queryKey,
+            updater: (old: { id: string; name: string }[] | undefined) =>
+              (old ?? []).map((item) =>
+                item.id === vars.id ? { ...item, name: vars.name } : item
+              ),
+          }),
+        }),
+      { wrapper }
+    );
+
+    const { result: result3 } = renderHook(
+      () =>
+        useOptimisticMutation({
+          mutationFn: mutation3,
+          optimisticUpdate: (vars: { id: string; name: string }) => ({
+            queryKey,
+            updater: (old: { id: string; name: string }[] | undefined) =>
+              (old ?? []).map((item) =>
+                item.id === vars.id ? { ...item, name: vars.name } : item
+              ),
+          }),
+        }),
+      { wrapper }
+    );
+
+    // Fire all mutations nearly simultaneously
+    act(() => {
+      result1.current.mutate({ id: '1', name: 'Optimistic 1' });
+      result2.current.mutate({ id: '2', name: 'Optimistic 2' });
+      result3.current.mutate({ id: '3', name: 'Optimistic 3' });
+    });
+
+    // Verify all optimistic updates applied immediately
+    const dataAfterOptimistic = queryClient.getQueryData(queryKey) as {
+      id: string;
+      name: string;
+    }[];
+    expect(dataAfterOptimistic.find((i) => i.id === '1')?.name).toBe('Optimistic 1');
+    expect(dataAfterOptimistic.find((i) => i.id === '2')?.name).toBe('Optimistic 2');
+    expect(dataAfterOptimistic.find((i) => i.id === '3')?.name).toBe('Optimistic 3');
+
+    // Wait for all mutations to complete
+    await waitFor(() => {
+      expect(result1.current.isSuccess).toBe(true);
+      expect(result2.current.isSuccess).toBe(true);
+      expect(result3.current.isSuccess).toBe(true);
+    });
+
+    // All mutations should have been called
+    expect(mutation1).toHaveBeenCalledTimes(1);
+    expect(mutation2).toHaveBeenCalledTimes(1);
+    expect(mutation3).toHaveBeenCalledTimes(1);
+  });
+
+  it('should correctly rollback only failed mutation in concurrent scenario', async () => {
+    const { queryClient, wrapper } = createWrapper();
+    const queryKey = ['concurrent-rollback'];
+
+    queryClient.setQueryData(queryKey, [
+      { id: '1', name: 'Original 1' },
+      { id: '2', name: 'Original 2' },
+    ]);
+
+    // First mutation succeeds, second fails
+    const successMutation = vi
+      .fn()
+      .mockImplementation(
+        () => new Promise((resolve) => setTimeout(() => resolve({ id: '1', name: 'Success' }), 50))
+      );
+    const failMutation = vi
+      .fn()
+      .mockImplementation(
+        () => new Promise((_, reject) => setTimeout(() => reject(new Error('Failed')), 100))
+      );
+
+    const { result: successResult } = renderHook(
+      () =>
+        useOptimisticMutation({
+          mutationFn: successMutation,
+          optimisticUpdate: (vars: { id: string; name: string }) => ({
+            queryKey,
+            updater: (old: { id: string; name: string }[] | undefined) =>
+              (old ?? []).map((item) =>
+                item.id === vars.id ? { ...item, name: vars.name } : item
+              ),
+          }),
+        }),
+      { wrapper }
+    );
+
+    const { result: failResult } = renderHook(
+      () =>
+        useOptimisticMutation({
+          mutationFn: failMutation,
+          optimisticUpdate: (vars: { id: string; name: string }) => ({
+            queryKey,
+            updater: (old: { id: string; name: string }[] | undefined) =>
+              (old ?? []).map((item) =>
+                item.id === vars.id ? { ...item, name: vars.name } : item
+              ),
+          }),
+        }),
+      { wrapper }
+    );
+
+    // Fire both mutations
+    act(() => {
+      successResult.current.mutate({ id: '1', name: 'Optimistic Success' });
+      failResult.current.mutate({ id: '2', name: 'Optimistic Fail' });
+    });
+
+    // Wait for both to settle
+    await waitFor(() => {
+      expect(successResult.current.isSuccess).toBe(true);
+      expect(failResult.current.isError).toBe(true);
+    });
+
+    // Check final state - item 2 should be rolled back to original
+    const finalData = queryClient.getQueryData(queryKey) as { id: string; name: string }[];
+    expect(finalData.find((i) => i.id === '2')?.name).toBe('Original 2');
+  });
+
+  it('should handle rapid fire mutations on same item', async () => {
+    const { queryClient, wrapper } = createWrapper();
+    const queryKey = ['rapid-fire'];
+
+    queryClient.setQueryData(queryKey, [{ id: '1', name: 'Original', count: 0 }]);
+
+    const mutationFn = vi
+      .fn()
+      .mockImplementation(
+        (vars: { id: string; count: number }) =>
+          new Promise((resolve) =>
+            setTimeout(() => resolve({ id: '1', name: 'Updated', count: vars.count }), 10)
+          )
+      );
+
+    const { result } = renderHook(
+      () =>
+        useOptimisticMutation({
+          mutationFn,
+          optimisticUpdate: (vars: { id: string; count: number }) => ({
+            queryKey,
+            updater: (old: { id: string; name: string; count: number }[] | undefined) =>
+              (old ?? []).map((item) =>
+                item.id === vars.id ? { ...item, count: vars.count } : item
+              ),
+          }),
+        }),
+      { wrapper }
+    );
+
+    // Fire 5 mutations rapidly
+    act(() => {
+      result.current.mutate({ id: '1', count: 1 });
+      result.current.mutate({ id: '1', count: 2 });
+      result.current.mutate({ id: '1', count: 3 });
+      result.current.mutate({ id: '1', count: 4 });
+      result.current.mutate({ id: '1', count: 5 });
+    });
+
+    // Last optimistic update should be visible
+    const dataAfterOptimistic = queryClient.getQueryData(queryKey) as {
+      id: string;
+      count: number;
+    }[];
+    expect(dataAfterOptimistic[0].count).toBe(5);
+
+    // All mutations should eventually complete
+    await waitFor(() => {
+      expect(mutationFn).toHaveBeenCalledTimes(5);
+    });
+  });
+});

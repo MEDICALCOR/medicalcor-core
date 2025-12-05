@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useKeyboardShortcuts, KeyboardProvider, useKeyboard } from '@/lib/keyboard/use-keyboard-shortcuts';
+import {
+  useKeyboardShortcuts,
+  KeyboardProvider,
+  useKeyboard,
+} from '@/lib/keyboard/use-keyboard-shortcuts';
 import { parseShortcutKey, matchesShortcut, formatShortcut } from '@/lib/keyboard/types';
 import { type ReactNode } from 'react';
 
@@ -331,5 +335,279 @@ describe('KeyboardProvider and useKeyboard', () => {
     }).toThrow('useKeyboard must be used within a KeyboardProvider');
 
     consoleError.mockRestore();
+  });
+});
+
+describe('Shortcut disable/enable (unregister/re-register)', () => {
+  // NOTE: The current implementation doesn't have an explicit "disable" API.
+  // Shortcuts are effectively disabled by unregistering them and can be
+  // re-enabled by registering them again.
+
+  it('should not trigger handler after shortcut is unregistered', () => {
+    const callback = vi.fn();
+    const { result } = renderHook(() => useKeyboardShortcuts());
+
+    let unregister: () => void;
+
+    act(() => {
+      unregister = result.current.registerShortcut('ctrl+k', callback, 'Test');
+    });
+
+    // Verify shortcut works initially
+    act(() => {
+      const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true });
+      document.dispatchEvent(event);
+    });
+
+    expect(callback).toHaveBeenCalledTimes(1);
+
+    // Unregister (disable) the shortcut
+    act(() => {
+      unregister();
+    });
+
+    // Shortcut should no longer trigger
+    act(() => {
+      const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true });
+      document.dispatchEvent(event);
+    });
+
+    expect(callback).toHaveBeenCalledTimes(1); // Still 1, not 2
+  });
+
+  it('should allow re-registering a shortcut after unregistering', () => {
+    const callback1 = vi.fn();
+    const callback2 = vi.fn();
+    const { result } = renderHook(() => useKeyboardShortcuts());
+
+    let unregister: () => void;
+
+    // Register first callback
+    act(() => {
+      unregister = result.current.registerShortcut('ctrl+s', callback1, 'Save v1');
+    });
+
+    // Trigger it
+    act(() => {
+      const event = new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true });
+      document.dispatchEvent(event);
+    });
+
+    expect(callback1).toHaveBeenCalledTimes(1);
+    expect(callback2).toHaveBeenCalledTimes(0);
+
+    // Unregister
+    act(() => {
+      unregister();
+    });
+
+    // Re-register with different callback
+    act(() => {
+      unregister = result.current.registerShortcut('ctrl+s', callback2, 'Save v2');
+    });
+
+    // Now should call the new callback
+    act(() => {
+      const event = new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true });
+      document.dispatchEvent(event);
+    });
+
+    expect(callback1).toHaveBeenCalledTimes(1); // Still 1
+    expect(callback2).toHaveBeenCalledTimes(1); // Now 1
+  });
+
+  it('should handle multiple shortcuts being enabled/disabled independently', () => {
+    const callbackA = vi.fn();
+    const callbackB = vi.fn();
+    const callbackC = vi.fn();
+    const { result } = renderHook(() => useKeyboardShortcuts());
+
+    let unregisterA: () => void;
+    let unregisterB: () => void;
+    let unregisterC: () => void;
+
+    // Register three shortcuts
+    act(() => {
+      unregisterA = result.current.registerShortcut('ctrl+a', callbackA, 'Action A');
+      unregisterB = result.current.registerShortcut('ctrl+b', callbackB, 'Action B');
+      unregisterC = result.current.registerShortcut('ctrl+c', callbackC, 'Action C');
+    });
+
+    expect(result.current.getRegisteredShortcuts()).toHaveLength(3);
+
+    // Trigger all three
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'a', ctrlKey: true, bubbles: true })
+      );
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'b', ctrlKey: true, bubbles: true })
+      );
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'c', ctrlKey: true, bubbles: true })
+      );
+    });
+
+    expect(callbackA).toHaveBeenCalledTimes(1);
+    expect(callbackB).toHaveBeenCalledTimes(1);
+    expect(callbackC).toHaveBeenCalledTimes(1);
+
+    // Disable only B
+    act(() => {
+      unregisterB();
+    });
+
+    expect(result.current.getRegisteredShortcuts()).toHaveLength(2);
+
+    // Trigger all three again - only A and C should work
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'a', ctrlKey: true, bubbles: true })
+      );
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'b', ctrlKey: true, bubbles: true })
+      );
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'c', ctrlKey: true, bubbles: true })
+      );
+    });
+
+    expect(callbackA).toHaveBeenCalledTimes(2);
+    expect(callbackB).toHaveBeenCalledTimes(1); // Still 1 (disabled)
+    expect(callbackC).toHaveBeenCalledTimes(2);
+
+    // Re-enable B
+    act(() => {
+      unregisterB = result.current.registerShortcut('ctrl+b', callbackB, 'Action B');
+    });
+
+    expect(result.current.getRegisteredShortcuts()).toHaveLength(3);
+
+    // All three should work again
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'b', ctrlKey: true, bubbles: true })
+      );
+    });
+
+    expect(callbackB).toHaveBeenCalledTimes(2);
+  });
+
+  it('should handle unregistering the same shortcut multiple times safely', () => {
+    const callback = vi.fn();
+    const { result } = renderHook(() => useKeyboardShortcuts());
+
+    let unregister: () => void;
+
+    act(() => {
+      unregister = result.current.registerShortcut('ctrl+x', callback, 'Cut');
+    });
+
+    expect(result.current.getRegisteredShortcuts()).toHaveLength(1);
+
+    // Unregister multiple times - should not throw
+    act(() => {
+      unregister();
+      unregister();
+      unregister();
+    });
+
+    expect(result.current.getRegisteredShortcuts()).toHaveLength(0);
+
+    // Shortcut should not trigger
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'x', ctrlKey: true, bubbles: true })
+      );
+    });
+
+    expect(callback).not.toHaveBeenCalled();
+  });
+
+  it('should not affect other shortcuts when unregistering one with different key', () => {
+    const callback1 = vi.fn();
+    const callback2 = vi.fn();
+    const { result } = renderHook(() => useKeyboardShortcuts());
+
+    let unregister1: () => void;
+
+    act(() => {
+      unregister1 = result.current.registerShortcut('ctrl+1', callback1, 'First');
+      result.current.registerShortcut('ctrl+2', callback2, 'Second');
+    });
+
+    expect(result.current.getRegisteredShortcuts()).toHaveLength(2);
+
+    // Unregister first shortcut
+    act(() => {
+      unregister1();
+    });
+
+    // Second shortcut should still work
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: '2', ctrlKey: true, bubbles: true })
+      );
+    });
+
+    expect(callback1).not.toHaveBeenCalled();
+    expect(callback2).toHaveBeenCalledTimes(1);
+  });
+
+  it('should correctly toggle shortcut on/off rapidly', () => {
+    const callback = vi.fn();
+    const { result } = renderHook(() => useKeyboardShortcuts());
+
+    let unregister: () => void;
+
+    // Toggle on/off multiple times
+    for (let i = 0; i < 5; i++) {
+      act(() => {
+        unregister = result.current.registerShortcut('ctrl+t', callback, 'Toggle');
+      });
+
+      act(() => {
+        document.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 't', ctrlKey: true, bubbles: true })
+        );
+      });
+
+      act(() => {
+        unregister();
+      });
+
+      // Should not trigger when disabled
+      act(() => {
+        document.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 't', ctrlKey: true, bubbles: true })
+        );
+      });
+    }
+
+    // Should have been called once per "enabled" cycle
+    expect(callback).toHaveBeenCalledTimes(5);
+  });
+
+  it('should update description when re-registering with same key', () => {
+    const callback = vi.fn();
+    const { result } = renderHook(() => useKeyboardShortcuts());
+
+    let unregister: () => void;
+
+    act(() => {
+      unregister = result.current.registerShortcut('ctrl+d', callback, 'Old description');
+    });
+
+    expect(result.current.getRegisteredShortcuts()[0].description).toBe('Old description');
+
+    act(() => {
+      unregister();
+    });
+
+    act(() => {
+      result.current.registerShortcut('ctrl+d', callback, 'New description');
+    });
+
+    expect(result.current.getRegisteredShortcuts()[0].description).toBe('New description');
   });
 });
