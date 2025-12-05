@@ -135,18 +135,18 @@ describe('PII_PATTERNS', () => {
     });
   });
 
-  describe('ipAddress', () => {
+  describe('ipv4Address', () => {
     it('should match IPv4 addresses', () => {
       // Test each IP individually due to global regex
-      expect('192.168.1.1'.match(PII_PATTERNS.ipAddress)).toBeTruthy();
-      expect('10.0.0.1'.match(PII_PATTERNS.ipAddress)).toBeTruthy();
-      expect('172.16.0.1'.match(PII_PATTERNS.ipAddress)).toBeTruthy();
-      expect('8.8.8.8'.match(PII_PATTERNS.ipAddress)).toBeTruthy();
+      expect('192.168.1.1'.match(PII_PATTERNS.ipv4Address)).toBeTruthy();
+      expect('10.0.0.1'.match(PII_PATTERNS.ipv4Address)).toBeTruthy();
+      expect('172.16.0.1'.match(PII_PATTERNS.ipv4Address)).toBeTruthy();
+      expect('8.8.8.8'.match(PII_PATTERNS.ipv4Address)).toBeTruthy();
     });
 
     it('should match IPs in text', () => {
       const text = 'Server at 192.168.1.100 responded';
-      const matches = text.match(PII_PATTERNS.ipAddress);
+      const matches = text.match(PII_PATTERNS.ipv4Address);
       expect(matches).toHaveLength(1);
       expect(matches?.[0]).toBe('192.168.1.100');
     });
