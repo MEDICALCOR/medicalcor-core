@@ -168,3 +168,8 @@ packages/integrations/src/__mocks__/*.map
 
 # Archived legacy migrations
 _archive/
+
+# Playwright test artifacts
+playwright-report/
+**/e2e/test-results/
+**/e2e/.auth/
