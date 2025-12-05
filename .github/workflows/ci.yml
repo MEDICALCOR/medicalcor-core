@@ -590,7 +590,13 @@ jobs:
 
       - name: Check licenses
         run: |
-          npx license-checker --summary --production --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD;CC0-1.0;Unlicense;CC-BY-4.0;CC-BY-3.0;Python-2.0;BlueOak-1.0.0" || {
+          # Note: @anthropic-ai/claude-agent-sdk is excluded because it uses Anthropic's Commercial Terms of Service
+          # (not an OSS license). The package has been manually reviewed and approved for use.
+          # See: https://github.com/anthropics/claude-agent-sdk/blob/main/LICENSE.md
+          CLAUDE_SDK_VERSION=$(node -e "const pkg=require('./node_modules/@anthropic-ai/claude-agent-sdk/package.json'); console.log(pkg.version);")
+          npx license-checker --summary --production \
+            --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD;CC0-1.0;Unlicense;CC-BY-4.0;CC-BY-3.0;Python-2.0;BlueOak-1.0.0" \
+            --excludePackages "@anthropic-ai/claude-agent-sdk@${CLAUDE_SDK_VERSION}" || {
             echo "## License Check Failed" >> $GITHUB_STEP_SUMMARY
             echo "Found packages with non-approved licenses" >> $GITHUB_STEP_SUMMARY
             exit 1
