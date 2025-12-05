@@ -14,8 +14,9 @@ echo "=== MedicalCor Schema Validation ==="
 echo ""
 
 # Configuration
-DEV_URL="${1:-$DATABASE_URL_DEV}"
-PROD_URL="${2:-$DATABASE_URL_PROD}"
+# Use ${VAR:-} syntax to handle unset variables gracefully with set -u
+DEV_URL="${1:-${DATABASE_URL_DEV:-}}"
+PROD_URL="${2:-${DATABASE_URL_PROD:-}}"
 SCHEMA_DIR="./db"
 TEMP_DIR=$(mktemp -d)
 
