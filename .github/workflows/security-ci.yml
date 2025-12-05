@@ -94,7 +94,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run dependency review action non-blocking (skip if unsupported)
-        uses: actions/dependency-review-action@v1
+        uses: actions/dependency-review-action@v4
         continue-on-error: true
       - name: Upload (if any) dependency review results
         if: always()
