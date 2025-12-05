@@ -28,6 +28,16 @@ export {
   handlePaymentFailed,
   handleRefund,
 } from './tasks/payment-handler.js';
+export {
+  processEpisodicMemory,
+  processEpisodicMemoryBatch,
+  queryEpisodicMemory,
+  getSubjectMemorySummary,
+  type CognitiveMemoryPayload,
+  type BatchCognitiveMemoryPayload,
+  type MemoryQueryPayload,
+  type SubjectSummaryPayload,
+} from './tasks/cognitive-memory-handler.js';
 
 // Workflows
 export {

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { normalizeRomanianPhone } from '@medicalcor/core';
 import { createIntegrationClients } from '@medicalcor/integrations';
 import type { AIScoringContext } from '@medicalcor/types';
+import { processEpisodicMemory } from './cognitive-memory-handler.js';
 
 /**
  * Voice Call Handler Task
@@ -209,19 +210,21 @@ export const handleVoiceCall = task({
           ) {
             // Get notification contacts for priority cases
             const notificationContacts = triage.getNotificationContacts(triageResult.urgencyLevel);
-          const contactsInfo =
-            notificationContacts.length > 0 ? `\n\nNotify: ${notificationContacts.join(', ')}` : '';
+            const contactsInfo =
+              notificationContacts.length > 0
+                ? `\n\nNotify: ${notificationContacts.join(', ')}`
+                : '';
 
-          await hubspot.createTask({
-            contactId: hubspotContactId,
-            subject: `${triageResult.urgencyLevel === 'high_priority' ? 'PRIORITY REQUEST' : 'HIGH PRIORITY'} - Voice Lead: ${normalizedPhone}`,
-            body: `${triageResult.urgencyLevel === 'high_priority' ? 'Patient reported discomfort. Wants quick appointment.\n\n' : ''}${triageResult.notes}\n\nSuggested Action: ${scoreResult.suggestedAction}${contactsInfo}`,
-            priority: triageResult.urgencyLevel === 'high_priority' ? 'HIGH' : 'MEDIUM',
-            dueDate:
-              triageResult.routingRecommendation === 'next_available_slot'
-                ? new Date(Date.now() + 30 * 60 * 1000) // 30 minutes during business hours
-                : new Date(Date.now() + 60 * 60 * 1000), // 1 hour
-          });
+            await hubspot.createTask({
+              contactId: hubspotContactId,
+              subject: `${triageResult.urgencyLevel === 'high_priority' ? 'PRIORITY REQUEST' : 'HIGH PRIORITY'} - Voice Lead: ${normalizedPhone}`,
+              body: `${triageResult.urgencyLevel === 'high_priority' ? 'Patient reported discomfort. Wants quick appointment.\n\n' : ''}${triageResult.notes}\n\nSuggested Action: ${scoreResult.suggestedAction}${contactsInfo}`,
+              priority: triageResult.urgencyLevel === 'high_priority' ? 'HIGH' : 'MEDIUM',
+              dueDate:
+                triageResult.routingRecommendation === 'next_available_slot'
+                  ? new Date(Date.now() + 30 * 60 * 1000) // 30 minutes during business hours
+                  : new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+            });
             logger.info('Priority task created for voice lead', {
               notificationContacts,
               correlationId,
@@ -258,6 +261,33 @@ export const handleVoiceCall = task({
       });
     } catch (err) {
       logger.error('Failed to emit domain event', { err, correlationId });
+    }
+
+    // Step 5: Process into cognitive episodic memory (async, non-blocking)
+    if (status === 'completed' && transcript) {
+      try {
+        await processEpisodicMemory.trigger({
+          subjectType: 'lead',
+          subjectId: hubspotContactId ?? normalizedPhone,
+          sourceChannel: 'voice',
+          eventType: 'voice.call.completed',
+          payload: {
+            callSid,
+            direction,
+            duration: duration ? parseInt(duration, 10) : undefined,
+            transcript,
+            score: scoreResult?.score,
+            classification: scoreResult?.classification,
+            suggestedAction: scoreResult?.suggestedAction,
+          },
+          occurredAt: new Date().toISOString(),
+          correlationId,
+        });
+        logger.info('Cognitive memory task triggered for voice call', { correlationId });
+      } catch (err) {
+        // Non-blocking: log error but don't fail the main flow
+        logger.warn('Failed to trigger cognitive memory task', { err, correlationId });
+      }
     }
 
     return {
@@ -421,6 +451,34 @@ export const handleCallCompleted = task({
       });
     } catch (err) {
       logger.error('Failed to emit domain event', { err, correlationId });
+    }
+
+    // Process into cognitive episodic memory (async, non-blocking)
+    if (transcript || summary) {
+      try {
+        await processEpisodicMemory.trigger({
+          subjectType: 'lead',
+          subjectId: hubspotContactId ?? normalizedPhone,
+          sourceChannel: 'voice',
+          eventType: 'voice.call.processed',
+          payload: {
+            callSid,
+            duration,
+            transcript,
+            summary,
+            sentiment,
+            recordingUrl,
+            score: scoreResult?.score,
+            classification: scoreResult?.classification,
+            suggestedAction: scoreResult?.suggestedAction,
+          },
+          occurredAt: new Date().toISOString(),
+          correlationId,
+        });
+        logger.info('Cognitive memory task triggered for processed call', { correlationId });
+      } catch (err) {
+        logger.warn('Failed to trigger cognitive memory task', { err, correlationId });
+      }
     }
 
     return {

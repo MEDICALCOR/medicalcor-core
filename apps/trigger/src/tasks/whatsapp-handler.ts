@@ -2,6 +2,7 @@ import { task, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
 import { normalizeRomanianPhone, LeadContextBuilder } from '@medicalcor/core';
 import { createIntegrationClients } from '@medicalcor/integrations';
+import { processEpisodicMemory } from './cognitive-memory-handler.js';
 
 /**
  * WhatsApp Message Handler Task
@@ -348,6 +349,31 @@ export const handleWhatsAppMessage = task({
       logger.info('Domain event emitted', { type: 'whatsapp.message.received', correlationId });
     } catch (err) {
       logger.error('Failed to emit domain event', { err, correlationId });
+    }
+
+    // Step 8: Process into cognitive episodic memory (async, non-blocking)
+    try {
+      await processEpisodicMemory.trigger({
+        subjectType: 'lead',
+        subjectId: hubspotContactId ?? normalizedPhone,
+        sourceChannel: 'whatsapp',
+        eventType: 'message.received',
+        payload: {
+          messageId: message.id,
+          messageType: message.type,
+          messageBody: message.text?.body,
+          contactName: contact?.profile.name,
+          score: scoreResult.score,
+          classification: scoreResult.classification,
+          suggestedAction: scoreResult.suggestedAction,
+        },
+        occurredAt: new Date().toISOString(),
+        correlationId,
+      });
+      logger.info('Cognitive memory task triggered', { correlationId });
+    } catch (err) {
+      // Non-blocking: log error but don't fail the main flow
+      logger.warn('Failed to trigger cognitive memory task', { err, correlationId });
     }
 
     return {
