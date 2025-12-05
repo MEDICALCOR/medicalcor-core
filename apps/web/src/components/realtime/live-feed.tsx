@@ -39,6 +39,8 @@ const LeadItem = memo(function LeadItem({ lead, isNew }: LeadItemProps) {
         return 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400';
       case 'web':
         return 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400';
+      default:
+        return 'bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400';
     }
   }, [lead.source]);
 

@@ -61,7 +61,11 @@ const availablePermissions = Object.keys(permissionLabels);
 
 export default function ApiKeysPage() {
   const [keysList, setKeysList] = useState<ApiKey[]>([]);
-  const [stats, setStats] = useState<ApiKeyStats>({ activeKeys: 0, totalRequestsToday: 0, dailyLimit: 10000 });
+  const [stats, setStats] = useState<ApiKeyStats>({
+    activeKeys: 0,
+    totalRequestsToday: 0,
+    dailyLimit: 10000,
+  });
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -77,19 +81,16 @@ export default function ApiKeysPage() {
 
   // Load data on mount
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
   async function loadData() {
     try {
       setIsLoading(true);
-      const [keysData, statsData] = await Promise.all([
-        getApiKeysAction(),
-        getApiKeyStatsAction(),
-      ]);
+      const [keysData, statsData] = await Promise.all([getApiKeysAction(), getApiKeyStatsAction()]);
       setKeysList(keysData);
       setStats(statsData);
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: 'Eroare',
         description: 'Nu s-au putut încărca cheile API',
@@ -112,7 +113,7 @@ export default function ApiKeysPage() {
     });
   };
 
-  const handleToggleActive = async (id: string, currentActive: boolean) => {
+  const handleToggleActive = (id: string, currentActive: boolean) => {
     startTransition(async () => {
       try {
         const updated = await toggleApiKeyAction(id, !currentActive);
@@ -121,7 +122,7 @@ export default function ApiKeysPage() {
           title: 'Succes',
           description: `Cheia a fost ${!currentActive ? 'activată' : 'dezactivată'}`,
         });
-      } catch (error) {
+      } catch (_error) {
         toast({
           title: 'Eroare',
           description: 'Nu s-a putut actualiza starea cheii',
@@ -131,7 +132,7 @@ export default function ApiKeysPage() {
     });
   };
 
-  const handleCreateKey = async () => {
+  const handleCreateKey = () => {
     if (!newKeyName || newKeyPermissions.length === 0) {
       toast({
         title: 'Eroare',
@@ -158,7 +159,7 @@ export default function ApiKeysPage() {
           title: 'Succes',
           description: 'Cheia API a fost creată. Copiază-o acum - nu va mai fi afișată!',
         });
-      } catch (error) {
+      } catch (_error) {
         toast({
           title: 'Eroare',
           description: 'Nu s-a putut crea cheia API',
@@ -168,7 +169,7 @@ export default function ApiKeysPage() {
     });
   };
 
-  const handleRevokeKey = async (id: string) => {
+  const handleRevokeKey = (id: string) => {
     startTransition(async () => {
       try {
         await revokeApiKeyAction(id);
@@ -178,7 +179,7 @@ export default function ApiKeysPage() {
           title: 'Succes',
           description: 'Cheia API a fost revocată',
         });
-      } catch (error) {
+      } catch (_error) {
         toast({
           title: 'Eroare',
           description: 'Nu s-a putut revoca cheia',
@@ -188,7 +189,7 @@ export default function ApiKeysPage() {
     });
   };
 
-  const handleRegenerateKey = async (id: string) => {
+  const handleRegenerateKey = (id: string) => {
     startTransition(async () => {
       try {
         const newKey = await regenerateApiKeyAction(id);
@@ -198,7 +199,7 @@ export default function ApiKeysPage() {
           title: 'Succes',
           description: 'Cheia a fost regenerată. Copiază noua cheie!',
         });
-      } catch (error) {
+      } catch (_error) {
         toast({
           title: 'Eroare',
           description: 'Nu s-a putut regenera cheia',
@@ -223,7 +224,11 @@ export default function ApiKeysPage() {
   };
 
   const formatDate = (date: Date): string => {
-    return new Date(date).toLocaleDateString('ro-RO', { day: 'numeric', month: 'short', year: 'numeric' });
+    return new Date(date).toLocaleDateString('ro-RO', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
   };
 
   const formatLastUsed = (date: Date | null): string => {
@@ -255,10 +260,13 @@ export default function ApiKeysPage() {
           </h1>
           <p className="text-muted-foreground mt-1">Gestionează cheile de acces pentru integrări</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) setNewlyCreatedKey(null);
-        }}>
+        <Dialog
+          open={isDialogOpen}
+          onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) setNewlyCreatedKey(null);
+          }}
+        >
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
@@ -287,10 +295,13 @@ export default function ApiKeysPage() {
                     <Copy className="h-4 w-4 mr-2" />
                     Copiază cheia
                   </Button>
-                  <Button variant="outline" onClick={() => {
-                    setIsDialogOpen(false);
-                    setNewlyCreatedKey(null);
-                  }}>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsDialogOpen(false);
+                      setNewlyCreatedKey(null);
+                    }}
+                  >
                     Închide
                   </Button>
                 </div>
@@ -307,7 +318,10 @@ export default function ApiKeysPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Tip</Label>
-                  <Select value={newKeyType} onValueChange={(v) => setNewKeyType(v as 'production' | 'test')}>
+                  <Select
+                    value={newKeyType}
+                    onValueChange={(v) => setNewKeyType(v as 'production' | 'test')}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Selectează tipul" />
                     </SelectTrigger>

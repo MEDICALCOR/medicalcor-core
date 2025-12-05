@@ -227,9 +227,7 @@ export async function getTriageLeadsAction(): Promise<TriageColumn[]> {
     const scheduledContactIds = new Set(appointments.map((a) => a.hubspotContactId));
 
     // Create appointment lookup map
-    const appointmentMap = new Map(
-      appointments.map((apt) => [apt.hubspotContactId, apt.slot])
-    );
+    const appointmentMap = new Map(appointments.map((apt) => [apt.hubspotContactId, apt.slot]));
 
     // Filter function to exclude scheduled contacts
     const filterScheduled = (contacts: HubSpotContact[]) =>
@@ -285,7 +283,7 @@ export async function getTriageLeadsAction(): Promise<TriageColumn[]> {
     ];
 
     return columns;
-  } catch (error) {
+  } catch (_error) {
     // Error logged server-side
     return createEmptyColumns();
   }

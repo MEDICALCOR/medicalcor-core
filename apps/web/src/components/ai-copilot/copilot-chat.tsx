@@ -30,19 +30,19 @@ export function CopilotChat({ context }: CopilotChatProps) {
     }
   }, [input]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
     const message = input.trim();
     setInput('');
-    await sendMessage(message, context);
+    void sendMessage(message, context);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      void handleSubmit(e);
+      handleSubmit(e);
     }
   };
 

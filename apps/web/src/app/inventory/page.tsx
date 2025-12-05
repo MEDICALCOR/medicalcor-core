@@ -53,7 +53,7 @@ export default function InventoryPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
   async function loadData() {
@@ -64,13 +64,9 @@ export default function InventoryPage() {
         getInventoryStatsAction(),
       ]);
 
-      if (inventoryResult.items) {
-        setInventory(inventoryResult.items);
-      }
-      if (statsResult.stats) {
-        setStats(statsResult.stats);
-      }
-    } catch (error) {
+      setInventory(inventoryResult.items);
+      setStats(statsResult.stats);
+    } catch (_error) {
       toast({
         title: 'Eroare',
         description: 'Nu s-a putut încărca inventarul',
@@ -81,7 +77,7 @@ export default function InventoryPage() {
     }
   }
 
-  async function handleDelete(id: string) {
+  function handleDelete(id: string) {
     startTransition(async () => {
       const result = await deleteInventoryItemAction(id);
       if (result.success) {
@@ -172,7 +168,9 @@ export default function InventoryPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Stoc scăzut</p>
-              <p className="text-xl font-bold">{stats?.lowStockItems ?? lowStockItems.length} produse</p>
+              <p className="text-xl font-bold">
+                {stats?.lowStockItems ?? lowStockItems.length} produse
+              </p>
             </div>
           </CardContent>
         </Card>

@@ -38,9 +38,9 @@ describe('Pagination Utilities', () => {
     });
 
     it('should accept custom min and max', () => {
-      expect(validatePageSize(5, 10, 50)).toBe(10);
-      expect(validatePageSize(60, 10, 50)).toBe(50);
-      expect(validatePageSize(30, 10, 50)).toBe(30);
+      expect(validatePageSize(5, 10, 50 as 100)).toBe(10);
+      expect(validatePageSize(60, 10, 50 as 100)).toBe(50);
+      expect(validatePageSize(30, 10, 50 as 100)).toBe(30);
     });
   });
 
@@ -98,7 +98,7 @@ describe('Pagination Utilities', () => {
 
       const result = await fetchAllContacts(
         mockClient as any,
-        { properties: ['firstname'] },
+        { filterGroups: [], properties: ['firstname'] },
         { pageSize: 2 }
       );
 
@@ -127,7 +127,7 @@ describe('Pagination Utilities', () => {
 
       const result = await fetchAllContacts(
         mockClient as any,
-        { properties: ['firstname'] },
+        { filterGroups: [], properties: ['firstname'] },
         { maxResults: 7, pageSize: 5 }
       );
 
@@ -148,7 +148,10 @@ describe('Pagination Utilities', () => {
         }),
       };
 
-      const result = await fetchAllContacts(mockClient as any, { properties: ['firstname'] });
+      const result = await fetchAllContacts(mockClient as any, {
+        filterGroups: [],
+        properties: ['firstname'],
+      });
 
       expect(result).toEqual(mockContacts);
       expect(mockClient.searchContacts).toHaveBeenCalledTimes(1);
@@ -158,9 +161,7 @@ describe('Pagination Utilities', () => {
       const searchParams = {
         filterGroups: [
           {
-            filters: [
-              { propertyName: 'lifecyclestage', operator: 'EQ' as const, value: 'lead' },
-            ],
+            filters: [{ propertyName: 'lifecyclestage', operator: 'EQ' as const, value: 'lead' }],
           },
         ],
         properties: ['firstname', 'lastname', 'email'],
@@ -196,15 +197,21 @@ describe('Pagination Utilities', () => {
           }),
       };
 
-      await fetchAllContacts(mockClient as any, { properties: ['firstname'] });
+      await fetchAllContacts(mockClient as any, { filterGroups: [], properties: ['firstname'] });
 
-      expect(mockClient.searchContacts).toHaveBeenNthCalledWith(1, expect.objectContaining({
-        after: undefined,
-      }));
+      expect(mockClient.searchContacts).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          after: undefined,
+        })
+      );
 
-      expect(mockClient.searchContacts).toHaveBeenNthCalledWith(2, expect.objectContaining({
-        after: 'cursor-abc',
-      }));
+      expect(mockClient.searchContacts).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          after: 'cursor-abc',
+        })
+      );
     });
 
     it('should handle empty results', async () => {
@@ -215,7 +222,10 @@ describe('Pagination Utilities', () => {
         }),
       };
 
-      const result = await fetchAllContacts(mockClient as any, { properties: ['firstname'] });
+      const result = await fetchAllContacts(mockClient as any, {
+        filterGroups: [],
+        properties: ['firstname'],
+      });
 
       expect(result).toEqual([]);
       expect(mockClient.searchContacts).toHaveBeenCalledTimes(1);
@@ -229,7 +239,7 @@ describe('Pagination Utilities', () => {
         }),
       };
 
-      await fetchAllContacts(mockClient as any, { properties: ['firstname'] });
+      await fetchAllContacts(mockClient as any, { filterGroups: [], properties: ['firstname'] });
 
       expect(mockClient.searchContacts).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -248,7 +258,7 @@ describe('Pagination Utilities', () => {
 
       await fetchAllContacts(
         mockClient as any,
-        { properties: ['firstname'] },
+        { filterGroups: [], properties: ['firstname'] },
         { pageSize: 50 }
       );
 
@@ -287,7 +297,10 @@ describe('Pagination Utilities', () => {
           }),
       };
 
-      const result = await fetchAllContacts(mockClient as any, { properties: ['firstname'] });
+      const result = await fetchAllContacts(mockClient as any, {
+        filterGroups: [],
+        properties: ['firstname'],
+      });
 
       expect(result).toEqual([...page1, ...page2, ...page3]);
       expect(result.length).toBe(5);

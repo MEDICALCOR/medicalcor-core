@@ -71,7 +71,7 @@ export default function StaffSchedulePage() {
   const [departmentFilter, setDepartmentFilter] = useState('all');
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, [currentWeekStart]);
 
   async function loadData() {
@@ -88,16 +88,10 @@ export default function StaffSchedulePage() {
         getScheduleStatsAction(),
       ]);
 
-      if (scheduleResult.staff) {
-        setStaff(scheduleResult.staff);
-      }
-      if (scheduleResult.shifts) {
-        setShifts(scheduleResult.shifts);
-      }
-      if (statsResult.stats) {
-        setStats(statsResult.stats);
-      }
-    } catch (error) {
+      setStaff(scheduleResult.staff);
+      setShifts(scheduleResult.shifts);
+      setStats(statsResult.stats);
+    } catch (_error) {
       toast({
         title: 'Eroare',
         description: 'Nu s-a putut încărca programul',
@@ -334,15 +328,17 @@ export default function StaffSchedulePage() {
                       </td>
                       {weekDays.map((day) => {
                         const shift = getShiftForStaffAndDay(member.id, day);
-                        const shiftType = shift?.shiftType as keyof typeof shiftTypeConfig | undefined;
-                        const ShiftIcon = shiftType ? shiftTypeConfig[shiftType]?.icon : null;
+                        const shiftType = shift?.shiftType as
+                          | keyof typeof shiftTypeConfig
+                          | undefined;
+                        const ShiftIcon = shiftType ? shiftTypeConfig[shiftType].icon : null;
 
                         return (
                           <td
                             key={day.toISOString()}
                             className={cn('p-1 text-center', isToday(day) && 'bg-primary/10')}
                           >
-                            {shift && shiftType && shiftTypeConfig[shiftType] ? (
+                            {shift && shiftType ? (
                               <div
                                 className={cn(
                                   'p-2 rounded border text-xs cursor-pointer hover:opacity-80 transition-opacity',

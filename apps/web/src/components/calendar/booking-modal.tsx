@@ -21,10 +21,7 @@ import {
 } from '@/components/ui/select';
 import { Loader2, Calendar, Clock, User, Stethoscope } from 'lucide-react';
 import type { CalendarSlot } from '@medicalcor/types';
-import {
-  bookAppointmentAction,
-  type BookAppointmentRequest,
-} from '@/app/actions/calendar';
+import { bookAppointmentAction, type BookAppointmentRequest } from '@/app/actions/calendar';
 
 interface BookingModalProps {
   slot: CalendarSlot | null;
@@ -97,28 +94,39 @@ export function BookingModal({
 
       setError(null);
 
-      startTransition(async () => {
-        const request: BookAppointmentRequest = {
-          slotId: slot.id,
-          patientId: `new-${Date.now()}`, // For new patients without HubSpot ID
-          patientName: patientName.trim(),
-          patientPhone: patientPhone.trim(),
-          procedureType,
-          notes: notes.trim() || undefined,
-        };
+      startTransition(() => {
+        void (async () => {
+          const request: BookAppointmentRequest = {
+            slotId: slot.id,
+            patientId: `new-${Date.now()}`, // For new patients without HubSpot ID
+            patientName: patientName.trim(),
+            patientPhone: patientPhone.trim(),
+            procedureType,
+            notes: notes.trim() || undefined,
+          };
 
-        const result = await bookAppointmentAction(request);
+          const result = await bookAppointmentAction(request);
 
-        if (result.success) {
-          resetForm();
-          onOpenChange(false);
-          onBookingComplete();
-        } else {
-          setError(result.error ?? 'Eroare la programare');
-        }
+          if (result.success) {
+            resetForm();
+            onOpenChange(false);
+            onBookingComplete();
+          } else {
+            setError(result.error ?? 'Eroare la programare');
+          }
+        })();
       });
     },
-    [slot, patientName, patientPhone, procedureType, notes, resetForm, onOpenChange, onBookingComplete]
+    [
+      slot,
+      patientName,
+      patientPhone,
+      procedureType,
+      notes,
+      resetForm,
+      onOpenChange,
+      onBookingComplete,
+    ]
   );
 
   const formattedDate = selectedDate.toLocaleDateString('ro-RO', {
@@ -136,9 +144,7 @@ export function BookingModal({
             <Calendar className="h-5 w-5 text-primary" />
             Programare Nouă
           </DialogTitle>
-          <DialogDescription>
-            Completați detaliile pentru programarea nouă
-          </DialogDescription>
+          <DialogDescription>Completați detaliile pentru programarea nouă</DialogDescription>
         </DialogHeader>
 
         {slot && (
@@ -150,13 +156,9 @@ export function BookingModal({
                   <Clock className="h-4 w-4 text-muted-foreground" />
                   <span className="font-medium">{slot.time}</span>
                 </div>
-                <div className="text-muted-foreground">
-                  {slot.duration} minute
-                </div>
+                <div className="text-muted-foreground">{slot.duration} minute</div>
               </div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                {formattedDate}
-              </div>
+              <div className="mt-1 text-xs text-muted-foreground">{formattedDate}</div>
             </div>
 
             {/* Patient Name */}
@@ -193,11 +195,7 @@ export function BookingModal({
                 <Stethoscope className="h-4 w-4" />
                 Tip Procedură
               </Label>
-              <Select
-                value={procedureType}
-                onValueChange={setProcedureType}
-                disabled={isPending}
-              >
+              <Select value={procedureType} onValueChange={setProcedureType} disabled={isPending}>
                 <SelectTrigger id="procedureType">
                   <SelectValue placeholder="Selectați procedura" />
                 </SelectTrigger>

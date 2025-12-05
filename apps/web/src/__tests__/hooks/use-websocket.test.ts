@@ -574,7 +574,7 @@ describe('useWebSocket (platinum standard)', () => {
     it('handles different event subscriptions independently', () => {
       // ARRANGE
       const leadHandler = vi.fn();
-      const patientHandler = vi.fn();
+      const appointmentHandler = vi.fn();
       const { result } = renderHook(() =>
         useWebSocket({
           url: 'wss://test.example.com',
@@ -584,7 +584,7 @@ describe('useWebSocket (platinum standard)', () => {
 
       act(() => {
         result.current.subscribe('lead.created', leadHandler);
-        result.current.subscribe('patient.updated', patientHandler);
+        result.current.subscribe('appointment.updated', appointmentHandler);
         result.current.connect();
         mockWsInstance?.simulateOpen();
         mockWsInstance?.simulateMessage({ type: 'auth_success' });
@@ -597,7 +597,7 @@ describe('useWebSocket (platinum standard)', () => {
 
       // ASSERT
       expect(leadHandler).toHaveBeenCalledTimes(1);
-      expect(patientHandler).not.toHaveBeenCalled();
+      expect(appointmentHandler).not.toHaveBeenCalled();
     });
   });
 });

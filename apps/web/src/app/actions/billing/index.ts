@@ -202,7 +202,7 @@ function rowToInvoiceItem(row: InvoiceItemRow): InvoiceItem {
 export async function getInvoicesAction(): Promise<Invoice[]> {
   await requirePermission('billing:read');
   const user = await requireCurrentUser();
-  if (!user?.clinicId) {
+  if (!user.clinicId) {
     throw new Error('No clinic associated with user');
   }
 
@@ -254,7 +254,7 @@ export async function getInvoicesAction(): Promise<Invoice[]> {
 export async function getInvoiceByIdAction(id: string): Promise<Invoice | null> {
   await requirePermission('billing:read');
   const user = await requireCurrentUser();
-  if (!user?.clinicId) {
+  if (!user.clinicId) {
     throw new Error('No clinic associated with user');
   }
 
@@ -295,7 +295,7 @@ export async function getInvoiceByIdAction(id: string): Promise<Invoice | null> 
 export async function getBillingStatsAction(): Promise<BillingStats> {
   await requirePermission('billing:read');
   const user = await requireCurrentUser();
-  if (!user?.clinicId) {
+  if (!user.clinicId) {
     throw new Error('No clinic associated with user');
   }
 
@@ -337,7 +337,7 @@ export async function createInvoiceAction(
 ): Promise<Invoice> {
   await requirePermission('billing:write');
   const user = await requireCurrentUser();
-  if (!user?.clinicId) {
+  if (!user.clinicId) {
     throw new Error('No clinic associated with user');
   }
 
@@ -441,7 +441,7 @@ export async function updateInvoiceStatusAction(
 ): Promise<Invoice> {
   await requirePermission('billing:write');
   const user = await requireCurrentUser();
-  if (!user?.clinicId) {
+  if (!user.clinicId) {
     throw new Error('No clinic associated with user');
   }
 
@@ -501,7 +501,7 @@ export async function updateInvoiceStatusAction(
 export async function deleteInvoiceAction(id: string): Promise<boolean> {
   await requirePermission('billing:delete');
   const user = await requireCurrentUser();
-  if (!user?.clinicId) {
+  if (!user.clinicId) {
     throw new Error('No clinic associated with user');
   }
 
@@ -535,11 +535,11 @@ export async function getStripeRevenueAction(): Promise<{
       monthlyRevenue: 0, // Would need separate Stripe query
       currency: dailyData.currency,
     };
-  } catch (error) {
+  } catch (_error) {
     // Graceful fallback when Stripe is not configured or unavailable
     // This is expected in development or when Stripe keys are not set
     if (process.env.NODE_ENV === 'development') {
-      console.debug('[Billing] Stripe unavailable, using fallback data:', error);
+      console.debug('[Billing] Stripe unavailable, using fallback data:', _error);
     }
     return {
       dailyRevenue: 0,

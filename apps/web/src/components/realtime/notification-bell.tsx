@@ -49,6 +49,8 @@ export function NotificationBell() {
         return 'bg-orange-500';
       case 'medium':
         return 'bg-yellow-500';
+      default:
+        return 'bg-gray-500';
     }
   };
 

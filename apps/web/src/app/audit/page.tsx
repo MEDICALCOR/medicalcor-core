@@ -78,7 +78,7 @@ export default function AuditLogPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
   async function loadData() {
@@ -89,13 +89,9 @@ export default function AuditLogPage() {
         getAuditStatsAction(),
       ]);
 
-      if (logsResult.logs) {
-        setAuditLogs(logsResult.logs);
-      }
-      if (statsResult.stats) {
-        setStats(statsResult.stats);
-      }
-    } catch (error) {
+      setAuditLogs(logsResult.logs);
+      setStats(statsResult.stats);
+    } catch (_error) {
       toast({
         title: 'Eroare',
         description: 'Nu s-a putut încărca jurnalul de audit',
@@ -106,7 +102,7 @@ export default function AuditLogPage() {
     }
   }
 
-  async function handleExport() {
+  function handleExport() {
     startTransition(async () => {
       try {
         const result = await exportAuditLogsAction();
@@ -122,7 +118,7 @@ export default function AuditLogPage() {
             variant: 'destructive',
           });
         }
-      } catch (error) {
+      } catch (_error) {
         toast({
           title: 'Eroare',
           description: 'Nu s-a putut exporta jurnalul',
@@ -287,16 +283,16 @@ export default function AuditLogPage() {
             <div className="space-y-3">
               {filteredLogs.map((log) => {
                 const category = log.category as keyof typeof categoryIcons;
-                const CategoryIcon = categoryIcons[category] ?? FileText;
+                const CategoryIcon = categoryIcons[category];
                 const status = log.status as keyof typeof statusIcons;
-                const StatusIcon = statusIcons[status] ?? CheckCircle;
+                const StatusIcon = statusIcons[status];
 
                 return (
                   <div key={log.id} className="flex items-start gap-4 p-4 border rounded-lg">
                     <div
                       className={cn(
                         'w-10 h-10 rounded-lg flex items-center justify-center shrink-0',
-                        categoryColors[category] ?? 'bg-gray-100 text-gray-700'
+                        categoryColors[category] || 'bg-gray-100 text-gray-700'
                       )}
                     >
                       <CategoryIcon className="h-5 w-5" />
@@ -305,7 +301,7 @@ export default function AuditLogPage() {
                       <div className="flex items-center gap-2">
                         <h4 className="font-medium">{log.action}</h4>
                         <StatusIcon
-                          className={cn('h-4 w-4', statusColors[status] ?? 'text-gray-600')}
+                          className={cn('h-4 w-4', statusColors[status] || 'text-gray-600')}
                         />
                       </div>
                       <p className="text-sm text-muted-foreground">{log.details}</p>

@@ -69,7 +69,7 @@ export default function PrescriptionsPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
   async function loadData() {
@@ -80,13 +80,9 @@ export default function PrescriptionsPage() {
         getPrescriptionsStatsAction(),
       ]);
 
-      if (prescriptionsResult.prescriptions) {
-        setPrescriptions(prescriptionsResult.prescriptions);
-      }
-      if (statsResult.stats) {
-        setStats(statsResult.stats);
-      }
-    } catch (error) {
+      setPrescriptions(prescriptionsResult.prescriptions);
+      setStats(statsResult.stats);
+    } catch (_error) {
       toast({
         title: 'Eroare',
         description: 'Nu s-au putut încărca rețetele',
@@ -97,7 +93,7 @@ export default function PrescriptionsPage() {
     }
   }
 
-  async function handleDuplicate(id: string) {
+  function handleDuplicate(id: string) {
     startTransition(async () => {
       const result = await duplicatePrescriptionAction(id);
       if (result.prescription) {
@@ -133,17 +129,22 @@ export default function PrescriptionsPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const activeCount = stats?.activeCount ?? prescriptions.filter((rx) => rx.status === 'active').length;
-  const expiringCount = stats?.expiringCount ?? prescriptions.filter((rx) => {
-    if (!rx.validUntil) return false;
-    const daysUntilExpiry = Math.ceil(
-      (new Date(rx.validUntil).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-    );
-    return rx.status === 'active' && daysUntilExpiry <= 7 && daysUntilExpiry > 0;
-  }).length;
-  const todayCount = stats?.todayCount ?? prescriptions.filter(
-    (rx) => new Date(rx.createdAt).toDateString() === new Date().toDateString()
-  ).length;
+  const activeCount =
+    stats?.activeCount ?? prescriptions.filter((rx) => rx.status === 'active').length;
+  const expiringCount =
+    stats?.expiringCount ??
+    prescriptions.filter((rx) => {
+      if (!rx.validUntil) return false;
+      const daysUntilExpiry = Math.ceil(
+        (new Date(rx.validUntil).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+      );
+      return rx.status === 'active' && daysUntilExpiry <= 7 && daysUntilExpiry > 0;
+    }).length;
+  const todayCount =
+    stats?.todayCount ??
+    prescriptions.filter(
+      (rx) => new Date(rx.createdAt).toDateString() === new Date().toDateString()
+    ).length;
 
   if (isLoading) {
     return (
@@ -364,9 +365,11 @@ export default function PrescriptionsPage() {
             <div className="space-y-4">
               {filteredPrescriptions.map((rx) => {
                 const status = rx.status as keyof typeof statusConfig;
-                const StatusIcon = statusConfig[status]?.icon ?? CheckCircle;
+                const StatusIcon = statusConfig[status].icon;
                 const daysUntilExpiry = rx.validUntil
-                  ? Math.ceil((new Date(rx.validUntil).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                  ? Math.ceil(
+                      (new Date(rx.validUntil).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+                    )
                   : 999;
                 const isExpiringSoon =
                   rx.status === 'active' && daysUntilExpiry <= 7 && daysUntilExpiry > 0;
@@ -378,7 +381,7 @@ export default function PrescriptionsPage() {
                         <div
                           className={cn(
                             'w-10 h-10 rounded-lg flex items-center justify-center',
-                            statusConfig[status]?.color?.split(' ')[0] ?? 'bg-gray-100'
+                            statusConfig[status].color.split(' ')[0]
                           )}
                         >
                           <StatusIcon className="h-5 w-5" />
@@ -386,13 +389,8 @@ export default function PrescriptionsPage() {
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
                             <h4 className="font-medium">{rx.prescriptionNumber}</h4>
-                            <Badge
-                              className={cn(
-                                'text-xs',
-                                statusConfig[status]?.color ?? 'bg-gray-100 text-gray-700'
-                              )}
-                            >
-                              {statusConfig[status]?.label ?? rx.status}
+                            <Badge className={cn('text-xs', statusConfig[status].color)}>
+                              {statusConfig[status].label}
                             </Badge>
                             {isExpiringSoon && (
                               <Badge
@@ -450,10 +448,10 @@ export default function PrescriptionsPage() {
                     </div>
                     <div className="px-4 pb-4 border-t pt-3">
                       <p className="text-xs text-muted-foreground mb-2">
-                        Medicamente ({rx.medications?.length ?? 0})
+                        Medicamente ({rx.medications.length})
                       </p>
                       <div className="flex flex-wrap gap-2">
-                        {rx.medications?.map((med, idx) => (
+                        {rx.medications.map((med, idx) => (
                           <Badge key={idx} variant="outline" className="text-xs">
                             <Pill className="h-3 w-3 mr-1" />
                             {med.name} {med.dosage} - {med.frequency}

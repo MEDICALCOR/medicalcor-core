@@ -19,8 +19,6 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  ArrowUp,
-  ArrowDown,
   MoreVertical,
   Search,
   Loader2,
@@ -80,7 +78,7 @@ export default function WaitingListPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
   async function loadData() {
@@ -91,13 +89,11 @@ export default function WaitingListPage() {
         getWaitingListStatsAction(),
       ]);
 
-      if (listResult.patients) {
-        setWaitingList(listResult.patients);
-      }
+      setWaitingList(listResult.patients);
       if (statsResult.stats) {
         setStats(statsResult.stats);
       }
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: 'Eroare',
         description: 'Nu s-a putut încărca lista de așteptare',
@@ -108,13 +104,11 @@ export default function WaitingListPage() {
     }
   }
 
-  async function handleUpdateStatus(id: string, status: WaitingPatient['status']) {
+  function handleUpdateStatus(id: string, status: WaitingPatient['status']) {
     startTransition(async () => {
       const result = await updateWaitingPatientAction({ id, status });
       if (result.patient) {
-        setWaitingList((prev) =>
-          prev.map((p) => (p.id === id ? result.patient! : p))
-        );
+        setWaitingList((prev) => prev.map((p) => (p.id === id ? result.patient : p)));
         toast({ title: 'Succes', description: 'Statusul a fost actualizat' });
       } else {
         toast({ title: 'Eroare', description: result.error, variant: 'destructive' });
@@ -122,7 +116,7 @@ export default function WaitingListPage() {
     });
   }
 
-  async function handleRemove(id: string) {
+  function handleRemove(id: string) {
     startTransition(async () => {
       const result = await removeFromWaitingListAction(id);
       if (result.success) {
@@ -322,7 +316,7 @@ export default function WaitingListPage() {
             <div className="space-y-3">
               {sortedList.map((patient, index) => {
                 const status = patient.status;
-                const StatusIcon = statusConfig[status]?.icon ?? Clock;
+                const StatusIcon = statusConfig[status].icon;
                 const daysWaiting = getDaysWaiting(patient.addedAt);
 
                 return (
@@ -348,17 +342,21 @@ export default function WaitingListPage() {
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="font-medium">{patient.patientName}</h4>
-                          <Badge className={cn('text-xs', priorityConfig[patient.priority]?.color)}>
-                            {priorityConfig[patient.priority]?.label}
+                          <Badge className={cn('text-xs', priorityConfig[patient.priority].color)}>
+                            {priorityConfig[patient.priority].label}
                           </Badge>
-                          <Badge className={cn('text-xs', statusConfig[status]?.color)}>
+                          <Badge className={cn('text-xs', statusConfig[status].color)}>
                             <StatusIcon className="h-3 w-3 mr-1" />
-                            {statusConfig[status]?.label}
+                            {statusConfig[status].label}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">{patient.requestedService}</p>
                         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                          <span>{patient.preferredDays?.join(', ') || 'Orice zi'}</span>
+                          <span>
+                            {patient.preferredDays.length > 0
+                              ? patient.preferredDays.join(', ')
+                              : 'Orice zi'}
+                          </span>
                           {patient.preferredDoctor && (
                             <>
                               <span>•</span>
@@ -395,15 +393,22 @@ export default function WaitingListPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleUpdateStatus(patient.id, 'contacted')}>
+                            <DropdownMenuItem
+                              onClick={() => handleUpdateStatus(patient.id, 'contacted')}
+                            >
                               <Phone className="h-4 w-4 mr-2" />
                               Marchează contactat
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleUpdateStatus(patient.id, 'scheduled')}>
+                            <DropdownMenuItem
+                              onClick={() => handleUpdateStatus(patient.id, 'scheduled')}
+                            >
                               <Calendar className="h-4 w-4 mr-2" />
                               Programează
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600" onClick={() => handleRemove(patient.id)}>
+                            <DropdownMenuItem
+                              className="text-red-600"
+                              onClick={() => handleRemove(patient.id)}
+                            >
                               <XCircle className="h-4 w-4 mr-2" />
                               Elimină din listă
                             </DropdownMenuItem>

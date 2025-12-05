@@ -92,10 +92,22 @@ interface TemplateRow {
 // =============================================================================
 
 const CreateTemplateSchema = z.object({
-  name: z.string().min(1).max(200).regex(/^[a-z][a-z0-9_]*$/, {
-    message: 'Template name must be lowercase, start with a letter, and contain only letters, numbers, and underscores',
-  }),
-  category: z.enum(['appointment', 'reminder', 'followup', 'marketing', 'utility', 'authentication']),
+  name: z
+    .string()
+    .min(1)
+    .max(200)
+    .regex(/^[a-z][a-z0-9_]*$/, {
+      message:
+        'Template name must be lowercase, start with a letter, and contain only letters, numbers, and underscores',
+    }),
+  category: z.enum([
+    'appointment',
+    'reminder',
+    'followup',
+    'marketing',
+    'utility',
+    'authentication',
+  ]),
   language: z.string().min(2).max(5).default('ro'),
   content: z.string().min(1).max(1024),
   variables: z.array(z.string()).default([]),
@@ -108,7 +120,9 @@ const CreateTemplateSchema = z.object({
 const UpdateTemplateSchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1).max(200).optional(),
-  category: z.enum(['appointment', 'reminder', 'followup', 'marketing', 'utility', 'authentication']).optional(),
+  category: z
+    .enum(['appointment', 'reminder', 'followup', 'marketing', 'utility', 'authentication'])
+    .optional(),
   content: z.string().min(1).max(1024).optional(),
   variables: z.array(z.string()).optional(),
   footer: z.string().max(60).nullable().optional(),
@@ -145,7 +159,7 @@ function rowToTemplate(row: TemplateRow): WhatsAppTemplate {
 }
 
 function extractVariables(content: string): string[] {
-  const matches = content.match(/\{\{(\d+)\}\}/g) || [];
+  const matches = content.match(/\{\{(\d+)\}\}/g) ?? [];
   return matches.map((m) => m.replace(/[{}]/g, ''));
 }
 
@@ -159,7 +173,7 @@ function extractVariables(content: string): string[] {
 export async function getWhatsAppTemplatesAction(): Promise<WhatsAppTemplate[]> {
   await requirePermission('whatsapp:read');
   const user = await requireCurrentUser();
-  if (!user?.clinicId) {
+  if (!user.clinicId) {
     throw new Error('No clinic associated with user');
   }
 
@@ -188,7 +202,7 @@ export async function getWhatsAppTemplatesAction(): Promise<WhatsAppTemplate[]> 
 export async function getWhatsAppTemplateStatsAction(): Promise<TemplateStats> {
   await requirePermission('whatsapp:read');
   const user = await requireCurrentUser();
-  if (!user?.clinicId) {
+  if (!user.clinicId) {
     throw new Error('No clinic associated with user');
   }
 
@@ -225,7 +239,7 @@ export async function getWhatsAppTemplateStatsAction(): Promise<TemplateStats> {
 export async function getWhatsAppTemplateByIdAction(id: string): Promise<WhatsAppTemplate | null> {
   await requirePermission('whatsapp:read');
   const user = await requireCurrentUser();
-  if (!user?.clinicId) {
+  if (!user.clinicId) {
     throw new Error('No clinic associated with user');
   }
 
@@ -259,7 +273,7 @@ export async function createWhatsAppTemplateAction(
 ): Promise<WhatsAppTemplate> {
   await requirePermission('whatsapp:write');
   const user = await requireCurrentUser();
-  if (!user?.clinicId || !user?.id) {
+  if (!user.clinicId || !user.id) {
     throw new Error('No clinic associated with user');
   }
 
@@ -267,7 +281,8 @@ export async function createWhatsAppTemplateAction(
   const database = getDatabase();
 
   // Extract variables from content if not provided
-  const variables = parsed.variables.length > 0 ? parsed.variables : extractVariables(parsed.content);
+  const variables =
+    parsed.variables.length > 0 ? parsed.variables : extractVariables(parsed.content);
 
   const result = await database.query<TemplateRow>(
     `INSERT INTO whatsapp_templates (
@@ -311,7 +326,7 @@ export async function updateWhatsAppTemplateAction(
 ): Promise<WhatsAppTemplate> {
   await requirePermission('whatsapp:write');
   const user = await requireCurrentUser();
-  if (!user?.clinicId) {
+  if (!user.clinicId) {
     throw new Error('No clinic associated with user');
   }
 
@@ -395,7 +410,7 @@ export async function updateWhatsAppTemplateAction(
 export async function deleteWhatsAppTemplateAction(id: string): Promise<boolean> {
   await requirePermission('whatsapp:delete');
   const user = await requireCurrentUser();
-  if (!user?.clinicId) {
+  if (!user.clinicId) {
     throw new Error('No clinic associated with user');
   }
 
@@ -415,7 +430,7 @@ export async function deleteWhatsAppTemplateAction(id: string): Promise<boolean>
 export async function duplicateWhatsAppTemplateAction(id: string): Promise<WhatsAppTemplate> {
   await requirePermission('whatsapp:write');
   const user = await requireCurrentUser();
-  if (!user?.clinicId || !user?.id) {
+  if (!user.clinicId || !user.id) {
     throw new Error('No clinic associated with user');
   }
 

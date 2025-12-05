@@ -78,7 +78,7 @@ export default function DocumentsPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
   async function loadData() {
@@ -90,16 +90,10 @@ export default function DocumentsPage() {
         getDocumentsStatsAction(),
       ]);
 
-      if (documentsResult.documents) {
-        setDocuments(documentsResult.documents);
-      }
-      if (foldersResult.folders) {
-        setFolders(foldersResult.folders);
-      }
-      if (statsResult.stats) {
-        setStats(statsResult.stats);
-      }
-    } catch (error) {
+      setDocuments(documentsResult.documents);
+      setFolders(foldersResult.folders);
+      setStats(statsResult.stats);
+    } catch (_error) {
       toast({
         title: 'Eroare',
         description: 'Nu s-au putut încărca documentele',
@@ -110,7 +104,7 @@ export default function DocumentsPage() {
     }
   }
 
-  async function handleDelete(id: string) {
+  function handleDelete(id: string) {
     startTransition(async () => {
       const result = await deleteDocumentAction(id);
       if (result.success) {
@@ -217,9 +211,7 @@ export default function DocumentsPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {folders.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Nu există foldere
-              </p>
+              <p className="text-sm text-muted-foreground text-center py-4">Nu există foldere</p>
             ) : (
               folders.map((folder) => (
                 <div
@@ -230,7 +222,7 @@ export default function DocumentsPage() {
                     <div
                       className={cn(
                         'w-8 h-8 rounded flex items-center justify-center',
-                        folder.color ?? 'bg-blue-500'
+                        folder.color
                       )}
                     >
                       <Folder className="h-4 w-4 text-white" />
@@ -314,7 +306,7 @@ export default function DocumentsPage() {
               <div className="space-y-2">
                 {filteredDocuments.map((doc) => {
                   const docType = doc.type as keyof typeof typeIcons;
-                  const TypeIcon = typeIcons[docType] ?? File;
+                  const TypeIcon = typeIcons[docType];
                   const category = doc.category as keyof typeof categoryLabels;
                   return (
                     <div
@@ -335,7 +327,7 @@ export default function DocumentsPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className="text-xs">
-                          {categoryLabels[category] ?? doc.category}
+                          {categoryLabels[category]}
                         </Badge>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -374,7 +366,7 @@ export default function DocumentsPage() {
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredDocuments.map((doc) => {
                   const docType = doc.type as keyof typeof typeIcons;
-                  const TypeIcon = typeIcons[docType] ?? File;
+                  const TypeIcon = typeIcons[docType];
                   const category = doc.category as keyof typeof categoryLabels;
                   return (
                     <div
@@ -388,11 +380,16 @@ export default function DocumentsPage() {
                       <p className="text-xs text-muted-foreground mt-1">{doc.size}</p>
                       <div className="flex items-center justify-between mt-3">
                         <Badge variant="outline" className="text-xs">
-                          {categoryLabels[category] ?? doc.category}
+                          {categoryLabels[category]}
                         </Badge>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isPending}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              disabled={isPending}
+                            >
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>

@@ -6,8 +6,6 @@
  * These actions fetch OSAX case data from the repository.
  */
 
-import type { OsaxCase, OsaxCaseSpec } from '@medicalcor/domain';
-
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -53,7 +51,7 @@ export interface GetOsaxCasesOptions {
 /**
  * Get OSAX cases with optional filtering
  */
-export async function getOsaxCases(options: GetOsaxCasesOptions = {}): Promise<OsaxCaseListItem[]> {
+export function getOsaxCases(options: GetOsaxCasesOptions = {}): Promise<OsaxCaseListItem[]> {
   // In production, this would use the actual repository
   // For now, return mock data
 
@@ -144,7 +142,7 @@ export async function getOsaxCases(options: GetOsaxCasesOptions = {}): Promise<O
     filteredCases = filteredCases.slice(start, start + options.limit);
   }
 
-  return filteredCases;
+  return Promise.resolve(filteredCases);
 }
 
 /**
@@ -158,9 +156,9 @@ export async function getOsaxCaseById(id: string): Promise<OsaxCaseListItem | nu
 /**
  * Get OSAX dashboard statistics
  */
-export async function getOsaxStatistics(): Promise<OsaxStatistics> {
+export function getOsaxStatistics(): Promise<OsaxStatistics> {
   // In production, this would aggregate from the repository
-  return {
+  return Promise.resolve({
     totalCases: 247,
     pendingReview: 12,
     activeTreatments: 89,
@@ -181,7 +179,7 @@ export async function getOsaxStatistics(): Promise<OsaxStatistics> {
       FOLLOW_UP: 56,
       CLOSED: 32,
     },
-  };
+  });
 }
 
 /**
@@ -226,13 +224,13 @@ export async function getSeverityDistribution(): Promise<{ severity: string; cou
 /**
  * Get treatment type distribution
  */
-export async function getTreatmentDistribution(): Promise<{ type: string; count: number }[]> {
+export function getTreatmentDistribution(): Promise<{ type: string; count: number }[]> {
   // In production, aggregate from repository
-  return [
+  return Promise.resolve([
     { type: 'CPAP_THERAPY', count: 52 },
     { type: 'BIPAP_THERAPY', count: 12 },
     { type: 'ORAL_APPLIANCE', count: 18 },
     { type: 'POSITIONAL_THERAPY', count: 8 },
     { type: 'LIFESTYLE_MODIFICATION', count: 24 },
-  ];
+  ]);
 }
