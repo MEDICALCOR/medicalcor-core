@@ -11,13 +11,13 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       // COVERAGE THRESHOLDS - Progressive ratcheting approach
-      // Current: ~31% -> Interim target: 30% -> Final target: 80%
-      // Increase thresholds as coverage improves to prevent regression
+      // Current: ~62% -> Target: 80%+ (Medical/Banking "Platinum" standard)
+      // Increased from 30% baseline after comprehensive test suite expansion
       thresholds: {
-        lines: 30,
-        functions: 25,
-        branches: 20,
-        statements: 30,
+        lines: 60,
+        functions: 60,
+        branches: 50,
+        statements: 60,
       },
       exclude: [
         'node_modules/',
