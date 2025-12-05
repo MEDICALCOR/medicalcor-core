@@ -35,6 +35,11 @@ import {
   type MockStripeClient,
 } from './stripe.js';
 import {
+  createNotificationsService,
+  createMockNotificationsService,
+  type NotificationsService,
+} from './notifications.js';
+import {
   createScoringService,
   createTriageService,
   createConsentService,
@@ -98,6 +103,8 @@ export interface ClientsConfig {
   includeConsent?: boolean;
   /** Include template catalog service */
   includeTemplateCatalog?: boolean;
+  /** Include notifications service (real-time alerts) */
+  includeNotifications?: boolean;
   /** Circuit breaker configuration */
   circuitBreaker?: CircuitBreakerOptions;
 }
@@ -114,6 +121,7 @@ export type ClientName =
   | 'triage'
   | 'consent'
   | 'templateCatalog'
+  | 'notifications'
   | 'eventStore';
 
 /**
@@ -130,6 +138,7 @@ export interface IntegrationClients {
   triage: TriageService | null;
   consent: ConsentService | null;
   templateCatalog: TemplateCatalogService | null;
+  notifications: NotificationsService | null;
   eventStore: EventStore;
   /** Returns true if all required clients are available */
   isConfigured: (required: ClientName[]) => boolean;
@@ -172,6 +181,7 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
     includeTriage = false,
     includeConsent = false,
     includeTemplateCatalog = false,
+    includeNotifications = false,
     circuitBreaker = {},
   } = config;
   const cbEnabled = circuitBreaker.enabled !== false; // Default enabled
@@ -327,6 +337,19 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
     templateCatalog = createTemplateCatalogService();
   }
 
+  // Notifications service (optional, for real-time alerts)
+  let notifications: NotificationsService | null = null;
+  if (includeNotifications) {
+    const apiGatewayUrl = process.env.API_GATEWAY_URL;
+    const internalApiKey = process.env.INTERNAL_API_KEY;
+    if (apiGatewayUrl && internalApiKey) {
+      notifications = createNotificationsService({ apiGatewayUrl, internalApiKey });
+    } else {
+      // Use mock for development/testing
+      notifications = createMockNotificationsService();
+    }
+  }
+
   // Event store (always initialized)
   const eventStore: EventStore = databaseUrl
     ? createEventStore({ source, connectionString: databaseUrl })
@@ -365,6 +388,9 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
           break;
         case 'templateCatalog':
           if (!templateCatalog) return false;
+          break;
+        case 'notifications':
+          if (!notifications) return false;
           break;
         case 'eventStore':
           // eventStore is always initialized
@@ -411,6 +437,7 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
     triage,
     consent,
     templateCatalog,
+    notifications,
     eventStore,
     isConfigured,
     getCircuitBreakerStats,

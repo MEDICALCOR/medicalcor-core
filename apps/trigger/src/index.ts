@@ -28,6 +28,21 @@ export {
   handlePaymentFailed,
   handleRefund,
 } from './tasks/payment-handler.js';
+export {
+  handleUrgentCase,
+  detectUrgentKeywords,
+  type UrgentCasePayload,
+  type UrgentKeywordDetectionPayload,
+} from './tasks/urgent-case-handler.js';
+export {
+  dispatchNotification,
+  sendUrgentAlert,
+  sendAppointmentReminder,
+  type NotificationDispatchPayload,
+  type UrgentAlertPayload,
+  type AppointmentReminderPayload,
+  type DispatchResult,
+} from './tasks/notification-dispatcher.js';
 
 // Workflows
 export {
@@ -44,6 +59,12 @@ export {
   type PostCallPayload,
   type TranscriptWebhookPayload,
 } from './workflows/voice-transcription.js';
+export {
+  urgentCaseEscalationWorkflow,
+  messageUrgencyDetectionWorkflow,
+  type UrgentCaseEscalationPayload,
+  type MessageUrgencyDetectionPayload,
+} from './workflows/urgent-case-escalation.js';
 
 // Scheduled Jobs
 export {
