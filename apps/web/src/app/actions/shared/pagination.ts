@@ -1,5 +1,3 @@
-
-
 /**
  * @fileoverview Pagination Utilities for Server Actions
  *
@@ -62,10 +60,7 @@ export async function fetchAllContacts(
   searchParams: SearchParamsWithoutPaging,
   options: FetchAllOptions = {}
 ): Promise<HubSpotContact[]> {
-  const {
-    maxResults = MAX_FETCH_RESULTS,
-    pageSize = HUBSPOT_PAGE_SIZE,
-  } = options;
+  const { maxResults = MAX_FETCH_RESULTS, pageSize = HUBSPOT_PAGE_SIZE } = options;
 
   const allResults: HubSpotContact[] = [];
   let cursor: string | undefined;
@@ -106,11 +101,7 @@ export async function fetchAllContacts(
  * validatePageSize(50) // 50
  * ```
  */
-export function validatePageSize(
-  pageSize: number,
-  min = 1,
-  max = HUBSPOT_PAGE_SIZE
-): number {
+export function validatePageSize(pageSize: number, min = 1, max = HUBSPOT_PAGE_SIZE): number {
   return Math.min(Math.max(pageSize, min), max);
 }
 
@@ -120,6 +111,7 @@ export function validatePageSize(
  *
  * @returns Empty paginated response with no items
  */
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
 export function emptyPaginatedResponse<T>(): {
   items: T[];
   nextCursor: null;

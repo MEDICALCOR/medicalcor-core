@@ -68,18 +68,18 @@ export default function BookingPage() {
   });
 
   useEffect(() => {
-    loadServices();
+    void loadServices();
   }, []);
 
   useEffect(() => {
     if (selectedService) {
-      loadDoctors();
+      void loadDoctors();
     }
   }, [selectedService]);
 
   useEffect(() => {
     if (selectedDoctor && selectedDate) {
-      loadTimeSlots();
+      void loadTimeSlots();
     }
   }, [selectedDoctor, selectedDate]);
 
@@ -87,10 +87,8 @@ export default function BookingPage() {
     setIsLoading(true);
     try {
       const result = await getServicesAction();
-      if (result.services) {
-        setServices(result.services);
-      }
-    } catch (error) {
+      setServices(result.services);
+    } catch (_error) {
       toast({
         title: 'Eroare',
         description: 'Nu s-au putut încărca serviciile',
@@ -104,10 +102,8 @@ export default function BookingPage() {
   async function loadDoctors() {
     try {
       const result = await getDoctorsAction();
-      if (result.doctors) {
-        setDoctors(result.doctors);
-      }
-    } catch (error) {
+      setDoctors(result.doctors);
+    } catch (_error) {
       toast({
         title: 'Eroare',
         description: 'Nu s-au putut încărca medicii',
@@ -123,10 +119,8 @@ export default function BookingPage() {
         doctorId: selectedDoctor.id,
         date: selectedDate.toISOString(),
       });
-      if (result.slots) {
-        setTimeSlots(result.slots);
-      }
-    } catch (error) {
+      setTimeSlots(result.slots);
+    } catch (_error) {
       toast({
         title: 'Eroare',
         description: 'Nu s-au putut încărca intervalele disponibile',
@@ -163,7 +157,7 @@ export default function BookingPage() {
             variant: 'destructive',
           });
         }
-      } catch (error) {
+      } catch (_error) {
         toast({
           title: 'Eroare',
           description: 'Nu s-a putut crea programarea',
@@ -372,7 +366,11 @@ export default function BookingPage() {
                   >
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium">
-                        {doctor.avatar || doctor.name.split(' ').map((n) => n[0]).join('')}
+                        {doctor.avatar ??
+                          doctor.name
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')}
                       </div>
                       <div className="flex-1">
                         <h3 className="font-medium">{doctor.name}</h3>

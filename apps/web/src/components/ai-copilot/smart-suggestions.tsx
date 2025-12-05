@@ -63,8 +63,8 @@ export function SmartSuggestions({ context, onSelect }: SmartSuggestionsProps) {
     }, 500);
   };
 
-  const handleCopy = async (content: string, id: string) => {
-    await navigator.clipboard.writeText(content);
+  const handleCopy = (content: string, id: string) => {
+    void navigator.clipboard.writeText(content);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
@@ -130,7 +130,7 @@ export function SmartSuggestions({ context, onSelect }: SmartSuggestionsProps) {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          void handleCopy(suggestion.content, suggestion.id);
+                          handleCopy(suggestion.content, suggestion.id);
                         }}
                         className="p-1 hover:bg-muted rounded"
                       >

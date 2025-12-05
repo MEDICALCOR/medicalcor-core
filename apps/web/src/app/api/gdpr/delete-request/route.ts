@@ -56,7 +56,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     // Parse and validate request body
-    const body = await req.json();
+    const body = (await req.json()) as unknown;
     const parseResult = DeletionRequestSchema.safeParse(body);
 
     if (!parseResult.success) {
@@ -249,7 +249,6 @@ export async function GET(): Promise<NextResponse> {
       controller: 'MedicalCor SRL',
       dpo: 'dpo@medicalcor.ro',
     },
-    warning:
-      'This action is irreversible. You will lose access to all your data and services.',
+    warning: 'This action is irreversible. You will lose access to all your data and services.',
   });
 }

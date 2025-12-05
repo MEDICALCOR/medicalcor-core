@@ -108,7 +108,7 @@ function rowToMedicalRecord(row: RecordRow): MedicalRecord {
     id: row.id,
     patientId: row.lead_id,
     patientName: row.patient_name ?? 'Pacient necunoscut',
-    type: (row.type as MedicalRecord['type']) || 'note',
+    type: (row.type || 'note') as MedicalRecord['type'],
     date: row.created_at,
     doctor: 'Dr. Staff',
     specialty: 'Medicină generală',
@@ -148,13 +148,16 @@ export async function getMedicalRecordsAction(
     const result = await database.query<RecordRow>(query, params);
 
     return { records: result.rows.map(rowToMedicalRecord) };
-  } catch (error) {
-    console.error('Error fetching medical records:', error);
+  } catch (_error) {
+    console.error('Error fetching medical records:', _error);
     return { records: [], error: 'Failed to fetch medical records' };
   }
 }
 
-export async function getMedicalRecordStatsAction(): Promise<{ stats: MedicalRecordStats | null; error?: string }> {
+export async function getMedicalRecordStatsAction(): Promise<{
+  stats: MedicalRecordStats | null;
+  error?: string;
+}> {
   try {
     await requirePermission('medical_records:read');
     const user = await requireCurrentUser();
@@ -189,8 +192,8 @@ export async function getMedicalRecordStatsAction(): Promise<{ stats: MedicalRec
         activeTreatments: parseInt(row.pending_prescriptions),
       },
     };
-  } catch (error) {
-    console.error('Error fetching medical record stats:', error);
+  } catch (_error) {
+    console.error('Error fetching medical record stats:', _error);
     return { stats: null, error: 'Failed to fetch stats' };
   }
 }
@@ -237,8 +240,8 @@ export async function createMedicalRecordAction(
         attachments: 0,
       },
     };
-  } catch (error) {
-    console.error('Error creating medical record:', error);
+  } catch (_error) {
+    console.error('Error creating medical record:', _error);
     return { record: null, error: 'Failed to create medical record' };
   }
 }
@@ -253,8 +256,8 @@ export async function getDiagnosesAction(
     // For now, return empty as diagnoses need dedicated table
     // This would be implemented with a proper diagnoses table
     return { diagnoses: [] };
-  } catch (error) {
-    console.error('Error fetching diagnoses:', error);
+  } catch (_error) {
+    console.error('Error fetching diagnoses:', _error);
     return { diagnoses: [], error: 'Failed to fetch diagnoses' };
   }
 }
@@ -311,8 +314,8 @@ export async function getPrescriptionsAction(
         status: row.status as Prescription['status'],
       })),
     };
-  } catch (error) {
-    console.error('Error fetching prescriptions:', error);
+  } catch (_error) {
+    console.error('Error fetching prescriptions:', _error);
     return { prescriptions: [], error: 'Failed to fetch prescriptions' };
   }
 }

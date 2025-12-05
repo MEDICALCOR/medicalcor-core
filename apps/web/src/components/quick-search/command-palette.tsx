@@ -162,6 +162,9 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           e.preventDefault();
           onOpenChange(false);
           break;
+        default:
+          // No action for other keys
+          break;
       }
     },
     [results, selectedIndex, handleSelect, onOpenChange]

@@ -58,6 +58,9 @@ export function GlobalShortcuts() {
               e2.preventDefault();
               router.push('/messages');
               break;
+            default:
+              // No action for other keys
+              break;
           }
         };
 
@@ -91,6 +94,9 @@ export function GlobalShortcuts() {
             // Dispatch custom event for quick search
             window.dispatchEvent(new CustomEvent('app:quick-search'));
           }
+          break;
+        default:
+          // No action for other keys
           break;
       }
     };

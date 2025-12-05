@@ -115,7 +115,7 @@ export async function getUsersAction(clinicId?: string): Promise<User[]> {
   const database = getDatabase();
 
   // Non-admin users can only see users from their clinic
-  const filterClinicId = user?.role === 'admin' ? clinicId : user?.clinicId;
+  const filterClinicId = user.role === 'admin' ? clinicId : user.clinicId;
 
   let query = `
     SELECT
@@ -191,7 +191,7 @@ export async function getUserStatsAction(): Promise<UserStats> {
   const params: unknown[] = [];
 
   // Non-admin users see stats for their clinic only
-  if (user?.role !== 'admin' && user?.clinicId) {
+  if (user.role !== 'admin' && user.clinicId) {
     params.push(user.clinicId);
     query += ` AND clinic_id = $${params.length}`;
   }
@@ -229,7 +229,7 @@ export async function createUserAction(data: z.infer<typeof CreateUserSchema>): 
   const database = getDatabase();
 
   // Non-admin users can only create users in their clinic
-  const clinicId = currentUser?.role === 'admin' ? parsed.clinicId : currentUser?.clinicId;
+  const clinicId = currentUser.role === 'admin' ? parsed.clinicId : currentUser.clinicId;
 
   // Hash password
   const passwordHash = await bcrypt.hash(parsed.password, 12);

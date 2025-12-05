@@ -77,7 +77,7 @@ export default function RemindersPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
   async function loadData() {
@@ -88,13 +88,9 @@ export default function RemindersPage() {
         getReminderStatsAction(),
       ]);
 
-      if (remindersResult.reminders) {
-        setRemindersList(remindersResult.reminders);
-      }
-      if (statsResult.stats) {
-        setStats(statsResult.stats);
-      }
-    } catch (error) {
+      setRemindersList(remindersResult.reminders);
+      setStats(statsResult.stats);
+    } catch (_error) {
       toast({
         title: 'Eroare',
         description: 'Nu s-au putut încărca reminderele',
@@ -105,13 +101,11 @@ export default function RemindersPage() {
     }
   }
 
-  async function handleToggle(id: string) {
+  function handleToggle(id: string) {
     startTransition(async () => {
       const result = await toggleReminderAction(id);
       if (result.reminder) {
-        setRemindersList((prev) =>
-          prev.map((r) => (r.id === id ? result.reminder! : r))
-        );
+        setRemindersList((prev) => prev.map((r) => (r.id === id ? result.reminder! : r)));
         toast({
           title: 'Succes',
           description: result.reminder.isActive ? 'Reminder activat' : 'Reminder dezactivat',
@@ -122,7 +116,7 @@ export default function RemindersPage() {
     });
   }
 
-  async function handleDelete(id: string) {
+  function handleDelete(id: string) {
     startTransition(async () => {
       const result = await deleteReminderAction(id);
       if (result.success) {
@@ -296,7 +290,7 @@ export default function RemindersPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Rată livrare</p>
-                <p className="text-xl font-bold">{stats?.deliveryRate?.toFixed(1) ?? 0}%</p>
+                <p className="text-xl font-bold">{stats.deliveryRate.toFixed(1)}%</p>
               </div>
             </div>
           </CardContent>
@@ -348,19 +342,19 @@ export default function RemindersPage() {
                         </div>
                         <p className="text-sm text-muted-foreground mt-1">{reminder.timing}</p>
                         <div className="flex items-center gap-2 mt-2">
-                          {reminder.channels?.includes('sms') && (
+                          {reminder.channels.includes('sms') && (
                             <Badge variant="secondary" className="text-xs gap-1">
                               <MessageSquare className="h-3 w-3" />
                               SMS
                             </Badge>
                           )}
-                          {reminder.channels?.includes('email') && (
+                          {reminder.channels.includes('email') && (
                             <Badge variant="secondary" className="text-xs gap-1">
                               <Mail className="h-3 w-3" />
                               Email
                             </Badge>
                           )}
-                          {reminder.channels?.includes('whatsapp') && (
+                          {reminder.channels.includes('whatsapp') && (
                             <Badge variant="secondary" className="text-xs gap-1">
                               <MessageSquare className="h-3 w-3" />
                               WhatsApp

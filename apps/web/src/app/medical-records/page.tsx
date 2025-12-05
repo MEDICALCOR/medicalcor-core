@@ -68,7 +68,7 @@ export default function MedicalRecordsPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
   async function loadData() {
@@ -81,19 +81,11 @@ export default function MedicalRecordsPage() {
         getPatientPrescriptionsAction(),
       ]);
 
-      if (recordsResult.records) {
-        setRecords(recordsResult.records);
-      }
-      if (statsResult.stats) {
-        setStats(statsResult.stats);
-      }
-      if (diagnosesResult.diagnoses) {
-        setDiagnoses(diagnosesResult.diagnoses);
-      }
-      if (prescriptionsResult.prescriptions) {
-        setPrescriptions(prescriptionsResult.prescriptions);
-      }
-    } catch (error) {
+      setRecords(recordsResult.records);
+      setStats(statsResult.stats);
+      setDiagnoses(diagnosesResult.diagnoses);
+      setPrescriptions(prescriptionsResult.prescriptions);
+    } catch (_error) {
       toast({
         title: 'Eroare',
         description: 'Nu s-au putut încărca dosarele medicale',
@@ -191,9 +183,7 @@ export default function MedicalRecordsPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Tratamente active</p>
-              <p className="text-xl font-bold">
-                {stats?.activeTreatments ?? activePrescriptions}
-              </p>
+              <p className="text-xl font-bold">{stats?.activeTreatments ?? activePrescriptions}</p>
             </div>
           </CardContent>
         </Card>
@@ -252,7 +242,7 @@ export default function MedicalRecordsPage() {
                 <div className="space-y-3">
                   {filteredRecords.map((record) => {
                     const recordType = record.type as keyof typeof typeConfig;
-                    const TypeIcon = typeConfig[recordType]?.icon ?? FileText;
+                    const TypeIcon = typeConfig[recordType].icon;
                     return (
                       <div
                         key={record.id}
@@ -262,7 +252,7 @@ export default function MedicalRecordsPage() {
                           <div
                             className={cn(
                               'w-10 h-10 rounded-lg flex items-center justify-center',
-                              typeConfig[recordType]?.color?.split(' ')[0] ?? 'bg-gray-100'
+                              typeConfig[recordType].color.split(' ')[0]
                             )}
                           >
                             <TypeIcon className="h-5 w-5" />
@@ -270,13 +260,8 @@ export default function MedicalRecordsPage() {
                           <div>
                             <div className="flex items-center gap-2">
                               <h4 className="font-medium">{record.summary}</h4>
-                              <Badge
-                                className={cn(
-                                  'text-xs',
-                                  typeConfig[recordType]?.color ?? 'bg-gray-100 text-gray-700'
-                                )}
-                              >
-                                {typeConfig[recordType]?.label ?? record.type}
+                              <Badge className={cn('text-xs', typeConfig[recordType].color)}>
+                                {typeConfig[recordType].label}
                               </Badge>
                             </div>
                             <p className="text-sm text-muted-foreground">
@@ -347,8 +332,7 @@ export default function MedicalRecordsPage() {
                             <Badge
                               className={cn(
                                 'text-xs',
-                                statusColors[diagnosis.status as keyof typeof statusColors] ??
-                                  'bg-gray-100 text-gray-700'
+                                statusColors[diagnosis.status as keyof typeof statusColors]
                               )}
                             >
                               {diagnosis.status === 'active'
@@ -425,15 +409,16 @@ export default function MedicalRecordsPage() {
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <h4 className="font-medium">{prescription.medications[0]?.name ?? 'N/A'}</h4>
+                            <h4 className="font-medium">
+                              {prescription.medications[0]?.name ?? 'N/A'}
+                            </h4>
                             <span className="text-sm text-muted-foreground">
                               {prescription.medications[0]?.dosage ?? ''}
                             </span>
                             <Badge
                               className={cn(
                                 'text-xs',
-                                statusColors[prescription.status as keyof typeof statusColors] ??
-                                  'bg-gray-100 text-gray-700'
+                                statusColors[prescription.status as keyof typeof statusColors]
                               )}
                             >
                               {prescription.status === 'active'
@@ -444,14 +429,13 @@ export default function MedicalRecordsPage() {
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            {prescription.medications[0]?.frequency ?? ''} • Prescris de {prescription.doctor}
+                            {prescription.medications[0]?.frequency ?? ''} • Prescris de{' '}
+                            {prescription.doctor}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm">
-                          {formatDate(prescription.date)}
-                        </p>
+                        <p className="text-sm">{formatDate(prescription.date)}</p>
                         <Button variant="ghost" size="sm" className="mt-1">
                           <Eye className="h-4 w-4 mr-1" />
                           Detalii

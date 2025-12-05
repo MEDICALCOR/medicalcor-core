@@ -160,9 +160,9 @@ export async function getPatientsActionPaginated(options?: {
       hasMore: nextCursor !== null,
       total: response.total,
     };
-  } catch (error) {
-    if (error instanceof AuthorizationError) {
-      throw error;
+  } catch (_error) {
+    if (_error instanceof AuthorizationError) {
+      throw _error;
     }
     // Error logged server-side, return empty result
     return emptyPaginatedResponse();
@@ -229,8 +229,8 @@ export async function getRecentLeadsAction(limit = 5): Promise<RecentLead[]> {
     });
 
     return z.array(RecentLeadSchema).parse(leads);
-  } catch (error) {
-    if (error instanceof AuthorizationError) throw error;
+  } catch (_error) {
+    if (_error instanceof AuthorizationError) throw _error;
     // Error logged server-side
     return [];
   }
@@ -302,7 +302,7 @@ export async function getDashboardStatsAction(): Promise<DashboardStats> {
     };
 
     return DashboardStatsSchema.parse(stats);
-  } catch (error) {
+  } catch (_error) {
     // Error logged server-side
     return {
       totalLeads: 0,
@@ -329,7 +329,7 @@ async function getTodayAppointmentsCount(
 
     const appointments = await scheduling.getUpcomingAppointments(todayStart, todayEnd);
     return appointments.length;
-  } catch (error) {
+  } catch (_error) {
     // Error logged server-side
     return 0;
   }
@@ -345,7 +345,7 @@ async function getDailyRevenueAmount(
   try {
     const result = await stripe.getDailyRevenue(DEFAULT_TIMEZONE);
     return stripe.toMajorUnits(result.amount);
-  } catch (error) {
+  } catch (_error) {
     // Error logged server-side
     return undefined;
   }
@@ -402,9 +402,9 @@ export async function getPatientByIdAction(patientId: string): Promise<PatientDe
       updatedAt: contact.updatedAt,
       hubspotContactId: contact.id,
     };
-  } catch (error) {
-    if (error instanceof AuthorizationError) {
-      throw error;
+  } catch (_error) {
+    if (_error instanceof AuthorizationError) {
+      throw _error;
     }
     // Error logged server-side
     return null;
@@ -429,8 +429,8 @@ export async function getPatientTimelineAction(patientId: string): Promise<Patie
     // Timeline events require HubSpot Engagements API or custom timeline events
     // Currently returning empty array - requires additional HubSpot API calls
     return [];
-  } catch (error) {
-    if (error instanceof AuthorizationError) throw error;
+  } catch (_error) {
+    if (_error instanceof AuthorizationError) throw _error;
     // Error logged server-side
     return [];
   }

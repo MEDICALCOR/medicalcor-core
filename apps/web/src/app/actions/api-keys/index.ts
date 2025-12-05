@@ -105,7 +105,7 @@ function rowToApiKey(row: ApiKeyRow, fullKey?: string): ApiKey {
     lastUsedAt: row.last_used_at,
     isActive: row.is_active,
     requestsToday: row.requests_today,
-    requestsTotal: Number(row.requests_total),
+    requestsTotal: row.requests_total,
     dailyLimit: row.daily_limit,
   };
 }
@@ -120,7 +120,7 @@ function rowToApiKey(row: ApiKeyRow, fullKey?: string): ApiKey {
 export async function getApiKeysAction(): Promise<ApiKey[]> {
   await requirePermission('api_keys:read');
   const user = await requireCurrentUser();
-  if (!user?.clinicId) {
+  if (!user.clinicId) {
     throw new Error('No clinic associated with user');
   }
 
@@ -146,7 +146,7 @@ export async function getApiKeysAction(): Promise<ApiKey[]> {
 export async function getApiKeyStatsAction(): Promise<ApiKeyStats> {
   await requirePermission('api_keys:read');
   const user = await requireCurrentUser();
-  if (!user?.clinicId) {
+  if (!user.clinicId) {
     throw new Error('No clinic associated with user');
   }
 
@@ -183,7 +183,7 @@ export async function createApiKeyAction(
 ): Promise<ApiKey> {
   await requirePermission('api_keys:write');
   const user = await requireCurrentUser();
-  if (!user?.clinicId || !user?.id) {
+  if (!user.clinicId || !user.id) {
     throw new Error('No clinic associated with user');
   }
 
@@ -218,7 +218,7 @@ export async function updateApiKeyAction(
 ): Promise<ApiKey> {
   await requirePermission('api_keys:write');
   const user = await requireCurrentUser();
-  if (!user?.clinicId) {
+  if (!user.clinicId) {
     throw new Error('No clinic associated with user');
   }
 
@@ -275,7 +275,7 @@ export async function toggleApiKeyAction(id: string, isActive: boolean): Promise
 export async function revokeApiKeyAction(id: string, reason?: string): Promise<boolean> {
   await requirePermission('api_keys:delete');
   const user = await requireCurrentUser();
-  if (!user?.clinicId || !user?.id) {
+  if (!user.clinicId || !user.id) {
     throw new Error('No clinic associated with user');
   }
 
@@ -301,7 +301,7 @@ export async function revokeApiKeyAction(id: string, reason?: string): Promise<b
 export async function regenerateApiKeyAction(id: string): Promise<ApiKey> {
   await requirePermission('api_keys:write');
   const user = await requireCurrentUser();
-  if (!user?.clinicId || !user?.id) {
+  if (!user.clinicId || !user.id) {
     throw new Error('No clinic associated with user');
   }
 

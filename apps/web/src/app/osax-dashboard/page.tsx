@@ -13,14 +13,12 @@ export const metadata = {
   description: 'Obstructive Sleep Apnea case management dashboard',
 };
 
-export default async function OsaxDashboardPage() {
+export default function OsaxDashboardPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <header className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">OSAX Dashboard</h1>
-        <p className="mt-2 text-gray-600">
-          Manage and monitor Obstructive Sleep Apnea cases
-        </p>
+        <p className="mt-2 text-gray-600">Manage and monitor Obstructive Sleep Apnea cases</p>
       </header>
 
       {/* Statistics Cards */}
@@ -32,8 +30,16 @@ export default async function OsaxDashboardPage() {
       <div className="mt-8 flex flex-wrap gap-2">
         <FilterButton label="All Cases" href="/osax-dashboard" />
         <FilterButton label="Urgent" href="/osax-dashboard?priority=URGENT" variant="danger" />
-        <FilterButton label="Pending Review" href="/osax-dashboard?status=SCORED" variant="warning" />
-        <FilterButton label="In Treatment" href="/osax-dashboard?status=IN_TREATMENT" variant="success" />
+        <FilterButton
+          label="Pending Review"
+          href="/osax-dashboard?status=SCORED"
+          variant="warning"
+        />
+        <FilterButton
+          label="In Treatment"
+          href="/osax-dashboard?status=IN_TREATMENT"
+          variant="success"
+        />
         <FilterButton label="Severe" href="/osax-dashboard?severity=SEVERE" variant="danger" />
       </div>
 
@@ -52,12 +58,7 @@ async function StatisticsSection() {
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <StatCard
-        title="Total Cases"
-        value={stats.totalCases}
-        subtitle="All time"
-        icon="cases"
-      />
+      <StatCard title="Total Cases" value={stats.totalCases} subtitle="All time" icon="cases" />
       <StatCard
         title="Pending Review"
         value={stats.pendingReview}

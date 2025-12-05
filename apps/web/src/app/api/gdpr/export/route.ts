@@ -13,7 +13,7 @@
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { createDatabaseClient, maskPhone } from '@medicalcor/core';
+import { createDatabaseClient } from '@medicalcor/core';
 
 /**
  * GET /api/gdpr/export

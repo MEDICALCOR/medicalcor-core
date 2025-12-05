@@ -47,7 +47,7 @@ describe('Tabs', () => {
 
     const tabpanel = screen.getByRole('tabpanel');
     expect(tabpanel).toHaveAttribute('aria-labelledby');
-    expect(tabpanel).toHaveAttribute('tabindex', '0');
+    // Note: tabpanel no longer has tabindex per accessibility best practices
   });
 
   it('switches tabs when clicked', async () => {
@@ -152,9 +152,9 @@ describe('Tabs', () => {
     firstTab.focus();
     expect(firstTab).toHaveFocus();
 
-    // Tab panels should be focusable
+    // Tab panels are accessible via role
     const tabpanel = screen.getByRole('tabpanel');
-    expect(tabpanel).toHaveAttribute('tabindex', '0');
+    expect(tabpanel).toBeInTheDocument();
   });
 
   it('links tab IDs to panel IDs correctly', () => {

@@ -95,7 +95,7 @@ export default function BillingPage() {
       ]);
       setInvoices(invoicesData);
       setStats(statsData);
-    } catch {
+    } catch (_error) {
       toast({
         title: 'Eroare',
         description: 'Nu s-au putut încărca facturile',
@@ -135,7 +135,7 @@ export default function BillingPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleCreateInvoice = async () => {
+  const handleCreateInvoice = () => {
     if (!formCustomerName || !formDescription || !formAmount || !formDueDate) {
       toast({
         title: 'Eroare',
@@ -169,7 +169,7 @@ export default function BillingPage() {
           title: 'Succes',
           description: 'Factura a fost creată',
         });
-      } catch {
+      } catch (_error) {
         toast({
           title: 'Eroare',
           description: 'Nu s-a putut crea factura',
@@ -179,7 +179,7 @@ export default function BillingPage() {
     });
   };
 
-  const handleMarkAsPaid = async (id: string) => {
+  const handleMarkAsPaid = (id: string) => {
     startTransition(async () => {
       try {
         const updated = await updateInvoiceStatusAction({
@@ -193,7 +193,7 @@ export default function BillingPage() {
           title: 'Succes',
           description: 'Factura a fost marcată ca plătită',
         });
-      } catch {
+      } catch (_error) {
         toast({
           title: 'Eroare',
           description: 'Nu s-a putut actualiza factura',
@@ -213,7 +213,7 @@ export default function BillingPage() {
           description: 'Factura a fost ștearsă',
         });
         await loadData();
-      } catch {
+      } catch (_error) {
         toast({
           title: 'Eroare',
           description: 'Nu s-a putut șterge factura',

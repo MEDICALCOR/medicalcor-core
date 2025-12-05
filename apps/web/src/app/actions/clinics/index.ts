@@ -176,7 +176,7 @@ export async function getClinicByIdAction(id: string): Promise<Clinic | null> {
  */
 export async function getCurrentClinicAction(): Promise<Clinic | null> {
   const user = await requireCurrentUser();
-  if (!user?.clinicId) {
+  if (!user.clinicId) {
     return null;
   }
   return getClinicByIdAction(user.clinicId);

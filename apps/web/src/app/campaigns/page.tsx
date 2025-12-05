@@ -48,7 +48,7 @@ export default function CampaignsPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
   async function loadData() {
@@ -59,13 +59,9 @@ export default function CampaignsPage() {
         getCampaignStatsAction(),
       ]);
 
-      if (campaignsResult.campaigns) {
-        setCampaigns(campaignsResult.campaigns);
-      }
-      if (statsResult.stats) {
-        setStats(statsResult.stats);
-      }
-    } catch (error) {
+      setCampaigns(campaignsResult.campaigns);
+      setStats(statsResult.stats);
+    } catch (_error) {
       toast({
         title: 'Eroare',
         description: 'Nu s-au putut încărca campaniile',
@@ -76,7 +72,7 @@ export default function CampaignsPage() {
     }
   }
 
-  async function handleDelete(id: string) {
+  function handleDelete(id: string) {
     startTransition(async () => {
       const result = await deleteCampaignAction(id);
       if (result.success) {
@@ -88,7 +84,7 @@ export default function CampaignsPage() {
     });
   }
 
-  async function handleDuplicate(id: string) {
+  function handleDuplicate(id: string) {
     startTransition(async () => {
       const result = await duplicateCampaignAction(id);
       if (result.campaign) {
@@ -152,7 +148,9 @@ export default function CampaignsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total trimise</p>
-                <p className="text-xl font-bold">{stats?.totalSent?.toLocaleString() ?? totalSent.toLocaleString()}</p>
+                <p className="text-xl font-bold">
+                  {stats?.totalSent.toLocaleString() ?? totalSent.toLocaleString()}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -165,7 +163,7 @@ export default function CampaignsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Rată deschidere</p>
-                <p className="text-xl font-bold">{stats?.avgOpenRate?.toFixed(1) ?? avgOpenRate}%</p>
+                <p className="text-xl font-bold">{stats?.avgOpenRate.toFixed(1) ?? avgOpenRate}%</p>
               </div>
             </div>
           </CardContent>
@@ -178,7 +176,9 @@ export default function CampaignsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Rată click</p>
-                <p className="text-xl font-bold">{stats?.avgClickRate?.toFixed(1) ?? avgClickRate}%</p>
+                <p className="text-xl font-bold">
+                  {stats?.avgClickRate.toFixed(1) ?? avgClickRate}%
+                </p>
               </div>
             </div>
           </CardContent>
@@ -214,7 +214,7 @@ export default function CampaignsPage() {
             <div className="space-y-4">
               {campaigns.map((campaign) => {
                 const status = campaign.status;
-                const StatusIcon = statusConfig[status]?.icon ?? Edit;
+                const StatusIcon = statusConfig[status].icon;
                 const openRate = campaign.sent > 0 ? (campaign.opened / campaign.sent) * 100 : 0;
 
                 return (
@@ -223,9 +223,9 @@ export default function CampaignsPage() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <h4 className="font-medium">{campaign.name}</h4>
-                          <Badge className={cn('text-xs', statusConfig[status]?.color ?? 'bg-gray-100')}>
+                          <Badge className={cn('text-xs', statusConfig[status].color)}>
                             <StatusIcon className="h-3 w-3 mr-1" />
-                            {statusConfig[status]?.label ?? status}
+                            {statusConfig[status].label}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground mt-1">{campaign.subject}</p>
