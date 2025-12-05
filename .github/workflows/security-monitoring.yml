@@ -79,7 +79,7 @@ jobs:
           echo "| 🟢 Low | $LOW |" >> $GITHUB_STEP_SUMMARY
 
       - name: Run Trivy filesystem scan
-        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # v0.33.1
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -162,7 +162,7 @@ jobs:
           cache-from: type=gha
 
       - name: Run Trivy container scan
-        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # v0.33.1
         with:
           image-ref: 'medicalcor-api:scan'
           format: 'sarif'
