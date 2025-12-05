@@ -37,7 +37,10 @@ updates:
           - "patch"
     labels:
       - "dependencies"
+      - "dependabot"
       - "automated"
+    assignees:
+      - "casagest"
     commit-message:
       prefix: "chore(deps):"
     ignore:
@@ -53,8 +56,11 @@ updates:
       day: "monday"
     labels:
       - "dependencies"
+      - "dependabot"
       - "ci"
       - "automated"
+    assignees:
+      - "casagest"
     commit-message:
       prefix: "ci(deps):"
 
