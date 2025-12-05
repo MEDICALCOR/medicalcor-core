@@ -29,6 +29,66 @@ const CredentialsSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
+/**
+ * Check if a value is a valid UserRole
+ */
+function isValidUserRole(value: unknown): value is UserRole {
+  return (
+    typeof value === 'string' &&
+    (value === 'admin' || value === 'doctor' || value === 'receptionist' || value === 'staff')
+  );
+}
+
+/**
+ * Safely convert clinicId to string if present
+ */
+function convertClinicId(value: unknown): string | undefined {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  return undefined;
+}
+
+/**
+ * Convert SafeUser from database to AuthUser for NextAuth
+ * Includes type guard to ensure safe conversion
+ */
+function convertToAuthUser(userResult: unknown): AuthUser | null {
+  // Type guard: verify userResult is a valid user object
+  if (
+    !userResult ||
+    typeof userResult !== 'object' ||
+    !('id' in userResult) ||
+    !('email' in userResult) ||
+    !('name' in userResult) ||
+    !('role' in userResult)
+  ) {
+    return null;
+  }
+
+  const user = userResult as Record<string, unknown>;
+  const role = user.role;
+
+  // Verify role is a valid UserRole
+  if (!isValidUserRole(role)) {
+    return null;
+  }
+
+  return {
+    id: String(user.id),
+    email: String(user.email),
+    name: String(user.name),
+    role,
+    clinicId: convertClinicId(user.clinicId),
+  };
+}
+
 // Auth configuration uses database if DATABASE_URL is set, otherwise environment variables
 
 export const authConfig: NextAuthConfig = {
@@ -56,6 +116,7 @@ export const authConfig: NextAuthConfig = {
         '/robots.txt',
         '/sitemap.xml',
         '/favicon.ico',
+        '/campanii', // Campaign landing pages (public)
       ];
 
       const pathname = nextUrl.pathname;
@@ -145,12 +206,23 @@ export const authConfig: NextAuthConfig = {
           userAgent: request.headers.get('user-agent') ?? undefined,
         };
 
-        const user = await validateCredentials(email, password, context);
+        // Validate credentials and convert to AuthUser format
+        let user: AuthUser | null = null;
+        
+        try {
+          const userResult: unknown = await validateCredentials(email, password, context);
+          user = convertToAuthUser(userResult);
+        } catch (error) {
+          // Authentication failed - user remains null
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('[Auth] Credential validation error:', errorMessage);
+        }
 
         // PLATINUM STANDARD: Log all login attempts for medical compliance auditing
         // This is mandatory for HIPAA and GDPR audit trails
         try {
-          await logAuthEvent(user ? 'login_success' : 'login_failure', user?.id, email, context);
+          const userId = user?.id;
+          await logAuthEvent(user ? 'login_success' : 'login_failure', userId, email, context);
         } catch {
           // Event logging should never block authentication
           // But note: in production, failed logging should trigger alerts

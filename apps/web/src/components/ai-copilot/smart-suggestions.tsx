@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Lightbulb, Copy, Check, Zap, RefreshCw, Loader2 } from 'lucide-react';
+import { Lightbulb, Copy, Check, Zap, RefreshCw, Loader2, ThumbsUp, ThumbsDown } from 'lucide-react';
 import {
   type ChatContext,
   quickReplies,
@@ -18,10 +18,10 @@ interface SmartSuggestionsProps {
 }
 
 const toneColors = {
-  formal: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  friendly: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  empathetic: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-  urgent: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  formal: 'bg-tone-formal-bg text-tone-formal-bg-foreground',
+  friendly: 'bg-tone-friendly-bg text-tone-friendly-bg-foreground',
+  empathetic: 'bg-tone-empathetic-bg text-tone-empathetic-bg-foreground',
+  urgent: 'bg-tone-urgent-bg text-tone-urgent-bg-foreground',
 };
 
 const toneLabels = {
@@ -35,6 +35,7 @@ export function SmartSuggestions({ context, onSelect }: SmartSuggestionsProps) {
   const [suggestions, setSuggestions] = useState<ResponseSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<Record<string, 'positive' | 'negative' | null>>({});
 
   // Generate suggestions based on context
   useEffect(() => {
@@ -71,6 +72,17 @@ export function SmartSuggestions({ context, onSelect }: SmartSuggestionsProps) {
 
   const handleSelect = (content: string) => {
     onSelect?.(content);
+  };
+
+  const handleFeedback = (suggestionId: string, type: 'positive' | 'negative') => {
+    setFeedback((prev) => ({ ...prev, [suggestionId]: type }));
+    
+    // In production, send feedback to API
+    // await fetch('/api/ai/feedback', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ suggestionId, feedback: type }),
+    // });
   };
 
   return (
@@ -133,16 +145,53 @@ export function SmartSuggestions({ context, onSelect }: SmartSuggestionsProps) {
                           handleCopy(suggestion.content, suggestion.id);
                         }}
                         className="p-1 hover:bg-muted rounded"
+                        title="Copiază"
                       >
                         {copiedId === suggestion.id ? (
-                          <Check className="h-3 w-3 text-green-500" />
+                          <Check className="h-3 w-3 text-status-success" />
                         ) : (
                           <Copy className="h-3 w-3 text-muted-foreground" />
                         )}
                       </button>
                     </div>
                   </div>
-                  <p className="text-sm">{suggestion.content}</p>
+                  <p className="text-sm mb-2">{suggestion.content}</p>
+                  
+                  {/* Feedback Buttons */}
+                  <div className="flex items-center gap-2 pt-2 border-t">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleFeedback(suggestion.id, 'positive');
+                      }}
+                      className={cn(
+                        'flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors',
+                        feedback[suggestion.id] === 'positive'
+                          ? 'bg-green-100 text-green-700'
+                          : 'hover:bg-muted text-muted-foreground'
+                      )}
+                      title="Feedback pozitiv"
+                    >
+                      <ThumbsUp className="h-3 w-3" />
+                      <span className="sr-only">Like</span>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleFeedback(suggestion.id, 'negative');
+                      }}
+                      className={cn(
+                        'flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors',
+                        feedback[suggestion.id] === 'negative'
+                          ? 'bg-red-100 text-red-700'
+                          : 'hover:bg-muted text-muted-foreground'
+                      )}
+                      title="Feedback negativ"
+                    >
+                      <ThumbsDown className="h-3 w-3" />
+                      <span className="sr-only">Dislike</span>
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

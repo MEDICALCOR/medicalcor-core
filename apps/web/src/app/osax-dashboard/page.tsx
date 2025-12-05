@@ -5,7 +5,7 @@
  */
 
 import { Suspense } from 'react';
-import { OsaxCaseTable } from './components/OsaxCaseTable';
+import { OsaxDashboardView } from './components/OsaxDashboardView';
 import { getOsaxCases, getOsaxStatistics } from './actions/getOsaxCases';
 
 export const metadata = {
@@ -17,8 +17,12 @@ export default function OsaxDashboardPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">OSAX Dashboard</h1>
-        <p className="mt-2 text-gray-600">Manage and monitor Obstructive Sleep Apnea cases</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">OSAX War Room</h1>
+            <p className="mt-2 text-gray-600">Manage and monitor Obstructive Sleep Apnea cases</p>
+          </div>
+        </div>
       </header>
 
       {/* Statistics Cards */}
@@ -43,12 +47,10 @@ export default function OsaxDashboardPage() {
         <FilterButton label="Severe" href="/osax-dashboard?severity=SEVERE" variant="danger" />
       </div>
 
-      {/* Cases Table */}
-      <div className="mt-8">
-        <Suspense fallback={<TableLoading />}>
-          <CasesTableSection />
-        </Suspense>
-      </div>
+      {/* Cases View - Kanban or Table */}
+      <Suspense fallback={<TableLoading />}>
+        <CasesSection />
+      </Suspense>
     </div>
   );
 }
@@ -84,14 +86,14 @@ async function StatisticsSection() {
   );
 }
 
-async function CasesTableSection() {
+async function CasesSection() {
   const cases = await getOsaxCases({
-    limit: 20,
+    limit: 50,
     orderBy: 'createdAt',
     orderDirection: 'desc',
   });
 
-  return <OsaxCaseTable cases={cases} />;
+  return <OsaxDashboardView cases={cases} />;
 }
 
 function StatCard({
