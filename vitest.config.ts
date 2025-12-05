@@ -14,10 +14,10 @@ export default defineConfig({
       // Current: ~62% -> Target: 80%+ (Medical/Banking "Platinum" standard)
       // Increased from 30% baseline after comprehensive test suite expansion
       thresholds: {
-        lines: 70,
-        functions: 70,
-        branches: 60,
-        statements: 70,
+        lines: 75,
+        functions: 75,
+        branches: 65,
+        statements: 75,
       },
       exclude: [
         'node_modules/',

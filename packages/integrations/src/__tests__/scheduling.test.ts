@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fc from 'fast-check';
 import { z } from 'zod';
+import { ExternalServiceError, RateLimitError } from '@medicalcor/core';
 import {
   SchedulingService,
   MockSchedulingService,
@@ -15,6 +16,8 @@ import {
   type BookAppointmentInput,
   type GetAvailableSlotsOptions,
   type CancelAppointmentInput,
+  type RescheduleAppointmentInput,
+  type Appointment,
 } from '../scheduling.js';
 
 // Store original fetch
@@ -152,6 +155,13 @@ describe('SchedulingService', () => {
       expect(result).not.toContain(' - ');
       expect(result).toContain('10:30');
     });
+
+    it('should use fallback formatter for unsupported language', () => {
+      // @ts-expect-error - Testing invalid language for fallback
+      const result = service.formatSlotForDisplay(mockSlot, 'fr');
+      expect(result).toContain('10:30');
+      expect(typeof result).toBe('string');
+    });
   });
 
   describe('formatSlotShort', () => {
@@ -187,6 +197,1010 @@ describe('SchedulingService', () => {
 
       const result = service.formatSlotShort(slot);
       expect(result).toBe('05.01 09:00');
+    });
+  });
+
+  describe('getAvailableSlots', () => {
+    let service: SchedulingService;
+
+    beforeEach(() => {
+      service = new SchedulingService(validConfig);
+    });
+
+    it('should fetch available slots successfully', async () => {
+      const mockSlots = [
+        {
+          id: 'slot-1',
+          date: '2024-03-15',
+          time: '10:00',
+          dateTime: '2024-03-15T10:00:00Z',
+          duration: 60,
+          available: true,
+        },
+        {
+          id: 'slot-2',
+          date: '2024-03-15',
+          time: '14:00',
+          dateTime: '2024-03-15T14:00:00Z',
+          duration: 60,
+          available: false,
+        },
+      ];
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ slots: mockSlots }),
+      } as Response);
+
+      const result = await service.getAvailableSlots({
+        procedureType: 'consultation',
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result[0]?.available).toBe(true);
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/slots?'),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: 'Bearer test-api-key',
+          }),
+        })
+      );
+    });
+
+    it('should include all query parameters', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ slots: [] }),
+      } as Response);
+
+      await service.getAvailableSlots({
+        procedureType: 'implant',
+        preferredDates: ['2024-03-15', '2024-03-16'],
+        startDate: '2024-03-01',
+        endDate: '2024-03-31',
+        practitionerId: 'dr-123',
+        locationId: 'loc-456',
+        limit: 10,
+      });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('procedure_type=implant'),
+        expect.any(Object)
+      );
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('preferred_dates=2024-03-15%2C2024-03-16'),
+        expect.any(Object)
+      );
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('start_date=2024-03-01'),
+        expect.any(Object)
+      );
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('end_date=2024-03-31'),
+        expect.any(Object)
+      );
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('practitioner_id=dr-123'),
+        expect.any(Object)
+      );
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('location_id=loc-456'),
+        expect.any(Object)
+      );
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('clinic_id=clinic-123'),
+        expect.any(Object)
+      );
+    });
+
+    it('should use default limit of 5', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ slots: [] }),
+      } as Response);
+
+      await service.getAvailableSlots({
+        procedureType: 'cleaning',
+      });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('limit=5'),
+        expect.any(Object)
+      );
+    });
+
+    it('should validate input schema', async () => {
+      await expect(
+        service.getAvailableSlots({
+          procedureType: '', // Invalid: empty string
+        })
+      ).rejects.toThrow();
+    });
+
+    it('should reject limit above 100', async () => {
+      await expect(
+        service.getAvailableSlots({
+          procedureType: 'exam',
+          limit: 150,
+        })
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('getSlot', () => {
+    let service: SchedulingService;
+
+    beforeEach(() => {
+      service = new SchedulingService(validConfig);
+    });
+
+    it('should fetch slot by ID', async () => {
+      const mockSlot: TimeSlot = {
+        id: 'slot-123',
+        date: '2024-03-15',
+        time: '10:00',
+        dateTime: '2024-03-15T10:00:00Z',
+        duration: 60,
+        available: true,
+      };
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockSlot,
+      } as Response);
+
+      const result = await service.getSlot('slot-123');
+
+      expect(result).toEqual(mockSlot);
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://scheduling.example.com/api/v1/slots/slot-123',
+        expect.any(Object)
+      );
+    });
+
+    it('should return null for 404 not found', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: async () => ({}),
+      } as Response);
+
+      const result = await service.getSlot('non-existent');
+
+      expect(result).toBeNull();
+    });
+
+    it('should throw for other errors', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: async () => ({}),
+      } as Response);
+
+      await expect(service.getSlot('slot-123')).rejects.toThrow(ExternalServiceError);
+    });
+  });
+
+  describe('bookAppointment', () => {
+    let service: SchedulingService;
+
+    beforeEach(() => {
+      service = new SchedulingService(validConfig);
+    });
+
+    it('should book appointment with all fields', async () => {
+      const mockAppointment: Appointment = {
+        id: 'apt-123',
+        slotId: 'slot-456',
+        patientPhone: '+40712345678',
+        patientName: 'John Doe',
+        patientEmail: 'john@example.com',
+        procedureType: 'consultation',
+        scheduledAt: '2024-03-15T10:00:00Z',
+        duration: 60,
+        status: 'confirmed',
+        createdAt: '2024-03-01T10:00:00Z',
+        updatedAt: '2024-03-01T10:00:00Z',
+      };
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockAppointment,
+      } as Response);
+
+      const input: BookAppointmentInput = {
+        slotId: 'slot-456',
+        patientPhone: '+40712345678',
+        patientName: 'John Doe',
+        patientEmail: 'john@example.com',
+        procedureType: 'consultation',
+        notes: 'First visit',
+        hubspotContactId: 'hs-123',
+        metadata: { source: 'web' },
+      };
+
+      const result = await service.bookAppointment(input);
+
+      expect(result).toEqual(mockAppointment);
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://scheduling.example.com/api/v1/appointments',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('slot-456'),
+        })
+      );
+    });
+
+    it('should validate phone number', async () => {
+      await expect(
+        service.bookAppointment({
+          slotId: 'slot-1',
+          patientPhone: '123', // Too short
+          procedureType: 'exam',
+        })
+      ).rejects.toThrow();
+    });
+
+    it('should validate email format', async () => {
+      await expect(
+        service.bookAppointment({
+          slotId: 'slot-1',
+          patientPhone: '+40712345678',
+          patientEmail: 'invalid-email',
+          procedureType: 'exam',
+        })
+      ).rejects.toThrow();
+    });
+
+    it('should validate required fields', async () => {
+      await expect(
+        service.bookAppointment({
+          slotId: '',
+          patientPhone: '+40712345678',
+          procedureType: 'exam',
+        })
+      ).rejects.toThrow();
+    });
+
+    it('should reject notes over 2000 characters', async () => {
+      await expect(
+        service.bookAppointment({
+          slotId: 'slot-1',
+          patientPhone: '+40712345678',
+          procedureType: 'exam',
+          notes: 'x'.repeat(2001),
+        })
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('getAppointment', () => {
+    let service: SchedulingService;
+
+    beforeEach(() => {
+      service = new SchedulingService(validConfig);
+    });
+
+    it('should fetch appointment by ID', async () => {
+      const mockAppointment: Appointment = {
+        id: 'apt-123',
+        slotId: 'slot-456',
+        patientPhone: '+40712345678',
+        procedureType: 'consultation',
+        scheduledAt: '2024-03-15T10:00:00Z',
+        duration: 60,
+        status: 'confirmed',
+        createdAt: '2024-03-01T10:00:00Z',
+        updatedAt: '2024-03-01T10:00:00Z',
+      };
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockAppointment,
+      } as Response);
+
+      const result = await service.getAppointment('apt-123');
+
+      expect(result).toEqual(mockAppointment);
+    });
+
+    it('should return null for 404', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: async () => ({}),
+      } as Response);
+
+      const result = await service.getAppointment('non-existent');
+
+      expect(result).toBeNull();
+    });
+
+    it('should throw for non-404 errors', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: async () => ({}),
+      } as Response);
+
+      await expect(service.getAppointment('apt-123')).rejects.toThrow(ExternalServiceError);
+    });
+  });
+
+  describe('cancelAppointment', () => {
+    let service: SchedulingService;
+
+    beforeEach(() => {
+      service = new SchedulingService(validConfig);
+    });
+
+    it('should cancel appointment', async () => {
+      const mockAppointment: Appointment = {
+        id: 'apt-123',
+        slotId: 'slot-456',
+        patientPhone: '+40712345678',
+        procedureType: 'consultation',
+        scheduledAt: '2024-03-15T10:00:00Z',
+        duration: 60,
+        status: 'cancelled',
+        createdAt: '2024-03-01T10:00:00Z',
+        updatedAt: '2024-03-01T11:00:00Z',
+      };
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockAppointment,
+      } as Response);
+
+      const result = await service.cancelAppointment({
+        appointmentId: 'apt-123',
+        reason: 'Patient requested',
+        notifyPatient: true,
+      });
+
+      expect(result.status).toBe('cancelled');
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://scheduling.example.com/api/v1/appointments/apt-123/cancel',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('Patient requested'),
+        })
+      );
+    });
+
+    it('should use notifyPatient default value', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: 'apt-123',
+          status: 'cancelled',
+        } as Appointment),
+      } as Response);
+
+      await service.cancelAppointment({
+        appointmentId: 'apt-123',
+      });
+
+      const callArgs = (global.fetch as any).mock.calls[0];
+      const body = JSON.parse(callArgs[1].body);
+      expect(body.notify_patient).toBe(true);
+    });
+
+    it('should validate appointmentId', async () => {
+      await expect(
+        service.cancelAppointment({
+          appointmentId: '',
+        })
+      ).rejects.toThrow();
+    });
+
+    it('should validate reason length', async () => {
+      await expect(
+        service.cancelAppointment({
+          appointmentId: 'apt-123',
+          reason: 'x'.repeat(1001),
+        })
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('rescheduleAppointment', () => {
+    let service: SchedulingService;
+
+    beforeEach(() => {
+      service = new SchedulingService(validConfig);
+    });
+
+    it('should reschedule appointment', async () => {
+      const mockAppointment: Appointment = {
+        id: 'apt-123',
+        slotId: 'slot-new',
+        patientPhone: '+40712345678',
+        procedureType: 'consultation',
+        scheduledAt: '2024-03-20T14:00:00Z',
+        duration: 60,
+        status: 'confirmed',
+        createdAt: '2024-03-01T10:00:00Z',
+        updatedAt: '2024-03-10T11:00:00Z',
+      };
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockAppointment,
+      } as Response);
+
+      const result = await service.rescheduleAppointment({
+        appointmentId: 'apt-123',
+        newSlotId: 'slot-new',
+        reason: 'Schedule conflict',
+        notifyPatient: false,
+      });
+
+      expect(result.slotId).toBe('slot-new');
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://scheduling.example.com/api/v1/appointments/apt-123/reschedule',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('slot-new'),
+        })
+      );
+    });
+
+    it('should use default notifyPatient value', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: 'apt-123',
+          slotId: 'slot-new',
+        } as Appointment),
+      } as Response);
+
+      await service.rescheduleAppointment({
+        appointmentId: 'apt-123',
+        newSlotId: 'slot-new',
+      });
+
+      const callArgs = (global.fetch as any).mock.calls[0];
+      const body = JSON.parse(callArgs[1].body);
+      expect(body.notify_patient).toBe(true);
+    });
+
+    it('should validate input', async () => {
+      await expect(
+        service.rescheduleAppointment({
+          appointmentId: '',
+          newSlotId: 'slot-new',
+        })
+      ).rejects.toThrow();
+
+      await expect(
+        service.rescheduleAppointment({
+          appointmentId: 'apt-123',
+          newSlotId: '',
+        })
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('getPatientAppointments', () => {
+    let service: SchedulingService;
+
+    beforeEach(() => {
+      service = new SchedulingService(validConfig);
+    });
+
+    it('should fetch patient appointments', async () => {
+      const mockAppointments: Appointment[] = [
+        {
+          id: 'apt-1',
+          slotId: 'slot-1',
+          patientPhone: '+40712345678',
+          procedureType: 'consultation',
+          scheduledAt: '2024-03-15T10:00:00Z',
+          duration: 60,
+          status: 'confirmed',
+          createdAt: '2024-03-01T10:00:00Z',
+          updatedAt: '2024-03-01T10:00:00Z',
+        },
+      ];
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ appointments: mockAppointments }),
+      } as Response);
+
+      const result = await service.getPatientAppointments('+40712345678');
+
+      expect(result).toEqual(mockAppointments);
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('patient_phone=%2B40712345678'),
+        expect.any(Object)
+      );
+    });
+
+    it('should include status filter', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ appointments: [] }),
+      } as Response);
+
+      await service.getPatientAppointments('+40712345678', {
+        status: 'confirmed',
+        limit: 20,
+      });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('status=confirmed'),
+        expect.any(Object)
+      );
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('limit=20'),
+        expect.any(Object)
+      );
+    });
+
+    it('should use default limit of 10', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ appointments: [] }),
+      } as Response);
+
+      await service.getPatientAppointments('+40712345678');
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('limit=10'),
+        expect.any(Object)
+      );
+    });
+  });
+
+  describe('isSlotAvailable', () => {
+    let service: SchedulingService;
+
+    beforeEach(() => {
+      service = new SchedulingService(validConfig);
+    });
+
+    it('should return true for available slot', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: 'slot-123',
+          available: true,
+        } as TimeSlot),
+      } as Response);
+
+      const result = await service.isSlotAvailable('slot-123');
+
+      expect(result).toBe(true);
+    });
+
+    it('should return false for unavailable slot', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: 'slot-123',
+          available: false,
+        } as TimeSlot),
+      } as Response);
+
+      const result = await service.isSlotAvailable('slot-123');
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false for non-existent slot', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: async () => ({}),
+      } as Response);
+
+      const result = await service.isSlotAvailable('non-existent');
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('request method - retry and error handling', () => {
+    let service: SchedulingService;
+
+    beforeEach(() => {
+      service = new SchedulingService(validConfig);
+    });
+
+    it('should handle 429 rate limit error', async () => {
+      global.fetch = vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+          json: async () => ({}),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ slots: [] }),
+        } as Response);
+
+      await service.getAvailableSlots({ procedureType: 'exam' });
+
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('should retry on 502 error', async () => {
+      global.fetch = vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 502,
+          json: async () => ({}),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ slots: [] }),
+        } as Response);
+
+      await service.getAvailableSlots({ procedureType: 'exam' });
+
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('should retry on 503 error', async () => {
+      global.fetch = vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 503,
+          json: async () => ({}),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ slots: [] }),
+        } as Response);
+
+      await service.getAvailableSlots({ procedureType: 'exam' });
+
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('should handle timeout with AbortError', async () => {
+      const abortError = new Error('The operation was aborted');
+      abortError.name = 'AbortError';
+
+      global.fetch = vi.fn().mockRejectedValue(abortError);
+
+      await expect(service.getAvailableSlots({ procedureType: 'exam' })).rejects.toThrow(
+        'timed out'
+      );
+    });
+
+    it('should retry on ECONNRESET error', async () => {
+      const networkError = new Error('read ECONNRESET');
+
+      global.fetch = vi
+        .fn()
+        .mockRejectedValueOnce(networkError)
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ slots: [] }),
+        } as Response);
+
+      await service.getAvailableSlots({ procedureType: 'exam' });
+
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('should retry on socket hang up error', async () => {
+      const networkError = new Error('socket hang up');
+
+      global.fetch = vi
+        .fn()
+        .mockRejectedValueOnce(networkError)
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ slots: [] }),
+        } as Response);
+
+      await service.getAvailableSlots({ procedureType: 'exam' });
+
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('should retry on network error', async () => {
+      const networkError = new Error('network request failed');
+
+      global.fetch = vi
+        .fn()
+        .mockRejectedValueOnce(networkError)
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ slots: [] }),
+        } as Response);
+
+      await service.getAvailableSlots({ procedureType: 'exam' });
+
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('should not retry on 400 bad request', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        json: async () => ({}),
+      } as Response);
+
+      await expect(service.getAvailableSlots({ procedureType: 'exam' })).rejects.toThrow();
+
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle Headers object in request options', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ slots: [] }),
+      } as Response);
+
+      await service.getAvailableSlots({ procedureType: 'exam' });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: 'Bearer test-api-key',
+            'Content-Type': 'application/json',
+          }),
+        })
+      );
+    });
+
+    it('should respect custom timeout', async () => {
+      const customService = new SchedulingService({
+        ...validConfig,
+        timeoutMs: 2000,
+      });
+
+      const abortError = new Error('The operation was aborted');
+      abortError.name = 'AbortError';
+      global.fetch = vi.fn().mockRejectedValue(abortError);
+
+      await expect(
+        customService.getAvailableSlots({ procedureType: 'exam' })
+      ).rejects.toThrow('2000ms');
+    });
+
+    it('should use default timeout when not specified', async () => {
+      const serviceNoTimeout = new SchedulingService({
+        apiUrl: 'https://api.example.com',
+        apiKey: 'test-key',
+      });
+
+      const abortError = new Error('The operation was aborted');
+      abortError.name = 'AbortError';
+      global.fetch = vi.fn().mockRejectedValue(abortError);
+
+      await expect(
+        serviceNoTimeout.getAvailableSlots({ procedureType: 'exam' })
+      ).rejects.toThrow('15000ms');
+    });
+
+    it('should respect retry config from constructor', async () => {
+      const customRetryService = new SchedulingService({
+        apiUrl: 'https://api.example.com',
+        apiKey: 'test-key',
+        retryConfig: { maxRetries: 0, baseDelayMs: 100 },
+      });
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 502,
+        json: async () => ({}),
+      } as Response);
+
+      await expect(
+        customRetryService.getAvailableSlots({ procedureType: 'exam' })
+      ).rejects.toThrow();
+
+      expect(global.fetch).toHaveBeenCalledTimes(1); // No retries
+    });
+
+    it('should clear timeout after successful request', async () => {
+      const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ slots: [] }),
+      } as Response);
+
+      await service.getAvailableSlots({ procedureType: 'exam' });
+
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+    });
+
+    it('should clear timeout after failed request', async () => {
+      const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        json: async () => ({}),
+      } as Response);
+
+      await expect(service.getAvailableSlots({ procedureType: 'exam' })).rejects.toThrow();
+
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+    });
+
+    it('should throw ExternalServiceError for non-ok responses', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: async () => ({}),
+      } as Response);
+
+      await expect(service.getAvailableSlots({ procedureType: 'exam' })).rejects.toThrow(
+        ExternalServiceError
+      );
+    });
+  });
+
+  describe('config validation edge cases', () => {
+    it('should reject invalid retry maxRetries', () => {
+      expect(() => {
+        new SchedulingService({
+          apiUrl: 'https://api.example.com',
+          apiKey: 'key',
+          retryConfig: { maxRetries: 15, baseDelayMs: 1000 },
+        });
+      }).toThrow();
+    });
+
+    it('should reject invalid retry baseDelayMs too low', () => {
+      expect(() => {
+        new SchedulingService({
+          apiUrl: 'https://api.example.com',
+          apiKey: 'key',
+          retryConfig: { maxRetries: 3, baseDelayMs: 50 },
+        });
+      }).toThrow();
+    });
+
+    it('should reject invalid retry baseDelayMs too high', () => {
+      expect(() => {
+        new SchedulingService({
+          apiUrl: 'https://api.example.com',
+          apiKey: 'key',
+          retryConfig: { maxRetries: 3, baseDelayMs: 35000 },
+        });
+      }).toThrow();
+    });
+
+    it('should accept valid retry config bounds', () => {
+      const service = new SchedulingService({
+        apiUrl: 'https://api.example.com',
+        apiKey: 'key',
+        retryConfig: { maxRetries: 10, baseDelayMs: 30000 },
+      });
+      expect(service).toBeInstanceOf(SchedulingService);
+    });
+
+    it('should accept valid timeout bounds', () => {
+      const service1 = new SchedulingService({
+        apiUrl: 'https://api.example.com',
+        apiKey: 'key',
+        timeoutMs: 1000,
+      });
+      const service2 = new SchedulingService({
+        apiUrl: 'https://api.example.com',
+        apiKey: 'key',
+        timeoutMs: 60000,
+      });
+      expect(service1).toBeInstanceOf(SchedulingService);
+      expect(service2).toBeInstanceOf(SchedulingService);
+    });
+  });
+
+  describe('input validation comprehensive', () => {
+    let service: SchedulingService;
+
+    beforeEach(() => {
+      service = new SchedulingService(validConfig);
+    });
+
+    it('should reject phone number too short', async () => {
+      await expect(
+        service.bookAppointment({
+          slotId: 'slot-1',
+          patientPhone: '123456789', // 9 chars, min is 10
+          procedureType: 'exam',
+        })
+      ).rejects.toThrow();
+    });
+
+    it('should reject phone number too long', async () => {
+      await expect(
+        service.bookAppointment({
+          slotId: 'slot-1',
+          patientPhone: '123456789012345678901', // 21 chars, max is 20
+          procedureType: 'exam',
+        })
+      ).rejects.toThrow();
+    });
+
+    it('should reject patient name too long', async () => {
+      await expect(
+        service.bookAppointment({
+          slotId: 'slot-1',
+          patientPhone: '+40712345678',
+          patientName: 'x'.repeat(257),
+          procedureType: 'exam',
+        })
+      ).rejects.toThrow();
+    });
+
+    it('should reject procedure type too long', async () => {
+      await expect(
+        service.bookAppointment({
+          slotId: 'slot-1',
+          patientPhone: '+40712345678',
+          procedureType: 'x'.repeat(129),
+        })
+      ).rejects.toThrow();
+    });
+
+    it('should accept valid phone at minimum length', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ id: 'apt-1' } as Appointment),
+      } as Response);
+
+      await expect(
+        service.bookAppointment({
+          slotId: 'slot-1',
+          patientPhone: '1234567890', // 10 chars
+          procedureType: 'exam',
+        })
+      ).resolves.toBeDefined();
+    });
+
+    it('should accept valid phone at maximum length', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ id: 'apt-1' } as Appointment),
+      } as Response);
+
+      await expect(
+        service.bookAppointment({
+          slotId: 'slot-1',
+          patientPhone: '12345678901234567890', // 20 chars
+          procedureType: 'exam',
+        })
+      ).resolves.toBeDefined();
     });
   });
 });
@@ -531,6 +1545,23 @@ describe('MockSchedulingService', () => {
       const result = mockService.formatSlotForDisplay(slot, 'de');
 
       expect(result).toContain('11:00');
+    });
+
+    it('should use fallback formatter for unsupported language', () => {
+      const slot: TimeSlot = {
+        id: 'slot-fallback',
+        date: '2024-04-10',
+        time: '11:00',
+        dateTime: '2024-04-10T11:00:00.000Z',
+        duration: 45,
+        available: true,
+      };
+
+      // @ts-expect-error - Testing invalid language for fallback
+      const result = mockService.formatSlotForDisplay(slot, 'fr');
+
+      expect(result).toContain('11:00');
+      expect(typeof result).toBe('string');
     });
   });
 
