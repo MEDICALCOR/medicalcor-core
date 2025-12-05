@@ -1,5 +1,12 @@
-import { describe, it, expect } from 'vitest';
-import { cn, getScoreColor, getClassificationColor } from '../lib/utils';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import {
+  cn,
+  getScoreColor,
+  getClassificationColor,
+  formatDate,
+  formatDateTime,
+  formatRelativeTime,
+} from '../lib/utils';
 
 describe('utils', () => {
   describe('cn', () => {
@@ -48,6 +55,91 @@ describe('utils', () => {
 
     it('should return default color for unknown classification', () => {
       expect(getClassificationColor('UNKNOWN')).toBe('bg-gray-100 text-gray-800');
+    });
+  });
+
+  describe('formatDate', () => {
+    it('should format Date object with default locale (ro-RO)', () => {
+      const date = new Date('2024-01-15T10:30:00');
+      const formatted = formatDate(date);
+      expect(formatted).toContain('15');
+      expect(formatted).toContain('2024');
+    });
+
+    it('should format date string', () => {
+      const dateStr = '2024-03-20T14:00:00';
+      const formatted = formatDate(dateStr);
+      expect(formatted).toContain('20');
+      expect(formatted).toContain('2024');
+    });
+
+    it('should accept custom locale', () => {
+      const date = new Date('2024-01-15T10:30:00');
+      const formatted = formatDate(date, 'en-US');
+      expect(formatted).toBeDefined();
+      expect(typeof formatted).toBe('string');
+    });
+  });
+
+  describe('formatDateTime', () => {
+    it('should format Date object with time', () => {
+      const date = new Date('2024-01-15T10:30:00');
+      const formatted = formatDateTime(date);
+      expect(formatted).toContain('15');
+      expect(formatted).toContain('2024');
+      expect(formatted).toContain('10');
+      expect(formatted).toContain('30');
+    });
+
+    it('should format date string with time', () => {
+      const dateStr = '2024-03-20T14:25:00';
+      const formatted = formatDateTime(dateStr);
+      expect(formatted).toBeDefined();
+      expect(typeof formatted).toBe('string');
+    });
+
+    it('should accept custom locale', () => {
+      const date = new Date('2024-01-15T10:30:00');
+      const formatted = formatDateTime(date, 'en-US');
+      expect(formatted).toBeDefined();
+    });
+  });
+
+  describe('formatRelativeTime', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2024-01-15T12:00:00Z'));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('should return "acum" for dates less than 60 seconds ago', () => {
+      const date = new Date(Date.now() - 30000); // 30 seconds ago
+      expect(formatRelativeTime(date)).toBe('acum');
+    });
+
+    it('should return minutes for dates less than 1 hour ago', () => {
+      const date = new Date(Date.now() - 15 * 60000); // 15 minutes ago
+      expect(formatRelativeTime(date)).toBe('acum 15 min');
+    });
+
+    it('should return hours for dates less than 24 hours ago', () => {
+      const date = new Date(Date.now() - 3 * 3600000); // 3 hours ago
+      expect(formatRelativeTime(date)).toBe('acum 3 ore');
+    });
+
+    it('should return days for dates less than 7 days ago', () => {
+      const date = new Date(Date.now() - 2 * 86400000); // 2 days ago
+      expect(formatRelativeTime(date)).toBe('acum 2 zile');
+    });
+
+    it('should return formatted date for dates 7+ days ago', () => {
+      const date = new Date(Date.now() - 14 * 86400000); // 14 days ago
+      const result = formatRelativeTime(date);
+      expect(result).toContain('1');
+      expect(result).toContain('2024');
     });
   });
 });
