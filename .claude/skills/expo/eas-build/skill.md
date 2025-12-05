@@ -14,6 +14,7 @@ Provide expert guidance on EAS Build, Expo's cloud build service for creating pr
 ## When to Use
 
 Auto-invoke when users mention:
+
 - EAS Build or cloud builds
 - Building iOS/Android apps
 - eas.json configuration
@@ -28,6 +29,7 @@ Auto-invoke when users mention:
 EAS Build documentation in `.claude/skills/frontend/expo/docs/`
 
 Search patterns:
+
 - `Grep "eas build|build.*ios|build.*android" .claude/skills/frontend/expo/docs/ -i`
 - `Grep "eas.json|build profile" .claude/skills/frontend/expo/docs/ -i`
 - `Grep "credentials|code sign" .claude/skills/frontend/expo/docs/ -i`
@@ -35,6 +37,7 @@ Search patterns:
 ## Coverage Areas
 
 **Build Configuration**
+
 - eas.json build profiles
 - Platform-specific settings
 - Build variants (development, preview, production)
@@ -42,12 +45,14 @@ Search patterns:
 - Custom build scripts
 
 **Credentials Management**
+
 - iOS certificates and provisioning profiles
 - Android keystores
 - Automatic vs manual credential management
 - Credential syncing
 
 **Build Types**
+
 - Development builds
 - Preview builds
 - Production builds
@@ -55,6 +60,7 @@ Search patterns:
 - Internal distribution
 
 **Advanced Features**
+
 - Custom native code
 - Monorepo builds
 - Local builds
@@ -62,6 +68,7 @@ Search patterns:
 - Resource allocation
 
 **CI/CD Integration**
+
 - GitHub Actions
 - GitLab CI
 - CircleCI
@@ -70,7 +77,7 @@ Search patterns:
 
 ## Response Format
 
-```markdown
+````markdown
 ## [Build Topic]
 
 [Overview of build feature]
@@ -88,6 +95,7 @@ Search patterns:
   }
 }
 ```
+````
 
 ### Steps
 
@@ -107,6 +115,7 @@ Search patterns:
 - EAS Update for OTA updates
 
 **Source:** `.claude/skills/frontend/expo/docs/[filename].md`
+
 ```
 
 ## Key Commands
@@ -124,3 +133,4 @@ Search patterns:
 - Include platform-specific considerations
 - Mention credential requirements
 - Link to troubleshooting guides
+```

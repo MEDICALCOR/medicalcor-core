@@ -14,6 +14,7 @@ Provide expert guidance on Anthropic's Claude API, including prompt engineering,
 ## When to Use
 
 Auto-invoke when users mention:
+
 - **Anthropic** - company, API, platform
 - **Claude** - models (Opus, Sonnet, Haiku), capabilities
 - **API** - Messages API, streaming, embeddings
@@ -23,11 +24,13 @@ Auto-invoke when users mention:
 ## Knowledge Base
 
 **Full access to official Anthropic documentation (when available):**
+
 - **Location:** `docs/`
 - **Files:** 199 markdown files
 - **Format:** `.md` files
 
 **Note:** Documentation must be pulled separately:
+
 ```bash
 pipx install docpull
 docpull https://docs.anthropic.com -o .claude/skills/anthropic/docs
@@ -38,6 +41,7 @@ docpull https://docs.anthropic.com -o .claude/skills/anthropic/docs
 When a user asks about Anthropic/Claude:
 
 ### 1. Identify Topic
+
 ```
 Common topics:
 - Getting started / API keys
@@ -55,6 +59,7 @@ Common topics:
 ### 2. Search Documentation
 
 Use Grep to find relevant docs:
+
 ```bash
 # Search for specific topics
 Grep "function calling|tool" docs/ --output-mode files_with_matches -i
@@ -62,6 +67,7 @@ Grep "vision|image" docs/ --output-mode content -C 3
 ```
 
 Check the INDEX.md for navigation:
+
 ```bash
 Read docs/INDEX.md
 ```
@@ -69,6 +75,7 @@ Read docs/INDEX.md
 ### 3. Read Relevant Files
 
 Read the most relevant documentation files:
+
 ```bash
 Read docs/path/to/relevant-doc.md
 ```
@@ -76,6 +83,7 @@ Read docs/path/to/relevant-doc.md
 ### 4. Provide Answer
 
 Structure your response:
+
 - **Direct answer** - solve the user's problem first
 - **Code examples** - show API calls with proper formatting
 - **Best practices** - mention Claude-specific patterns
@@ -86,6 +94,7 @@ Structure your response:
 ## Example Workflows
 
 ### Example 1: Function Calling
+
 ```
 User: "How do I implement function calling with Claude?"
 
@@ -99,6 +108,7 @@ User: "How do I implement function calling with Claude?"
 ```
 
 ### Example 2: Vision Capabilities
+
 ```
 User: "Can Claude analyze images?"
 
@@ -112,6 +122,7 @@ User: "Can Claude analyze images?"
 ```
 
 ### Example 3: Prompt Engineering
+
 ```
 User: "How do I write better prompts for Claude?"
 
@@ -127,11 +138,13 @@ User: "How do I write better prompts for Claude?"
 ## Key Concepts to Reference
 
 **Models:**
+
 - Claude 3.5 Opus - most capable
 - Claude 3.5 Sonnet - balanced (recommended for most use cases)
 - Claude 3.5 Haiku - fast and economical
 
 **API Features:**
+
 - Messages API (primary interface)
 - Streaming responses
 - Function/tool calling
@@ -140,6 +153,7 @@ User: "How do I write better prompts for Claude?"
 - Prompt caching (reduce costs)
 
 **Best Practices:**
+
 - System prompts vs user messages
 - XML tags for structure
 - Few-shot examples
@@ -147,6 +161,7 @@ User: "How do I write better prompts for Claude?"
 - Appropriate model selection
 
 **SDKs:**
+
 - Python SDK (`anthropic`)
 - TypeScript SDK (`@anthropic-ai/sdk`)
 - REST API (curl/HTTP)
@@ -162,6 +177,7 @@ User: "How do I write better prompts for Claude?"
 ## Follow-up Suggestions
 
 After answering, suggest:
+
 - Related API features
 - Cost optimization strategies
 - Error handling patterns

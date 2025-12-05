@@ -110,7 +110,10 @@ function rowToWaitingPatient(row: WaitingPatientRow): WaitingPatient {
 // Server Actions
 // =============================================================================
 
-export async function getWaitingListAction(): Promise<{ patients: WaitingPatient[]; error?: string }> {
+export async function getWaitingListAction(): Promise<{
+  patients: WaitingPatient[];
+  error?: string;
+}> {
   try {
     await requirePermission('waiting_list:read');
     const user = await requireCurrentUser();
@@ -140,7 +143,10 @@ export async function getWaitingListAction(): Promise<{ patients: WaitingPatient
   }
 }
 
-export async function getWaitingListStatsAction(): Promise<{ stats: WaitingListStats | null; error?: string }> {
+export async function getWaitingListStatsAction(): Promise<{
+  stats: WaitingListStats | null;
+  error?: string;
+}> {
   try {
     await requirePermission('waiting_list:read');
     const user = await requireCurrentUser();
@@ -284,7 +290,9 @@ export async function updateWaitingPatientAction(
   }
 }
 
-export async function removeFromWaitingListAction(id: string): Promise<{ success: boolean; error?: string }> {
+export async function removeFromWaitingListAction(
+  id: string
+): Promise<{ success: boolean; error?: string }> {
   try {
     await requirePermission('waiting_list:write');
     const user = await requireCurrentUser();

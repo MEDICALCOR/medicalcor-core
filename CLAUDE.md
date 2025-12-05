@@ -9,6 +9,7 @@ MedicalCor Core is an **AI-powered medical CRM platform** for dental clinics fea
 **Tech**: Node.js 20+, TypeScript 5.6 (strict), pnpm 9+, Turborepo, Fastify 5, Next.js 15, PostgreSQL 15 + pgvector, Redis 7
 
 **Monorepo Layout**:
+
 ```
 apps/
   api/        → Fastify webhook gateway (port 3000)

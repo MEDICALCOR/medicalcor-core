@@ -14,6 +14,7 @@ Provide deep expertise on the Move programming language, focusing on its unique 
 ## When to Use
 
 Auto-invoke when users mention:
+
 - **Abilities** - copy, drop, store, key, ability constraints
 - **Generics** - type parameters, phantom types, constraints
 - **References** - borrowing, &T, &mut T, borrow_global
@@ -27,6 +28,7 @@ Auto-invoke when users mention:
 ### Type System Overview
 
 Move is a **statically typed, compiled language** with:
+
 - **Linear types** (resources can't be copied or dropped arbitrarily)
 - **Generics** with ability constraints
 - **No null/undefined** - explicit Option<T>
@@ -85,12 +87,12 @@ struct Resource has key, store {
 
 ### Ability Semantics
 
-| Ability | Meaning | Example Use Case |
-|---------|---------|------------------|
-| `copy` | Type can be copied by value | Primitives, small configs |
-| `drop` | Type can be discarded | References, temporary data |
-| `store` | Can be stored in structs/global storage | Most data types |
-| `key` | Can be top-level resource in global storage | Account resources, NFTs |
+| Ability | Meaning                                     | Example Use Case           |
+| ------- | ------------------------------------------- | -------------------------- |
+| `copy`  | Type can be copied by value                 | Primitives, small configs  |
+| `drop`  | Type can be discarded                       | References, temporary data |
+| `store` | Can be stored in structs/global storage     | Most data types            |
+| `key`   | Can be top-level resource in global storage | Account resources, NFTs    |
 
 ### Ability Constraints
 
@@ -119,6 +121,7 @@ struct Point has copy, drop, store {
 ### Critical Rules
 
 **Rule 1:** Fields must have compatible abilities
+
 ```move
 // ❌ ERROR: InnerData doesn't have 'key'
 struct Account has key {
@@ -132,6 +135,7 @@ struct Account has key {
 ```
 
 **Rule 2:** Structs without `drop` must be explicitly handled
+
 ```move
 struct NoDrop has store, key {
     value: u64
@@ -149,6 +153,7 @@ fun use_no_drop_correct(nd: NoDrop) {
 ```
 
 **Rule 3:** `copy` requires all fields to have `copy`
+
 ```move
 struct NotCopyable has store {
     x: u64
@@ -229,6 +234,7 @@ let eth: Coin<ETH> = Coin { value: 50 };
 ```
 
 **Why Phantom Types?**
+
 - Zero runtime overhead (erased at compile time)
 - Type-level guarantees (can't mix BTC and ETH)
 - Ability inheritance doesn't require CoinType to have abilities
@@ -294,6 +300,7 @@ increment(&mut val);
 ### Reference Rules
 
 1. **Can't have mutable + immutable refs simultaneously**
+
 ```move
 let mut x = 10;
 let r1 = &x;
@@ -301,6 +308,7 @@ let r2 = &mut x;  // ❌ ERROR: Can't have both
 ```
 
 2. **Only one mutable reference at a time**
+
 ```move
 let mut x = 10;
 let r1 = &mut x;
@@ -308,6 +316,7 @@ let r2 = &mut x;  // ❌ ERROR: x already borrowed mutably
 ```
 
 3. **References can't outlive their values**
+
 ```move
 fun get_ref(): &u64 {
     let x = 42;
@@ -556,6 +565,7 @@ public fun calculate(): u64 {
 ```
 
 **When to use `inline`:**
+
 - Small functions called frequently
 - Wrappers around simple operations
 - Gas-critical paths
@@ -795,6 +805,7 @@ fun test_failure() {
 ## Follow-up Suggestions
 
 After helping with Move language, suggest:
+
 - Ability design for custom types
 - Generic function optimization
 - Move Prover specifications

@@ -348,7 +348,9 @@ export async function exportAuditLogsAction(
       row.ip_address ?? '',
     ]);
 
-    const csv = [headers.join(','), ...rows.map((r) => r.map((v) => `"${v}"`).join(','))].join('\n');
+    const csv = [headers.join(','), ...rows.map((r) => r.map((v) => `"${v}"`).join(','))].join(
+      '\n'
+    );
 
     return { success: true, data: csv };
   } catch (error) {

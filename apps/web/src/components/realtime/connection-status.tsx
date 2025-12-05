@@ -24,12 +24,20 @@ export function ConnectionStatus() {
         {connectionState.status === 'connecting' && 'Connecting...'}
         {/* ACCESSIBILITY FIX: Added aria-labels for action buttons */}
         {connectionState.status === 'disconnected' && (
-          <button onClick={connect} className="hover:text-foreground underline" aria-label="Reconnect to server">
+          <button
+            onClick={connect}
+            className="hover:text-foreground underline"
+            aria-label="Reconnect to server"
+          >
             Reconnect
           </button>
         )}
         {connectionState.status === 'error' && (
-          <button onClick={connect} className="text-red-500 hover:text-red-600 underline" aria-label="Retry connection">
+          <button
+            onClick={connect}
+            className="text-red-500 hover:text-red-600 underline"
+            aria-label="Retry connection"
+          >
             Retry
           </button>
         )}

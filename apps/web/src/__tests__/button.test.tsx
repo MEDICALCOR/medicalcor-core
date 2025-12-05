@@ -26,7 +26,11 @@ describe('Button', () => {
   });
 
   it('should forward additional props', () => {
-    render(<Button disabled data-testid="custom-button">Disabled</Button>);
+    render(
+      <Button disabled data-testid="custom-button">
+        Disabled
+      </Button>
+    );
     const button = screen.getByTestId('custom-button');
     expect(button).toBeDisabled();
   });

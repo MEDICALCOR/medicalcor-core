@@ -139,9 +139,7 @@ function SortableHeader({ label, field, currentSort, direction, onSort }: Sortab
     >
       <div className="flex items-center space-x-1">
         <span>{label}</span>
-        {isActive && (
-          <span className="text-gray-700">{direction === 'asc' ? '↑' : '↓'}</span>
-        )}
+        {isActive && <span className="text-gray-700">{direction === 'asc' ? '↑' : '↓'}</span>}
       </div>
     </th>
   );
@@ -189,11 +187,7 @@ function CaseRow({ osaxCase }: CaseRowProps) {
       </td>
       <td className="whitespace-nowrap px-6 py-4 text-sm">
         <div className="flex space-x-2">
-          <ActionButton
-            label="View"
-            href={`/osax-dashboard/${osaxCase.id}`}
-            variant="primary"
-          />
+          <ActionButton label="View" href={`/osax-dashboard/${osaxCase.id}`} variant="primary" />
           {osaxCase.status === 'SCORED' && (
             <ActionButton
               label="Review"
@@ -239,7 +233,10 @@ function PriorityBadge({ priority }: { priority: string }) {
     URGENT: { label: 'Urgent', className: 'bg-red-100 text-red-600' },
   };
 
-  const config = priorityConfig[priority] ?? { label: priority, className: 'bg-gray-100 text-gray-600' };
+  const config = priorityConfig[priority] ?? {
+    label: priority,
+    className: 'bg-gray-100 text-gray-600',
+  };
 
   return (
     <span
@@ -258,7 +255,10 @@ function SeverityBadge({ severity }: { severity: string }) {
     SEVERE: { label: 'Severe', className: 'bg-red-100 text-red-700' },
   };
 
-  const config = severityConfig[severity] ?? { label: severity, className: 'bg-gray-100 text-gray-700' };
+  const config = severityConfig[severity] ?? {
+    label: severity,
+    className: 'bg-gray-100 text-gray-700',
+  };
 
   return (
     <span

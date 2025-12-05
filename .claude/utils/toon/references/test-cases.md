@@ -7,14 +7,16 @@ Reference test cases for validation and conformance.
 ### Test 1: Simple Tabular Array
 
 **Input JSON:**
+
 ```json
 [
-  {"name": "Alice", "age": 30},
-  {"name": "Bob", "age": 25}
+  { "name": "Alice", "age": 30 },
+  { "name": "Bob", "age": 25 }
 ]
 ```
 
 **Expected TOON:**
+
 ```
 [2]{name,age}:
   Alice,30
@@ -22,6 +24,7 @@ Reference test cases for validation and conformance.
 ```
 
 **Validation:**
+
 - ✅ Count matches rows
 - ✅ Fields consistent
 - ✅ Comma delimiter (default)
@@ -29,16 +32,19 @@ Reference test cases for validation and conformance.
 ### Test 2: Inline Primitive Array
 
 **Input JSON:**
+
 ```json
-{"tags": ["js", "react", "node"]}
+{ "tags": ["js", "react", "node"] }
 ```
 
 **Expected TOON:**
+
 ```
 tags[3]: js,react,node
 ```
 
 **Validation:**
+
 - ✅ Count matches values
 - ✅ All primitives
 - ✅ ≤10 items
@@ -46,14 +52,16 @@ tags[3]: js,react,node
 ### Test 3: Expanded List (Non-Uniform)
 
 **Input JSON:**
+
 ```json
 [
-  {"name": "Alice", "age": 30},
-  {"name": "Bob", "role": "admin"}
+  { "name": "Alice", "age": 30 },
+  { "name": "Bob", "role": "admin" }
 ]
 ```
 
 **Expected TOON:**
+
 ```
 - name: Alice
   age: 30
@@ -62,6 +70,7 @@ tags[3]: js,react,node
 ```
 
 **Validation:**
+
 - ✅ Non-uniform fields (<60%)
 - ✅ Hyphen markers
 - ✅ Consistent indentation
@@ -71,14 +80,16 @@ tags[3]: js,react,node
 ### Test 4: Tab Delimiter
 
 **Input JSON:**
+
 ```json
 [
-  {"name": "Alice", "location": "New York, NY"},
-  {"name": "Bob", "location": "Los Angeles, CA"}
+  { "name": "Alice", "location": "New York, NY" },
+  { "name": "Bob", "location": "Los Angeles, CA" }
 ]
 ```
 
 **Expected TOON:**
+
 ```
 [2\t]{name,location}:
   Alice	New York, NY
@@ -86,6 +97,7 @@ tags[3]: js,react,node
 ```
 
 **Validation:**
+
 - ✅ Tab in header `[2\t]`
 - ✅ Tabs in data rows
 - ✅ No quotes needed for commas
@@ -93,14 +105,16 @@ tags[3]: js,react,node
 ### Test 5: Pipe Delimiter
 
 **Input JSON:**
+
 ```json
 [
-  {"method": "GET", "path": "/api/users", "desc": "List users"},
-  {"method": "POST", "path": "/api/users", "desc": "Create user"}
+  { "method": "GET", "path": "/api/users", "desc": "List users" },
+  { "method": "POST", "path": "/api/users", "desc": "Create user" }
 ]
 ```
 
 **Expected TOON:**
+
 ```
 [2|]{method,path,desc}:
   GET|/api/users|List users
@@ -108,6 +122,7 @@ tags[3]: js,react,node
 ```
 
 **Validation:**
+
 - ✅ Pipe in header `[2|]`
 - ✅ Pipes in data rows
 - ✅ No quotes for commas/colons
@@ -117,6 +132,7 @@ tags[3]: js,react,node
 ### Test 6: Simple Folding
 
 **Input JSON:**
+
 ```json
 {
   "server": {
@@ -127,12 +143,14 @@ tags[3]: js,react,node
 ```
 
 **Expected TOON (with folding):**
+
 ```
 server.host: localhost
 server.port: 8080
 ```
 
 **Validation:**
+
 - ✅ Dotted keys
 - ✅ No collision
 - ✅ Valid identifiers
@@ -140,14 +158,16 @@ server.port: 8080
 ### Test 7: Collision Prevention
 
 **Input JSON:**
+
 ```json
 {
-  "server": {"host": "localhost"},
+  "server": { "host": "localhost" },
   "server.host": "override"
 }
 ```
 
 **Expected TOON (no folding - collision):**
+
 ```
 server:
   host: localhost
@@ -155,6 +175,7 @@ server.host: override
 ```
 
 **Validation:**
+
 - ✅ Detects collision
 - ✅ Falls back to nesting
 
@@ -163,6 +184,7 @@ server.host: override
 ### Test 8: All Five Escapes
 
 **Input JSON:**
+
 ```json
 {
   "text": "Line 1\nLine 2",
@@ -174,6 +196,7 @@ server.host: override
 ```
 
 **Expected TOON:**
+
 ```
 text: "Line 1\nLine 2"
 path: "C:\\Users\\Alice"
@@ -183,6 +206,7 @@ data: "Col1\tCol2"
 ```
 
 **Validation:**
+
 - ✅ `\n` for newline
 - ✅ `\\` for backslash
 - ✅ `\"` for quote
@@ -192,17 +216,20 @@ data: "Col1\tCol2"
 ### Test 9: Invalid Escape (Strict Mode)
 
 **Input TOON:**
+
 ```
 text: "Unicode: \u0041"
 ```
 
 **Expected Result:**
+
 ```
 ❌ Error: Invalid escape sequence '\u'
 Valid sequences: \\ \" \n \r \t
 ```
 
 **Validation:**
+
 - ✅ Rejects `\u` escape
 - ✅ Strict mode enforced
 
@@ -211,6 +238,7 @@ Valid sequences: \\ \" \n \r \t
 ### Test 10: Auto-Quoting
 
 **Input JSON:**
+
 ```json
 {
   "location": "New York, NY",
@@ -222,6 +250,7 @@ Valid sequences: \\ \" \n \r \t
 ```
 
 **Expected TOON:**
+
 ```
 location: "New York, NY"
 time: "10:30 AM"
@@ -231,6 +260,7 @@ bool_str: "true"
 ```
 
 **Validation:**
+
 - ✅ Quotes for comma
 - ✅ Quotes for colon
 - ✅ Quotes for brackets
@@ -240,6 +270,7 @@ bool_str: "true"
 ### Test 11: No Quotes Needed
 
 **Input JSON:**
+
 ```json
 {
   "name": "Alice",
@@ -251,6 +282,7 @@ bool_str: "true"
 ```
 
 **Expected TOON:**
+
 ```
 name: Alice
 age: 30
@@ -260,6 +292,7 @@ url: https://example.com
 ```
 
 **Validation:**
+
 - ✅ No quotes for simple strings
 - ✅ No quotes for numbers
 - ✅ No quotes for booleans
@@ -271,6 +304,7 @@ url: https://example.com
 ### Test 12: Indentation Error
 
 **Input TOON:**
+
 ```
 server:
   host: localhost
@@ -278,17 +312,20 @@ server:
 ```
 
 **Expected Result (strict mode):**
+
 ```
 ❌ Error: Line 3: Indentation must be multiple of 2 (found 3)
 ```
 
 **Validation:**
+
 - ✅ Detects 3-space indent
 - ✅ Expects multiples of 2
 
 ### Test 13: Array Count Mismatch
 
 **Input TOON:**
+
 ```
 [3]{name,age}:
   Alice,30
@@ -296,17 +333,20 @@ server:
 ```
 
 **Expected Result (strict mode):**
+
 ```
 ❌ Error: Array declared [3] but found 2 rows
 ```
 
 **Validation:**
+
 - ✅ Detects count mismatch
 - ✅ Blocks parsing
 
 ### Test 14: Field Width Mismatch
 
 **Input TOON:**
+
 ```
 [2]{name,age,city}:
   Alice,30,NYC
@@ -314,11 +354,13 @@ server:
 ```
 
 **Expected Result (strict mode):**
+
 ```
 ❌ Error: Line 3: Expected 3 fields, found 2
 ```
 
 **Validation:**
+
 - ✅ Detects missing field
 - ✅ Shows expected vs actual
 
@@ -327,11 +369,12 @@ server:
 ### Test 15: Canonical Numbers
 
 **Input JSON:**
+
 ```json
 {
   "int": 42,
   "float": 3.14159,
-  "trailing": 1.50000,
+  "trailing": 1.5,
   "whole": 1.0,
   "negative": -0,
   "nan": NaN,
@@ -340,6 +383,7 @@ server:
 ```
 
 **Expected TOON:**
+
 ```
 int: 42
 float: 3.14159
@@ -351,6 +395,7 @@ inf: null
 ```
 
 **Validation:**
+
 - ✅ Integers unchanged
 - ✅ Trailing zeros removed
 - ✅ Unnecessary decimal removed
@@ -363,39 +408,46 @@ inf: null
 ### Test 16: Empty Array
 
 **Input JSON:**
+
 ```json
-{"items": []}
+{ "items": [] }
 ```
 
 **Expected TOON:**
+
 ```
 items: []
 ```
 
 **Validation:**
+
 - ✅ Empty array notation
 - ✅ No rows
 
 ### Test 17: Single Item Array
 
 **Input JSON:**
+
 ```json
-[{"name": "Alice"}]
+[{ "name": "Alice" }]
 ```
 
 **Expected TOON:**
+
 ```
 [1]{name}:
   Alice
 ```
 
 **Validation:**
+
 - ✅ Count is 1
 - ✅ Single row
 
 ### Test 18: Nested Arrays in Objects
 
 **Input JSON:**
+
 ```json
 {
   "user": {
@@ -406,6 +458,7 @@ items: []
 ```
 
 **Expected TOON:**
+
 ```
 user:
   name: Alice
@@ -413,6 +466,7 @@ user:
 ```
 
 **Validation:**
+
 - ✅ Nested structure preserved
 - ✅ Inline array within object
 - ✅ Correct indentation
@@ -420,32 +474,38 @@ user:
 ### Test 19: Empty String
 
 **Input JSON:**
+
 ```json
-{"empty": ""}
+{ "empty": "" }
 ```
 
 **Expected TOON:**
+
 ```
 empty: ""
 ```
 
 **Validation:**
+
 - ✅ Quotes required for empty string
 
 ### Test 20: Unicode
 
 **Input JSON:**
+
 ```json
-{"emoji": "Hello 👋", "chinese": "你好"}
+{ "emoji": "Hello 👋", "chinese": "你好" }
 ```
 
 **Expected TOON:**
+
 ```
 emoji: "Hello 👋"
 chinese: 你好
 ```
 
 **Validation:**
+
 - ✅ UTF-8 preserved
 - ✅ No `\u` escapes needed
 
@@ -454,16 +514,18 @@ chinese: 你好
 ### Test 21: JSON → TOON → JSON
 
 **Input JSON:**
+
 ```json
 {
   "users": [
-    {"name": "Alice", "age": 30},
-    {"name": "Bob", "age": 25}
+    { "name": "Alice", "age": 30 },
+    { "name": "Bob", "age": 25 }
   ]
 }
 ```
 
 **TOON (intermediate):**
+
 ```
 [2]{name,age}:
   Alice,30
@@ -471,16 +533,18 @@ chinese: 你好
 ```
 
 **Output JSON (after decode):**
+
 ```json
 {
   "users": [
-    {"name": "Alice", "age": 30},
-    {"name": "Bob", "age": 25}
+    { "name": "Alice", "age": 30 },
+    { "name": "Bob", "age": 25 }
   ]
 }
 ```
 
 **Validation:**
+
 - ✅ Lossless roundtrip
 - ✅ Structure preserved
 - ✅ Values unchanged
@@ -490,6 +554,7 @@ chinese: 你好
 ### Test 22: Large Array (10,000 items)
 
 **Metrics:**
+
 - Encoding time: <100ms
 - Memory usage: O(n)
 - Token savings: ~40%
@@ -497,6 +562,7 @@ chinese: 你好
 ### Test 23: Deep Nesting (10 levels)
 
 **Metrics:**
+
 - Encoding time: <50ms
 - Key folding depth: configurable
 - Indentation correct

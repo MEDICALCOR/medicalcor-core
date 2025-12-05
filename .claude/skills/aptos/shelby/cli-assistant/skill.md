@@ -14,6 +14,7 @@ Provide expert guidance on using the Shelby Protocol CLI tool for managing accou
 ## When to Use
 
 Auto-invoke when users mention:
+
 - **CLI Tool** - Shelby CLI, @shelby-protocol/cli, command-line, terminal
 - **Commands** - shelby upload, shelby download, shelby init, shelby account
 - **Operations** - CLI upload, CLI download, account management, context setup
@@ -23,11 +24,13 @@ Auto-invoke when users mention:
 ## Knowledge Base
 
 Shelby CLI documentation location:
+
 ```
 .claude/skills/blockchain/aptos/docs_shelby/
 ```
 
 Key files:
+
 - `tools_cli.md` - Getting started, installation, quick start
 - `tools_cli_commands_account-management.md` - Account operations
 - `tools_cli_commands_context-management.md` - Network configuration
@@ -62,6 +65,7 @@ shelby init
 ```
 
 **What it does:**
+
 - Creates config file at `~/.shelby/config.yaml`
 - Prompts for API key (optional but recommended to avoid rate limits)
 - Sets up default contexts (shelbynet and local)
@@ -69,6 +73,7 @@ shelby init
 - Sets default context and account
 
 **Example config file:**
+
 ```yaml
 contexts:
   shelbynet:
@@ -90,7 +95,7 @@ contexts:
 accounts:
   alice:
     private_key: ed25519-priv-0x8...
-    address: "0xfcba...a51c"
+    address: '0xfcba...a51c'
 
 default_context: shelbynet
 default_account: alice
@@ -101,11 +106,13 @@ default_account: alice
 ### Create Account
 
 **Interactive mode:**
+
 ```bash
 shelby account create
 ```
 
 **Non-interactive mode:**
+
 ```bash
 shelby account create \
   --name alice \
@@ -115,6 +122,7 @@ shelby account create \
 ```
 
 **Options:**
+
 - `--name <account-name>` - Label for credentials
 - `--scheme <signature-scheme>` - Currently supports `ed25519`
 - `--private-key <key>` - Raw private key (ed25519-priv-0x… format)
@@ -129,6 +137,7 @@ shelby account list
 ```
 
 **Output:**
+
 ```
 ┌──────────────┬────────────────────────────────────────────────┬──────────────────┐
 │ Name         │ Address                                        │ Private Key      │
@@ -145,6 +154,7 @@ shelby account use <ACCOUNT_NAME>
 ```
 
 **Example:**
+
 ```bash
 shelby account use alice
 # ✅ Now using account 'alice'
@@ -157,6 +167,7 @@ shelby account delete <ACCOUNT_NAME>
 ```
 
 **Example:**
+
 ```bash
 shelby account delete bob
 # ✅ Account 'bob' deleted successfully
@@ -169,6 +180,7 @@ shelby account balance
 ```
 
 **Output:**
+
 ```
 💰  Balance:
 
@@ -183,6 +195,7 @@ shelby account balance
 ```
 
 **Options:**
+
 - `-a, --account <name>` - Query specific account
 - `-c, --context <name>` - Use different context
 - `--address <hex>` - Query raw Aptos address
@@ -194,6 +207,7 @@ shelby account blobs
 ```
 
 **Output:**
+
 ```
 📦  Stored Blobs
 ┌─────────────────────────────────────────────┬───────────────┬─────────────────────────┐
@@ -204,6 +218,7 @@ shelby account blobs
 ```
 
 **Options:**
+
 - `-a, --account <name>` - List blobs for specific account
 
 **Note:** Requires Shelby indexer endpoint in context configuration.
@@ -217,6 +232,7 @@ shelby context list
 ```
 
 **Output shows:**
+
 - Aptos configurations (fullnode, indexer, faucet)
 - Shelby configurations (RPC endpoint)
 - Default context marked with `(default)`
@@ -244,12 +260,14 @@ shelby context use <CONTEXT_NAME>
 ### Get APT Tokens
 
 **Option 1: Faucet URL**
+
 ```bash
 shelby faucet --no-open  # Prints faucet URL
 # Or remove --no-open to automatically open in browser
 ```
 
 **Option 2: Aptos CLI**
+
 ```bash
 # First configure aptos CLI
 aptos init --profile shelby-alice \
@@ -273,6 +291,7 @@ shelby faucet --no-open
 ```
 
 **Faucet URLs:**
+
 - APT: Via `shelby faucet` or Aptos CLI
 - ShelbyUSD: https://faucet.shelbynet.shelby.xyz
 
@@ -285,11 +304,13 @@ shelby upload <src> <dst> -e <expiration>
 ```
 
 **Required:**
+
 - `<src>` - Local file path
 - `<dst>` - Blob name in Shelby (max 1024 chars, no trailing `/`)
 - `-e, --expiration` - Expiration timestamp
 
 **Example:**
+
 ```bash
 shelby upload local-video.mp4 videos/my-video.mp4 -e tomorrow
 shelby upload ./file.txt data/file.txt --expiration "2025-12-31"
@@ -299,6 +320,7 @@ shelby upload document.pdf docs/doc.pdf -e 1735689600
 ### Expiration Formats
 
 **Human-readable:**
+
 ```bash
 -e "tomorrow"
 -e "in 2 days"
@@ -308,17 +330,20 @@ shelby upload document.pdf docs/doc.pdf -e 1735689600
 ```
 
 **Unix timestamp:**
+
 ```bash
 -e 1735689600  # Seconds since epoch
 ```
 
 **ISO date:**
+
 ```bash
 -e "2025-01-01T00:00:00Z"
 -e "2025-01-01T00:00:00-0500"
 ```
 
 **Using date command (Unix):**
+
 ```bash
 shelby upload file.txt blob.txt -e $(date -d "+1 hour" +%s)
 shelby upload file.txt blob.txt -e $(date -d "+30 days" +%s)
@@ -326,12 +351,12 @@ shelby upload file.txt blob.txt -e $(date -d "+30 days" +%s)
 
 ### Upload Options
 
-**Flag** | **Alias** | **Type** | **Description**
----|---|---|---
-`--expiration <datetime>` | `-e` | string | Expiration timestamp (required)
-`--recursive` | `-r` | flag | Upload entire directory
-`--assume-yes` | | flag | Skip cost confirmation (for scripts)
-`--output-commitments <file>` | | string | Save commitments to file
+| **Flag**                      | **Alias** | **Type** | **Description**                      |
+| ----------------------------- | --------- | -------- | ------------------------------------ |
+| `--expiration <datetime>`     | `-e`      | string   | Expiration timestamp (required)      |
+| `--recursive`                 | `-r`      | flag     | Upload entire directory              |
+| `--assume-yes`                |           | flag     | Skip cost confirmation (for scripts) |
+| `--output-commitments <file>` |           | string   | Save commitments to file             |
 
 ### Directory Upload
 
@@ -341,12 +366,14 @@ shelby upload --recursive ./website/ site/ --expiration tomorrow
 ```
 
 **Requirements:**
+
 - `<dst>` MUST end with `/` for recursive uploads
 - Follows canonical directory layout
 
 **Example:**
 
 **Local structure:**
+
 ```
 .
 ├── bar
@@ -356,6 +383,7 @@ shelby upload --recursive ./website/ site/ --expiration tomorrow
 ```
 
 **Uploaded as:**
+
 ```
 <account>/remote-dir/bar
 <account>/remote-dir/foo/baz
@@ -382,6 +410,7 @@ shelby download <src> <dst>
 ```
 
 **Example:**
+
 ```bash
 shelby download videos/my-video.mp4 ./local-video.mp4
 shelby download data/file.txt ./downloaded-file.txt
@@ -389,10 +418,10 @@ shelby download data/file.txt ./downloaded-file.txt
 
 ### Download Options
 
-**Flag** | **Alias** | **Description**
----|---|---
-`--recursive` | `-r` | Download directory (src and dst must end with `/`)
-`--force` | `-f` | Overwrite existing files
+| **Flag**      | **Alias** | **Description**                                    |
+| ------------- | --------- | -------------------------------------------------- |
+| `--recursive` | `-r`      | Download directory (src and dst must end with `/`) |
+| `--force`     | `-f`      | Overwrite existing files                           |
 
 ### Force Overwrite
 
@@ -408,12 +437,14 @@ shelby download --recursive site/ ./website/
 ```
 
 **Requirements:**
+
 - Both `<src>` and `<dst>` MUST end with `/`
 - Recreates directory structure locally
 
 **Example:**
 
 **Shelby blobs:**
+
 ```
 my-files/document.pdf
 my-files/images/photo1.jpg
@@ -421,11 +452,13 @@ my-files/images/photo2.jpg
 ```
 
 **Download:**
+
 ```bash
 shelby download -r my-files/ ./local-files/
 ```
 
 **Result:**
+
 ```
 ./local-files/
 ├── document.pdf
@@ -437,11 +470,13 @@ shelby download -r my-files/ ./local-files/
 ### Validation Rules
 
 **Without --force:**
+
 - Parent directory of `<dst>` must exist
 - `<dst>` file must not exist
 - For recursive: `<dst>` directory must be empty
 
 **With --force:**
+
 - Any existing `<dst>` completely removed before download
 
 ### Download from Other Accounts
@@ -449,11 +484,13 @@ shelby download -r my-files/ ./local-files/
 **Current limitation:** CLI only downloads from active account.
 
 **Workaround - Use REST API:**
+
 ```bash
 curl https://api.shelbynet.shelby.xyz/shelby/v1/blobs/<account>/<blob-name>
 ```
 
 **Example:**
+
 ```bash
 # Download blob 'foo' from account 0x89ca7d...76357
 curl https://api.shelbynet.shelby.xyz/shelby/v1/blobs/0x89ca7dfadf5788830b0d5826a56b370ced0d7938c4628f4b57f346ab54f76357/foo
@@ -532,11 +569,13 @@ shelby upload prod.txt production-data.txt -e "2025-12-31"
 ### Issue: "Insufficient ShelbyUSD tokens"
 
 **Error:**
+
 ```
 Insufficient Shelby tokens. Please fund your account with Shelby tokens to continue.
 ```
 
 **Solution:**
+
 ```bash
 # Check current balance
 shelby account balance
@@ -552,6 +591,7 @@ shelby account balance
 ### Issue: "Insufficient APT for gas"
 
 **Solution:**
+
 ```bash
 # Option 1: Use shelby faucet
 shelby faucet
@@ -563,11 +603,13 @@ aptos account fund-with-faucet --profile shelby-alice --amount 1000000000
 ### Issue: "Blob already exists"
 
 **Error:**
+
 ```
 Blob name already exists
 ```
 
 **Solution:**
+
 - Choose different blob name, OR
 - Delete old blob first, OR
 - Wait for old blob to expire
@@ -578,6 +620,7 @@ Blob name already exists
 File modified between listing and upload.
 
 **Solution:**
+
 - Ensure files are stable during upload
 - Don't modify files during upload process
 - Use `--assume-yes` and upload atomically
@@ -585,11 +628,13 @@ File modified between listing and upload.
 ### Issue: "Parent directory does not exist"
 
 **Error on download:**
+
 ```
 Parent directory of destination must exist
 ```
 
 **Solution:**
+
 ```bash
 # Create parent directory first
 mkdir -p ./path/to/parent/
@@ -601,6 +646,7 @@ shelby download blob.txt ./path/to/parent/file.txt
 ### Issue: "Context not configured properly"
 
 **Solution:**
+
 ```bash
 # List contexts to see configuration
 shelby context list
@@ -615,6 +661,7 @@ shelby context create mycontext
 ### Issue: "Command not found: shelby"
 
 **Solution:**
+
 ```bash
 # Reinstall globally
 npm install -g @shelby-protocol/cli
@@ -694,22 +741,26 @@ diff file.txt verify.txt
 ### 1. Identify Issue Category
 
 **Setup Issues:**
+
 - Installation problems
 - Initialization failures
 - Configuration errors
 
 **Funding Issues:**
+
 - Insufficient tokens
 - Faucet not working
 - Balance not updating
 
 **Upload/Download Issues:**
+
 - Command syntax errors
 - File path problems
 - Permission errors
 - Blob naming issues
 
 **Configuration Issues:**
+
 - Account management
 - Context switching
 - Network selection
@@ -730,6 +781,7 @@ Read docs_shelby/tools_cli.md
 ### 3. Provide Solution
 
 **Structure:**
+
 1. **Diagnose** - Identify root cause
 2. **Command** - Show exact command to run
 3. **Verify** - How to confirm it worked
@@ -767,6 +819,7 @@ Response:
 ## References
 
 When helping users, cite specific documentation:
+
 - CLI guide: `.claude/skills/blockchain/aptos/docs_shelby/tools_cli.md`
 - Commands: `.claude/skills/blockchain/aptos/docs_shelby/tools_cli_commands_*.md`
 - Config file location: `~/.shelby/config.yaml`

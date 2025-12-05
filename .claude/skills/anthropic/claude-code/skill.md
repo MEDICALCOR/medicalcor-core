@@ -14,6 +14,7 @@ Provide expert guidance on Claude Code CLI features, including skills, commands,
 ## When to Use
 
 Auto-invoke when users mention:
+
 - **Claude Code** - CLI tool, features, usage
 - **Skills** - creating, using, configuring skills
 - **Commands** - slash commands, custom commands
@@ -25,6 +26,7 @@ Auto-invoke when users mention:
 ## Knowledge Base
 
 Documentation is stored in Markdown format (multiple languages):
+
 - **Location:** `docs/`
 - **Index:** `docs/INDEX.md`
 - **Format:** `.md` files
@@ -35,6 +37,7 @@ Documentation is stored in Markdown format (multiple languages):
 When a user asks about Claude Code:
 
 ### 1. Identify Topic
+
 ```
 Common topics:
 - Getting started / installation
@@ -53,6 +56,7 @@ Common topics:
 ### 2. Search Documentation
 
 Use Grep to find relevant English docs:
+
 ```bash
 # Search for specific topics (focus on English docs)
 Grep "skill" docs/ --output-mode files_with_matches --glob "*_en_*.md"
@@ -60,6 +64,7 @@ Grep "hook|validation" docs/ --output-mode content -C 3 --glob "*_en_*.md"
 ```
 
 Check the INDEX.md for navigation:
+
 ```bash
 Read docs/INDEX.md
 ```
@@ -67,6 +72,7 @@ Read docs/INDEX.md
 ### 3. Read Relevant Files
 
 Read the most relevant English documentation files:
+
 ```bash
 # Prefer English (_en) versions
 Read docs/code_claude_com/docs_en_skills.md
@@ -76,6 +82,7 @@ Read docs/code_claude_com/docs_en_slash-commands.md
 ### 4. Provide Answer
 
 Structure your response:
+
 - **Direct answer** - solve the user's problem first
 - **File examples** - show skill.md, command.md structure
 - **Configuration** - show settings.json snippets
@@ -86,6 +93,7 @@ Structure your response:
 ## Example Workflows
 
 ### Example 1: Creating a Skill
+
 ```
 User: "How do I create a skill in Claude Code?"
 
@@ -100,6 +108,7 @@ User: "How do I create a skill in Claude Code?"
 ```
 
 ### Example 2: Writing Hooks
+
 ```
 User: "How do I create a post-edit hook?"
 
@@ -113,6 +122,7 @@ User: "How do I create a post-edit hook?"
 ```
 
 ### Example 3: MCP Integration
+
 ```
 User: "How do I use MCP plugins with Claude Code?"
 
@@ -128,6 +138,7 @@ User: "How do I use MCP plugins with Claude Code?"
 ## Key Concepts to Reference
 
 **Core Components:**
+
 - Skills (auto-invoked knowledge domains)
 - Commands (slash commands, manual workflows)
 - Hooks (validation, automation)
@@ -136,6 +147,7 @@ User: "How do I use MCP plugins with Claude Code?"
 - settings.json (configuration)
 
 **Features:**
+
 - Agents and sub-agents
 - Memory system
 - Sandboxing (Docker, Podman)
@@ -144,6 +156,7 @@ User: "How do I use MCP plugins with Claude Code?"
 - Third-party integrations
 
 **Directory Structure:**
+
 ```
 .claude/
 ├── skills/           # Auto-invoked skills
@@ -154,6 +167,7 @@ User: "How do I use MCP plugins with Claude Code?"
 ```
 
 **Configuration Files:**
+
 - `.claude/settings.json` - Claude Code settings
 - `CLAUDE.md` - Project-specific instructions
 - `skill.md` - Skill definition (with frontmatter)
@@ -170,6 +184,7 @@ User: "How do I use MCP plugins with Claude Code?"
 ## Follow-up Suggestions
 
 After answering, suggest:
+
 - Related Claude Code features
 - Configuration best practices
 - Testing and debugging approaches

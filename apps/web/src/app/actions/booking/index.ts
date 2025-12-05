@@ -194,8 +194,7 @@ export async function getDoctorsAction(): Promise<{ doctors: Doctor[]; error?: s
         if (slotResult.rows.length > 0) {
           const date = new Date(slotResult.rows[0].start_time);
           const isToday = date.toDateString() === new Date().toDateString();
-          const isTomorrow =
-            date.toDateString() === new Date(Date.now() + 86400000).toDateString();
+          const isTomorrow = date.toDateString() === new Date(Date.now() + 86400000).toDateString();
 
           if (isToday) nextAvailable = 'Astăzi';
           else if (isTomorrow) nextAvailable = 'Mâine';
@@ -213,9 +212,10 @@ export async function getDoctorsAction(): Promise<{ doctors: Doctor[]; error?: s
   }
 }
 
-export async function getAvailableSlotsAction(
-  params: { doctorId: string; date: string }
-): Promise<{ slots: TimeSlot[]; error?: string }> {
+export async function getAvailableSlotsAction(params: {
+  doctorId: string;
+  date: string;
+}): Promise<{ slots: TimeSlot[]; error?: string }> {
   try {
     await requirePermission('appointments:read');
     const database = getDatabase();
@@ -233,7 +233,10 @@ export async function getAvailableSlotsAction(
       slots: result.rows.map((row) => ({
         id: row.id,
         doctorId: row.practitioner_id,
-        time: new Date(row.start_time).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' }),
+        time: new Date(row.start_time).toLocaleTimeString('ro-RO', {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
         available: !row.is_booked,
         startTime: row.start_time,
         endTime: row.end_time,
@@ -246,7 +249,10 @@ export async function getAvailableSlotsAction(
   }
 }
 
-export async function getBookingStatsAction(): Promise<{ stats: BookingStats | null; error?: string }> {
+export async function getBookingStatsAction(): Promise<{
+  stats: BookingStats | null;
+  error?: string;
+}> {
   try {
     await requirePermission('appointments:read');
     const user = await requireCurrentUser();
@@ -376,16 +382,18 @@ export async function updateServiceAction(
   }
 }
 
-export async function deleteServiceAction(id: string): Promise<{ success: boolean; error?: string }> {
+export async function deleteServiceAction(
+  id: string
+): Promise<{ success: boolean; error?: string }> {
   try {
     await requirePermission('services:delete');
     const user = await requireCurrentUser();
     const database = getDatabase();
 
-    const result = await database.query(
-      `DELETE FROM services WHERE id = $1 AND clinic_id = $2`,
-      [id, user.clinicId]
-    );
+    const result = await database.query(`DELETE FROM services WHERE id = $1 AND clinic_id = $2`, [
+      id,
+      user.clinicId,
+    ]);
 
     if (result.rowCount === 0) {
       return { success: false, error: 'Service not found' };
@@ -454,10 +462,7 @@ export async function createBookingAction(
     );
 
     // Mark slot as booked
-    await database.query(
-      `UPDATE time_slots SET is_booked = true WHERE id = $1`,
-      [slotId]
-    );
+    await database.query(`UPDATE time_slots SET is_booked = true WHERE id = $1`, [slotId]);
 
     return { success: true, appointmentId: appointmentResult.rows[0].id };
   } catch (error) {

@@ -269,9 +269,7 @@ describe('LeadContextBuilder', () => {
     });
 
     it('withMetadataObject should merge metadata', () => {
-      const context = builder
-        .withMetadataObject({ key1: 'value1', key2: 'value2' })
-        .build();
+      const context = builder.withMetadataObject({ key1: 'value1', key2: 'value2' }).build();
 
       expect(context.metadata.key1).toBe('value1');
       expect(context.metadata.key2).toBe('value2');

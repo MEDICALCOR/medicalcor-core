@@ -93,9 +93,7 @@ export class PgVectorService {
   private initialized: boolean = false;
 
   constructor(config: PgVectorConfig | string) {
-    const connectionConfig = typeof config === 'string'
-      ? { connectionString: config }
-      : config;
+    const connectionConfig = typeof config === 'string' ? { connectionString: config } : config;
 
     this.pool = new Pool({
       connectionString: connectionConfig.connectionString,
@@ -294,7 +292,7 @@ export class PgVectorService {
         metadata: Record<string, unknown> | null;
       }>(query, params);
 
-      return result.rows.map(row => ({
+      return result.rows.map((row) => ({
         id: row.id,
         caseId: row.case_id,
         content: row.content,
@@ -337,7 +335,9 @@ export class PgVectorService {
 
       // Parse the embedding
       const embeddingStr = sourceResult.rows[0]!.embedding;
-      const embedding = JSON.parse(embeddingStr.replace(/^\[/, '[').replace(/\]$/, ']')) as number[];
+      const embedding = JSON.parse(
+        embeddingStr.replace(/^\[/, '[').replace(/\]$/, ']')
+      ) as number[];
 
       // Search for similar, excluding the source case
       const results = await this.semanticSearch(
@@ -347,7 +347,7 @@ export class PgVectorService {
       );
 
       // Filter out the source case
-      return results.filter(r => r.caseId !== caseId).slice(0, limit);
+      return results.filter((r) => r.caseId !== caseId).slice(0, limit);
     } finally {
       client.release();
     }
@@ -380,7 +380,9 @@ export class PgVectorService {
     try {
       const [countResult, casesResult, typesResult] = await Promise.all([
         client.query<{ count: string }>('SELECT COUNT(*) as count FROM osax_clinical_embeddings'),
-        client.query<{ count: string }>('SELECT COUNT(DISTINCT case_id) as count FROM osax_clinical_embeddings'),
+        client.query<{ count: string }>(
+          'SELECT COUNT(DISTINCT case_id) as count FROM osax_clinical_embeddings'
+        ),
         client.query<{ content_type: string; count: string }>(
           'SELECT content_type, COUNT(*) as count FROM osax_clinical_embeddings GROUP BY content_type'
         ),

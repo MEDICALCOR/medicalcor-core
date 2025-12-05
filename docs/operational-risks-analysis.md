@@ -10,12 +10,12 @@
 
 Am verificat exhaustiv cele 4 riscuri identificate in "Slide 2: Provocarile Zilei 2". Rezultatele arata ca afirmatiile sunt **partial corecte**, dar exista atat puncte forte nerecunoscute cat si vulnerabilitati critice nementionate.
 
-| Risc | Severitate Declarata | Severitate Reala | Status |
-|------|---------------------|------------------|--------|
-| Complexitate Operationala | Medie | **MICA** - Observabilitate excelenta deja | Subestimat pozitiv |
-| Fragilitatea Dependentelor | Medie | **MARE** - Gap critic la latenta | Subestimat negativ |
-| Derapaje la Migrari | Mica | **MEDIE** - Lipseste framework formal | Subestimat negativ |
-| Scalarea Costurilor | Mica | **CRITICA** - Cost control nefunctional | Subestimat grav |
+| Risc                       | Severitate Declarata | Severitate Reala                          | Status             |
+| -------------------------- | -------------------- | ----------------------------------------- | ------------------ |
+| Complexitate Operationala  | Medie                | **MICA** - Observabilitate excelenta deja | Subestimat pozitiv |
+| Fragilitatea Dependentelor | Medie                | **MARE** - Gap critic la latenta          | Subestimat negativ |
+| Derapaje la Migrari        | Mica                 | **MEDIE** - Lipseste framework formal     | Subestimat negativ |
+| Scalarea Costurilor        | Mica                 | **CRITICA** - Cost control nefunctional   | Subestimat grav    |
 
 ---
 
@@ -30,6 +30,7 @@ Am verificat exhaustiv cele 4 riscuri identificate in "Slide 2: Provocarile Zile
 #### Ce exista (nerecunoscut in slide):
 
 **A. OpenTelemetry Distributed Tracing** (`packages/core/src/telemetry.ts`)
+
 ```
 - OTLP endpoint configurabil
 - Sampling: 10% productie, 100% dev
@@ -39,6 +40,7 @@ Am verificat exhaustiv cele 4 riscuri identificate in "Slide 2: Provocarile Zile
 ```
 
 **B. Prometheus Metrics** (`packages/core/src/observability/metrics.ts`)
+
 ```
 25+ metrici:
 - HTTP: requests_total, request_duration_seconds
@@ -49,6 +51,7 @@ Am verificat exhaustiv cele 4 riscuri identificate in "Slide 2: Provocarile Zile
 ```
 
 **C. Alert Rules** (`infra/prometheus/rules/alerts.yml`)
+
 ```yaml
 Critical:
   - HighErrorRate: >1% 5xx errors
@@ -62,6 +65,7 @@ Warning:
 ```
 
 **D. Health Checks** (`apps/api/src/routes/health.ts` - 546 linii)
+
 ```
 6 Endpoints:
 - GET /health - Load balancer check
@@ -73,6 +77,7 @@ Warning:
 ```
 
 **E. Sentry Integration** (server, edge, client configs)
+
 ```
 - Traces sample: 10% productie
 - Profiles sample: 10% productie
@@ -83,6 +88,7 @@ Warning:
 ### Gap Real Identificat
 
 Desi infrastructura exista, **documentatia operationala lipseste**:
+
 - Nu exista runbook pentru debugging Patient Journey
 - Nu exista dashboard Grafana pre-configurat pentru trace analysis
 - Nu exista query-uri salvate pentru investigatii comune
@@ -90,11 +96,12 @@ Desi infrastructura exista, **documentatia operationala lipseste**:
 ### Solutii State-of-the-Art
 
 #### Solutia 1: Grafana Tempo + Loki Stack
+
 ```yaml
 # Adaugare in docker-compose.prod.yml
 tempo:
   image: grafana/tempo:latest
-  command: ["-config.file=/etc/tempo.yaml"]
+  command: ['-config.file=/etc/tempo.yaml']
   volumes:
     - ./tempo.yaml:/etc/tempo.yaml
     - tempo-data:/tmp/tempo
@@ -107,20 +114,16 @@ loki:
 ```
 
 #### Solutia 2: Correlation ID Dashboard
+
 ```typescript
 // packages/core/src/observability/patient-journey-tracer.ts
 export class PatientJourneyTracer {
   async getJourneyTimeline(correlationId: string): Promise<JourneyEvent[]> {
-    const [
-      triggerEvents,
-      hubspotCalls,
-      whatsappMessages,
-      dbEvents
-    ] = await Promise.all([
+    const [triggerEvents, hubspotCalls, whatsappMessages, dbEvents] = await Promise.all([
       this.queryTriggerDev(correlationId),
       this.queryHubSpotLogs(correlationId),
       this.queryWhatsAppLogs(correlationId),
-      this.queryEventStore(correlationId)
+      this.queryEventStore(correlationId),
     ]);
 
     return this.mergeTimeline(triggerEvents, hubspotCalls, whatsappMessages, dbEvents);
@@ -129,6 +132,7 @@ export class PatientJourneyTracer {
 ```
 
 #### Solutia 3: OpenTelemetry Auto-Instrumentation
+
 ```bash
 # Adaugare in Dockerfile
 npm install @opentelemetry/auto-instrumentations-node
@@ -148,6 +152,7 @@ node --require @opentelemetry/auto-instrumentations-node/register dist/main.js
 #### Ce functioneaza bine:
 
 **A. Retry Logic** (`packages/integrations/src/openai.ts:190-207`)
+
 ```typescript
 withRetry({
   maxAttempts: 3,
@@ -155,20 +160,22 @@ withRetry({
   backoffMultiplier: 2,
   shouldRetry: (error) => {
     // Retries on: rate_limit, 502, 503, timeout, ECONNRESET
-  }
-})
+  },
+});
 ```
 
 **B. Circuit Breaker** (la nivel factory, `packages/integrations/src/clients-factory.ts`)
+
 ```typescript
 integrationCircuitBreakerRegistry.get('openai', {
   failureThreshold: 5,
   successThreshold: 3,
-  resetTimeout: 30000
+  resetTimeout: 30000,
 });
 ```
 
 **C. Rule-Based Fallback** (`packages/domain/src/scoring/scoring-service.ts`)
+
 ```typescript
 // Fallback activ implicit
 return this.ruleBasedScore(context); // Confidence: 0.7 vs AI: 0.8-0.95
@@ -176,17 +183,18 @@ return this.ruleBasedScore(context); // Confidence: 0.7 vs AI: 0.8-0.95
 
 #### Gap-uri CRITICE Identificate:
 
-| Gap | Impact | Fisier |
-|-----|--------|--------|
-| **Timeout 60s pentru toate operatiile** | User asteapta 4 minute (3 retries x 60s) inainte de fallback | `openai.ts:117` |
-| **Fara latency-based fallback** | Daca OpenAI e lent (nu eroare), nu se activeaza fallback | `openai.ts:162-208` |
-| **String matching pentru erori** | Fragil, dependent de mesaje de eroare | `openai.ts:193-206` |
-| **Fara metrici pentru fallback usage** | Nu se stie cand/cat se foloseste fallback | `lead-scoring.ts:91` |
-| **Cascading failures** | HubSpot update inca se face dupa scoring degradat | `lead-scoring.ts:60-127` |
+| Gap                                     | Impact                                                       | Fisier                   |
+| --------------------------------------- | ------------------------------------------------------------ | ------------------------ |
+| **Timeout 60s pentru toate operatiile** | User asteapta 4 minute (3 retries x 60s) inainte de fallback | `openai.ts:117`          |
+| **Fara latency-based fallback**         | Daca OpenAI e lent (nu eroare), nu se activeaza fallback     | `openai.ts:162-208`      |
+| **String matching pentru erori**        | Fragil, dependent de mesaje de eroare                        | `openai.ts:193-206`      |
+| **Fara metrici pentru fallback usage**  | Nu se stie cand/cat se foloseste fallback                    | `lead-scoring.ts:91`     |
+| **Cascading failures**                  | HubSpot update inca se face dupa scoring degradat            | `lead-scoring.ts:60-127` |
 
 ### Solutii State-of-the-Art
 
 #### Solutia 1: Adaptive Timeout cu Fast Fallback
+
 ```typescript
 // packages/integrations/src/openai.ts - PROPUNERE
 const OPERATION_TIMEOUTS = {
@@ -231,6 +239,7 @@ async scoreMessageWithAdaptiveTimeout(context: ScoringContext): Promise<ScoringO
 ```
 
 #### Solutia 2: Multi-Provider AI Gateway
+
 ```typescript
 // packages/core/src/ai-gateway/multi-provider.ts
 export class MultiProviderAIGateway {
@@ -255,6 +264,7 @@ export class MultiProviderAIGateway {
 ```
 
 #### Solutia 3: Graceful Degradation Notifications
+
 ```typescript
 // packages/core/src/observability/degradation-notifier.ts
 export class DegradationNotifier {
@@ -272,7 +282,7 @@ export class DegradationNotifier {
         service,
         level, // 'healthy' | 'degraded' | 'critical'
         message: this.getDegradationMessage(service, level),
-        expectedRecovery: this.estimateRecovery(service)
+        expectedRecovery: this.estimateRecovery(service),
       });
 
       // Alerteaza echipa
@@ -280,7 +290,7 @@ export class DegradationNotifier {
         await this.pagerDuty.trigger({
           service,
           severity: 'high',
-          details: metrics
+          details: metrics,
         });
       }
     }
@@ -301,6 +311,7 @@ export class DegradationNotifier {
 #### Ce exista (puncte forte):
 
 **A. Constrangeri Complexe** (07-crm-hardening.sql)
+
 ```sql
 -- Foreign Keys cu cascade rules
 leads → practitioners (ON DELETE SET NULL)
@@ -315,6 +326,7 @@ CHECK (unit_price >= 0)
 ```
 
 **B. Security Hardening** (04-security.sql)
+
 ```sql
 -- Row-Level Security
 ALTER TABLE consent_records ENABLE ROW LEVEL SECURITY;
@@ -332,6 +344,7 @@ CREATE TRIGGER tr_prevent_audit_modification
 ```
 
 **C. Paritate Dev/Prod** (via Docker volumes)
+
 ```yaml
 # docker-compose.yml
 volumes:
@@ -340,16 +353,17 @@ volumes:
 
 #### Gap-uri Identificate:
 
-| Gap | Impact | Status |
-|-----|--------|--------|
-| **Fara migration framework** | Manual SQL, nu exista `npm run migrate` | Critic |
-| **Fara rollback procedures** | Nu exista `XX-rollback.sql` | Critic |
-| **Fara schema validation in CI** | Drift poate aparea nedetectat | Inalt |
-| **Doua fisiere `02-*.sql`** | Ordinea executiei ambigua | Mediu |
+| Gap                              | Impact                                  | Status |
+| -------------------------------- | --------------------------------------- | ------ |
+| **Fara migration framework**     | Manual SQL, nu exista `npm run migrate` | Critic |
+| **Fara rollback procedures**     | Nu exista `XX-rollback.sql`             | Critic |
+| **Fara schema validation in CI** | Drift poate aparea nedetectat           | Inalt  |
+| **Doua fisiere `02-*.sql`**      | Ordinea executiei ambigua               | Mediu  |
 
 ### Solutii State-of-the-Art
 
 #### Solutia 1: Implementare dbmate (Recomandat)
+
 ```bash
 # Instalare
 npm install -D dbmate
@@ -378,6 +392,7 @@ migrations/
 ```
 
 #### Solutia 2: Schema Diff in CI/CD
+
 ```yaml
 # .github/workflows/schema-check.yml
 name: Schema Validation
@@ -414,6 +429,7 @@ jobs:
 ```
 
 #### Solutia 3: Reversible Migrations Template
+
 ```sql
 -- migrations/20251127000009_add_feature.sql
 
@@ -439,6 +455,7 @@ ALTER TABLE leads DROP COLUMN IF EXISTS new_feature;
 #### Ce exista (puncte forte):
 
 **A. Rate Limiting Global** (`apps/api/src/plugins/rate-limit.ts`)
+
 ```typescript
 // Global
 max: 1000 // req/min per IP
@@ -454,6 +471,7 @@ max: 50 req/min per IP
 ```
 
 **B. Webhook Security**
+
 ```typescript
 // HMAC-SHA256 signature verification
 // Timestamp validation (5-min window)
@@ -487,6 +505,7 @@ export class UserRateLimiter {
 ```
 
 **Unde e problema:**
+
 ```typescript
 // apps/trigger/src/workflows/lead-scoring.ts:78-97
 if (openai) {
@@ -515,6 +534,7 @@ Fara rate limit pe Trigger.dev: Cost nelimitat!
 ### Solutii State-of-the-Art
 
 #### Solutia 1: Integrare Imediata UserRateLimiter
+
 ```typescript
 // apps/api/src/routes/ai.ts - MODIFICARE URGENTA
 import { UserRateLimiter } from '@medicalcor/core';
@@ -532,7 +552,7 @@ fastify.post('/ai/execute', async (request, reply) => {
       error: 'Token limit exceeded',
       remaining: 0,
       resetAt,
-      upgradeUrl: '/pricing'
+      upgradeUrl: '/pricing',
     });
   }
 
@@ -544,7 +564,7 @@ fastify.post('/ai/execute', async (request, reply) => {
       error: 'Insufficient tokens',
       required: estimatedTokens,
       remaining,
-      suggestion: 'Reduce input size or upgrade plan'
+      suggestion: 'Reduce input size or upgrade plan',
     });
   }
 
@@ -557,12 +577,13 @@ fastify.post('/ai/execute', async (request, reply) => {
   return reply.send({
     ...result,
     tokensUsed: result.tokensUsed,
-    remaining: remaining - result.tokensUsed
+    remaining: remaining - result.tokensUsed,
   });
 });
 ```
 
 #### Solutia 2: AI Gateway cu Budget Controls
+
 ```typescript
 // packages/core/src/ai-gateway/budget-controller.ts
 export class AIBudgetController {
@@ -570,10 +591,7 @@ export class AIBudgetController {
   private monthlyBudget: number;
   private alertThresholds = [0.5, 0.75, 0.9]; // 50%, 75%, 90%
 
-  async executeWithBudgetCheck<T>(
-    operation: () => Promise<T>,
-    estimatedCost: number
-  ): Promise<T> {
+  async executeWithBudgetCheck<T>(operation: () => Promise<T>, estimatedCost: number): Promise<T> {
     const { daily, monthly } = await this.getCurrentSpend();
 
     // Hard stop la budget
@@ -601,6 +619,7 @@ export class AIBudgetController {
 ```
 
 #### Solutia 3: Token Estimation Pre-Call
+
 ```typescript
 // packages/integrations/src/token-estimator.ts
 import { encoding_for_model } from 'tiktoken';
@@ -643,6 +662,7 @@ export class TokenEstimator {
 ```
 
 #### Solutia 4: DDoS Protection Layer
+
 ```typescript
 // packages/core/src/security/ddos-protection.ts
 export class DDoSProtection {
@@ -653,7 +673,8 @@ export class DDoSProtection {
 
     // 1. Check velocity (requests per second)
     const velocity = await this.getVelocity(fingerprint);
-    if (velocity > 10) { // >10 req/sec = suspicious
+    if (velocity > 10) {
+      // >10 req/sec = suspicious
       return { block: true, reason: 'high_velocity' };
     }
 
@@ -704,19 +725,19 @@ export class DDoSProtection {
 
 ## Anexa: Fisiere Cheie
 
-| Componenta | Fisier | Linii |
-|------------|--------|-------|
-| OpenAI Client | `packages/integrations/src/openai.ts` | 1-489 |
-| Rate Limiter (neintegrat) | `packages/core/src/ai-gateway/user-rate-limiter.ts` | Full |
-| Scoring Service | `packages/domain/src/scoring/scoring-service.ts` | 1-313 |
-| Lead Scoring Workflow | `apps/trigger/src/workflows/lead-scoring.ts` | 78-97 |
-| AI Execute Route | `apps/api/src/routes/ai.ts` | Full |
-| Rate Limit Plugin | `apps/api/src/plugins/rate-limit.ts` | Full |
-| Circuit Breaker | `packages/core/src/circuit-breaker.ts` | 1-342 |
-| Telemetry | `packages/core/src/telemetry.ts` | 1-325 |
-| Metrics | `packages/core/src/observability/metrics.ts` | 1-485 |
-| Health Routes | `apps/api/src/routes/health.ts` | 1-546 |
-| Migration Files | `infra/init-db/*.sql` | Multiple |
+| Componenta                | Fisier                                              | Linii    |
+| ------------------------- | --------------------------------------------------- | -------- |
+| OpenAI Client             | `packages/integrations/src/openai.ts`               | 1-489    |
+| Rate Limiter (neintegrat) | `packages/core/src/ai-gateway/user-rate-limiter.ts` | Full     |
+| Scoring Service           | `packages/domain/src/scoring/scoring-service.ts`    | 1-313    |
+| Lead Scoring Workflow     | `apps/trigger/src/workflows/lead-scoring.ts`        | 78-97    |
+| AI Execute Route          | `apps/api/src/routes/ai.ts`                         | Full     |
+| Rate Limit Plugin         | `apps/api/src/plugins/rate-limit.ts`                | Full     |
+| Circuit Breaker           | `packages/core/src/circuit-breaker.ts`              | 1-342    |
+| Telemetry                 | `packages/core/src/telemetry.ts`                    | 1-325    |
+| Metrics                   | `packages/core/src/observability/metrics.ts`        | 1-485    |
+| Health Routes             | `apps/api/src/routes/health.ts`                     | 1-546    |
+| Migration Files           | `infra/init-db/*.sql`                               | Multiple |
 
 ---
 

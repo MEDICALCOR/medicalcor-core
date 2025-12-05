@@ -88,11 +88,7 @@ export class DomainError extends Error {
   /**
    * Create a NOT_FOUND error
    */
-  static notFound(
-    resourceType: string,
-    resourceId: string,
-    correlationId?: string
-  ): DomainError {
+  static notFound(resourceType: string, resourceId: string, correlationId?: string): DomainError {
     return new DomainError(
       `${resourceType.toLowerCase()}.not_found`,
       `${resourceType} with ID '${resourceId}' not found`,
@@ -161,23 +157,13 @@ export class DomainError extends Error {
     details?: Record<string, unknown>,
     correlationId?: string
   ): DomainError {
-    return new DomainError(
-      'conflict',
-      message,
-      details,
-      ErrorSeverity.MEDIUM,
-      correlationId
-    );
+    return new DomainError('conflict', message, details, ErrorSeverity.MEDIUM, correlationId);
   }
 
   /**
    * Create an INTERNAL error
    */
-  static internal(
-    message: string,
-    cause?: Error,
-    correlationId?: string
-  ): DomainError {
+  static internal(message: string, cause?: Error, correlationId?: string): DomainError {
     return new DomainError(
       'internal.error',
       message,
@@ -220,13 +206,7 @@ export class BusinessRuleError extends DomainError {
     details?: Record<string, unknown>,
     correlationId?: string
   ) {
-    super(
-      `business_rule.${rule}`,
-      message,
-      details,
-      ErrorSeverity.MEDIUM,
-      correlationId
-    );
+    super(`business_rule.${rule}`, message, details, ErrorSeverity.MEDIUM, correlationId);
     this.name = 'BusinessRuleError';
   }
 }

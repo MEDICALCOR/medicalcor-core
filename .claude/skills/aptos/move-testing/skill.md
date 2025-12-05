@@ -14,6 +14,7 @@ Provide expert guidance on testing Move smart contracts on Aptos blockchain, inc
 ## When to Use
 
 Auto-invoke when users mention:
+
 - **Testing** - unit tests, integration tests, test coverage, test cases
 - **Move Prover** - formal verification, specifications, invariants
 - **Debugging** - errors, failures, stack traces, logging
@@ -72,18 +73,21 @@ Common scenarios:
 ### 2. Determine Test Type
 
 **Unit Tests:**
+
 - Test individual functions in isolation
 - Mock dependencies
 - Fast execution
 - Use `#[test]` attribute
 
 **Integration Tests:**
+
 - Test module interactions
 - Test complete workflows
 - Use multiple signers
 - Test state changes
 
 **Formal Verification:**
+
 - Use Move Prover
 - Write specifications
 - Verify invariants
@@ -92,6 +96,7 @@ Common scenarios:
 ### 3. Provide Testing Solution
 
 Structure your response:
+
 - **Test strategy** - what to test and why
 - **Code example** - working test code
 - **Setup** - any required test fixtures or helper functions
@@ -309,24 +314,28 @@ fun test_zero_amount() { /* ... */ }
 ### What to Test
 
 ✅ **Critical Paths:**
+
 - Main business logic
 - State transitions
 - Access control
 - Resource management
 
 ✅ **Error Conditions:**
+
 - Invalid inputs
 - Insufficient permissions
 - Resource not found
 - Arithmetic overflow
 
 ✅ **Edge Cases:**
+
 - Zero values
 - Maximum values
 - Empty collections
 - Boundary conditions
 
 ✅ **Invariants:**
+
 - Total supply conservation
 - Balance constraints
 - Ownership rules
@@ -527,6 +536,7 @@ fun test_with_various_inputs() {
 ## Documentation References
 
 When answering questions, reference:
+
 - Aptos Move testing documentation
 - Move Prover specifications
 - Example test suites in Aptos framework
@@ -543,6 +553,7 @@ When answering questions, reference:
 ## Follow-up Suggestions
 
 After helping with tests, suggest:
+
 - Additional test cases to consider
 - Move Prover specifications
 - Code coverage analysis

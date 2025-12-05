@@ -14,6 +14,7 @@ Provide expert guidance on Plaid Auth, the product for retrieving bank account a
 ## When to Use
 
 Auto-invoke when users mention:
+
 - Plaid Auth product
 - Bank account verification
 - Account and routing numbers
@@ -27,6 +28,7 @@ Auto-invoke when users mention:
 Plaid Auth documentation in `.claude/skills/api/plaid/docs/`
 
 Search patterns:
+
 - `Grep "auth|account.*routing|ach" .claude/skills/api/plaid/docs/ -i`
 - `Grep "account.*verification|ownership" .claude/skills/api/plaid/docs/ -i`
 - `Grep "balance.*check|instant.*verification" .claude/skills/api/plaid/docs/ -i`
@@ -34,6 +36,7 @@ Search patterns:
 ## Coverage Areas
 
 **Auth Product Features**
+
 - Account and routing number retrieval
 - Account ownership verification
 - Real-time balance checks
@@ -41,6 +44,7 @@ Search patterns:
 - Multiple account support
 
 **Integration Patterns**
+
 - Link initialization for Auth
 - Token exchange
 - Auth endpoint usage
@@ -48,12 +52,14 @@ Search patterns:
 - Webhook notifications
 
 **Verification Methods**
+
 - Instant verification (preferred)
 - Micro-deposit verification (fallback)
 - Same-day micro-deposits
 - Manual verification
 
 **Use Cases**
+
 - ACH payment setup
 - Payment method verification
 - Direct deposit enrollment
@@ -61,6 +67,7 @@ Search patterns:
 - Payout verification
 
 **Security & Compliance**
+
 - PCI compliance considerations
 - Data encryption
 - Token management
@@ -69,7 +76,7 @@ Search patterns:
 
 ## Response Format
 
-```markdown
+````markdown
 ## [Auth Topic]
 
 [Overview of Auth feature]
@@ -85,23 +92,28 @@ const { accounts, numbers } = response.data;
 // accounts: Array of account objects
 // numbers.ach: ACH routing numbers
 ```
+````
 
 ### Response Structure
 
 ```json
 {
-  "accounts": [{
-    "account_id": "...",
-    "name": "Checking",
-    "type": "depository",
-    "subtype": "checking"
-  }],
+  "accounts": [
+    {
+      "account_id": "...",
+      "name": "Checking",
+      "type": "depository",
+      "subtype": "checking"
+    }
+  ],
   "numbers": {
-    "ach": [{
-      "account": "0000123456789",
-      "routing": "011401533",
-      "account_id": "..."
-    }]
+    "ach": [
+      {
+        "account": "0000123456789",
+        "routing": "011401533",
+        "account_id": "..."
+      }
+    ]
   }
 }
 ```
@@ -127,6 +139,7 @@ const { accounts, numbers } = response.data;
 - Solution: Check institution supports Auth
 
 **Source:** `.claude/skills/api/plaid/docs/[filename].md`
+
 ```
 
 ## Key Endpoints
@@ -144,3 +157,4 @@ const { accounts, numbers } = response.data;
 - Mention webhook integration
 - Explain verification methods
 - Consider institution compatibility
+```

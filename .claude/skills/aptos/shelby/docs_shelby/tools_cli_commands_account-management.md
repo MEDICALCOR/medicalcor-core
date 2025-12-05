@@ -44,36 +44,32 @@ As part of the upload process, the CLI requires that you have a funded account i
 To create a new account, you can use the `shelby account create` command.
 
 **Interactive Mode**
-    
-    
-    shelby account create 
+
+    shelby account create
 
 **Non-interactive Mode**
-    
-    
+
     shelby account create --name <ACCOUNT_NAME> --scheme <ACCOUNT_SCHEME> --private-key <PRIVATE_KEY> --address <ACCOUNT_ADDRESS>
 
 ### Options
 
-Flag| Description  
----|---  
-`--name <account-name>`| The label to store the credentials under.  
-`--scheme <signature-scheme>`| Signature scheme for the private key. The CLI currently supports `ed25519`.  
-`--private-key <key>`| Raw private key (`ed25519-priv-0x…` format). Required in non-interactive mode.  
-`--address <aptos-address>`| Optional Aptos account address (`0x…`). Useful if you generated the key elsewhere.  
-  
+| Flag                          | Description                                                                        |
+| ----------------------------- | ---------------------------------------------------------------------------------- |
+| `--name <account-name>`       | The label to store the credentials under.                                          |
+| `--scheme <signature-scheme>` | Signature scheme for the private key. The CLI currently supports `ed25519`.        |
+| `--private-key <key>`         | Raw private key (`ed25519-priv-0x…` format). Required in non-interactive mode.     |
+| `--address <aptos-address>`   | Optional Aptos account address (`0x…`). Useful if you generated the key elsewhere. |
+
 All four flags must be provided to skip the interactive wizard. Omitting any flag drops you into the TUI and the CLI will generate a fresh account for you.
 
 ## `shelby account list`
 
 To list all accounts, you can use the `shelby account list` command.
-    
-    
+
     shelby account list
 
 Example Output
-    
-    
+
     ┌─────────────┬─────────────────────────────────────────────┬────────────────┐
     │ Name        │ Address                                     │ Private Key    │
     ├─────────────┼─────────────────────────────────────────────┼────────────────┤
@@ -87,41 +83,35 @@ Example Output
 ## `shelby account use`
 
 You can choose an account to use by default by using the `shelby account use` command. This account will automatically be used when running any command that requires an account.
-    
-    
+
     shelby account use <ACCOUNT_NAME>
 
 Example Output
-    
-    
+
     ✅ Now using account 'alice'
 
 ## `shelby account delete`
 
 Delete an account from the configuration file.
-    
-    
+
     shelby account delete <ACCOUNT_NAME>
 
 Example Output
-    
-    
+
     ✅ Account 'alice' deleted successfully
 
 ## `shelby account blobs`
 
 List all blobs associated with an account.
-    
-    
+
     shelby account blobs
 
 Example Output
-    
-    
+
     🔍  Retrieving blobs for alice
     👤  Address: 0x0694a79e492d268acf0c6c0b01f42654ac050071a343ebc4226cb6717d63e4ea
     🗂️  Shelby Explorer: https://explorer.shelby.xyz/shelbynet/account/0x0694a79e492d268acf0c6c0b01f42654ac050071a343ebc4226cb6717d63e4ea
-    
+
     ✅  Retrieved 2 blobs
     ────────────────────────────────────────────
     📦  Stored Blobs
@@ -138,32 +128,30 @@ Example Output
 
 ### Options
 
-Flag| Description  
----|---  
-`-a, --account <name>`| Optional override for the account whose blobs will be listed.  
-  
+| Flag                   | Description                                                   |
+| ---------------------- | ------------------------------------------------------------- |
+| `-a, --account <name>` | Optional override for the account whose blobs will be listed. |
+
 ## `shelby account balance`
 
 Display the Aptos (APT) and ShelbyUSD balances for the active account (or a supplied address).
-    
-    
+
     shelby account balance
 
 Example Output
-    
-    
+
     👤  Account Information
     ────────────────────────────────────────────
     🏷️  Alias:        alice
     🌐  Context:      shelbynet
-    
+
     🔑  Address:      0x0694a79e492d268acf0c6c0b01f42654ac050071a343ebc4226cb6717d63e4ea
     🔗  Aptos Explorer:  https://explorer.aptoslabs.com/account/0x0694a79e492d268acf0c6c0b01f42654ac050071a343ebc4226cb6717d63e4ea?network=shelbynet
     🗂️  Shelby Explorer: https://explorer.shelby.xyz/shelbynet/account/0x0694a79e492d268acf0c6c0b01f42654ac050071a343ebc4226cb6717d63e4ea
     ────────────────────────────────────────────
-    
+
     💰  Balance:
-    
+
     ┌─────────┬───────────────────────────────────┬─────────────────────┬───────────────────┐
     │ Token   │ Asset                             │ Balance             │ Raw Units         │
     ├─────────┼───────────────────────────────────┼─────────────────────┼───────────────────┤
@@ -175,12 +163,12 @@ Example Output
 
 ### Options
 
-Flag| Description  
----|---  
-`-a, --account <name>`| Query a configured account by name instead of the default.  
-`-c, --context <name>`| Use balances from a different context/environment.  
-`--address <hex>`| Provide a raw Aptos address to query (skips account lookup).  
-  
+| Flag                   | Description                                                  |
+| ---------------------- | ------------------------------------------------------------ |
+| `-a, --account <name>` | Query a configured account by name instead of the default.   |
+| `-c, --context <name>` | Use balances from a different context/environment.           |
+| `--address <hex>`      | Provide a raw Aptos address to query (skips account lookup). |
+
 [CLI ManagementManage your Shelby CLI installation](/tools/cli/management)[Context ManagementManaging contexts for the Shelby CLI](/tools/cli/commands/context-management)
 
 ### On this page

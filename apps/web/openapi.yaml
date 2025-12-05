@@ -68,16 +68,16 @@ paths:
               patient:
                 summary: Create case for patient
                 value:
-                  subjectId: "PAT-2025-00042"
-                  subjectType: "patient"
-                  notes: "Initial consultation for implant assessment"
-                  priority: "NORMAL"
+                  subjectId: 'PAT-2025-00042'
+                  subjectType: 'patient'
+                  notes: 'Initial consultation for implant assessment'
+                  priority: 'NORMAL'
               lead:
                 summary: Create case for lead
                 value:
-                  subjectId: "LEAD-2025-00123"
-                  subjectType: "lead"
-                  priority: "HIGH"
+                  subjectId: 'LEAD-2025-00123'
+                  subjectType: 'lead'
+                  priority: 'HIGH'
       responses:
         '201':
           description: Case created successfully
@@ -112,7 +112,18 @@ paths:
           description: Filter by case status
           schema:
             type: string
-            enum: [PENDING_STUDY, STUDY_COMPLETED, SCORED, REVIEWED, TREATMENT_PLANNED, IN_TREATMENT, FOLLOW_UP, CLOSED, CANCELLED]
+            enum:
+              [
+                PENDING_STUDY,
+                STUDY_COMPLETED,
+                SCORED,
+                REVIEWED,
+                TREATMENT_PLANNED,
+                IN_TREATMENT,
+                FOLLOW_UP,
+                CLOSED,
+                CANCELLED,
+              ]
         - name: riskClass
           in: query
           description: Filter by risk class
@@ -264,12 +275,12 @@ paths:
             schema:
               $ref: '#/components/schemas/ScoreCaseRequest'
             example:
-              boneQuality: "medium"
-              softTissueStatus: "acceptable"
-              systemicRisk: "low"
-              urgency: "medium"
-              financialFlexibility: "high"
-              notes: "Good candidate for immediate loading protocol"
+              boneQuality: 'medium'
+              softTissueStatus: 'acceptable'
+              systemicRisk: 'low'
+              urgency: 'medium'
+              financialFlexibility: 'high'
+              notes: 'Good candidate for immediate loading protocol'
       responses:
         '200':
           description: Case scored successfully
@@ -343,18 +354,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
               example:
-                status: "HEALTHY"
-                version: "3.0.0"
-                timestamp: "2025-11-30T10:00:00Z"
+                status: 'HEALTHY'
+                version: '3.0.0'
+                timestamp: '2025-11-30T10:00:00Z'
                 components:
                   database:
-                    status: "HEALTHY"
+                    status: 'HEALTHY'
                     latencyMs: 5
                   redis:
-                    status: "HEALTHY"
+                    status: 'HEALTHY'
                     latencyMs: 2
                   vectorDb:
-                    status: "HEALTHY"
+                    status: 'HEALTHY'
                     latencyMs: 10
         '503':
           description: System unhealthy
@@ -676,12 +687,12 @@ components:
           example:
             success: false
             error:
-              code: "validation.failed"
-              message: "Validation failed"
-              correlationId: "abc-123"
+              code: 'validation.failed'
+              message: 'Validation failed'
+              correlationId: 'abc-123'
               details:
                 fieldErrors:
-                  subjectId: ["Subject ID is required"]
+                  subjectId: ['Subject ID is required']
 
     Unauthorized:
       description: Unauthorized - invalid or missing token
@@ -692,8 +703,8 @@ components:
           example:
             success: false
             error:
-              code: "security.unauthorized"
-              message: "Invalid or expired token"
+              code: 'security.unauthorized'
+              message: 'Invalid or expired token'
 
     Forbidden:
       description: Forbidden - insufficient permissions
@@ -704,8 +715,8 @@ components:
           example:
             success: false
             error:
-              code: "security.permission_denied"
-              message: "Permission denied: osax:case:delete"
+              code: 'security.permission_denied'
+              message: 'Permission denied: osax:case:delete'
 
     NotFound:
       description: Resource not found
@@ -716,7 +727,7 @@ components:
           example:
             success: false
             error:
-              code: "osaxcase.not_found"
+              code: 'osaxcase.not_found'
               message: "OsaxCase with ID 'abc-123' not found"
 
     Conflict:
@@ -728,8 +739,8 @@ components:
           example:
             success: false
             error:
-              code: "osax.duplicate_case"
-              message: "Active case already exists for subject"
+              code: 'osax.duplicate_case'
+              message: 'Active case already exists for subject'
 
     TooManyRequests:
       description: Rate limit exceeded
@@ -752,6 +763,6 @@ components:
           example:
             success: false
             error:
-              code: "internal.error"
-              message: "An unexpected error occurred"
-              correlationId: "abc-123"
+              code: 'internal.error'
+              message: 'An unexpected error occurred'
+              correlationId: 'abc-123'

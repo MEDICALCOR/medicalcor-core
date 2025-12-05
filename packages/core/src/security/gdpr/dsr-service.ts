@@ -142,7 +142,8 @@ export class PostgresDSRService implements DSRService {
   ): Promise<DataSubjectRequest> {
     const id = crypto.randomUUID();
     const now = new Date();
-    const dueDate = request.dueDate ?? new Date(now.getTime() + this.defaultDueDateDays * 24 * 60 * 60 * 1000);
+    const dueDate =
+      request.dueDate ?? new Date(now.getTime() + this.defaultDueDateDays * 24 * 60 * 60 * 1000);
 
     const { data, error } = await this.supabase
       .from(this.tableName)
@@ -204,10 +205,7 @@ export class PostgresDSRService implements DSRService {
     }
 
     // Update status to in_progress
-    await this.supabase
-      .from(this.tableName)
-      .update({ status: 'in_progress' })
-      .eq('id', requestId);
+    await this.supabase.from(this.tableName).update({ status: 'in_progress' }).eq('id', requestId);
 
     await this.logAudit(requestId, 'PROCESSING_STARTED', undefined, {});
 
@@ -315,7 +313,10 @@ export class PostgresDSRService implements DSRService {
   /**
    * Get DSR statistics for compliance reporting
    */
-  async getStatistics(startDate?: Date, endDate?: Date): Promise<{
+  async getStatistics(
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<{
     total: number;
     byType: Record<DSRType, number>;
     byStatus: Record<DSRStatus, number>;

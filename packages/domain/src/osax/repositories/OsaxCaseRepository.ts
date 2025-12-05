@@ -540,9 +540,7 @@ export function pendingReviewSpec(maxAgeHours: number = 24): OsaxCaseNeedingRevi
     type: 'NEEDING_REVIEW',
     maxAgeHours,
     isSatisfiedBy: (c) =>
-      c.status === 'SCORED' &&
-      c.reviewStatus === 'PENDING' &&
-      c.createdAt <= cutoff,
+      c.status === 'SCORED' && c.reviewStatus === 'PENDING' && c.createdAt <= cutoff,
   };
 }
 
@@ -601,9 +599,7 @@ export function overdueFollowUpSpec(asOfDate: Date = new Date()): OsaxCaseWithOv
     asOfDate,
     isSatisfiedBy: (c) => {
       if (c.isDeleted) return false;
-      return c.followUps.some(
-        (f) => f.status === 'SCHEDULED' && f.scheduledDate < asOfDate
-      );
+      return c.followUps.some((f) => f.status === 'SCHEDULED' && f.scheduledDate < asOfDate);
     },
   };
 }
@@ -616,8 +612,7 @@ export function byDateRangeSpec(startDate: Date, endDate: Date): OsaxCaseByDateR
     type: 'BY_DATE_RANGE',
     startDate,
     endDate,
-    isSatisfiedBy: (c) =>
-      c.createdAt >= startDate && c.createdAt <= endDate && !c.isDeleted,
+    isSatisfiedBy: (c) => c.createdAt >= startDate && c.createdAt <= endDate && !c.isDeleted,
   };
 }
 
@@ -629,8 +624,6 @@ export function activeTreatmentSpec(treatmentType: string): OsaxCaseByTreatmentS
     type: 'BY_TREATMENT',
     treatmentType,
     isSatisfiedBy: (c) =>
-      c.activeTreatment?.type === treatmentType &&
-      c.status === 'IN_TREATMENT' &&
-      !c.isDeleted,
+      c.activeTreatment?.type === treatmentType && c.status === 'IN_TREATMENT' && !c.isDeleted,
   };
 }

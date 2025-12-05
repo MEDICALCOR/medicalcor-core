@@ -36,7 +36,9 @@ export const LeadDTOSchema = z.object({
   tags: z.array(z.string()).optional(),
   // CRITICAL FIX: Properly validate metadata structure to prevent injection attacks
   // Only allow primitive types - no objects, functions, or complex structures
-  metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
+  metadata: z
+    .record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()]))
+    .optional(),
 
   // GDPR
   gdprConsent: z.boolean().optional(),
@@ -89,13 +91,7 @@ export type TreatmentPlanDTO = z.infer<typeof TreatmentPlanDTOSchema>;
 // Interaction DTO Schema
 // =============================================================================
 
-export const InteractionChannelSchema = z.enum([
-  'whatsapp',
-  'sms',
-  'email',
-  'call',
-  'note',
-]);
+export const InteractionChannelSchema = z.enum(['whatsapp', 'sms', 'email', 'call', 'note']);
 
 export const InteractionDirectionSchema = z.enum(['inbound', 'outbound']);
 

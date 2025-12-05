@@ -40,8 +40,7 @@ shelby faucet CLI command
 ## `shelby faucet`
 
 Opens a browser to faucet website for currently active account.
-    
-    
+
     shelby faucet
 
 [Uploads and DownloadsUpload and download files using the Shelby CLI](/tools/cli/commands/uploads-and-downloads)[CommitmentCommitment command in Shelby CLI](/tools/cli/commands/commitment)

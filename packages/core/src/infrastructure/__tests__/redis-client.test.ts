@@ -80,9 +80,7 @@ vi.mock('ioredis', () => {
               return Promise.resolve('redis_version:7.0.0\r\nuptime_in_seconds:1000\r\n');
             }
             if (section === 'memory') {
-              return Promise.resolve(
-                'used_memory_human:1M\r\nmaxmemory_human:unlimited\r\n'
-              );
+              return Promise.resolve('used_memory_human:1M\r\nmaxmemory_human:unlimited\r\n');
             }
             if (section === 'clients') {
               return Promise.resolve('connected_clients:5\r\n');
@@ -130,9 +128,8 @@ vi.mock('ioredis', () => {
 
 // ============= Import after mocks =============
 
-const { SecureRedisClient, createSecureRedisClient, createRedisClientFromEnv } = await import(
-  '../redis-client.js'
-);
+const { SecureRedisClient, createSecureRedisClient, createRedisClientFromEnv } =
+  await import('../redis-client.js');
 
 // ============= Test Suite =============
 
@@ -216,11 +213,7 @@ describe('SecureRedisClient', () => {
       await client.connect();
       await client.set('key1', 'value1');
 
-      expect(mockRedisInstance.set).toHaveBeenCalledWith(
-        'test:key1',
-        'value1',
-        expect.any(Object)
-      );
+      expect(mockRedisInstance.set).toHaveBeenCalledWith('test:key1', 'value1', expect.any(Object));
     });
 
     it('should disable circuit breaker when configured', () => {
@@ -911,12 +904,7 @@ describe('SecureRedisClient', () => {
 
     it('should prefix keys in eval script', async () => {
       await client.eval('return 1', ['key1', 'key2'], []);
-      expect(mockRedisInstance.eval).toHaveBeenCalledWith(
-        'return 1',
-        2,
-        'app:key1',
-        'app:key2'
-      );
+      expect(mockRedisInstance.eval).toHaveBeenCalledWith('return 1', 2, 'app:key1', 'app:key2');
     });
   });
 });

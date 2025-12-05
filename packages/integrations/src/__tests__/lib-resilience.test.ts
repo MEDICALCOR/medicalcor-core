@@ -50,20 +50,21 @@ describe('lib/resilience - Bulkhead', () => {
       const results: Promise<number>[] = [];
 
       // Start 2 operations (at capacity)
-      results.push(bulkhead.execute(async () => {
-        await delay(50);
-        return 1;
-      }));
-      results.push(bulkhead.execute(async () => {
-        await delay(50);
-        return 2;
-      }));
+      results.push(
+        bulkhead.execute(async () => {
+          await delay(50);
+          return 1;
+        })
+      );
+      results.push(
+        bulkhead.execute(async () => {
+          await delay(50);
+          return 2;
+        })
+      );
 
       // Should not throw
-      await Promise.all([
-        vi.advanceTimersByTimeAsync(50),
-        ...results,
-      ]);
+      await Promise.all([vi.advanceTimersByTimeAsync(50), ...results]);
 
       const values = await Promise.all(results);
       expect(values).toEqual([1, 2]);
@@ -74,14 +75,18 @@ describe('lib/resilience - Bulkhead', () => {
       const results: Promise<number>[] = [];
 
       // Fill capacity
-      results.push(bulkhead.execute(async () => {
-        await delay(100);
-        return 1;
-      }));
-      results.push(bulkhead.execute(async () => {
-        await delay(100);
-        return 2;
-      }));
+      results.push(
+        bulkhead.execute(async () => {
+          await delay(100);
+          return 1;
+        })
+      );
+      results.push(
+        bulkhead.execute(async () => {
+          await delay(100);
+          return 2;
+        })
+      );
 
       // This should queue
       const queuedPromise = bulkhead.execute(async () => 3);
@@ -101,10 +106,12 @@ describe('lib/resilience - Bulkhead', () => {
       // Fill capacity (2) and queue (2)
       const promises = [];
       for (let i = 0; i < 4; i++) {
-        promises.push(bulkhead.execute(async () => {
-          await delay(200);
-          return i;
-        }));
+        promises.push(
+          bulkhead.execute(async () => {
+            await delay(200);
+            return i;
+          })
+        );
       }
 
       // This should be rejected

@@ -41,9 +41,7 @@ function AccessDenied() {
           </div>
           <div>
             <CardTitle className="text-destructive">Acces Interzis</CardTitle>
-            <CardDescription>
-              Nu aveți permisiunea de a accesa acest pacient.
-            </CardDescription>
+            <CardDescription>Nu aveți permisiunea de a accesa acest pacient.</CardDescription>
           </div>
         </div>
       </CardHeader>
@@ -77,7 +75,14 @@ function toPatientDetail(data: PatientDetailData): PatientDetail {
       preferredChannel: 'phone',
     },
     status: data.lifecycleStage === 'customer' ? 'patient' : 'lead',
-    source: data.source === 'facebook' ? 'facebook' : data.source === 'google' ? 'google' : data.source === 'referral' ? 'referral' : 'website',
+    source:
+      data.source === 'facebook'
+        ? 'facebook'
+        : data.source === 'google'
+          ? 'google'
+          : data.source === 'referral'
+            ? 'referral'
+            : 'website',
     tags: data.procedureInterest ?? [],
     createdAt: new Date(data.createdAt),
     updatedAt: new Date(data.updatedAt),
@@ -372,7 +377,15 @@ export default async function PatientDetailPage({ params }: PageProps) {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Clasificare</span>
-                <Badge variant={patientData.classification === 'HOT' ? 'hot' : patientData.classification === 'WARM' ? 'warm' : 'cold'}>
+                <Badge
+                  variant={
+                    patientData.classification === 'HOT'
+                      ? 'hot'
+                      : patientData.classification === 'WARM'
+                        ? 'warm'
+                        : 'cold'
+                  }
+                >
                   {patientData.classification}
                 </Badge>
               </div>

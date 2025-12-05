@@ -1035,7 +1035,10 @@ export class BackupService extends EventEmitter {
           // If it's a directory, use empty array (don't try to read it)
         } catch (error) {
           // File doesn't exist yet, use empty array
-          logger.debug({ err: error, catalogPath }, 'Backup catalog file not found, using empty array');
+          logger.debug(
+            { err: error, catalogPath },
+            'Backup catalog file not found, using empty array'
+          );
         }
 
         const backups: BackupMetadata[] = JSON.parse(data);
@@ -1115,7 +1118,10 @@ export class BackupService extends EventEmitter {
           await this.deleteBackup(backup.id);
           deletedBackups.push(backup.id);
         } catch (error) {
-          logger.warn({ err: error, backupId: backup.id }, 'Failed to delete backup during retention cleanup');
+          logger.warn(
+            { err: error, backupId: backup.id },
+            'Failed to delete backup during retention cleanup'
+          );
         }
       }
     }

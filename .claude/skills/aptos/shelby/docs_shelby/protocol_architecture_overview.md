@@ -31,12 +31,10 @@ How Shelby works
 
 The Shelby system consists of the following major components:
 
-  1. **Aptos Smart Contract** \- manages the state of the system and manages correctness-critical operations, such as auditing for data correctness.
-  2. **Storage Provider (SP) servers** \- storage servers which store chunks of user data.
-  3. **Shelby RPC servers** \- used by end users to access stored blobs.
-  4. **Private Network** \- Private fiber network used for internal communication.
-
-
+1. **Aptos Smart Contract** \- manages the state of the system and manages correctness-critical operations, such as auditing for data correctness.
+2. **Storage Provider (SP) servers** \- storage servers which store chunks of user data.
+3. **Shelby RPC servers** \- used by end users to access stored blobs.
+4. **Private Network** \- Private fiber network used for internal communication.
 
 Users connect to Shelby by using the SDK to access a Shelby RPC server, over the public internet. Shelby RPC servers have both public internet connectivity and private network connectivity. The RPC servers will reach Storage Provider servers using this private bandwidth to satisfy user requests.
 
@@ -51,8 +49,7 @@ There are no directories in the system. Accounts only hold blob data. Note that 
 The [CLI](../tools/cli) and other tools follow a "canonical" directory layout when uploading or downloading local directory-like structures recursively.
 
 That is, if an input directory is laid out as:
-    
-    
+
     $ tree .
     .
     |-- bar
@@ -62,8 +59,7 @@ That is, if an input directory is laid out as:
     2 directories, 3 files
 
 The blobs uploaded to Shelby will have these blob names:
-    
-    
+
     <account>/<some-prefix>/bar
     <account>/<some-prefix>/foo/baz
     <account>/<some-prefix>/foo/buzz
@@ -90,10 +86,8 @@ Instead of tracking the location of every individual chunk, Shelby assigns each 
 
 When you store a blob, the Shelby system:
 
-  1. Randomly assigns the blob to one of many placement groups for load balancing and data availability
-  2. Stores all chunks of the blob across the 16 storage providers in that placement group
-
-
+1. Randomly assigns the blob to one of many placement groups for load balancing and data availability
+2. Stores all chunks of the blob across the 16 storage providers in that placement group
 
 Each placement group contains exactly 16 slots for storage providers, matching the erasure coding scheme. All chunks from a blob—both the 10 data chunks and 6 parity chunks—are stored on the same set of 16 storage providers.
 
@@ -105,34 +99,30 @@ For another example of Placement Group usage, see the [Ceph RADOS paper](https:/
 
 The following describes what happens in the system when clients request to read data from Shelby:
 
-  1. The client selects an available RPC server from the network.
-  2. The client establishes a payment mechanism and session with the selected RPC server.
-  3. The client sends HTTP requests to the RPC server specifying the desired blob or byte range, along with payment authorization.
-  4. (optionally) The RPC server consults a local cache and returns data from local cache if present.
-  5. The RPC server queries the smart contract to identify which storage providers hold the chunks for the requested blob.
-  6. The RPC server retrieves the necessary chunks from the storage providers over the DoubleZero private network, using a micropayment channel managed by the smart contract to pay the storage provider for the read.
-  7. The RPC server validates the chunks against the blob metadata, reassembles the requested data, and returns it to the client.
-  8. The client can perform additional reads using the same session, with payments deducted incrementally as data is transferred.
-
-
+1. The client selects an available RPC server from the network.
+2. The client establishes a payment mechanism and session with the selected RPC server.
+3. The client sends HTTP requests to the RPC server specifying the desired blob or byte range, along with payment authorization.
+4. (optionally) The RPC server consults a local cache and returns data from local cache if present.
+5. The RPC server queries the smart contract to identify which storage providers hold the chunks for the requested blob.
+6. The RPC server retrieves the necessary chunks from the storage providers over the DoubleZero private network, using a micropayment channel managed by the smart contract to pay the storage provider for the read.
+7. The RPC server validates the chunks against the blob metadata, reassembles the requested data, and returns it to the client.
+8. The client can perform additional reads using the same session, with payments deducted incrementally as data is transferred.
 
 # Write Procedure
 
 The following describes what happens in the system when clients request to write data to Shelby:
 
-  1. The client selects an available RPC server from the network.
-  2. The SDK computes the erasure coded version of the blob locally, processing chunk-by-chunk to minimize memory usage.
-  3. The SDK calculates cryptographic commitments for each erasure coded chunk.
-  4. The SDK submits a transaction to the Aptos blockchain containing the blob's metadata and merkle root of chunk commitments. Storage payment is processed on-chain at this point.
-  5. The SDK transmits the original, non-erasure-coded data to the RPC server to conserve bandwidth.
-  6. The Shelby RPC server independently erasure codes the received data and recomputes chunk commitments to verify consistency with the on-chain metadata.
-  7. The RPC server validates that its computed values match the on-chain state.
-  8. The RPC server distributes the erasure coded chunks to the assigned storage providers based on the blob's placement group.
-  9. Each storage provider validates its received chunk and returns a signed acknowledgment.
-  10. The RPC server aggregates the acknowledgments from all storage providers and submits a final transaction to the smart contract.
-  11. The smart contract transitions the blob to "written" state, confirming it is durably stored and available for reads.
-
-
+1. The client selects an available RPC server from the network.
+2. The SDK computes the erasure coded version of the blob locally, processing chunk-by-chunk to minimize memory usage.
+3. The SDK calculates cryptographic commitments for each erasure coded chunk.
+4. The SDK submits a transaction to the Aptos blockchain containing the blob's metadata and merkle root of chunk commitments. Storage payment is processed on-chain at this point.
+5. The SDK transmits the original, non-erasure-coded data to the RPC server to conserve bandwidth.
+6. The Shelby RPC server independently erasure codes the received data and recomputes chunk commitments to verify consistency with the on-chain metadata.
+7. The RPC server validates that its computed values match the on-chain state.
+8. The RPC server distributes the erasure coded chunks to the assigned storage providers based on the blob's placement group.
+9. Each storage provider validates its received chunk and returns a signed acknowledgment.
+10. The RPC server aggregates the acknowledgments from all storage providers and submits a final transaction to the smart contract.
+11. The smart contract transitions the blob to "written" state, confirming it is durably stored and available for reads.
 
 [Quick StartHow to get started with the Shelby Protocol](/protocol/quickstart)[RPCsThe RPCs of the Shelby Protocol](/protocol/architecture/rpcs)
 

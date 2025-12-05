@@ -101,9 +101,7 @@ export async function getCalendarSlotsAction(dateStr: string): Promise<CalendarS
     }
 
     // Convert to array and sort by time
-    const allSlots = Array.from(slotMap.values()).sort((a, b) =>
-      a.time.localeCompare(b.time)
-    );
+    const allSlots = Array.from(slotMap.values()).sort((a, b) => a.time.localeCompare(b.time));
 
     return allSlots;
   } catch (error) {

@@ -17,13 +17,13 @@ This guide will help you set up MedicalCor Core for local development in under 1
 
 ### Required Software
 
-| Software | Minimum Version | Installation |
-|----------|-----------------|--------------|
-| Node.js | 20.0.0 | [nodejs.org](https://nodejs.org/) or use nvm |
-| pnpm | 9.0.0 | `npm install -g pnpm` |
-| Docker | 24.0 | [docker.com](https://www.docker.com/get-started) |
-| Docker Compose | 2.20 | Included with Docker Desktop |
-| Git | 2.40 | [git-scm.com](https://git-scm.com/) |
+| Software       | Minimum Version | Installation                                     |
+| -------------- | --------------- | ------------------------------------------------ |
+| Node.js        | 20.0.0          | [nodejs.org](https://nodejs.org/) or use nvm     |
+| pnpm           | 9.0.0           | `npm install -g pnpm`                            |
+| Docker         | 24.0            | [docker.com](https://www.docker.com/get-started) |
+| Docker Compose | 2.20            | Included with Docker Desktop                     |
+| Git            | 2.40            | [git-scm.com](https://git-scm.com/)              |
 
 ### Verify Prerequisites
 
@@ -47,11 +47,11 @@ docker compose version
 
 ### Hardware Requirements
 
-| Component | Minimum | Recommended |
-|-----------|---------|-------------|
-| RAM | 8 GB | 16 GB |
-| Disk | 10 GB free | 20 GB free |
-| CPU | 2 cores | 4+ cores |
+| Component | Minimum    | Recommended |
+| --------- | ---------- | ----------- |
+| RAM       | 8 GB       | 16 GB       |
+| Disk      | 10 GB free | 20 GB free  |
+| CPU       | 2 cores    | 4+ cores    |
 
 ---
 
@@ -184,12 +184,12 @@ pnpm dev:trigger
 
 ### Service URLs
 
-| Service | URL | Description |
-|---------|-----|-------------|
-| API Server | http://localhost:3000 | Webhook gateway |
+| Service       | URL                   | Description     |
+| ------------- | --------------------- | --------------- |
+| API Server    | http://localhost:3000 | Webhook gateway |
 | Web Dashboard | http://localhost:3001 | Admin interface |
-| PostgreSQL | localhost:5432 | Database |
-| Redis | localhost:6379 | Cache |
+| PostgreSQL    | localhost:5432        | Database        |
+| Redis         | localhost:6379        | Cache           |
 
 ---
 
@@ -261,6 +261,7 @@ pnpm lint
 **Symptoms**: `docker compose up -d` fails or containers exit immediately.
 
 **Solutions**:
+
 ```bash
 # Check for port conflicts
 lsof -i :5432  # PostgreSQL
@@ -280,6 +281,7 @@ docker system prune -a
 **Symptoms**: Dependencies fail to install or resolve.
 
 **Solutions**:
+
 ```bash
 # Clear pnpm cache
 pnpm store prune
@@ -295,6 +297,7 @@ pnpm install
 **Symptoms**: `pnpm build` throws errors.
 
 **Solutions**:
+
 ```bash
 # Ensure Node.js version is correct
 node --version  # Must be 20+
@@ -311,6 +314,7 @@ pnpm build
 **Symptoms**: API cannot connect to PostgreSQL.
 
 **Solutions**:
+
 ```bash
 # Check if container is running
 docker compose ps
@@ -330,19 +334,23 @@ For more troubleshooting tips, see [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
 Now that you have MedicalCor running locally, explore these guides:
 
 ### Learn the Architecture
+
 - [Architecture Overview](./ARCHITECTURE.md) - Understand how components interact
 - [API Reference](./API_REFERENCE.md) - Explore available endpoints
 
 ### Start Developing
+
 - [Development Guide](./DEVELOPMENT.md) - Code standards and workflows
 - [Testing Guide](./TESTING.md) - How to write and run tests
 
 ### Configure Integrations
+
 - [HubSpot Setup](./CONFIGURATION.md#hubspot-crm)
 - [WhatsApp Setup](./CONFIGURATION.md#whatsapp-360dialog)
 - [Stripe Setup](./CONFIGURATION.md#stripe-payments)
 
 ### Prepare for Production
+
 - [Deployment Guide](./DEPLOYMENT.md) - Production deployment instructions
 - [Security Guide](./SECURITY.md) - Security best practices
 

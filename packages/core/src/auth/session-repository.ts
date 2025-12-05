@@ -210,7 +210,10 @@ export class SessionRepository {
 
     const count = result.rowCount ?? 0;
     if (count > 0) {
-      logger.info({ userId, count, maxSessions, reason }, 'Excess sessions revoked to enforce limit');
+      logger.info(
+        { userId, count, maxSessions, reason },
+        'Excess sessions revoked to enforce limit'
+      );
     }
     return count;
   }

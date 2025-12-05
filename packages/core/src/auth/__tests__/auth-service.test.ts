@@ -60,7 +60,9 @@ describe('AuthService', () => {
     it('should reject passwords that are too short', () => {
       const result = authService.validatePassword('Pass1');
       expect(result.valid).toBe(false);
-      expect(result.errors).toContain(`Password must be at least ${PASSWORD_POLICY.minLength} characters`);
+      expect(result.errors).toContain(
+        `Password must be at least ${PASSWORD_POLICY.minLength} characters`
+      );
     });
 
     it('should reject passwords without uppercase letters', () => {
@@ -224,10 +226,10 @@ describe('SessionRepository', () => {
       const result = await repo.revoke('session-123', 'logout');
 
       expect(result).toBe(true);
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE sessions'),
-        ['session-123', 'logout']
-      );
+      expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE sessions'), [
+        'session-123',
+        'logout',
+      ]);
     });
 
     it('should return false when session not found', async () => {

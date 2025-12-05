@@ -82,11 +82,7 @@ export class LeadScore {
   /**
    * Private constructor - use static factory methods
    */
-  private constructor(
-    numericValue: number,
-    confidence: number,
-    scoredAt: Date = new Date()
-  ) {
+  private constructor(numericValue: number, confidence: number, scoredAt: Date = new Date()) {
     // INVARIANT: Score must be between 1 and 5 (inclusive)
     if (!Number.isInteger(numericValue) || numericValue < 1 || numericValue > 5) {
       throw new InvalidLeadScoreError(
@@ -227,9 +223,7 @@ export class LeadScore {
       if ('numericValue' in obj && typeof obj.numericValue === 'number') {
         try {
           const confidence =
-            'confidence' in obj && typeof obj.confidence === 'number'
-              ? obj.confidence
-              : 0.8;
+            'confidence' in obj && typeof obj.confidence === 'number' ? obj.confidence : 0.8;
           return { success: true, value: LeadScore.fromNumeric(obj.numericValue, confidence) };
         } catch (e) {
           return {
@@ -399,10 +393,7 @@ export class LeadScore {
    * Value equality check
    */
   public equals(other: LeadScore): boolean {
-    return (
-      this.numericValue === other.numericValue &&
-      this.classification === other.classification
-    );
+    return this.numericValue === other.numericValue && this.classification === other.classification;
   }
 
   /**

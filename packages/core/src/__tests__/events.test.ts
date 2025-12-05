@@ -36,7 +36,9 @@ describe('createDomainEvent', () => {
     const event2 = createDomainEvent('test.event', { value: 2 });
 
     expect(event1.metadata.eventId).not.toBe(event2.metadata.eventId);
-    expect(event1.metadata.eventId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    expect(event1.metadata.eventId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+    );
   });
 
   it('should set current timestamp', () => {

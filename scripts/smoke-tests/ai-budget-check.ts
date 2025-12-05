@@ -59,7 +59,8 @@ async function runTests(): Promise<void> {
       logResult({
         name: 'Redis Connection',
         passed: pingResult === 'PONG',
-        message: pingResult === 'PONG' ? 'Connected successfully' : `Unexpected response: ${pingResult}`,
+        message:
+          pingResult === 'PONG' ? 'Connected successfully' : `Unexpected response: ${pingResult}`,
       });
     } catch (error) {
       logResult({
@@ -243,7 +244,6 @@ async function runTests(): Promise<void> {
       await redis.del(key);
     }
     console.log(`Cleaned up ${keysToClean.length} test keys`);
-
   } finally {
     if (redis) {
       await redis.quit();
@@ -264,9 +264,11 @@ async function runTests(): Promise<void> {
 
   if (failed > 0) {
     console.log('\nFailed tests:');
-    results.filter((r) => !r.passed).forEach((r) => {
-      console.log(`  - ${r.name}: ${r.message}`);
-    });
+    results
+      .filter((r) => !r.passed)
+      .forEach((r) => {
+        console.log(`  - ${r.name}: ${r.message}`);
+      });
     process.exit(1);
   }
 

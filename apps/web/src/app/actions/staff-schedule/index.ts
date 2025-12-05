@@ -34,7 +34,16 @@ export interface StaffShift {
   staffId: string;
   staffName: string;
   date: Date;
-  shiftType: 'morning' | 'afternoon' | 'evening' | 'night' | 'regular' | 'on_call' | 'off' | 'vacation' | 'sick';
+  shiftType:
+    | 'morning'
+    | 'afternoon'
+    | 'evening'
+    | 'night'
+    | 'regular'
+    | 'on_call'
+    | 'off'
+    | 'vacation'
+    | 'sick';
   startTime: string | null;
   endTime: string | null;
   isConfirmed: boolean;
@@ -83,7 +92,17 @@ interface StaffShiftRow {
 const CreateShiftSchema = z.object({
   staffId: z.string().uuid(),
   date: z.string(),
-  shiftType: z.enum(['morning', 'afternoon', 'evening', 'night', 'regular', 'on_call', 'off', 'vacation', 'sick']),
+  shiftType: z.enum([
+    'morning',
+    'afternoon',
+    'evening',
+    'night',
+    'regular',
+    'on_call',
+    'off',
+    'vacation',
+    'sick',
+  ]),
   startTime: z.string().optional(),
   endTime: z.string().optional(),
   notes: z.string().optional(),
@@ -91,7 +110,19 @@ const CreateShiftSchema = z.object({
 
 const UpdateShiftSchema = z.object({
   id: z.string().uuid(),
-  shiftType: z.enum(['morning', 'afternoon', 'evening', 'night', 'regular', 'on_call', 'off', 'vacation', 'sick']).optional(),
+  shiftType: z
+    .enum([
+      'morning',
+      'afternoon',
+      'evening',
+      'night',
+      'regular',
+      'on_call',
+      'off',
+      'vacation',
+      'sick',
+    ])
+    .optional(),
   startTime: z.string().optional(),
   endTime: z.string().optional(),
   isConfirmed: z.boolean().optional(),
@@ -151,9 +182,10 @@ export async function getStaffMembersAction(): Promise<{ staff: StaffMember[]; e
   }
 }
 
-export async function getStaffScheduleAction(
-  params: { startDate: string; endDate: string }
-): Promise<{ staff: StaffMember[]; shifts: StaffShift[]; error?: string }> {
+export async function getStaffScheduleAction(params: {
+  startDate: string;
+  endDate: string;
+}): Promise<{ staff: StaffMember[]; shifts: StaffShift[]; error?: string }> {
   try {
     await requirePermission('staff:read');
     const user = await requireCurrentUser();
@@ -189,7 +221,10 @@ export async function getStaffScheduleAction(
   }
 }
 
-export async function getScheduleStatsAction(): Promise<{ stats: ScheduleStats | null; error?: string }> {
+export async function getScheduleStatsAction(): Promise<{
+  stats: ScheduleStats | null;
+  error?: string;
+}> {
   try {
     await requirePermission('staff:read');
     const user = await requireCurrentUser();

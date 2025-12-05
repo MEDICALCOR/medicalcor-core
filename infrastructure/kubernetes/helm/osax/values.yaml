@@ -53,28 +53,28 @@ app:
   # Resource limits and requests
   resources:
     requests:
-      cpu: "500m"
-      memory: "1Gi"
+      cpu: '500m'
+      memory: '1Gi'
     limits:
-      cpu: "2000m"
-      memory: "4Gi"
+      cpu: '2000m'
+      memory: '4Gi'
 
   # Environment variables
   env:
     - name: NODE_ENV
-      value: "production"
+      value: 'production'
     - name: STRICT_HIPAA_MODE
-      value: "true"
+      value: 'true'
     - name: DB_QUERY_TIMEOUT_MS
-      value: "30000"
+      value: '30000'
     - name: LOG_LEVEL
-      value: "info"
+      value: 'info'
     - name: LOG_FORMAT
-      value: "json"
+      value: 'json'
     - name: METRICS_ENABLED
-      value: "true"
+      value: 'true'
     - name: TRACING_ENABLED
-      value: "true"
+      value: 'true'
 
   # Port configuration
   ports:
@@ -148,7 +148,7 @@ app:
 
 database:
   # Connection is provided via Terraform output
-  host: ""
+  host: ''
   port: 5432
   name: medicalcor_osax
   sslMode: require
@@ -166,16 +166,16 @@ database:
 
 secrets:
   # These should be provided via external secrets or sealed secrets
-  databasePassword: ""
-  encryptionKey: ""
-  jwtSecret: ""
-  openaiApiKey: ""
+  databasePassword: ''
+  encryptionKey: ''
+  jwtSecret: ''
+  openaiApiKey: ''
 
   # External secrets configuration
   externalSecrets:
     enabled: false
-    secretStore: ""
-    refreshInterval: "1h"
+    secretStore: ''
+    refreshInterval: '1h'
 
 # ============================================================================
 # MONITORING CONFIGURATION
@@ -201,7 +201,7 @@ monitoring:
     dashboards:
       enabled: true
       labels:
-        grafana_dashboard: "1"
+        grafana_dashboard: '1'
 
   # Alerting
   alerts:
@@ -285,14 +285,14 @@ ingress:
 
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
+    nginx.ingress.kubernetes.io/proxy-body-size: '10m'
+    nginx.ingress.kubernetes.io/proxy-read-timeout: '60'
+    nginx.ingress.kubernetes.io/proxy-send-timeout: '60'
 
     # Rate limiting
-    nginx.ingress.kubernetes.io/limit-rps: "100"
-    nginx.ingress.kubernetes.io/limit-connections: "50"
+    nginx.ingress.kubernetes.io/limit-rps: '100'
+    nginx.ingress.kubernetes.io/limit-connections: '50'
 
     # Security headers
     nginx.ingress.kubernetes.io/configuration-snippet: |
@@ -333,7 +333,7 @@ persistence:
   temp:
     enabled: true
     size: 1Gi
-    storageClass: ""
+    storageClass: ''
     accessMode: ReadWriteOnce
 
 # ============================================================================
@@ -346,7 +346,7 @@ redis:
   architecture: standalone
   auth:
     enabled: true
-    password: ""
+    password: ''
   master:
     persistence:
       enabled: true
@@ -358,11 +358,11 @@ worker:
   replicas: 2
   resources:
     requests:
-      cpu: "250m"
-      memory: "512Mi"
+      cpu: '250m'
+      memory: '512Mi'
     limits:
-      cpu: "1000m"
-      memory: "2Gi"
+      cpu: '1000m'
+      memory: '2Gi'
 
   # Worker Horizontal Pod Autoscaler
   autoscaling:

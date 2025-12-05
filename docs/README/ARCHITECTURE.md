@@ -21,13 +21,13 @@ MedicalCor Core is a medical CRM platform built as a **monorepo** using modern T
 
 ### Core Principles
 
-| Principle | Implementation |
-|-----------|----------------|
-| **Event-Driven** | All state changes captured as domain events |
+| Principle             | Implementation                                           |
+| --------------------- | -------------------------------------------------------- |
+| **Event-Driven**      | All state changes captured as domain events              |
 | **Durable Workflows** | Background tasks survive failures with automatic retries |
-| **Schema-First** | Zod schemas as single source of truth |
-| **Security-First** | Signature verification, rate limiting, input validation |
-| **Observable** | OpenTelemetry tracing, structured logging, metrics |
+| **Schema-First**      | Zod schemas as single source of truth                    |
+| **Security-First**    | Signature verification, rate limiting, input validation  |
+| **Observable**        | OpenTelemetry tracing, structured logging, metrics       |
 
 ### Key Characteristics
 
@@ -156,6 +156,7 @@ MedicalCor Core is a medical CRM platform built as a **monorepo** using modern T
 **Technology**: Fastify 5.x
 
 **Key Features**:
+
 - Fast webhook acknowledgment (<100ms)
 - Signature verification for all webhook types
 - Rate limiting with Redis backend
@@ -164,18 +165,18 @@ MedicalCor Core is a medical CRM platform built as a **monorepo** using modern T
 
 **Routes**:
 
-| Route | Method | Description |
-|-------|--------|-------------|
-| `/health` | GET | Basic health check |
-| `/ready` | GET | Kubernetes readiness probe |
-| `/live` | GET | Kubernetes liveness probe |
-| `/webhooks/whatsapp` | GET/POST | WhatsApp webhook |
-| `/webhooks/voice` | POST | Twilio voice callbacks |
-| `/webhooks/voice/status` | POST | Call status updates |
-| `/webhooks/stripe` | POST | Stripe payment events |
-| `/webhooks/vapi` | POST | Vapi voice AI callbacks |
-| `/workflows/*` | POST | Trigger.dev workflow endpoints |
-| `/ai/execute` | POST | AI function execution |
+| Route                    | Method   | Description                    |
+| ------------------------ | -------- | ------------------------------ |
+| `/health`                | GET      | Basic health check             |
+| `/ready`                 | GET      | Kubernetes readiness probe     |
+| `/live`                  | GET      | Kubernetes liveness probe      |
+| `/webhooks/whatsapp`     | GET/POST | WhatsApp webhook               |
+| `/webhooks/voice`        | POST     | Twilio voice callbacks         |
+| `/webhooks/voice/status` | POST     | Call status updates            |
+| `/webhooks/stripe`       | POST     | Stripe payment events          |
+| `/webhooks/vapi`         | POST     | Vapi voice AI callbacks        |
+| `/workflows/*`           | POST     | Trigger.dev workflow endpoints |
+| `/ai/execute`            | POST     | AI function execution          |
 
 **Security Layers**:
 
@@ -196,6 +197,7 @@ Request → Helmet → CORS → Rate Limit → Signature → Validate → Proces
 **Technology**: Trigger.dev v3.1
 
 **Key Features**:
+
 - Durable execution (survives crashes)
 - Automatic retries with exponential backoff
 - Event-driven task triggering
@@ -204,32 +206,32 @@ Request → Helmet → CORS → Rate Limit → Signature → Validate → Proces
 
 **Task Handlers**:
 
-| Task | Trigger | Description |
-|------|---------|-------------|
+| Task               | Trigger | Description               |
+| ------------------ | ------- | ------------------------- |
 | `whatsapp-handler` | Webhook | Process WhatsApp messages |
-| `voice-handler` | Webhook | Handle Twilio voice calls |
-| `payment-handler` | Webhook | Process Stripe events |
-| `vapi-handler` | Webhook | Handle Vapi callbacks |
+| `voice-handler`    | Webhook | Handle Twilio voice calls |
+| `payment-handler`  | Webhook | Process Stripe events     |
+| `vapi-handler`     | Webhook | Handle Vapi callbacks     |
 
 **Workflows**:
 
-| Workflow | Steps | Description |
-|----------|-------|-------------|
-| `lead-scoring` | 5 | Score leads with AI + CRM enrichment |
-| `patient-journey` | 8 | End-to-end patient lifecycle |
-| `booking-agent` | 4 | Intelligent appointment booking |
-| `voice-transcription` | 3 | Transcribe and analyze calls |
+| Workflow              | Steps | Description                          |
+| --------------------- | ----- | ------------------------------------ |
+| `lead-scoring`        | 5     | Score leads with AI + CRM enrichment |
+| `patient-journey`     | 8     | End-to-end patient lifecycle         |
+| `booking-agent`       | 4     | Intelligent appointment booking      |
+| `voice-transcription` | 3     | Transcribe and analyze calls         |
 
 **Cron Jobs**:
 
-| Schedule | Job | Description |
-|----------|-----|-------------|
-| `0 9 * * *` | daily-recall-check | Find patients due for recall |
-| `0 * * * *` | appointment-reminders | Send 24h/2h reminders |
-| `0 2 * * *` | lead-scoring-refresh | Re-score stale leads |
-| `0 8 * * 1` | weekly-analytics | Generate weekly report |
-| `0 3 * * 0` | stale-lead-cleanup | Archive inactive leads |
-| `0 4 * * *` | gdpr-consent-audit | Check expiring consents |
+| Schedule    | Job                   | Description                  |
+| ----------- | --------------------- | ---------------------------- |
+| `0 9 * * *` | daily-recall-check    | Find patients due for recall |
+| `0 * * * *` | appointment-reminders | Send 24h/2h reminders        |
+| `0 2 * * *` | lead-scoring-refresh  | Re-score stale leads         |
+| `0 8 * * 1` | weekly-analytics      | Generate weekly report       |
+| `0 3 * * 0` | stale-lead-cleanup    | Archive inactive leads       |
+| `0 4 * * *` | gdpr-consent-audit    | Check expiring consents      |
 
 **Retry Configuration**:
 
@@ -252,6 +254,7 @@ Request → Helmet → CORS → Rate Limit → Signature → Validate → Proces
 **Technology**: Next.js 15 with React 19
 
 **Key Features**:
+
 - Patient/lead management
 - Appointment calendar
 - Analytics dashboard
@@ -261,14 +264,14 @@ Request → Helmet → CORS → Rate Limit → Signature → Validate → Proces
 
 **Pages**:
 
-| Route | Description |
-|-------|-------------|
-| `/dashboard` | Overview metrics |
-| `/patients` | Patient list & details |
-| `/appointments` | Calendar view |
-| `/leads` | Lead pipeline |
-| `/analytics` | Reports & insights |
-| `/settings` | Configuration |
+| Route           | Description            |
+| --------------- | ---------------------- |
+| `/dashboard`    | Overview metrics       |
+| `/patients`     | Patient list & details |
+| `/appointments` | Calendar view          |
+| `/leads`        | Lead pipeline          |
+| `/analytics`    | Reports & insights     |
+| `/settings`     | Configuration          |
 
 ---
 
@@ -278,18 +281,19 @@ Request → Helmet → CORS → Rate Limit → Signature → Validate → Proces
 
 **Exports**:
 
-| Module | Description |
-|--------|-------------|
-| `logger` | Structured logging with Pino |
-| `errors` | Domain-specific error classes |
-| `auth` | Authentication services |
-| `event-store` | Event sourcing implementation |
-| `circuit-breaker` | Resilience pattern |
-| `idempotency` | Idempotency key management |
-| `database` | PostgreSQL client factory |
-| `observability` | OpenTelemetry instrumentation |
+| Module            | Description                   |
+| ----------------- | ----------------------------- |
+| `logger`          | Structured logging with Pino  |
+| `errors`          | Domain-specific error classes |
+| `auth`            | Authentication services       |
+| `event-store`     | Event sourcing implementation |
+| `circuit-breaker` | Resilience pattern            |
+| `idempotency`     | Idempotency key management    |
+| `database`        | PostgreSQL client factory     |
+| `observability`   | OpenTelemetry instrumentation |
 
 **Logger Features**:
+
 - Structured JSON output
 - PII redaction (phone, email, content)
 - Correlation ID tracking
@@ -304,15 +308,15 @@ Request → Helmet → CORS → Rate Limit → Signature → Validate → Proces
 
 **Key Schemas**:
 
-| Category | Schemas |
-|----------|---------|
-| Common | Phone, Email, UUID, Timestamp |
-| Lead | LeadContext, LeadScore, Demographics |
-| Scoring | ScoringInput, ScoringOutput, Dimensions |
-| Voice | TwilioWebhook, VapiCallback, Transcript |
-| WhatsApp | 360dialogPayload, Message, Contact |
-| Stripe | PaymentEvent, Invoice, Subscription |
-| Consent | ConsentRecord, ConsentType, AuditLog |
+| Category | Schemas                                 |
+| -------- | --------------------------------------- |
+| Common   | Phone, Email, UUID, Timestamp           |
+| Lead     | LeadContext, LeadScore, Demographics    |
+| Scoring  | ScoringInput, ScoringOutput, Dimensions |
+| Voice    | TwilioWebhook, VapiCallback, Transcript |
+| WhatsApp | 360dialogPayload, Message, Contact      |
+| Stripe   | PaymentEvent, Invoice, Subscription     |
+| Consent  | ConsentRecord, ConsentType, AuditLog    |
 
 **Usage Pattern**:
 
@@ -334,13 +338,13 @@ type LeadContext = z.infer<typeof LeadContextSchema>;
 
 **Services**:
 
-| Service | Responsibility |
-|---------|---------------|
-| `ScoringService` | AI-powered lead scoring with fallback |
-| `TriageService` | Lead urgency and routing decisions |
-| `SchedulingService` | Appointment booking and management |
-| `ConsentService` | GDPR consent lifecycle management |
-| `LanguageService` | Language detection and translation |
+| Service             | Responsibility                        |
+| ------------------- | ------------------------------------- |
+| `ScoringService`    | AI-powered lead scoring with fallback |
+| `TriageService`     | Lead urgency and routing decisions    |
+| `SchedulingService` | Appointment booking and management    |
+| `ConsentService`    | GDPR consent lifecycle management     |
+| `LanguageService`   | Language detection and translation    |
 
 **Scoring Algorithm**:
 
@@ -374,15 +378,16 @@ Input: Message + Context + History
 
 **Clients**:
 
-| Client | Service | Features |
-|--------|---------|----------|
-| `HubSpotClient` | CRM | Contact sync, timeline events, tasks |
+| Client           | Service   | Features                                |
+| ---------------- | --------- | --------------------------------------- |
+| `HubSpotClient`  | CRM       | Contact sync, timeline events, tasks    |
 | `WhatsAppClient` | 360dialog | Messages, templates, webhook validation |
-| `OpenAIClient` | GPT-4o | Scoring, analysis, embeddings |
-| `StripeClient` | Payments | Events, invoices, subscriptions |
-| `VapiClient` | Voice AI | Calls, transcripts, analysis |
+| `OpenAIClient`   | GPT-4o    | Scoring, analysis, embeddings           |
+| `StripeClient`   | Payments  | Events, invoices, subscriptions         |
+| `VapiClient`     | Voice AI  | Calls, transcripts, analysis            |
 
 **Common Features**:
+
 - Retry with exponential backoff
 - Rate limit handling
 - Input validation with Zod
@@ -607,14 +612,14 @@ flowchart BT
 ```yaml
 # docker-compose.yml services
 services:
-  api:        # Fastify server (port 3000)
-  db:         # PostgreSQL 15 (port 5432)
-  redis:      # Redis 7 (port 6379)
+  api: # Fastify server (port 3000)
+  db: # PostgreSQL 15 (port 5432)
+  redis: # Redis 7 (port 6379)
 
 # Optional profiles
 profiles:
   monitoring: # Prometheus + Grafana
-  tunnel:     # Cloudflare tunnel for webhooks
+  tunnel: # Cloudflare tunnel for webhooks
 ```
 
 ### Production Architecture (GCP)
@@ -658,15 +663,15 @@ profiles:
 
 ### Environment Comparison
 
-| Aspect | Development | Staging | Production |
-|--------|-------------|---------|------------|
-| API Instances | 1 | 0-2 | 1-10 |
-| Database | Docker (local) | Cloud SQL | Cloud SQL (HA) |
-| Redis | Docker (local) | Memorystore | Memorystore |
-| Secrets | .env file | Secret Manager | Secret Manager |
-| SSL | Self-signed | Managed | Managed |
-| Auto-scale | No | Yes | Yes |
-| Min instances | 1 | 0 | 1 |
+| Aspect        | Development    | Staging        | Production     |
+| ------------- | -------------- | -------------- | -------------- |
+| API Instances | 1              | 0-2            | 1-10           |
+| Database      | Docker (local) | Cloud SQL      | Cloud SQL (HA) |
+| Redis         | Docker (local) | Memorystore    | Memorystore    |
+| Secrets       | .env file      | Secret Manager | Secret Manager |
+| SSL           | Self-signed    | Managed        | Managed        |
+| Auto-scale    | No             | Yes            | Yes            |
+| Min instances | 1              | 0              | 1              |
 
 ---
 
@@ -677,12 +682,14 @@ profiles:
 **Decision**: Use pnpm workspaces + Turborepo
 
 **Rationale**:
+
 - Shared code without npm publish overhead
 - Atomic commits across packages
 - Unified dependency management
 - Faster CI with caching
 
 **Trade-offs**:
+
 - Initial setup complexity
 - Larger repository size
 
@@ -693,12 +700,14 @@ profiles:
 **Decision**: Store all state changes as immutable events
 
 **Rationale**:
+
 - Complete audit trail for compliance
 - Replay capability for debugging
 - Temporal queries (state at point in time)
 - GDPR data access requests
 
 **Trade-offs**:
+
 - Storage overhead
 - Query complexity for current state
 
@@ -709,12 +718,14 @@ profiles:
 **Decision**: Use Trigger.dev for background processing
 
 **Rationale**:
+
 - Durable execution survives crashes
 - Built-in retry with exponential backoff
 - Visual dashboard for monitoring
 - Better developer experience than raw Redis queues
 
 **Trade-offs**:
+
 - External dependency
 - Cost for high-volume processing
 
@@ -725,12 +736,14 @@ profiles:
 **Decision**: Zod schemas as single source of truth
 
 **Rationale**:
+
 - Runtime validation + TypeScript inference
 - Composable schemas
 - Excellent error messages
 - Tree-shakeable
 
 **Trade-offs**:
+
 - Learning curve for complex schemas
 - Slightly larger bundle than class-validator
 
@@ -741,12 +754,14 @@ profiles:
 **Decision**: Use Fastify for API gateway
 
 **Rationale**:
+
 - 2x faster than Express
 - Built-in schema validation
 - Plugin architecture
 - Excellent TypeScript support
 
 **Trade-offs**:
+
 - Smaller ecosystem than Express
 - Learning curve for plugin system
 

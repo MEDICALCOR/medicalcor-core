@@ -237,10 +237,7 @@ export class AIBudgetController {
       if (tenantCheck.blocked && !blockReason) {
         blockReason = tenantCheck.reason;
       }
-      remainingDaily = Math.min(
-        remainingDaily,
-        tenantUsage.dailyBudget - tenantUsage.dailySpend
-      );
+      remainingDaily = Math.min(remainingDaily, tenantUsage.dailyBudget - tenantUsage.dailySpend);
       remainingMonthly = Math.min(
         remainingMonthly,
         tenantUsage.monthlyBudget - tenantUsage.monthlySpend
@@ -268,8 +265,7 @@ export class AIBudgetController {
       await this.triggerAlert(alert);
     }
 
-    const allowed =
-      !blockReason || this.config.softLimitMode || !this.config.blockOnExceeded;
+    const allowed = !blockReason || this.config.softLimitMode || !this.config.blockOnExceeded;
 
     return {
       allowed,
@@ -391,11 +387,7 @@ export class AIBudgetController {
   /**
    * Set custom budget limits
    */
-  setCustomLimits(
-    scope: 'user' | 'tenant',
-    scopeId: string,
-    limits: CustomBudgetLimits
-  ): void {
+  setCustomLimits(scope: 'user' | 'tenant', scopeId: string, limits: CustomBudgetLimits): void {
     const key = `${scope}:${scopeId}`;
     this.customLimits.set(key, limits);
   }
@@ -520,7 +512,12 @@ export class AIBudgetController {
 
     const blocked = this.config.blockOnExceeded && (wouldExceedDaily || wouldExceedMonthly);
 
-    const result: { status: BudgetStatus; blocked: boolean; reason?: string; alerts: BudgetAlert[] } = {
+    const result: {
+      status: BudgetStatus;
+      blocked: boolean;
+      reason?: string;
+      alerts: BudgetAlert[];
+    } = {
       status,
       blocked,
       alerts,

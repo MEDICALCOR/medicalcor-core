@@ -199,129 +199,131 @@ export default function WorkflowsPage() {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Zap className="h-6 w-6 text-primary" />
-            Workflow Automation
-          </h1>
-          <p className="text-muted-foreground mt-1">Automatizează procesele și follow-up-urile</p>
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Zap className="h-6 w-6 text-primary" />
+              Workflow Automation
+            </h1>
+            <p className="text-muted-foreground mt-1">Automatizează procesele și follow-up-urile</p>
+          </div>
+          <Button>
+            <Plus className="h-4 w-4 mr-2" />
+            Workflow Nou
+          </Button>
         </div>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          Workflow Nou
-        </Button>
-      </div>
 
-      {/* Stats */}
-      {isLoadingWorkflows && workflows.length === 0 ? (
-        <StatsSkeleton />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-card border rounded-lg p-4">
-            <div className="text-sm text-muted-foreground">Total Workflow-uri</div>
-            <div className="text-2xl font-bold mt-1">{workflows.length}</div>
-          </div>
-          <div className="bg-card border rounded-lg p-4">
-            <div className="text-sm text-muted-foreground">Active</div>
-            <div className="text-2xl font-bold mt-1 text-green-600">{activeCount}</div>
-          </div>
-          <div className="bg-card border rounded-lg p-4">
-            <div className="text-sm text-muted-foreground">Total Execuții</div>
-            <div className="text-2xl font-bold mt-1">{totalExecutions.toLocaleString()}</div>
-          </div>
-        </div>
-      )}
-
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="workflows" className="gap-2">
-            <List className="h-4 w-4" />
-            Workflow-uri ({optimisticWorkflows.length})
-          </TabsTrigger>
-          <TabsTrigger value="templates" className="gap-2">
-            <LayoutTemplate className="h-4 w-4" />
-            Template-uri
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="workflows" className="mt-6">
-          {isLoadingWorkflows && optimisticWorkflows.length === 0 ? (
-            <WorkflowsSkeleton />
-          ) : optimisticWorkflows.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Zap className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium">Nu există workflow-uri</p>
-              <p className="text-sm mt-1">Creează primul workflow sau folosește un template</p>
-              <Button className="mt-4" onClick={() => setActiveTab('templates')}>
-                <LayoutTemplate className="h-4 w-4 mr-2" />
-                Vezi Template-uri
-              </Button>
+        {/* Stats */}
+        {isLoadingWorkflows && workflows.length === 0 ? (
+          <StatsSkeleton />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-card border rounded-lg p-4">
+              <div className="text-sm text-muted-foreground">Total Workflow-uri</div>
+              <div className="text-2xl font-bold mt-1">{workflows.length}</div>
             </div>
-          ) : (
-            <WorkflowList
-              workflows={optimisticWorkflows}
-              onToggle={handleToggle}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onDuplicate={handleDuplicate}
-            />
-          )}
-        </TabsContent>
-
-        <TabsContent value="templates" className="mt-6">
-          {isLoadingTemplates && templates.length === 0 ? (
-            <WorkflowsSkeleton />
-          ) : templates.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <LayoutTemplate className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium">Nu există template-uri</p>
-              <p className="text-sm mt-1">
-                Template-urile vor apărea aici după inițializarea bazei de date
-              </p>
+            <div className="bg-card border rounded-lg p-4">
+              <div className="text-sm text-muted-foreground">Active</div>
+              <div className="text-2xl font-bold mt-1 text-green-600">{activeCount}</div>
             </div>
-          ) : (
-            <WorkflowTemplates templates={templates} onUseTemplate={handleUseTemplate} />
-          )}
-        </TabsContent>
-      </Tabs>
+            <div className="bg-card border rounded-lg p-4">
+              <div className="text-sm text-muted-foreground">Total Execuții</div>
+              <div className="text-2xl font-bold mt-1">{totalExecutions.toLocaleString()}</div>
+            </div>
+          </div>
+        )}
 
-      {/* Template Dialog */}
-      <Dialog open={!!selectedTemplate} onOpenChange={() => setSelectedTemplate(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Creează Workflow din Template</DialogTitle>
-            <DialogDescription>
-              Vei crea un nou workflow bazat pe template-ul selectat.
-            </DialogDescription>
-          </DialogHeader>
-          {selectedTemplate && (
-            <div className="space-y-4">
-              <div className="bg-muted rounded-lg p-4">
-                <div className="font-medium">{selectedTemplate.name}</div>
-                <p className="text-sm text-muted-foreground mt-1">{selectedTemplate.description}</p>
-                <div className="flex items-center gap-2 mt-3">
-                  <Badge variant="secondary">{selectedTemplate.category}</Badge>
-                  <Badge variant="outline">{selectedTemplate.steps.length} pași</Badge>
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="workflows" className="gap-2">
+              <List className="h-4 w-4" />
+              Workflow-uri ({optimisticWorkflows.length})
+            </TabsTrigger>
+            <TabsTrigger value="templates" className="gap-2">
+              <LayoutTemplate className="h-4 w-4" />
+              Template-uri
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="workflows" className="mt-6">
+            {isLoadingWorkflows && optimisticWorkflows.length === 0 ? (
+              <WorkflowsSkeleton />
+            ) : optimisticWorkflows.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Zap className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium">Nu există workflow-uri</p>
+                <p className="text-sm mt-1">Creează primul workflow sau folosește un template</p>
+                <Button className="mt-4" onClick={() => setActiveTab('templates')}>
+                  <LayoutTemplate className="h-4 w-4 mr-2" />
+                  Vezi Template-uri
+                </Button>
+              </div>
+            ) : (
+              <WorkflowList
+                workflows={optimisticWorkflows}
+                onToggle={handleToggle}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onDuplicate={handleDuplicate}
+              />
+            )}
+          </TabsContent>
+
+          <TabsContent value="templates" className="mt-6">
+            {isLoadingTemplates && templates.length === 0 ? (
+              <WorkflowsSkeleton />
+            ) : templates.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <LayoutTemplate className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium">Nu există template-uri</p>
+                <p className="text-sm mt-1">
+                  Template-urile vor apărea aici după inițializarea bazei de date
+                </p>
+              </div>
+            ) : (
+              <WorkflowTemplates templates={templates} onUseTemplate={handleUseTemplate} />
+            )}
+          </TabsContent>
+        </Tabs>
+
+        {/* Template Dialog */}
+        <Dialog open={!!selectedTemplate} onOpenChange={() => setSelectedTemplate(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Creează Workflow din Template</DialogTitle>
+              <DialogDescription>
+                Vei crea un nou workflow bazat pe template-ul selectat.
+              </DialogDescription>
+            </DialogHeader>
+            {selectedTemplate && (
+              <div className="space-y-4">
+                <div className="bg-muted rounded-lg p-4">
+                  <div className="font-medium">{selectedTemplate.name}</div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {selectedTemplate.description}
+                  </p>
+                  <div className="flex items-center gap-2 mt-3">
+                    <Badge variant="secondary">{selectedTemplate.category}</Badge>
+                    <Badge variant="outline">{selectedTemplate.steps.length} pași</Badge>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setSelectedTemplate(null)}>
+                    Anulează
+                  </Button>
+                  <Button onClick={handleCreateFromTemplate} disabled={isCreating}>
+                    {isCreating ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Plus className="h-4 w-4 mr-2" />
+                    )}
+                    Creează Workflow
+                  </Button>
                 </div>
               </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setSelectedTemplate(null)}>
-                  Anulează
-                </Button>
-                <Button onClick={handleCreateFromTemplate} disabled={isCreating}>
-                  {isCreating ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Plus className="h-4 w-4 mr-2" />
-                  )}
-                  Creează Workflow
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </PagePermissionGate>
   );

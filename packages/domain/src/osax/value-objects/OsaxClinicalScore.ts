@@ -299,10 +299,11 @@ export class OsaxClinicalScore {
     }
 
     if (confidence < 0 || confidence > 1 || Number.isNaN(confidence)) {
-      throw new InvalidOsaxScoreError(
-        `Confidence must be between 0 and 1, got: ${confidence}`,
-        { field: 'confidence', value: confidence, range: [0, 1] }
-      );
+      throw new InvalidOsaxScoreError(`Confidence must be between 0 and 1, got: ${confidence}`, {
+        field: 'confidence',
+        value: confidence,
+        range: [0, 1],
+      });
     }
 
     this.compositeScore = Math.round(compositeScore * 10) / 10; // 1 decimal precision
@@ -354,18 +355,18 @@ export class OsaxClinicalScore {
 
     // Validate confidence
     if (confidence < 0 || confidence > 1 || Number.isNaN(confidence)) {
-      throw new InvalidOsaxScoreError(
-        `Confidence must be between 0 and 1, got: ${confidence}`,
-        { field: 'confidence', value: confidence, range: [0, 1] }
-      );
+      throw new InvalidOsaxScoreError(`Confidence must be between 0 and 1, got: ${confidence}`, {
+        field: 'confidence',
+        value: confidence,
+        range: [0, 1],
+      });
     }
 
     // Calculate all derived values using encapsulated business logic
     const severity = OsaxClinicalScore.calculateSeverity(indicators.ahi);
     const compositeScore = OsaxClinicalScore.calculateCompositeScore(indicators);
     const cardiovascularRisk = OsaxClinicalScore.calculateCardiovascularRisk(indicators);
-    const treatmentRecommendation =
-      OsaxClinicalScore.calculateTreatmentRecommendation(indicators);
+    const treatmentRecommendation = OsaxClinicalScore.calculateTreatmentRecommendation(indicators);
 
     return new OsaxClinicalScore(
       compositeScore,
@@ -389,10 +390,11 @@ export class OsaxClinicalScore {
    */
   public static fromAHI(ahi: number, confidence: number = 0.7): OsaxClinicalScore {
     if (ahi < 0 || ahi > 150 || Number.isNaN(ahi)) {
-      throw new InvalidOsaxScoreError(
-        `AHI must be between 0 and 150, got: ${ahi}`,
-        { field: 'ahi', value: ahi, range: [0, 150] }
-      );
+      throw new InvalidOsaxScoreError(`AHI must be between 0 and 150, got: ${ahi}`, {
+        field: 'ahi',
+        value: ahi,
+        range: [0, 150],
+      });
     }
 
     // Create minimal indicators with clinically-correlated estimated values
@@ -488,8 +490,7 @@ export class OsaxClinicalScore {
     OsaxClinicalScore.validateIndicators(dto.indicators);
 
     // Parse scoredAt
-    const scoredAt =
-      typeof dto.scoredAt === 'string' ? new Date(dto.scoredAt) : dto.scoredAt;
+    const scoredAt = typeof dto.scoredAt === 'string' ? new Date(dto.scoredAt) : dto.scoredAt;
 
     if (isNaN(scoredAt.getTime())) {
       throw new InvalidOsaxScoreError(`Invalid scoredAt date: ${dto.scoredAt}`, {
@@ -532,11 +533,7 @@ export class OsaxClinicalScore {
       const obj = input as Record<string, unknown>;
 
       // Try as full DTO (has all calculated values)
-      if (
-        'compositeScore' in obj &&
-        'severity' in obj &&
-        'indicators' in obj
-      ) {
+      if ('compositeScore' in obj && 'severity' in obj && 'indicators' in obj) {
         try {
           return {
             success: true,
@@ -572,8 +569,7 @@ export class OsaxClinicalScore {
             ...(ind.supineAhi !== undefined && { supineAhi: Number(ind.supineAhi) }),
           };
 
-          const confidence =
-            typeof obj.confidence === 'number' ? obj.confidence : 0.9;
+          const confidence = typeof obj.confidence === 'number' ? obj.confidence : 0.9;
 
           return {
             success: true,
@@ -641,10 +637,11 @@ export class OsaxClinicalScore {
       indicators.ahi < 0 ||
       indicators.ahi > 150
     ) {
-      throw new InvalidOsaxScoreError(
-        `AHI must be between 0 and 150, got: ${indicators.ahi}`,
-        { field: 'ahi', value: indicators.ahi, range: [0, 150] }
-      );
+      throw new InvalidOsaxScoreError(`AHI must be between 0 and 150, got: ${indicators.ahi}`, {
+        field: 'ahi',
+        value: indicators.ahi,
+        range: [0, 150],
+      });
     }
 
     // ODI validation
@@ -654,10 +651,11 @@ export class OsaxClinicalScore {
       indicators.odi < 0 ||
       indicators.odi > 150
     ) {
-      throw new InvalidOsaxScoreError(
-        `ODI must be between 0 and 150, got: ${indicators.odi}`,
-        { field: 'odi', value: indicators.odi, range: [0, 150] }
-      );
+      throw new InvalidOsaxScoreError(`ODI must be between 0 and 150, got: ${indicators.odi}`, {
+        field: 'odi',
+        value: indicators.odi,
+        range: [0, 150],
+      });
     }
 
     // SpO2 nadir validation
@@ -731,10 +729,11 @@ export class OsaxClinicalScore {
         indicators.bmi < 10 ||
         indicators.bmi > 80)
     ) {
-      throw new InvalidOsaxScoreError(
-        `BMI must be between 10 and 80, got: ${indicators.bmi}`,
-        { field: 'bmi', value: indicators.bmi, range: [10, 80] }
-      );
+      throw new InvalidOsaxScoreError(`BMI must be between 10 and 80, got: ${indicators.bmi}`, {
+        field: 'bmi',
+        value: indicators.bmi,
+        range: [10, 80],
+      });
     }
 
     // Optional: Neck circumference validation
@@ -840,10 +839,7 @@ export class OsaxClinicalScore {
 
     // Weighted average
     const composite =
-      ahiNormalized * 0.4 +
-      spo2NadirNormalized * 0.25 +
-      odiNormalized * 0.2 +
-      essNormalized * 0.15;
+      ahiNormalized * 0.4 + spo2NadirNormalized * 0.25 + odiNormalized * 0.2 + essNormalized * 0.15;
 
     return Math.round(composite * 10) / 10;
   }
@@ -980,9 +976,7 @@ export class OsaxClinicalScore {
    */
   public isSurgicalCandidate(): boolean {
     return (
-      this.isModerateOrWorse() &&
-      this.indicators.bmi !== undefined &&
-      this.indicators.bmi < 35
+      this.isModerateOrWorse() && this.indicators.bmi !== undefined && this.indicators.bmi < 35
     );
   }
 
@@ -1144,10 +1138,11 @@ export class OsaxClinicalScore {
    */
   public withConfidence(newConfidence: number): OsaxClinicalScore {
     if (newConfidence < 0 || newConfidence > 1 || Number.isNaN(newConfidence)) {
-      throw new InvalidOsaxScoreError(
-        `Confidence must be between 0 and 1, got: ${newConfidence}`,
-        { field: 'confidence', value: newConfidence, range: [0, 1] }
-      );
+      throw new InvalidOsaxScoreError(`Confidence must be between 0 and 1, got: ${newConfidence}`, {
+        field: 'confidence',
+        value: newConfidence,
+        range: [0, 1],
+      });
     }
     return OsaxClinicalScore.fromIndicators(this.indicators, newConfidence);
   }

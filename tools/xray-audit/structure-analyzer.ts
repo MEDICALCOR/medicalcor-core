@@ -1,6 +1,6 @@
 /**
  * XRAY Audit Engine - Repository Structure Analyzer
- * 
+ *
  * Analyzes the physical structure of the repository to understand
  * the application architecture and package organization.
  */
@@ -37,9 +37,7 @@ export class StructureAnalyzer {
   private async scanDirectory(dirPath: string): Promise<string[]> {
     try {
       const entries = await readdir(dirPath, { withFileTypes: true });
-      return entries
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => entry.name);
+      return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
     } catch (error) {
       if (this.config.verbose) {
         console.warn(`Directory not found: ${dirPath}`);
@@ -53,7 +51,7 @@ export class StructureAnalyzer {
     currentDepth: number = 0
   ): Promise<{ totalFiles: number; totalLines: number }> {
     const maxDepth = 10;
-    
+
     if (currentDepth > maxDepth) {
       return { totalFiles: 0, totalLines: 0 };
     }

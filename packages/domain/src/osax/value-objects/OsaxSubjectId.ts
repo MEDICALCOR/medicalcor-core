@@ -174,9 +174,7 @@ export class OsaxSubjectId {
     }
 
     if (!Number.isInteger(year) || year < 2020 || year > 2100) {
-      throw new InvalidOsaxSubjectIdError(
-        `Year must be between 2020 and 2100, got: ${year}`
-      );
+      throw new InvalidOsaxSubjectIdError(`Year must be between 2020 and 2100, got: ${year}`);
     }
 
     const paddedSeq = sequenceNumber.toString().padStart(3, '0');
@@ -278,10 +276,7 @@ export class OsaxSubjectId {
    * @param anonymizationKey - Key for anonymization
    * @returns Fully anonymized OsaxSubjectId
    */
-  public static anonymize(
-    originalId: OsaxSubjectId,
-    anonymizationKey: string
-  ): OsaxSubjectId {
+  public static anonymize(originalId: OsaxSubjectId, anonymizationKey: string): OsaxSubjectId {
     if (!anonymizationKey || anonymizationKey.length < 16) {
       throw new InvalidOsaxSubjectIdError('Anonymization key must be at least 16 characters');
     }

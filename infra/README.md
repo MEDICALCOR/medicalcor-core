@@ -3,10 +3,12 @@
 ## Local Development
 
 ### Prerequisites
+
 - Docker & Docker Compose
 - pnpm 9+
 
 ### Start Services
+
 ```bash
 # Start all services (API, Redis, PostgreSQL)
 docker compose up -d
@@ -19,6 +21,7 @@ docker compose --profile tunnel up -d
 ```
 
 ### Access
+
 - API: http://localhost:3000
 - Prometheus: http://localhost:9090 (monitoring profile)
 - Grafana: http://localhost:3001 (monitoring profile)
@@ -26,6 +29,7 @@ docker compose --profile tunnel up -d
 - Redis: localhost:6379
 
 ### Stop Services
+
 ```bash
 docker compose down
 
@@ -36,11 +40,13 @@ docker compose down -v
 ## Cloud Deployment (GCP)
 
 ### Prerequisites
+
 - Terraform 1.5+
 - GCP Project with billing enabled
 - `gcloud` CLI authenticated
 
 ### Deploy
+
 ```bash
 cd terraform
 
@@ -55,6 +61,7 @@ terraform apply -var="project_id=your-project-id" -var="environment=dev"
 ```
 
 ### Environments
+
 - `dev`: Minimal resources, auto-scaling to 0
 - `staging`: Medium resources, always-on
 - `prod`: High availability, backups, multi-region
@@ -68,10 +75,13 @@ For subsequent migrations, use a migration tool like `dbmate` or `prisma migrate
 ## Secrets Management
 
 ### Local
+
 Copy `.env.example` to `.env` and fill in values.
 
 ### Production
+
 Secrets are managed via GCP Secret Manager. Update via:
+
 ```bash
 gcloud secrets versions add medicalcor-hubspot-token-prod --data-file=- <<< "your-token"
 ```

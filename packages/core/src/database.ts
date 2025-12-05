@@ -102,8 +102,10 @@ class PostgresPool implements DatabasePool {
       }
 
       // Log SSL status for audit
-      this.logger.info({ ssl: !!sslConfig, rejectUnauthorized: sslConfig?.rejectUnauthorized },
-        'Database SSL configuration');
+      this.logger.info(
+        { ssl: !!sslConfig, rejectUnauthorized: sslConfig?.rejectUnauthorized },
+        'Database SSL configuration'
+      );
 
       // TYPE SAFETY FIX: Cast only once at creation time
       this.pool = new pg.default.Pool({
@@ -130,7 +132,7 @@ class PostgresPool implements DatabasePool {
           errorMessage.includes('permission') ||
           errorMessage.includes('access denied') ||
           errorMessage.includes('28p01') || // PostgreSQL invalid password
-          errorMessage.includes('28000');   // PostgreSQL invalid authorization
+          errorMessage.includes('28000'); // PostgreSQL invalid authorization
 
         if (isAuthFailure) {
           this.logger.error(

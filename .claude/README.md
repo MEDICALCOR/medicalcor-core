@@ -54,16 +54,17 @@ docpull https://docs.stripe.com -o .claude/skills/stripe/docs
 
 ## 3. What's included?
 
-| Component | Count | Details |
-|-----------|-------|---------|
-| **Skills** | 40 | Auto-activating expertise across 8 domains |
-| **Commands** | 7 | TOON tools (5) + marketplace tools (2) |
-| **Hooks** | 5 | Optional automation (disabled by default) |
-| **Utilities** | 2 | Native Zig TOON encoder/decoder binaries |
+| Component     | Count | Details                                    |
+| ------------- | ----- | ------------------------------------------ |
+| **Skills**    | 40    | Auto-activating expertise across 8 domains |
+| **Commands**  | 7     | TOON tools (5) + marketplace tools (2)     |
+| **Hooks**     | 5     | Optional automation (disabled by default)  |
+| **Utilities** | 2     | Native Zig TOON encoder/decoder binaries   |
 
 ### Documentation (pulled separately)
 
 Install docpull and pull what you need:
+
 ```bash
 pipx install docpull
 
@@ -75,6 +76,7 @@ docpull https://docs.expo.dev -o .claude/skills/expo/docs
 ```
 
 **Available:**
+
 - **Stripe**: 3,253 files (33MB)
 - **Supabase**: 2,616 files (111MB)
 - **Expo**: 810 files (11MB)
@@ -92,42 +94,49 @@ docpull https://docs.expo.dev -o .claude/skills/expo/docs
 
 Skills activate based on conversation keywords:
 
-| Keyword | Skill | Documentation |
-|---------|-------|---------------|
-| "Stripe API" | Stripe | 3,253 docs on payments |
-| "Supabase auth" | Supabase | 2,616 docs on backend |
-| "Aptos Move" | Aptos | 150+ docs on blockchain |
-| "Expo app" | Expo | 810 docs on React Native |
-| "Plaid banking" | Plaid | 659 docs on bank APIs |
-| "Whop memberships" | Whop | 212 docs on digital products |
-| "convert this data" | TOON | Token optimization tools |
+| Keyword             | Skill    | Documentation                |
+| ------------------- | -------- | ---------------------------- |
+| "Stripe API"        | Stripe   | 3,253 docs on payments       |
+| "Supabase auth"     | Supabase | 2,616 docs on backend        |
+| "Aptos Move"        | Aptos    | 150+ docs on blockchain      |
+| "Expo app"          | Expo     | 810 docs on React Native     |
+| "Plaid banking"     | Plaid    | 659 docs on bank APIs        |
+| "Whop memberships"  | Whop     | 212 docs on digital products |
+| "convert this data" | TOON     | Token optimization tools     |
 
 No manual invocation needed. Skills activate based on conversation context.
 
 ### Skills by category
 
 **AI & Claude Code (7 skills)**
+
 - Anthropic API, Claude Code CLI, Command Builder, Hook Builder, MCP Expert, Settings Expert, Skill Builder
 
 **Payments & Commerce (3 skills)**
+
 - Stripe (3,253 docs), Whop (212 docs), Shopify (25 docs)
 
 **Banking (5 skills)**
+
 - Plaid (659 docs), Plaid Auth, Plaid Transactions, Plaid Identity, Plaid Accounts
 
 **Blockchain (18 skills)**
+
 - Aptos (150 docs) + 8 sub-skills
 - Shelby Protocol (52 docs) + 7 sub-skills
 - Decibel (44 docs)
 
 **Backend (1 skill)**
+
 - Supabase (2,616 docs)
 
 **Mobile (5 skills)**
+
 - Expo (810 docs) + 3 sub-skills (EAS Build, EAS Update, Expo Router)
 - iOS (4 docs)
 
 **Data (1 skill)**
+
 - TOON Formatter
 
 ---
@@ -152,6 +161,7 @@ No manual invocation needed. Skills activate based on conversation context.
 ```
 
 **Example workflow:**
+
 ```bash
 # Find what you need
 /discover-skills react testing
@@ -189,11 +199,13 @@ No manual invocation needed. Skills activate based on conversation context.
 ### When to use
 
 **Use TOON for:**
+
 - Arrays with **5+ items**
 - Objects with **60%+ field uniformity**
 - API responses, logs, metrics, benchmarks
 
 **Don't use TOON for:**
+
 - Small arrays (<5 items)
 - Non-uniform data (<60% same fields)
 
@@ -210,18 +222,21 @@ No manual invocation needed. Skills activate based on conversation context.
 ### Add your own skills
 
 **Option 1: Use SkillsMP**
+
 ```bash
 /discover-skills [topic]
 /install-skill <url>
 ```
 
 **Option 2: Use the Skill Builder**
+
 ```bash
 "Create a skill for [your domain]"
 # The Skill Builder skill auto-activates
 ```
 
 **Option 3: Manual creation**
+
 ```bash
 # Project-level
 touch .claude/skills/your-domain/skill.md
@@ -233,12 +248,14 @@ touch ~/.claude/skills/your-skill.md
 ### Add your own commands
 
 **Use the Command Builder:**
+
 ```bash
 "Create a slash command for [your workflow]"
 # The Command Builder skill auto-activates
 ```
 
 **Or create manually:**
+
 ```bash
 touch .claude/commands/your-command.md
 # Test it:
@@ -248,6 +265,7 @@ touch .claude/commands/your-command.md
 ### Enable hooks (optional)
 
 **Edit `settings.json`:**
+
 ```json
 {
   "hooks": {
@@ -258,6 +276,7 @@ touch .claude/commands/your-command.md
 ```
 
 **Review hook scripts first:**
+
 - `hooks/file-size-monitor.sh` - Warns about large files
 - `hooks/markdown-formatter.sh` - Auto-formats markdown
 - `hooks/pre-commit-validator.sh` - Validates before commits
@@ -280,10 +299,10 @@ settings.local.json     # Local overrides (gitignored)
 
 ```json
 {
-  "defaultModel": "sonnet",        // Default model selection
-  "toonMode": "aggressive",        // TOON auto-conversion behavior
+  "defaultModel": "sonnet", // Default model selection
+  "toonMode": "aggressive", // TOON auto-conversion behavior
   "hooks": {
-    "enabled": false               // Enable automation hooks
+    "enabled": false // Enable automation hooks
   }
 }
 ```
@@ -302,6 +321,7 @@ settings.local.json     # Local overrides (gitignored)
 ### Skill installation
 
 **Always review before installing:**
+
 1. Check repository reputation
 2. Verify maintainer identity
 3. Inspect skill content
@@ -310,6 +330,7 @@ settings.local.json     # Local overrides (gitignored)
 ### Hooks
 
 **Disabled by default** for safety:
+
 - Review hook scripts in `hooks/`
 - Test behavior before enabling
 - Monitor hook output for issues
@@ -317,6 +338,7 @@ settings.local.json     # Local overrides (gitignored)
 ### Documentation
 
 **Pre-downloaded and local:**
+
 - No external API calls required
 - Verified and curated content
 - Works completely offline
@@ -330,6 +352,7 @@ settings.local.json     # Local overrides (gitignored)
 **[DIRECTORY.md](./DIRECTORY.md)** - Complete reference for all 40 skills, 7 commands, 5 hooks, and utilities
 
 **[../docs/](../docs/)** - Template usage guides:
+
 - `README.md` - How to use this template
 - `creating-components.md` - Build skills, commands, hooks
 - `examples.md` - Copy-paste templates
@@ -338,16 +361,19 @@ settings.local.json     # Local overrides (gitignored)
 ### External Resources
 
 **Claude Code**
+
 - Documentation: https://code.claude.com/docs
 - Skills Guide: https://code.claude.com/docs/skills
 - Commands Guide: https://code.claude.com/docs/commands
 
 **SkillsMP**
+
 - Website: https://skillsmp.com
 - Browse: 13,000+ community skills
 - Categories: Development, Tools, Data & AI, DevOps, Business
 
 **TOON Format**
+
 - Website: https://toonformat.dev
 - Specification: https://github.com/toon-format/spec
 - Local Docs: `utils/toon/toon-guide.md`
@@ -355,6 +381,7 @@ settings.local.json     # Local overrides (gitignored)
 ### Getting Help
 
 **Need help with:**
+
 - **Claude Code** → Ask the Claude Code Expert skill
 - **Skills** → Ask the Skill Builder skill
 - **Commands** → Ask the Command Builder skill
@@ -363,6 +390,7 @@ settings.local.json     # Local overrides (gitignored)
 - **TOON** → See `utils/toon/toon-guide.md`
 
 **Report issues:**
+
 - Claude Code: https://github.com/anthropics/claude-code/issues
 - This template: Create issue in your fork/repo
 
@@ -372,15 +400,14 @@ settings.local.json     # Local overrides (gitignored)
 
 **This `.claude/` directory provides domain expertise for Claude Code.**
 
-| What | Why |
-|------|-----|
-| **40 skills** | Auto-activating domain knowledge |
-| **Doc script** | Pull latest from official sources |
-| **7 commands** | TOON tools + marketplace access |
-| **TOON format** | 30-60% token savings |
-| **13,000+ skills** | Community marketplace |
+| What               | Why                               |
+| ------------------ | --------------------------------- |
+| **40 skills**      | Auto-activating domain knowledge  |
+| **Doc script**     | Pull latest from official sources |
+| **7 commands**     | TOON tools + marketplace access   |
+| **TOON format**    | 30-60% token savings              |
+| **13,000+ skills** | Community marketplace             |
 
 Copy the directory to add expertise to any project. Pull docs separately as needed.
 
 ---
-

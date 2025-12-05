@@ -96,10 +96,7 @@ export function unwrapOr<T, E>(result: Result<T, E>, defaultValue: T): T {
 /**
  * Map over a successful result
  */
-export function map<T, U, E>(
-  result: Result<T, E>,
-  fn: (value: T) => U
-): Result<U, E> {
+export function map<T, U, E>(result: Result<T, E>, fn: (value: T) => U): Result<U, E> {
   if (isOk(result)) {
     return Ok(fn(result.value));
   }
@@ -109,10 +106,7 @@ export function map<T, U, E>(
 /**
  * Map over an error result
  */
-export function mapErr<T, E, F>(
-  result: Result<T, E>,
-  fn: (error: E) => F
-): Result<T, F> {
+export function mapErr<T, E, F>(result: Result<T, E>, fn: (error: E) => F): Result<T, F> {
   if (isErr(result)) {
     return Err(fn(result.error));
   }
@@ -149,9 +143,7 @@ export function combine<T, E>(results: Result<T, E>[]): Result<T[], E> {
 /**
  * Try-catch wrapper that returns a Result
  */
-export async function tryCatch<T>(
-  fn: () => Promise<T>
-): Promise<Result<T, Error>> {
+export async function tryCatch<T>(fn: () => Promise<T>): Promise<Result<T, Error>> {
   try {
     const value = await fn();
     return Ok(value);

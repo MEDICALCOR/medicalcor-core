@@ -118,19 +118,13 @@ export class EmbeddingPipeline {
 
     const embedding = await this.generateEmbedding(textContent);
 
-    await this.vectorService.storeEmbedding(
-      caseData.id,
-      textContent,
-      'clinical_notes',
-      embedding,
-      {
-        status: caseData.status,
-        riskClass: caseData.clinicalScore?.riskClass,
-        globalScore: caseData.clinicalScore?.globalScore,
-        subjectType: caseData.subjectType,
-        createdAt: caseData.createdAt.toISOString(),
-      }
-    );
+    await this.vectorService.storeEmbedding(caseData.id, textContent, 'clinical_notes', embedding, {
+      status: caseData.status,
+      riskClass: caseData.clinicalScore?.riskClass,
+      globalScore: caseData.clinicalScore?.globalScore,
+      subjectType: caseData.subjectType,
+      createdAt: caseData.createdAt.toISOString(),
+    });
   }
 
   /**
@@ -145,12 +139,14 @@ export class EmbeddingPipeline {
     query: string,
     limit: number = 5,
     filters?: SimilarCaseFilters
-  ): Promise<Array<{
-    caseId: string;
-    similarity: number;
-    content: string;
-    metadata: Record<string, unknown>;
-  }>> {
+  ): Promise<
+    Array<{
+      caseId: string;
+      similarity: number;
+      content: string;
+      metadata: Record<string, unknown>;
+    }>
+  > {
     const queryEmbedding = await this.generateEmbedding(query);
 
     const results = await this.vectorService.semanticSearch(
@@ -164,30 +160,28 @@ export class EmbeddingPipeline {
     let filteredResults = results;
 
     if (filters?.riskClass) {
-      filteredResults = filteredResults.filter(
-        r => r.metadata.riskClass === filters.riskClass
-      );
+      filteredResults = filteredResults.filter((r) => r.metadata.riskClass === filters.riskClass);
     }
 
     if (filters?.status) {
-      filteredResults = filteredResults.filter(
-        r => r.metadata.status === filters.status
-      );
+      filteredResults = filteredResults.filter((r) => r.metadata.status === filters.status);
     }
 
     if (filters?.minScore !== undefined) {
       filteredResults = filteredResults.filter(
-        r => typeof r.metadata.globalScore === 'number' && r.metadata.globalScore >= filters.minScore!
+        (r) =>
+          typeof r.metadata.globalScore === 'number' && r.metadata.globalScore >= filters.minScore!
       );
     }
 
     if (filters?.maxScore !== undefined) {
       filteredResults = filteredResults.filter(
-        r => typeof r.metadata.globalScore === 'number' && r.metadata.globalScore <= filters.maxScore!
+        (r) =>
+          typeof r.metadata.globalScore === 'number' && r.metadata.globalScore <= filters.maxScore!
       );
     }
 
-    return filteredResults.slice(0, limit).map(r => ({
+    return filteredResults.slice(0, limit).map((r) => ({
       caseId: r.caseId,
       similarity: r.similarity,
       content: r.content,
@@ -283,7 +277,7 @@ export class EmbeddingPipeline {
       input: texts,
     });
 
-    return response.data.map(d => d.embedding);
+    return response.data.map((d) => d.embedding);
   }
 
   /**
@@ -317,7 +311,7 @@ export class EmbeddingPipeline {
    * Sleep helper
    */
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**

@@ -5,6 +5,7 @@ TOON supports nested objects using indentation-based syntax.
 ## Basic Syntax
 
 **JSON:**
+
 ```json
 {
   "server": {
@@ -15,6 +16,7 @@ TOON supports nested objects using indentation-based syntax.
 ```
 
 **TOON:**
+
 ```
 server:
   host: localhost
@@ -28,14 +30,17 @@ server:
 - No tabs (strict mode error)
 
 **Correct:**
+
 ```
 level1:
   level2:
     level3: value
 ```
+
 (2, 4, 6 spaces)
 
 **Wrong:**
+
 ```
 level1:
  level2:  ❌ 1 space (not multiple of 2)
@@ -45,6 +50,7 @@ level1:
 ## Multiple Nesting Levels
 
 **JSON:**
+
 ```json
 {
   "app": {
@@ -61,6 +67,7 @@ level1:
 ```
 
 **TOON:**
+
 ```
 app:
   server:
@@ -76,18 +83,22 @@ app:
 For 2-3 levels, key folding is more compact:
 
 **Nested (traditional):**
+
 ```
 server:
   host: localhost
   port: 8080
 ```
+
 ≈ 24 tokens
 
 **Key folding:**
+
 ```
 server.host: localhost
 server.port: 8080
 ```
+
 ≈ 18 tokens
 
 **Savings: 25%**
@@ -97,6 +108,7 @@ See [Key Folding](./key-folding.md) for details.
 ## Arrays Within Objects
 
 **JSON:**
+
 ```json
 {
   "user": {
@@ -107,6 +119,7 @@ See [Key Folding](./key-folding.md) for details.
 ```
 
 **TOON:**
+
 ```
 user:
   name: Alice
@@ -116,16 +129,18 @@ user:
 ## Objects Within Arrays
 
 **JSON:**
+
 ```json
 {
   "users": [
-    {"name": "Alice", "age": 30},
-    {"name": "Bob", "age": 25}
+    { "name": "Alice", "age": 30 },
+    { "name": "Bob", "age": 25 }
   ]
 }
 ```
 
 **TOON (tabular):**
+
 ```
 [2]{name,age}:
   Alice,30
@@ -135,6 +150,7 @@ user:
 ## Complex Nesting
 
 **JSON:**
+
 ```json
 {
   "config": {
@@ -150,6 +166,7 @@ user:
 ```
 
 **TOON (nested):**
+
 ```
 config:
   server:
@@ -160,6 +177,7 @@ config:
 ```
 
 **TOON (key folded - more compact):**
+
 ```
 config.server.ssl.enabled: true
 config.server.ssl.cert: /path/to/cert.pem

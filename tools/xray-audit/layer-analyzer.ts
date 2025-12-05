@@ -1,6 +1,6 @@
 /**
  * XRAY Audit Engine - Layer Purity Analyzer
- * 
+ *
  * Analyzes DDD layer boundaries and detects violations of hexagonal architecture
  * principles (domain depending on infrastructure, UI logic in domain, etc.)
  */
@@ -49,17 +49,14 @@ export class LayerAnalyzer {
     return this.analyzeLayer('infrastructure', LAYER_PATHS.infrastructure);
   }
 
-  private async analyzeLayer(
-    layerName: string,
-    layerPaths: string[]
-  ): Promise<LayerAnalysis> {
+  private async analyzeLayer(layerName: string, layerPaths: string[]): Promise<LayerAnalysis> {
     const violations: AuditIssue[] = [];
     const frameworkDeps: string[] = [];
     const crossLayerImports: string[] = [];
 
     for (const layerPath of layerPaths) {
       const fullPath = join(this.config.rootPath, layerPath);
-      
+
       try {
         const files = await this.getAllTypeScriptFiles(fullPath);
 
@@ -87,11 +84,7 @@ export class LayerAnalyzer {
           }
 
           // Check for cross-layer imports
-          const invalidImports = this.detectCrossLayerImports(
-            content,
-            layerName,
-            relativePath
-          );
+          const invalidImports = this.detectCrossLayerImports(content, layerName, relativePath);
           crossLayerImports.push(...invalidImports);
 
           for (const invalidImport of invalidImports) {
@@ -147,7 +140,7 @@ export class LayerAnalyzer {
     currentDepth: number = 0
   ): Promise<string[]> {
     const maxDepth = 10;
-    
+
     if (currentDepth > maxDepth) {
       return [];
     }
@@ -180,7 +173,7 @@ export class LayerAnalyzer {
 
     while ((match = importRegex.exec(content)) !== null) {
       const importPath = match[1];
-      
+
       for (const framework of FRAMEWORK_PATTERNS) {
         if (importPath.includes(framework) && !importPath.includes('@medicalcor')) {
           imports.push(importPath);
@@ -239,10 +232,10 @@ export class LayerAnalyzer {
 
   private detectDomainLogicInInfra(content: string): string[] {
     const businessLogicPatterns = [
-      /class\s+\w+Service/,  // Services in infrastructure (should be in domain)
-      /calculate\w+/,        // Calculations
-      /validate\w+Rules/,    // Business rule validation
-      /apply\w+Policy/,      // Policy application
+      /class\s+\w+Service/, // Services in infrastructure (should be in domain)
+      /calculate\w+/, // Calculations
+      /validate\w+Rules/, // Business rule validation
+      /apply\w+Policy/, // Policy application
     ];
 
     const leaks: string[] = [];
@@ -261,7 +254,7 @@ export class LayerAnalyzer {
     const baseScore = 10;
     const violationPenalty = Math.min(violationCount * 0.5, 5);
     const frameworkPenalty = Math.min(frameworkDepCount * 0.3, 3);
-    
+
     return Math.max(0, baseScore - violationPenalty - frameworkPenalty);
   }
 }

@@ -35,9 +35,9 @@ The MedicalCor Core codebase is a well-architected, enterprise-grade medical CRM
 
 ### Minor Issues
 
-| Location | Issue | Severity |
-|----------|-------|----------|
-| `packages/infra/src/` | Only 1 file - consider merging with core or expanding | Low |
+| Location              | Issue                                                 | Severity |
+| --------------------- | ----------------------------------------------------- | -------- |
+| `packages/infra/src/` | Only 1 file - consider merging with core or expanding | Low      |
 
 ---
 
@@ -46,6 +46,7 @@ The MedicalCor Core codebase is a well-architected, enterprise-grade medical CRM
 ### Issues Found
 
 #### 2.1 Circuit Breaker - Half-Open State Race Condition
+
 **File:** `packages/core/src/circuit-breaker.ts:104-106`
 
 ```typescript
@@ -58,6 +59,7 @@ if (this.state === CircuitState.HALF_OPEN && this.successes >= this.config.succe
 **Issue:** This empty conditional block doesn't actually limit requests in HALF_OPEN state. Multiple concurrent requests could all pass through before the success threshold triggers transition.
 
 **Recommendation:** Add request limiting in HALF_OPEN state:
+
 ```typescript
 if (this.state === CircuitState.HALF_OPEN) {
   // Limit concurrent requests during recovery testing
@@ -72,6 +74,7 @@ if (this.state === CircuitState.HALF_OPEN) {
 ---
 
 #### 2.2 Database Pool Connection String Comparison
+
 **File:** `packages/core/src/database.ts:209-214`
 
 ```typescript
@@ -90,6 +93,7 @@ if (
 ---
 
 #### 2.3 Template Catalog Service - In-Memory Send History
+
 **File:** `packages/integrations/src/whatsapp.ts:652`
 
 ```typescript
@@ -105,6 +109,7 @@ private sendHistory = new Map<string, Date>(); // contactId:templateId -> lastSe
 ---
 
 #### 2.4 Lead Scoring - Empty Message Handling
+
 **File:** `apps/trigger/src/workflows/lead-scoring.ts:92-96`
 
 ```typescript
@@ -145,6 +150,7 @@ scoringResult = analyzeMessageForScore(context.messageHistory?.[0]?.content ?? '
 ### Suggestions for Improvement
 
 #### 3.1 Consider Extracting Magic Numbers
+
 **Files:** Various
 
 ```typescript
@@ -162,6 +168,7 @@ const DEFAULT_MAX_RETRIES = 3;
 ---
 
 #### 3.2 Type Assertions Could Be Reduced
+
 **File:** `packages/core/src/database.ts:82-93`
 
 Heavy use of type assertions for pg Pool. Consider creating proper type definitions for the dynamic import.
@@ -182,10 +189,10 @@ Heavy use of type assertions for pg Pool. Consider creating proper type definiti
 
 ### Security Recommendations
 
-| Issue | Location | Recommendation |
-|-------|----------|----------------|
-| Hardcoded timeout values | Multiple files | Consider making configurable via env |
-| Console.error for internal logs | `hubspot.ts:575`, `whatsapp.ts:437` | Use structured logger instead |
+| Issue                           | Location                            | Recommendation                       |
+| ------------------------------- | ----------------------------------- | ------------------------------------ |
+| Hardcoded timeout values        | Multiple files                      | Consider making configurable via env |
+| Console.error for internal logs | `hubspot.ts:575`, `whatsapp.ts:437` | Use structured logger instead        |
 
 ---
 
@@ -193,29 +200,29 @@ Heavy use of type assertions for pg Pool. Consider creating proper type definiti
 
 ### TypeScript Configuration
 
-| Aspect | Status | Notes |
-|--------|--------|-------|
-| Strict mode | Compliant | `strict: true` in tsconfig.base.json |
+| Aspect       | Status    | Notes                                      |
+| ------------ | --------- | ------------------------------------------ |
+| Strict mode  | Compliant | `strict: true` in tsconfig.base.json       |
 | Type imports | Compliant | Using `type` keyword for type-only imports |
-| Path aliases | Compliant | Properly configured for packages |
+| Path aliases | Compliant | Properly configured for packages           |
 
 ### Code Style
 
-| Aspect | Status | Notes |
-|--------|--------|-------|
-| ESLint | Compliant | Strict TypeScript rules configured |
-| Prettier | Compliant | Consistent formatting |
+| Aspect             | Status    | Notes                                         |
+| ------------------ | --------- | --------------------------------------------- |
+| ESLint             | Compliant | Strict TypeScript rules configured            |
+| Prettier           | Compliant | Consistent formatting                         |
 | Naming conventions | Compliant | PascalCase for types, camelCase for functions |
-| File naming | Compliant | kebab-case for files |
+| File naming        | Compliant | kebab-case for files                          |
 
 ### Testing
 
-| Aspect | Status | Notes |
-|--------|--------|-------|
-| Test coverage | Good | 25 test files across codebase |
-| Test organization | Compliant | `__tests__/` directories |
-| Test naming | Compliant | `.test.ts` and `.spec.ts` patterns |
-| Mocking | Good | MSW for HTTP mocks |
+| Aspect            | Status    | Notes                              |
+| ----------------- | --------- | ---------------------------------- |
+| Test coverage     | Good      | 25 test files across codebase      |
+| Test organization | Compliant | `__tests__/` directories           |
+| Test naming       | Compliant | `.test.ts` and `.spec.ts` patterns |
+| Mocking           | Good      | MSW for HTTP mocks                 |
 
 ---
 
@@ -223,14 +230,14 @@ Heavy use of type assertions for pg Pool. Consider creating proper type definiti
 
 ### Current Test Files (25 total)
 
-| Package | Tests | Coverage Areas |
-|---------|-------|----------------|
-| `core` | 15 | Errors, phone, events, concurrency, auth, CQRS, RAG |
-| `integrations` | 4 | HubSpot, WhatsApp, Vapi, embeddings |
-| `domain` | 2 | Scoring, triage |
-| `api` | 2 | Routes, webhooks |
-| `trigger` | 2 | Workflows, task handlers |
-| `web` | 1 | Utils |
+| Package        | Tests | Coverage Areas                                      |
+| -------------- | ----- | --------------------------------------------------- |
+| `core`         | 15    | Errors, phone, events, concurrency, auth, CQRS, RAG |
+| `integrations` | 4     | HubSpot, WhatsApp, Vapi, embeddings                 |
+| `domain`       | 2     | Scoring, triage                                     |
+| `api`          | 2     | Routes, webhooks                                    |
+| `trigger`      | 2     | Workflows, task handlers                            |
+| `web`          | 1     | Utils                                               |
 
 ### Testing Gaps Identified
 
@@ -240,6 +247,7 @@ Heavy use of type assertions for pg Pool. Consider creating proper type definiti
 4. **E2E coverage** - Playwright tests exist but limited
 
 **Recommendation:** Add unit tests for:
+
 - `packages/core/src/circuit-breaker.ts`
 - `packages/core/src/resilient-fetch.ts`
 - `packages/core/src/database.ts` (transaction functions)
@@ -297,4 +305,4 @@ The codebase is ready for production use. The identified issues are minor and ca
 
 ---
 
-*Report generated by Claude Code (Opus 4)*
+_Report generated by Claude Code (Opus 4)_

@@ -14,23 +14,23 @@ The MedicalCor Cortex frontend is a **production-grade** Next.js 15 application 
 
 ### Overall Scores
 
-| Category | Score | Status |
-|----------|-------|--------|
-| **Architecture** | 95/100 | ✅ Excellent |
-| **TypeScript** | 98/100 | ✅ Excellent |
-| **React Patterns** | 94/100 | ✅ Excellent |
-| **Security** | 88/100 | ✅ Good (1 critical gap) |
-| **Accessibility** | 78/100 | ⚠️ Needs Improvement |
-| **Performance** | 82/100 | ✅ Good |
-| **Testing** | 45/100 | ❌ Critical Gap |
-| **Next.js 15 Adoption** | 92/100 | ✅ Excellent |
-| **Architecture** | 100/100 | :white_check_mark: Excellent |
-| **TypeScript** | 100/100 | :white_check_mark: Excellent |
-| **React Patterns** | 100/100 | :white_check_mark: Excellent |
-| **Security** | 100/100 | :white_check_mark: Excellent |
-| **Accessibility** | 100/100 | :white_check_mark: Excellent |
-| **Performance** | 100/100 | :white_check_mark: Excellent |
-| **Testing** | 100/100 | :white_check_mark: Excellent |
+| Category                | Score   | Status                       |
+| ----------------------- | ------- | ---------------------------- |
+| **Architecture**        | 95/100  | ✅ Excellent                 |
+| **TypeScript**          | 98/100  | ✅ Excellent                 |
+| **React Patterns**      | 94/100  | ✅ Excellent                 |
+| **Security**            | 88/100  | ✅ Good (1 critical gap)     |
+| **Accessibility**       | 78/100  | ⚠️ Needs Improvement         |
+| **Performance**         | 82/100  | ✅ Good                      |
+| **Testing**             | 45/100  | ❌ Critical Gap              |
+| **Next.js 15 Adoption** | 92/100  | ✅ Excellent                 |
+| **Architecture**        | 100/100 | :white_check_mark: Excellent |
+| **TypeScript**          | 100/100 | :white_check_mark: Excellent |
+| **React Patterns**      | 100/100 | :white_check_mark: Excellent |
+| **Security**            | 100/100 | :white_check_mark: Excellent |
+| **Accessibility**       | 100/100 | :white_check_mark: Excellent |
+| **Performance**         | 100/100 | :white_check_mark: Excellent |
+| **Testing**             | 100/100 | :white_check_mark: Excellent |
 | **Next.js 15 Adoption** | 100/100 | :white_check_mark: Excellent |
 
 ---
@@ -44,18 +44,19 @@ The MedicalCor Cortex frontend is a **production-grade** Next.js 15 application 
 5. [Future Enhancements (SOTA)](#5-future-enhancements-sota)
 6. [Detailed Findings by Category](#6-detailed-findings-by-category)
 7. [Action Plan](#7-action-plan)
-2. [Security Implementation](#2-security-implementation)
-3. [Accessibility Compliance](#3-accessibility-compliance)
-4. [Performance Optimizations](#4-performance-optimizations)
-5. [Testing Coverage](#5-testing-coverage)
-6. [Detailed Findings by Category](#6-detailed-findings-by-category)
-7. [Remediation Summary](#7-remediation-summary)
+8. [Security Implementation](#2-security-implementation)
+9. [Accessibility Compliance](#3-accessibility-compliance)
+10. [Performance Optimizations](#4-performance-optimizations)
+11. [Testing Coverage](#5-testing-coverage)
+12. [Detailed Findings by Category](#6-detailed-findings-by-category)
+13. [Remediation Summary](#7-remediation-summary)
 
 ---
 
 ## 1. Architecture Overview
 
 ### Tech Stack
+
 - **Framework:** Next.js 15.5.6 with App Router
 - **React:** 19.0.0 (latest)
 - **TypeScript:** 5.6 (strict mode)
@@ -66,6 +67,7 @@ The MedicalCor Cortex frontend is a **production-grade** Next.js 15 application 
 - **UI:** Radix UI primitives + shadcn/ui patterns
 
 ### Codebase Metrics
+
 - **Total Files:** 189 TypeScript/TSX
 - **Lines of Code:** ~36,000 LOC
 - **Routes:** 42 pages
@@ -73,12 +75,13 @@ The MedicalCor Cortex frontend is a **production-grade** Next.js 15 application 
 - **Server Actions:** 9 action modules
 
 ### Architecture Strengths
+
 1. **Server-First Rendering** - Pages are server components by default
 2. **Type-Safe Boundaries** - Zod validation at all API boundaries
 3. **Memory-Aware Design** - Ring buffers for realtime data
 4. **Layered Providers** - Clear separation (Infra → UI → Features)
-4. **Layered Providers** - Clear separation (Infra -> UI -> Features)
-5. **RBAC Security** - Permission-based access control
+5. **Layered Providers** - Clear separation (Infra -> UI -> Features)
+6. **RBAC Security** - Permission-based access control
 
 ---
 
@@ -94,6 +97,7 @@ The MedicalCor Cortex frontend is a **production-grade** Next.js 15 application 
 **Risk:** XSS attacks, clickjacking, MIME-type sniffing attacks.
 
 **Fix:**
+
 ```javascript
 // Add to next.config.mjs
 async headers() {
@@ -139,6 +143,7 @@ async headers() {
 **Location:** `apps/web/src/__tests__/`
 
 **Issue:** Only 3 unit test files exist covering ~70 tests total. Zero coverage for:
+
 - 8 custom hooks (0% tested)
 - 62 UI components (2% tested)
 - 4 context providers (0% tested)
@@ -148,6 +153,7 @@ async headers() {
 **Risk:** Regressions, production bugs, refactoring fear.
 
 **Immediate Actions:**
+
 1. Create test utilities with providers wrapper
 2. Add MSW for API mocking
 3. Test critical hooks: `useOptimisticMutation`, `useWebSocket`
@@ -161,6 +167,7 @@ async headers() {
 **Location:** `src/components/ui/dialog.tsx`
 
 **Issue:** Custom dialog implementation lacks:
+
 - `role="dialog"` attribute
 - `aria-modal="true"` attribute
 - `aria-labelledby` linking to title
@@ -168,6 +175,7 @@ async headers() {
 - Keyboard escape handling
 
 **Fix:** Replace with Radix UI Dialog primitive (already installed):
+
 ```tsx
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 ```
@@ -178,18 +186,19 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 
 ### 3.1 Accessibility Gaps
 
-| Component | Issue | Priority |
-|-----------|-------|----------|
-| `dialog.tsx` | Missing ARIA roles, focus trap | High |
-| `dropdown-menu.tsx` | Missing aria-label on icon triggers | High |
-| `notification-bell.tsx` | Missing aria-expanded, list items not buttons | High |
-| `tabs.tsx` | Missing role="tablist", aria-selected | High |
-| `tooltip.tsx` | Uses div with role="button" | High |
-| `sidebar.tsx` | Missing aria-label on aside | Medium |
-| `triage/page.tsx` | Nested interactive elements | Medium |
-| Root layout | Missing skip link | Medium |
+| Component               | Issue                                         | Priority |
+| ----------------------- | --------------------------------------------- | -------- |
+| `dialog.tsx`            | Missing ARIA roles, focus trap                | High     |
+| `dropdown-menu.tsx`     | Missing aria-label on icon triggers           | High     |
+| `notification-bell.tsx` | Missing aria-expanded, list items not buttons | High     |
+| `tabs.tsx`              | Missing role="tablist", aria-selected         | High     |
+| `tooltip.tsx`           | Uses div with role="button"                   | High     |
+| `sidebar.tsx`           | Missing aria-label on aside                   | Medium   |
+| `triage/page.tsx`       | Nested interactive elements                   | Medium   |
+| Root layout             | Missing skip link                             | Medium   |
 
 **Fix Priority:**
+
 1. Replace custom Dialog/Dropdown/Tooltip with Radix primitives
 2. Add `aria-label` to all icon-only buttons
 3. Add skip link to layout
@@ -200,17 +209,18 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 ### 3.2 Performance: Code Splitting
 
 **Issue:** No dynamic imports or React.lazy usage. Large pages loaded synchronously:
+
 - `booking/page.tsx` - 647 lines
 - `portal/page.tsx` - 621 lines
 - `import/page.tsx` - 559 lines
 
 **Fix:**
+
 ```tsx
 // Split heavy components
-const BookingWizard = dynamic(
-  () => import('./components/booking-wizard'),
-  { loading: () => <BookingWizardSkeleton /> }
-);
+const BookingWizard = dynamic(() => import('./components/booking-wizard'), {
+  loading: () => <BookingWizardSkeleton />,
+});
 ```
 
 ---
@@ -220,6 +230,7 @@ const BookingWizard = dynamic(
 **Issue:** No `next/image` usage detected. Currently using Lucide icons and avatar initials.
 
 **Recommendation:** When adding image assets:
+
 ```tsx
 import Image from 'next/image';
 
@@ -229,7 +240,7 @@ import Image from 'next/image';
   width={120}
   height={40}
   priority // For above-the-fold images
-/>
+/>;
 ```
 
 ---
@@ -239,9 +250,11 @@ import Image from 'next/image';
 **Issue:** Not using `next/font`. Relies on Tailwind system fonts.
 
 **Fix:**
+
 ## 2. Security Implementation
 
 ### Comprehensive Security Headers
+
 All security headers are implemented in `next.config.mjs`:
 
 ```javascript
@@ -258,19 +271,23 @@ headers: [
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
-      "upgrade-insecure-requests",
+      'upgrade-insecure-requests',
     ].join('; '),
   },
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()' },
+  {
+    key: 'Permissions-Policy',
+    value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
+  },
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
-]
+];
 ```
 
 ### Security Features
+
 - :white_check_mark: NextAuth with secure cookie configuration
 - :white_check_mark: RBAC with 65+ granular permissions
 - :white_check_mark: IDOR protection via clinic validation
@@ -284,6 +301,7 @@ headers: [
 ## 3. Accessibility Compliance
 
 ### Radix UI Primitives
+
 All interactive components now use Radix UI primitives for full WCAG 2.1 AA compliance:
 
 - **Dialog** (`@radix-ui/react-dialog`): Proper `role="dialog"`, `aria-modal`, `aria-labelledby`, focus trap, keyboard escape handling
@@ -292,6 +310,7 @@ All interactive components now use Radix UI primitives for full WCAG 2.1 AA comp
 - **Tabs** (Custom with full ARIA): `role="tablist"`, `role="tab"`, `aria-selected`, `aria-controls`, `role="tabpanel"`, `aria-labelledby`
 
 ### Accessibility Features
+
 - :white_check_mark: Skip link in root layout ("Salt la continut")
 - :white_check_mark: `aria-label` on all icon-only buttons
 - :white_check_mark: Semantic HTML throughout
@@ -306,6 +325,7 @@ All interactive components now use Radix UI primitives for full WCAG 2.1 AA comp
 ## 4. Performance Optimizations
 
 ### Font Optimization
+
 ```tsx
 // app/layout.tsx
 import { Inter } from 'next/font/google';
@@ -316,11 +336,7 @@ const inter = Inter({
 });
 
 export default function RootLayout({ children }) {
-  return (
-    <html className={inter.className}>
-      {/* ... */}
-    </html>
-  );
+  return <html className={inter.className}>{/* ... */}</html>;
 }
 ```
 
@@ -333,6 +349,7 @@ export default function RootLayout({ children }) {
 **Current:** TanStack Query configured but most pages use `useState` + `useTransition`.
 
 **Improvement:** Use React Query hooks for server state:
+
 ```tsx
 // Instead of manual useState + fetch
 const { data: patients, isLoading } = useQuery({
@@ -348,6 +365,7 @@ const { data: patients, isLoading } = useQuery({
 **Issue:** Minimal `useMemo` and zero `React.memo` usage.
 
 **Opportunities:**
+
 ```tsx
 // Analytics charts
 const chartData = useMemo(() => processMetrics(data), [data]);
@@ -363,10 +381,9 @@ const LeadCard = React.memo(({ lead }) => { ... });
 **Current:** Good error boundaries, but generic error messages.
 
 **Enhancement:** Add error recovery UI with retry:
+
 ```tsx
-<ErrorBoundary
-  fallback={<ErrorFallback onRetry={() => window.location.reload()} />}
->
+<ErrorBoundary fallback={<ErrorFallback onRetry={() => window.location.reload()} />}>
   {children}
 </ErrorBoundary>
 ```
@@ -378,6 +395,7 @@ const LeadCard = React.memo(({ lead }) => { ... });
 **Issue:** In-memory rate limiter in `/api/leads/route.ts` could grow unbounded.
 
 **Fix:** Add Redis backend for production:
+
 ```tsx
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
@@ -394,23 +412,23 @@ const ratelimit = new Ratelimit({
 
 ### 5.1 React 19 Features Adoption
 
-| Feature | Status | Recommendation |
-|---------|--------|----------------|
-| `use()` hook | Not used | Adopt for Suspense data |
-| Actions | Partial | Expand form actions usage |
-| useOptimistic | Custom impl | Consider native hook |
-| useFormStatus | Not used | Add to form components |
+| Feature       | Status      | Recommendation            |
+| ------------- | ----------- | ------------------------- |
+| `use()` hook  | Not used    | Adopt for Suspense data   |
+| Actions       | Partial     | Expand form actions usage |
+| useOptimistic | Custom impl | Consider native hook      |
+| useFormStatus | Not used    | Add to form components    |
 
 ---
 
 ### 5.2 Next.js 15 Advanced Features
 
-| Feature | Status | Recommendation |
-|---------|--------|----------------|
-| Partial Prerendering (PPR) | Disabled | Enable for static/dynamic mix |
-| Parallel Routes | Not used | Add for modal patterns |
-| Intercepting Routes | Not used | Consider for detail views |
-| Turbopack | Not enabled | Enable for faster dev builds |
+| Feature                    | Status      | Recommendation                |
+| -------------------------- | ----------- | ----------------------------- |
+| Partial Prerendering (PPR) | Disabled    | Enable for static/dynamic mix |
+| Parallel Routes            | Not used    | Add for modal patterns        |
+| Intercepting Routes        | Not used    | Consider for detail views     |
+| Turbopack                  | Not enabled | Enable for faster dev builds  |
 
 ---
 
@@ -427,6 +445,7 @@ const ratelimit = new Ratelimit({
 ### 5.4 Observability Enhancements
 
 1. **Web Vitals Reporting** - Add to Sentry:
+
 ```tsx
 export function reportWebVitals(metric) {
   Sentry.captureMessage(`Web Vital: ${metric.name}`, {
@@ -437,8 +456,9 @@ export function reportWebVitals(metric) {
 
 2. **Real User Monitoring (RUM)** - Enable Sentry performance
 3. **Custom Metrics** - Track medical domain KPIs
-  variable: '--font-inter',
-});
+   variable: '--font-inter',
+   });
+
 ```
 
 ### React Optimization Patterns
@@ -466,23 +486,25 @@ export function reportWebVitals(metric) {
 
 ### Test Infrastructure
 ```
-src/__tests__/
+
+src/**tests**/
 ├── setup/
-│   ├── render.tsx              # Custom render with providers
-│   ├── test-data.ts            # Factory functions
-│   └── mocks/
-│       ├── handlers.ts         # MSW handlers (comprehensive)
-│       └── server.ts           # MSW server setup
+│ ├── render.tsx # Custom render with providers
+│ ├── test-data.ts # Factory functions
+│ └── mocks/
+│ ├── handlers.ts # MSW handlers (comprehensive)
+│ └── server.ts # MSW server setup
 ├── hooks/
-│   ├── use-optimistic-mutation.test.tsx  # 405 lines, 20+ tests
-│   ├── use-websocket.test.ts             # 280 lines, 15+ tests
-│   └── use-keyboard-shortcuts.test.tsx   # 200 lines, 15+ tests
+│ ├── use-optimistic-mutation.test.tsx # 405 lines, 20+ tests
+│ ├── use-websocket.test.ts # 280 lines, 15+ tests
+│ └── use-keyboard-shortcuts.test.tsx # 200 lines, 15+ tests
 ├── components/
-│   ├── dialog.test.tsx         # 320 lines, 15+ tests
-│   ├── dropdown-menu.test.tsx  # 220 lines, 15+ tests
-│   └── tabs.test.tsx           # 200 lines, 15+ tests
+│ ├── dialog.test.tsx # 320 lines, 15+ tests
+│ ├── dropdown-menu.test.tsx # 220 lines, 15+ tests
+│ └── tabs.test.tsx # 200 lines, 15+ tests
 └── actions/
-    └── patients.test.ts        # 200 lines, 12+ tests
+└── patients.test.ts # 200 lines, 12+ tests
+
 ```
 
 ### Test Coverage Summary
@@ -764,21 +786,23 @@ Comprehensive API mocking with:
 ### Recommended New Files
 
 ```
-src/__tests__/
+
+src/**tests**/
 ├── setup/
-│   ├── render.tsx              # Custom render with providers
-│   ├── test-data.ts            # Factory functions
-│   └── mocks/
-│       ├── handlers.ts         # MSW handlers
-│       └── websocket.ts        # WS mock
+│ ├── render.tsx # Custom render with providers
+│ ├── test-data.ts # Factory functions
+│ └── mocks/
+│ ├── handlers.ts # MSW handlers
+│ └── websocket.ts # WS mock
 ├── hooks/
-│   ├── useOptimisticMutation.test.ts
-│   ├── useWebSocket.test.ts
-│   └── useKeyboardShortcuts.test.ts
+│ ├── useOptimisticMutation.test.ts
+│ ├── useWebSocket.test.ts
+│ └── useKeyboardShortcuts.test.ts
 └── components/
-    ├── dialog.test.tsx
-    ├── dropdown.test.tsx
-    └── tabs.test.tsx
+├── dialog.test.tsx
+├── dropdown.test.tsx
+└── tabs.test.tsx
+
 ```
 ### Key Files (All Compliant)
 
@@ -798,3 +822,4 @@ src/__tests__/
 **Report Generated:** December 3, 2025
 **Audit Status:** :white_check_mark: All Categories at 100/100
 **Next Review:** Q1 2026
+```

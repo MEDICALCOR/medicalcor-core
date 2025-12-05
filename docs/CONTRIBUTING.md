@@ -57,18 +57,18 @@ git commit -m "docs: update README"
 
 #### Commit Types
 
-| Type | Description |
-|------|-------------|
-| `feat` | New feature |
-| `fix` | Bug fix |
-| `docs` | Documentation only |
-| `style` | Code style (formatting) |
-| `refactor` | Code restructure |
-| `perf` | Performance improvement |
-| `test` | Adding tests |
-| `build` | Build system changes |
-| `ci` | CI configuration |
-| `chore` | Maintenance |
+| Type       | Description             |
+| ---------- | ----------------------- |
+| `feat`     | New feature             |
+| `fix`      | Bug fix                 |
+| `docs`     | Documentation only      |
+| `style`    | Code style (formatting) |
+| `refactor` | Code restructure        |
+| `perf`     | Performance improvement |
+| `test`     | Adding tests            |
+| `build`    | Build system changes    |
+| `ci`       | CI configuration        |
+| `chore`    | Maintenance             |
 
 ### 4. Push and Create PR
 
@@ -126,6 +126,7 @@ src/
 ### PR Description
 
 Include:
+
 - **What**: What does this PR do?
 - **Why**: Why is this change needed?
 - **How**: How does it work?
@@ -176,11 +177,11 @@ When using AI assistants (such as Claude Code, GitHub Copilot, or similar tools)
 
 Use the following prefixes for branch names:
 
-| Prefix | Use Case | Example |
-|--------|----------|---------|
-| `feature/` | New features or enhancements | `feature/user-authentication` |
-| `fix/` | Bug fixes | `fix/login-timeout` |
-| `refactor/` | Code restructuring | `refactor/api-handlers` |
+| Prefix      | Use Case                     | Example                       |
+| ----------- | ---------------------------- | ----------------------------- |
+| `feature/`  | New features or enhancements | `feature/user-authentication` |
+| `fix/`      | Bug fixes                    | `fix/login-timeout`           |
+| `refactor/` | Code restructuring           | `refactor/api-handlers`       |
 
 ### Workflow Example
 

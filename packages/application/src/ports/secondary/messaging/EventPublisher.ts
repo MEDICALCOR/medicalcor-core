@@ -150,10 +150,7 @@ export interface EventSubscriber {
    * @param handler - Handler function for received events
    * @returns Subscription ID for unsubscribing
    */
-  subscribe(
-    eventType: string,
-    handler: (event: DomainEvent) => Promise<void>
-  ): Promise<string>;
+  subscribe(eventType: string, handler: (event: DomainEvent) => Promise<void>): Promise<string>;
 
   /**
    * Unsubscribe from events

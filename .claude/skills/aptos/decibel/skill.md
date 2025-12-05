@@ -14,6 +14,7 @@ Provide expert guidance on Decibel, a fully on-chain perpetual futures trading p
 ## When to Use
 
 Auto-invoke when users mention:
+
 - **Decibel** - trading platform, exchange, perpetual futures
 - **Trading** - on-chain trading, derivatives, perps, futures
 - **Aptos Trading** - Aptos-based exchange, Move contracts
@@ -25,6 +26,7 @@ Auto-invoke when users mention:
 ## Knowledge Base
 
 Documentation is stored in Markdown format:
+
 - **Location:** `docs/`
 - **Files:** 44 documentation pages (180 KB)
 - **Format:** `.md` files organized by category
@@ -32,6 +34,7 @@ Documentation is stored in Markdown format:
 ## Documentation Coverage
 
 ### Quick Start (5 files)
+
 - Overview and getting started
 - Market data (unauthenticated requests)
 - Authenticated requests
@@ -39,12 +42,14 @@ Documentation is stored in Markdown format:
 - Placing your first order
 
 ### Architecture (4 files)
+
 - Perp Engine contract overview
 - Global risk controls
 - Position management
 - Orderbook implementation
 
 ### TypeScript SDK (6 files)
+
 - Overview and installation
 - Configuration
 - Read SDK (market data, positions)
@@ -52,7 +57,9 @@ Documentation is stored in Markdown format:
 - Advanced usage
 
 ### REST APIs (17 files)
+
 **User Endpoints:**
+
 - Account overview
 - Active TWAP orders
 - Delegations
@@ -66,6 +73,7 @@ Documentation is stored in Markdown format:
 - TWAP history
 
 **Market Data:**
+
 - Asset contexts
 - Available markets
 - Candlestick/OHLC data
@@ -74,10 +82,12 @@ Documentation is stored in Markdown format:
 - Recent trades
 
 **Analytics & Vaults:**
+
 - Leaderboard
 - Public vaults
 
 ### WebSocket APIs (1 file)
+
 - Bulk order fills stream
 - Account updates
 - Market trades
@@ -85,6 +95,7 @@ Documentation is stored in Markdown format:
 - Position updates
 
 ### Transactions (10 files)
+
 - Overview and optimized building
 - Formatting prices and sizes
 - Account management (create subaccount, deposit, withdraw)
@@ -116,6 +127,7 @@ Common topics:
 ### 2. Search Documentation
 
 Use Grep to find relevant docs:
+
 ```bash
 # Search for specific topics
 Grep -i "pattern" path:docs/ output_mode:files_with_matches
@@ -129,6 +141,7 @@ Grep -i "typescript sdk" path:docs/ output_mode:content
 ### 3. Read Documentation
 
 Read the most relevant file:
+
 ```bash
 Read docs/quickstart-placing-your-first-order.md
 Read docs/typescript-sdk-write-sdk.md
@@ -138,6 +151,7 @@ Read docs/rest-api-user-positions.md
 ### 4. Provide Guidance
 
 Answer based on official documentation:
+
 - Cite specific API endpoints with examples
 - Show TypeScript SDK code samples
 - Explain smart contract functions
@@ -150,11 +164,13 @@ Answer based on official documentation:
 **Platform:** Decibel - On-chain perpetual futures trading on Aptos
 
 **Base URLs:**
+
 - REST API: `https://api.netna.aptoslabs.com/decibel`
 - WebSocket: `wss://api.netna.aptoslabs.com/decibel`
 - Package Address: `0xb8a5788314451ce4d2fbbad32e1bad88d4184b73943b7fe5166eab93cf1a5a95`
 
 **Core Features:**
+
 - Perpetual futures trading
 - TWAP (Time-Weighted Average Price) orders
 - Fully on-chain orderbook
@@ -164,6 +180,7 @@ Answer based on official documentation:
 - Move smart contracts on Aptos
 
 **Trading Features:**
+
 - Market and limit orders
 - Take-profit and stop-loss orders
 - Position management
@@ -172,6 +189,7 @@ Answer based on official documentation:
 - Risk controls
 
 **Developer Tools:**
+
 - TypeScript SDK (`@decibel/sdk`)
 - REST API (comprehensive)
 - WebSocket API (real-time)
@@ -181,6 +199,7 @@ Answer based on official documentation:
 ## Common Use Cases
 
 ### 1. Market Data Queries
+
 ```
 - Get available markets
 - Fetch current prices
@@ -190,6 +209,7 @@ Answer based on official documentation:
 ```
 
 ### 2. Account Management
+
 ```
 - Create subaccounts
 - Deposit/withdraw funds
@@ -199,6 +219,7 @@ Answer based on official documentation:
 ```
 
 ### 3. Order Placement
+
 ```
 - Place market orders
 - Place limit orders
@@ -208,6 +229,7 @@ Answer based on official documentation:
 ```
 
 ### 4. Position Management
+
 ```
 - Open positions
 - Close positions
@@ -217,6 +239,7 @@ Answer based on official documentation:
 ```
 
 ### 5. Real-Time Monitoring
+
 ```
 - Subscribe to order updates
 - Monitor position changes
@@ -250,12 +273,13 @@ Answer based on official documentation:
 ## Integration Patterns
 
 ### TypeScript SDK
+
 ```typescript
 import { DecibelClient } from '@decibel/sdk';
 
 const client = new DecibelClient({
   apiKey: 'your-api-key',
-  network: 'mainnet'
+  network: 'mainnet',
 });
 
 // Query market data
@@ -268,11 +292,12 @@ const order = await client.placeOrder({
   side: 'buy',
   type: 'limit',
   price: 50000,
-  size: 1
+  size: 1,
 });
 ```
 
 ### REST API
+
 ```bash
 # Get market prices (unauthenticated)
 GET https://api.netna.aptoslabs.com/decibel/market-data/prices
@@ -283,14 +308,17 @@ Headers: Authorization: Bearer {token}
 ```
 
 ### WebSocket
+
 ```javascript
 const ws = new WebSocket('wss://api.netna.aptoslabs.com/decibel');
 
-ws.send(JSON.stringify({
-  type: 'subscribe',
-  channel: 'trades',
-  market: 'BTC-PERP'
-}));
+ws.send(
+  JSON.stringify({
+    type: 'subscribe',
+    channel: 'trades',
+    market: 'BTC-PERP',
+  })
+);
 ```
 
 ## Best Practices

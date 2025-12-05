@@ -88,10 +88,7 @@ describe('OsaxSubjectId Value Object', () => {
 
     describe('fromPatientId', () => {
       it('should create pseudonymized ID from patient ID', () => {
-        const id = OsaxSubjectId.fromPatientId(
-          'patient-uuid-1234567890',
-          'salt-16-characters'
-        );
+        const id = OsaxSubjectId.fromPatientId('patient-uuid-1234567890', 'salt-16-characters');
 
         expect(id.type).toBe('INTERNAL');
         expect(id.formatted).toMatch(/^OSAX-\d{4}-[A-F0-9]{6}$/);
@@ -139,9 +136,9 @@ describe('OsaxSubjectId Value Object', () => {
       });
 
       it('should throw for short salt', () => {
-        expect(() =>
-          OsaxSubjectId.fromPatientId('patient-uuid-1234567890', 'short')
-        ).toThrow(InvalidOsaxSubjectIdError);
+        expect(() => OsaxSubjectId.fromPatientId('patient-uuid-1234567890', 'short')).toThrow(
+          InvalidOsaxSubjectIdError
+        );
       });
     });
 
@@ -220,9 +217,7 @@ describe('OsaxSubjectId Value Object', () => {
 
       it('should throw for short anonymization key', () => {
         const original = OsaxSubjectId.generate(1, 2025);
-        expect(() => OsaxSubjectId.anonymize(original, 'short')).toThrow(
-          InvalidOsaxSubjectIdError
-        );
+        expect(() => OsaxSubjectId.anonymize(original, 'short')).toThrow(InvalidOsaxSubjectIdError);
       });
     });
   });

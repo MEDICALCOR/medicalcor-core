@@ -253,13 +253,17 @@ export class PostgresDataInventoryService implements DataInventoryService {
     if (updates.purpose !== undefined) updateData.purpose = updates.purpose;
     if (updates.legalBasis !== undefined) updateData.legal_basis = updates.legalBasis;
     if (updates.dataCategories !== undefined) updateData.data_categories = updates.dataCategories;
-    if (updates.dataSubjectTypes !== undefined) updateData.data_subject_types = updates.dataSubjectTypes;
+    if (updates.dataSubjectTypes !== undefined)
+      updateData.data_subject_types = updates.dataSubjectTypes;
     if (updates.recipients !== undefined) updateData.recipients = updates.recipients;
     if (updates.retentionPeriod !== undefined)
       updateData.retention_period_days = parseInt(updates.retentionPeriod) || 365;
-    if (updates.securityMeasures !== undefined) updateData.security_measures = updates.securityMeasures;
-    if (updates.transfersOutsideEU !== undefined) updateData.transfers_outside_eu = updates.transfersOutsideEU;
-    if (updates.transferSafeguards !== undefined) updateData.transfer_safeguards = updates.transferSafeguards;
+    if (updates.securityMeasures !== undefined)
+      updateData.security_measures = updates.securityMeasures;
+    if (updates.transfersOutsideEU !== undefined)
+      updateData.transfers_outside_eu = updates.transfersOutsideEU;
+    if (updates.transferSafeguards !== undefined)
+      updateData.transfer_safeguards = updates.transferSafeguards;
 
     const { error } = await this.supabase
       .from(this.tableName)
@@ -402,6 +406,8 @@ export class PostgresDataInventoryService implements DataInventoryService {
 /**
  * Create Data Inventory service instance
  */
-export function createDataInventoryService(deps: DataInventoryServiceDeps): PostgresDataInventoryService {
+export function createDataInventoryService(
+  deps: DataInventoryServiceDeps
+): PostgresDataInventoryService {
   return new PostgresDataInventoryService(deps);
 }

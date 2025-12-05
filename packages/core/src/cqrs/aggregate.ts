@@ -189,12 +189,11 @@ export interface AggregateRepository<T extends AggregateRoot> {
   exists(id: string): Promise<boolean>;
 }
 
-
 /* eslint-disable @typescript-eslint/no-explicit-any -- generic constraint requires any for ID type flexibility */
 export abstract class EventSourcedRepository<
   T extends AggregateRoot<any>,
 > implements AggregateRepository<T> {
-/* eslint-enable @typescript-eslint/no-explicit-any */
+  /* eslint-enable @typescript-eslint/no-explicit-any */
   constructor(
     protected readonly eventStore: EventStoreInterface,
     protected readonly aggregateType: string

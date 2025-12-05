@@ -18,7 +18,12 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import Link from 'next/link';
-import { getPatientByIdAction, getPatientTimelineAction, type PatientDetailData, type PatientTimelineEvent } from '@/app/actions/get-patients';
+import {
+  getPatientByIdAction,
+  getPatientTimelineAction,
+  type PatientDetailData,
+  type PatientTimelineEvent,
+} from '@/app/actions/get-patients';
 import { AuthorizationError } from '@/lib/auth/server-action-auth';
 
 function getEventIcon(type: string) {
@@ -200,9 +205,7 @@ function PatientHeader({ patient }: { patient: PatientDetailData }) {
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Ultima Activitate</p>
-            <p className="font-medium">
-              {new Date(patient.updatedAt).toLocaleDateString('ro-RO')}
-            </p>
+            <p className="font-medium">{new Date(patient.updatedAt).toLocaleDateString('ro-RO')}</p>
           </div>
         </div>
       </CardContent>
@@ -220,9 +223,7 @@ function AccessDenied() {
           </div>
           <div>
             <CardTitle className="text-destructive">Acces Interzis</CardTitle>
-            <CardDescription>
-              Nu aveți permisiunea de a accesa acest pacient.
-            </CardDescription>
+            <CardDescription>Nu aveți permisiunea de a accesa acest pacient.</CardDescription>
           </div>
         </div>
       </CardHeader>
@@ -380,7 +381,15 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Clasificare</span>
-                  <Badge variant={patient.classification === 'HOT' ? 'hot' : patient.classification === 'WARM' ? 'warm' : 'cold'}>
+                  <Badge
+                    variant={
+                      patient.classification === 'HOT'
+                        ? 'hot'
+                        : patient.classification === 'WARM'
+                          ? 'warm'
+                          : 'cold'
+                    }
+                  >
                     {patient.classification}
                   </Badge>
                 </div>

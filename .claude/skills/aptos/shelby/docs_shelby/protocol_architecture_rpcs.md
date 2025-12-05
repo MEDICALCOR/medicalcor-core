@@ -39,13 +39,11 @@ The RPC server exposes friendly HTTP REST APIs to read and write data to and fro
 
 ### Core Features
 
-  * HTTP endpoints: RESTful blob storage APIs with support for standard operations, range requests, and multipart uploads.
-  * Provide user-friendly payment mechanisms and session management.
-  * Storage Provider connection management: Keep these connections healthy and functioning well, gracefully handle loss of storage providers.
-  * Erasure coding and commitment calculations: Done as part of the read and write workflows.
-  * Blockchain integration: Interact with Aptos L1 to inspect blob/chunk state and carry out operations.
-
-
+- HTTP endpoints: RESTful blob storage APIs with support for standard operations, range requests, and multipart uploads.
+- Provide user-friendly payment mechanisms and session management.
+- Storage Provider connection management: Keep these connections healthy and functioning well, gracefully handle loss of storage providers.
+- Erasure coding and commitment calculations: Done as part of the read and write workflows.
+- Blockchain integration: Interact with Aptos L1 to inspect blob/chunk state and carry out operations.
 
 ### Reading Data
 
@@ -73,10 +71,8 @@ The RPC server implementation prioritizes performance through several key archit
 
 As clients upload blobs, the RPC server begins processing data immediately as it arrives, rather than waiting for complete uploads. The data path uses streams, ensuring that data flows through the system without large buffers and latency bubbles. When data is transformed (i.e. erasure coded), it is done so as a part of this data path in small streaming chunks. This approach provides several benefits:
 
-  * Reduced time-to-first-byte.
-  * Constant memory usage per connection, allowing a higher connection count and high levels of concurrency.
-
-
+- Reduced time-to-first-byte.
+- Constant memory usage per connection, allowing a higher connection count and high levels of concurrency.
 
 ## Connection Pooling and Reuse
 
@@ -86,11 +82,9 @@ Storage Provider connections are maintained in a connection pool. These connecti
 
 Other techniques are in use to control resource usage, including:
 
-  * Bounded queues: Connection pools and processing queues have fixed capacities to prevent memory exhaustion during traffic spikes.
-  * Backpressure handling: When Storage Providers or network connections become congested, the system applies backpressure up the chain rather than buffering unlimited data.
-  * Garbage collection: Sessions, pending uploads, and cached metadata are automatically expired to prevent resource leaks during long-running operations.
-
-
+- Bounded queues: Connection pools and processing queues have fixed capacities to prevent memory exhaustion during traffic spikes.
+- Backpressure handling: When Storage Providers or network connections become congested, the system applies backpressure up the chain rather than buffering unlimited data.
+- Garbage collection: Sessions, pending uploads, and cached metadata are automatically expired to prevent resource leaks during long-running operations.
 
 ## Scalability
 

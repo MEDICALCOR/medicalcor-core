@@ -86,10 +86,7 @@ export interface OsaxCaseService {
    * - Requires OSAX_CASE_READ permission
    * - Respects data residency policies
    */
-  getCase(
-    caseId: string,
-    context: SecurityContext
-  ): Promise<Result<OsaxCaseDto>>;
+  getCase(caseId: string, context: SecurityContext): Promise<Result<OsaxCaseDto>>;
 
   /**
    * Search OSAX cases with filters
@@ -113,10 +110,7 @@ export interface OsaxCaseService {
    * - Only allowed during business hours
    * - Creates audit trail
    */
-  deleteCase(
-    caseId: string,
-    context: SecurityContext
-  ): Promise<Result<void>>;
+  deleteCase(caseId: string, context: SecurityContext): Promise<Result<void>>;
 }
 
 // ============================================================================

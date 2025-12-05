@@ -19,24 +19,24 @@ Comprehensive guide to testing in MedicalCor Core.
 
 MedicalCor Core uses a comprehensive testing strategy with multiple test types:
 
-| Type | Purpose | Location | Runner |
-|------|---------|----------|--------|
-| Unit | Test isolated functions/classes | `__tests__/*.test.ts` | Vitest |
-| Integration | Test component interactions | `__tests__/integration/` | Vitest |
-| E2E | Test full user flows | `e2e/` | Playwright |
-| API | Test HTTP endpoints | `apps/api/__tests__/` | Vitest + Supertest |
+| Type        | Purpose                         | Location                 | Runner             |
+| ----------- | ------------------------------- | ------------------------ | ------------------ |
+| Unit        | Test isolated functions/classes | `__tests__/*.test.ts`    | Vitest             |
+| Integration | Test component interactions     | `__tests__/integration/` | Vitest             |
+| E2E         | Test full user flows            | `e2e/`                   | Playwright         |
+| API         | Test HTTP endpoints             | `apps/api/__tests__/`    | Vitest + Supertest |
 
 ---
 
 ## Test Stack
 
-| Tool | Purpose |
-|------|---------|
-| **Vitest** | Test runner and assertion library |
-| **MSW** | Mock Service Worker for API mocking |
-| **Playwright** | End-to-end browser testing |
-| **Supertest** | HTTP assertion library |
-| **@faker-js/faker** | Generate test data |
+| Tool                | Purpose                             |
+| ------------------- | ----------------------------------- |
+| **Vitest**          | Test runner and assertion library   |
+| **MSW**             | Mock Service Worker for API mocking |
+| **Playwright**      | End-to-end browser testing          |
+| **Supertest**       | HTTP assertion library              |
+| **@faker-js/faker** | Generate test data                  |
 
 ---
 
@@ -146,9 +146,7 @@ describe('ScoringService', () => {
         context: createMockContext(),
       };
 
-      await expect(service.scoreMessage(input)).rejects.toThrow(
-        'Message cannot be empty'
-      );
+      await expect(service.scoreMessage(input)).rejects.toThrow('Message cannot be empty');
     });
   });
 });
@@ -181,17 +179,13 @@ describe('async operations', () => {
 export const hotLeadContext = {
   phone: '+15551234567',
   channel: 'whatsapp' as const,
-  messageHistory: [
-    { content: 'I need All-on-X implants urgently', timestamp: new Date() },
-  ],
+  messageHistory: [{ content: 'I need All-on-X implants urgently', timestamp: new Date() }],
 };
 
 export const coldLeadContext = {
   phone: '+15559876543',
   channel: 'web' as const,
-  messageHistory: [
-    { content: 'Just browsing', timestamp: new Date() },
-  ],
+  messageHistory: [{ content: 'Just browsing', timestamp: new Date() }],
 };
 
 // In test file
@@ -246,9 +240,7 @@ describe('ScoringService', () => {
     expect(mockOpenAI.complete).toHaveBeenCalledWith(
       expect.objectContaining({
         model: 'gpt-4o',
-        messages: expect.arrayContaining([
-          expect.objectContaining({ role: 'system' }),
-        ]),
+        messages: expect.arrayContaining([expect.objectContaining({ role: 'system' })]),
       })
     );
   });
@@ -309,9 +301,7 @@ describe('error handling', () => {
   it('should throw ValidationError for invalid input', async () => {
     const invalidInput = { phone: 'invalid' };
 
-    await expect(service.process(invalidInput)).rejects.toThrow(
-      ValidationError
-    );
+    await expect(service.process(invalidInput)).rejects.toThrow(ValidationError);
   });
 
   it('should include error details', async () => {
@@ -421,16 +411,11 @@ describe('error scenarios', () => {
   it('should handle HubSpot rate limit', async () => {
     server.use(
       http.post('https://api.hubapi.com/*', () => {
-        return HttpResponse.json(
-          { message: 'Rate limited' },
-          { status: 429 }
-        );
+        return HttpResponse.json({ message: 'Rate limited' }, { status: 429 });
       })
     );
 
-    await expect(hubspotClient.createContact(data)).rejects.toThrow(
-      'Rate limited'
-    );
+    await expect(hubspotClient.createContact(data)).rejects.toThrow('Rate limited');
   });
 });
 ```
@@ -513,12 +498,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      exclude: [
-        'node_modules/',
-        '**/*.test.ts',
-        '**/__tests__/**',
-        '**/mocks/**',
-      ],
+      exclude: ['node_modules/', '**/*.test.ts', '**/__tests__/**', '**/mocks/**'],
       thresholds: {
         statements: 80,
         branches: 75,
@@ -532,12 +512,12 @@ export default defineConfig({
 
 ### Coverage Requirements
 
-| Package | Statements | Branches | Functions | Lines |
-|---------|------------|----------|-----------|-------|
-| @medicalcor/core | 80% | 75% | 80% | 80% |
-| @medicalcor/domain | 85% | 80% | 85% | 85% |
-| @medicalcor/integrations | 70% | 65% | 70% | 70% |
-| @medicalcor/api | 75% | 70% | 75% | 75% |
+| Package                  | Statements | Branches | Functions | Lines |
+| ------------------------ | ---------- | -------- | --------- | ----- |
+| @medicalcor/core         | 80%        | 75%      | 80%       | 80%   |
+| @medicalcor/domain       | 85%        | 80%      | 85%       | 85%   |
+| @medicalcor/integrations | 70%        | 65%      | 70%       | 70%   |
+| @medicalcor/api          | 75%        | 70%      | 75%       | 75%   |
 
 ### Viewing Coverage
 

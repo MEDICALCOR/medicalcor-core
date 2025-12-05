@@ -23,12 +23,28 @@ import type { PhoneNumber } from '../value-objects/phone-number.js';
 /**
  * Lead source/channel
  */
-export type LeadSource = 'whatsapp' | 'voice' | 'web_form' | 'hubspot' | 'facebook' | 'google' | 'referral' | 'manual';
+export type LeadSource =
+  | 'whatsapp'
+  | 'voice'
+  | 'web_form'
+  | 'hubspot'
+  | 'facebook'
+  | 'google'
+  | 'referral'
+  | 'manual';
 
 /**
  * Lead lifecycle status
  */
-export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'nurturing' | 'scheduled' | 'converted' | 'lost' | 'invalid';
+export type LeadStatus =
+  | 'new'
+  | 'contacted'
+  | 'qualified'
+  | 'nurturing'
+  | 'scheduled'
+  | 'converted'
+  | 'lost'
+  | 'invalid';
 
 /**
  * Conversation entry

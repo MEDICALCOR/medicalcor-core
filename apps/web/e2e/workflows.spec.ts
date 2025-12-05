@@ -24,9 +24,7 @@ test.describe('Workflow Management', () => {
 
   test('can toggle workflow active status (optimistic UI)', async ({ page }) => {
     // Find a workflow toggle switch
-    const toggleSwitch = page.locator(
-      '[data-testid="workflow-toggle"], [role="switch"]'
-    ).first();
+    const toggleSwitch = page.locator('[data-testid="workflow-toggle"], [role="switch"]').first();
 
     if (await toggleSwitch.isVisible()) {
       // Get initial state
@@ -62,9 +60,9 @@ test.describe('Workflow Management', () => {
 
   test('can duplicate a workflow', async ({ page }) => {
     // Find duplicate button on first workflow
-    const workflowCard = page.locator(
-      '[data-testid="workflow-card"], [data-testid="workflow-row"]'
-    ).first();
+    const workflowCard = page
+      .locator('[data-testid="workflow-card"], [data-testid="workflow-row"]')
+      .first();
 
     if (await workflowCard.isVisible()) {
       // Look for actions menu or duplicate button
@@ -80,9 +78,11 @@ test.describe('Workflow Management', () => {
 
           // Should show success message or new workflow appears
           await expect(
-            page.getByText(/duplicat|copied|succes/i).or(
-              page.locator('[data-testid="workflow-card"], [data-testid="workflow-row"]').nth(1)
-            )
+            page
+              .getByText(/duplicat|copied|succes/i)
+              .or(
+                page.locator('[data-testid="workflow-card"], [data-testid="workflow-row"]').nth(1)
+              )
           ).toBeVisible({ timeout: 5000 });
         }
       }
@@ -99,18 +99,18 @@ test.describe('Workflow Management', () => {
 
       // Templates should be displayed
       await expect(
-        page.locator('[data-testid="workflow-template"]').or(
-          page.getByText(/template-ul|sablon pentru/i)
-        )
+        page
+          .locator('[data-testid="workflow-template"]')
+          .or(page.getByText(/template-ul|sablon pentru/i))
       ).toBeVisible({ timeout: 5000 });
     }
   });
 
   test('can delete a workflow with confirmation', async ({ page }) => {
     // Find delete button on first workflow
-    const workflowCard = page.locator(
-      '[data-testid="workflow-card"], [data-testid="workflow-row"]'
-    ).first();
+    const workflowCard = page
+      .locator('[data-testid="workflow-card"], [data-testid="workflow-row"]')
+      .first();
 
     if (await workflowCard.isVisible()) {
       const actionsButton = workflowCard.getByRole('button', { name: /actiuni|actions|more/i });
@@ -124,9 +124,7 @@ test.describe('Workflow Management', () => {
 
           // Confirmation dialog should appear
           await expect(
-            page.getByRole('alertdialog').or(
-              page.getByText(/sigur|confirma|confirm/i)
-            )
+            page.getByRole('alertdialog').or(page.getByText(/sigur|confirma|confirm/i))
           ).toBeVisible({ timeout: 3000 });
 
           // Cancel to avoid actually deleting

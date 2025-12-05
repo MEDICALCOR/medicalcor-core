@@ -29,11 +29,7 @@ interface RequestWithRawBody extends FastifyRequest {
  * 2. Encode the result as hex
  * 3. Compare with the provided signature using timing-safe comparison
  */
-function verifyPipedriveSignature(
-  rawBody: string,
-  signature: string,
-  secret: string
-): boolean {
+function verifyPipedriveSignature(rawBody: string, signature: string, secret: string): boolean {
   try {
     const expectedSignature = crypto
       .createHmac('sha256', secret)
@@ -90,7 +86,7 @@ const verifyPipedriveSignaturePlugin: FastifyPluginAsync = async (fastify) => {
         );
         return reply.status(503).send({
           error: 'Webhook signature verification not configured',
-          code: 'SIGNATURE_NOT_CONFIGURED'
+          code: 'SIGNATURE_NOT_CONFIGURED',
         });
       }
 
@@ -117,38 +113,29 @@ const verifyPipedriveSignaturePlugin: FastifyPluginAsync = async (fastify) => {
       );
       return reply.status(401).send({
         error: 'Missing webhook signature',
-        code: 'MISSING_SIGNATURE'
+        code: 'MISSING_SIGNATURE',
       });
     }
 
     if (!rawBody) {
-      fastify.log.error(
-        { path: request.url },
-        'Raw body not available for signature verification'
-      );
+      fastify.log.error({ path: request.url }, 'Raw body not available for signature verification');
       return reply.status(500).send({
         error: 'Signature verification failed - raw body unavailable',
-        code: 'RAW_BODY_UNAVAILABLE'
+        code: 'RAW_BODY_UNAVAILABLE',
       });
     }
 
     // SECURITY: Verify the signature
     if (!verifyPipedriveSignature(rawBody, signature, secret)) {
-      fastify.log.warn(
-        { path: request.url },
-        'Invalid Pipedrive webhook signature'
-      );
+      fastify.log.warn({ path: request.url }, 'Invalid Pipedrive webhook signature');
       return reply.status(401).send({
         error: 'Invalid webhook signature',
-        code: 'INVALID_SIGNATURE'
+        code: 'INVALID_SIGNATURE',
       });
     }
 
     // Signature verified successfully
-    fastify.log.debug(
-      { path: request.url },
-      'Pipedrive webhook signature verified'
-    );
+    fastify.log.debug({ path: request.url }, 'Pipedrive webhook signature verified');
   });
 };
 
@@ -158,7 +145,7 @@ const verifyPipedriveSignaturePlugin: FastifyPluginAsync = async (fastify) => {
  */
 export const pipedriveSignaturePlugin = fp(verifyPipedriveSignaturePlugin, {
   fastify: '5.x',
-  name: 'pipedrive-signature-verification'
+  name: 'pipedrive-signature-verification',
 });
 
 export default pipedriveSignaturePlugin;

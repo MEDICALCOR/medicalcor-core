@@ -14,7 +14,8 @@ Provide comprehensive guidance on the Aptos Framework (0x1 address) - the standa
 ## When to Use
 
 Auto-invoke when users mention:
-- **Framework Modules** - 0x1::*, aptos_framework::*, standard library
+
+- **Framework Modules** - 0x1::_, aptos_framework::_, standard library
 - **Account Management** - account creation, auth keys, rotation
 - **Storage** - Table, SimpleMap, SmartTable, efficient data structures
 - **Events** - event emission, event handles, indexing
@@ -201,14 +202,14 @@ public fun has_user(
 
 ### Table vs SimpleMap vs SmartTable
 
-| Feature | Vector | SimpleMap | Table | SmartTable |
-|---------|--------|-----------|-------|------------|
-| Max size | ~1000 | ~1000 | Unlimited | Unlimited |
-| Gas cost (read) | O(n) | O(n) | O(1) | O(1) |
-| Gas cost (write) | O(n) | O(n) | O(1) | O(1) |
-| Storage | On-chain | On-chain | Global storage | Global + auto-split |
-| Iteration | ✅ Easy | ✅ Easy | ❌ Not supported | ⚠️ Complex |
-| Best for | Small lists | Small maps | Large maps | Very large maps |
+| Feature          | Vector      | SimpleMap  | Table            | SmartTable          |
+| ---------------- | ----------- | ---------- | ---------------- | ------------------- |
+| Max size         | ~1000       | ~1000      | Unlimited        | Unlimited           |
+| Gas cost (read)  | O(n)        | O(n)       | O(1)             | O(1)                |
+| Gas cost (write) | O(n)        | O(n)       | O(1)             | O(1)                |
+| Storage          | On-chain    | On-chain   | Global storage   | Global + auto-split |
+| Iteration        | ✅ Easy     | ✅ Easy    | ❌ Not supported | ⚠️ Complex          |
+| Best for         | Small lists | Small maps | Large maps       | Very large maps     |
 
 ### SmartTable (Auto-Splitting)
 
@@ -291,6 +292,7 @@ public fun transfer(from: address, to: address, amount: u64) {
 ```
 
 **Event V2 Advantages:**
+
 - No EventHandle management
 - Cleaner code
 - Better indexing support
@@ -355,6 +357,7 @@ public entry fun random_reward(user: &signer) {
 ```
 
 **Requirements:**
+
 - Must use `#[randomness]` attribute
 - Must be entry function
 - Only works on-chain (not in view functions)
@@ -461,6 +464,7 @@ public fun get_total_users(): u64 acquires Stats {
 ```
 
 **Why Use Aggregators:**
+
 - Enable parallel transaction execution
 - Multiple transactions can increment same aggregator concurrently
 - No conflicts/retries like regular u64 fields
@@ -719,19 +723,19 @@ public fun swap<X, Y>(amount_in: u64): u64 acquires Pool {
 
 ### Quick Reference Table
 
-| Module | Key Functions | Use Case |
-|--------|--------------|----------|
-| account | create_account, rotate_authentication_key | Account management |
-| coin | transfer, balance, register | Fungible tokens |
-| fungible_asset | mint, burn, transfer | Advanced tokens |
-| object | create_object, transfer | Object model |
-| table | add, borrow, remove | Large key-value stores |
-| smart_table | add, borrow, remove | Very large stores |
-| event | emit, emit_event | Event emission |
-| timestamp | now_seconds | Time access |
-| randomness | u64_integer, bytes | Secure randomness |
-| aggregator_v2 | create, add, read | Parallel execution |
-| resource_account | create_resource_account | Deterministic addresses |
+| Module           | Key Functions                             | Use Case                |
+| ---------------- | ----------------------------------------- | ----------------------- |
+| account          | create_account, rotate_authentication_key | Account management      |
+| coin             | transfer, balance, register               | Fungible tokens         |
+| fungible_asset   | mint, burn, transfer                      | Advanced tokens         |
+| object           | create_object, transfer                   | Object model            |
+| table            | add, borrow, remove                       | Large key-value stores  |
+| smart_table      | add, borrow, remove                       | Very large stores       |
+| event            | emit, emit_event                          | Event emission          |
+| timestamp        | now_seconds                               | Time access             |
+| randomness       | u64_integer, bytes                        | Secure randomness       |
+| aggregator_v2    | create, add, read                         | Parallel execution      |
+| resource_account | create_resource_account                   | Deterministic addresses |
 
 ## Best Practices
 
@@ -763,6 +767,7 @@ public fun swap<X, Y>(amount_in: u64): u64 acquires Pool {
 ## Follow-up Suggestions
 
 After helping with framework modules, suggest:
+
 - Gas optimization for storage structures
 - Event indexing strategies
 - Parallel execution with aggregators

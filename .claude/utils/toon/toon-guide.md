@@ -11,14 +11,16 @@ Token-Oriented Object Notation (TOON) is a compact, human-readable encoding of J
 ### JSON to TOON Conversion
 
 **JSON (120 tokens):**
+
 ```json
 [
-  {"id": 1, "name": "Alice", "role": "admin"},
-  {"id": 2, "name": "Bob", "role": "user"}
+  { "id": 1, "name": "Alice", "role": "admin" },
+  { "id": 2, "name": "Bob", "role": "user" }
 ]
 ```
 
 **TOON (70 tokens - 40% savings):**
+
 ```
 [2]{id,name,role}:
   1,Alice,admin
@@ -28,6 +30,7 @@ Token-Oriented Object Notation (TOON) is a compact, human-readable encoding of J
 ### When to Use TOON
 
 ✅ **Use TOON for:**
+
 - Arrays with ≥5 items
 - ≥60% field uniformity across objects
 - Tabular/structured data (APIs, logs, metrics, databases)
@@ -35,6 +38,7 @@ Token-Oriented Object Notation (TOON) is a compact, human-readable encoding of J
 - Token efficiency matters
 
 ❌ **Keep JSON for:**
+
 - Small arrays (<5 items)
 - Deeply nested structures (>3 levels)
 - Non-uniform data (<60% same fields)
@@ -54,6 +58,7 @@ TOON v2.0 supports three array formats, automatically selected based on data str
 **Syntax:** `arrayName[count]: value1,value2,value3`
 
 **Example:**
+
 ```
 friends[3]: ana,luis,sam
 scores[5]: 95,87,92,88,91
@@ -61,6 +66,7 @@ tags[4]: urgent,reviewed,approved,final
 ```
 
 **JSON equivalent:**
+
 ```json
 {
   "friends": ["ana", "luis", "sam"],
@@ -76,6 +82,7 @@ tags[4]: urgent,reviewed,approved,final
 **Syntax:** `[count]{field1,field2,...}:\n  value1,value2,...`
 
 **Example:**
+
 ```
 [3]{id,name,role}:
   1,Alice,admin
@@ -84,11 +91,12 @@ tags[4]: urgent,reviewed,approved,final
 ```
 
 **JSON equivalent:**
+
 ```json
 [
-  {"id": 1, "name": "Alice", "role": "admin"},
-  {"id": 2, "name": "Bob", "role": "user"},
-  {"id": 3, "name": "Carol", "role": "user"}
+  { "id": 1, "name": "Alice", "role": "admin" },
+  { "id": 2, "name": "Bob", "role": "user" },
+  { "id": 3, "name": "Carol", "role": "user" }
 ]
 ```
 
@@ -99,6 +107,7 @@ tags[4]: urgent,reviewed,approved,final
 **Syntax:** `arrayName[count]:\n  - item1\n  - item2`
 
 **Example:**
+
 ```
 items[2]:
   - {id: 1, name: "Simple", count: 5}
@@ -106,11 +115,12 @@ items[2]:
 ```
 
 **JSON equivalent:**
+
 ```json
 {
   "items": [
-    {"id": 1, "name": "Simple", "count": 5},
-    {"id": 2, "data": [1,2,3], "meta": {"tag": "complex"}}
+    { "id": 1, "name": "Simple", "count": 5 },
+    { "id": 2, "data": [1, 2, 3], "meta": { "tag": "complex" } }
   ]
 }
 ```
@@ -119,11 +129,11 @@ items[2]:
 
 TOON v2.0 supports three delimiters for maximum flexibility:
 
-| Delimiter | Character | Use When | Declare |
-|-----------|-----------|----------|---------|
-| **Comma** | `,` | General use (default) | `[N]{...}:` or `[N,]{...}:` |
-| **Tab** | `\t` | TSV-like data, columnar alignment | `[N\t]{...}:` |
-| **Pipe** | `\|` | Data with commas, Markdown tables | `[N\|]{...}:` |
+| Delimiter | Character | Use When                          | Declare                     |
+| --------- | --------- | --------------------------------- | --------------------------- |
+| **Comma** | `,`       | General use (default)             | `[N]{...}:` or `[N,]{...}:` |
+| **Tab**   | `\t`      | TSV-like data, columnar alignment | `[N\t]{...}:`               |
+| **Pipe**  | `\|`      | Data with commas, Markdown tables | `[N\|]{...}:`               |
 
 #### Comma Delimiter (Default)
 
@@ -150,6 +160,7 @@ TOON v2.0 supports three delimiters for maximum flexibility:
 ```
 
 **Choosing a delimiter:**
+
 - **Comma:** Most compact, default choice
 - **Tab:** When data contains many commas, better columnar alignment
 - **Pipe:** Markdown compatibility, visual clarity
@@ -159,6 +170,7 @@ TOON v2.0 supports three delimiters for maximum flexibility:
 Key folding flattens nested objects using dotted notation for significant token savings.
 
 **Without key folding:**
+
 ```json
 {
   "server": {
@@ -173,6 +185,7 @@ Key folding flattens nested objects using dotted notation for significant token 
 ```
 
 **With key folding:**
+
 ```
 server.host: localhost
 server.port: 8080
@@ -183,16 +196,18 @@ server.ssl.cert: /path/to/cert
 **Token savings:** ~35% on nested objects
 
 **Rules:**
+
 - Each segment must be a valid identifier: `^[A-Za-z_][A-Za-z0-9_]*$`
 - Only fold if no collision with sibling keys
 - Don't fold arrays or primitives
 - Safe mode: only fold when unambiguous
 
 **Example - Collision Detection:**
+
 ```json
 {
   "server": "primary",
-  "server.host": "localhost"  // Collision!
+  "server.host": "localhost" // Collision!
 }
 ```
 
@@ -203,6 +218,7 @@ This **cannot** use key folding because `server` exists as both a string and an 
 Path expansion is the reverse of key folding - it expands dotted keys back into nested objects during decoding.
 
 **TOON input:**
+
 ```
 api.base: https://example.com
 api.timeout: 5000
@@ -211,6 +227,7 @@ api.retry.delay: 1000
 ```
 
 **JSON output (with path expansion enabled):**
+
 ```json
 {
   "api": {
@@ -225,6 +242,7 @@ api.retry.delay: 1000
 ```
 
 **Configuration:**
+
 ```bash
 # Enable path expansion (default: true)
 ./zig-out/bin/toon decode data.toon --expand-paths
@@ -238,6 +256,7 @@ api.retry.delay: 1000
 Strict mode enforces rigorous formatting rules for production environments.
 
 **Validation rules:**
+
 1. **Indentation alignment:** Must be exact multiples of `indentSize` (default: 2)
 2. **No tabs in indentation:** Only spaces allowed
 3. **Array count matches:** Header count must equal actual rows
@@ -245,6 +264,7 @@ Strict mode enforces rigorous formatting rules for production environments.
 5. **No blank lines:** Within arrays or data rows
 
 **Example - Valid strict mode:**
+
 ```
 [2]{id,name}:
   1,Alice
@@ -252,6 +272,7 @@ Strict mode enforces rigorous formatting rules for production environments.
 ```
 
 **Example - Invalid (indentation error):**
+
 ```
 [2]{id,name}:
    1,Alice    ← 3 spaces (not multiple of 2)
@@ -259,6 +280,7 @@ Strict mode enforces rigorous formatting rules for production environments.
 ```
 
 **Example - Invalid (count mismatch):**
+
 ```
 [3]{id,name}:
   1,Alice
@@ -266,6 +288,7 @@ Strict mode enforces rigorous formatting rules for production environments.
 ```
 
 **Enable strict mode:**
+
 ```bash
 ./zig-out/bin/toon decode data.toon --strict
 ./zig-out/bin/toon validate data.toon --strict
@@ -276,6 +299,7 @@ Strict mode enforces rigorous formatting rules for production environments.
 TOON v2.0 requires canonical number formatting:
 
 **Rules:**
+
 - No exponent notation: `1e3` → `1000`
 - No trailing zeros: `1.50` → `1.5`
 - No leading zeros: `01` → `1` (except standalone `0`)
@@ -284,6 +308,7 @@ TOON v2.0 requires canonical number formatting:
 - `NaN` and `Infinity` → `null`
 
 **Examples:**
+
 ```
 // Valid
 1
@@ -304,17 +329,18 @@ TOON v2.0 requires canonical number formatting:
 
 TOON v2.0 supports exactly **five** escape sequences:
 
-| Escape | Meaning | Use |
-|--------|---------|-----|
-| `\\` | Backslash | Literal backslash |
-| `\"` | Quote | Quoted strings |
-| `\n` | Newline | Line breaks in values |
-| `\r` | Carriage return | Windows line endings |
-| `\t` | Tab | Tab characters in values |
+| Escape | Meaning         | Use                      |
+| ------ | --------------- | ------------------------ |
+| `\\`   | Backslash       | Literal backslash        |
+| `\"`   | Quote           | Quoted strings           |
+| `\n`   | Newline         | Line breaks in values    |
+| `\r`   | Carriage return | Windows line endings     |
+| `\t`   | Tab             | Tab characters in values |
 
 **All other backslashes are literal.** Invalid escapes like `\x` or `\u` are errors.
 
 **Example:**
+
 ```
 [2]{path,description}:
   C:\\Users\\Alice,Windows path with backslashes
@@ -333,6 +359,7 @@ Values **must** be quoted if they contain:
 6. Match reserved words: `true`, `false`, `null`
 
 **Examples:**
+
 ```
 [3]{name,value}:
   simple,no quotes needed
@@ -346,6 +373,7 @@ Values **must** be quoted if they contain:
 TOON supports multi-level nesting via indentation:
 
 **Example:**
+
 ```
 server:
   host: localhost
@@ -364,6 +392,7 @@ database:
 ```
 
 **JSON equivalent:**
+
 ```json
 {
   "server": {
@@ -388,6 +417,7 @@ database:
 ```
 
 **Rules:**
+
 - Each indentation level = 2 spaces (configurable)
 - Consistent indentation required
 - Can be combined with key folding for maximum compression
@@ -397,6 +427,7 @@ database:
 TOON supports three root forms:
 
 #### Array Root
+
 ```
 [2]{id,name}:
   1,Alice
@@ -404,6 +435,7 @@ TOON supports three root forms:
 ```
 
 #### Object Root
+
 ```
 name: MyApp
 version: 1.0.0
@@ -412,10 +444,13 @@ config:
 ```
 
 #### Primitive Root
+
 ```
 42
 ```
+
 or
+
 ```
 "Hello, World!"
 ```
@@ -433,6 +468,7 @@ or
 ```
 
 **Options:**
+
 - `--delimiter`: Choose comma (default), tab, or pipe
 - `--indent-size`: Spaces per indentation level (default: 2)
 - `--key-folding`: Enable automatic key folding (default: true)
@@ -448,6 +484,7 @@ or
 ```
 
 **Options:**
+
 - `--strict`: Enable strict validation (default: false)
 - `--expand-paths`: Expand dotted keys to nested objects (default: true)
 - `--indent-size`: Expected indentation size (default: 2)
@@ -457,17 +494,19 @@ or
 ### API Endpoints (40% savings)
 
 **JSON (892 tokens):**
+
 ```json
 [
-  {"method": "GET", "path": "/api/users", "auth": "required", "rateLimit": "100/min"},
-  {"method": "POST", "path": "/api/users", "auth": "required", "rateLimit": "50/min"},
-  {"method": "GET", "path": "/api/users/:id", "auth": "required", "rateLimit": "100/min"},
-  {"method": "PUT", "path": "/api/users/:id", "auth": "required", "rateLimit": "50/min"},
-  {"method": "DELETE", "path": "/api/users/:id", "auth": "required", "rateLimit": "20/min"}
+  { "method": "GET", "path": "/api/users", "auth": "required", "rateLimit": "100/min" },
+  { "method": "POST", "path": "/api/users", "auth": "required", "rateLimit": "50/min" },
+  { "method": "GET", "path": "/api/users/:id", "auth": "required", "rateLimit": "100/min" },
+  { "method": "PUT", "path": "/api/users/:id", "auth": "required", "rateLimit": "50/min" },
+  { "method": "DELETE", "path": "/api/users/:id", "auth": "required", "rateLimit": "20/min" }
 ]
 ```
 
 **TOON (534 tokens - 40.1% savings):**
+
 ```
 [5]{method,path,auth,rateLimit}:
   GET,/api/users,required,100/min
@@ -480,6 +519,7 @@ or
 ### Transaction Logs (39.6% savings)
 
 **TOON with pipe delimiter (Markdown-friendly):**
+
 ```
 [5|]{id,timestamp,amount,merchant,status}:
   tx_001|2024-01-15T10:30:00Z|42.50|Starbucks|completed
@@ -492,6 +532,7 @@ or
 ### Nested Configuration (35% savings with key folding)
 
 **TOON:**
+
 ```
 app.name: MyService
 app.version: 2.1.0
@@ -507,19 +548,20 @@ database.replica.port: 5432
 
 ## Token Savings Data
 
-| Use Case | Items | JSON Tokens | TOON Tokens | Savings |
-|----------|-------|-------------|-------------|---------|
-| API Endpoints | 15 | 892 | 534 | 40.1% |
-| Transaction Logs | 250 | 4,545 | 2,744 | 39.6% |
-| Performance Metrics | 50 | 1,124 | 628 | 44.1% |
-| Database Results | 100 | 2,315 | 1,389 | 40.0% |
-| Config Files | 25 keys | 456 | 296 | 35.1% |
+| Use Case            | Items   | JSON Tokens | TOON Tokens | Savings |
+| ------------------- | ------- | ----------- | ----------- | ------- |
+| API Endpoints       | 15      | 892         | 534         | 40.1%   |
+| Transaction Logs    | 250     | 4,545       | 2,744       | 39.6%   |
+| Performance Metrics | 50      | 1,124       | 628         | 44.1%   |
+| Database Results    | 100     | 2,315       | 1,389       | 40.0%   |
+| Config Files        | 25 keys | 456         | 296         | 35.1%   |
 
 ## ABNF Grammar Reference
 
 For the complete formal grammar, see: https://github.com/toon-format/spec/blob/main/SPEC.md
 
 **Summary:**
+
 ```abnf
 toon-document = value
 value = object / array / primitive
@@ -571,6 +613,7 @@ Full ABNF is RFC 5234 compliant and available in `.claude/utils/toon/references/
 **Problem:** Converting to TOON only saves 5-10% tokens.
 
 **Solutions:**
+
 1. Check uniformity: `/analyze-tokens data.json --detailed`
 2. Ensure ≥60% field overlap across objects
 3. Try key folding for nested objects: `--key-folding`
@@ -581,6 +624,7 @@ Full ABNF is RFC 5234 compliant and available in `.claude/utils/toon/references/
 **Problem:** Skill doesn't auto-detect tabular data.
 
 **Solutions:**
+
 1. Use trigger keywords: "optimize tokens", "TOON format", "tabular data"
 2. Call explicitly: "Please convert this to TOON format"
 3. Use command directly: `/convert-to-toon data.json`
@@ -590,12 +634,14 @@ Full ABNF is RFC 5234 compliant and available in `.claude/utils/toon/references/
 **Problem:** `--strict` mode reports errors.
 
 **Common issues:**
+
 1. **Indentation not aligned:** Must be exact multiples of 2 (or configured size)
 2. **Tabs in indentation:** Use spaces only
 3. **Count mismatch:** Header `[N]` must match actual row count
 4. **Field width mismatch:** All rows must have same number of fields
 
 **Fix:** Use Zig encoder to generate valid TOON:
+
 ```bash
 ./zig-out/bin/toon encode data.json --strict
 ```

@@ -385,10 +385,9 @@ describe('UserRepository', () => {
 
       await repo.unlockAccount('user-123');
 
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('locked_until = NULL'),
-        ['user-123']
-      );
+      expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('locked_until = NULL'), [
+        'user-123',
+      ]);
     });
   });
 

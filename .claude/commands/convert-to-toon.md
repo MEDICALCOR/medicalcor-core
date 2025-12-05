@@ -5,12 +5,14 @@ Convert JSON data files to TOON (Token-Oriented Object Notation) format for 30-6
 **Usage:** `/convert-to-toon <file-path> [options]`
 
 **Options:**
+
 - `--delimiter comma|tab|pipe` - Choose delimiter (default: comma)
 - `--key-folding` - Enable key folding for nested objects (default: enabled)
 - `--no-key-folding` - Disable key folding
 - `--strict` - Validate output in strict mode
 
 **Examples:**
+
 - `/convert-to-toon data/users.json`
 - `/convert-to-toon data/addresses.json --delimiter tab`
 - `/convert-to-toon config.json --key-folding`
@@ -20,6 +22,7 @@ Convert JSON data files to TOON (Token-Oriented Object Notation) format for 30-6
 ### 1. Read and Validate Input
 
 Read the JSON file and validate:
+
 - ✅ File exists and is readable
 - ✅ Valid JSON syntax
 - ✅ Contains array data (TOON requires arrays)
@@ -31,17 +34,20 @@ If any validation fails, show clear error message and stop.
 Check if TOON is beneficial:
 
 **Criteria:**
+
 - Array has ≥5 items
 - Objects have ≥60% field uniformity
 - Structure is flat or moderately nested
 
 **Calculate uniformity:**
+
 1. Extract all field names from all objects
 2. Find most common set of fields
 3. Count how many objects have that set
 4. Uniformity = (common objects / total objects) × 100
 
 Show analysis:
+
 ```
 Analysis for {file}:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -56,11 +62,13 @@ Recommended: {yes/no}
 ### 3. Estimate Token Savings
 
 Calculate approximate tokens:
+
 - **JSON tokens** ≈ `(items × fields × 4) + overhead`
 - **TOON tokens** ≈ `20 + (items × fields × 2)`
 - **Savings %** = `(JSON - TOON) / JSON × 100`
 
 Show comparison:
+
 ```
 Token Comparison:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -84,6 +92,7 @@ If TOON is recommended (or user confirms):
 4. **Combine** header and rows
 
 **TOON Structure:**
+
 ```
 [count]{field1,field2,field3}:
   value1,value2,value3
@@ -93,10 +102,12 @@ If TOON is recommended (or user confirms):
 ### 5. Save Output
 
 Write TOON content to new file:
+
 - Default output: replace `.json` with `.toon`
 - Example: `users.json` → `users.toon`
 
 Show success message:
+
 ```
 ✅ Conversion complete!
 
@@ -108,6 +119,7 @@ Saved:  {saved} tokens ({percent}%)
 ### 6. Verify (Optional)
 
 To verify correctness, convert TOON back to JSON and compare:
+
 1. Parse TOON header to get fields
 2. Split each row into values
 3. Build objects by mapping values to fields
@@ -166,12 +178,14 @@ Minimal savings (19.2%). Keep as JSON for clarity.
 ## Error Handling
 
 ### File Not Found
+
 ```
 ❌ Error: File not found: {path}
 Please check the file path and try again.
 ```
 
 ### Invalid JSON
+
 ```
 ❌ Error: Invalid JSON in {file}
 {parse error details}
@@ -179,6 +193,7 @@ Please fix JSON syntax and try again.
 ```
 
 ### Not an Array
+
 ```
 ❌ Error: TOON requires array data
 The file contains: {type}

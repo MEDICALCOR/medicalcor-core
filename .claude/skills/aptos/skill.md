@@ -14,6 +14,7 @@ Provide expert guidance on Aptos blockchain development, Move programming langua
 ## When to Use
 
 Auto-invoke when users mention:
+
 - **Aptos** - blockchain, network, mainnet, testnet, devnet
 - **Move** - programming language, modules, resources
 - **Development** - smart contracts, dApps, SDK, CLI
@@ -29,6 +30,7 @@ Auto-invoke when users mention:
 When a user asks about Aptos:
 
 ### 1. Identify Topic
+
 ```
 Common topics:
 - Getting started / setup
@@ -44,6 +46,7 @@ Common topics:
 ### 2. Search Documentation
 
 Use Grep to find relevant docs:
+
 ```bash
 # Search for specific topics
 Grep "move module" docs/ --output-mode files_with_matches
@@ -51,6 +54,7 @@ Grep "smart contract" docs/ --output-mode content -C 3
 ```
 
 Check the INDEX.md for navigation:
+
 ```bash
 Read docs/INDEX.md
 ```
@@ -58,6 +62,7 @@ Read docs/INDEX.md
 ### 3. Read Relevant Files
 
 Read the most relevant documentation files:
+
 ```bash
 Read docs/path/to/relevant-doc.toon
 # or .md format depending on what docpull downloaded
@@ -66,6 +71,7 @@ Read docs/path/to/relevant-doc.toon
 ### 4. Provide Answer
 
 Structure your response:
+
 - **Direct answer** - solve the user's problem first
 - **Code examples** - show working code when applicable
 - **Best practices** - mention Aptos-specific patterns
@@ -75,6 +81,7 @@ Structure your response:
 ## Example Workflows
 
 ### Example 1: Move Module Development
+
 ```
 User: "How do I create a Move module on Aptos?"
 
@@ -88,6 +95,7 @@ User: "How do I create a Move module on Aptos?"
 ```
 
 ### Example 2: NFT Standards
+
 ```
 User: "What's the NFT standard on Aptos?"
 
@@ -101,6 +109,7 @@ User: "What's the NFT standard on Aptos?"
 ```
 
 ### Example 3: Network Deployment
+
 ```
 User: "How do I deploy to Aptos mainnet?"
 
@@ -116,6 +125,7 @@ User: "How do I deploy to Aptos mainnet?"
 ## Key Concepts to Reference
 
 **Move Language Fundamentals:**
+
 - Resources and Structs (linear types, move semantics)
 - Modules and Scripts (compilation units, module structure)
 - Generics and Type Parameters (`<T>`, phantom types)
@@ -125,6 +135,7 @@ User: "How do I deploy to Aptos mainnet?"
 - References (&T, &mut T) and borrowing rules
 
 **Advanced Move Concepts:**
+
 - Ability constraints and their implications
 - Phantom type parameters for zero-cost abstractions
 - Friend functions and visibility modifiers (public, public(friend), entry)
@@ -134,6 +145,7 @@ User: "How do I deploy to Aptos mainnet?"
 - Event emission and indexing
 
 **Aptos Object Model:**
+
 - Object-based architecture (replacing resource-only model)
 - ObjectCore, Object<T> wrapper pattern
 - Constructor references and object creation
@@ -143,6 +155,7 @@ User: "How do I deploy to Aptos mainnet?"
 - Nested/composable objects
 
 **Aptos Framework (0x1):**
+
 - account - account management, rotation, auth keys
 - coin - original fungible token standard
 - fungible_asset - new flexible FA standard
@@ -157,6 +170,7 @@ User: "How do I deploy to Aptos mainnet?"
 - aggregator, aggregator_v2 - parallel execution optimization
 
 **Token Standards:**
+
 - Coin Framework (0x1::coin) - simple fungible tokens
 - Fungible Asset (0x1::fungible_asset) - advanced FAs with objects
 - Token V1 (0x3::token) - legacy NFT standard (deprecated)
@@ -164,6 +178,7 @@ User: "How do I deploy to Aptos mainnet?"
 - aptos_token_objects - collection, token, property_map
 
 **Transaction Types:**
+
 - Simple transactions (single signer)
 - Multi-agent transactions (multiple signers)
 - Sponsored/fee-payer transactions (gas paid by third party)
@@ -172,6 +187,7 @@ User: "How do I deploy to Aptos mainnet?"
 - Orderless transactions (parallel execution)
 
 **Gas & Performance:**
+
 - Gas units and APT conversion
 - Storage fees (per-byte charges)
 - Gas profiling tools (aptos move test --gas)
@@ -181,6 +197,7 @@ User: "How do I deploy to Aptos mainnet?"
 - Aggregator for parallel execution
 
 **Development Tools:**
+
 - Aptos CLI (aptos move compile, test, publish, run)
 - Move Prover (formal verification, spec language)
 - Petra Wallet, Martian Wallet, Pontem Wallet
@@ -191,6 +208,7 @@ User: "How do I deploy to Aptos mainnet?"
 - Transaction Stream Service
 
 **Security Patterns:**
+
 - Access control (capability pattern, role-based)
 - Reentrancy protection (not needed in Move!)
 - Integer overflow protection (automatic in Move)
@@ -202,6 +220,7 @@ User: "How do I deploy to Aptos mainnet?"
 ## TOON Format Notes
 
 If documentation is in `.toon` format:
+
 - Most content is directly readable (tabular data)
 - Use TOON decoder for complex structures if needed:
   ```bash
@@ -225,6 +244,7 @@ If documentation is in `.toon` format:
 ## Follow-up Suggestions
 
 After answering, suggest:
+
 - Related Move concepts
 - Testing strategies
 - Security considerations

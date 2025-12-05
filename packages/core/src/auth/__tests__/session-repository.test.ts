@@ -257,10 +257,10 @@ describe('SessionRepository', () => {
       const result = await repo.revoke('session-123', 'logout');
 
       expect(result).toBe(true);
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE sessions'),
-        ['session-123', 'logout']
-      );
+      expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE sessions'), [
+        'session-123',
+        'logout',
+      ]);
     });
 
     it('should return false when session not found', async () => {

@@ -56,20 +56,17 @@ pnpm
 yarn
 
 bun
-    
-    
+
     npm install @shelby-protocol/sdk @aptos-labs/ts-sdk
 
 This package comes pre-packaged with the Node.js and browser packages. You can access it by using the `@shelby-protocol/sdk` entry point.
 
 **Node.js Entry Point**
-    
-    
+
     import { ShelbyBlob } from '@shelby-protocol/sdk/node'
 
 **Browser Entry Point**
-    
-    
+
     import { ShelbyBlob } from '@shelby-protocol/sdk/browser'
 
 [Acquire API KeysAcquire API Keys for the Shelby RPC, Aptos Node API, and Aptos Indexer APIs](/sdks/typescript/acquire-api-keys)[SpecificationsCore types and functions shared between Node.js and browser environments](/sdks/typescript/core/specifications)

@@ -14,6 +14,7 @@ Provide expert guidance on Expo and React Native development, covering the compl
 ## When to Use
 
 Auto-invoke when users mention:
+
 - Expo or React Native development
 - EAS Build, EAS Submit, EAS Update
 - Expo Router navigation
@@ -22,13 +23,14 @@ Auto-invoke when users mention:
 - Expo Modules API or native modules
 - App deployment and distribution
 - Cross-platform development
-- expo-* packages or APIs
+- expo-\* packages or APIs
 
 ## Knowledge Base
 
 Complete Expo documentation stored in `.claude/skills/frontend/expo/docs/docs_expo_dev/`
 
 Coverage includes:
+
 - Getting started and core concepts
 - EAS Build (cloud builds for iOS/Android)
 - EAS Submit (app store submissions)
@@ -51,6 +53,7 @@ When a user asks about Expo:
    - Examples: EAS Build, Expo Router, configuration, deployment, native modules
 
 2. **Search Documentation**
+
    ```
    Use Grep to search: Grep "keyword" .claude/skills/frontend/expo/docs/
    ```
@@ -62,6 +65,7 @@ When a user asks about Expo:
    - Native modules: `Grep "expo modules" .claude/skills/frontend/expo/docs/ -i`
 
 3. **Read Relevant Documentation**
+
    ```
    Use Read to load specific files found in search
    Read .claude/skills/frontend/expo/docs/docs_expo_dev/[filename].md
@@ -81,6 +85,7 @@ When a user asks about Expo:
 ## Example Workflows
 
 ### EAS Build Questions
+
 ```
 User: "How do I set up EAS Build for my Expo app?"
 
@@ -90,6 +95,7 @@ User: "How do I set up EAS Build for my Expo app?"
 ```
 
 ### Expo Router Questions
+
 ```
 User: "How does file-based routing work in Expo Router?"
 
@@ -99,6 +105,7 @@ User: "How does file-based routing work in Expo Router?"
 ```
 
 ### Configuration Questions
+
 ```
 User: "What are config plugins in Expo?"
 
@@ -108,6 +115,7 @@ User: "What are config plugins in Expo?"
 ```
 
 ### Deployment Questions
+
 ```
 User: "How do I submit my Expo app to the App Store?"
 
@@ -120,7 +128,7 @@ User: "How do I submit my Expo app to the App Store?"
 
 Always structure responses as:
 
-```markdown
+````markdown
 ## [Topic Name]
 
 [Brief overview paragraph]
@@ -134,6 +142,7 @@ Always structure responses as:
 ```typescript
 // Code examples with comments
 ```
+````
 
 ### Key Points
 
@@ -152,6 +161,7 @@ Always structure responses as:
 - Link to additional documentation
 
 **Source:** `.claude/skills/frontend/expo/docs/docs_expo_dev/[filename].md`
+
 ```
 
 ## Important Notes
@@ -229,3 +239,4 @@ Always structure responses as:
 - Consider both managed and bare workflows
 - Link related Expo features
 - Highlight EAS service integration opportunities
+```

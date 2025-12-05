@@ -222,10 +222,10 @@ describe('LoginAttemptRepository', () => {
       const attempts = await repo.getRecentForIp('192.168.1.1', 10);
 
       expect(attempts).toHaveLength(2);
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('WHERE ip_address = $1'),
-        ['192.168.1.1', 10]
-      );
+      expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('WHERE ip_address = $1'), [
+        '192.168.1.1',
+        10,
+      ]);
     });
   });
 
@@ -248,7 +248,10 @@ describe('LoginAttemptRepository', () => {
         ],
       });
 
-      const suspicious = await repo.getSuspiciousIps(new Date(Date.now() - 24 * 60 * 60 * 1000), 10);
+      const suspicious = await repo.getSuspiciousIps(
+        new Date(Date.now() - 24 * 60 * 60 * 1000),
+        10
+      );
 
       expect(suspicious).toHaveLength(2);
       expect(suspicious[0]?.ipAddress).toBe('192.168.1.100');

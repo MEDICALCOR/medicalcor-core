@@ -322,9 +322,14 @@ async function main(): Promise<void> {
           for (let j = 0; j < batch.length; j++) {
             batch[j]!.embedding = embeddings[j];
           }
-          console.log(`  Batch ${Math.floor(i / CONFIG.batchSize) + 1}: ${batch.length} embeddings generated`);
+          console.log(
+            `  Batch ${Math.floor(i / CONFIG.batchSize) + 1}: ${batch.length} embeddings generated`
+          );
         } catch (error) {
-          console.error(`  Batch ${Math.floor(i / CONFIG.batchSize) + 1}: Embedding failed -`, error);
+          console.error(
+            `  Batch ${Math.floor(i / CONFIG.batchSize) + 1}: Embedding failed -`,
+            error
+          );
         }
       }
     }

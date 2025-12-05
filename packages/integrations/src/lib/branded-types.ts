@@ -419,7 +419,7 @@ export function correlationId(value?: string): CorrelationId {
   // Type-safe access to crypto API
   const cryptoObj = typeof crypto !== 'undefined' ? crypto : undefined;
   if (cryptoObj && 'randomUUID' in cryptoObj && typeof cryptoObj.randomUUID === 'function') {
-    return (cryptoObj.randomUUID() as string) as CorrelationId;
+    return cryptoObj.randomUUID() as string as CorrelationId;
   }
   // Fallback for environments without crypto.randomUUID
   return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}` as CorrelationId;
@@ -502,10 +502,7 @@ export const unsafe = {
 /**
  * Check if a value is a branded type of a specific brand
  */
-export function isBranded<T, B extends string>(
-  value: unknown,
-  _brand: B
-): value is Brand<T, B> {
+export function isBranded<T, B extends string>(value: unknown, _brand: B): value is Brand<T, B> {
   // At runtime, branded types are just their underlying type
   // This guard just checks the underlying type
   return typeof value === 'string' || typeof value === 'number';

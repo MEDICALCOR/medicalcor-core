@@ -65,13 +65,13 @@ MedicalCor Core implements defense-in-depth with multiple security layers:
 
 ### Security Principles
 
-| Principle | Implementation |
-|-----------|----------------|
-| **Defense in Depth** | Multiple security layers |
-| **Least Privilege** | Minimal permissions per component |
-| **Fail Secure** | Reject on validation failure |
-| **Zero Trust** | Verify all requests |
-| **Audit Everything** | Complete audit trail |
+| Principle            | Implementation                    |
+| -------------------- | --------------------------------- |
+| **Defense in Depth** | Multiple security layers          |
+| **Least Privilege**  | Minimal permissions per component |
+| **Fail Secure**      | Reject on validation failure      |
+| **Zero Trust**       | Verify all requests               |
+| **Audit Everything** | Complete audit trail              |
 
 ---
 
@@ -81,12 +81,12 @@ MedicalCor Core implements defense-in-depth with multiple security layers:
 
 All incoming webhooks require signature verification:
 
-| Provider | Algorithm | Header |
-|----------|-----------|--------|
+| Provider             | Algorithm   | Header                |
+| -------------------- | ----------- | --------------------- |
 | WhatsApp (360dialog) | HMAC-SHA256 | `X-Hub-Signature-256` |
-| Twilio | Twilio SDK | `X-Twilio-Signature` |
-| Stripe | HMAC-SHA256 | `Stripe-Signature` |
-| Vapi | HMAC-SHA256 | `X-Vapi-Signature` |
+| Twilio               | Twilio SDK  | `X-Twilio-Signature`  |
+| Stripe               | HMAC-SHA256 | `Stripe-Signature`    |
+| Vapi                 | HMAC-SHA256 | `X-Vapi-Signature`    |
 
 #### Signature Verification Implementation
 
@@ -98,20 +98,15 @@ export function verifyWebhookSignature(
   signature: string,
   secret: string
 ): boolean {
-  const expectedSignature = crypto
-    .createHmac('sha256', secret)
-    .update(payload)
-    .digest('hex');
+  const expectedSignature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
 
   // Use timing-safe comparison to prevent timing attacks
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(`sha256=${expectedSignature}`)
-  );
+  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(`sha256=${expectedSignature}`));
 }
 ```
 
 **Security Features**:
+
 - Timing-safe comparison prevents timing attacks
 - Raw body preserved for signature calculation
 - Signature verification before any processing
@@ -147,6 +142,7 @@ const roles = ['admin', 'doctor', 'receptionist'] as const;
 ```
 
 **Password Requirements**:
+
 - Minimum 12 characters
 - Bcrypt hashing with cost factor 12
 - No storage of plaintext passwords
@@ -158,12 +154,12 @@ const roles = ['admin', 'doctor', 'receptionist'] as const;
 
 ### Verification Matrix
 
-| Check | WhatsApp | Twilio | Stripe | Vapi |
-|-------|----------|--------|--------|------|
-| Signature | HMAC-SHA256 | SDK | SDK | HMAC-SHA256 |
-| Timestamp | 5 min window | - | 5 min window | 5 min window |
-| Replay Prevention | Idempotency | - | Event ID | Idempotency |
-| Rate Limiting | 200/min | 100/min | 50/min | 100/min |
+| Check             | WhatsApp     | Twilio  | Stripe       | Vapi         |
+| ----------------- | ------------ | ------- | ------------ | ------------ |
+| Signature         | HMAC-SHA256  | SDK     | SDK          | HMAC-SHA256  |
+| Timestamp         | 5 min window | -       | 5 min window | 5 min window |
+| Replay Prevention | Idempotency  | -       | Event ID     | Idempotency  |
+| Rate Limiting     | 200/min      | 100/min | 50/min       | 100/min      |
 
 ### Configuration
 
@@ -225,6 +221,7 @@ const rateLimits = {
 ```
 
 **Response Headers**:
+
 ```
 X-RateLimit-Limit: 200
 X-RateLimit-Remaining: 150
@@ -331,20 +328,20 @@ const redactPatterns = [
 
 // Applied automatically to all log output
 logger.info('Processing message', {
-  phone: '+1234567890',     // Logged as [REDACTED_PHONE]
-  message: 'Patient data',  // Logged as [REDACTED_MESSAGE]
-  channel: 'whatsapp',      // Logged normally
+  phone: '+1234567890', // Logged as [REDACTED_PHONE]
+  message: 'Patient data', // Logged as [REDACTED_MESSAGE]
+  channel: 'whatsapp', // Logged normally
 });
 ```
 
 ### Data at Rest
 
-| Data Type | Storage | Encryption |
-|-----------|---------|------------|
-| Events | PostgreSQL | AES-256 (Cloud SQL) |
-| Sessions | Redis | TLS in transit |
-| Secrets | Secret Manager | KMS encryption |
-| Backups | Cloud Storage | AES-256 |
+| Data Type | Storage        | Encryption          |
+| --------- | -------------- | ------------------- |
+| Events    | PostgreSQL     | AES-256 (Cloud SQL) |
+| Sessions  | Redis          | TLS in transit      |
+| Secrets   | Secret Manager | KMS encryption      |
+| Backups   | Cloud Storage  | AES-256             |
 
 ### Data in Transit
 
@@ -469,14 +466,14 @@ ENTRYPOINT ["dumb-init", "--"]
 
 ### GDPR Compliance
 
-| Requirement | Implementation |
-|-------------|----------------|
+| Requirement            | Implementation                           |
+| ---------------------- | ---------------------------------------- |
 | **Consent Management** | Explicit consent tracking with audit log |
-| **Right to Access** | Event store enables data export |
-| **Right to Erasure** | Soft delete with anonymization |
-| **Data Minimization** | Only collect necessary data |
-| **Purpose Limitation** | Consent per processing purpose |
-| **Accountability** | Complete audit trail |
+| **Right to Access**    | Event store enables data export          |
+| **Right to Erasure**   | Soft delete with anonymization           |
+| **Data Minimization**  | Only collect necessary data              |
+| **Purpose Limitation** | Consent per processing purpose           |
+| **Accountability**     | Complete audit trail                     |
 
 **Consent Types**:
 
@@ -503,13 +500,13 @@ Request → Record → Active → [Withdrawn/Expired] → Archived
 
 ### HIPAA Considerations
 
-| Control | Status |
-|---------|--------|
-| Access Control | Implemented (RBAC) |
-| Audit Controls | Implemented (Event Store) |
-| Transmission Security | Implemented (TLS 1.3) |
-| Integrity Controls | Implemented (Checksums) |
-| PHI Encryption | Implemented (AES-256) |
+| Control               | Status                    |
+| --------------------- | ------------------------- |
+| Access Control        | Implemented (RBAC)        |
+| Audit Controls        | Implemented (Event Store) |
+| Transmission Security | Implemented (TLS 1.3)     |
+| Integrity Controls    | Implemented (Checksums)   |
+| PHI Encryption        | Implemented (AES-256)     |
 
 ### Data Processors
 
@@ -565,12 +562,12 @@ Request → Record → Active → [Withdrawn/Expired] → Archived
 
 ### Severity Levels
 
-| Level | Description | Response Time |
-|-------|-------------|---------------|
-| P1 - Critical | Data breach, system compromise | Immediate |
-| P2 - High | Service disruption, vulnerability exploited | < 1 hour |
-| P3 - Medium | Potential vulnerability, unusual activity | < 4 hours |
-| P4 - Low | Minor security issue | < 24 hours |
+| Level         | Description                                 | Response Time |
+| ------------- | ------------------------------------------- | ------------- |
+| P1 - Critical | Data breach, system compromise              | Immediate     |
+| P2 - High     | Service disruption, vulnerability exploited | < 1 hour      |
+| P3 - Medium   | Potential vulnerability, unusual activity   | < 4 hours     |
+| P4 - Low      | Minor security issue                        | < 24 hours    |
 
 ### Response Procedure
 

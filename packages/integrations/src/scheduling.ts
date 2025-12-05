@@ -558,8 +558,7 @@ export class MockSchedulingService {
         // SECURITY: Use crypto-secure randomness for selection
         const practitionerBytes = new Uint32Array(1);
         crypto.getRandomValues(practitionerBytes);
-        const selectedPractitioner =
-          practitioners[practitionerBytes[0]! % practitioners.length];
+        const selectedPractitioner = practitioners[practitionerBytes[0]! % practitioners.length];
         const locationBytes = new Uint32Array(1);
         crypto.getRandomValues(locationBytes);
         const selectedLocation = locations[locationBytes[0]! % locations.length];

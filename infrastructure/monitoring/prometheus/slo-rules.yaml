@@ -26,16 +26,16 @@ groups:
         labels:
           severity: warning
           slo: availability
-          slo_target: "99.9%"
+          slo_target: '99.9%'
           team: platform
         annotations:
-          summary: "Availability SLO burning too fast"
+          summary: 'Availability SLO burning too fast'
           description: |
             Error rate {{ $value | humanizePercentage }} exceeds hourly error budget.
             Current availability: {{ printf "%.3f" (100 - ($value * 100)) }}%
             Target: 99.9%
-          runbook_url: "https://docs.medicalcor.ro/runbooks/availability-slo"
-          dashboard_url: "https://grafana.medicalcor.ro/d/osax-slo/availability"
+          runbook_url: 'https://docs.medicalcor.ro/runbooks/availability-slo'
+          dashboard_url: 'https://grafana.medicalcor.ro/d/osax-slo/availability'
 
       - alert: SLOAvailabilityCritical
         expr: |
@@ -50,15 +50,15 @@ groups:
         labels:
           severity: critical
           slo: availability
-          slo_target: "99.9%"
+          slo_target: '99.9%'
           team: platform
-          pagerduty: "true"
+          pagerduty: 'true'
         annotations:
-          summary: "CRITICAL: Availability SLO severely violated"
+          summary: 'CRITICAL: Availability SLO severely violated'
           description: |
             Error rate {{ $value | humanizePercentage }} is critically high.
             Immediate investigation required.
-          runbook_url: "https://docs.medicalcor.ro/runbooks/availability-critical"
+          runbook_url: 'https://docs.medicalcor.ro/runbooks/availability-critical'
 
       # ============================================================================
       # LATENCY SLO (P95 < 2s, P99 < 5s)
@@ -73,15 +73,15 @@ groups:
         labels:
           severity: warning
           slo: latency_p95
-          slo_target: "2s"
+          slo_target: '2s'
           team: platform
         annotations:
-          summary: "P95 latency SLO violated"
+          summary: 'P95 latency SLO violated'
           description: |
             P95 latency is {{ $value | humanizeDuration }} (target: <2s).
             Performance degradation detected.
-          runbook_url: "https://docs.medicalcor.ro/runbooks/latency-p95"
-          dashboard_url: "https://grafana.medicalcor.ro/d/osax-slo/latency"
+          runbook_url: 'https://docs.medicalcor.ro/runbooks/latency-p95'
+          dashboard_url: 'https://grafana.medicalcor.ro/d/osax-slo/latency'
 
       - alert: SLOLatencyP99Violated
         expr: |
@@ -92,14 +92,14 @@ groups:
         labels:
           severity: warning
           slo: latency_p99
-          slo_target: "5s"
+          slo_target: '5s'
           team: platform
         annotations:
-          summary: "P99 latency SLO violated"
+          summary: 'P99 latency SLO violated'
           description: |
             P99 latency is {{ $value | humanizeDuration }} (target: <5s).
             Tail latency is impacting user experience.
-          runbook_url: "https://docs.medicalcor.ro/runbooks/latency-p99"
+          runbook_url: 'https://docs.medicalcor.ro/runbooks/latency-p99'
 
       - alert: SLOLatencyCritical
         expr: |
@@ -111,13 +111,13 @@ groups:
           severity: critical
           slo: latency
           team: platform
-          pagerduty: "true"
+          pagerduty: 'true'
         annotations:
-          summary: "CRITICAL: Service severely degraded"
+          summary: 'CRITICAL: Service severely degraded'
           description: |
             P95 latency is {{ $value | humanizeDuration }}.
             Service is experiencing severe performance issues.
-          runbook_url: "https://docs.medicalcor.ro/runbooks/latency-critical"
+          runbook_url: 'https://docs.medicalcor.ro/runbooks/latency-critical'
 
       # ============================================================================
       # ENCRYPTION SLO (99.999% success - HIPAA COMPLIANCE)
@@ -134,17 +134,17 @@ groups:
         labels:
           severity: critical
           slo: encryption_success
-          slo_target: "99.999%"
+          slo_target: '99.999%'
           compliance: HIPAA
           team: security
-          pagerduty: "true"
+          pagerduty: 'true'
         annotations:
-          summary: "CRITICAL: Encryption SLO violated - HIPAA risk"
+          summary: 'CRITICAL: Encryption SLO violated - HIPAA risk'
           description: |
             Encryption failure rate: {{ $value | humanizePercentage }}
             This is a HIPAA compliance violation risk.
             Immediate security review required.
-          runbook_url: "https://docs.medicalcor.ro/runbooks/encryption-failure"
+          runbook_url: 'https://docs.medicalcor.ro/runbooks/encryption-failure'
 
       - alert: SLODecryptionFailures
         expr: |
@@ -157,16 +157,16 @@ groups:
         labels:
           severity: critical
           slo: decryption_success
-          slo_target: "99.999%"
+          slo_target: '99.999%'
           compliance: HIPAA
           team: security
-          pagerduty: "true"
+          pagerduty: 'true'
         annotations:
-          summary: "CRITICAL: Decryption SLO violated - HIPAA risk"
+          summary: 'CRITICAL: Decryption SLO violated - HIPAA risk'
           description: |
             Decryption failure rate: {{ $value | humanizePercentage }}
             PHI access may be impacted. Security review required.
-          runbook_url: "https://docs.medicalcor.ro/runbooks/decryption-failure"
+          runbook_url: 'https://docs.medicalcor.ro/runbooks/decryption-failure'
 
       # ============================================================================
       # AUDIT LOGGING SLO (100% success - HIPAA/GDPR COMPLIANCE)
@@ -179,16 +179,16 @@ groups:
         labels:
           severity: critical
           slo: audit_logging
-          slo_target: "100%"
-          compliance: "HIPAA,GDPR"
+          slo_target: '100%'
+          compliance: 'HIPAA,GDPR'
           team: security
-          pagerduty: "true"
+          pagerduty: 'true'
         annotations:
-          summary: "CRITICAL: Audit logging failures - Compliance risk"
+          summary: 'CRITICAL: Audit logging failures - Compliance risk'
           description: |
             Audit log write failures detected.
             HIPAA/GDPR compliance at risk - all PHI access MUST be logged.
-          runbook_url: "https://docs.medicalcor.ro/runbooks/audit-failure"
+          runbook_url: 'https://docs.medicalcor.ro/runbooks/audit-failure'
 
       # ============================================================================
       # DATABASE SLO
@@ -207,11 +207,11 @@ groups:
           slo: database_capacity
           team: platform
         annotations:
-          summary: "Database connection pool >80% utilized"
+          summary: 'Database connection pool >80% utilized'
           description: |
             Connection utilization: {{ $value | humanizePercentage }}
             Consider scaling or optimizing queries.
-          runbook_url: "https://docs.medicalcor.ro/runbooks/database-connections"
+          runbook_url: 'https://docs.medicalcor.ro/runbooks/database-connections'
 
       - alert: SLODatabaseReplicationLag
         expr: |
@@ -222,11 +222,11 @@ groups:
           slo: database_replication
           team: platform
         annotations:
-          summary: "Database replication lag >30s"
+          summary: 'Database replication lag >30s'
           description: |
             Replication lag: {{ $value | humanizeDuration }}
             Failover readiness may be impacted.
-          runbook_url: "https://docs.medicalcor.ro/runbooks/replication-lag"
+          runbook_url: 'https://docs.medicalcor.ro/runbooks/replication-lag'
 
       # ============================================================================
       # OSAX CASE PROCESSING SLO
@@ -241,14 +241,14 @@ groups:
         labels:
           severity: warning
           slo: case_creation_latency
-          slo_target: "5s"
+          slo_target: '5s'
           team: backend
         annotations:
-          summary: "Case creation P95 latency >5s"
+          summary: 'Case creation P95 latency >5s'
           description: |
             P95 case creation time: {{ $value | humanizeDuration }}
             User experience degraded.
-          runbook_url: "https://docs.medicalcor.ro/runbooks/case-creation-slow"
+          runbook_url: 'https://docs.medicalcor.ro/runbooks/case-creation-slow'
 
       - alert: SLOCaseScoringFailures
         expr: |
@@ -261,14 +261,14 @@ groups:
         labels:
           severity: warning
           slo: case_scoring_success
-          slo_target: "99%"
+          slo_target: '99%'
           team: backend
         annotations:
-          summary: "Case scoring failure rate >1%"
+          summary: 'Case scoring failure rate >1%'
           description: |
             Scoring failure rate: {{ $value | humanizePercentage }}
             Clinical workflow may be impacted.
-          runbook_url: "https://docs.medicalcor.ro/runbooks/scoring-failures"
+          runbook_url: 'https://docs.medicalcor.ro/runbooks/scoring-failures'
 
       # ============================================================================
       # AI/ML SLO
@@ -283,14 +283,14 @@ groups:
         labels:
           severity: warning
           slo: embedding_latency
-          slo_target: "10s"
+          slo_target: '10s'
           team: ml
         annotations:
-          summary: "Embedding generation P95 >10s"
+          summary: 'Embedding generation P95 >10s'
           description: |
             P95 embedding generation time: {{ $value | humanizeDuration }}
             Semantic search may be impacted.
-          runbook_url: "https://docs.medicalcor.ro/runbooks/embedding-slow"
+          runbook_url: 'https://docs.medicalcor.ro/runbooks/embedding-slow'
 
       - alert: SLOOpenAIAPIErrors
         expr: |
@@ -303,11 +303,11 @@ groups:
         labels:
           severity: warning
           slo: openai_success
-          slo_target: "95%"
+          slo_target: '95%'
           team: ml
         annotations:
-          summary: "OpenAI API error rate >5%"
+          summary: 'OpenAI API error rate >5%'
           description: |
             API error rate: {{ $value | humanizePercentage }}
             AI features may be degraded.
-          runbook_url: "https://docs.medicalcor.ro/runbooks/openai-errors"
+          runbook_url: 'https://docs.medicalcor.ro/runbooks/openai-errors'

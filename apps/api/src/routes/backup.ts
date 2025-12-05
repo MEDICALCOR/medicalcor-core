@@ -164,29 +164,81 @@ export const backupRoutes: FastifyPluginAsync = async (fastify) => {
    * List all backups with optional filtering
    * SECURITY: Requires admin API key authentication
    */
-  fastify.get<{ Querystring: ListBackupsQuery }>('/backup/list', { onRequest: requireBackupAuth }, async (request) => {
-    const { type, status, limit, fromDate, toDate } = request.query;
+  fastify.get<{ Querystring: ListBackupsQuery }>(
+    '/backup/list',
+    { onRequest: requireBackupAuth },
+    async (request) => {
+      const { type, status, limit, fromDate, toDate } = request.query;
 
-    // Build filter object without undefined values for exactOptionalPropertyTypes
-    const filters: {
-      type?: BackupType;
-      status?: BackupMetadata['status'];
-      limit?: number;
-      fromDate?: Date;
-      toDate?: Date;
-    } = {};
-    if (type) filters.type = type as BackupType;
-    if (status) filters.status = status as BackupMetadata['status'];
-    if (limit) filters.limit = parseInt(String(limit), 10);
-    if (fromDate) filters.fromDate = new Date(fromDate);
-    if (toDate) filters.toDate = new Date(toDate);
+      // Build filter object without undefined values for exactOptionalPropertyTypes
+      const filters: {
+        type?: BackupType;
+        status?: BackupMetadata['status'];
+        limit?: number;
+        fromDate?: Date;
+        toDate?: Date;
+      } = {};
+      if (type) filters.type = type as BackupType;
+      if (status) filters.status = status as BackupMetadata['status'];
+      if (limit) filters.limit = parseInt(String(limit), 10);
+      if (fromDate) filters.fromDate = new Date(fromDate);
+      if (toDate) filters.toDate = new Date(toDate);
 
-    const backups = backupService.listBackups(filters);
+      const backups = backupService.listBackups(filters);
 
-    return {
-      timestamp: new Date().toISOString(),
-      count: backups.length,
-      backups: backups.map((backup) => ({
+      return {
+        timestamp: new Date().toISOString(),
+        count: backups.length,
+        backups: backups.map((backup) => ({
+          id: backup.id,
+          type: backup.type,
+          status: backup.status,
+          createdAt: backup.createdAt.toISOString(),
+          completedAt: backup.completedAt?.toISOString() ?? null,
+          sizeBytes: backup.sizeBytes,
+          sizeMB: Math.round((backup.sizeBytes / 1024 / 1024) * 100) / 100,
+          compressedSizeBytes: backup.compressedSizeBytes,
+          compressedSizeMB: backup.compressedSizeBytes
+            ? Math.round((backup.compressedSizeBytes / 1024 / 1024) * 100) / 100
+            : null,
+          compressionRatio: backup.compressionRatio
+            ? Math.round(backup.compressionRatio * 100) / 100
+            : null,
+          encrypted: backup.encrypted,
+          compressed: backup.compressed,
+          tables: backup.tables,
+          rowCounts: backup.rowCounts,
+          durationMs: backup.durationMs,
+          durationSeconds: Math.round((backup.durationMs / 1000) * 10) / 10,
+          verificationStatus: backup.verificationStatus ?? null,
+          errorMessage: backup.errorMessage ?? null,
+          tags: backup.tags ?? {},
+        })),
+      };
+    }
+  );
+
+  /**
+   * GET /backup/:id
+   *
+   * Get details of a specific backup
+   * SECURITY: Requires admin API key authentication
+   */
+  fastify.get<{ Params: { id: string } }>(
+    '/backup/:id',
+    { onRequest: requireBackupAuth },
+    async (request, reply) => {
+      const { id } = request.params;
+      const backup = backupService.getBackup(id);
+
+      if (!backup) {
+        return reply.status(404).send({
+          error: 'Backup not found',
+          backupId: id,
+        });
+      }
+
+      return {
         id: backup.id,
         type: backup.type,
         status: backup.status,
@@ -198,69 +250,25 @@ export const backupRoutes: FastifyPluginAsync = async (fastify) => {
         compressedSizeMB: backup.compressedSizeBytes
           ? Math.round((backup.compressedSizeBytes / 1024 / 1024) * 100) / 100
           : null,
-        compressionRatio: backup.compressionRatio
-          ? Math.round(backup.compressionRatio * 100) / 100
-          : null,
+        checksum: backup.checksum,
+        checksumAlgorithm: backup.checksumAlgorithm,
         encrypted: backup.encrypted,
         compressed: backup.compressed,
+        compressionRatio: backup.compressionRatio,
         tables: backup.tables,
         rowCounts: backup.rowCounts,
-        durationMs: backup.durationMs,
-        durationSeconds: Math.round((backup.durationMs / 1000) * 10) / 10,
+        walPosition: backup.walPosition ?? null,
+        parentBackupId: backup.parentBackupId ?? null,
+        storageLocation: backup.storageLocation,
+        verifiedAt: backup.verifiedAt?.toISOString() ?? null,
         verificationStatus: backup.verificationStatus ?? null,
         errorMessage: backup.errorMessage ?? null,
+        durationMs: backup.durationMs,
+        durationSeconds: Math.round((backup.durationMs / 1000) * 10) / 10,
         tags: backup.tags ?? {},
-      })),
-    };
-  });
-
-  /**
-   * GET /backup/:id
-   *
-   * Get details of a specific backup
-   * SECURITY: Requires admin API key authentication
-   */
-  fastify.get<{ Params: { id: string } }>('/backup/:id', { onRequest: requireBackupAuth }, async (request, reply) => {
-    const { id } = request.params;
-    const backup = backupService.getBackup(id);
-
-    if (!backup) {
-      return reply.status(404).send({
-        error: 'Backup not found',
-        backupId: id,
-      });
+      };
     }
-
-    return {
-      id: backup.id,
-      type: backup.type,
-      status: backup.status,
-      createdAt: backup.createdAt.toISOString(),
-      completedAt: backup.completedAt?.toISOString() ?? null,
-      sizeBytes: backup.sizeBytes,
-      sizeMB: Math.round((backup.sizeBytes / 1024 / 1024) * 100) / 100,
-      compressedSizeBytes: backup.compressedSizeBytes,
-      compressedSizeMB: backup.compressedSizeBytes
-        ? Math.round((backup.compressedSizeBytes / 1024 / 1024) * 100) / 100
-        : null,
-      checksum: backup.checksum,
-      checksumAlgorithm: backup.checksumAlgorithm,
-      encrypted: backup.encrypted,
-      compressed: backup.compressed,
-      compressionRatio: backup.compressionRatio,
-      tables: backup.tables,
-      rowCounts: backup.rowCounts,
-      walPosition: backup.walPosition ?? null,
-      parentBackupId: backup.parentBackupId ?? null,
-      storageLocation: backup.storageLocation,
-      verifiedAt: backup.verifiedAt?.toISOString() ?? null,
-      verificationStatus: backup.verificationStatus ?? null,
-      errorMessage: backup.errorMessage ?? null,
-      durationMs: backup.durationMs,
-      durationSeconds: Math.round((backup.durationMs / 1000) * 10) / 10,
-      tags: backup.tags ?? {},
-    };
-  });
+  );
 
   /**
    * POST /backup/create
@@ -268,53 +276,57 @@ export const backupRoutes: FastifyPluginAsync = async (fastify) => {
    * Create a new manual backup
    * SECURITY: Requires admin API key authentication
    */
-  fastify.post<{ Body: CreateBackupRequest }>('/backup/create', { onRequest: requireBackupAuth }, async (request, reply) => {
-    const { type = 'full', tags } = request.body ?? {};
+  fastify.post<{ Body: CreateBackupRequest }>(
+    '/backup/create',
+    { onRequest: requireBackupAuth },
+    async (request, reply) => {
+      const { type = 'full', tags } = request.body ?? {};
 
-    // Check if a backup is already in progress
-    const currentProgress = backupService.getCurrentProgress();
-    if (currentProgress) {
-      return reply.status(409).send({
-        error: 'Backup already in progress',
-        currentBackup: {
-          backupId: currentProgress.backupId,
-          phase: currentProgress.phase,
-          progress: Math.round(currentProgress.progress),
-          startedAt: currentProgress.startedAt.toISOString(),
-        },
-      });
+      // Check if a backup is already in progress
+      const currentProgress = backupService.getCurrentProgress();
+      if (currentProgress) {
+        return reply.status(409).send({
+          error: 'Backup already in progress',
+          currentBackup: {
+            backupId: currentProgress.backupId,
+            phase: currentProgress.phase,
+            progress: Math.round(currentProgress.progress),
+            startedAt: currentProgress.startedAt.toISOString(),
+          },
+        });
+      }
+
+      try {
+        const backup = await backupService.createBackup(type, {
+          ...tags,
+          manual: 'true',
+          createdBy: 'api',
+        });
+
+        return reply.status(201).send({
+          success: true,
+          message: 'Backup created successfully',
+          backup: {
+            id: backup.id,
+            type: backup.type,
+            status: backup.status,
+            createdAt: backup.createdAt.toISOString(),
+            completedAt: backup.completedAt?.toISOString() ?? null,
+            sizeMB: Math.round((backup.sizeBytes / 1024 / 1024) * 100) / 100,
+            durationSeconds: Math.round((backup.durationMs / 1000) * 10) / 10,
+            tables: backup.tables.length,
+            verificationStatus: backup.verificationStatus ?? null,
+          },
+        });
+      } catch (error) {
+        return reply.status(500).send({
+          success: false,
+          error: 'Backup failed',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
     }
-
-    try {
-      const backup = await backupService.createBackup(type, {
-        ...tags,
-        manual: 'true',
-        createdBy: 'api',
-      });
-
-      return reply.status(201).send({
-        success: true,
-        message: 'Backup created successfully',
-        backup: {
-          id: backup.id,
-          type: backup.type,
-          status: backup.status,
-          createdAt: backup.createdAt.toISOString(),
-          completedAt: backup.completedAt?.toISOString() ?? null,
-          sizeMB: Math.round((backup.sizeBytes / 1024 / 1024) * 100) / 100,
-          durationSeconds: Math.round((backup.durationMs / 1000) * 10) / 10,
-          tables: backup.tables.length,
-          verificationStatus: backup.verificationStatus ?? null,
-        },
-      });
-    } catch (error) {
-      return reply.status(500).send({
-        success: false,
-        error: 'Backup failed',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+  );
 
   /**
    * GET /backup/progress
@@ -356,88 +368,95 @@ export const backupRoutes: FastifyPluginAsync = async (fastify) => {
    * Restore from a backup
    * SECURITY: Requires admin API key authentication - CRITICAL operation
    */
-  fastify.post<{ Body: RestoreBackupRequest }>('/backup/restore', { onRequest: requireBackupAuth }, async (request, reply) => {
-    const {
-      backupId,
-      targetDatabaseUrl,
-      tables,
-      verifyFirst = true,
-      dropExisting = false,
-    } = request.body;
-
-    if (!backupId) {
-      return reply.status(400).send({
-        error: 'backupId is required',
-      });
-    }
-
-    // Verify backup exists
-    const backup = backupService.getBackup(backupId);
-    if (!backup) {
-      return reply.status(404).send({
-        error: 'Backup not found',
+  fastify.post<{ Body: RestoreBackupRequest }>(
+    '/backup/restore',
+    { onRequest: requireBackupAuth },
+    async (request, reply) => {
+      const {
         backupId,
-      });
-    }
+        targetDatabaseUrl,
+        tables,
+        verifyFirst = true,
+        dropExisting = false,
+      } = request.body;
 
-    // Check backup status
-    if (backup.status === 'failed' || backup.status === 'corrupted') {
-      return reply.status(400).send({
-        error: `Cannot restore from ${backup.status} backup`,
-        backupId,
-      });
-    }
-
-    // SECURITY: Validate targetDatabaseUrl to prevent SSRF/arbitrary database attacks
-    // Only allow restoring to the current database or explicitly whitelisted URLs
-    if (targetDatabaseUrl) {
-      const allowedDatabaseUrls = (process.env.ALLOWED_RESTORE_DATABASE_URLS ?? '').split(',').filter(Boolean);
-      const currentDatabaseUrl = process.env.DATABASE_URL;
-
-      const isAllowed =
-        targetDatabaseUrl === currentDatabaseUrl ||
-        allowedDatabaseUrls.some(url => url.trim() === targetDatabaseUrl);
-
-      if (!isAllowed) {
-        request.log.warn({
-          msg: 'Attempted restore to unauthorized database URL',
-          backupId,
-          targetDatabaseUrl: targetDatabaseUrl.replace(/\/\/[^:]+:[^@]+@/, '//***:***@'), // Redact credentials
+      if (!backupId) {
+        return reply.status(400).send({
+          error: 'backupId is required',
         });
-        return reply.status(403).send({
-          error: 'Forbidden',
-          message: 'Restoring to this database URL is not allowed. Only the current database or explicitly whitelisted URLs are permitted.',
+      }
+
+      // Verify backup exists
+      const backup = backupService.getBackup(backupId);
+      if (!backup) {
+        return reply.status(404).send({
+          error: 'Backup not found',
+          backupId,
+        });
+      }
+
+      // Check backup status
+      if (backup.status === 'failed' || backup.status === 'corrupted') {
+        return reply.status(400).send({
+          error: `Cannot restore from ${backup.status} backup`,
+          backupId,
+        });
+      }
+
+      // SECURITY: Validate targetDatabaseUrl to prevent SSRF/arbitrary database attacks
+      // Only allow restoring to the current database or explicitly whitelisted URLs
+      if (targetDatabaseUrl) {
+        const allowedDatabaseUrls = (process.env.ALLOWED_RESTORE_DATABASE_URLS ?? '')
+          .split(',')
+          .filter(Boolean);
+        const currentDatabaseUrl = process.env.DATABASE_URL;
+
+        const isAllowed =
+          targetDatabaseUrl === currentDatabaseUrl ||
+          allowedDatabaseUrls.some((url) => url.trim() === targetDatabaseUrl);
+
+        if (!isAllowed) {
+          request.log.warn({
+            msg: 'Attempted restore to unauthorized database URL',
+            backupId,
+            targetDatabaseUrl: targetDatabaseUrl.replace(/\/\/[^:]+:[^@]+@/, '//***:***@'), // Redact credentials
+          });
+          return reply.status(403).send({
+            error: 'Forbidden',
+            message:
+              'Restoring to this database URL is not allowed. Only the current database or explicitly whitelisted URLs are permitted.',
+          });
+        }
+      }
+
+      try {
+        // Build restore options without undefined values for exactOptionalPropertyTypes
+        const restoreOptions: Parameters<typeof backupService.restore>[0] = {
+          backupId,
+          verifyFirst,
+          dropExisting,
+        };
+        if (targetDatabaseUrl) restoreOptions.targetDatabaseUrl = targetDatabaseUrl;
+        if (tables) restoreOptions.tables = tables;
+
+        await backupService.restore(restoreOptions);
+
+        return {
+          success: true,
+          message: 'Restore completed successfully',
+          backupId,
+          restoredAt: new Date().toISOString(),
+        };
+      } catch (error) {
+        return reply.status(500).send({
+          success: false,
+          error: 'Restore failed',
+          message: error instanceof Error ? error.message : 'Unknown error',
+          backupId,
         });
       }
     }
-
-    try {
-      // Build restore options without undefined values for exactOptionalPropertyTypes
-      const restoreOptions: Parameters<typeof backupService.restore>[0] = {
-        backupId,
-        verifyFirst,
-        dropExisting,
-      };
-      if (targetDatabaseUrl) restoreOptions.targetDatabaseUrl = targetDatabaseUrl;
-      if (tables) restoreOptions.tables = tables;
-
-      await backupService.restore(restoreOptions);
-
-      return {
-        success: true,
-        message: 'Restore completed successfully',
-        backupId,
-        restoredAt: new Date().toISOString(),
-      };
-    } catch (error) {
-      return reply.status(500).send({
-        success: false,
-        error: 'Restore failed',
-        message: error instanceof Error ? error.message : 'Unknown error',
-        backupId,
-      });
-    }
-  });
+  );
 
   /**
    * DELETE /backup/:id
@@ -445,34 +464,38 @@ export const backupRoutes: FastifyPluginAsync = async (fastify) => {
    * Delete a specific backup
    * SECURITY: Requires admin API key authentication - destructive operation
    */
-  fastify.delete<{ Params: { id: string } }>('/backup/:id', { onRequest: requireBackupAuth }, async (request, reply) => {
-    const { id } = request.params;
+  fastify.delete<{ Params: { id: string } }>(
+    '/backup/:id',
+    { onRequest: requireBackupAuth },
+    async (request, reply) => {
+      const { id } = request.params;
 
-    const backup = backupService.getBackup(id);
-    if (!backup) {
-      return reply.status(404).send({
-        error: 'Backup not found',
-        backupId: id,
-      });
-    }
+      const backup = backupService.getBackup(id);
+      if (!backup) {
+        return reply.status(404).send({
+          error: 'Backup not found',
+          backupId: id,
+        });
+      }
 
-    try {
-      await backupService.deleteBackup(id);
-      return {
-        success: true,
-        message: 'Backup deleted successfully',
-        backupId: id,
-        deletedAt: new Date().toISOString(),
-      };
-    } catch (error) {
-      return reply.status(500).send({
-        success: false,
-        error: 'Failed to delete backup',
-        message: error instanceof Error ? error.message : 'Unknown error',
-        backupId: id,
-      });
+      try {
+        await backupService.deleteBackup(id);
+        return {
+          success: true,
+          message: 'Backup deleted successfully',
+          backupId: id,
+          deletedAt: new Date().toISOString(),
+        };
+      } catch (error) {
+        return reply.status(500).send({
+          success: false,
+          error: 'Failed to delete backup',
+          message: error instanceof Error ? error.message : 'Unknown error',
+          backupId: id,
+        });
+      }
     }
-  });
+  );
 
   /**
    * GET /backup/config

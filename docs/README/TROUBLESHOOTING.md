@@ -23,6 +23,7 @@ Solutions to common issues in MedicalCor Core.
 **Symptoms**: `error @medicalcor/api: The engine "node" is incompatible`
 
 **Solution**:
+
 ```bash
 # Check current version
 node --version
@@ -40,6 +41,7 @@ nvm use 20
 **Symptoms**: `error This project requires pnpm version >= 9.0.0`
 
 **Solution**:
+
 ```bash
 # Update pnpm
 npm install -g pnpm@latest
@@ -53,6 +55,7 @@ pnpm --version
 **Symptoms**: `pnpm install` hangs or fails with network errors
 
 **Solutions**:
+
 ```bash
 # Clear pnpm cache
 pnpm store prune
@@ -75,6 +78,7 @@ pnpm config set https-proxy http://proxy:port
 **Symptoms**: `EACCES: permission denied`
 
 **Solution**:
+
 ```bash
 # Fix npm global permissions
 mkdir -p ~/.npm-global
@@ -94,6 +98,7 @@ source ~/.bashrc
 **Solutions**:
 
 1. **Port already in use**:
+
    ```bash
    # Find process using port 3000
    lsof -i :3000
@@ -106,6 +111,7 @@ source ~/.bashrc
    ```
 
 2. **Missing environment variables**:
+
    ```bash
    # Check .env exists
    ls -la .env
@@ -125,6 +131,7 @@ source ~/.bashrc
 **Symptoms**: Changes don't reflect without restart
 
 **Solutions**:
+
 ```bash
 # Check file watchers limit (Linux)
 echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf
@@ -139,6 +146,7 @@ pnpm dev
 **Symptoms**: Type errors that weren't there before
 
 **Solutions**:
+
 ```bash
 # Rebuild all packages
 pnpm clean
@@ -162,12 +170,14 @@ rm -rf **/tsconfig.tsbuildinfo
 **Solutions**:
 
 1. **Check Docker is running**:
+
    ```bash
    docker info
    # If not running, start Docker Desktop or daemon
    ```
 
 2. **Port conflicts**:
+
    ```bash
    # Check ports
    lsof -i :5432  # PostgreSQL
@@ -190,6 +200,7 @@ rm -rf **/tsconfig.tsbuildinfo
 **Symptoms**: Container status shows `Restarting`
 
 **Solution**:
+
 ```bash
 # Check logs
 docker compose logs db
@@ -206,6 +217,7 @@ docker compose logs redis
 **Symptoms**: `permission denied` in container logs
 
 **Solution**:
+
 ```bash
 # Remove volumes and recreate
 docker compose down -v
@@ -226,12 +238,14 @@ sudo chown -R $USER:$USER ./data
 **Solutions**:
 
 1. **Check container is running**:
+
    ```bash
    docker compose ps
    # Should show medicalcor-db as "running (healthy)"
    ```
 
 2. **Verify connection string**:
+
    ```bash
    # Check .env
    echo $DATABASE_URL
@@ -250,6 +264,7 @@ sudo chown -R $USER:$USER ./data
 **Symptoms**: Error running migrations
 
 **Solutions**:
+
 ```bash
 # Reset database
 docker compose down -v
@@ -266,6 +281,7 @@ sleep 5
 **Symptoms**: `error: relation "table_name" does not exist`
 
 **Solution**:
+
 ```bash
 # Check tables exist
 docker compose exec db psql -U medicalcor -d medicalcor -c "\dt"
@@ -286,6 +302,7 @@ docker compose up -d
 **Solutions**:
 
 1. **Verify webhook URL is accessible**:
+
    ```bash
    # From internet (use ngrok/cloudflare tunnel)
    curl https://your-tunnel.ngrok.io/health
@@ -297,6 +314,7 @@ docker compose up -d
    - Twilio: Twilio Console > Phone Numbers
 
 3. **Enable local tunnel**:
+
    ```bash
    # Using ngrok
    ngrok http 3000
@@ -312,12 +330,14 @@ docker compose up -d
 **Solutions**:
 
 1. **Verify secret matches**:
+
    ```bash
    # Check .env secret matches provider
    echo $WHATSAPP_WEBHOOK_SECRET
    ```
 
 2. **Check raw body is preserved**:
+
    ```typescript
    // Fastify config
    app.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
@@ -335,6 +355,7 @@ docker compose up -d
 **Symptoms**: WhatsApp webhook setup fails
 
 **Solution**:
+
 ```bash
 # Test verification endpoint
 curl "http://localhost:3000/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=YOUR_TOKEN&hub.challenge=test"
@@ -351,6 +372,7 @@ curl "http://localhost:3000/webhooks/whatsapp?hub.mode=subscribe&hub.verify_toke
 **Symptoms**: 429 errors from HubSpot
 
 **Solutions**:
+
 ```bash
 # Built-in retry handles this automatically
 # If persistent, check:
@@ -365,6 +387,7 @@ curl "http://localhost:3000/webhooks/whatsapp?hub.mode=subscribe&hub.verify_toke
 **Symptoms**: Lead scoring timeout
 
 **Solutions**:
+
 ```bash
 # Rule-based fallback activates automatically
 # To increase timeout:
@@ -379,6 +402,7 @@ curl https://status.openai.com/api/v2/status.json
 **Symptoms**: Stripe events rejected
 
 **Solutions**:
+
 ```bash
 # Verify webhook secret
 echo $STRIPE_WEBHOOK_SECRET
@@ -399,6 +423,7 @@ STRIPE_WEBHOOK_SECRET=whsec_xxx...
 **Symptoms**: `pnpm build` shows type errors
 
 **Solutions**:
+
 ```bash
 # Run typecheck first for clearer errors
 pnpm typecheck
@@ -417,6 +442,7 @@ pnpm build
 **Symptoms**: Changes not reflected after build
 
 **Solution**:
+
 ```bash
 # Clear Turborepo cache
 rm -rf .turbo
@@ -428,6 +454,7 @@ pnpm build --force
 **Symptoms**: `JavaScript heap out of memory`
 
 **Solution**:
+
 ```bash
 # Increase Node.js memory
 export NODE_OPTIONS="--max-old-space-size=4096"
@@ -443,6 +470,7 @@ pnpm build
 **Symptoms**: Tests fail with timeout errors
 
 **Solutions**:
+
 ```bash
 # Increase timeout
 pnpm test -- --testTimeout=30000
@@ -458,6 +486,7 @@ it('slow test', async () => {
 **Symptoms**: Tests hit real APIs
 
 **Solutions**:
+
 ```typescript
 // Ensure setup file is configured
 // vitest.config.ts
@@ -480,6 +509,7 @@ afterAll(() => server.close());
 **Symptoms**: Green locally, red in CI
 
 **Solutions**:
+
 ```bash
 # Match CI environment
 rm -rf node_modules
@@ -500,6 +530,7 @@ pnpm test
 **Symptoms**: Container OOM killed
 
 **Solutions**:
+
 ```yaml
 # Increase memory limit (Cloud Run)
 resources:
@@ -517,6 +548,7 @@ resources:
 **Symptoms**: API responses > 500ms
 
 **Solutions**:
+
 ```bash
 # Enable tracing to identify bottleneck
 OTEL_ENABLED=true
@@ -532,6 +564,7 @@ OTEL_ENABLED=true
 **Symptoms**: Kubernetes pod not ready
 
 **Solutions**:
+
 ```bash
 # Check health endpoint
 curl http://localhost:3000/health
@@ -577,20 +610,25 @@ cat .env | grep -v -E "(KEY|TOKEN|SECRET|PASSWORD)"
 
 ```markdown
 ## Description
+
 Brief description of the issue
 
 ## Steps to Reproduce
+
 1. Step one
 2. Step two
 3. Step three
 
 ## Expected Behavior
+
 What should happen
 
 ## Actual Behavior
+
 What actually happens
 
 ## Environment
+
 - Node.js: x.x.x
 - pnpm: x.x.x
 - OS: macOS/Linux/Windows
@@ -598,6 +636,9 @@ What actually happens
 
 ## Logs
 ```
+
 Relevant error messages
+
 ```
+
 ```

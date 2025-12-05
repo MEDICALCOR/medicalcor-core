@@ -263,10 +263,7 @@ export interface ICrmGateway {
    * @param id - CRM contact ID
    * @param input - Update data
    */
-  updateContact(
-    id: string,
-    input: UpdateCrmContactInput
-  ): Promise<CrmGatewayResult<CrmContact>>;
+  updateContact(id: string, input: UpdateCrmContactInput): Promise<CrmGatewayResult<CrmContact>>;
 
   /**
    * Create or update contact (idempotent by phone)
@@ -375,10 +372,7 @@ export interface ICrmGateway {
    * @param contactId - CRM contact ID
    * @param limit - Maximum notes to return
    */
-  getNotesForContact(
-    contactId: string,
-    limit?: number
-  ): Promise<CrmGatewayResult<CrmNote[]>>;
+  getNotesForContact(contactId: string, limit?: number): Promise<CrmGatewayResult<CrmNote[]>>;
 
   // ============================================================================
   // PIPELINE OPERATIONS

@@ -35,7 +35,16 @@ const SCORING_RULES = {
     score: 5,
   },
   // Urgent need indicators = boost +1
-  urgencyIndicators: ['urgent', 'durere', 'imediat', 'cat mai repede', 'maine', 'azi', 'acum', 'nu mai pot'],
+  urgencyIndicators: [
+    'urgent',
+    'durere',
+    'imediat',
+    'cat mai repede',
+    'maine',
+    'azi',
+    'acum',
+    'nu mai pot',
+  ],
   // Procedure interest keywords
   procedureKeywords: {
     implant: ['implant', 'implante', 'implantologie'],
@@ -107,7 +116,8 @@ export class ScoringService {
    */
   ruleBasedScore(context: AIScoringContext): ScoringOutput {
     const lastMessage = context.messageHistory?.[context.messageHistory.length - 1]?.content ?? '';
-    const allMessages = context.messageHistory?.map((m: { content: string }) => m.content).join(' ') ?? lastMessage;
+    const allMessages =
+      context.messageHistory?.map((m: { content: string }) => m.content).join(' ') ?? lastMessage;
     const lowerContent = allMessages.toLowerCase();
 
     let score = 1;
@@ -115,8 +125,8 @@ export class ScoringService {
     const procedures: string[] = [];
 
     // Check for All-on-X + budget combination (HOT)
-    const hasAllOnX = SCORING_RULES.allOnXWithBudget.keywords.some(k => lowerContent.includes(k));
-    const hasBudgetMention = SCORING_RULES.budgetKeywords.some(k => lowerContent.includes(k));
+    const hasAllOnX = SCORING_RULES.allOnXWithBudget.keywords.some((k) => lowerContent.includes(k));
+    const hasBudgetMention = SCORING_RULES.budgetKeywords.some((k) => lowerContent.includes(k));
 
     if (hasAllOnX && hasBudgetMention) {
       score = 5;
@@ -130,7 +140,7 @@ export class ScoringService {
 
     // Check procedure interests
     for (const [procedure, keywords] of Object.entries(SCORING_RULES.procedureKeywords)) {
-      if (keywords.some(k => lowerContent.includes(k))) {
+      if (keywords.some((k) => lowerContent.includes(k))) {
         if (!procedures.includes(procedure)) {
           procedures.push(procedure);
         }
@@ -140,7 +150,7 @@ export class ScoringService {
     }
 
     // Check urgency (boost score - pain/urgency indicates high purchase intent)
-    const hasUrgency = SCORING_RULES.urgencyIndicators.some(k => lowerContent.includes(k));
+    const hasUrgency = SCORING_RULES.urgencyIndicators.some((k) => lowerContent.includes(k));
     if (hasUrgency) {
       score = Math.min(score + 1, 5);
       indicators.push('priority_scheduling_requested');
@@ -248,9 +258,10 @@ RESPONSE FORMAT (JSON):
    * Build user prompt with context
    */
   private buildUserPrompt(context: AIScoringContext): string {
-    const messages = context.messageHistory?.map((m: { role: string; content: string }) =>
-      `${m.role.toUpperCase()}: ${m.content}`
-    ).join('\n') ?? '';
+    const messages =
+      context.messageHistory
+        ?.map((m: { role: string; content: string }) => `${m.role.toUpperCase()}: ${m.content}`)
+        .join('\n') ?? '';
 
     return `Analyze this conversation and score the lead:
 
@@ -282,12 +293,16 @@ Provide your scoring analysis in JSON format.`;
       // This ensures type safety and provides better error messages
       const parseResult = ScoringOutputSchema.safeParse({
         score: rawParsed.score,
-        classification: rawParsed.classification ?? this.scoreToClassification(Number(rawParsed.score) || 2),
+        classification:
+          rawParsed.classification ?? this.scoreToClassification(Number(rawParsed.score) || 2),
         confidence: rawParsed.confidence ?? 0.8,
         reasoning: rawParsed.reasoning ?? 'AI analysis',
-        suggestedAction: rawParsed.suggestedAction ?? this.getSuggestedAction(
-          (rawParsed.classification as LeadScore) ?? this.scoreToClassification(Number(rawParsed.score) || 2)
-        ),
+        suggestedAction:
+          rawParsed.suggestedAction ??
+          this.getSuggestedAction(
+            (rawParsed.classification as LeadScore) ??
+              this.scoreToClassification(Number(rawParsed.score) || 2)
+          ),
         detectedIntent: rawParsed.detectedIntent,
         urgencyIndicators: rawParsed.urgencyIndicators ?? [],
         budgetMentioned: rawParsed.budgetMentioned ?? false,
@@ -315,6 +330,9 @@ Provide your scoring analysis in JSON format.`;
 /**
  * Create a configured scoring service
  */
-export function createScoringService(config: ScoringServiceConfig, deps?: ScoringServiceDeps): ScoringService {
+export function createScoringService(
+  config: ScoringServiceConfig,
+  deps?: ScoringServiceDeps
+): ScoringService {
   return new ScoringService(config, deps);
 }

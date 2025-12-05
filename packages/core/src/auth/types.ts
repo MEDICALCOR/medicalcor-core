@@ -30,16 +30,16 @@ export type AuthEventType =
   | 'permission_denied'
   | 'suspicious_activity'
   // SECURITY FIX: Additional audit events for comprehensive logging
-  | 'permission_changed'      // Role/permission modifications
-  | 'api_key_created'         // API key generation
-  | 'api_key_rotated'         // API key rotation
-  | 'api_key_revoked'         // API key revocation
-  | 'data_export_requested'   // GDPR data export
+  | 'permission_changed' // Role/permission modifications
+  | 'api_key_created' // API key generation
+  | 'api_key_rotated' // API key rotation
+  | 'api_key_revoked' // API key revocation
+  | 'data_export_requested' // GDPR data export
   | 'data_deletion_requested' // GDPR right to be forgotten
   | 'sensitive_data_accessed' // PHI/PII access logging
-  | 'mfa_enabled'             // MFA setup
-  | 'mfa_disabled'            // MFA disabled
-  | 'settings_changed';       // Security settings modifications
+  | 'mfa_enabled' // MFA setup
+  | 'mfa_disabled' // MFA disabled
+  | 'settings_changed'; // Security settings modifications
 
 /** Auth event result */
 export type AuthEventResult = 'success' | 'failure' | 'blocked';

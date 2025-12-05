@@ -702,9 +702,7 @@ describe('lib/result - Integration Errors', () => {
         async () => {
           attempts++;
           if (attempts < 3) {
-            return err(
-              integrationError('TIMEOUT', 'service', 'timeout', { retryable: true })
-            );
+            return err(integrationError('TIMEOUT', 'service', 'timeout', { retryable: true }));
           }
           return ok(42);
         },

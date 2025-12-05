@@ -114,9 +114,9 @@ git push origin main
 
 ## Sign-Off
 
-| Role | Name | Date | Signature |
-|------|------|------|-----------|
-| Developer | | | |
-| Reviewer | | | |
-| QA | | | |
-| DevOps | | | |
+| Role      | Name | Date | Signature |
+| --------- | ---- | ---- | --------- |
+| Developer |      |      |           |
+| Reviewer  |      |      |           |
+| QA        |      |      |           |
+| DevOps    |      |      |           |

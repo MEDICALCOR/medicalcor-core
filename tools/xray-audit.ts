@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
  * XRAY Audit CLI
- * 
+ *
  * Command-line interface for running comprehensive architecture audits.
- * 
+ *
  * Usage:
  *   pnpm xray-audit                    # Audit current directory
  *   pnpm xray-audit --output report.md # Save to file
@@ -23,7 +23,7 @@ interface CLIOptions {
 
 function parseArgs(): CLIOptions {
   const args = process.argv.slice(2);
-  
+
   const options: CLIOptions = {
     rootPath: process.cwd(),
     verbose: false,
@@ -120,9 +120,9 @@ async function main() {
     // Run full audit
     console.log('⏳ Running comprehensive audit...\n');
     const startTime = Date.now();
-    
+
     const report = await engine.runFullAudit();
-    
+
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
     console.log(`✅ Audit completed in ${duration}s\n`);
 
@@ -148,7 +148,9 @@ async function main() {
     console.log(`Overall Score:        ${report.overallScore.toFixed(1)}/10.0`);
     console.log(`Total Issues:         ${report.issues.length}`);
     console.log(`  - HIGH Priority:    ${report.recommendations.phase0.length}`);
-    console.log(`  - MEDIUM Priority:  ${report.recommendations.phase1.length + report.recommendations.phase2.length}`);
+    console.log(
+      `  - MEDIUM Priority:  ${report.recommendations.phase1.length + report.recommendations.phase2.length}`
+    );
     console.log(`  - LOW Priority:     ${report.recommendations.phase3.length}`);
     console.log(`\nFiles Analyzed:       ${report.structure.totalFiles.toLocaleString()}`);
     console.log(`Lines of Code:        ${report.structure.totalLines.toLocaleString()}`);

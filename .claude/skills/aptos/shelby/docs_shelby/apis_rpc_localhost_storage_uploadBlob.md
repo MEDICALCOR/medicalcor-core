@@ -92,8 +92,7 @@ Python
 Java
 
 C#
-    
-    
+
     curl -X PUT "http://localhost:9090/v1/blobs/string/path/to/myblob.txt" \  -H "Content-Length: 0"
 
 204400

@@ -63,18 +63,18 @@ test.describe('Patient Management', () => {
 
   test('can view patient details', async ({ page }) => {
     // Click on first patient in list
-    const firstPatient = page.locator(
-      '[data-testid="patient-row"], tr[data-patient-id], [data-testid="patient-card"]'
-    ).first();
+    const firstPatient = page
+      .locator('[data-testid="patient-row"], tr[data-patient-id], [data-testid="patient-card"]')
+      .first();
 
     if (await firstPatient.isVisible()) {
       await firstPatient.click();
 
       // Should navigate to patient detail or open modal
       await expect(
-        page.getByRole('heading', { name: /detalii|details|fisa/i }).or(
-          page.locator('[data-testid="patient-detail"]')
-        )
+        page
+          .getByRole('heading', { name: /detalii|details|fisa/i })
+          .or(page.locator('[data-testid="patient-detail"]'))
       ).toBeVisible({ timeout: 5000 });
     }
   });
@@ -104,9 +104,9 @@ test.describe('Patient Management', () => {
       await page.keyboard.press('ArrowDown');
 
       // First item should be focused/selected
-      const firstItem = page.locator(
-        '[data-testid="patient-row"]:focus, tr:focus, [aria-selected="true"]'
-      ).first();
+      const firstItem = page
+        .locator('[data-testid="patient-row"]:focus, tr:focus, [aria-selected="true"]')
+        .first();
 
       await expect(firstItem).toBeVisible({ timeout: 2000 });
     }

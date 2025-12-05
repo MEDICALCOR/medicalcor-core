@@ -11,32 +11,38 @@ This implementation provides **100% compliance** with TOON v2.0 specification.
 ### Implemented Features
 
 ✅ **Array Formats**
+
 - Inline primitive arrays: `friends[3]: a,b,c`
 - Tabular arrays: `[N]{fields}: values`
 - Expanded list arrays: `- item` format
 
 ✅ **Delimiters**
+
 - Comma (`,`) - default
 - Tab (`\t`) - for TSV-like data
 - Pipe (`|`) - for Markdown tables
 
 ✅ **Key Folding** (v1.5+)
+
 - Dotted notation: `server.host: localhost`
 - Collision detection
 - Safe identifier validation
 
 ✅ **Path Expansion** (v1.5+)
+
 - Decoder option to expand dotted keys
 - Deep merge semantics
 - Conflict resolution
 
 ✅ **Strict Mode**
+
 - Indentation validation
 - Array count/width checking
 - Tab detection
 - Blank line detection
 
 ✅ **Complete Specification**
+
 - Canonical number format
 - Five escape sequences: `\\` `\"` `\n` `\r` `\t`
 - Complete quoting rules
@@ -51,6 +57,7 @@ This implementation provides **100% compliance** with TOON v2.0 specification.
 **Binary Size:** ~2MB (ReleaseFast)
 
 **Features:**
+
 - Multi-delimiter support
 - Key folding with collision detection
 - All three array types
@@ -72,6 +79,7 @@ This implementation provides **100% compliance** with TOON v2.0 specification.
 ## Version History
 
 ### v2.0 (2025-11-16)
+
 - Complete TOON v2.0 implementation
 - Zig native binary
 - All array types
@@ -81,6 +89,7 @@ This implementation provides **100% compliance** with TOON v2.0 specification.
 - Strict mode
 
 ### v1.0 (Initial)
+
 - Basic tabular arrays
 - Comma delimiter only
 - Instruction-based

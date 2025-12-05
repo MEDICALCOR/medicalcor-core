@@ -192,7 +192,9 @@ export class PostgresSnapshotStore implements SnapshotStoreRepository {
 
     try {
       const result = await (
-        client as { query: (sql: string, params: unknown[]) => Promise<{ rows: PostgresSnapshotRow[] }> }
+        client as {
+          query: (sql: string, params: unknown[]) => Promise<{ rows: PostgresSnapshotRow[] }>;
+        }
       ).query(
         `SELECT * FROM ${this.tableName}
          WHERE aggregate_id = $1 AND aggregate_type = $2
@@ -304,10 +306,7 @@ export class SnapshotManager {
     );
 
     if (deleted > 0) {
-      this.logger.debug(
-        { aggregateId: snapshot.aggregateId, deleted },
-        'Cleaned up old snapshots'
-      );
+      this.logger.debug({ aggregateId: snapshot.aggregateId, deleted }, 'Cleaned up old snapshots');
     }
   }
 
@@ -368,15 +367,11 @@ import { EventSourcedRepository } from './aggregate.js';
 
 export abstract class SnapshotEnabledRepository<
   T extends AggregateRoot<TState>,
-  TState extends AggregateState
+  TState extends AggregateState,
 > extends EventSourcedRepository<T> {
   protected snapshotManager: SnapshotManager;
 
-  constructor(
-    eventStore: EventStore,
-    aggregateType: string,
-    snapshotManager: SnapshotManager
-  ) {
+  constructor(eventStore: EventStore, aggregateType: string, snapshotManager: SnapshotManager) {
     super(eventStore, aggregateType);
     this.snapshotManager = snapshotManager;
   }
@@ -386,10 +381,7 @@ export abstract class SnapshotEnabledRepository<
    */
   override async getById(id: string): Promise<T | null> {
     // Try to get latest snapshot first
-    const snapshot = await this.snapshotManager.getLatestSnapshot<TState>(
-      id,
-      this.aggregateType
-    );
+    const snapshot = await this.snapshotManager.getLatestSnapshot<TState>(id, this.aggregateType);
 
     // Get events after snapshot (or all events if no snapshot)
     const afterVersion = snapshot?.version ?? -1;
@@ -434,7 +426,9 @@ export abstract class SnapshotEnabledRepository<
 
     // Check if we should take a snapshot
     // Access config via public method pattern - config is internal
-    const eventsSinceLastSnapshot = aggregate.version % (this.snapshotManager as unknown as { config: SnapshotStoreConfig }).config.snapshotFrequency;
+    const eventsSinceLastSnapshot =
+      aggregate.version %
+      (this.snapshotManager as unknown as { config: SnapshotStoreConfig }).config.snapshotFrequency;
     if (this.snapshotManager.shouldSnapshot(eventsSinceLastSnapshot + events.length)) {
       const snapshot = aggregate.createSnapshot();
       await this.snapshotManager.saveSnapshot(snapshot);
@@ -446,7 +440,9 @@ export abstract class SnapshotEnabledRepository<
 // FACTORY FUNCTIONS
 // ============================================================================
 
-export function createSnapshotStore(config: Partial<SnapshotStoreConfig> = {}): SnapshotStoreRepository {
+export function createSnapshotStore(
+  config: Partial<SnapshotStoreConfig> = {}
+): SnapshotStoreRepository {
   const fullConfig = { ...DEFAULT_CONFIG, ...config };
 
   if (fullConfig.connectionString) {

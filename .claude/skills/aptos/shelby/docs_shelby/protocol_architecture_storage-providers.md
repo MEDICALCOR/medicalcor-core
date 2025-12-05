@@ -41,11 +41,9 @@ Multi-threaded applications struggle with this complexity, leaving performance o
 
 Building the system around communicating tiles means:
 
-  * Explicit Communication: Moving data between cores is explicit, avoiding performance surprises.
-  * Resource Locality: A tile controls its core's caches. Explicit core scheduling prevents interference by other processes and threads.
-  * Isolation: Tile state is isolated. Security-sensitive tiles can run in sandboxes; hiding their sensitive state from the rest of the system.
-
-
+- Explicit Communication: Moving data between cores is explicit, avoiding performance surprises.
+- Resource Locality: A tile controls its core's caches. Explicit core scheduling prevents interference by other processes and threads.
+- Isolation: Tile state is isolated. Security-sensitive tiles can run in sandboxes; hiding their sensitive state from the rest of the system.
 
 The tile model echoes other popular programming approaches seen in languages like erlang and go (independent actors communicating over channels), and frameworks like [Seastar](https://seastar.io/) which embrace the shared-nothing-with-message-passing pattern.
 
@@ -57,12 +55,10 @@ Cavalier uses a shared memory management concept called a "workspace." Workspace
 
 Tile-architecture applications tend to end up with a few different kinds of tiles:
 
-  * Application Logic: Implement core business logic and track some local state.
-  * State Management: Own application wide databases. Respond to queries over shared memory, and often persist key data in their workspaces.
-  * Hardware Interfacing: Manage network cards, network connections, disks, etc. Implement kernel bypass networking primitives, perform networking stack work, multiplex across many hard drives, etc.
-  * Message routing and multiplexing: Load balance across shared application or state tiles, join queues with robust and consistent ordering, etc.
-
-
+- Application Logic: Implement core business logic and track some local state.
+- State Management: Own application wide databases. Respond to queries over shared memory, and often persist key data in their workspaces.
+- Hardware Interfacing: Manage network cards, network connections, disks, etc. Implement kernel bypass networking primitives, perform networking stack work, multiplex across many hard drives, etc.
+- Message routing and multiplexing: Load balance across shared application or state tiles, join queues with robust and consistent ordering, etc.
 
 The pattern does not impose an event model for tiles, each can use an appropriate event model for their purpose. For example a tile managing a large number of TCP sessions may want an event-driven epoll-style loop, but something managing hardware might want to spin while polling hardware registers.
 
@@ -70,19 +66,15 @@ The pattern does not impose an event model for tiles, each can use an appropriat
 
 Cavalier creates a small number of tiles (potentially many copies of each):
 
-  1. System tile - General orchestration, metrics reporting, status checking.
-  2. Server tile(s) - Manage communication with RPC nodes.
-  3. Engine tile - Manage access to local drives.
-  4. Aptos client tile - Connect to aptos services to gather L1 state and provide SP-local access to relevant state.
-
-
+1. System tile - General orchestration, metrics reporting, status checking.
+2. Server tile(s) - Manage communication with RPC nodes.
+3. Engine tile - Manage access to local drives.
+4. Aptos client tile - Connect to aptos services to gather L1 state and provide SP-local access to relevant state.
 
 Cavalier at current size has a minimal footprint, but as the system scales up, we are designing components such that scaling is possible. For example:
 
-  * As RPC connection requirements grow, we can add more server tiles.
-  * As local metadata grows in size, we can shard access across multiple Aptos client tiles.
-
-
+- As RPC connection requirements grow, we can add more server tiles.
+- As local metadata grows in size, we can shard access across multiple Aptos client tiles.
 
 ## Engine Tile (Drive Interaction)
 
@@ -102,10 +94,7 @@ The Aptos client tile sends HTTP requests (using `libcurl`) to an Aptos Indexer 
 
 ## Footnotes
 
-  1. See [AMD's CCX architecture](https://chipsandcheese.com/p/pushing-amds-infinity-fabric-to-its) ↩
-
-
-
+1. See [AMD's CCX architecture](https://chipsandcheese.com/p/pushing-amds-infinity-fabric-to-its) ↩
 
 [RPCsThe RPCs of the Shelby Protocol](/protocol/architecture/rpcs)[Smart ContractsThe smart contracts of the Shelby Protocol](/protocol/architecture/smart-contracts)
 

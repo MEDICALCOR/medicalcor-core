@@ -1464,11 +1464,13 @@ export const dsrDueDateMonitor = schedules.task({
       if (overdueCount > 0) {
         logger.error('GDPR ALERT: Overdue DSRs detected', {
           overdueCount,
-          requests: overdueDSRs?.map((r: { id: string; request_type: string; due_date: string }) => ({
-            id: r.id,
-            type: r.request_type,
-            dueDate: r.due_date,
-          })),
+          requests: overdueDSRs?.map(
+            (r: { id: string; request_type: string; due_date: string }) => ({
+              id: r.id,
+              type: r.request_type,
+              dueDate: r.due_date,
+            })
+          ),
           correlationId,
         });
       }
@@ -1476,11 +1478,13 @@ export const dsrDueDateMonitor = schedules.task({
       if (approachingCount > 0) {
         logger.warn('DSRs approaching due date', {
           approachingCount,
-          requests: approachingDSRs?.map((r: { id: string; request_type: string; due_date: string }) => ({
-            id: r.id,
-            type: r.request_type,
-            dueDate: r.due_date,
-          })),
+          requests: approachingDSRs?.map(
+            (r: { id: string; request_type: string; due_date: string }) => ({
+              id: r.id,
+              type: r.request_type,
+              dueDate: r.due_date,
+            })
+          ),
           correlationId,
         });
       }

@@ -79,26 +79,26 @@ The `ShelbyNodeClient` class extends the base `ShelbyClient` and adds Node.js-sp
 
 Uploads a blob to the Shelby network, handling both blockchain commitments and storage upload.
 
-Parameter| Type| Description  
----|---|---  
-`signer`| `Account`| The signer of the transaction  
-`blobData`| `Buffer`| The data to upload  
-`blobName`| `BlobName`| The name of the blob  
-`expirationMicros`| `number`| The expiration time of the blob in microseconds  
-`options`| `WriteBlobCommitmentsOptions`| The options for the upload  
-  
+| Parameter          | Type                          | Description                                     |
+| ------------------ | ----------------------------- | ----------------------------------------------- |
+| `signer`           | `Account`                     | The signer of the transaction                   |
+| `blobData`         | `Buffer`                      | The data to upload                              |
+| `blobName`         | `BlobName`                    | The name of the blob                            |
+| `expirationMicros` | `number`                      | The expiration time of the blob in microseconds |
+| `options`          | `WriteBlobCommitmentsOptions` | The options for the upload                      |
+
 **Returns:** `Promise<{ transaction: CommittedTransactionResponse; blobCommitments: BlobCommitments }>`
 
 #### `download({account, blobName, range?})`
 
 Downloads blob data as a ShelbyBlob with a readable stream.
 
-Parameter| Type| Description  
----|---|---  
-`account`| `AccountAddressInput`| The account address  
-`blobName`| `string`| The name/path of the blob  
-`range`| `{ start: number; end?: number }`| Optional byte range  
-  
+| Parameter  | Type                              | Description               |
+| ---------- | --------------------------------- | ------------------------- |
+| `account`  | `AccountAddressInput`             | The account address       |
+| `blobName` | `string`                          | The name/path of the blob |
+| `range`    | `{ start: number; end?: number }` | Optional byte range       |
+
 **Returns:** `Promise<ShelbyBlob>`
 
 ### Properties
@@ -116,24 +116,23 @@ The RPC client for blob storage operations. See [ShelbyRPCClient documentation](
 ### Examples
 
 #### Complete Upload and Download Flow
-    
-    
+
     import { ShelbyNodeClient } from '@shelby-protocol/sdk/node'
     import { Account, Network } from '@aptos-labs/ts-sdk'
-    
+
     // Create node client
     const client = new ShelbyNodeClient({
       network: Network.SHELBYNET
     })
-    
+
     // Create or get account
     const account = Account.generate()
-    
+
     // Prepare blob data
     const blobData = Buffer.from('Hello, Shelby!')
     const blobName = 'greeting.txt'
     const expirationMicros = Date.now() * 1000 + 3600_000_000 // 1 hour from now
-    
+
     // Upload blob (commits to blockchain and uploads to storage)
     const { transaction, blobCommitments } = await client.upload({
       signer: account,
@@ -141,15 +140,15 @@ The RPC client for blob storage operations. See [ShelbyRPCClient documentation](
       blobName,
       expirationMicros,
     })
-    
+
     console.log('Upload completed:', transaction.hash)
-    
+
     // Download blob
     const blob = await client.download({
       account: account.accountAddress,
       blobName,
     })
-    
+
     console.log('Downloaded blob:', blob.name, blob.contentLength, 'bytes')
 
 [OverviewServer-side specific functionality for Node.js environments](/sdks/typescript/node)[Uploading a FileLearn how to upload a file to the Shelby network from a Node.js environment](/sdks/typescript/node/guides/uploading-file)

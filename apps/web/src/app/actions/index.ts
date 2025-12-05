@@ -198,12 +198,7 @@ export {
   getStripeRevenueAction,
 } from './billing/index';
 
-export type {
-  Invoice,
-  InvoiceItem,
-  InvoiceStatus,
-  BillingStats,
-} from './billing/index';
+export type { Invoice, InvoiceItem, InvoiceStatus, BillingStats } from './billing/index';
 
 // ============================================================================
 // CAMPAIGNS ACTIONS

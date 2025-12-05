@@ -4,11 +4,11 @@ This document analyzes three large files identified as refactoring candidates an
 
 ## Summary
 
-| File | Lines | Primary Issues | Priority |
-|------|-------|----------------|----------|
-| `apps/web/src/app/actions/get-patients.ts` | 1447 | Mixed concerns, multiple domains in one file | High |
-| `apps/trigger/src/workflows/patient-journey.ts` | 941 | Multiple workflows, helper functions mixed with business logic | Medium |
-| `apps/trigger/src/jobs/cron-jobs.ts` | 930 | Multiple cron jobs, repeated patterns, date utilities scattered | Medium |
+| File                                            | Lines | Primary Issues                                                  | Priority |
+| ----------------------------------------------- | ----- | --------------------------------------------------------------- | -------- |
+| `apps/web/src/app/actions/get-patients.ts`      | 1447  | Mixed concerns, multiple domains in one file                    | High     |
+| `apps/trigger/src/workflows/patient-journey.ts` | 941   | Multiple workflows, helper functions mixed with business logic  | Medium   |
+| `apps/trigger/src/jobs/cron-jobs.ts`            | 930   | Multiple cron jobs, repeated patterns, date utilities scattered | Medium   |
 
 ---
 
@@ -17,6 +17,7 @@ This document analyzes three large files identified as refactoring candidates an
 ### Current Structure Analysis
 
 This file contains server actions for multiple unrelated domains:
+
 - Dashboard statistics
 - Patient/lead listing
 - Triage board management
@@ -89,26 +90,27 @@ actions/
 
 ### Specific Line Ranges for Extraction
 
-| New File | Lines in Original | Functions/Interfaces |
-|----------|-------------------|---------------------|
-| `utils/hubspot-mappers.ts` | 119-174 | `mapHubSpotStageToStatus`, `mapScoreToClassification`, `mapLeadSource` |
-| `utils/formatters.ts` | 177-204 | `maskPhone`, `formatRelativeTime` |
-| `utils/clients.ts` | 40-75 | `getHubSpotClient`, `getStripeClient`, `getSchedulingService` |
-| `types/triage.types.ts` | 493-510 | `TriageLead`, `TriageColumn` |
-| `types/calendar.types.ts` | 716-725 | `CalendarSlot` |
-| `types/analytics.types.ts` | 803-859 | All analytics interfaces |
-| `types/messages.types.ts` | 1200-1224 | `Conversation`, `Message` |
-| `types/patient.types.ts` | 1353-1369, 1425-1430 | `PatientDetailData`, `PatientTimelineEvent` |
-| `get-dashboard.ts` | 321-452 | `getRecentLeadsAction`, `getDashboardStatsAction` |
-| `get-triage.ts` | 516-710 | `getTriageLeadsAction` |
-| `get-calendar.ts` | 730-796 | `getCalendarSlotsAction` |
-| `get-analytics.ts` | 865-1194 | `getAnalyticsDataAction` |
-| `get-messages.ts` | 1231-1347 | `getConversationsAction`, `getMessagesAction` |
-| `get-patient-detail.ts` | 1375-1447 | `getPatientByIdAction`, `getPatientTimelineAction` |
+| New File                   | Lines in Original    | Functions/Interfaces                                                   |
+| -------------------------- | -------------------- | ---------------------------------------------------------------------- |
+| `utils/hubspot-mappers.ts` | 119-174              | `mapHubSpotStageToStatus`, `mapScoreToClassification`, `mapLeadSource` |
+| `utils/formatters.ts`      | 177-204              | `maskPhone`, `formatRelativeTime`                                      |
+| `utils/clients.ts`         | 40-75                | `getHubSpotClient`, `getStripeClient`, `getSchedulingService`          |
+| `types/triage.types.ts`    | 493-510              | `TriageLead`, `TriageColumn`                                           |
+| `types/calendar.types.ts`  | 716-725              | `CalendarSlot`                                                         |
+| `types/analytics.types.ts` | 803-859              | All analytics interfaces                                               |
+| `types/messages.types.ts`  | 1200-1224            | `Conversation`, `Message`                                              |
+| `types/patient.types.ts`   | 1353-1369, 1425-1430 | `PatientDetailData`, `PatientTimelineEvent`                            |
+| `get-dashboard.ts`         | 321-452              | `getRecentLeadsAction`, `getDashboardStatsAction`                      |
+| `get-triage.ts`            | 516-710              | `getTriageLeadsAction`                                                 |
+| `get-calendar.ts`          | 730-796              | `getCalendarSlotsAction`                                               |
+| `get-analytics.ts`         | 865-1194             | `getAnalyticsDataAction`                                               |
+| `get-messages.ts`          | 1231-1347            | `getConversationsAction`, `getMessagesAction`                          |
+| `get-patient-detail.ts`    | 1375-1447            | `getPatientByIdAction`, `getPatientTimelineAction`                     |
 
 ### Expected Outcome
 
 After refactoring:
+
 - Main file: ~300 lines (patient listing + shared imports)
 - Each domain file: 80-330 lines (focused, testable)
 - Utilities: ~100 lines (reusable across actions)
@@ -121,6 +123,7 @@ After refactoring:
 ### Current Structure Analysis
 
 This file contains three distinct workflows:
+
 - `patientJourneyWorkflow` (main orchestration)
 - `nurtureSequenceWorkflow` (automated nurture sequences)
 - `bookingAgentWorkflow` (appointment booking)
@@ -188,17 +191,18 @@ workflows/
 
 ### Specific Line Ranges for Extraction
 
-| New File | Lines in Original | Content |
-|----------|-------------------|---------|
-| `i18n/booking-messages.ts` | 731-771 | `getLocalizedMessage` + message objects |
-| `utils/slot-formatters.ts` | 776-904 | All formatting functions |
-| `utils/event-emitter.ts` | 909-941 | `emitEvent` helper |
-| `nurture-sequence.ts` | 245-342 | `NurtureSequencePayloadSchema`, `nurtureSequenceWorkflow` |
-| `booking-agent.ts` | 355-722 | `BookingAgentPayloadSchema`, `bookingAgentWorkflow` |
+| New File                   | Lines in Original | Content                                                   |
+| -------------------------- | ----------------- | --------------------------------------------------------- |
+| `i18n/booking-messages.ts` | 731-771           | `getLocalizedMessage` + message objects                   |
+| `utils/slot-formatters.ts` | 776-904           | All formatting functions                                  |
+| `utils/event-emitter.ts`   | 909-941           | `emitEvent` helper                                        |
+| `nurture-sequence.ts`      | 245-342           | `NurtureSequencePayloadSchema`, `nurtureSequenceWorkflow` |
+| `booking-agent.ts`         | 355-722           | `BookingAgentPayloadSchema`, `bookingAgentWorkflow`       |
 
 ### Expected Outcome
 
 After refactoring:
+
 - `patient-journey.ts`: ~240 lines (main workflow + imports)
 - `nurture-sequence.ts`: ~100 lines (focused workflow)
 - `booking-agent.ts`: ~370 lines (includes booking logic)
@@ -211,6 +215,7 @@ After refactoring:
 ### Current Structure Analysis
 
 This file contains six scheduled cron jobs:
+
 - `dailyRecallCheck` - Patient recall reminders
 - `appointmentReminders` - Appointment reminders (24h and 2h)
 - `leadScoringRefresh` - Re-score stale leads
@@ -242,6 +247,7 @@ export function formatTime(dateStr: string): string { ... }
 ```
 
 This consolidates:
+
 - `sixMonthsAgo()` → `monthsAgo(6)`
 - `sevenDaysAgo()` → `daysAgo(7)`
 - `ninetyDaysAgo()` → `daysAgo(90)`
@@ -287,20 +293,21 @@ jobs/
 
 ### Specific Line Ranges for Extraction
 
-| New File | Lines in Original | Content |
-|----------|-------------------|---------|
-| `shared/date-helpers.ts` | 96-152 | All date helper functions |
-| `shared/batch-processor.ts` | 50-90 | `BATCH_SIZE`, `processBatch` |
-| `shared/event-emitter.ts` | 907-929 | `emitJobEvent` |
-| `recall-jobs.ts` | 161-251 | `dailyRecallCheck` |
-| `appointment-jobs.ts` | 257-443 | `appointmentReminders` |
-| `lead-management-jobs.ts` | 450-550, 675-747 | `leadScoringRefresh`, `staleLeadCleanup` |
-| `analytics-jobs.ts` | 557-668, 878-902 | `weeklyAnalyticsReport`, `formatWeeklyReport` |
-| `compliance-jobs.ts` | 754-868 | `gdprConsentAudit` |
+| New File                    | Lines in Original | Content                                       |
+| --------------------------- | ----------------- | --------------------------------------------- |
+| `shared/date-helpers.ts`    | 96-152            | All date helper functions                     |
+| `shared/batch-processor.ts` | 50-90             | `BATCH_SIZE`, `processBatch`                  |
+| `shared/event-emitter.ts`   | 907-929           | `emitJobEvent`                                |
+| `recall-jobs.ts`            | 161-251           | `dailyRecallCheck`                            |
+| `appointment-jobs.ts`       | 257-443           | `appointmentReminders`                        |
+| `lead-management-jobs.ts`   | 450-550, 675-747  | `leadScoringRefresh`, `staleLeadCleanup`      |
+| `analytics-jobs.ts`         | 557-668, 878-902  | `weeklyAnalyticsReport`, `formatWeeklyReport` |
+| `compliance-jobs.ts`        | 754-868           | `gdprConsentAudit`                            |
 
 ### Expected Outcome
 
 After refactoring:
+
 - Each job file: 100-200 lines (focused, testable)
 - Shared utilities: ~100 lines (reusable across jobs)
 - Index file: ~20 lines (clean re-exports)
@@ -397,6 +404,7 @@ import type { AnalyticsData } from '@/app/actions/types';
 ## Metrics for Success
 
 After refactoring:
+
 - No single file exceeds 400 lines
 - Each file has a single clear responsibility
 - Utility functions are tested independently

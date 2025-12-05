@@ -215,7 +215,9 @@ describe('InMemorySagaRepository', () => {
       const pending = await repository.findPending();
 
       expect(pending.length).toBe(3); // pending, running, compensating
-      expect(pending.every((s) => ['pending', 'running', 'compensating'].includes(s.status))).toBe(true);
+      expect(pending.every((s) => ['pending', 'running', 'compensating'].includes(s.status))).toBe(
+        true
+      );
     });
 
     it('should filter by saga type', async () => {
@@ -252,7 +254,9 @@ describe('InMemorySagaRepository', () => {
       const sagas = await repository.findForRecovery();
 
       expect(sagas.length).toBeGreaterThan(0);
-      expect(sagas.every((s) => ['pending', 'running', 'compensating'].includes(s.status))).toBe(true);
+      expect(sagas.every((s) => ['pending', 'running', 'compensating'].includes(s.status))).toBe(
+        true
+      );
     });
   });
 
