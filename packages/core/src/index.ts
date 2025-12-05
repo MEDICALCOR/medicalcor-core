@@ -650,6 +650,10 @@ export {
   createEpisodeBuilder,
   MemoryRetrievalService,
   createMemoryRetrievalService,
+  PatternDetector,
+  createPatternDetector,
+  CognitiveAnalyzer,
+  createCognitiveAnalyzer,
   // Configuration
   DEFAULT_COGNITIVE_CONFIG,
   // Schemas
@@ -692,5 +696,8 @@ export {
   type CognitiveSystemDependencies,
   type CognitiveSystem,
   type IOpenAIClient,
+  type DetectedPattern,
+  type SubjectAnalysis,
+  type ChurnRiskAssessment,
   // Note: IEmbeddingService is exported from './rag/index.js' to avoid duplicate
 } from './cognitive/index.js';

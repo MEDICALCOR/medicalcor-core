@@ -95,6 +95,19 @@ export {
 
 export { MemoryRetrievalService, createMemoryRetrievalService } from './memory-retrieval.js';
 
+export {
+  PatternDetector,
+  createPatternDetector,
+  type DetectedPattern,
+} from './pattern-detector.js';
+
+export {
+  CognitiveAnalyzer,
+  createCognitiveAnalyzer,
+  type SubjectAnalysis,
+  type ChurnRiskAssessment,
+} from './cognitive-analyzer.js';
+
 // =============================================================================
 // Factory Function
 // =============================================================================
@@ -102,6 +115,8 @@ export { MemoryRetrievalService, createMemoryRetrievalService } from './memory-r
 import type { Pool } from 'pg';
 import { EpisodeBuilder, type IOpenAIClient, type IEmbeddingService } from './episode-builder.js';
 import { MemoryRetrievalService } from './memory-retrieval.js';
+import { PatternDetector } from './pattern-detector.js';
+import { CognitiveAnalyzer } from './cognitive-analyzer.js';
 import type { CognitiveSystemConfig } from './types.js';
 
 /**
@@ -126,6 +141,10 @@ export interface CognitiveSystem {
   episodeBuilder: EpisodeBuilder;
   /** Memory retrieval service for querying episodic memory */
   memoryRetrieval: MemoryRetrievalService;
+  /** Pattern detector for behavioral pattern recognition */
+  patternDetector: PatternDetector;
+  /** Cognitive analyzer for insights and churn detection */
+  analyzer: CognitiveAnalyzer;
 }
 
 /**
@@ -154,11 +173,14 @@ export interface CognitiveSystem {
  */
 export function createCognitiveSystem(deps: CognitiveSystemDependencies): CognitiveSystem {
   const episodeBuilder = new EpisodeBuilder(deps.openai, deps.embeddings, deps.pool, deps.config);
-
   const memoryRetrieval = new MemoryRetrievalService(deps.pool, deps.embeddings, deps.config);
+  const patternDetector = new PatternDetector(deps.pool, deps.openai, deps.config);
+  const analyzer = new CognitiveAnalyzer(deps.pool, deps.openai, deps.embeddings, deps.config);
 
   return {
     episodeBuilder,
     memoryRetrieval,
+    patternDetector,
+    analyzer,
   };
 }
