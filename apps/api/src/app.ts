@@ -21,6 +21,7 @@ import {
   backupRoutes,
   gdprRoutes,
   metricsRoutes,
+  cognitiveRoutes,
 } from './routes/index.js';
 import { chatgptPluginRoutes } from './routes/chatgpt-plugin.js';
 import { instrumentFastify } from '@medicalcor/core/observability/instrumentation';
@@ -356,6 +357,8 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
       '/backup',
       // GDPR endpoints require authentication (contains PII export/deletion functionality)
       '/gdpr',
+      // Cognitive memory endpoints expose patient interaction history and AI analysis
+      '/cognitive',
     ],
   });
 
@@ -414,7 +417,7 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
   await fastify.register(chatgptPluginRoutes);
   await fastify.register(backupRoutes);
   await fastify.register(gdprRoutes);
-  await fastify.register(metricsRoutes);
+  await fastify.register(cognitiveRoutes);
 
   // Global error handler
   fastify.setErrorHandler((error, request, reply) => {
