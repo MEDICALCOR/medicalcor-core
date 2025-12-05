@@ -314,6 +314,470 @@ describe('AuthEventRepository', () => {
   });
 });
 
+describe('AuthService - Login Flow', () => {
+  let authService: AuthService;
+  let mockDb: DatabasePool;
+
+  beforeEach(() => {
+    mockDb = createMockDb();
+    authService = new AuthService(mockDb);
+  });
+
+  describe('login', () => {
+    it('should login successfully with valid credentials', async () => {
+      const mockQuery = mockDb.query as ReturnType<typeof vi.fn>;
+
+      // Generate real bcrypt hash for testing
+      const bcrypt = await import('bcryptjs');
+      const passwordHash = await bcrypt.hash('password123', 12);
+
+      // Mock rate limit check
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 }) // email count
+        .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 }); // IP count
+
+      // Mock user lookup
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'user-123',
+            email: 'test@example.com',
+            password_hash: passwordHash,
+            name: 'Test User',
+            role: 'doctor',
+            clinic_id: 'clinic-1',
+            status: 'active',
+            email_verified: true,
+            failed_login_attempts: 0,
+            must_change_password: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+        ],
+        rowCount: 1,
+      });
+
+      // Mock lock status check
+      mockQuery.mockResolvedValueOnce({ rows: [{ locked_until: null }], rowCount: 1 });
+
+      // Mock session limit enforcement (no sessions to revoke)
+      mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+      // Mock session creation
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'session-123',
+            user_id: 'user-123',
+            token_hash: 'hash',
+            ip_address: '192.168.1.1',
+            expires_at: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(),
+            revoked_at: null,
+            last_activity_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+          },
+        ],
+        rowCount: 1,
+      });
+
+      // Mock login attempt record, reset failed attempts, update last login, log event
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ id: 'attempt-1' }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ id: 'event-1' }], rowCount: 1 });
+
+      const result = await authService.login('test@example.com', 'password123', {
+        ipAddress: '192.168.1.1',
+        userAgent: 'Test Browser',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.user).toBeDefined();
+      expect(result.session).toBeDefined();
+      expect(result.accessToken).toBeDefined();
+    });
+
+    it('should reject login when rate limited', async () => {
+      const mockQuery = mockDb.query as ReturnType<typeof vi.fn>;
+
+      // Mock rate limit exceeded
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ count: '10' }], rowCount: 1 }) // email count
+        .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 }); // IP count
+
+      // Mock event logging
+      mockQuery.mockResolvedValueOnce({ rows: [{ id: 'event-1' }], rowCount: 1 });
+
+      const result = await authService.login('test@example.com', 'password123', {
+        ipAddress: '192.168.1.1',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Too many');
+    });
+
+    it('should reject login for non-existent user', async () => {
+      const mockQuery = mockDb.query as ReturnType<typeof vi.fn>;
+
+      // Mock rate limit check
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 });
+
+      // Mock user not found
+      mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+      // Mock record attempt and log event
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ id: 'attempt-1' }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ id: 'event-1' }], rowCount: 1 });
+
+      const result = await authService.login('nonexistent@example.com', 'password123', {
+        ipAddress: '192.168.1.1',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Invalid email or password');
+    });
+
+    it('should reject login for inactive account', async () => {
+      const mockQuery = mockDb.query as ReturnType<typeof vi.fn>;
+
+      // Mock rate limit check
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 });
+
+      // Mock inactive user
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'user-123',
+            email: 'test@example.com',
+            status: 'suspended',
+          },
+        ],
+        rowCount: 1,
+      });
+
+      // Mock record attempt and log events
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ id: 'attempt-1' }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ id: 'event-1' }], rowCount: 1 });
+
+      const result = await authService.login('test@example.com', 'password123');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('not active');
+    });
+
+    it('should reject login for locked account', async () => {
+      const mockQuery = mockDb.query as ReturnType<typeof vi.fn>;
+
+      // Mock rate limit check
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 });
+
+      // Mock active user
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'user-123',
+            email: 'test@example.com',
+            status: 'active',
+          },
+        ],
+        rowCount: 1,
+      });
+
+      // Mock locked account
+      const lockedUntil = new Date(Date.now() + 30 * 60 * 1000);
+      mockQuery.mockResolvedValueOnce({
+        rows: [{ locked_until: lockedUntil.toISOString() }],
+        rowCount: 1,
+      });
+
+      // Mock record attempt and log events
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ id: 'attempt-1' }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ id: 'event-1' }], rowCount: 1 });
+
+      const result = await authService.login('test@example.com', 'password123');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('locked');
+      expect(result.lockedUntil).toBeDefined();
+    });
+  });
+
+  describe('logout', () => {
+    it('should logout successfully', async () => {
+      const mockQuery = mockDb.query as ReturnType<typeof vi.fn>;
+
+      // Mock session lookup
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'session-123',
+            user_id: 'user-123',
+            token_hash: 'hash',
+            expires_at: new Date(Date.now() + 1000000).toISOString(),
+            revoked_at: null,
+            created_at: new Date().toISOString(),
+            last_activity_at: new Date().toISOString(),
+          },
+        ],
+        rowCount: 1,
+      });
+
+      // Mock session revocation and event logging
+      mockQuery
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ id: 'event-1' }], rowCount: 1 });
+
+      const result = await authService.logout('session-123');
+
+      expect(result).toBe(true);
+    });
+
+    it('should return false for non-existent session', async () => {
+      const mockQuery = mockDb.query as ReturnType<typeof vi.fn>;
+
+      mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+      const result = await authService.logout('nonexistent');
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('validateSession', () => {
+    it('should validate active session', async () => {
+      const mockQuery = mockDb.query as ReturnType<typeof vi.fn>;
+
+      // Mock session validation
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'session-123',
+            user_id: 'user-123',
+            token_hash: 'hash',
+            expires_at: new Date(Date.now() + 1000000).toISOString(),
+            revoked_at: null,
+            created_at: new Date().toISOString(),
+            last_activity_at: new Date().toISOString(),
+          },
+        ],
+        rowCount: 1,
+      });
+
+      // Mock user lookup
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'user-123',
+            email: 'test@example.com',
+            name: 'Test User',
+            role: 'doctor',
+            status: 'active',
+            email_verified: true,
+            created_at: new Date().toISOString(),
+          },
+        ],
+        rowCount: 1,
+      });
+
+      // Mock activity update
+      mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 1 });
+
+      const result = await authService.validateSession('test-token');
+
+      expect(result).toBeDefined();
+      expect(result?.user).toBeDefined();
+      expect(result?.session).toBeDefined();
+    });
+
+    it('should return null for invalid session', async () => {
+      const mockQuery = mockDb.query as ReturnType<typeof vi.fn>;
+
+      mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+      const result = await authService.validateSession('invalid-token');
+
+      expect(result).toBeNull();
+    });
+  });
+});
+
+describe('AuthService - User Management', () => {
+  let authService: AuthService;
+  let mockDb: DatabasePool;
+
+  beforeEach(() => {
+    mockDb = createMockDb();
+    authService = new AuthService(mockDb);
+  });
+
+  describe('createUser', () => {
+    it('should create user with valid data', async () => {
+      const mockQuery = mockDb.query as ReturnType<typeof vi.fn>;
+
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'user-123',
+            email: 'new@example.com',
+            name: 'New User',
+            role: 'doctor',
+            status: 'active',
+            email_verified: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+        ],
+        rowCount: 1,
+      });
+
+      mockQuery.mockResolvedValueOnce({ rows: [{ id: 'event-1' }], rowCount: 1 });
+
+      const result = await authService.createUser({
+        email: 'new@example.com',
+        password: 'Password123!',
+        name: 'New User',
+        role: 'doctor',
+      });
+
+      expect(result).toBeDefined();
+      expect(result.email).toBe('new@example.com');
+    });
+
+    it('should reject weak password', async () => {
+      await expect(
+        authService.createUser({
+          email: 'new@example.com',
+          password: 'weak',
+          name: 'New User',
+          role: 'doctor',
+        })
+      ).rejects.toThrow('Invalid password');
+    });
+  });
+
+  describe('changePassword', () => {
+    it('should change password successfully', async () => {
+      const mockQuery = mockDb.query as ReturnType<typeof vi.fn>;
+
+      // Generate real bcrypt hash for testing
+      const bcrypt = await import('bcryptjs');
+      const passwordHash = await bcrypt.hash('password123', 12);
+
+      // Mock user lookup
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'user-123',
+            email: 'test@example.com',
+            password_hash: passwordHash,
+          },
+        ],
+        rowCount: 1,
+      });
+
+      // Mock password update, session revocation, and event logging
+      mockQuery
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ id: 'event-1' }], rowCount: 1 });
+
+      const result = await authService.changePassword(
+        'user-123',
+        'password123',
+        'NewPassword123!',
+        { sessionId: 'session-123' }
+      );
+
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject incorrect current password', async () => {
+      const mockQuery = mockDb.query as ReturnType<typeof vi.fn>;
+
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'user-123',
+            password_hash: '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.4M4qx.AaQv6dHe',
+          },
+        ],
+        rowCount: 1,
+      });
+
+      const result = await authService.changePassword(
+        'user-123',
+        'wrong-password',
+        'NewPassword123!'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('incorrect');
+    });
+  });
+});
+
+describe('AuthService - Session Management', () => {
+  let authService: AuthService;
+  let mockDb: DatabasePool;
+
+  beforeEach(() => {
+    mockDb = createMockDb();
+    authService = new AuthService(mockDb);
+  });
+
+  describe('getActiveSessions', () => {
+    it('should return active sessions', async () => {
+      const mockQuery = mockDb.query as ReturnType<typeof vi.fn>;
+
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'session-1',
+            user_id: 'user-123',
+            token_hash: 'hash1',
+            expires_at: new Date(Date.now() + 1000000).toISOString(),
+            revoked_at: null,
+            created_at: new Date().toISOString(),
+            last_activity_at: new Date().toISOString(),
+          },
+        ],
+        rowCount: 1,
+      });
+
+      const sessions = await authService.getActiveSessions('user-123');
+
+      expect(sessions).toHaveLength(1);
+    });
+  });
+
+  describe('cleanup', () => {
+    it('should cleanup expired data', async () => {
+      const mockQuery = mockDb.query as ReturnType<typeof vi.fn>;
+
+      mockQuery
+        .mockResolvedValueOnce({ rowCount: 5 })
+        .mockResolvedValueOnce({ rowCount: 10 })
+        .mockResolvedValueOnce({ rowCount: 15 });
+
+      const result = await authService.cleanup();
+
+      expect(result.expiredSessions).toBe(5);
+      expect(result.oldAttempts).toBe(10);
+      expect(result.oldEvents).toBe(15);
+    });
+  });
+});
+
 describe('Security Features', () => {
   describe('Timing Attack Prevention', () => {
     it('should use constant-time token comparison', () => {
@@ -336,6 +800,34 @@ describe('Security Features', () => {
     it('should use bcrypt with appropriate cost factor', async () => {
       // The password hash in sampleUser starts with $2a$12$ indicating cost factor 12
       expect(sampleUser.passwordHash).toMatch(/^\$2[aby]?\$12\$/);
+    });
+  });
+
+  describe('Password Policy', () => {
+    let authService: AuthService;
+    let mockDb: DatabasePool;
+
+    beforeEach(() => {
+      mockDb = createMockDb();
+      authService = new AuthService(mockDb);
+    });
+
+    it('should require special characters', () => {
+      const result = authService.validatePassword('Password123!');
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('should reject passwords that are too long', () => {
+      const result = authService.validatePassword('A'.repeat(200) + '1!');
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes('at most'))).toBe(true);
+    });
+
+    it('should accept valid passwords with special characters', () => {
+      const result = authService.validatePassword('Password123!');
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
     });
   });
 });

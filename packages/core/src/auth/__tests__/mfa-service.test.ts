@@ -189,22 +189,254 @@ describe('MFA Service', () => {
   });
 
   describe('MfaService', () => {
+    let mockDb: any;
+
+    beforeEach(() => {
+      mockDb = {
+        query: vi.fn(),
+      };
+    });
+
     describe('isEncryptionConfigured', () => {
       it('should return true when encryption key is valid', () => {
-        const service = new MfaService({} as any);
+        const service = new MfaService(mockDb);
         expect(service.isEncryptionConfigured()).toBe(true);
       });
 
       it('should return false when encryption key is missing', () => {
         vi.stubEnv('MFA_ENCRYPTION_KEY', '');
-        const service = new MfaService({} as any);
+        const service = new MfaService(mockDb);
         expect(service.isEncryptionConfigured()).toBe(false);
       });
 
       it('should return false when encryption key is invalid length', () => {
         vi.stubEnv('MFA_ENCRYPTION_KEY', 'tooshort');
-        const service = new MfaService({} as any);
+        const service = new MfaService(mockDb);
         expect(service.isEncryptionConfigured()).toBe(false);
+      });
+    });
+
+    describe('getStatus', () => {
+      it('should return disabled status when no MFA configured', async () => {
+        mockDb.query.mockResolvedValue({ rows: [] });
+
+        const service = new MfaService(mockDb);
+        const status = await service.getStatus('user-123');
+
+        expect(status.enabled).toBe(false);
+      });
+
+      it('should return enabled status with method and backup codes', async () => {
+        mockDb.query.mockResolvedValue({
+          rows: [
+            {
+              method: 'totp',
+              verified_at: '2024-01-01T00:00:00Z',
+              backup_codes: '5',
+            },
+          ],
+        });
+
+        const service = new MfaService(mockDb);
+        const status = await service.getStatus('user-123');
+
+        expect(status.enabled).toBe(true);
+        expect(status.method).toBe('totp');
+        expect(status.backupCodesRemaining).toBe(5);
+        expect(status.verifiedAt).toBeInstanceOf(Date);
+      });
+    });
+
+    describe('beginSetup', () => {
+      it('should create pending MFA setup', async () => {
+        mockDb.query.mockResolvedValue({ rows: [], rowCount: 1 });
+
+        const service = new MfaService(mockDb);
+        const result = await service.beginSetup('user-123', 'test@example.com');
+
+        expect(result.secret).toBeDefined();
+        expect(result.secretEncrypted).toBeDefined();
+        expect(result.qrCodeUrl).toContain('otpauth://totp/');
+        expect(result.backupCodes).toHaveLength(10);
+        expect(result.backupCodes[0]).toMatch(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+      });
+
+      it('should throw error when encryption not configured', async () => {
+        vi.stubEnv('MFA_ENCRYPTION_KEY', '');
+        const service = new MfaService(mockDb);
+
+        await expect(
+          service.beginSetup('user-123', 'test@example.com')
+        ).rejects.toThrow('encryption key not configured');
+      });
+    });
+
+    describe('completeSetup', () => {
+      it('should complete setup with valid token', async () => {
+        const secret = Buffer.from('12345678901234567890');
+        const secretEncrypted = 'encrypted-secret';
+
+        // Mock getPendingSecret
+        mockDb.query.mockResolvedValueOnce({
+          rows: [{ pending_secret_encrypted: secretEncrypted, method: 'totp' }],
+        });
+
+        // Generate valid TOTP for current time
+        vi.spyOn(Date, 'now').mockReturnValue(1609459200000);
+        const validToken = generateTotp(secret);
+
+        const service = new MfaService(mockDb);
+
+        // Mock the decryptSecret to return our test secret
+        vi.spyOn(service as any, 'decryptSecret').mockReturnValue(secret);
+
+        // Mock the update queries
+        mockDb.query
+          .mockResolvedValueOnce({ rows: [], rowCount: 1 }) // UPDATE mfa_secrets
+          .mockResolvedValueOnce({ rows: [], rowCount: 1 }) // UPDATE mfa_backup_codes
+          .mockResolvedValueOnce({ rows: [{ id: 'event-1' }], rowCount: 1 }); // INSERT auth_events
+
+        const result = await service.completeSetup('user-123', validToken);
+
+        expect(result.success).toBe(true);
+        vi.restoreAllMocks();
+      });
+
+      it('should reject invalid token during setup', async () => {
+        mockDb.query.mockResolvedValueOnce({
+          rows: [{ pending_secret_encrypted: 'encrypted-secret', method: 'totp' }],
+        });
+
+        const service = new MfaService(mockDb);
+        const secret = Buffer.from('12345678901234567890');
+        vi.spyOn(service as any, 'decryptSecret').mockReturnValue(secret);
+
+        const result = await service.completeSetup('user-123', '000000');
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('Invalid');
+      });
+
+      it('should return error when no pending setup found', async () => {
+        mockDb.query.mockResolvedValueOnce({ rows: [] });
+
+        const service = new MfaService(mockDb);
+        const result = await service.completeSetup('user-123', '123456');
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('No pending');
+      });
+    });
+
+    describe('verify', () => {
+      it('should verify valid TOTP token', async () => {
+        const secret = Buffer.from('12345678901234567890');
+
+        // Mock lockout check
+        mockDb.query.mockResolvedValueOnce({
+          rows: [{ failed_attempts: 0, locked_until: null }],
+        });
+
+        // Mock TOTP verification
+        mockDb.query.mockResolvedValueOnce({
+          rows: [{ secret_encrypted: 'encrypted-secret' }],
+        });
+
+        vi.spyOn(Date, 'now').mockReturnValue(1609459200000);
+        const validToken = generateTotp(secret);
+
+        const service = new MfaService(mockDb);
+        vi.spyOn(service as any, 'decryptSecret').mockReturnValue(secret);
+
+        // Mock reset failed attempts and log event
+        mockDb.query
+          .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+          .mockResolvedValueOnce({ rows: [{ id: 'event-1' }], rowCount: 1 });
+
+        const result = await service.verify('user-123', validToken);
+
+        expect(result.success).toBe(true);
+        vi.restoreAllMocks();
+      });
+
+      it('should return error when MFA not configured', async () => {
+        mockDb.query.mockResolvedValueOnce({ rows: [] });
+
+        const service = new MfaService(mockDb);
+        const result = await service.verify('user-123', '123456');
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('not configured');
+      });
+
+      it('should lock account after max failed attempts', async () => {
+        // Mock lockout check - 4 failed attempts
+        mockDb.query.mockResolvedValueOnce({
+          rows: [{ failed_attempts: 4, locked_until: null }],
+        });
+
+        // Mock TOTP verification (will fail)
+        mockDb.query.mockResolvedValueOnce({ rows: [] });
+
+        // Mock backup code verification (will fail)
+        mockDb.query.mockResolvedValueOnce({ rows: [] });
+
+        // Mock increment failed attempts
+        mockDb.query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
+
+        // Mock event logging
+        mockDb.query.mockResolvedValueOnce({ rows: [{ id: 'event-1' }], rowCount: 1 });
+
+        const service = new MfaService(mockDb);
+        const result = await service.verify('user-123', '000000');
+
+        expect(result.success).toBe(false);
+        expect(result.attemptsRemaining).toBe(0);
+        expect(result.lockedUntil).toBeInstanceOf(Date);
+      });
+
+      it('should reject when account is locked', async () => {
+        const lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+
+        mockDb.query.mockResolvedValueOnce({
+          rows: [{ failed_attempts: 5, locked_until: lockedUntil.toISOString() }],
+        });
+
+        const service = new MfaService(mockDb);
+        const result = await service.verify('user-123', '123456');
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('locked');
+        expect(result.lockedUntil).toEqual(lockedUntil);
+      });
+    });
+
+    describe('disable', () => {
+      it('should disable MFA for user', async () => {
+        mockDb.query
+          .mockResolvedValueOnce({ rows: [], rowCount: 1 }) // DELETE backup codes
+          .mockResolvedValueOnce({ rows: [], rowCount: 1 }) // DELETE mfa_secrets
+          .mockResolvedValueOnce({ rows: [{ id: 'event-1' }], rowCount: 1 }); // Log event
+
+        const service = new MfaService(mockDb);
+        const result = await service.disable('user-123');
+
+        expect(result).toBe(true);
+      });
+    });
+
+    describe('regenerateBackupCodes', () => {
+      it('should regenerate backup codes', async () => {
+        mockDb.query
+          .mockResolvedValueOnce({ rows: [], rowCount: 1 }) // DELETE old codes
+          .mockResolvedValue({ rows: [], rowCount: 1 }) // INSERT new codes (multiple calls)
+          .mockResolvedValue({ rows: [{ id: 'event-1' }], rowCount: 1 }); // Log event
+
+        const service = new MfaService(mockDb);
+        const codes = await service.regenerateBackupCodes('user-123');
+
+        expect(codes).toHaveLength(10);
+        expect(codes[0]).toMatch(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
       });
     });
   });
