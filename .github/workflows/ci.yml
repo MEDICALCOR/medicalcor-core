@@ -491,10 +491,39 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: GitLeaks Scan
-        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install gitleaks
+        run: |
+          GITLEAKS_VERSION="8.21.2"
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar -xz
+          sudo mv gitleaks /usr/local/bin/
+
+      - name: Run gitleaks scan
+        run: |
+          # Scan for secrets in the repository using project config
+          gitleaks detect --source . --config .gitleaks.toml --verbose --redact --exit-code 1 2>&1 | tee gitleaks-report.txt || {
+            EXIT_CODE=$?
+            echo "## Secrets Scan Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            if [ $EXIT_CODE -eq 1 ]; then
+              echo "**⚠️ Potential secrets found!** Review the gitleaks report." >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              tail -100 gitleaks-report.txt >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            fi
+            exit $EXIT_CODE
+          }
+          echo "## Secrets Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**✅ No secrets detected**" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload gitleaks report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: gitleaks-report
+          path: gitleaks-report.txt
+          retention-days: 30
 
   # =============================================================================
   # License Compliance Check
