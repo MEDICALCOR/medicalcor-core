@@ -19,7 +19,7 @@
 import { logs, SeverityNumber } from '@opentelemetry/api-logs';
 import { LoggerProvider, BatchLogRecordProcessor } from '@opentelemetry/sdk-logs';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
-import { Resource } from '@opentelemetry/resources';
+import { resourceFromAttributes } from '@opentelemetry/resources';
 import {
   SEMRESATTRS_SERVICE_NAME,
   SEMRESATTRS_SERVICE_VERSION,
@@ -110,7 +110,8 @@ export function initOtelLogs(config: OtelLogsConfig = {}): void {
 
   try {
     // Create resource with service information
-    const resource = new Resource({
+    // Note: As of @opentelemetry/resources 2.x, use resourceFromAttributes() instead of new Resource()
+    const resource = resourceFromAttributes({
       [SEMRESATTRS_SERVICE_NAME]: serviceName,
       [SEMRESATTRS_SERVICE_VERSION]: serviceVersion,
       [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: environment,
@@ -131,10 +132,11 @@ export function initOtelLogs(config: OtelLogsConfig = {}): void {
     });
 
     // Create and register logger provider
+    // Note: As of @opentelemetry/sdk-logs 0.200.0+, processors are passed via constructor
     loggerProvider = new LoggerProvider({
       resource,
+      processors: [processor],
     });
-    loggerProvider.addLogRecordProcessor(processor);
 
     // Register globally
     logs.setGlobalLoggerProvider(loggerProvider);
