@@ -31,6 +31,8 @@ export {
   getDashboardStatsAction,
   getPatientByIdAction,
   getPatientTimelineAction,
+  searchPatientsAction,
+  type PatientSearchResult,
 } from './patients';
 
 // Triage actions
@@ -48,7 +50,7 @@ export {
   getConversationsActionPaginated,
   getMessagesAction,
   sendMessageAction,
-} from './messages';
+} from './messages/index';
 
 // ============================================================================
 // TYPE RE-EXPORTS
@@ -65,4 +67,9 @@ export type {
   OperatorPerformance,
   AnalyticsData,
 } from './analytics';
-export type { Conversation, Message, PatientDetailData, PatientTimelineEvent } from '@medicalcor/types';
+export type {
+  Conversation,
+  Message,
+  PatientDetailData,
+  PatientTimelineEvent,
+} from '@medicalcor/types';

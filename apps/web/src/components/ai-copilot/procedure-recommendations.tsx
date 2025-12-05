@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import {
   Sparkles,
   Euro,
@@ -12,11 +12,8 @@ import {
   Loader2,
   RefreshCw,
 } from 'lucide-react';
-import {
-  generateMockRecommendations,
-  type ChatContext,
-  type ProcedureRecommendation,
-} from '@/lib/ai';
+import type { ChatContext, ProcedureRecommendation } from '@/lib/ai';
+import { getProcedureRecommendationsAction } from '@/app/actions/ai-copilot';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -27,26 +24,51 @@ interface ProcedureRecommendationsProps {
 
 export function ProcedureRecommendations({ context }: ProcedureRecommendationsProps) {
   const [recommendations, setRecommendations] = useState<ProcedureRecommendation[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, startTransition] = useTransition();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
-    setIsLoading(true);
-    // Simulate API call
-    const timer = setTimeout(() => {
-      setRecommendations(generateMockRecommendations());
-      setIsLoading(false);
-    }, 600);
+    const conversationHistory = context?.currentConversation?.map((msg) => ({
+      role: msg.direction === 'IN' ? 'user' : 'assistant',
+      content: msg.content,
+    }));
 
-    return () => clearTimeout(timer);
-  }, [context?.patientId]);
+    startTransition(async () => {
+      try {
+        const result = await getProcedureRecommendationsAction({
+          patientId: context?.patientId,
+          conversationHistory,
+          proceduresDiscussed: context?.patientHistory?.proceduresDiscussed,
+        });
+        setRecommendations(result);
+      } catch {
+        // Keep existing recommendations on error
+      }
+    });
+  }, [
+    context?.patientId,
+    context?.currentConversation,
+    context?.patientHistory?.proceduresDiscussed,
+  ]);
 
   const handleRefresh = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setRecommendations(generateMockRecommendations());
-      setIsLoading(false);
-    }, 600);
+    const conversationHistory = context?.currentConversation?.map((msg) => ({
+      role: msg.direction === 'IN' ? 'user' : 'assistant',
+      content: msg.content,
+    }));
+
+    startTransition(async () => {
+      try {
+        const result = await getProcedureRecommendationsAction({
+          patientId: context?.patientId,
+          conversationHistory,
+          proceduresDiscussed: context?.patientHistory?.proceduresDiscussed,
+        });
+        setRecommendations(result);
+      } catch {
+        // Keep existing recommendations on error
+      }
+    });
   };
 
   const getRelevanceColor = (score: number) => {

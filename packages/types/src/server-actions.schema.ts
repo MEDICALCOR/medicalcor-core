@@ -163,7 +163,7 @@ export const MessageDirectionSchema = z.enum(['IN', 'OUT']);
 /**
  * Schema for message delivery status
  */
-export const MessageDeliveryStatusSchema = z.enum(['sent', 'delivered', 'read']);
+export const MessageDeliveryStatusSchema = z.enum(['sent', 'delivered', 'read', 'failed']);
 
 /**
  * Schema for last message in a conversation
@@ -199,6 +199,7 @@ export const MessageSchema = z.object({
   status: MessageDeliveryStatusSchema,
   timestamp: z.date(),
   senderName: z.string().optional(),
+  channel: z.enum(['whatsapp', 'sms', 'email', 'voice']).optional(),
 });
 
 // ============================================================================

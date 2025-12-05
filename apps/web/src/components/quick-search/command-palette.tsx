@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -18,12 +18,14 @@ import {
   Command,
   ArrowRight,
   User,
+  Loader2,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { allCommandGroups, mockPatients, type SearchResult } from '@/lib/quick-search';
+import { allCommandGroups, type SearchResult } from '@/lib/quick-search';
+import { searchPatientsAction, type PatientSearchResult } from '@/app/actions/patients';
 import { VisuallyHidden } from '@/components/ui/visually-hidden';
 
 const iconMap: Record<string, React.ElementType> = {
@@ -50,6 +52,25 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [patients, setPatients] = useState<PatientSearchResult[]>([]);
+  const [isSearching, startTransition] = useTransition();
+
+  // Search patients when query changes (debounced via transition)
+  useEffect(() => {
+    const lowerQuery = query.toLowerCase().trim();
+    if (lowerQuery.length >= 2) {
+      startTransition(async () => {
+        try {
+          const results = await searchPatientsAction(lowerQuery, 5);
+          setPatients(results);
+        } catch {
+          setPatients([]);
+        }
+      });
+    } else {
+      setPatients([]);
+    }
+  }, [query]);
 
   // Filter and search results
   const results = useMemo(() => {
@@ -94,37 +115,33 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         });
       });
 
-      // Search patients
-      mockPatients.forEach((patient) => {
-        const matches =
-          patient.name.toLowerCase().includes(lowerQuery) || patient.phone.includes(lowerQuery);
-
-        if (matches) {
-          searchResults.push({
-            id: `patient-${patient.id}`,
-            type: 'patient',
-            label: patient.name,
-            description: patient.phone,
-            href: `/patients/${patient.id}`,
-            icon: 'User',
-          });
-        }
+      // Add patients from API search
+      patients.forEach((patient) => {
+        searchResults.push({
+          id: `patient-${patient.id}`,
+          type: 'patient',
+          label: patient.name,
+          description: patient.phone,
+          href: `/patients/${patient.id}`,
+          icon: 'User',
+        });
       });
     }
 
     return searchResults;
-  }, [query]);
+  }, [query, patients]);
 
   // Reset selection when results change
   useEffect(() => {
     setSelectedIndex(0);
   }, [results]);
 
-  // Reset query when dialog closes
+  // Reset state when dialog closes
   useEffect(() => {
     if (!open) {
       setQuery('');
       setSelectedIndex(0);
+      setPatients([]);
     }
   }, [open]);
 
@@ -201,7 +218,11 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         </VisuallyHidden>
         {/* Search Input */}
         <div className="flex items-center border-b px-3">
-          <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+          {isSearching ? (
+            <Loader2 className="h-4 w-4 text-muted-foreground shrink-0 animate-spin" />
+          ) : (
+            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+          )}
           <Input
             value={query}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}

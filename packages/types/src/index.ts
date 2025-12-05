@@ -252,6 +252,7 @@ export {
   HubSpotSearchResponseSchema,
   HubSpotTimelineEventSchema,
   HubSpotTaskSchema,
+  HubSpotNoteSchema,
   // CRM Retention enums
   ChurnRiskSchema,
   NPSCategorySchema,
@@ -267,6 +268,7 @@ export {
   type HubSpotSearchResponse,
   type HubSpotTimelineEvent,
   type HubSpotTask,
+  type HubSpotNote,
   type ChurnRisk,
   type NPSCategory,
   type LoyaltySegment,

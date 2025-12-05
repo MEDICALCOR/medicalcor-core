@@ -6,6 +6,7 @@ import type {
   HubSpotSearchRequest,
   HubSpotSearchResponse,
   HubSpotTask,
+  HubSpotNote,
 } from '@medicalcor/types';
 
 const logger = createLogger({ name: 'hubspot' });
@@ -604,6 +605,53 @@ export class HubSpotClient {
         ],
       }),
     });
+  }
+
+  /**
+   * Get notes (messages) for a contact
+   * Notes are stored with format: [CHANNEL] DIRECTION: message
+   */
+  async getNotesForContact(contactId: string, limit = 50): Promise<HubSpotNote[]> {
+    try {
+      // First get associated note IDs
+      const associations = await this.request<{
+        results: { id: string; type: string }[];
+      }>(`/crm/v4/objects/contacts/${contactId}/associations/notes`);
+
+      if (associations.results.length === 0) {
+        return [];
+      }
+
+      // Fetch notes in batches (max 100 per request)
+      const noteIds = associations.results.slice(0, limit).map((r) => r.id);
+
+      const notesResponse = await this.request<{
+        results: {
+          id: string;
+          properties: {
+            hs_timestamp?: string;
+            hs_note_body?: string;
+            hs_createdate?: string;
+          };
+        }[];
+      }>('/crm/v3/objects/notes/batch/read', {
+        method: 'POST',
+        body: JSON.stringify({
+          properties: ['hs_timestamp', 'hs_note_body', 'hs_createdate'],
+          inputs: noteIds.map((id) => ({ id })),
+        }),
+      });
+
+      return notesResponse.results.map((note) => ({
+        id: note.id,
+        body: note.properties.hs_note_body ?? '',
+        timestamp:
+          note.properties.hs_timestamp ?? note.properties.hs_createdate ?? new Date().toISOString(),
+      }));
+    } catch (error) {
+      logger.error({ error, contactId }, 'Failed to fetch notes for contact');
+      return [];
+    }
   }
 
   /**

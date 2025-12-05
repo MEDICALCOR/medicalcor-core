@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   getConversationsActionPaginated,
   getMessagesAction,
+  sendMessageAction,
   type Conversation,
   type Message,
 } from '@/app/actions/get-patients';
@@ -80,19 +81,21 @@ export default function MessagesPage() {
   }, []);
 
   const handleSendMessage = useCallback(
-    (content: string) => {
+    async (content: string) => {
       if (!selectedConversation) return;
 
+      const tempId = `msg-temp-${Date.now()}`;
       const newMessage: Message = {
-        id: `msg-new-${Date.now()}`,
+        id: tempId,
         conversationId: selectedConversation.id,
         content,
         direction: 'OUT',
         status: 'sent',
         timestamp: new Date(),
-        senderName: 'Operator 1',
+        senderName: 'Operator',
       };
 
+      // Optimistically add message to UI
       setMessages((prev) => [...prev, newMessage]);
 
       // Update conversation's last message
@@ -112,12 +115,20 @@ export default function MessagesPage() {
         )
       );
 
-      // Simulate delivery status update
-      setTimeout(() => {
+      // Send message via server action
+      const result = await sendMessageAction(selectedConversation.id, content);
+
+      if (result.success) {
+        // Update message with real ID and status
         setMessages((prev) =>
-          prev.map((m) => (m.id === newMessage.id ? { ...m, status: 'delivered' } : m))
+          prev.map((m) =>
+            m.id === tempId ? { ...m, id: result.messageId ?? tempId, status: 'delivered' } : m
+          )
         );
-      }, 1000);
+      } else {
+        // Mark as failed
+        setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' } : m)));
+      }
     },
     [selectedConversation]
   );

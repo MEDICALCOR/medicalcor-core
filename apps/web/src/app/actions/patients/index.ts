@@ -437,6 +437,91 @@ export async function getPatientTimelineAction(patientId: string): Promise<Patie
 }
 
 // ============================================================================
+// QUICK SEARCH ACTION
+// ============================================================================
+
+/**
+ * Search result type for quick search
+ */
+export interface PatientSearchResult {
+  id: string;
+  name: string;
+  phone: string;
+}
+
+/**
+ * Search patients by name for quick search functionality
+ *
+ * @param query - Search query (minimum 2 characters)
+ * @param limit - Maximum results to return (default: 10)
+ * @requires VIEW_PATIENTS permission
+ *
+ * @returns Array of patient search results
+ *
+ * @example
+ * ```typescript
+ * const results = await searchPatientsAction('Elena', 5);
+ * // => [{ id: '123', name: 'Elena Popescu', phone: '+40721123456' }]
+ * ```
+ */
+export async function searchPatientsAction(
+  query: string,
+  limit = 10
+): Promise<PatientSearchResult[]> {
+  // Skip search for very short queries
+  if (!query || query.length < 2) {
+    return [];
+  }
+
+  try {
+    await requirePermission('VIEW_PATIENTS');
+    const hubspot = getHubSpotClient();
+
+    // Search by first name or last name using HubSpot search
+    const response = await hubspot.searchContacts({
+      filterGroups: [
+        {
+          filters: [
+            {
+              propertyName: 'firstname',
+              operator: 'CONTAINS_TOKEN',
+              value: query,
+            },
+          ],
+        },
+        {
+          filters: [
+            {
+              propertyName: 'lastname',
+              operator: 'CONTAINS_TOKEN',
+              value: query,
+            },
+          ],
+        },
+      ],
+      properties: ['firstname', 'lastname', 'phone'],
+      limit: Math.min(limit, 20), // Cap at 20 for performance
+    });
+
+    return response.results.map((contact: HubSpotContact) => {
+      const firstName = contact.properties.firstname ?? '';
+      const lastName = contact.properties.lastname ?? '';
+      const name = [firstName, lastName].filter(Boolean).join(' ') || 'Necunoscut';
+
+      return {
+        id: contact.id,
+        name,
+        phone: contact.properties.phone ?? '',
+      };
+    });
+  } catch (_error) {
+    if (_error instanceof AuthorizationError) throw _error;
+    // Error logged server-side, return empty for graceful degradation
+    return [];
+  }
+}
+
+// ============================================================================
 // TYPE RE-EXPORTS
 // ============================================================================
 

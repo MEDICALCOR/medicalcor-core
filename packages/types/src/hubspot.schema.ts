@@ -149,6 +149,13 @@ export const HubSpotTaskSchema = z.object({
     .optional(),
 });
 
+// Note (used for message history)
+export const HubSpotNoteSchema = z.object({
+  id: z.string(),
+  body: z.string(),
+  timestamp: z.string(),
+});
+
 // Inferred types
 export type HubSpotContactProperties = z.infer<typeof HubSpotContactPropertiesSchema>;
 export type HubSpotContact = z.infer<typeof HubSpotContactSchema>;
@@ -159,6 +166,7 @@ export type HubSpotSearchRequest = z.infer<typeof HubSpotSearchRequestSchema>;
 export type HubSpotSearchResponse = z.infer<typeof HubSpotSearchResponseSchema>;
 export type HubSpotTimelineEvent = z.infer<typeof HubSpotTimelineEventSchema>;
 export type HubSpotTask = z.infer<typeof HubSpotTaskSchema>;
+export type HubSpotNote = z.infer<typeof HubSpotNoteSchema>;
 
 // CRM Retention types
 export type ChurnRisk = z.infer<typeof ChurnRiskSchema>;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import {
   User,
   TrendingUp,
@@ -13,7 +13,8 @@ import {
   Loader2,
   RefreshCw,
 } from 'lucide-react';
-import { generateMockSummary, type PatientHistorySummary } from '@/lib/ai';
+import type { PatientHistorySummary } from '@/lib/ai';
+import { getPatientSummaryAction } from '@/app/actions/ai-copilot';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -36,28 +37,34 @@ const sentimentIcons = {
 
 export function PatientSummary({ patientId }: PatientSummaryProps) {
   const [summary, setSummary] = useState<PatientHistorySummary | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, startTransition] = useTransition();
 
   useEffect(() => {
     if (!patientId) return;
 
-    setIsLoading(true);
-    // Simulate API call
-    const timer = setTimeout(() => {
-      setSummary(generateMockSummary(patientId));
-      setIsLoading(false);
-    }, 800);
-
-    return () => clearTimeout(timer);
+    startTransition(async () => {
+      try {
+        const result = await getPatientSummaryAction({
+          patientId,
+          // Pass conversation history if available from context
+        });
+        setSummary(result);
+      } catch {
+        setSummary(null);
+      }
+    });
   }, [patientId]);
 
   const handleRefresh = () => {
     if (!patientId) return;
-    setIsLoading(true);
-    setTimeout(() => {
-      setSummary(generateMockSummary(patientId));
-      setIsLoading(false);
-    }, 800);
+    startTransition(async () => {
+      try {
+        const result = await getPatientSummaryAction({ patientId });
+        setSummary(result);
+      } catch {
+        // Keep existing summary on error
+      }
+    });
   };
 
   if (!patientId) {

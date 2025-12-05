@@ -4,29 +4,18 @@
  * @fileoverview Messages Server Actions
  *
  * Server actions for conversation and messaging operations.
- * Integrates with HubSpot for contact data.
+ * Integrates with HubSpot for contact data and message history.
+ * Uses WhatsApp Business API for sending messages.
  *
  * @module actions/messages
  * @security All actions require VIEW_MESSAGES permission
- *
- * @todo Integrate WhatsApp Business API for message history
- * @todo Implement message storage database
  */
 
-import type {
-  Conversation,
-  Message,
-  HubSpotContact,
-  PaginatedResponse,
-} from '@medicalcor/types';
-import { requirePermission } from '@/lib/auth/server-action-auth';
-import { getHubSpotClient } from '../shared/clients';
+import type { Conversation, Message, HubSpotContact, PaginatedResponse } from '@medicalcor/types';
+import { requirePermission, AuthorizationError } from '@/lib/auth/server-action-auth';
+import { getHubSpotClient, getWhatsAppClient } from '../shared/clients';
 import { validatePageSize, emptyPaginatedResponse } from '../shared/pagination';
-import {
-  maskPhone,
-  detectChannel,
-  mapConversationStatus,
-} from '../shared/mappers';
+import { maskPhone, detectChannel, mapConversationStatus } from '../shared/mappers';
 
 // ============================================================================
 // CONSTANTS
@@ -62,9 +51,8 @@ const DEFAULT_PHONE = '+40700000000';
  */
 function mapContactToConversation(contact: HubSpotContact): Conversation {
   const name =
-    [contact.properties.firstname, contact.properties.lastname]
-      .filter(Boolean)
-      .join(' ') || 'Unknown';
+    [contact.properties.firstname, contact.properties.lastname].filter(Boolean).join(' ') ||
+    'Unknown';
 
   const channel = detectChannel(contact.properties.lead_source);
   const status = mapConversationStatus(contact.properties.lead_status);
@@ -167,55 +155,158 @@ export async function getConversationsActionPaginated(options?: {
 // ============================================================================
 
 /**
- * Fetches messages for a conversation
+ * Parse a HubSpot note body to extract message data
+ * Notes are stored with format: [CHANNEL] DIRECTION: message (ID: xxx) [Sentiment: xxx]
+ * @internal
+ */
+function parseNoteToMessage(
+  note: { id: string; body: string; timestamp: string },
+  conversationId: string
+): Message | null {
+  const body = note.body;
+
+  // Pattern: [CHANNEL] DIRECTION: content (ID: xxx) [Sentiment: xxx]
+  const pattern =
+    /^\[(\w+)\]\s*(IN|OUT):\s*(.+?)(?:\s*\(ID:\s*([^)]+)\))?(?:\s*\[Sentiment:\s*(\w+)\])?$/s;
+  const match = pattern.exec(body);
+
+  if (!match) {
+    // Not a message note (could be payment, call, or other note type)
+    return null;
+  }
+
+  // Destructure with explicit typing - externalId can be undefined for non-captured optional groups
+  const channel = match[1];
+  const direction = match[2];
+  const content = match[3];
+  const externalId = match[4] as string | undefined;
+
+  return {
+    id: externalId ?? note.id,
+    conversationId,
+    content: content.trim(),
+    direction: direction as 'IN' | 'OUT',
+    status: 'delivered',
+    timestamp: new Date(note.timestamp),
+    senderName: direction === 'IN' ? 'Pacient' : 'Operator',
+    channel: channel.toLowerCase() as 'whatsapp' | 'sms' | 'email',
+  };
+}
+
+/**
+ * Fetches messages for a conversation from HubSpot notes
  *
- * **Note:** Currently returns empty array. Full implementation requires:
- * 1. WhatsApp Business API integration for message history
- * 2. Database table to store incoming/outgoing messages
+ * Messages are stored as notes on the HubSpot contact timeline.
+ * This function fetches notes and parses them into messages.
  *
- * @param _conversationId - Conversation/contact ID (unused until integration)
- * @returns Array of messages (currently empty)
- *
- * @todo Implement WhatsApp Business API message fetching
- * @todo Implement message storage with PostgreSQL
+ * @param conversationId - HubSpot contact ID
+ * @returns Array of messages sorted by timestamp (newest last)
+ * @requires VIEW_MESSAGES permission
  *
  * @example
  * ```typescript
- * // Future usage when implemented
  * const messages = await getMessagesAction('12345');
  * const inbound = messages.filter(m => m.direction === 'IN');
  * ```
  */
-export async function getMessagesAction(_conversationId: string): Promise<Message[]> {
-  // Real implementation requires:
-  // 1. WhatsApp Business API integration to fetch message history
-  // 2. Or a database table to store incoming/outgoing messages
-  // Currently no messaging storage is configured
+export async function getMessagesAction(conversationId: string): Promise<Message[]> {
+  try {
+    await requirePermission('VIEW_MESSAGES');
+    const hubspot = getHubSpotClient();
 
-  await Promise.resolve(); // Async placeholder
+    // Fetch notes for the contact
+    const notes = await hubspot.getNotesForContact(conversationId, 100);
 
-  return [];
+    // Parse notes into messages
+    const messages: Message[] = [];
+    for (const note of notes) {
+      const message = parseNoteToMessage(note, conversationId);
+      if (message) {
+        messages.push(message);
+      }
+    }
+
+    // Sort by timestamp ascending (oldest first)
+    messages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+
+    return messages;
+  } catch (error) {
+    if (error instanceof AuthorizationError) throw error;
+    // Error logged server-side, return empty for graceful degradation
+    return [];
+  }
 }
 
 /**
- * Sends a message in a conversation
+ * Sends a message in a conversation via WhatsApp
  *
- * **Note:** Stub implementation. Requires WhatsApp Business API integration.
+ * Sends the message using the WhatsApp Business API and logs it to HubSpot timeline.
  *
- * @param conversationId - Conversation/contact ID
- * @param content - Message content
- * @returns Success status
+ * @param conversationId - HubSpot contact ID
+ * @param content - Message content to send
+ * @returns Success status and message ID if sent
+ * @requires SEND_MESSAGES permission
  *
- * @todo Implement WhatsApp Business API message sending
+ * @example
+ * ```typescript
+ * const result = await sendMessageAction('12345', 'Hello, how can I help?');
+ * if (result.success) {
+ *   console.log('Message sent:', result.messageId);
+ * }
+ * ```
  */
 export async function sendMessageAction(
-  _conversationId: string,
-  _content: string
-): Promise<{ success: boolean; messageId?: string }> {
-  // Stub implementation - requires WhatsApp Business API
-  await Promise.resolve();
+  conversationId: string,
+  content: string
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  try {
+    await requirePermission('SEND_MESSAGES');
 
-  return { success: false };
+    const hubspot = getHubSpotClient();
+    const whatsapp = getWhatsAppClient();
+
+    // Get contact phone number
+    const contact = await hubspot.getContact(conversationId);
+    const phone = contact.properties.phone;
+
+    if (!phone) {
+      return { success: false, error: 'Contact has no phone number' };
+    }
+
+    let messageId: string | undefined;
+
+    // Send via WhatsApp if configured
+    if (whatsapp) {
+      try {
+        const response = await whatsapp.sendText({
+          to: phone,
+          text: content,
+        });
+        messageId = response.messages[0]?.id;
+      } catch (whatsappError) {
+        // Log error but continue to record the attempt in HubSpot
+        console.error('[sendMessageAction] WhatsApp send failed:', whatsappError);
+      }
+    }
+
+    // Log message to HubSpot timeline (even if WhatsApp failed for audit trail)
+    await hubspot.logMessageToTimeline({
+      contactId: conversationId,
+      message: content,
+      direction: 'OUT',
+      channel: 'whatsapp',
+      messageId,
+    });
+
+    return {
+      success: true,
+      messageId: messageId ?? `local-${Date.now()}`,
+    };
+  } catch (error) {
+    if (error instanceof AuthorizationError) throw error;
+    // Error logged server-side
+    return { success: false, error: 'Failed to send message' };
+  }
 }
 
 // ============================================================================

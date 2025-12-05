@@ -1,13 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { Lightbulb, Copy, Check, Zap, RefreshCw, Loader2 } from 'lucide-react';
-import {
-  type ChatContext,
-  quickReplies,
-  generateMockSuggestions,
-  type ResponseSuggestion,
-} from '@/lib/ai';
+import type { ChatContext, ResponseSuggestion, QuickReply } from '@/lib/ai';
+import { getAISuggestionsAction } from '@/app/actions/ai-copilot';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -33,34 +29,53 @@ const toneLabels = {
 
 export function SmartSuggestions({ context, onSelect }: SmartSuggestionsProps) {
   const [suggestions, setSuggestions] = useState<ResponseSuggestion[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [replies, setReplies] = useState<QuickReply[]>([]);
+  const [isLoading, startTransition] = useTransition();
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Generate suggestions based on context
   useEffect(() => {
-    setIsLoading(true);
-    // Simulate API call
-    const timer = setTimeout(() => {
-      const lastMessage = context?.currentConversation?.slice(-1)[0];
-      const mockSuggestions = generateMockSuggestions({
-        currentMessage: lastMessage?.direction === 'IN' ? lastMessage.content : undefined,
-      });
-      setSuggestions(mockSuggestions);
-      setIsLoading(false);
-    }, 500);
+    const lastMessage = context?.currentConversation?.slice(-1)[0];
+    const conversationHistory = context?.currentConversation?.map((msg) => ({
+      role: msg.direction === 'IN' ? 'user' : 'assistant',
+      content: msg.content,
+    }));
 
-    return () => clearTimeout(timer);
-  }, [context?.currentConversation]);
+    startTransition(async () => {
+      try {
+        const result = await getAISuggestionsAction({
+          currentMessage: lastMessage?.direction === 'IN' ? lastMessage.content : undefined,
+          conversationHistory,
+          patientName: context?.patientName,
+        });
+        setSuggestions(result.suggestions);
+        setReplies(result.quickReplies);
+      } catch {
+        // Keep existing suggestions on error
+      }
+    });
+  }, [context?.currentConversation, context?.patientName]);
 
   const handleRefresh = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      const newSuggestions = generateMockSuggestions({
-        currentMessage: context?.currentConversation?.slice(-1)[0]?.content,
-      });
-      setSuggestions(newSuggestions);
-      setIsLoading(false);
-    }, 500);
+    const lastMessage = context?.currentConversation?.slice(-1)[0];
+    const conversationHistory = context?.currentConversation?.map((msg) => ({
+      role: msg.direction === 'IN' ? 'user' : 'assistant',
+      content: msg.content,
+    }));
+
+    startTransition(async () => {
+      try {
+        const result = await getAISuggestionsAction({
+          currentMessage: lastMessage?.content,
+          conversationHistory,
+          patientName: context?.patientName,
+        });
+        setSuggestions(result.suggestions);
+        setReplies(result.quickReplies);
+      } catch {
+        // Keep existing suggestions on error
+      }
+    });
   };
 
   const handleCopy = (content: string, id: string) => {
@@ -156,7 +171,7 @@ export function SmartSuggestions({ context, onSelect }: SmartSuggestionsProps) {
             Răspunsuri Rapide
           </h4>
           <div className="grid grid-cols-2 gap-2">
-            {quickReplies.slice(0, 6).map((reply) => (
+            {replies.slice(0, 6).map((reply) => (
               <button
                 key={reply.id}
                 onClick={() => handleSelect(reply.content)}

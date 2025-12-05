@@ -16,6 +16,7 @@ import 'server-only';
 import {
   HubSpotClient,
   StripeClient,
+  WhatsAppClient,
   type MockStripeClient,
   createMockStripeClient,
 } from '@medicalcor/integrations';
@@ -57,6 +58,7 @@ export const MAX_FETCH_RESULTS = 5000 as const;
 let hubspotClient: HubSpotClient | null = null;
 let stripeClient: StripeClient | MockStripeClient | null = null;
 let schedulingService: ISchedulingRepository | null = null;
+let whatsappClient: WhatsAppClient | null = null;
 
 // ============================================================================
 // CLIENT FACTORY FUNCTIONS
@@ -112,32 +114,118 @@ export function getStripeClient(): StripeClient | MockStripeClient {
 }
 
 /**
- * Mock Scheduling Repository for Web App
- * NOTE: In production, this should be replaced with actual database calls
- * through an API layer, not direct database access from Next.js server actions
+ * API-based Scheduling Repository for Web App
+ * Calls the backend API for scheduling operations (proper separation of concerns)
  */
-class MockSchedulingRepository implements ISchedulingRepository {
-  getAvailableSlots(_options: string | GetAvailableSlotsOptions): Promise<TimeSlot[]> {
-    // Mock implementation - return empty array for now
-    // TODO: Replace with API call to backend service
-    return Promise.resolve([]);
+class APISchedulingRepository implements ISchedulingRepository {
+  private apiBaseUrl: string;
+
+  constructor() {
+    // Use internal API URL for server-to-server communication
+    // Fall through empty strings by checking length
+    const internalUrl = process.env.API_INTERNAL_URL;
+    const publicUrl = process.env.NEXT_PUBLIC_API_URL;
+    this.apiBaseUrl =
+      internalUrl && internalUrl.length > 0
+        ? internalUrl
+        : publicUrl && publicUrl.length > 0
+          ? publicUrl
+          : 'http://localhost:3000';
   }
 
-  bookAppointment(_request: BookingRequest): Promise<BookingResult> {
-    // Mock implementation
-    // TODO: Replace with API call to backend service
-    return Promise.reject(new Error('Booking not implemented in web app - use API endpoint'));
+  async getAvailableSlots(options: string | GetAvailableSlotsOptions): Promise<TimeSlot[]> {
+    const opts = typeof options === 'string' ? { procedureType: options } : options;
+
+    try {
+      const params = new URLSearchParams();
+      if (opts.procedureType) params.append('procedureType', opts.procedureType);
+      if (opts.limit) params.append('limit', opts.limit.toString());
+      if (opts.preferredDates?.length) {
+        params.append('preferredDates', opts.preferredDates.join(','));
+      }
+
+      const response = await fetch(`${this.apiBaseUrl}/api/scheduling/slots?${params}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Internal-Request': 'true',
+        },
+        // Don't cache scheduling data
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        // API not available - return empty slots (graceful degradation)
+        if (response.status === 404 || response.status === 503) {
+          return [];
+        }
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = (await response.json()) as { slots?: TimeSlot[] };
+      return data.slots ?? [];
+    } catch (error) {
+      // Network error or API unavailable - return empty slots
+      console.error('[scheduling] Failed to fetch available slots:', error);
+      return [];
+    }
   }
 
-  getUpcomingAppointments(_startDate: Date, _endDate: Date): Promise<AppointmentDetails[]> {
-    // Mock implementation - return empty array for now
-    // TODO: Replace with API call to backend service
-    return Promise.resolve([]);
+  async bookAppointment(request: BookingRequest): Promise<BookingResult> {
+    const response = await fetch(`${this.apiBaseUrl}/api/scheduling/book`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Internal-Request': 'true',
+      },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({ message: 'Booking failed' }))) as {
+        message?: string;
+      };
+      throw new Error(error.message ?? 'Booking failed');
+    }
+
+    return response.json() as Promise<BookingResult>;
+  }
+
+  async getUpcomingAppointments(startDate: Date, endDate: Date): Promise<AppointmentDetails[]> {
+    try {
+      const params = new URLSearchParams({
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+      });
+
+      const response = await fetch(`${this.apiBaseUrl}/api/scheduling/appointments?${params}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Internal-Request': 'true',
+        },
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        if (response.status === 404 || response.status === 503) {
+          return [];
+        }
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = (await response.json()) as { appointments?: AppointmentDetails[] };
+      return data.appointments ?? [];
+    } catch (error) {
+      console.error('[scheduling] Failed to fetch upcoming appointments:', error);
+      return [];
+    }
   }
 }
 
 /**
  * Get or create Scheduling service instance
+ * Uses API-based implementation that calls backend scheduling endpoints
  * @returns {ISchedulingRepository} Singleton scheduling service instance
  *
  * @example
@@ -147,8 +235,40 @@ class MockSchedulingRepository implements ISchedulingRepository {
  * ```
  */
 export function getSchedulingService(): ISchedulingRepository {
-  schedulingService ??= new MockSchedulingRepository();
+  schedulingService ??= new APISchedulingRepository();
   return schedulingService;
+}
+
+/**
+ * Get or create WhatsApp client instance
+ * Returns null if WhatsApp is not configured
+ * @returns {WhatsAppClient | null} Singleton WhatsApp client instance or null
+ *
+ * @example
+ * ```typescript
+ * const whatsapp = getWhatsAppClient();
+ * if (whatsapp) {
+ *   await whatsapp.sendText({ to: '+40712345678', text: 'Hello!' });
+ * }
+ * ```
+ */
+export function getWhatsAppClient(): WhatsAppClient | null {
+  if (!whatsappClient) {
+    const apiKey = process.env.WHATSAPP_API_KEY;
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+
+    if (!apiKey || !phoneNumberId) {
+      // WhatsApp not configured - return null for graceful degradation
+      return null;
+    }
+
+    whatsappClient = new WhatsAppClient({
+      apiKey,
+      phoneNumberId,
+      webhookSecret: process.env.WHATSAPP_WEBHOOK_SECRET,
+    });
+  }
+  return whatsappClient;
 }
 
 // ============================================================================
@@ -163,4 +283,5 @@ export function resetClients(): void {
   hubspotClient = null;
   stripeClient = null;
   schedulingService = null;
+  whatsappClient = null;
 }
