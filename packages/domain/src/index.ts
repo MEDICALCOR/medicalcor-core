@@ -151,6 +151,35 @@ export * from './patient-acquisition/index.js';
 // OSAX Context - Obstructive Sleep Apnea case management
 export * from './osax/index.js';
 
+// AllOnX Context - ONE STEP ALL ON X dental implant case management
+// Full-arch rehabilitation (All-on-4, All-on-6) procedures
+// NOTE: Import directly from '@medicalcor/domain/allonx' to avoid naming conflicts with OSAX
+// Example: import { AllOnXClinicalScore, calculateScore } from '@medicalcor/domain/allonx';
+export {
+  // Core Value Object
+  AllOnXClinicalScore,
+  InvalidAllOnXScoreError,
+  isAllOnXClinicalScore,
+
+  // Entity
+  createAllOnXCase,
+
+  // Types - prefixed to avoid conflicts
+  type AllOnXClinicalIndicators,
+  type AllOnXClinicalScoreDTO,
+  type AllOnXEligibility,
+  type AllOnXRiskLevel,
+  type AllOnXComplexity,
+  type AllOnXTreatmentRecommendation,
+  type AllOnXProcedureType,
+  type AllOnXCase,
+  type AllOnXCaseStatus,
+  type AllOnXScoringResult,
+  type AllOnXRiskFlag,
+  type TreatmentPlanningResult,
+  type IAllOnXCaseRepository,
+} from './allonx/index.js';
+
 // ============================================================================
 // LEGACY DOMAIN SERVICES (being migrated to use cases)
 // ============================================================================
