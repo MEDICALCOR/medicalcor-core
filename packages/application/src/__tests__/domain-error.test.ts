@@ -101,6 +101,10 @@ describe('DomainError', () => {
       expect(new DomainError('e', 'm', {}, ErrorSeverity.MEDIUM).isCritical()).toBe(false);
       expect(new DomainError('e', 'm', {}, ErrorSeverity.HIGH).isCritical()).toBe(false);
       expect(new DomainError('e', 'm', {}, ErrorSeverity.CRITICAL).isCritical()).toBe(true);
+    });
+  });
+});
+
 describe('DomainError', () => {
   describe('constructor', () => {
     it('should create error with required fields', () => {
@@ -149,6 +153,17 @@ describe('DomainError', () => {
         { field: 'value' },
         ErrorSeverity.HIGH,
         'corr-123'
+      );
+
+      const json = error.toJSON();
+
+      expect(json.code).toBe('test.error');
+      expect(json.message).toBe('Test message');
+      expect(json.details).toEqual({ field: 'value' });
+      expect(json.severity).toBe(ErrorSeverity.HIGH);
+      expect(json.correlationId).toBe('corr-123');
+    });
+
     it('should convert error to JSON', () => {
       const error = new DomainError(
         'test.code',
@@ -161,11 +176,11 @@ describe('DomainError', () => {
       const json = error.toJSON();
 
       expect(json.name).toBe('DomainError');
-      expect(json.code).toBe('test.error');
+      expect(json.code).toBe('test.code');
       expect(json.message).toBe('Test message');
-      expect(json.details).toEqual({ field: 'value' });
+      expect(json.details).toEqual({ extra: 'data' });
       expect(json.severity).toBe(ErrorSeverity.HIGH);
-      expect(json.correlationId).toBe('corr-123');
+      expect(json.correlationId).toBe('corr-456');
       expect(json.stack).toBeDefined();
     });
 
@@ -207,6 +222,27 @@ describe('DomainError', () => {
         { sensitive: 'data', internal: 'details' },
         ErrorSeverity.HIGH,
         'corr-123'
+      );
+
+      const clientJson = error.toClientJSON();
+
+      expect(clientJson.code).toBe('test.error');
+      expect(clientJson.message).toBe('Test message');
+      expect(clientJson.correlationId).toBe('corr-123');
+      expect(clientJson).not.toHaveProperty('stack');
+      expect(clientJson).not.toHaveProperty('details');
+    });
+  });
+
+  describe('toClientJSON extended', () => {
+    it('should verify JSON structure', () => {
+      const json = new DomainError(
+        'test.code',
+        'Test message',
+        { extra: 'data' },
+        ErrorSeverity.HIGH,
+        'corr-456'
+      ).toJSON();
       expect(json.code).toBe('test.code');
       expect(json.message).toBe('Test message');
       expect(json.details).toEqual({ extra: 'data' });
@@ -228,9 +264,9 @@ describe('DomainError', () => {
 
       const clientJson = error.toClientJSON();
 
-      expect(clientJson.code).toBe('test.error');
+      expect(clientJson.code).toBe('test.code');
       expect(clientJson.message).toBe('Test message');
-      expect(clientJson.correlationId).toBe('corr-123');
+      expect(clientJson.correlationId).toBe('corr-789');
       expect(clientJson).not.toHaveProperty('stack');
       expect(clientJson).not.toHaveProperty('details');
       expect(clientJson).not.toHaveProperty('severity');
@@ -615,12 +651,6 @@ describe('DomainError', () => {
 
       expect(securityErrors.length).toBe(2);
       expect(businessRuleErrors.length).toBe(1);
-    });
-      expect(clientJson.code).toBe('test.code');
-      expect(clientJson.message).toBe('Test message');
-      expect(clientJson.correlationId).toBe('corr-789');
-      expect(clientJson.stack).toBeUndefined();
-      expect(clientJson.details).toBeUndefined();
     });
   });
 
