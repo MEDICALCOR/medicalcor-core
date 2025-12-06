@@ -224,6 +224,9 @@ export * from './ltv/index.js';
 // Disposition - Call Outcome Tracking (M1 Production Fix)
 export * from './disposition/index.js';
 
+// Routing - Skill-Based Agent Routing (H6 Milestone)
+export * from './routing/index.js';
+
 // ============================================================================
 // SHARED TYPES & UTILITIES
 // ============================================================================
