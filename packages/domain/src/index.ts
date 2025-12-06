@@ -170,10 +170,6 @@ export {
   InvalidStatusTransitionError,
 } from './leads/index.js';
 
-// OSAX Context - Oral Surgery Auxiliary eXtension case management
-// OSAX Context - Obstructive Sleep Apnea case management
-export * from './osax/index.js';
-
 // AllOnX Context - ONE STEP ALL ON X dental implant case management
 // Full-arch rehabilitation (All-on-4, All-on-6) procedures
 // Example: import { AllOnXClinicalScore, calculateScore } from '@medicalcor/domain/allonx';
@@ -231,6 +227,9 @@ export * from './disposition/index.js';
 export * from './routing/index.js';
 // Agent Performance (M7 Milestone)
 export * from './agent-performance/index.js';
+
+// Retention Scoring (M8 Milestone)
+export * from './retention/index.js';
 
 // ============================================================================
 // SHARED TYPES & UTILITIES

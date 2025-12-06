@@ -103,6 +103,9 @@ export {
   type ErasureOptions,
 } from './gdpr-erasure.js';
 
+// Pattern Detection Service (M5: Behavioral Insights)
+export { PatternDetector, createPatternDetector } from './pattern-detector.js';
+
 // =============================================================================
 // Factory Function
 // =============================================================================
@@ -110,6 +113,7 @@ export {
 import type { Pool } from 'pg';
 import { EpisodeBuilder, type IOpenAIClient, type IEmbeddingService } from './episode-builder.js';
 import { MemoryRetrievalService } from './memory-retrieval.js';
+import { PatternDetector } from './pattern-detector.js';
 import type { CognitiveSystemConfig } from './types.js';
 
 /**
@@ -134,6 +138,8 @@ export interface CognitiveSystem {
   episodeBuilder: EpisodeBuilder;
   /** Memory retrieval service for querying episodic memory */
   memoryRetrieval: MemoryRetrievalService;
+  /** Pattern detector for behavioral insights (M5) */
+  patternDetector: PatternDetector;
 }
 
 /**
@@ -165,8 +171,11 @@ export function createCognitiveSystem(deps: CognitiveSystemDependencies): Cognit
 
   const memoryRetrieval = new MemoryRetrievalService(deps.pool, deps.embeddings, deps.config);
 
+  const patternDetector = new PatternDetector(deps.pool, deps.openai, deps.config);
+
   return {
     episodeBuilder,
     memoryRetrieval,
+    patternDetector,
   };
 }

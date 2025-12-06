@@ -326,3 +326,88 @@ export {
   type RoutingDecision,
   type SkillRoutingConfig,
 } from './agent-skills.js';
+// Retention Scoring Schemas (M8 Milestone)
+// =============================================================================
+export {
+  // Risk & Priority Levels
+  ChurnRiskLevelSchema,
+  FollowUpPrioritySchema,
+  RetentionClassificationSchema,
+  // Input Metrics
+  RetentionMetricsInputSchema,
+  ExtendedRetentionMetricsSchema,
+  // Score Output
+  RetentionScoreResultSchema,
+  RetentionScoreBreakdownSchema,
+  RetentionScoringOutputSchema,
+  // Patient Context
+  PatientRetentionContextSchema,
+  // Request/Response
+  ScorePatientRetentionRequestSchema,
+  BatchRetentionScoringRequestSchema,
+  RetentionScoringResponseSchema,
+  BatchRetentionScoringResultSchema,
+  // Events
+  ChurnRiskDetectedEventSchema,
+  BatchScoringCompletedEventSchema,
+  // Types
+  type ChurnRiskLevel,
+  type FollowUpPriority,
+  type RetentionClassification,
+  type RetentionMetricsInput,
+  type ExtendedRetentionMetrics,
+  type RetentionScoreResult,
+  type RetentionScoreBreakdown,
+  type RetentionScoringOutput,
+  type PatientRetentionContext,
+  type ScorePatientRetentionRequest,
+  type BatchRetentionScoringRequest,
+  type RetentionScoringResponse,
+  type BatchRetentionScoringResult,
+  type ChurnRiskDetectedEvent,
+  type BatchScoringCompletedEvent,
+} from './retention.js';
+// NPS (Net Promoter Score) Schemas (M11 Milestone)
+// =============================================================================
+export {
+  // Score & Classification
+  NPSScoreSchema,
+  NPSClassificationSchema,
+  NPSSurveyStatusSchema,
+  NPSTriggerTypeSchema,
+  NPSSurveyChannelSchema,
+  // Survey Request/Response
+  NPSSurveyRequestSchema,
+  NPSResponseSchema,
+  NPSSurveyRecordSchema,
+  // Workflow Payloads
+  NPSCollectionPayloadSchema,
+  NPSResponseProcessingPayloadSchema,
+  NPSFollowUpPayloadSchema,
+  // Analytics
+  NPSScoreDistributionSchema,
+  NPSSummaryStatsSchema,
+  NPSTrendPointSchema,
+  NPSDashboardDataSchema,
+  // Helper Functions
+  classifyNPSScore,
+  calculateNPS,
+  requiresImmediateFollowUp,
+  getFollowUpPriority,
+  // Types
+  type NPSScore,
+  type NPSClassification,
+  type NPSSurveyStatus,
+  type NPSTriggerType,
+  type NPSSurveyChannel,
+  type NPSSurveyRequest,
+  type NPSResponse,
+  type NPSSurveyRecord,
+  type NPSCollectionPayload,
+  type NPSResponseProcessingPayload,
+  type NPSFollowUpPayload,
+  type NPSScoreDistribution,
+  type NPSSummaryStats,
+  type NPSTrendPoint,
+  type NPSDashboardData,
+} from './nps.js';

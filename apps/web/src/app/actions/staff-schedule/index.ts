@@ -51,6 +51,66 @@ export interface ScheduleStats {
   onSick: number;
 }
 
+// =============================================================================
+// M12: Capacity Planning Types
+// =============================================================================
+
+export interface CapacityMetrics {
+  date: string;
+  dayOfWeek: string;
+  scheduledStaff: number;
+  requiredStaff: number;
+  utilizationRate: number;
+  status: 'understaffed' | 'optimal' | 'overstaffed';
+  gap: number;
+  predictedAppointments: number;
+}
+
+export interface DemandForecast {
+  date: string;
+  predictedAppointments: number;
+  predictedCalls: number;
+  recommendedStaff: number;
+  confidence: number;
+  historicalAvg: number;
+  trend: 'increasing' | 'stable' | 'decreasing';
+}
+
+export interface StaffingRecommendation {
+  date: string;
+  dayOfWeek: string;
+  currentStaff: number;
+  recommendedStaff: number;
+  gap: number;
+  priority: 'critical' | 'high' | 'medium' | 'low';
+  reason: string;
+  suggestedActions: string[];
+}
+
+export interface ShiftConflict {
+  staffId: string;
+  staffName: string;
+  date: string;
+  conflictType: 'double_booking' | 'insufficient_rest' | 'overtime_exceeded' | 'consecutive_days';
+  description: string;
+  shifts: { id: string; type: string; start: string; end: string }[];
+}
+
+export interface CapacityDashboardData {
+  weeklyCapacity: CapacityMetrics[];
+  demandForecast: DemandForecast[];
+  recommendations: StaffingRecommendation[];
+  conflicts: ShiftConflict[];
+  summary: {
+    avgUtilization: number;
+    understaffedDays: number;
+    overstaffedDays: number;
+    totalConflicts: number;
+    weeklyHoursScheduled: number;
+    weeklyHoursRequired: number;
+  };
+}
+
 // Alias for page compatibility
 export type Shift = StaffShift;
 
@@ -402,5 +462,321 @@ export async function copyWeekScheduleAction(
   } catch (error) {
     console.error('Error copying week schedule:', error);
     return { success: false, copiedCount: 0, error: 'Failed to copy schedule' };
+  }
+}
+
+// =============================================================================
+// M12: Capacity Planning Actions
+// =============================================================================
+
+const DAY_NAMES = ['Duminică', 'Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri', 'Sâmbătă'];
+
+// Base staffing requirements by day of week (index 0 = Sunday)
+const BASE_STAFF_REQUIREMENTS = [2, 5, 6, 6, 6, 5, 3];
+
+// Average appointments per staff member per day
+const APPOINTMENTS_PER_STAFF = 8;
+
+/**
+ * Get capacity planning dashboard data
+ */
+export async function getCapacityDashboardAction(
+  weekStartDate: string
+): Promise<CapacityDashboardData> {
+  try {
+    await requirePermission('staff:read');
+
+    const weekStart = new Date(weekStartDate);
+    const weeklyCapacity: CapacityMetrics[] = [];
+    const demandForecast: DemandForecast[] = [];
+    const recommendations: StaffingRecommendation[] = [];
+
+    // Generate data for 7 days
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(weekStart);
+      date.setDate(date.getDate() + i);
+      const dateStr = date.toISOString().split('T')[0] ?? '';
+      const dayOfWeek = date.getDay();
+      const dayName = DAY_NAMES[dayOfWeek] ?? '';
+
+      // Simulate scheduled staff (would come from database in production)
+      const scheduledStaff = Math.floor(3 + Math.random() * 4);
+      const requiredStaff = BASE_STAFF_REQUIREMENTS[dayOfWeek] ?? 5;
+      const gap = scheduledStaff - requiredStaff;
+      const utilizationRate = requiredStaff > 0 ? Math.round((scheduledStaff / requiredStaff) * 100) : 0;
+
+      let status: CapacityMetrics['status'] = 'optimal';
+      if (utilizationRate < 80) status = 'understaffed';
+      else if (utilizationRate > 120) status = 'overstaffed';
+
+      // Predicted appointments
+      const predictedAppointments = Math.round(requiredStaff * APPOINTMENTS_PER_STAFF * (0.8 + Math.random() * 0.4));
+
+      weeklyCapacity.push({
+        date: dateStr,
+        dayOfWeek: dayName,
+        scheduledStaff,
+        requiredStaff,
+        utilizationRate,
+        status,
+        gap,
+        predictedAppointments,
+      });
+
+      // Demand forecast
+      const historicalAvg = requiredStaff * APPOINTMENTS_PER_STAFF;
+      const trendVariation = Math.random() - 0.5;
+      let trend: DemandForecast['trend'] = 'stable';
+      if (trendVariation > 0.2) trend = 'increasing';
+      else if (trendVariation < -0.2) trend = 'decreasing';
+
+      demandForecast.push({
+        date: dateStr,
+        predictedAppointments,
+        predictedCalls: Math.round(predictedAppointments * 0.3),
+        recommendedStaff: requiredStaff,
+        confidence: 0.75 + Math.random() * 0.2,
+        historicalAvg,
+        trend,
+      });
+
+      // Generate recommendations for understaffed days
+      if (status === 'understaffed') {
+        let priority: StaffingRecommendation['priority'] = 'medium';
+        if (gap <= -3) priority = 'critical';
+        else if (gap <= -2) priority = 'high';
+
+        const suggestedActions: string[] = [];
+        if (gap <= -2) {
+          suggestedActions.push('Contactează personal pe gardă');
+          suggestedActions.push('Consideră reprogramarea programărilor non-urgente');
+        }
+        if (gap <= -1) {
+          suggestedActions.push('Verifică disponibilitatea personalului part-time');
+        }
+        suggestedActions.push('Extinde programul personalului existent');
+
+        recommendations.push({
+          date: dateStr,
+          dayOfWeek: dayName,
+          currentStaff: scheduledStaff,
+          recommendedStaff: requiredStaff,
+          gap,
+          priority,
+          reason: `Lipsă de ${Math.abs(gap)} ${Math.abs(gap) === 1 ? 'angajat' : 'angajați'} pentru cererea estimată`,
+          suggestedActions,
+        });
+      }
+    }
+
+    // Generate mock conflicts
+    const conflicts: ShiftConflict[] = [];
+    if (Math.random() > 0.5) {
+      conflicts.push({
+        staffId: 'staff-1',
+        staffName: 'Dr. Maria Popescu',
+        date: weeklyCapacity[2]?.date ?? '',
+        conflictType: 'consecutive_days',
+        description: '7 zile consecutive de muncă fără pauză',
+        shifts: [
+          { id: 's1', type: 'regular', start: '08:00', end: '16:00' },
+          { id: 's2', type: 'regular', start: '08:00', end: '16:00' },
+        ],
+      });
+    }
+    if (Math.random() > 0.6) {
+      conflicts.push({
+        staffId: 'staff-2',
+        staffName: 'Alexandru Ionescu',
+        date: weeklyCapacity[4]?.date ?? '',
+        conflictType: 'overtime_exceeded',
+        description: 'Ore suplimentare depășite (52h/săptămână)',
+        shifts: [
+          { id: 's3', type: 'regular', start: '08:00', end: '20:00' },
+        ],
+      });
+    }
+
+    // Calculate summary
+    const understaffedDays = weeklyCapacity.filter(c => c.status === 'understaffed').length;
+    const overstaffedDays = weeklyCapacity.filter(c => c.status === 'overstaffed').length;
+    const avgUtilization = Math.round(
+      weeklyCapacity.reduce((sum, c) => sum + c.utilizationRate, 0) / weeklyCapacity.length
+    );
+    const weeklyHoursScheduled = weeklyCapacity.reduce((sum, c) => sum + c.scheduledStaff * 8, 0);
+    const weeklyHoursRequired = weeklyCapacity.reduce((sum, c) => sum + c.requiredStaff * 8, 0);
+
+    return {
+      weeklyCapacity,
+      demandForecast,
+      recommendations: recommendations.sort((a, b) => {
+        const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+        return priorityOrder[a.priority] - priorityOrder[b.priority];
+      }),
+      conflicts,
+      summary: {
+        avgUtilization,
+        understaffedDays,
+        overstaffedDays,
+        totalConflicts: conflicts.length,
+        weeklyHoursScheduled,
+        weeklyHoursRequired,
+      },
+    };
+  } catch (error) {
+    console.error('Error fetching capacity dashboard:', error);
+    return {
+      weeklyCapacity: [],
+      demandForecast: [],
+      recommendations: [],
+      conflicts: [],
+      summary: {
+        avgUtilization: 0,
+        understaffedDays: 0,
+        overstaffedDays: 0,
+        totalConflicts: 0,
+        weeklyHoursScheduled: 0,
+        weeklyHoursRequired: 0,
+      },
+    };
+  }
+}
+
+/**
+ * Detect shift conflicts for a date range
+ */
+export async function detectShiftConflictsAction(
+  startDate: string,
+  endDate: string
+): Promise<ShiftConflict[]> {
+  try {
+    await requirePermission('staff:read');
+
+    // In production, this would query the database for:
+    // 1. Double bookings (same staff, overlapping times)
+    // 2. Insufficient rest (< 11 hours between shifts)
+    // 3. Overtime exceeded (> 48 hours per week)
+    // 4. Too many consecutive working days (> 6)
+
+    // Mock conflicts for demo
+    const conflicts: ShiftConflict[] = [];
+
+    if (Math.random() > 0.5) {
+      conflicts.push({
+        staffId: 'staff-1',
+        staffName: 'Dr. Elena Stanescu',
+        date: startDate,
+        conflictType: 'insufficient_rest',
+        description: 'Doar 8 ore între turele de noapte și zi',
+        shifts: [
+          { id: 's1', type: 'night', start: '22:00', end: '06:00' },
+          { id: 's2', type: 'morning', start: '14:00', end: '22:00' },
+        ],
+      });
+    }
+
+    return conflicts;
+  } catch (error) {
+    console.error('Error detecting conflicts:', error);
+    return [];
+  }
+}
+
+/**
+ * Get staffing recommendations for a specific date
+ */
+export async function getStaffingRecommendationsAction(
+  date: string
+): Promise<StaffingRecommendation[]> {
+  try {
+    await requirePermission('staff:read');
+
+    const dateObj = new Date(date);
+    const dayOfWeek = dateObj.getDay();
+    const dayName = DAY_NAMES[dayOfWeek] ?? '';
+    const requiredStaff = BASE_STAFF_REQUIREMENTS[dayOfWeek] ?? 5;
+
+    // Mock current scheduled staff
+    const currentStaff = Math.floor(2 + Math.random() * 4);
+    const gap = currentStaff - requiredStaff;
+
+    if (gap >= 0) {
+      return []; // No understaffing
+    }
+
+    let priority: StaffingRecommendation['priority'] = 'low';
+    if (gap <= -3) priority = 'critical';
+    else if (gap <= -2) priority = 'high';
+    else if (gap <= -1) priority = 'medium';
+
+    return [
+      {
+        date,
+        dayOfWeek: dayName,
+        currentStaff,
+        recommendedStaff: requiredStaff,
+        gap,
+        priority,
+        reason: `Cerere estimată ridicată pentru ${dayName}. Lipsesc ${Math.abs(gap)} angajați.`,
+        suggestedActions: [
+          'Verifică disponibilitatea personalului part-time',
+          'Contactează personal în concediu pentru voluntariat',
+          'Redistribuie programările mai puțin urgente',
+        ],
+      },
+    ];
+  } catch (error) {
+    console.error('Error getting recommendations:', error);
+    return [];
+  }
+}
+
+/**
+ * Get demand forecast for upcoming weeks
+ */
+export async function getDemandForecastAction(
+  weeksAhead: number = 2
+): Promise<DemandForecast[]> {
+  try {
+    await requirePermission('staff:read');
+
+    const forecasts: DemandForecast[] = [];
+    const today = new Date();
+
+    for (let week = 0; week < weeksAhead; week++) {
+      for (let day = 0; day < 7; day++) {
+        const date = new Date(today);
+        date.setDate(date.getDate() + week * 7 + day);
+        const dateStr = date.toISOString().split('T')[0] ?? '';
+        const dayOfWeek = date.getDay();
+
+        const baseRequirement = BASE_STAFF_REQUIREMENTS[dayOfWeek] ?? 5;
+        const historicalAvg = baseRequirement * APPOINTMENTS_PER_STAFF;
+        const variation = 0.8 + Math.random() * 0.4;
+        const predictedAppointments = Math.round(historicalAvg * variation);
+
+        // Confidence decreases as we forecast further ahead
+        const confidence = Math.max(0.5, 0.95 - week * 0.1 - day * 0.02);
+
+        let trend: DemandForecast['trend'] = 'stable';
+        if (variation > 1.1) trend = 'increasing';
+        else if (variation < 0.9) trend = 'decreasing';
+
+        forecasts.push({
+          date: dateStr,
+          predictedAppointments,
+          predictedCalls: Math.round(predictedAppointments * 0.25),
+          recommendedStaff: Math.ceil(predictedAppointments / APPOINTMENTS_PER_STAFF),
+          confidence,
+          historicalAvg,
+          trend,
+        });
+      }
+    }
+
+    return forecasts;
+  } catch (error) {
+    console.error('Error getting demand forecast:', error);
+    return [];
   }
 }
