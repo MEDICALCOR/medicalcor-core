@@ -131,7 +131,7 @@ export const handleSubscriptionCreated = task({
         const contact = await hubspot.upsertContactByEmail(customerEmail, {
           stripe_customer_id: customerId,
           subscription_status: status,
-          subscription_product: productName,
+          subscription_product: productName ?? 'Unknown',
           subscription_start_date: new Date().toISOString(),
           lead_source: 'stripe_subscription',
         });
