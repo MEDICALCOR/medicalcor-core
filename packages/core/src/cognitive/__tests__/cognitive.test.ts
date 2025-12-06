@@ -2,12 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   EpisodeBuilder,
   MemoryRetrievalService,
+  PatternDetector,
   createCognitiveSystem,
   DEFAULT_COGNITIVE_CONFIG,
   type IOpenAIClient,
   type IEmbeddingService,
 } from '../index.js';
-import type { RawEventContext } from '../types.js';
+import type { RawEventContext, EpisodicEvent } from '../types.js';
 
 // =============================================================================
 // Mocks
@@ -284,6 +285,463 @@ describe('Cognitive Episodic Memory System', () => {
       expect(DEFAULT_COGNITIVE_CONFIG.minSimilarity).toBeGreaterThan(0);
       expect(DEFAULT_COGNITIVE_CONFIG.minSimilarity).toBeLessThan(1);
       expect(DEFAULT_COGNITIVE_CONFIG.defaultQueryLimit).toBeGreaterThan(0);
+    });
+  });
+
+  // ===========================================================================
+  // PatternDetector Tests (M5: Behavioral Insights)
+  // ===========================================================================
+
+  describe('PatternDetector', () => {
+    let detector: PatternDetector;
+
+    // Test episodic events for pattern detection
+    const createTestEvents = (overrides: Partial<EpisodicEvent>[] = []): EpisodicEvent[] => {
+      const baseEvents: EpisodicEvent[] = [
+        {
+          id: '11111111-0000-0000-0000-000000000001',
+          subjectType: 'lead',
+          subjectId: testLeadId,
+          eventType: 'message.received',
+          eventCategory: 'communication',
+          sourceChannel: 'whatsapp',
+          summary: 'Patient inquired about dental implants pricing',
+          keyEntities: [{ type: 'procedure', value: 'dental implants' }],
+          sentiment: 'positive',
+          intent: 'seeking information',
+          occurredAt: new Date('2024-12-01T10:00:00Z'),
+        },
+        {
+          id: '11111111-0000-0000-0000-000000000002',
+          subjectType: 'lead',
+          subjectId: testLeadId,
+          eventType: 'message.sent',
+          eventCategory: 'communication',
+          sourceChannel: 'whatsapp',
+          summary: 'Sent pricing information for dental implants',
+          keyEntities: [{ type: 'amount', value: '$3000' }],
+          sentiment: 'neutral',
+          occurredAt: new Date('2024-12-01T10:15:00Z'),
+        },
+        {
+          id: '11111111-0000-0000-0000-000000000003',
+          subjectType: 'lead',
+          subjectId: testLeadId,
+          eventType: 'appointment.scheduled',
+          eventCategory: 'scheduling',
+          sourceChannel: 'crm',
+          summary: 'Patient scheduled appointment for consultation',
+          keyEntities: [{ type: 'date', value: '2024-12-10' }],
+          sentiment: 'positive',
+          occurredAt: new Date('2024-12-02T09:00:00Z'),
+        },
+      ];
+
+      return baseEvents.map((event, index) => ({
+        ...event,
+        ...(overrides[index] ?? {}),
+      }));
+    };
+
+    // Create reschedule events for appointment_rescheduler pattern
+    const createRescheduleEvents = (): EpisodicEvent[] => [
+      {
+        id: '22222222-0000-0000-0000-000000000001',
+        subjectType: 'lead',
+        subjectId: testLeadId,
+        eventType: 'appointment.rescheduled',
+        eventCategory: 'scheduling',
+        sourceChannel: 'crm',
+        summary: 'Patient rescheduled appointment to next week',
+        keyEntities: [],
+        sentiment: 'neutral',
+        occurredAt: new Date('2024-12-03T10:00:00Z'),
+      },
+      {
+        id: '22222222-0000-0000-0000-000000000002',
+        subjectType: 'lead',
+        subjectId: testLeadId,
+        eventType: 'appointment.cancelled',
+        eventCategory: 'scheduling',
+        sourceChannel: 'crm',
+        summary: 'Patient cancelled appointment due to conflict',
+        keyEntities: [],
+        sentiment: 'negative',
+        occurredAt: new Date('2024-12-05T10:00:00Z'),
+      },
+      {
+        id: '22222222-0000-0000-0000-000000000003',
+        subjectType: 'lead',
+        subjectId: testLeadId,
+        eventType: 'appointment.rescheduled',
+        eventCategory: 'scheduling',
+        sourceChannel: 'crm',
+        summary: 'Patient rescheduled again',
+        keyEntities: [],
+        sentiment: 'neutral',
+        occurredAt: new Date('2024-12-07T10:00:00Z'),
+      },
+    ];
+
+    // Create price-sensitive events
+    const createPriceSensitiveEvents = (): EpisodicEvent[] => [
+      {
+        id: '33333333-0000-0000-0000-000000000001',
+        subjectType: 'lead',
+        subjectId: testLeadId,
+        eventType: 'message.received',
+        eventCategory: 'communication',
+        sourceChannel: 'whatsapp',
+        summary: 'Patient asked about price for procedure',
+        keyEntities: [{ type: 'amount', value: '$2500' }],
+        sentiment: 'neutral',
+        intent: 'price inquiry',
+        occurredAt: new Date('2024-12-01T10:00:00Z'),
+      },
+      {
+        id: '33333333-0000-0000-0000-000000000002',
+        subjectType: 'lead',
+        subjectId: testLeadId,
+        eventType: 'message.received',
+        eventCategory: 'communication',
+        sourceChannel: 'whatsapp',
+        summary: 'Patient asked about discount options and cost',
+        keyEntities: [],
+        sentiment: 'neutral',
+        intent: 'price negotiation',
+        occurredAt: new Date('2024-12-02T10:00:00Z'),
+      },
+      {
+        id: '33333333-0000-0000-0000-000000000003',
+        subjectType: 'lead',
+        subjectId: testLeadId,
+        eventType: 'message.received',
+        eventCategory: 'communication',
+        sourceChannel: 'whatsapp',
+        summary: 'Patient inquired if they can afford the treatment',
+        keyEntities: [],
+        sentiment: 'neutral',
+        occurredAt: new Date('2024-12-03T10:00:00Z'),
+      },
+    ];
+
+    // Create high engagement events
+    const createHighEngagementEvents = (): EpisodicEvent[] => {
+      const now = new Date();
+      const events: EpisodicEvent[] = [];
+
+      for (let i = 0; i < 8; i++) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i * 3);
+
+        events.push({
+          id: `44444444-0000-0000-0000-00000000000${i + 1}`,
+          subjectType: 'lead',
+          subjectId: testLeadId,
+          eventType: i % 2 === 0 ? 'message.received' : 'call.completed',
+          eventCategory: 'communication',
+          sourceChannel: i % 3 === 0 ? 'whatsapp' : i % 3 === 1 ? 'voice' : 'email',
+          summary: `Patient interaction ${i + 1}`,
+          keyEntities: [],
+          sentiment: 'positive',
+          occurredAt: date,
+        });
+      }
+
+      return events;
+    };
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+
+      detector = new PatternDetector(mockPool as any, mockOpenAI, {
+        ...DEFAULT_COGNITIVE_CONFIG,
+        enableLLMPatterns: false, // Disable LLM patterns for faster tests
+      });
+    });
+
+    describe('Pattern Detection Rules', () => {
+      it('should detect appointment_rescheduler pattern', async () => {
+        const events = createRescheduleEvents();
+
+        (mockPool.query as ReturnType<typeof vi.fn>).mockImplementation((sql: string) => {
+          if (sql.includes('SELECT') && sql.includes('episodic_events')) {
+            return Promise.resolve({
+              rows: events.map((e) => ({
+                id: e.id,
+                subject_type: e.subjectType,
+                subject_id: e.subjectId,
+                event_type: e.eventType,
+                event_category: e.eventCategory,
+                source_channel: e.sourceChannel,
+                summary: e.summary,
+                key_entities: e.keyEntities,
+                sentiment: e.sentiment,
+                intent: e.intent,
+                occurred_at: e.occurredAt,
+                processed_at: new Date(),
+                metadata: {},
+              })),
+            });
+          }
+          if (sql.includes('INSERT INTO behavioral_patterns')) {
+            return Promise.resolve({ rows: [] });
+          }
+          return Promise.resolve({ rows: [] });
+        });
+
+        const patterns = await detector.detectPatterns('lead', testLeadId);
+
+        const reschedulerPattern = patterns.find((p) => p.patternType === 'appointment_rescheduler');
+        expect(reschedulerPattern).toBeDefined();
+        expect(reschedulerPattern?.confidence).toBeGreaterThan(0);
+        expect(reschedulerPattern?.supportingEventIds.length).toBeGreaterThan(0);
+      });
+
+      it('should detect price_sensitive pattern', async () => {
+        const events = createPriceSensitiveEvents();
+
+        (mockPool.query as ReturnType<typeof vi.fn>).mockImplementation((sql: string) => {
+          if (sql.includes('SELECT') && sql.includes('episodic_events')) {
+            return Promise.resolve({
+              rows: events.map((e) => ({
+                id: e.id,
+                subject_type: e.subjectType,
+                subject_id: e.subjectId,
+                event_type: e.eventType,
+                event_category: e.eventCategory,
+                source_channel: e.sourceChannel,
+                summary: e.summary,
+                key_entities: e.keyEntities,
+                sentiment: e.sentiment,
+                intent: e.intent,
+                occurred_at: e.occurredAt,
+                processed_at: new Date(),
+                metadata: {},
+              })),
+            });
+          }
+          if (sql.includes('INSERT INTO behavioral_patterns')) {
+            return Promise.resolve({ rows: [] });
+          }
+          return Promise.resolve({ rows: [] });
+        });
+
+        const patterns = await detector.detectPatterns('lead', testLeadId);
+
+        const priceSensitivePattern = patterns.find((p) => p.patternType === 'price_sensitive');
+        expect(priceSensitivePattern).toBeDefined();
+        expect(priceSensitivePattern?.patternDescription).toContain('price sensitivity');
+      });
+
+      it('should detect high_engagement pattern', async () => {
+        const events = createHighEngagementEvents();
+
+        (mockPool.query as ReturnType<typeof vi.fn>).mockImplementation((sql: string) => {
+          if (sql.includes('SELECT') && sql.includes('episodic_events')) {
+            return Promise.resolve({
+              rows: events.map((e) => ({
+                id: e.id,
+                subject_type: e.subjectType,
+                subject_id: e.subjectId,
+                event_type: e.eventType,
+                event_category: e.eventCategory,
+                source_channel: e.sourceChannel,
+                summary: e.summary,
+                key_entities: e.keyEntities,
+                sentiment: e.sentiment,
+                intent: e.intent,
+                occurred_at: e.occurredAt,
+                processed_at: new Date(),
+                metadata: {},
+              })),
+            });
+          }
+          if (sql.includes('INSERT INTO behavioral_patterns')) {
+            return Promise.resolve({ rows: [] });
+          }
+          return Promise.resolve({ rows: [] });
+        });
+
+        const patterns = await detector.detectPatterns('lead', testLeadId);
+
+        const engagementPattern = patterns.find((p) => p.patternType === 'high_engagement');
+        expect(engagementPattern).toBeDefined();
+        expect(engagementPattern?.patternDescription).toContain('engaged');
+      });
+
+      it('should return empty array when no events exist', async () => {
+        (mockPool.query as ReturnType<typeof vi.fn>).mockResolvedValue({ rows: [] });
+
+        const patterns = await detector.detectPatterns('lead', testLeadId);
+
+        expect(patterns).toEqual([]);
+      });
+    });
+
+    describe('Insight Generation', () => {
+      it('should generate churn_risk insight from appointment_rescheduler pattern', async () => {
+        const storedPattern = {
+          id: '55555555-0000-0000-0000-000000000001',
+          subject_type: 'lead',
+          subject_id: testLeadId,
+          pattern_type: 'appointment_rescheduler',
+          pattern_description: 'Patient has rescheduled 3 times',
+          confidence: 0.75,
+          supporting_event_ids: ['event1', 'event2'],
+          first_observed_at: new Date('2024-12-01'),
+          last_observed_at: new Date('2024-12-07'),
+          occurrence_count: 3,
+          metadata: {},
+        };
+
+        (mockPool.query as ReturnType<typeof vi.fn>).mockImplementation((sql: string) => {
+          if (sql.includes('SELECT') && sql.includes('behavioral_patterns')) {
+            return Promise.resolve({ rows: [storedPattern] });
+          }
+          if (sql.includes('MAX(occurred_at)')) {
+            return Promise.resolve({
+              rows: [
+                {
+                  last_interaction: new Date(),
+                  recent_count: 5,
+                  older_count: 2,
+                },
+              ],
+            });
+          }
+          return Promise.resolve({ rows: [] });
+        });
+
+        const insights = await detector.generateInsights('lead', testLeadId);
+
+        const churnInsight = insights.find((i) => i.type === 'churn_risk');
+        expect(churnInsight).toBeDefined();
+        expect(churnInsight?.recommendedAction).toContain('flexible');
+      });
+
+      it('should generate upsell_opportunity from price_sensitive pattern', async () => {
+        const storedPattern = {
+          id: '55555555-0000-0000-0000-000000000002',
+          subject_type: 'lead',
+          subject_id: testLeadId,
+          pattern_type: 'price_sensitive',
+          pattern_description: 'Patient shows price sensitivity',
+          confidence: 0.8,
+          supporting_event_ids: ['event1'],
+          first_observed_at: new Date('2024-12-01'),
+          last_observed_at: new Date('2024-12-05'),
+          occurrence_count: 2,
+          metadata: {},
+        };
+
+        (mockPool.query as ReturnType<typeof vi.fn>).mockImplementation((sql: string) => {
+          if (sql.includes('SELECT') && sql.includes('behavioral_patterns')) {
+            return Promise.resolve({ rows: [storedPattern] });
+          }
+          if (sql.includes('MAX(occurred_at)')) {
+            return Promise.resolve({
+              rows: [{ last_interaction: new Date(), recent_count: 3, older_count: 1 }],
+            });
+          }
+          return Promise.resolve({ rows: [] });
+        });
+
+        const insights = await detector.generateInsights('lead', testLeadId);
+
+        const upsellInsight = insights.find((i) => i.type === 'upsell_opportunity');
+        expect(upsellInsight).toBeDefined();
+        expect(upsellInsight?.recommendedAction).toContain('value');
+      });
+
+      it('should detect reactivation_candidate for dormant patients', async () => {
+        const oldDate = new Date();
+        oldDate.setDate(oldDate.getDate() - 90); // 90 days ago
+
+        (mockPool.query as ReturnType<typeof vi.fn>).mockImplementation((sql: string) => {
+          if (sql.includes('SELECT') && sql.includes('behavioral_patterns')) {
+            return Promise.resolve({ rows: [] });
+          }
+          if (sql.includes('MAX(occurred_at)')) {
+            return Promise.resolve({
+              rows: [
+                {
+                  last_interaction: oldDate,
+                  recent_count: 0,
+                  older_count: 5,
+                },
+              ],
+            });
+          }
+          return Promise.resolve({ rows: [] });
+        });
+
+        const insights = await detector.generateInsights('lead', testLeadId);
+
+        const reactivationInsight = insights.find((i) => i.type === 'reactivation_candidate');
+        expect(reactivationInsight).toBeDefined();
+        expect(reactivationInsight?.recommendedAction).toContain('reactivation');
+      });
+    });
+
+    describe('Pattern Statistics', () => {
+      it('should return pattern stats for dashboard', async () => {
+        (mockPool.query as ReturnType<typeof vi.fn>).mockImplementation((sql: string) => {
+          if (sql.includes('COUNT(*)') && sql.includes('pattern_type')) {
+            return Promise.resolve({
+              rows: [
+                { pattern_type: 'appointment_rescheduler', count: 10 },
+                { pattern_type: 'price_sensitive', count: 15 },
+                { pattern_type: 'high_engagement', count: 8 },
+              ],
+            });
+          }
+          if (sql.includes('COUNT(*)') && sql.includes('high_confidence')) {
+            return Promise.resolve({
+              rows: [{ total_patterns: 33, high_confidence: 20, recently_detected: 12 }],
+            });
+          }
+          return Promise.resolve({ rows: [] });
+        });
+
+        const stats = await detector.getPatternStats();
+
+        expect(stats.totalPatterns).toBe(33);
+        expect(stats.highConfidenceCount).toBe(20);
+        expect(stats.recentlyDetected).toBe(12);
+        expect(stats.byType).toHaveProperty('appointment_rescheduler');
+        expect(stats.byType).toHaveProperty('price_sensitive');
+      });
+    });
+
+    describe('Stored Patterns Retrieval', () => {
+      it('should retrieve stored patterns for a subject', async () => {
+        const storedPatterns = [
+          {
+            id: '66666666-0000-0000-0000-000000000001',
+            subject_type: 'lead',
+            subject_id: testLeadId,
+            pattern_type: 'high_engagement',
+            pattern_description: 'Highly engaged patient',
+            confidence: 0.85,
+            supporting_event_ids: ['e1', 'e2', 'e3'],
+            first_observed_at: new Date('2024-12-01'),
+            last_observed_at: new Date('2024-12-07'),
+            occurrence_count: 5,
+            metadata: {},
+          },
+        ];
+
+        (mockPool.query as ReturnType<typeof vi.fn>).mockResolvedValue({
+          rows: storedPatterns,
+        });
+
+        const patterns = await detector.getStoredPatterns('lead', testLeadId);
+
+        expect(patterns).toHaveLength(1);
+        expect(patterns[0]?.patternType).toBe('high_engagement');
+        expect(patterns[0]?.confidence).toBe(0.85);
+      });
     });
   });
 });

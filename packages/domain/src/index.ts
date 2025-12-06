@@ -230,6 +230,9 @@ export * from './disposition/index.js';
 // Agent Performance (M7 Milestone)
 export * from './agent-performance/index.js';
 
+// Behavioral Insights (M5 Milestone)
+export * from './behavioral-insights/index.js';
+
 // ============================================================================
 // SHARED TYPES & UTILITIES
 // ============================================================================
