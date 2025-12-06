@@ -2,7 +2,7 @@
  * Export types for reports
  */
 
-export type ExportFormat = 'csv' | 'xlsx';
+export type ExportFormat = 'csv' | 'xlsx' | 'pdf';
 
 export interface ExportColumn<T = unknown> {
   key: keyof T | string;
@@ -49,4 +49,19 @@ export interface ReportExportRow {
   coldLeads: number;
   appointmentsScheduled: number;
   conversionRate: number;
+}
+
+export interface AuditLogExportRow {
+  id: string;
+  timestamp: string;
+  user: string;
+  userRole: string;
+  action: string;
+  category: string;
+  status: string;
+  details: string | null;
+  entityType: string | null;
+  entityId: string | null;
+  entityName: string | null;
+  ipAddress: string | null;
 }
