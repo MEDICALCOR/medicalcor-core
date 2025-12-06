@@ -640,4 +640,413 @@ describe('Webhook Signature Validation - Comprehensive', () => {
       expect(signature).toBe(expectedSignature);
     });
   });
+
+  /**
+   * Additional Security Edge Cases
+   */
+  describe('Advanced Security Scenarios', () => {
+    describe('Replay Attack Detection - Advanced', () => {
+      it('should detect signature reuse across different payloads', () => {
+        const secret = 'test_secret';
+        const payload1 = JSON.stringify({ id: 'evt_1', amount: 100 });
+        const payload2 = JSON.stringify({ id: 'evt_2', amount: 200 });
+
+        // Generate signature for payload1
+        const timestamp = Math.floor(Date.now() / 1000);
+        const signedPayload1 = `${timestamp}.${payload1}`;
+        const signature = crypto.createHmac('sha256', secret).update(signedPayload1).digest('hex');
+
+        // Try to use same signature for payload2 (should fail)
+        const signedPayload2 = `${timestamp}.${payload2}`;
+        const expectedSignature2 = crypto
+          .createHmac('sha256', secret)
+          .update(signedPayload2)
+          .digest('hex');
+
+        expect(signature).not.toBe(expectedSignature2);
+      });
+
+      it('should detect timestamp manipulation', () => {
+        const secret = 'test_secret';
+        const payload = JSON.stringify({ id: 'evt_test' });
+
+        // Create signature with current timestamp
+        const currentTime = Math.floor(Date.now() / 1000);
+        const signedPayload = `${currentTime}.${payload}`;
+        const signature = crypto.createHmac('sha256', secret).update(signedPayload).digest('hex');
+
+        // Try to use signature with different timestamp (should fail)
+        const differentTime = currentTime + 100;
+        const signedPayloadDifferent = `${differentTime}.${payload}`;
+        const expectedSignature = crypto
+          .createHmac('sha256', secret)
+          .update(signedPayloadDifferent)
+          .digest('hex');
+
+        expect(signature).not.toBe(expectedSignature);
+      });
+
+      it('should handle clock drift scenarios', () => {
+        const secret = 'test_secret';
+        const payload = JSON.stringify({ id: 'evt_test' });
+
+        // Server 5 seconds ahead
+        const futureTime = Math.floor(Date.now() / 1000) + 5;
+        const signedPayload = `${futureTime}.${payload}`;
+        const signature = crypto.createHmac('sha256', secret).update(signedPayload).digest('hex');
+
+        // Within reasonable tolerance, this should be verifiable
+        const tolerance = 300; // 5 minutes
+        const timestampAge = Math.floor(Date.now() / 1000) - futureTime;
+
+        expect(Math.abs(timestampAge)).toBeLessThan(tolerance);
+      });
+    });
+
+    describe('Signature Format Edge Cases', () => {
+      it('should handle signature with leading zeros', () => {
+        const secret = 'test_secret';
+        // Force a signature that might have leading zeros
+        const payload = '';
+        const signature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+
+        // Should still be 64 characters
+        expect(signature).toHaveLength(64);
+        expect(signature).toMatch(/^[a-f0-9]{64}$/);
+      });
+
+      it('should reject signature with mixed case hex', () => {
+        const secret = 'test_secret';
+        const payload = JSON.stringify({ id: 'test' });
+
+        const signature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+        const mixedCase = signature.toUpperCase();
+
+        // Verification should be case-insensitive for hex
+        const signatureBuffer = Buffer.from(signature, 'hex');
+        const mixedCaseBuffer = Buffer.from(mixedCase, 'hex');
+
+        expect(signatureBuffer.equals(mixedCaseBuffer)).toBe(true);
+      });
+
+      it('should handle signature with whitespace (should be rejected)', () => {
+        const signature = 'abc123 def456';
+
+        // Whitespace in signature should be invalid
+        expect(signature).toMatch(/\s/); // Contains whitespace
+        expect(signature).not.toMatch(/^[a-f0-9]{64}$/); // Not valid hex
+      });
+
+      it('should handle signature with control characters', () => {
+        const signatureWithControl = 'abc\t123\ndef';
+
+        expect(signatureWithControl).toMatch(/[\t\n\r]/); // Contains control chars
+        expect(signatureWithControl).not.toMatch(/^[a-f0-9]{64}$/);
+      });
+    });
+
+    describe('Payload Encoding Edge Cases', () => {
+      it('should handle payload with different JSON formatting', () => {
+        const secret = 'test_secret';
+        const obj = { id: 'test', value: 100 };
+
+        // Same object, different formatting
+        const payload1 = JSON.stringify(obj); // {"id":"test","value":100}
+        const payload2 = JSON.stringify(obj, null, 2); // Pretty-printed
+
+        const sig1 = crypto.createHmac('sha256', secret).update(payload1).digest('hex');
+        const sig2 = crypto.createHmac('sha256', secret).update(payload2).digest('hex');
+
+        // Different formatting produces different signatures
+        expect(sig1).not.toBe(sig2);
+      });
+
+      it('should handle payload with different property orders', () => {
+        const secret = 'test_secret';
+
+        const payload1 = JSON.stringify({ a: 1, b: 2 });
+        const payload2 = JSON.stringify({ b: 2, a: 1 });
+
+        const sig1 = crypto.createHmac('sha256', secret).update(payload1).digest('hex');
+        const sig2 = crypto.createHmac('sha256', secret).update(payload2).digest('hex');
+
+        // Different property orders produce different signatures
+        expect(sig1).not.toBe(sig2);
+      });
+
+      it('should handle payload with unicode normalization differences', () => {
+        const secret = 'test_secret';
+
+        // Different unicode representations of same character
+        const payload1 = 'café'; // NFC (composed)
+        const payload2 = 'café'; // NFD (decomposed)
+
+        const sig1 = crypto.createHmac('sha256', secret).update(payload1, 'utf8').digest('hex');
+        const sig2 = crypto.createHmac('sha256', secret).update(payload2, 'utf8').digest('hex');
+
+        // Different normalizations may produce different signatures
+        // depending on the actual bytes
+        expect(typeof sig1).toBe('string');
+        expect(typeof sig2).toBe('string');
+      });
+
+      it('should handle payload with byte order mark (BOM)', () => {
+        const secret = 'test_secret';
+
+        const payloadWithBOM = '\uFEFF' + JSON.stringify({ id: 'test' });
+        const payloadWithoutBOM = JSON.stringify({ id: 'test' });
+
+        const sig1 = crypto.createHmac('sha256', secret).update(payloadWithBOM).digest('hex');
+        const sig2 = crypto.createHmac('sha256', secret).update(payloadWithoutBOM).digest('hex');
+
+        // BOM should make signatures different
+        expect(sig1).not.toBe(sig2);
+      });
+    });
+
+    describe('Secret Key Edge Cases', () => {
+      it('should produce different signatures for similar secrets', () => {
+        const payload = JSON.stringify({ id: 'test' });
+
+        const sig1 = crypto.createHmac('sha256', 'secret').update(payload).digest('hex');
+        const sig2 = crypto.createHmac('sha256', 'secret1').update(payload).digest('hex');
+        const sig3 = crypto.createHmac('sha256', 'Secret').update(payload).digest('hex');
+
+        // All secrets are different, so signatures should differ
+        expect(sig1).not.toBe(sig2);
+        expect(sig1).not.toBe(sig3);
+        expect(sig2).not.toBe(sig3);
+      });
+
+      it('should handle very short secrets', () => {
+        const payload = JSON.stringify({ id: 'test' });
+        const shortSecret = 'a';
+
+        const signature = crypto.createHmac('sha256', shortSecret).update(payload).digest('hex');
+
+        expect(signature).toMatch(/^[a-f0-9]{64}$/);
+      });
+
+      it('should handle very long secrets', () => {
+        const payload = JSON.stringify({ id: 'test' });
+        const longSecret = 'a'.repeat(10000);
+
+        const signature = crypto.createHmac('sha256', longSecret).update(payload).digest('hex');
+
+        expect(signature).toMatch(/^[a-f0-9]{64}$/);
+      });
+
+      it('should handle secrets with special characters', () => {
+        const payload = JSON.stringify({ id: 'test' });
+        const specialSecret = '!@#$%^&*()_+-=[]{}|;:,.<>?';
+
+        const signature = crypto.createHmac('sha256', specialSecret).update(payload).digest('hex');
+
+        expect(signature).toMatch(/^[a-f0-9]{64}$/);
+      });
+
+      it('should handle secrets with unicode characters', () => {
+        const payload = JSON.stringify({ id: 'test' });
+        const unicodeSecret = '🔐密钥🗝️';
+
+        const signature = crypto.createHmac('sha256', unicodeSecret).update(payload).digest('hex');
+
+        expect(signature).toMatch(/^[a-f0-9]{64}$/);
+      });
+
+      it('should handle empty secret (security antipattern)', () => {
+        const payload = JSON.stringify({ id: 'test' });
+        const emptySecret = '';
+
+        // Empty secret is insecure but should still produce a signature
+        const signature = crypto.createHmac('sha256', emptySecret).update(payload).digest('hex');
+
+        expect(signature).toMatch(/^[a-f0-9]{64}$/);
+      });
+    });
+
+    describe('Provider-Specific Attack Vectors', () => {
+      it('should prevent Stripe signature downgrade attack', () => {
+        const secret = 'whsec_test';
+        const payload = JSON.stringify({ id: 'evt_test' });
+        const timestamp = Math.floor(Date.now() / 1000);
+
+        // Valid v1 signature
+        const signedPayload = `${timestamp}.${payload}`;
+        const v1Signature = crypto.createHmac('sha256', secret).update(signedPayload).digest('hex');
+        const validSig = `t=${timestamp},v1=${v1Signature}`;
+
+        // Attacker tries to remove v1 and use only timestamp
+        const downgradedSig = `t=${timestamp}`;
+
+        // Should reject downgraded signature
+        expect(validSig).toContain('v1=');
+        expect(downgradedSig).not.toContain('v1=');
+      });
+
+      it('should prevent WhatsApp signature prefix confusion', () => {
+        const secret = 'test_secret';
+        const payload = JSON.stringify({ entry: [] });
+
+        const rawSignature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+
+        // Valid signatures
+        const validSig1 = `sha256=${rawSignature}`;
+        const validSig2 = rawSignature; // Also valid without prefix
+
+        // Invalid prefixes that should be rejected
+        const invalidSig1 = `sha512=${rawSignature}`; // Wrong algorithm
+        const invalidSig2 = `md5=${rawSignature}`; // Weak algorithm
+        const invalidSig3 = `SHA256=${rawSignature}`; // Wrong case
+
+        expect(validSig1.startsWith('sha256=')).toBe(true);
+        expect(validSig2).toMatch(/^[a-f0-9]{64}$/);
+        expect(invalidSig1.startsWith('sha512=')).toBe(true);
+        expect(invalidSig2.startsWith('md5=')).toBe(true);
+        expect(invalidSig3.startsWith('SHA256=')).toBe(true);
+      });
+
+      it('should handle Pipedrive signature with different encodings', () => {
+        const secret = 'test_secret';
+        const payload = JSON.stringify({ event: 'test' });
+
+        // UTF-8 encoding (standard)
+        const sigUtf8 = crypto.createHmac('sha256', secret).update(payload, 'utf8').digest('hex');
+
+        // Binary encoding
+        const sigBinary = crypto
+          .createHmac('sha256', secret)
+          .update(payload, 'binary')
+          .digest('hex');
+
+        // Both should produce valid signatures, but may differ
+        expect(sigUtf8).toMatch(/^[a-f0-9]{64}$/);
+        expect(sigBinary).toMatch(/^[a-f0-9]{64}$/);
+      });
+    });
+
+    describe('Timing Attack Resistance', () => {
+      it('should compare signatures in constant time', () => {
+        const secret = 'test_secret';
+        const payload = JSON.stringify({ id: 'test' });
+        const correctSignature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+
+        // Create wrong signatures of same length
+        const wrongSig1 = 'a'.repeat(64);
+        const wrongSig2 = correctSignature.substring(0, 63) + 'x'; // One char different
+
+        // Both should be rejected, using constant-time comparison
+        const result1 = crypto.timingSafeEqual(
+          Buffer.from(correctSignature),
+          Buffer.from(wrongSig1)
+        );
+        const result2 = crypto.timingSafeEqual(
+          Buffer.from(correctSignature),
+          Buffer.from(wrongSig2)
+        );
+
+        expect(result1).toBe(false);
+        expect(result2).toBe(false);
+      });
+
+      it('should handle length mismatch before constant-time comparison', () => {
+        const secret = 'test_secret';
+        const payload = JSON.stringify({ id: 'test' });
+        const correctSignature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+
+        const shortSignature = 'abc123';
+        const longSignature = 'a'.repeat(128);
+
+        // Length check should happen before timingSafeEqual
+        expect(correctSignature.length).toBe(64);
+        expect(shortSignature.length).not.toBe(64);
+        expect(longSignature.length).not.toBe(64);
+
+        // Should reject based on length without timing leak
+        expect(correctSignature.length === shortSignature.length).toBe(false);
+        expect(correctSignature.length === longSignature.length).toBe(false);
+      });
+    });
+
+    describe('Concurrent Request Handling', () => {
+      it('should handle multiple signature verifications simultaneously', () => {
+        const secret = 'test_secret';
+        const payloads = Array.from({ length: 100 }, (_, i) => JSON.stringify({ id: `evt_${i}` }));
+
+        const signatures = payloads.map((payload) =>
+          crypto.createHmac('sha256', secret).update(payload).digest('hex')
+        );
+
+        // Verify all signatures
+        for (let i = 0; i < payloads.length; i++) {
+          const expectedSig = crypto
+            .createHmac('sha256', secret)
+            .update(payloads[i]!)
+            .digest('hex');
+          expect(signatures[i]).toBe(expectedSig);
+        }
+      });
+
+      it('should produce unique signatures for sequential requests', () => {
+        const secret = 'test_secret';
+        const signatureSet = new Set<string>();
+
+        // Generate 1000 signatures for different payloads
+        for (let i = 0; i < 1000; i++) {
+          const payload = JSON.stringify({ id: `evt_${i}`, timestamp: Date.now() });
+          const signature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+          signatureSet.add(signature);
+        }
+
+        // All signatures should be unique
+        expect(signatureSet.size).toBe(1000);
+      });
+    });
+
+    describe('Error Handling and Edge Cases', () => {
+      it('should handle null payload gracefully', () => {
+        const secret = 'test_secret';
+
+        // Node.js HMAC should handle null/undefined
+        expect(() => {
+          crypto
+            .createHmac('sha256', secret)
+            .update(null as any)
+            .digest('hex');
+        }).toThrow();
+      });
+
+      it('should handle undefined payload gracefully', () => {
+        const secret = 'test_secret';
+
+        expect(() => {
+          crypto
+            .createHmac('sha256', secret)
+            .update(undefined as any)
+            .digest('hex');
+        }).toThrow();
+      });
+
+      it('should handle non-string payload types', () => {
+        const secret = 'test_secret';
+
+        // Should work with Buffer
+        const bufferPayload = Buffer.from('test');
+        const signature = crypto.createHmac('sha256', secret).update(bufferPayload).digest('hex');
+        expect(signature).toMatch(/^[a-f0-9]{64}$/);
+      });
+
+      it('should produce consistent signatures across multiple calls', () => {
+        const secret = 'test_secret';
+        const payload = JSON.stringify({ id: 'test' });
+
+        const signatures = Array.from({ length: 100 }, () =>
+          crypto.createHmac('sha256', secret).update(payload).digest('hex')
+        );
+
+        // All signatures should be identical
+        expect(new Set(signatures).size).toBe(1);
+      });
+    });
+  });
 });

@@ -49,10 +49,22 @@ export default defineConfig({
         __dirname,
         'packages/core/src/repositories/index.ts'
       ),
+      '@medicalcor/core/observability/diagnostics': path.resolve(
+        __dirname,
+        'packages/core/src/observability/diagnostics.ts'
+      ),
       '@medicalcor/core': path.resolve(__dirname, 'packages/core/src/index.ts'),
       '@medicalcor/domain': path.resolve(__dirname, 'packages/domain/src/index.ts'),
       '@medicalcor/infra': path.resolve(__dirname, 'packages/infra/src/index.ts'),
       '@medicalcor/integrations': path.resolve(__dirname, 'packages/integrations/src/index.ts'),
+      '@medicalcor/integrations/__mocks__/handlers': path.resolve(
+        __dirname,
+        'packages/integrations/src/__mocks__/handlers.ts'
+      ),
+      '@medicalcor/integrations/__mocks__/server': path.resolve(
+        __dirname,
+        'packages/integrations/src/__mocks__/server.ts'
+      ),
       '@medicalcor/application': path.resolve(__dirname, 'packages/application/src/index.ts'),
       '@medicalcor/infrastructure': path.resolve(__dirname, 'packages/infrastructure/src/index.ts'),
       // Resolve Next.js app aliases for testing

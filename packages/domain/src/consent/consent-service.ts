@@ -469,9 +469,14 @@ export class ConsentService {
     const normalizedMessage = message.toLowerCase().trim();
 
     // Check for explicit consent keywords
+    // NOTE: Order matters less now due to negative lookbehind, but denial patterns
+    // are checked first as a safety measure for negation phrases like "nu sunt de acord"
     const consentPatterns = [
-      { pattern: /\b(da|yes|accept|accepto?|sunt de acord|agree)\b/i, granted: true },
+      // Denial patterns first - includes explicit negations
       { pattern: /\b(nu|no|reject|refuz|nu sunt de acord|disagree|stop)\b/i, granted: false },
+      // Consent patterns - use negative lookbehind to prevent matching "sunt de acord"
+      // when preceded by "nu " (Romanian negation)
+      { pattern: /\b(da|yes|accept|accepto?|(?<!nu\s)sunt de acord|agree)\b/i, granted: true },
     ];
 
     for (const { pattern, granted } of consentPatterns) {

@@ -26,10 +26,14 @@
       "import": "./dist/vapi.js"
     },
     "./__mocks__/handlers": {
-      "import": "./src/__mocks__/handlers.ts"
+      "types": "./src/__mocks__/handlers.ts",
+      "import": "./src/__mocks__/handlers.ts",
+      "default": "./src/__mocks__/handlers.ts"
     },
     "./__mocks__/server": {
-      "import": "./src/__mocks__/server.ts"
+      "types": "./src/__mocks__/server.ts",
+      "import": "./src/__mocks__/server.ts",
+      "default": "./src/__mocks__/server.ts"
     }
   },
   "main": "./dist/index.js",
