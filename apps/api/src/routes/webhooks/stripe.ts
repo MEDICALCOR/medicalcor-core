@@ -509,7 +509,10 @@ export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
 
           const deletePayload = {
             subscriptionId: subscription.id,
-            customerId: typeof subscription.customer === 'string' ? subscription.customer : '',
+            customerId:
+              'customer' in subscription && typeof subscription.customer === 'string'
+                ? subscription.customer
+                : '',
             customerEmail: null as string | null,
             cancellationReason: undefined as string | undefined,
             metadata: 'metadata' in subscription ? subscription.metadata : undefined,

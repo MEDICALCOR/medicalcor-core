@@ -2,10 +2,14 @@ import { task, schedules, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
 import { IdempotencyKeys, getTodayString } from '@medicalcor/core';
 import { createIntegrationClients } from '@medicalcor/integrations';
+import { createRetentionScoringService, type RetentionMetricsInput } from '@medicalcor/domain';
+import type { ChurnRisk as ChurnRiskLevel, FollowUpPriority } from '@medicalcor/types';
 
 /**
- * Retention Scoring Workflow
+ * Retention Scoring Workflow (M8 Milestone)
  * AI-powered churn prediction and retention scoring for patient management
+ *
+ * Uses the domain-layer RetentionScoringService for consistent scoring logic.
  *
  * Calculates:
  * - Retention Score (0-100): Probability of patient returning
@@ -21,6 +25,9 @@ function getClients() {
   });
 }
 
+// Initialize domain service
+const retentionScoringService = createRetentionScoringService();
+
 // Input schema for single patient scoring
 export const RetentionScoringPayloadSchema = z.object({
   contactId: z.string(),
@@ -33,102 +40,15 @@ export const BatchRetentionScoringPayloadSchema = z.object({
 });
 
 /**
- * Calculate retention score based on patient metrics
- * Uses a weighted formula considering multiple factors
+ * Calculate retention score using the domain service
+ * Provides a thin wrapper for backward compatibility
  */
-function calculateRetentionScore(params: {
-  daysInactive: number;
-  canceledAppointments: number;
-  npsScore: number | null;
-  lifetimeValue: number;
-  totalTreatments: number;
-}): {
+function calculateRetentionScore(params: RetentionMetricsInput): {
   score: number;
-  churnRisk: 'SCAZUT' | 'MEDIU' | 'RIDICAT' | 'FOARTE_RIDICAT';
-  followUpPriority: 'URGENTA' | 'RIDICATA' | 'MEDIE' | 'SCAZUTA';
+  churnRisk: ChurnRiskLevel;
+  followUpPriority: FollowUpPriority;
 } {
-  let score = 100;
-
-  // Factor 1: Days Inactive (max -40 points)
-  // 0-7 days: no penalty
-  // 8-30 days: -10 points
-  // 31-60 days: -20 points
-  // 61-90 days: -30 points
-  // 90+ days: -40 points
-  if (params.daysInactive > 90) {
-    score -= 40;
-  } else if (params.daysInactive > 60) {
-    score -= 30;
-  } else if (params.daysInactive > 30) {
-    score -= 20;
-  } else if (params.daysInactive > 7) {
-    score -= 10;
-  }
-
-  // Factor 2: Canceled Appointments (max -30 points)
-  // Each cancellation: -10 points
-  score -= Math.min(params.canceledAppointments * 10, 30);
-
-  // Factor 3: NPS Score (max -20 points or +10 bonus)
-  if (params.npsScore !== null) {
-    if (params.npsScore <= 6) {
-      // Detractor: -20 points
-      score -= 20;
-    } else if (params.npsScore <= 8) {
-      // Passive: -5 points
-      score -= 5;
-    } else {
-      // Promoter: +10 bonus
-      score += 10;
-    }
-  }
-
-  // Factor 4: Engagement bonus based on treatments
-  // 1-2 treatments: no bonus
-  // 3-5 treatments: +5 points
-  // 6+ treatments: +10 points
-  if (params.totalTreatments >= 6) {
-    score += 10;
-  } else if (params.totalTreatments >= 3) {
-    score += 5;
-  }
-
-  // Factor 5: High-value patient bonus
-  // LTV > 20000: +5 points
-  if (params.lifetimeValue > 20000) {
-    score += 5;
-  }
-
-  // Clamp score to 0-100
-  score = Math.max(0, Math.min(100, score));
-
-  // Determine churn risk
-  let churnRisk: 'SCAZUT' | 'MEDIU' | 'RIDICAT' | 'FOARTE_RIDICAT';
-  if (score >= 80) {
-    churnRisk = 'SCAZUT';
-  } else if (score >= 50) {
-    churnRisk = 'MEDIU';
-  } else if (score >= 30) {
-    churnRisk = 'RIDICAT';
-  } else {
-    churnRisk = 'FOARTE_RIDICAT';
-  }
-
-  // Determine follow-up priority (combines risk and value)
-  let followUpPriority: 'URGENTA' | 'RIDICATA' | 'MEDIE' | 'SCAZUTA';
-  const isHighValue = params.lifetimeValue > 10000;
-
-  if (churnRisk === 'FOARTE_RIDICAT' || (churnRisk === 'RIDICAT' && isHighValue)) {
-    followUpPriority = 'URGENTA';
-  } else if (churnRisk === 'RIDICAT' || (churnRisk === 'MEDIU' && isHighValue)) {
-    followUpPriority = 'RIDICATA';
-  } else if (churnRisk === 'MEDIU') {
-    followUpPriority = 'MEDIE';
-  } else {
-    followUpPriority = 'SCAZUTA';
-  }
-
-  return { score, churnRisk, followUpPriority };
+  return retentionScoringService.calculateSimpleScore(params);
 }
 
 /**

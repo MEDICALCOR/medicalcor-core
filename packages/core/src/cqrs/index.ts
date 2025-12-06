@@ -245,19 +245,6 @@ export {
   type AuditStore,
 } from './audit-trail.js';
 
-// State Reconstruction - Point-in-time state queries
-export {
-  StateReconstructionService,
-  buildAggregateHistoryView,
-  createStateReconstructionService,
-  type StateAtTime,
-  type StateDiff,
-  type TimelineEntry,
-  type StateTimeline,
-  type ReconstructionOptions,
-  type AggregateHistoryView,
-} from './state-reconstruction.js';
-
 // Temporal Replay - Enhanced event replay with temporal queries
 export {
   TemporalReplayService,
