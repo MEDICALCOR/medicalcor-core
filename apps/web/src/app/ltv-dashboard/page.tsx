@@ -6,242 +6,17 @@
  */
 
 import { Suspense } from 'react';
+import {
+  getLTVStatsAction,
+  getTopCustomersAction,
+  getMonthlyRevenueAction,
+  getCasePipelineAction,
+} from './actions';
 
 export const metadata = {
   title: 'LTV Dashboard | MedicalCor',
   description: 'Customer Lifetime Value and revenue visibility dashboard',
 };
-
-// Mock data types - in production, these would come from the database
-interface LeadLTV {
-  leadId: string;
-  fullName: string;
-  email: string;
-  phone: string;
-  totalCases: number;
-  completedCases: number;
-  totalCaseValue: number;
-  totalPaid: number;
-  totalOutstanding: number;
-  avgCaseValue: number;
-  firstCaseDate: string | null;
-  lastCaseDate: string | null;
-}
-
-interface MonthlyRevenue {
-  month: string;
-  grossRevenue: number;
-  netRevenue: number;
-  refunds: number;
-  paymentCount: number;
-  casesWithPayments: number;
-}
-
-interface CasePipeline {
-  status: string;
-  paymentStatus: string;
-  caseCount: number;
-  totalValue: number;
-  paidValue: number;
-  outstandingValue: number;
-}
-
-interface DashboardStats {
-  totalRevenue: number;
-  totalOutstanding: number;
-  avgLTV: number;
-  totalCases: number;
-  paidCases: number;
-  partialCases: number;
-  monthlyGrowth: number;
-}
-
-// Mock data generators - replace with actual server actions
-async function getLTVStats(): Promise<DashboardStats> {
-  // Simulated delay
-  await new Promise((resolve) => setTimeout(resolve, 100));
-
-  return {
-    totalRevenue: 1247500,
-    totalOutstanding: 342800,
-    avgLTV: 8450,
-    totalCases: 156,
-    paidCases: 98,
-    partialCases: 34,
-    monthlyGrowth: 12.5,
-  };
-}
-
-async function getTopLeadsByLTV(): Promise<LeadLTV[]> {
-  await new Promise((resolve) => setTimeout(resolve, 100));
-
-  return [
-    {
-      leadId: '1',
-      fullName: 'Maria Ionescu',
-      email: 'maria.ionescu@email.com',
-      phone: '+40721123456',
-      totalCases: 3,
-      completedCases: 2,
-      totalCaseValue: 45000,
-      totalPaid: 38000,
-      totalOutstanding: 7000,
-      avgCaseValue: 15000,
-      firstCaseDate: '2024-03-15',
-      lastCaseDate: '2024-11-20',
-    },
-    {
-      leadId: '2',
-      fullName: 'Ion Popescu',
-      email: 'ion.popescu@email.com',
-      phone: '+40722234567',
-      totalCases: 2,
-      completedCases: 2,
-      totalCaseValue: 32000,
-      totalPaid: 32000,
-      totalOutstanding: 0,
-      avgCaseValue: 16000,
-      firstCaseDate: '2024-01-10',
-      lastCaseDate: '2024-09-05',
-    },
-    {
-      leadId: '3',
-      fullName: 'Elena Gheorghe',
-      email: 'elena.g@email.com',
-      phone: '+40723345678',
-      totalCases: 4,
-      completedCases: 3,
-      totalCaseValue: 28500,
-      totalPaid: 21000,
-      totalOutstanding: 7500,
-      avgCaseValue: 7125,
-      firstCaseDate: '2023-11-22',
-      lastCaseDate: '2024-12-01',
-    },
-    {
-      leadId: '4',
-      fullName: 'Andrei Marin',
-      email: 'andrei.m@email.com',
-      phone: '+40724456789',
-      totalCases: 1,
-      completedCases: 1,
-      totalCaseValue: 24000,
-      totalPaid: 24000,
-      totalOutstanding: 0,
-      avgCaseValue: 24000,
-      firstCaseDate: '2024-08-15',
-      lastCaseDate: '2024-08-15',
-    },
-    {
-      leadId: '5',
-      fullName: 'Ana Dumitrescu',
-      email: 'ana.d@email.com',
-      phone: '+40725567890',
-      totalCases: 2,
-      completedCases: 1,
-      totalCaseValue: 19500,
-      totalPaid: 12000,
-      totalOutstanding: 7500,
-      avgCaseValue: 9750,
-      firstCaseDate: '2024-06-10',
-      lastCaseDate: '2024-11-28',
-    },
-  ];
-}
-
-async function getMonthlyRevenue(): Promise<MonthlyRevenue[]> {
-  await new Promise((resolve) => setTimeout(resolve, 100));
-
-  return [
-    {
-      month: '2024-12',
-      grossRevenue: 145000,
-      netRevenue: 142500,
-      refunds: 2500,
-      paymentCount: 45,
-      casesWithPayments: 32,
-    },
-    {
-      month: '2024-11',
-      grossRevenue: 132000,
-      netRevenue: 130000,
-      refunds: 2000,
-      paymentCount: 41,
-      casesWithPayments: 28,
-    },
-    {
-      month: '2024-10',
-      grossRevenue: 128500,
-      netRevenue: 127000,
-      refunds: 1500,
-      paymentCount: 38,
-      casesWithPayments: 26,
-    },
-    {
-      month: '2024-09',
-      grossRevenue: 115000,
-      netRevenue: 114000,
-      refunds: 1000,
-      paymentCount: 35,
-      casesWithPayments: 24,
-    },
-    {
-      month: '2024-08',
-      grossRevenue: 98000,
-      netRevenue: 96500,
-      refunds: 1500,
-      paymentCount: 30,
-      casesWithPayments: 22,
-    },
-    {
-      month: '2024-07',
-      grossRevenue: 105000,
-      netRevenue: 104000,
-      refunds: 1000,
-      paymentCount: 33,
-      casesWithPayments: 23,
-    },
-  ];
-}
-
-async function getCasePipeline(): Promise<CasePipeline[]> {
-  await new Promise((resolve) => setTimeout(resolve, 100));
-
-  return [
-    {
-      status: 'pending',
-      paymentStatus: 'unpaid',
-      caseCount: 24,
-      totalValue: 456000,
-      paidValue: 0,
-      outstandingValue: 456000,
-    },
-    {
-      status: 'in_progress',
-      paymentStatus: 'partial',
-      caseCount: 34,
-      totalValue: 612000,
-      paidValue: 342000,
-      outstandingValue: 270000,
-    },
-    {
-      status: 'in_progress',
-      paymentStatus: 'paid',
-      caseCount: 18,
-      totalValue: 324000,
-      paidValue: 324000,
-      outstandingValue: 0,
-    },
-    {
-      status: 'completed',
-      paymentStatus: 'paid',
-      caseCount: 80,
-      totalValue: 1440000,
-      paidValue: 1440000,
-      outstandingValue: 0,
-    },
-  ];
-}
 
 export default function LTVDashboardPage() {
   return (
@@ -250,9 +25,7 @@ export default function LTVDashboardPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">LTV Dashboard</h1>
-            <p className="mt-2 text-gray-600">
-              Customer Lifetime Value and revenue visibility
-            </p>
+            <p className="mt-2 text-gray-600">Customer Lifetime Value and revenue visibility</p>
           </div>
           <div className="flex gap-2">
             <button className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
@@ -289,7 +62,7 @@ export default function LTVDashboardPage() {
 }
 
 async function StatisticsSection() {
-  const stats = await getLTVStats();
+  const stats = await getLTVStatsAction();
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -325,7 +98,7 @@ async function StatisticsSection() {
 }
 
 async function RevenueChartSection() {
-  const monthlyData = await getMonthlyRevenue();
+  const monthlyData = await getMonthlyRevenueAction();
 
   // Find max value for scaling
   const maxRevenue = Math.max(...monthlyData.map((m) => m.grossRevenue));
@@ -349,7 +122,7 @@ async function RevenueChartSection() {
                 <div
                   className="w-full rounded-t bg-blue-500 transition-all hover:bg-blue-600"
                   style={{ height: `${height * 2}px` }}
-                  title={`${formatCurrency(month.grossRevenue)}`}
+                  title={formatCurrency(month.grossRevenue)}
                 />
                 {month.refunds > 0 && (
                   <div
@@ -384,7 +157,7 @@ async function RevenueChartSection() {
 }
 
 async function TopCustomersSection() {
-  const leads = await getTopLeadsByLTV();
+  const leads = await getTopCustomersAction();
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-6">
@@ -413,9 +186,7 @@ async function TopCustomersSection() {
               </div>
             </div>
             <div className="text-right">
-              <p className="font-semibold text-gray-900">
-                {formatCurrency(lead.totalCaseValue)}
-              </p>
+              <p className="font-semibold text-gray-900">{formatCurrency(lead.totalCaseValue)}</p>
               {lead.totalOutstanding > 0 && (
                 <p className="text-sm text-amber-600">
                   {formatCurrency(lead.totalOutstanding)} outstanding
@@ -430,7 +201,7 @@ async function TopCustomersSection() {
 }
 
 async function CasePipelineSection() {
-  const pipeline = await getCasePipeline();
+  const pipeline = await getCasePipelineAction();
 
   const totalValue = pipeline.reduce((sum, p) => sum + p.totalValue, 0);
   const totalPaid = pipeline.reduce((sum, p) => sum + p.paidValue, 0);
@@ -504,9 +275,7 @@ async function CasePipelineSection() {
             </div>
             <div className="text-right">
               <p className="font-semibold text-gray-900">{formatCurrency(item.totalValue)}</p>
-              <p className="text-sm text-gray-500">
-                {formatCurrency(item.paidValue)} paid
-              </p>
+              <p className="text-sm text-gray-500">{formatCurrency(item.paidValue)} paid</p>
             </div>
           </div>
         ))}
@@ -611,7 +380,7 @@ function ChartLoading() {
   );
 }
 
-function TableLoading({ title }: { title: string }) {
+function TableLoading({ title: _title }: { title: string }) {
   return (
     <div className="animate-pulse rounded-lg border border-gray-200 bg-white p-6">
       <div className="h-6 w-48 rounded bg-gray-200" />
