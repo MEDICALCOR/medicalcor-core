@@ -452,6 +452,26 @@ export type {
 } from './circuit-breaker/index';
 
 // ============================================================================
+// ONBOARDING ACTIONS
+// ============================================================================
+
+export {
+  completeOnboardingAction,
+  checkOnboardingStatusAction,
+  getOnboardingDataAction,
+  skipOnboardingAction,
+  DEFAULT_SCHEDULE,
+  DEFAULT_NOTIFICATIONS,
+} from './onboarding/index';
+
+export type {
+  ClinicScheduleDay,
+  NotificationPreferences,
+  TeamMemberInvite,
+  OnboardingData,
+  OnboardingResult,
+  OnboardingInput,
+} from './onboarding/index';
 // LOAD TESTING ACTIONS (L7)
 // ============================================================================
 
