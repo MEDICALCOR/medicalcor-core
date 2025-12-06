@@ -161,6 +161,54 @@ export {
 } from './scoring.js';
 
 // =============================================================================
+// Agent Guidance / Call Scripts (M2 Milestone)
+// =============================================================================
+export {
+  // Types & Categories
+  GuidanceTypeSchema,
+  GuidanceCategorySchema,
+  GuidanceAudienceSchema,
+  ScriptActionTypeSchema,
+  // Script Components
+  ScriptStepSchema,
+  ObjectionHandlerSchema,
+  TalkingPointSchema,
+  // Main Entity
+  AgentGuidanceSchema,
+  // Input Schemas
+  CreateGuidanceSchema,
+  UpdateGuidanceSchema,
+  GuidanceQuerySchema,
+  // Real-time
+  GuidanceSuggestionSchema,
+  GuidanceEventTypeSchema,
+  GuidanceEventBaseSchema,
+  GuidanceLoadedEventSchema,
+  GuidanceSuggestionEventSchema,
+  ObjectionDetectedEventSchema,
+  GuidanceEventSchema,
+  // Types
+  type GuidanceType,
+  type GuidanceCategory,
+  type GuidanceAudience,
+  type ScriptActionType,
+  type ScriptStep,
+  type ObjectionHandler,
+  type TalkingPoint,
+  type AgentGuidance,
+  type CreateGuidance,
+  type UpdateGuidance,
+  type GuidanceQuery,
+  type GuidanceSuggestion,
+  type GuidanceEventType,
+  type GuidanceEventBase,
+  type GuidanceLoadedEvent,
+  type GuidanceSuggestionEvent,
+  type ObjectionDetectedEvent,
+  type GuidanceEvent,
+} from './guidance.js';
+
+// =============================================================================
 // Supervisor/Flex Schemas (W3 Milestone)
 // =============================================================================
 export {

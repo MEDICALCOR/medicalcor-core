@@ -16,3 +16,5 @@ export { metricsRoutes } from './metrics.js';
 export { supervisorRoutes } from './supervisor.js';
 export { supervisorWSRoutes, emitSupervisorEvent } from './supervisor-ws.js';
 export { patientPortalRoutes, internalNotificationRoutes } from './patient-portal.js';
+export { createGuidanceRoutes, guidanceRoutes } from './guidance.js';
+export { createGuidanceWSRoutes, getGuidanceSSEManager } from './guidance-ws.js';
