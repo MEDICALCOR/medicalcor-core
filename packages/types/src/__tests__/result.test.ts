@@ -604,8 +604,7 @@ describe('Option Operations', () => {
 
   describe('flatMap', () => {
     it('should chain Option operations', () => {
-      const safeDivide = (a: number, b: number): Option<number> =>
-        b === 0 ? None : Some(a / b);
+      const safeDivide = (a: number, b: number): Option<number> => (b === 0 ? None : Some(a / b));
 
       const result = O.flatMap(Some(10), (x) => safeDivide(x, 2));
 
@@ -999,5 +998,636 @@ describe('Railway-Oriented Programming', () => {
 
     const invalidName = createUser('', 25);
     expect(isErr(invalidName)).toBe(true);
+  });
+});
+
+// Additional Result Operations tests
+describe('Result Operations - Extended', () => {
+  describe('ok and err constructors', () => {
+    it('should create Ok with Result.ok', () => {
+      const result = R.ok(42);
+      expect(isOk(result)).toBe(true);
+      if (isOk(result)) {
+        expect(result.value).toBe(42);
+      }
+    });
+
+    it('should create Err with Result.err', () => {
+      const result = R.err('error');
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) {
+        expect(result.error).toBe('error');
+      }
+    });
+  });
+
+  describe('andThen', () => {
+    it('should work as alias for flatMap', () => {
+      const result = R.andThen(Ok(10), (x) => Ok(x * 2));
+      expect(isOk(result)).toBe(true);
+      if (isOk(result)) {
+        expect(result.value).toBe(20);
+      }
+    });
+  });
+
+  describe('orElse', () => {
+    it('should provide fallback for Err', () => {
+      const result = R.orElse(Err('error'), () => Ok(42));
+      expect(isOk(result)).toBe(true);
+      if (isOk(result)) {
+        expect(result.value).toBe(42);
+      }
+    });
+
+    it('should pass through Ok', () => {
+      const ok = Ok(42);
+      const result = R.orElse(ok, () => Ok(0));
+      expect(result).toBe(ok);
+    });
+  });
+
+  describe('flatten', () => {
+    it('should flatten nested Result', () => {
+      const nested = Ok(Ok(42));
+      const result = R.flatten(nested);
+      expect(isOk(result)).toBe(true);
+      if (isOk(result)) {
+        expect(result.value).toBe(42);
+      }
+    });
+
+    it('should handle outer Err', () => {
+      const error = Err('outer error');
+      const result = R.flatten(error);
+      expect(isErr(result)).toBe(true);
+    });
+
+    it('should handle inner Err', () => {
+      const nested = Ok(Err('inner error'));
+      const result = R.flatten(nested);
+      expect(isErr(result)).toBe(true);
+    });
+  });
+
+  describe('ap', () => {
+    it('should apply function in Result to value in Result', () => {
+      const fn = Ok((x: number) => x * 2);
+      const value = Ok(10);
+      const result = R.ap(fn, value);
+      expect(isOk(result)).toBe(true);
+      if (isOk(result)) {
+        expect(result.value).toBe(20);
+      }
+    });
+
+    it('should return Err when function is Err', () => {
+      const fn = Err('no function');
+      const value = Ok(10);
+      const result = R.ap(fn, value);
+      expect(isErr(result)).toBe(true);
+    });
+
+    it('should return Err when value is Err', () => {
+      const fn = Ok((x: number) => x * 2);
+      const value = Err('no value');
+      const result = R.ap(fn, value);
+      expect(isErr(result)).toBe(true);
+    });
+  });
+
+  describe('zip edge cases', () => {
+    it('should return second Err if first is Ok', () => {
+      const result = R.zip(Ok(1), Err('second error'));
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) {
+        expect(result.error).toBe('second error');
+      }
+    });
+  });
+
+  describe('zipWith edge cases', () => {
+    it('should return first Err', () => {
+      const result = R.zipWith(Err('first error'), Ok(2), (a, b) => a + b);
+      expect(isErr(result)).toBe(true);
+    });
+
+    it('should return second Err if first is Ok', () => {
+      const result = R.zipWith(Ok(1), Err('second error'), (a, b) => a + b);
+      expect(isErr(result)).toBe(true);
+    });
+  });
+
+  describe('filter edge cases', () => {
+    it('should pass through Err unchanged', () => {
+      const error = Err('original error');
+      const result = R.filter(error, () => true, 'new error');
+      expect(result).toBe(error);
+    });
+  });
+
+  describe('tryAsync', () => {
+    it('should catch async exceptions', async () => {
+      const result = await R.tryAsync(async () => {
+        throw new Error('async error');
+      });
+      expect(isErr(result)).toBe(true);
+    });
+
+    it('should return Ok for successful async execution', async () => {
+      const result = await R.tryAsync(async () => 42);
+      expect(isOk(result)).toBe(true);
+      if (isOk(result)) {
+        expect(result.value).toBe(42);
+      }
+    });
+  });
+});
+
+// Additional Option Operations tests
+describe('Option Operations - Extended', () => {
+  describe('some and none constructors', () => {
+    it('should create Some with Option.some', () => {
+      const option = O.some(42);
+      expect(isSome(option)).toBe(true);
+    });
+
+    it('should create None with Option.none', () => {
+      const option = O.none();
+      expect(isNone(option)).toBe(true);
+    });
+  });
+
+  describe('fromPredicate', () => {
+    it('should create Some when predicate passes', () => {
+      const option = O.fromPredicate(42, (x) => x > 0);
+      expect(isSome(option)).toBe(true);
+    });
+
+    it('should create None when predicate fails', () => {
+      const option = O.fromPredicate(-1, (x) => x > 0);
+      expect(isNone(option)).toBe(true);
+    });
+  });
+
+  describe('andThen', () => {
+    it('should work as alias for flatMap', () => {
+      const result = O.andThen(Some(10), (x) => Some(x * 2));
+      expect(isSome(result)).toBe(true);
+      if (isSome(result)) {
+        expect(result.value).toBe(20);
+      }
+    });
+  });
+
+  describe('orElse', () => {
+    it('should provide fallback for None', () => {
+      const result = O.orElse(None, () => Some(42));
+      expect(isSome(result)).toBe(true);
+      if (isSome(result)) {
+        expect(result.value).toBe(42);
+      }
+    });
+
+    it('should pass through Some', () => {
+      const some = Some(42);
+      const result = O.orElse(some, () => Some(0));
+      expect(result).toBe(some);
+    });
+  });
+
+  describe('match', () => {
+    it('should match Some', () => {
+      const result = O.match(Some(42), {
+        some: (value) => `Got ${value}`,
+        none: () => 'Nothing',
+      });
+      expect(result).toBe('Got 42');
+    });
+
+    it('should match None', () => {
+      const result = O.match(None, {
+        some: (value) => `Got ${value}`,
+        none: () => 'Nothing',
+      });
+      expect(result).toBe('Nothing');
+    });
+  });
+
+  describe('unwrapOrElse', () => {
+    it('should return value for Some', () => {
+      const result = O.unwrapOrElse(Some(42), () => 0);
+      expect(result).toBe(42);
+    });
+
+    it('should compute default for None', () => {
+      const result = O.unwrapOrElse(None, () => 99);
+      expect(result).toBe(99);
+    });
+  });
+
+  describe('unwrap', () => {
+    it('should return value for Some', () => {
+      expect(O.unwrap(Some(42))).toBe(42);
+    });
+
+    it('should throw default message for None', () => {
+      expect(() => O.unwrap(None)).toThrow('Called unwrap on None');
+    });
+
+    it('should throw custom message for None', () => {
+      expect(() => O.unwrap(None, 'Custom error')).toThrow('Custom error');
+    });
+  });
+
+  describe('toNullable', () => {
+    it('should return value for Some', () => {
+      expect(O.toNullable(Some(42))).toBe(42);
+    });
+
+    it('should return null for None', () => {
+      expect(O.toNullable(None)).toBeNull();
+    });
+  });
+
+  describe('toUndefined', () => {
+    it('should return value for Some', () => {
+      expect(O.toUndefined(Some(42))).toBe(42);
+    });
+
+    it('should return undefined for None', () => {
+      expect(O.toUndefined(None)).toBeUndefined();
+    });
+  });
+
+  describe('zip', () => {
+    it('should combine two Some options', () => {
+      const result = O.zip(Some(1), Some('a'));
+      expect(isSome(result)).toBe(true);
+      if (isSome(result)) {
+        expect(result.value).toEqual([1, 'a']);
+      }
+    });
+
+    it('should return None if first is None', () => {
+      const result = O.zip(None, Some(1));
+      expect(isNone(result)).toBe(true);
+    });
+
+    it('should return None if second is None', () => {
+      const result = O.zip(Some(1), None);
+      expect(isNone(result)).toBe(true);
+    });
+  });
+
+  describe('zipWith', () => {
+    it('should combine with function', () => {
+      const result = O.zipWith(Some(2), Some(3), (a, b) => a + b);
+      expect(isSome(result)).toBe(true);
+      if (isSome(result)) {
+        expect(result.value).toBe(5);
+      }
+    });
+
+    it('should return None if any is None', () => {
+      expect(isNone(O.zipWith(None, Some(3), (a, b) => a + b))).toBe(true);
+      expect(isNone(O.zipWith(Some(2), None, (a, b) => a + b))).toBe(true);
+    });
+  });
+
+  describe('flatten', () => {
+    it('should flatten nested Option', () => {
+      const nested = Some(Some(42));
+      const result = O.flatten(nested);
+      expect(isSome(result)).toBe(true);
+      if (isSome(result)) {
+        expect(result.value).toBe(42);
+      }
+    });
+
+    it('should handle None', () => {
+      const result = O.flatten(None);
+      expect(isNone(result)).toBe(true);
+    });
+
+    it('should handle inner None', () => {
+      const nested = Some(None);
+      const result = O.flatten(nested);
+      expect(isNone(result)).toBe(true);
+    });
+  });
+
+  describe('tap', () => {
+    it('should call function for Some', () => {
+      const spy = vi.fn();
+      const result = O.tap(Some(42), spy);
+      expect(spy).toHaveBeenCalledWith(42);
+      expect(result).toEqual(Some(42));
+    });
+
+    it('should not call function for None', () => {
+      const spy = vi.fn();
+      const result = O.tap(None, spy);
+      expect(spy).not.toHaveBeenCalled();
+      expect(isNone(result)).toBe(true);
+    });
+  });
+
+  describe('contains', () => {
+    it('should return true if Option contains value', () => {
+      expect(O.contains(Some(42), 42)).toBe(true);
+    });
+
+    it('should return false if Option contains different value', () => {
+      expect(O.contains(Some(42), 43)).toBe(false);
+    });
+
+    it('should return false for None', () => {
+      expect(O.contains(None, 42)).toBe(false);
+    });
+  });
+
+  describe('exists', () => {
+    it('should return true if predicate matches', () => {
+      expect(O.exists(Some(42), (x) => x > 0)).toBe(true);
+    });
+
+    it('should return false if predicate fails', () => {
+      expect(O.exists(Some(-1), (x) => x > 0)).toBe(false);
+    });
+
+    it('should return false for None', () => {
+      expect(O.exists(None, () => true)).toBe(false);
+    });
+  });
+
+  describe('filter edge cases', () => {
+    it('should return None for None input', () => {
+      const result = O.filter(None, () => true);
+      expect(isNone(result)).toBe(true);
+    });
+  });
+});
+
+// Extended AsyncResult tests
+describe('AsyncResult - Extended', () => {
+  describe('err', () => {
+    it('should create failed AsyncResult', async () => {
+      const result = await AsyncResult.err('error');
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) {
+        expect(result.error).toBe('error');
+      }
+    });
+  });
+
+  describe('fromPromiseTyped', () => {
+    it('should map error with typed mapper', async () => {
+      const result = await AsyncResult.fromPromiseTyped(
+        Promise.reject(new Error('original')),
+        (err) => ({ code: 'MAPPED', message: String(err) })
+      );
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) {
+        expect(result.error).toHaveProperty('code', 'MAPPED');
+      }
+    });
+  });
+
+  describe('mapErr', () => {
+    it('should transform error', async () => {
+      const result = await AsyncResult.mapErr(AsyncResult.err('error'), (e) => e.toUpperCase());
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) {
+        expect(result.error).toBe('ERROR');
+      }
+    });
+
+    it('should pass through Ok', async () => {
+      const result = await AsyncResult.mapErr(AsyncResult.ok(42), (e: string) => e.toUpperCase());
+      expect(isOk(result)).toBe(true);
+    });
+  });
+
+  describe('flatMapSync', () => {
+    it('should chain with sync Result', async () => {
+      const result = await AsyncResult.flatMapSync(AsyncResult.ok(10), (x) => Ok(x * 2));
+      expect(isOk(result)).toBe(true);
+      if (isOk(result)) {
+        expect(result.value).toBe(20);
+      }
+    });
+
+    it('should short-circuit on Err', async () => {
+      const result = await AsyncResult.flatMapSync(AsyncResult.err('error'), () => Ok(42));
+      expect(isErr(result)).toBe(true);
+    });
+  });
+
+  describe('match', () => {
+    it('should match Ok', async () => {
+      const result = await AsyncResult.match(AsyncResult.ok(42), {
+        ok: (value) => `Got ${value}`,
+        err: (error) => `Error: ${error}`,
+      });
+      expect(result).toBe('Got 42');
+    });
+
+    it('should match Err', async () => {
+      const result = await AsyncResult.match(AsyncResult.err('failed'), {
+        ok: (value) => `Got ${value}`,
+        err: (error) => `Error: ${error}`,
+      });
+      expect(result).toBe('Error: failed');
+    });
+  });
+
+  describe('unwrapOr', () => {
+    it('should return value for Ok', async () => {
+      const result = await AsyncResult.unwrapOr(AsyncResult.ok(42), 0);
+      expect(result).toBe(42);
+    });
+
+    it('should return default for Err', async () => {
+      const result = await AsyncResult.unwrapOr(AsyncResult.err('error'), 0);
+      expect(result).toBe(0);
+    });
+  });
+
+  describe('all', () => {
+    it('should combine multiple async Ok results', async () => {
+      const results = [AsyncResult.ok(1), AsyncResult.ok(2), AsyncResult.ok(3)];
+      const combined = await AsyncResult.all(results);
+      expect(isOk(combined)).toBe(true);
+      if (isOk(combined)) {
+        expect(combined.value).toEqual([1, 2, 3]);
+      }
+    });
+
+    it('should return first Err', async () => {
+      const results = [AsyncResult.ok(1), AsyncResult.err('error'), AsyncResult.ok(3)];
+      const combined = await AsyncResult.all(results);
+      expect(isErr(combined)).toBe(true);
+    });
+  });
+
+  describe('tap', () => {
+    it('should call function for Ok', async () => {
+      const spy = vi.fn();
+      const result = await AsyncResult.tap(AsyncResult.ok(42), spy);
+      expect(spy).toHaveBeenCalledWith(42);
+      expect(isOk(result)).toBe(true);
+    });
+
+    it('should call async function for Ok', async () => {
+      const spy = vi.fn().mockResolvedValue(undefined);
+      const result = await AsyncResult.tap(AsyncResult.ok(42), spy);
+      expect(spy).toHaveBeenCalledWith(42);
+      expect(isOk(result)).toBe(true);
+    });
+
+    it('should not call function for Err', async () => {
+      const spy = vi.fn();
+      await AsyncResult.tap(AsyncResult.err('error'), spy);
+      expect(spy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('tapErr', () => {
+    it('should call function for Err', async () => {
+      const spy = vi.fn();
+      const result = await AsyncResult.tapErr(AsyncResult.err('error'), spy);
+      expect(spy).toHaveBeenCalledWith('error');
+      expect(isErr(result)).toBe(true);
+    });
+
+    it('should call async function for Err', async () => {
+      const spy = vi.fn().mockResolvedValue(undefined);
+      const result = await AsyncResult.tapErr(AsyncResult.err('error'), spy);
+      expect(spy).toHaveBeenCalledWith('error');
+      expect(isErr(result)).toBe(true);
+    });
+
+    it('should not call function for Ok', async () => {
+      const spy = vi.fn();
+      await AsyncResult.tapErr(AsyncResult.ok(42), spy);
+      expect(spy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('retry with delay', () => {
+    it('should wait between retries', async () => {
+      let attempts = 0;
+      const startTime = Date.now();
+      const flaky = (): Promise<Result<number, string>> => {
+        attempts++;
+        return Promise.resolve(attempts < 2 ? Err('failed') : Ok(42));
+      };
+
+      const result = await AsyncResult.retry(flaky, { maxAttempts: 2, delay: 50 });
+
+      const elapsed = Date.now() - startTime;
+      expect(attempts).toBe(2);
+      expect(elapsed).toBeGreaterThanOrEqual(40); // At least one delay
+      expect(isOk(result)).toBe(true);
+    });
+  });
+});
+
+// Extended Do Notation tests
+describe('Do Notation - Extended', () => {
+  describe('Result Do done()', () => {
+    it('should return final Result', () => {
+      const result = Do.result
+        .bind('a', Ok(10))
+        .bind('b', ({ a }) => Ok(a * 2))
+        .done();
+      expect(isOk(result)).toBe(true);
+      if (isOk(result)) {
+        expect(result.value).toEqual({ a: 10, b: 20 });
+      }
+    });
+
+    it('should return Err from initial bind', () => {
+      const result = Do.result.bind('a', Err('initial error')).done();
+      expect(isErr(result)).toBe(true);
+    });
+  });
+
+  describe('Option Do done()', () => {
+    it('should return final Option', () => {
+      const result = Do.option
+        .bind('a', Some(10))
+        .bind('b', ({ a }) => Some(a * 2))
+        .done();
+      expect(isSome(result)).toBe(true);
+      if (isSome(result)) {
+        expect(result.value).toEqual({ a: 10, b: 20 });
+      }
+    });
+
+    it('should return None from initial bind', () => {
+      const result = Do.option.bind('a', None).done();
+      expect(isNone(result)).toBe(true);
+    });
+  });
+});
+
+// Extended pipe tests
+describe('Pipe - Extended', () => {
+  it('should handle 4 functions', () => {
+    const result = pipe(
+      5,
+      (x) => x * 2,
+      (x) => x + 1,
+      (x) => x * 3,
+      (x) => x.toString()
+    );
+    expect(result).toBe('33');
+  });
+
+  it('should handle 5 functions', () => {
+    const result = pipe(
+      5,
+      (x) => x * 2,
+      (x) => x + 1,
+      (x) => x * 3,
+      (x) => x - 1,
+      (x) => x.toString()
+    );
+    expect(result).toBe('32');
+  });
+});
+
+// Extended flow tests
+describe('Flow - Extended', () => {
+  it('should handle 3 functions', () => {
+    const fn = flow(
+      (x: number) => x * 2,
+      (x) => x + 1,
+      (x) => x.toString()
+    );
+    expect(fn(5)).toBe('11');
+  });
+
+  it('should handle 4 functions', () => {
+    const fn = flow(
+      (x: number) => x * 2,
+      (x) => x + 1,
+      (x) => x * 3,
+      (x) => x.toString()
+    );
+    expect(fn(5)).toBe('33');
+  });
+
+  it('should handle 5 functions', () => {
+    const fn = flow(
+      (x: number) => x * 2,
+      (x) => x + 1,
+      (x) => x * 3,
+      (x) => x - 1,
+      (x) => x.toString()
+    );
+    expect(fn(5)).toBe('32');
   });
 });

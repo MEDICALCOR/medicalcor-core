@@ -449,4 +449,768 @@ describe('FlexClient', () => {
       });
     });
   });
+
+  describe('getWorker', () => {
+    it('should fetch a specific worker', async () => {
+      server.use(
+        http.get(
+          'https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Workers/:workerSid',
+          () => {
+            return HttpResponse.json({
+              sid: 'WK12345678901234567890123456789012',
+              friendly_name: 'Agent Smith',
+              activity_name: 'Available',
+              activity_sid: 'WA123',
+              available: true,
+              attributes: JSON.stringify({ skills: ['dental'], languages: ['ro'] }),
+              date_created: '2024-01-01T00:00:00Z',
+              date_updated: '2024-01-01T00:00:00Z',
+            });
+          }
+        )
+      );
+
+      const worker = await client.getWorker('WK12345678901234567890123456789012');
+
+      expect(worker.workerSid).toBe('WK12345678901234567890123456789012');
+      expect(worker.friendlyName).toBe('Agent Smith');
+      expect(worker.skills).toContain('dental');
+    });
+  });
+
+  describe('updateWorker', () => {
+    it('should update worker activity', async () => {
+      let capturedBody = '';
+      server.use(
+        http.post(
+          'https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Workers/:workerSid',
+          async ({ request }) => {
+            capturedBody = await request.text();
+            return HttpResponse.json({
+              sid: 'WK123',
+              friendly_name: 'Agent Smith',
+              activity_name: 'Busy',
+              activity_sid: 'WA456',
+              available: false,
+              attributes: '{}',
+              date_created: '2024-01-01T00:00:00Z',
+              date_updated: '2024-01-01T00:00:00Z',
+            });
+          }
+        )
+      );
+
+      const worker = await client.updateWorker({
+        workerSid: 'WK123',
+        activitySid: 'WA456',
+      });
+
+      expect(worker.activityName).toBe('busy');
+      expect(capturedBody).toContain('ActivitySid=WA456');
+    });
+
+    it('should update worker attributes', async () => {
+      let capturedBody = '';
+      server.use(
+        http.post(
+          'https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Workers/:workerSid',
+          async ({ request }) => {
+            capturedBody = await request.text();
+            return HttpResponse.json({
+              sid: 'WK123',
+              friendly_name: 'Agent Smith',
+              activity_name: 'Available',
+              activity_sid: 'WA123',
+              available: true,
+              attributes: JSON.stringify({ skills: ['dental', 'implants'] }),
+              date_created: '2024-01-01T00:00:00Z',
+              date_updated: '2024-01-01T00:00:00Z',
+            });
+          }
+        )
+      );
+
+      await client.updateWorker({
+        workerSid: 'WK123',
+        attributes: { skills: ['dental', 'implants'] },
+      });
+
+      expect(capturedBody).toContain('Attributes=');
+    });
+  });
+
+  describe('getQueueStats', () => {
+    it('should fetch queue statistics', async () => {
+      server.use(
+        http.get(
+          'https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/TaskQueues/:queueSid/Statistics',
+          () => {
+            return HttpResponse.json({
+              realtime: {
+                tasks_by_status: { pending: 3, reserved: 2, assigned: 5 },
+                longest_task_waiting_age: 120,
+                average_task_acceptance_time: 45,
+                total_tasks: 100,
+              },
+            });
+          }
+        )
+      );
+
+      const stats = await client.getQueueStats('WQ123');
+
+      expect(stats.queueSid).toBe('WQ123');
+      expect(stats.currentSize).toBe(5); // pending + reserved
+      expect(stats.longestWaitTime).toBe(120);
+      expect(stats.averageWaitTime).toBe(45);
+      expect(stats.tasksToday).toBe(100);
+    });
+
+    it('should handle missing optional stats fields', async () => {
+      server.use(
+        http.get(
+          'https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/TaskQueues/:queueSid/Statistics',
+          () => {
+            return HttpResponse.json({
+              realtime: {
+                tasks_by_status: {},
+              },
+            });
+          }
+        )
+      );
+
+      const stats = await client.getQueueStats('WQ123');
+
+      expect(stats.currentSize).toBe(0);
+      expect(stats.longestWaitTime).toBe(0);
+      expect(stats.averageWaitTime).toBe(0);
+    });
+  });
+
+  describe('getTask', () => {
+    it('should fetch a specific task', async () => {
+      server.use(
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Tasks/:taskSid', () => {
+          return HttpResponse.json({
+            sid: 'WT123',
+            queue_sid: 'WQ123',
+            worker_sid: 'WK123',
+            attributes: JSON.stringify({ call_sid: 'CA123', customer_phone: '+40123456789' }),
+            assignment_status: 'assigned',
+            priority: 10,
+            reason: null,
+            date_created: '2024-01-01T00:00:00Z',
+            date_updated: '2024-01-01T00:00:00Z',
+            timeout: 120,
+          });
+        })
+      );
+
+      const task = await client.getTask('WT123');
+
+      expect(task.taskSid).toBe('WT123');
+      expect(task.workerSid).toBe('WK123');
+      expect(task.assignmentStatus).toBe('assigned');
+      expect(task.callSid).toBe('CA123');
+    });
+  });
+
+  describe('updateTask', () => {
+    it('should update task assignment status', async () => {
+      let capturedBody = '';
+      server.use(
+        http.post(
+          'https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Tasks/:taskSid',
+          async ({ request }) => {
+            capturedBody = await request.text();
+            return HttpResponse.json({
+              sid: 'WT123',
+              queue_sid: 'WQ123',
+              worker_sid: null,
+              attributes: '{}',
+              assignment_status: 'completed',
+              priority: 10,
+              reason: 'Task finished',
+              date_created: '2024-01-01T00:00:00Z',
+              date_updated: '2024-01-01T00:00:00Z',
+              timeout: 120,
+            });
+          }
+        )
+      );
+
+      const task = await client.updateTask('WT123', {
+        assignmentStatus: 'completed',
+        reason: 'Task finished',
+      });
+
+      expect(task.assignmentStatus).toBe('completed');
+      expect(capturedBody).toContain('AssignmentStatus=completed');
+      expect(capturedBody).toContain('Reason=Task');
+    });
+  });
+
+  describe('removeParticipant', () => {
+    it('should remove participant from conference', async () => {
+      let capturedUrl = '';
+      server.use(
+        http.delete(
+          'https://api.twilio.com/2010-04-01/Accounts/:accountSid/Conferences/:conferenceSid/Participants/:callSid.json',
+          ({ request }) => {
+            capturedUrl = request.url;
+            return new HttpResponse(null, { status: 204 });
+          }
+        )
+      );
+
+      await client.removeParticipant('CF123', 'CA456');
+
+      expect(capturedUrl).toContain('Participants/CA456');
+    });
+  });
+
+  describe('initiateWarmTransfer', () => {
+    it('should add new participant for warm transfer', async () => {
+      let capturedBody = '';
+      server.use(
+        http.post(
+          'https://api.twilio.com/2010-04-01/Accounts/:accountSid/Conferences/:conferenceSid/Participants.json',
+          async ({ request }) => {
+            capturedBody = await request.text();
+            return HttpResponse.json({ call_sid: 'CA_TRANSFER' }, { status: 201 });
+          }
+        )
+      );
+
+      const result = await client.initiateWarmTransfer('CF123', '+40123456789');
+
+      expect(result.callSid).toBe('CA_TRANSFER');
+      expect(capturedBody).toContain('To=%2B40123456789');
+      expect(capturedBody).toContain('EarlyMedia=true');
+    });
+  });
+
+  describe('initiateColdTransfer', () => {
+    it('should redirect call for cold transfer', async () => {
+      let capturedBody = '';
+      server.use(
+        http.post(
+          'https://api.twilio.com/2010-04-01/Accounts/:accountSid/Calls/:callSid.json',
+          async ({ request }) => {
+            capturedBody = await request.text();
+            return HttpResponse.json({ sid: 'CA123' });
+          }
+        )
+      );
+
+      await client.initiateColdTransfer('CA123', '+40123456789');
+
+      expect(capturedBody).toContain('Twiml=');
+      expect(capturedBody).toContain('Dial');
+    });
+  });
+
+  describe('getDashboardStats', () => {
+    it('should aggregate dashboard statistics', async () => {
+      // Mock listWorkers
+      server.use(
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Workers', () => {
+          return HttpResponse.json({
+            workers: [
+              {
+                sid: 'WK1',
+                friendly_name: 'Agent 1',
+                activity_name: 'Available',
+                activity_sid: 'WA1',
+                available: true,
+                attributes: '{}',
+                date_created: '2024-01-01T00:00:00Z',
+                date_updated: '2024-01-01T00:00:00Z',
+              },
+              {
+                sid: 'WK2',
+                friendly_name: 'Agent 2',
+                activity_name: 'Offline',
+                activity_sid: 'WA2',
+                available: false,
+                attributes: '{}',
+                date_created: '2024-01-01T00:00:00Z',
+                date_updated: '2024-01-01T00:00:00Z',
+              },
+            ],
+          });
+        })
+      );
+
+      // Mock listQueues
+      server.use(
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/TaskQueues', () => {
+          return HttpResponse.json({
+            task_queues: [
+              {
+                sid: 'WQ1',
+                friendly_name: 'Queue 1',
+                current_size: 3,
+              },
+              {
+                sid: 'WQ2',
+                friendly_name: 'Queue 2',
+                current_size: 2,
+              },
+            ],
+          });
+        })
+      );
+
+      // Mock listConferences
+      server.use(
+        http.get('https://api.twilio.com/2010-04-01/Accounts/:accountSid/Conferences.json', () => {
+          return HttpResponse.json({
+            conferences: [
+              {
+                sid: 'CF1',
+                friendly_name: 'Call-1',
+                status: 'in-progress',
+                date_created: '2024-01-01T00:00:00Z',
+                date_updated: '2024-01-01T00:00:00Z',
+              },
+            ],
+          });
+        })
+      );
+
+      const stats = await client.getDashboardStats();
+
+      expect(stats.agentsAvailable).toBe(1);
+      expect(stats.agentsOffline).toBe(1);
+      expect(stats.callsInQueue).toBe(5); // 3 + 2
+      expect(stats.activeCalls).toBe(1);
+      expect(stats.lastUpdated).toBeInstanceOf(Date);
+    });
+  });
+
+  describe('worker activity mapping', () => {
+    it('should map reserved activity to busy', async () => {
+      server.use(
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Workers', () => {
+          return HttpResponse.json({
+            workers: [
+              {
+                sid: 'WK1',
+                friendly_name: 'Agent',
+                activity_name: 'Reserved',
+                activity_sid: 'WA1',
+                available: false,
+                attributes: '{}',
+                date_created: '2024-01-01T00:00:00Z',
+                date_updated: '2024-01-01T00:00:00Z',
+              },
+            ],
+          });
+        })
+      );
+
+      const workers = await client.listWorkers();
+      expect(workers[0].activityName).toBe('busy');
+    });
+
+    it('should map wrap-up activity correctly', async () => {
+      server.use(
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Workers', () => {
+          return HttpResponse.json({
+            workers: [
+              {
+                sid: 'WK1',
+                friendly_name: 'Agent',
+                activity_name: 'WrapUp',
+                activity_sid: 'WA1',
+                available: false,
+                attributes: '{}',
+                date_created: '2024-01-01T00:00:00Z',
+                date_updated: '2024-01-01T00:00:00Z',
+              },
+            ],
+          });
+        })
+      );
+
+      const workers = await client.listWorkers();
+      expect(workers[0].activityName).toBe('wrap-up');
+    });
+
+    it('should default to unavailable for unknown activity', async () => {
+      server.use(
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Workers', () => {
+          return HttpResponse.json({
+            workers: [
+              {
+                sid: 'WK1',
+                friendly_name: 'Agent',
+                activity_name: 'CustomActivity',
+                activity_sid: 'WA1',
+                available: false,
+                attributes: '{}',
+                date_created: '2024-01-01T00:00:00Z',
+                date_updated: '2024-01-01T00:00:00Z',
+              },
+            ],
+          });
+        })
+      );
+
+      const workers = await client.listWorkers();
+      expect(workers[0].activityName).toBe('unavailable');
+    });
+  });
+
+  describe('task assignment status mapping', () => {
+    it('should map all assignment statuses correctly', async () => {
+      const statuses = ['pending', 'reserved', 'assigned', 'wrapping', 'completed', 'canceled'];
+
+      for (const status of statuses) {
+        server.use(
+          http.get(
+            'https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Tasks/:taskSid',
+            () => {
+              return HttpResponse.json({
+                sid: 'WT123',
+                queue_sid: 'WQ123',
+                worker_sid: null,
+                attributes: '{}',
+                assignment_status: status,
+                priority: 10,
+                reason: null,
+                date_created: '2024-01-01T00:00:00Z',
+                date_updated: '2024-01-01T00:00:00Z',
+                timeout: 120,
+              });
+            }
+          )
+        );
+
+        const task = await client.getTask('WT123');
+        expect(task.assignmentStatus).toBe(status);
+      }
+    });
+
+    it('should default to pending for unknown status', async () => {
+      server.use(
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Tasks/:taskSid', () => {
+          return HttpResponse.json({
+            sid: 'WT123',
+            queue_sid: 'WQ123',
+            worker_sid: null,
+            attributes: '{}',
+            assignment_status: 'unknown_status',
+            priority: 10,
+            reason: null,
+            date_created: '2024-01-01T00:00:00Z',
+            date_updated: '2024-01-01T00:00:00Z',
+            timeout: 120,
+          });
+        })
+      );
+
+      const task = await client.getTask('WT123');
+      expect(task.assignmentStatus).toBe('pending');
+    });
+  });
+
+  describe('worker attributes parsing', () => {
+    it('should handle invalid JSON attributes', async () => {
+      server.use(
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Workers', () => {
+          return HttpResponse.json({
+            workers: [
+              {
+                sid: 'WK1',
+                friendly_name: 'Agent',
+                activity_name: 'Available',
+                activity_sid: 'WA1',
+                available: true,
+                attributes: 'invalid-json',
+                date_created: '2024-01-01T00:00:00Z',
+                date_updated: '2024-01-01T00:00:00Z',
+              },
+            ],
+          });
+        })
+      );
+
+      const workers = await client.listWorkers();
+      expect(workers[0].skills).toEqual([]);
+      expect(workers[0].languages).toEqual([]);
+    });
+
+    it('should handle non-array skills and languages', async () => {
+      server.use(
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Workers', () => {
+          return HttpResponse.json({
+            workers: [
+              {
+                sid: 'WK1',
+                friendly_name: 'Agent',
+                activity_name: 'Available',
+                activity_sid: 'WA1',
+                available: true,
+                attributes: JSON.stringify({ skills: 'not-an-array', languages: null }),
+                date_created: '2024-01-01T00:00:00Z',
+                date_updated: '2024-01-01T00:00:00Z',
+              },
+            ],
+          });
+        })
+      );
+
+      const workers = await client.listWorkers();
+      expect(workers[0].skills).toEqual([]);
+      expect(workers[0].languages).toEqual([]);
+    });
+  });
+
+  describe('task attributes parsing', () => {
+    it('should handle invalid JSON task attributes', async () => {
+      server.use(
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Tasks/:taskSid', () => {
+          return HttpResponse.json({
+            sid: 'WT123',
+            queue_sid: 'WQ123',
+            worker_sid: null,
+            attributes: 'invalid-json',
+            assignment_status: 'pending',
+            priority: 10,
+            reason: null,
+            date_created: '2024-01-01T00:00:00Z',
+            date_updated: '2024-01-01T00:00:00Z',
+            timeout: 120,
+          });
+        })
+      );
+
+      const task = await client.getTask('WT123');
+      expect(task.callSid).toBeUndefined();
+      expect(task.customerPhone).toBeUndefined();
+    });
+  });
+
+  describe('supervisor barge mode', () => {
+    it('should add supervisor in barge mode', async () => {
+      let capturedBody = '';
+      server.use(
+        http.post(
+          'https://api.twilio.com/2010-04-01/Accounts/:accountSid/Conferences/:conferenceSid/Participants.json',
+          async ({ request }) => {
+            capturedBody = await request.text();
+            return HttpResponse.json({ call_sid: 'CA_SUPERVISOR' }, { status: 201 });
+          }
+        )
+      );
+
+      const result = await client.addSupervisorToConference({
+        conferenceSid: 'CF123',
+        supervisorCallSid: 'CA_AGENT',
+        mode: 'barge',
+      });
+
+      expect(result.success).toBe(true);
+      // In barge mode, muted should be false
+      expect(capturedBody).toContain('Muted=false');
+      expect(capturedBody).toContain('Coaching=false');
+    });
+  });
+
+  describe('listWorkers with filters', () => {
+    it('should filter by available status', async () => {
+      let capturedUrl = '';
+      server.use(
+        http.get(
+          'https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Workers',
+          ({ request }) => {
+            capturedUrl = request.url;
+            return HttpResponse.json({ workers: [] });
+          }
+        )
+      );
+
+      await client.listWorkers({ available: true });
+      expect(capturedUrl).toContain('Available=true');
+    });
+
+    it('should filter by target workers expression', async () => {
+      let capturedUrl = '';
+      server.use(
+        http.get(
+          'https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Workers',
+          ({ request }) => {
+            capturedUrl = request.url;
+            return HttpResponse.json({ workers: [] });
+          }
+        )
+      );
+
+      await client.listWorkers({ targetWorkersExpression: 'skills HAS "dental"' });
+      expect(capturedUrl).toContain('TargetWorkersExpression=');
+    });
+  });
+
+  describe('createTask with all options', () => {
+    it('should create task with timeout and task channel', async () => {
+      let capturedBody = '';
+      server.use(
+        http.post(
+          'https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Tasks',
+          async ({ request }) => {
+            capturedBody = await request.text();
+            return HttpResponse.json(
+              {
+                sid: 'WT123',
+                queue_sid: 'WQ123',
+                worker_sid: null,
+                attributes: '{}',
+                assignment_status: 'pending',
+                priority: 100,
+                reason: null,
+                date_created: '2024-01-01T00:00:00Z',
+                date_updated: '2024-01-01T00:00:00Z',
+                timeout: 300,
+              },
+              { status: 201 }
+            );
+          }
+        )
+      );
+
+      await client.createTask({
+        workflowSid: 'WW123',
+        attributes: { call_sid: 'CA123' },
+        priority: 100,
+        timeout: 300,
+        taskChannel: 'voice',
+      });
+
+      expect(capturedBody).toContain('Priority=100');
+      expect(capturedBody).toContain('Timeout=300');
+      expect(capturedBody).toContain('TaskChannel=voice');
+    });
+  });
+
+  describe('active call updates', () => {
+    it('should not update non-existent call', () => {
+      // Update a call that doesn't exist - should not throw
+      client.updateActiveCall('CA_NONEXISTENT', { duration: 60 });
+
+      // Verify nothing was added
+      expect(client.getActiveCalls()).toHaveLength(0);
+    });
+
+    it('should return undefined for non-existent call', () => {
+      const call = client.getActiveCall('CA_NONEXISTENT');
+      expect(call).toBeUndefined();
+    });
+  });
+
+  describe('updateParticipant with all options', () => {
+    it('should update hold and coaching status', async () => {
+      let capturedBody = '';
+      server.use(
+        http.post(
+          'https://api.twilio.com/2010-04-01/Accounts/:accountSid/Conferences/:conferenceSid/Participants/:participantSid',
+          async ({ request }) => {
+            capturedBody = await request.text();
+            return HttpResponse.json({ call_sid: 'CA123' });
+          }
+        )
+      );
+
+      await client.updateParticipant('CF123', 'CA456', {
+        muted: false,
+        hold: true,
+        coaching: true,
+      });
+
+      expect(capturedBody).toContain('Muted=false');
+      expect(capturedBody).toContain('Hold=true');
+      expect(capturedBody).toContain('Coaching=true');
+    });
+  });
+
+  describe('client configuration', () => {
+    it('should use custom base URL', () => {
+      const customClient = createFlexClient({
+        ...testConfig,
+        baseUrl: 'https://custom.taskrouter.twilio.com/v1',
+      });
+      expect(customClient).toBeInstanceOf(FlexClient);
+      customClient.destroy();
+    });
+
+    it('should use custom timeout', () => {
+      const customClient = createFlexClient({
+        ...testConfig,
+        timeoutMs: 60000,
+      });
+      expect(customClient).toBeInstanceOf(FlexClient);
+      customClient.destroy();
+    });
+
+    it('should use custom retry config', () => {
+      const customClient = createFlexClient({
+        ...testConfig,
+        retryConfig: { maxRetries: 5, baseDelayMs: 2000 },
+      });
+      expect(customClient).toBeInstanceOf(FlexClient);
+      customClient.destroy();
+    });
+  });
+
+  describe('getWorkerStats edge cases', () => {
+    it('should handle wrap-up workers as busy', async () => {
+      server.use(
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Workers', () => {
+          return HttpResponse.json({
+            workers: [
+              {
+                sid: 'WK1',
+                friendly_name: 'Agent',
+                activity_name: 'Wrap-Up',
+                activity_sid: 'WA1',
+                available: false,
+                attributes: '{}',
+                date_created: '2024-01-01T00:00:00Z',
+                date_updated: '2024-01-01T00:00:00Z',
+              },
+            ],
+          });
+        })
+      );
+
+      const stats = await client.getWorkerStats();
+      expect(stats.busy).toBe(1);
+    });
+
+    it('should handle offline workers', async () => {
+      server.use(
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Workers', () => {
+          return HttpResponse.json({
+            workers: [
+              {
+                sid: 'WK1',
+                friendly_name: 'Agent',
+                activity_name: 'Offline',
+                activity_sid: 'WA1',
+                available: false,
+                attributes: '{}',
+                date_created: '2024-01-01T00:00:00Z',
+                date_updated: '2024-01-01T00:00:00Z',
+              },
+            ],
+          });
+        })
+      );
+
+      const stats = await client.getWorkerStats();
+      expect(stats.offline).toBe(1);
+    });
+  });
 });
