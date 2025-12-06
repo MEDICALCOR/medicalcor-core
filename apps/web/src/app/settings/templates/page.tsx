@@ -11,7 +11,9 @@ import {
   Copy,
   Trash2,
   Eye,
+  ArrowRight,
 } from 'lucide-react';
+import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -146,6 +148,31 @@ export default function TemplatesPage() {
 
   return (
     <div className="space-y-6">
+      {/* WhatsApp Business Templates Banner */}
+      <Card className="border-green-200 bg-green-50/50">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+                <MessageSquare className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <p className="font-medium text-green-900">Template-uri WhatsApp Business</p>
+                <p className="text-sm text-green-700">
+                  Creează template-uri pre-aprobate pentru WhatsApp cu previzualizare și analytics
+                </p>
+              </div>
+            </div>
+            <Button asChild variant="outline" className="border-green-300 hover:bg-green-100">
+              <Link href="/settings/whatsapp">
+                Gestionează
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">

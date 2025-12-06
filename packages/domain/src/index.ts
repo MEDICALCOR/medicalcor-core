@@ -233,6 +233,11 @@ export * from './behavioral-insights/index.js';
 // Retention Scoring (M8 Milestone)
 export * from './retention/index.js';
 
+// Capacity Planning (M12 Milestone)
+export * from './capacity-planning/index.js';
+// Data Lineage (M15 Milestone)
+export * from './data-lineage/index.js';
+
 // ============================================================================
 // SHARED TYPES & UTILITIES
 // ============================================================================

@@ -516,6 +516,7 @@ export default function WhatsAppTemplatesPage() {
                         <SelectItem value="followup">Follow-up</SelectItem>
                         <SelectItem value="marketing">Marketing</SelectItem>
                         <SelectItem value="utility">Utilitar</SelectItem>
+                        <SelectItem value="authentication">Autentificare</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

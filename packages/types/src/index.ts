@@ -650,3 +650,48 @@ export {
   type ChurnRiskDetectedEvent as RetentionChurnRiskDetectedEvent,
   type BatchScoringCompletedEvent,
 } from './schemas/retention.js';
+
+// =============================================================================
+// Load Testing Schemas (L7 - Performance Baseline)
+// =============================================================================
+export {
+  // Enums
+  LoadTestScenarioSchema,
+  LoadTestStatusSchema,
+  // Threshold schemas
+  ThresholdResultSchema,
+  ThresholdsMapSchema,
+  // Input schemas
+  LoadTestMetricsInputSchema,
+  EndpointMetricsInputSchema,
+  CreateLoadTestResultSchema,
+  // Output schemas
+  LoadTestResultSchema,
+  LoadTestEndpointMetricsSchema,
+  // Dashboard schemas
+  LoadTestSummaryStatsSchema,
+  LoadTestTrendPointSchema,
+  ScenarioBreakdownSchema,
+  EnvironmentComparisonSchema,
+  LoadTestDashboardDataSchema,
+  // Query schemas
+  LoadTestTimeRangeSchema,
+  LoadTestQuerySchema,
+  // Types
+  type LoadTestScenario,
+  type LoadTestStatus,
+  type ThresholdResult,
+  type ThresholdsMap,
+  type LoadTestMetricsInput,
+  type EndpointMetricsInput,
+  type CreateLoadTestResult,
+  type LoadTestResult,
+  type LoadTestEndpointMetrics,
+  type LoadTestSummaryStats,
+  type LoadTestTrendPoint,
+  type ScenarioBreakdown,
+  type EnvironmentComparison,
+  type LoadTestDashboardData,
+  type LoadTestTimeRange,
+  type LoadTestQuery,
+} from './load-testing.schema.js';
