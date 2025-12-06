@@ -147,6 +147,29 @@ export * from './shared-kernel/domain-events/index.js';
 // Patient Acquisition Context - Lead scoring, triage, qualification
 export * from './patient-acquisition/index.js';
 
+// Leads Context - Lead Aggregate Root (H7 DDD Consolidation)
+// The Lead aggregate root provides rich domain methods and event sourcing support
+export {
+  // Lead Aggregate Root
+  LeadAggregateRoot,
+  type LeadAggregateState,
+  type LeadDomainEvent,
+  type CreateLeadParams,
+  // Lead Factory
+  LeadFactory,
+  leadFactory,
+  type LeadAggregateSnapshot,
+  type LeadSnapshotState,
+  type SerializedConversationEntry,
+  // Lead Errors
+  LeadError,
+  LeadDeletedError,
+  LeadClosedError,
+  LeadAlreadyConvertedError,
+  LeadLostError,
+  InvalidStatusTransitionError,
+} from './leads/index.js';
+
 // OSAX Context - Oral Surgery Auxiliary eXtension case management
 // OSAX Context - Obstructive Sleep Apnea case management
 export * from './osax/index.js';
