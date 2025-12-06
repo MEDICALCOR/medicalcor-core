@@ -1001,7 +1001,8 @@ describe('SchedulingService API methods', () => {
         return new Response(JSON.stringify({ appointments: [] }), { status: 200 });
       }) as typeof fetch;
 
-      await service.getPatientAppointments('+40712345678', {
+      await service.getPatientAppointments({
+        patientPhone: '+40712345678',
         status: 'confirmed',
         limit: 5,
       });
@@ -1573,14 +1574,18 @@ describe('MockSchedulingService - Integration Flows', () => {
 
     // 2. Verify it appears in patient list
     let patientAppts = await mockService.getPatientAppointments('+40712345678');
-    expect(patientAppts.some((a) => a.id === appointment.id && a.status === 'confirmed')).toBe(true);
+    expect(patientAppts.some((a) => a.id === appointment.id && a.status === 'confirmed')).toBe(
+      true
+    );
 
     // 3. Cancel it
     await mockService.cancelAppointment({ appointmentId: appointment.id });
 
     // 4. Verify status changed
     patientAppts = await mockService.getPatientAppointments('+40712345678');
-    expect(patientAppts.some((a) => a.id === appointment.id && a.status === 'cancelled')).toBe(true);
+    expect(patientAppts.some((a) => a.id === appointment.id && a.status === 'cancelled')).toBe(
+      true
+    );
 
     // 5. Filter by confirmed status should not include it
     const confirmedOnly = await mockService.getPatientAppointments({
