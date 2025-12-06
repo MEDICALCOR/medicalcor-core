@@ -163,6 +163,44 @@ export {
   type AdvancedScoringOutput,
   type ScoringRequest,
 
+  // Agent Guidance / Call Scripts (M2 Milestone)
+  GuidanceTypeSchema,
+  GuidanceCategorySchema,
+  GuidanceAudienceSchema,
+  ScriptActionTypeSchema,
+  ScriptStepSchema,
+  ObjectionHandlerSchema,
+  TalkingPointSchema,
+  AgentGuidanceSchema,
+  CreateGuidanceSchema,
+  UpdateGuidanceSchema,
+  GuidanceQuerySchema,
+  GuidanceSuggestionSchema,
+  GuidanceEventTypeSchema,
+  GuidanceEventBaseSchema,
+  GuidanceLoadedEventSchema,
+  GuidanceSuggestionEventSchema,
+  ObjectionDetectedEventSchema,
+  GuidanceEventSchema,
+  type GuidanceType,
+  type GuidanceCategory,
+  type GuidanceAudience,
+  type ScriptActionType,
+  type ScriptStep,
+  type ObjectionHandler,
+  type TalkingPoint,
+  type AgentGuidance,
+  type CreateGuidance,
+  type UpdateGuidance,
+  type GuidanceQuery,
+  type GuidanceSuggestion,
+  type GuidanceEventType,
+  type GuidanceEventBase,
+  type GuidanceLoadedEvent,
+  type GuidanceSuggestionEvent,
+  type ObjectionDetectedEvent,
+  type GuidanceEvent,
+
   // Supervisor/Flex (W3 Milestone)
   SupervisorPermissionSchema,
   SupervisorRoleSchema,
@@ -446,3 +484,48 @@ export {
   type CRMLeadStatus,
   type TreatmentPlanStage,
 } from './crm.schema.js';
+
+// =============================================================================
+// Agent Performance Schemas (M7)
+// =============================================================================
+export {
+  // Enums
+  AgentTypeSchema,
+  AgentRoleSchema,
+  AgentStatusSchema,
+  AgentAvailabilitySchema,
+  AssignmentReasonSchema,
+  LeadOutcomeSchema,
+  RatingTypeSchema,
+  // Core schemas
+  AgentSchema,
+  AgentSessionSchema,
+  AgentDailyMetricsSchema,
+  // Dashboard schemas
+  AgentPerformanceSummarySchema,
+  AgentTrendPointSchema,
+  AgentDetailSchema,
+  AgentDashboardMetricsSchema,
+  AgentPerformanceDashboardDataSchema,
+  // Request schemas
+  AgentPerformanceTimeRangeSchema,
+  GetAgentPerformanceRequestSchema,
+  // Types
+  type AgentType,
+  type AgentRole,
+  type AgentStatus,
+  type AgentAvailability,
+  type AssignmentReason,
+  type LeadOutcome,
+  type RatingType,
+  type Agent,
+  type AgentSession,
+  type AgentDailyMetrics,
+  type AgentPerformanceSummary,
+  type AgentTrendPoint,
+  type AgentDetail,
+  type AgentDashboardMetrics,
+  type AgentPerformanceDashboardData,
+  type AgentPerformanceTimeRange,
+  type GetAgentPerformanceRequest,
+} from './agent-performance.schema.js';

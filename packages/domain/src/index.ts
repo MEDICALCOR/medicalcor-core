@@ -215,6 +215,9 @@ export * from './language/index.js';
 // Voice AI & Supervisor (W3 Milestone)
 export * from './voice/index.js';
 
+// Agent Guidance / Call Scripts (M2 Milestone)
+export * from './guidance/index.js';
+
 // Cases - Treatment Plans to Payments (H1 Production Fix)
 export * from './cases/index.js';
 
@@ -226,6 +229,8 @@ export * from './disposition/index.js';
 
 // Routing - Skill-Based Agent Routing (H6 Milestone)
 export * from './routing/index.js';
+// Agent Performance (M7 Milestone)
+export * from './agent-performance/index.js';
 
 // ============================================================================
 // SHARED TYPES & UTILITIES
