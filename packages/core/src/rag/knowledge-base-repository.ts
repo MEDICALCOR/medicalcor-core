@@ -270,6 +270,29 @@ export class KnowledgeBaseRepository implements IKnowledgeBaseRepository {
   }
 
   /**
+   * Update embedding with version tracking
+   */
+  async updateEmbeddingWithVersion(
+    id: string,
+    embedding: number[],
+    model: string,
+    tokensUsed?: number
+  ): Promise<void> {
+    const query = `
+      UPDATE knowledge_base
+      SET
+        embedding = $1,
+        embedding_model = $2,
+        embedding_version = COALESCE(embedding_version, 0) + 1,
+        embedding_generated_at = NOW(),
+        embedding_tokens_used = $3,
+        updated_at = NOW()
+      WHERE id = $4
+    `;
+    await this.pool.query(query, [this.vectorToString(embedding), model, tokensUsed ?? null, id]);
+  }
+
+  /**
    * Batch update embeddings
    */
   async updateEmbeddingsBatch(updates: { id: string; embedding: number[] }[]): Promise<void> {
@@ -291,6 +314,114 @@ export class KnowledgeBaseRepository implements IKnowledgeBaseRepository {
     } finally {
       client.release();
     }
+  }
+
+  /**
+   * Batch update embeddings with version tracking
+   */
+  async updateEmbeddingsBatchWithVersion(
+    updates: { id: string; embedding: number[]; model: string; tokensUsed?: number }[]
+  ): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      for (const { id, embedding, model, tokensUsed } of updates) {
+        await client.query(
+          `UPDATE knowledge_base
+           SET embedding = $1,
+               embedding_model = $2,
+               embedding_version = COALESCE(embedding_version, 0) + 1,
+               embedding_generated_at = NOW(),
+               embedding_tokens_used = $3,
+               updated_at = NOW()
+           WHERE id = $4`,
+          [this.vectorToString(embedding), model, tokensUsed ?? null, id]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Find entries by embedding model
+   */
+  async findByEmbeddingModel(
+    model: string,
+    options?: { limit?: number; offset?: number; isActive?: boolean }
+  ): Promise<KnowledgeEntry[]> {
+    const limit = options?.limit ?? 100;
+    const offset = options?.offset ?? 0;
+    const isActive = options?.isActive ?? true;
+
+    const query = `
+      SELECT * FROM knowledge_base
+      WHERE embedding_model = $1 AND is_active = $2 AND embedding IS NOT NULL
+      ORDER BY created_at ASC
+      LIMIT $3 OFFSET $4
+    `;
+
+    const result = await this.pool.query(query, [model, isActive, limit, offset]);
+    return (result.rows as Record<string, unknown>[]).map((row) => this.mapRowToEntry(row));
+  }
+
+  /**
+   * Count entries by embedding model
+   */
+  async countByEmbeddingModel(model: string, isActive = true): Promise<number> {
+    const result = await this.pool.query(
+      `SELECT COUNT(*) FROM knowledge_base
+       WHERE embedding_model = $1 AND is_active = $2 AND embedding IS NOT NULL`,
+      [model, isActive]
+    );
+    return parseInt((result.rows[0] as { count: string }).count, 10);
+  }
+
+  /**
+   * Find entries needing embedding refresh (outdated model)
+   */
+  async findOutdatedEmbeddings(currentModel: string, limit = 100): Promise<KnowledgeEntry[]> {
+    const query = `
+      SELECT * FROM knowledge_base
+      WHERE embedding_model != $1
+        AND is_active = TRUE
+        AND embedding IS NOT NULL
+      ORDER BY updated_at ASC
+      LIMIT $2
+    `;
+
+    const result = await this.pool.query(query, [currentModel, limit]);
+    return (result.rows as Record<string, unknown>[]).map((row) => this.mapRowToEntry(row));
+  }
+
+  /**
+   * Get embedding model distribution
+   */
+  async getEmbeddingModelStats(): Promise<{ model: string; count: number; percentage: number }[]> {
+    const result = await this.pool.query(`
+      SELECT
+        embedding_model AS model,
+        COUNT(*) AS count
+      FROM knowledge_base
+      WHERE embedding IS NOT NULL AND is_active = TRUE
+      GROUP BY embedding_model
+      ORDER BY count DESC
+    `);
+
+    const rows = result.rows as { model: string; count: string }[];
+    const total = rows.reduce((sum, r) => sum + parseInt(r.count, 10), 0);
+
+    return rows.map((row) => ({
+      model: row.model,
+      count: parseInt(row.count, 10),
+      percentage: total > 0 ? (parseInt(row.count, 10) / total) * 100 : 0,
+    }));
   }
 
   /**
