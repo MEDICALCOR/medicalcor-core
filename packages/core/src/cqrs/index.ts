@@ -223,3 +223,50 @@ export {
   type FindSagasOptions,
   type SagaRepository,
 } from './saga-repository.js';
+
+// Audit Trail - Compliance logging (HIPAA, GDPR)
+export {
+  AuditTrailService,
+  InMemoryAuditStore,
+  PostgresAuditStore,
+  createAuditTrailService,
+  createInMemoryAuditStore,
+  createPostgresAuditStore,
+  type AuditActor,
+  type AuditEntry,
+  type AuditAction,
+  type AuditSeverity,
+  type AuditQueryOptions,
+  type AuditQueryResult,
+  type AuditSummary,
+  type AuditStore,
+} from './audit-trail.js';
+
+// State Reconstruction - Point-in-time state queries
+export {
+  StateReconstructionService,
+  buildAggregateHistoryView,
+  createStateReconstructionService,
+  type StateAtTime,
+  type StateDiff,
+  type TimelineEntry,
+  type StateTimeline,
+  type ReconstructionOptions,
+  type AggregateHistoryView,
+} from './state-reconstruction.js';
+
+// Temporal Replay - Enhanced event replay with temporal queries
+export {
+  TemporalReplayService,
+  TemporalProjectionBuilder,
+  createTemporalReplayService,
+  defineTemporalProjection,
+  type TemporalQueryMode,
+  type TemporalQueryOptions,
+  type TemporalQueryResult,
+  type EventWindow,
+  type SlidingWindowConfig,
+  type TemporalReplayConfig,
+  type TemporalReplayResult,
+  type TemporalContext,
+} from './temporal-replay.js';
