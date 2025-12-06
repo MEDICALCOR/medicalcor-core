@@ -433,9 +433,167 @@ export const SupervisorDashboardStatsSchema = z.object({
 });
 
 // =============================================================================
+// Queue SLA Configuration (H6)
+// =============================================================================
+
+/**
+ * SLA threshold configuration for a queue
+ */
+export const QueueSLAConfigSchema = z.object({
+  queueSid: z.string(),
+  queueName: z.string(),
+
+  // Wait time thresholds (in seconds)
+  targetAnswerTime: z.number().int().min(0).default(30), // Target time to answer calls
+  maxWaitTime: z.number().int().min(0).default(120), // Max acceptable wait time
+  criticalWaitTime: z.number().int().min(0).default(300), // Critical threshold
+
+  // Queue size thresholds
+  maxQueueSize: z.number().int().min(0).default(10),
+  criticalQueueSize: z.number().int().min(0).default(20),
+
+  // Abandonment thresholds
+  maxAbandonRate: z.number().min(0).max(100).default(5), // Max acceptable abandon rate %
+
+  // Agent availability thresholds
+  minAvailableAgents: z.number().int().min(0).default(1),
+  targetAgentUtilization: z.number().min(0).max(100).default(80), // Target utilization %
+
+  // Service level target
+  serviceLevelTarget: z.number().min(0).max(100).default(80), // % of calls answered within target time
+
+  // Alert settings
+  alertEnabled: z.boolean().default(true),
+  escalationEnabled: z.boolean().default(true),
+});
+
+/**
+ * Real-time SLA status for a queue
+ */
+export const QueueSLAStatusSchema = z.object({
+  queueSid: z.string(),
+  queueName: z.string(),
+
+  // Current metrics
+  currentQueueSize: z.number().int().min(0),
+  longestWaitTime: z.number().int().min(0), // seconds
+  averageWaitTime: z.number().min(0), // seconds
+  averageHandleTime: z.number().min(0), // seconds
+
+  // Agent metrics
+  availableAgents: z.number().int().min(0),
+  busyAgents: z.number().int().min(0),
+  totalAgents: z.number().int().min(0),
+  agentUtilization: z.number().min(0).max(100),
+
+  // Performance metrics (rolling window)
+  callsHandledToday: z.number().int().min(0).default(0),
+  callsAbandonedToday: z.number().int().min(0).default(0),
+  abandonRate: z.number().min(0).max(100).default(0),
+  serviceLevel: z.number().min(0).max(100), // % of calls answered within target
+
+  // SLA compliance
+  isCompliant: z.boolean(),
+  breaches: z.array(z.enum([
+    'wait_time_exceeded',
+    'queue_size_exceeded',
+    'abandon_rate_exceeded',
+    'agent_availability_low',
+    'service_level_missed',
+  ])).default([]),
+
+  // Severity
+  severity: z.enum(['ok', 'warning', 'critical']).default('ok'),
+
+  // Timestamp
+  lastUpdated: TimestampSchema,
+});
+
+/**
+ * SLA breach event
+ */
+export const SLABreachEventSchema = z.object({
+  eventId: UUIDSchema,
+  queueSid: z.string(),
+  queueName: z.string(),
+  breachType: z.enum([
+    'wait_time_exceeded',
+    'queue_size_exceeded',
+    'abandon_rate_exceeded',
+    'agent_availability_low',
+    'service_level_missed',
+  ]),
+  severity: z.enum(['warning', 'critical']),
+
+  // Breach details
+  threshold: z.number(),
+  currentValue: z.number(),
+
+  // Context
+  affectedCalls: z.number().int().min(0).optional(),
+  affectedAgents: z.array(z.string()).optional(),
+
+  // Timing
+  detectedAt: TimestampSchema,
+  resolvedAt: TimestampSchema.optional(),
+  durationSeconds: z.number().int().min(0).optional(),
+
+  // Actions taken
+  alertSent: z.boolean().default(false),
+  escalated: z.boolean().default(false),
+  notes: z.string().optional(),
+});
+
+/**
+ * SLA report for a time period
+ */
+export const SLAReportSchema = z.object({
+  reportId: UUIDSchema,
+  queueSid: z.string(),
+  queueName: z.string(),
+
+  // Report period
+  periodStart: TimestampSchema,
+  periodEnd: TimestampSchema,
+  periodType: z.enum(['hourly', 'daily', 'weekly', 'monthly']),
+
+  // Summary metrics
+  totalCalls: z.number().int().min(0),
+  callsAnswered: z.number().int().min(0),
+  callsAbandoned: z.number().int().min(0),
+  callsWithinSLA: z.number().int().min(0),
+
+  // Performance
+  overallServiceLevel: z.number().min(0).max(100),
+  averageWaitTime: z.number().min(0),
+  averageHandleTime: z.number().min(0),
+  maxWaitTime: z.number().min(0),
+  abandonRate: z.number().min(0).max(100),
+
+  // Agent metrics
+  averageAgentUtilization: z.number().min(0).max(100),
+  peakQueueSize: z.number().int().min(0),
+
+  // Breach summary
+  totalBreaches: z.number().int().min(0),
+  criticalBreaches: z.number().int().min(0),
+  breachesByType: z.record(z.number().int().min(0)).optional(),
+
+  // Comparison
+  complianceRate: z.number().min(0).max(100), // % of time in compliance
+  trend: z.enum(['improving', 'stable', 'declining']).optional(),
+
+  generatedAt: TimestampSchema,
+});
+
+// =============================================================================
 // Type Exports
 // =============================================================================
 
+export type QueueSLAConfig = z.infer<typeof QueueSLAConfigSchema>;
+export type QueueSLAStatus = z.infer<typeof QueueSLAStatusSchema>;
+export type SLABreachEvent = z.infer<typeof SLABreachEventSchema>;
+export type SLAReport = z.infer<typeof SLAReportSchema>;
 export type SupervisorPermission = z.infer<typeof SupervisorPermissionSchema>;
 export type SupervisorRole = z.infer<typeof SupervisorRoleSchema>;
 export type MonitoredCallState = z.infer<typeof MonitoredCallStateSchema>;

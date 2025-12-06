@@ -17,8 +17,18 @@ export const StripeEventTypeSchema = z.enum([
   'customer.updated',
   'invoice.paid',
   'invoice.payment_failed',
+  'invoice.created',
+  'invoice.finalized',
+  'invoice.upcoming',
   'checkout.session.completed',
   'checkout.session.expired',
+  // Subscription events
+  'customer.subscription.created',
+  'customer.subscription.updated',
+  'customer.subscription.deleted',
+  'customer.subscription.paused',
+  'customer.subscription.resumed',
+  'customer.subscription.trial_will_end',
 ]);
 
 // Payment intent object
@@ -97,6 +107,48 @@ export const CheckoutSessionSchema = z.object({
   created: z.number(),
 });
 
+// Subscription object
+export const SubscriptionSchema = z.object({
+  id: z.string(),
+  object: z.literal('subscription'),
+  customer: z.string(),
+  status: z.enum([
+    'incomplete',
+    'incomplete_expired',
+    'trialing',
+    'active',
+    'past_due',
+    'canceled',
+    'unpaid',
+    'paused',
+  ]),
+  current_period_start: z.number(),
+  current_period_end: z.number(),
+  trial_start: z.number().nullable(),
+  trial_end: z.number().nullable(),
+  cancel_at: z.number().nullable(),
+  canceled_at: z.number().nullable(),
+  ended_at: z.number().nullable(),
+  metadata: z.record(z.string()).optional(),
+  items: z.object({
+    data: z.array(z.object({
+      id: z.string(),
+      price: z.object({
+        id: z.string(),
+        product: z.string(),
+        unit_amount: z.number().nullable(),
+        currency: z.string(),
+        recurring: z.object({
+          interval: z.enum(['day', 'week', 'month', 'year']),
+          interval_count: z.number(),
+        }).nullable(),
+      }),
+      quantity: z.number().optional(),
+    })),
+  }).optional(),
+  created: z.number(),
+});
+
 // Stripe webhook event
 export const StripeWebhookEventSchema = z.object({
   id: z.string(),
@@ -113,6 +165,7 @@ export const StripeWebhookEventSchema = z.object({
       StripeCustomerSchema,
       InvoiceSchema,
       CheckoutSessionSchema,
+      SubscriptionSchema,
     ]),
   }),
 });
@@ -136,5 +189,6 @@ export type Charge = z.infer<typeof ChargeSchema>;
 export type StripeCustomer = z.infer<typeof StripeCustomerSchema>;
 export type Invoice = z.infer<typeof InvoiceSchema>;
 export type CheckoutSession = z.infer<typeof CheckoutSessionSchema>;
+export type Subscription = z.infer<typeof SubscriptionSchema>;
 export type StripeWebhookEvent = z.infer<typeof StripeWebhookEventSchema>;
 export type PaymentEvent = z.infer<typeof PaymentEventSchema>;
