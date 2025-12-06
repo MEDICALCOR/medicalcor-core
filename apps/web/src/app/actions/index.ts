@@ -210,12 +210,7 @@ export {
   getStripeRevenueAction,
 } from './billing/index';
 
-export type {
-  Invoice,
-  InvoiceItem,
-  InvoiceStatus,
-  BillingStats,
-} from './billing/index';
+export type { Invoice, InvoiceItem, InvoiceStatus, BillingStats } from './billing/index';
 
 // ============================================================================
 // CAMPAIGNS ACTIONS
@@ -432,3 +427,26 @@ export type {
   InsightType,
   SubjectType as BehavioralSubjectType,
 } from './behavioral-insights/index';
+
+// ============================================================================
+// CIRCUIT BREAKER ACTIONS (M10)
+// ============================================================================
+
+export {
+  getCircuitBreakerDashboardAction,
+  getCircuitBreakerStatsAction,
+  getCircuitBreakerByServiceAction,
+  getOpenCircuitsAction,
+  getCircuitStateHistoryAction,
+  resetCircuitBreakerAction,
+  getDegradedServicesAction,
+} from './circuit-breaker/index';
+
+export type {
+  CircuitState,
+  CircuitBreakerService,
+  CircuitBreakerDashboardData,
+  CircuitBreakerStats,
+  CircuitStateEvent,
+  CircuitBreakerResetResult,
+} from './circuit-breaker/index';

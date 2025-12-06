@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { User, Link2, Bell, FileText, Settings } from 'lucide-react';
+import { User, Link2, Bell, FileText, Settings, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const settingsNav = [
@@ -10,6 +10,7 @@ const settingsNav = [
   { name: 'Integrări', href: '/settings/integrations', icon: Link2 },
   { name: 'Notificări', href: '/settings/notifications', icon: Bell },
   { name: 'Template-uri', href: '/settings/templates', icon: FileText },
+  { name: 'WhatsApp', href: '/settings/whatsapp', icon: MessageSquare },
 ];
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {

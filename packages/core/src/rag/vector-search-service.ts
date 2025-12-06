@@ -7,12 +7,21 @@ import type {
   SearchFilters,
 } from './types.js';
 import { KnowledgeBaseRepository } from './knowledge-base-repository.js';
+import {
+  VectorSearchQueryLogger,
+  QueryTimer,
+  type VectorSearchQueryLogEntry,
+  type VectorSearchQueryLoggerConfig,
+} from './vector-search-query-logger.js';
+import { logger as defaultLogger, type Logger } from '../logger.js';
 
 /**
  * Vector Search Service
  *
  * High-level service for semantic and hybrid search operations
  * Wraps pgvector operations with caching, logging, and optimization
+ *
+ * M4 Enhancement: Integrated query logging for RAG performance monitoring
  */
 
 export interface VectorSearchConfig {
@@ -22,6 +31,15 @@ export interface VectorSearchConfig {
   defaultKeywordWeight: number;
   maxResults: number;
   enableQueryLogging: boolean;
+  embeddingModel?: string;
+  embeddingDimensions?: number;
+}
+
+export interface VectorSearchContext {
+  correlationId?: string;
+  useCase?: string;
+  clientSource?: string;
+  cacheHit?: boolean;
 }
 
 const DEFAULT_CONFIG: VectorSearchConfig = {
@@ -31,15 +49,34 @@ const DEFAULT_CONFIG: VectorSearchConfig = {
   defaultKeywordWeight: 0.3,
   maxResults: 100,
   enableQueryLogging: true,
+  embeddingModel: 'text-embedding-3-small',
+  embeddingDimensions: 1536,
 };
 
 export class VectorSearchService {
   private repository: KnowledgeBaseRepository;
   private config: VectorSearchConfig;
+  private pool: Pool;
+  private queryLogger: VectorSearchQueryLogger | null;
+  private logger: Logger;
 
-  constructor(pool: Pool, config: Partial<VectorSearchConfig> = {}) {
+  constructor(
+    pool: Pool,
+    config: Partial<VectorSearchConfig> = {},
+    loggerConfig?: Partial<VectorSearchQueryLoggerConfig>,
+    logger?: Logger
+  ) {
+    this.pool = pool;
     this.repository = new KnowledgeBaseRepository(pool);
     this.config = { ...DEFAULT_CONFIG, ...config };
+    this.logger = logger ?? defaultLogger.child({ module: 'vector-search-service' });
+
+    // Initialize query logger if logging is enabled
+    if (this.config.enableQueryLogging) {
+      this.queryLogger = new VectorSearchQueryLogger(pool, loggerConfig, this.logger);
+    } else {
+      this.queryLogger = null;
+    }
   }
 
   /**
@@ -48,9 +85,11 @@ export class VectorSearchService {
   async semanticSearch(
     queryEmbedding: number[],
     query: string,
-    options: Partial<SearchOptions> = {}
+    options: Partial<SearchOptions> = {},
+    context: VectorSearchContext = {}
   ): Promise<SearchResponse> {
-    const startTime = Date.now();
+    const timer = new QueryTimer();
+    timer.startSearch();
 
     const {
       topK = this.config.defaultTopK,
@@ -59,29 +98,62 @@ export class VectorSearchService {
       includeMetadata = true,
     } = options;
 
-    const results = await this.repository.search(queryEmbedding, {
-      topK: Math.min(topK, this.config.maxResults),
-      similarityThreshold,
-      filters: filters ? { ...filters } : {},
-    });
+    try {
+      const results = await this.repository.search(queryEmbedding, {
+        topK: Math.min(topK, this.config.maxResults),
+        similarityThreshold,
+        filters: filters ? { ...filters } : {},
+      });
 
-    const searchResults: SearchResult[] = results.map((r) => ({
-      id: r.id ?? '',
-      sourceType: r.sourceType,
-      title: r.title,
-      content: r.content,
-      similarity: r.similarity,
-      metadata: includeMetadata ? r.metadata : {},
-      tags: r.tags,
-    }));
+      timer.endSearch();
 
-    return {
-      results: searchResults,
-      query,
-      searchType: 'semantic',
-      totalResults: searchResults.length,
-      latencyMs: Date.now() - startTime,
-    };
+      const searchResults: SearchResult[] = results.map((r) => ({
+        id: r.id ?? '',
+        sourceType: r.sourceType,
+        title: r.title,
+        content: r.content,
+        similarity: r.similarity,
+        metadata: includeMetadata ? r.metadata : {},
+        tags: r.tags,
+      }));
+
+      const metrics = timer.getMetrics();
+      const response: SearchResponse = {
+        results: searchResults,
+        query,
+        searchType: 'semantic',
+        totalResults: searchResults.length,
+        latencyMs: metrics.totalLatencyMs,
+      };
+
+      // Log the query
+      await this.logSearchQuery({
+        queryText: query,
+        queryEmbedding,
+        searchType: 'semantic',
+        topK,
+        similarityThreshold,
+        filters: filters ?? {},
+        results: searchResults,
+        metrics,
+        context,
+      });
+
+      return response;
+    } catch (error) {
+      // Log the error
+      if (this.queryLogger) {
+        await this.queryLogger.logError(query, error as Error, {
+          searchType: 'semantic',
+          topK,
+          filters: filters ?? {},
+          correlationId: context.correlationId,
+          useCase: context.useCase,
+          totalLatencyMs: timer.getMetrics().totalLatencyMs,
+        });
+      }
+      throw error;
+    }
   }
 
   /**
@@ -90,9 +162,11 @@ export class VectorSearchService {
   async hybridSearch(
     queryEmbedding: number[],
     query: string,
-    options: Partial<SearchOptions> = {}
+    options: Partial<SearchOptions> = {},
+    context: VectorSearchContext = {}
   ): Promise<SearchResponse> {
-    const startTime = Date.now();
+    const timer = new QueryTimer();
+    timer.startSearch();
 
     const {
       topK = this.config.defaultTopK,
@@ -103,33 +177,68 @@ export class VectorSearchService {
       includeMetadata = true,
     } = options;
 
-    const results = await this.repository.hybridSearch(queryEmbedding, query, {
-      topK: Math.min(topK, this.config.maxResults),
-      similarityThreshold,
-      semanticWeight,
-      keywordWeight,
-      filters: filters ? { ...filters } : {},
-    });
+    try {
+      const results = await this.repository.hybridSearch(queryEmbedding, query, {
+        topK: Math.min(topK, this.config.maxResults),
+        similarityThreshold,
+        semanticWeight,
+        keywordWeight,
+        filters: filters ? { ...filters } : {},
+      });
 
-    const searchResults: SearchResult[] = results.map((r) => ({
-      id: r.id ?? '',
-      sourceType: r.sourceType,
-      title: r.title,
-      content: r.content,
-      similarity: r.semanticScore,
-      keywordScore: r.keywordScore,
-      combinedScore: r.combinedScore,
-      metadata: includeMetadata ? r.metadata : {},
-      tags: r.tags,
-    }));
+      timer.endSearch();
 
-    return {
-      results: searchResults,
-      query,
-      searchType: 'hybrid',
-      totalResults: searchResults.length,
-      latencyMs: Date.now() - startTime,
-    };
+      const searchResults: SearchResult[] = results.map((r) => ({
+        id: r.id ?? '',
+        sourceType: r.sourceType,
+        title: r.title,
+        content: r.content,
+        similarity: r.semanticScore,
+        keywordScore: r.keywordScore,
+        combinedScore: r.combinedScore,
+        metadata: includeMetadata ? r.metadata : {},
+        tags: r.tags,
+      }));
+
+      const metrics = timer.getMetrics();
+      const response: SearchResponse = {
+        results: searchResults,
+        query,
+        searchType: 'hybrid',
+        totalResults: searchResults.length,
+        latencyMs: metrics.totalLatencyMs,
+      };
+
+      // Log the query
+      await this.logSearchQuery({
+        queryText: query,
+        queryEmbedding,
+        searchType: 'hybrid',
+        topK,
+        similarityThreshold,
+        semanticWeight,
+        keywordWeight,
+        filters: filters ?? {},
+        results: searchResults,
+        metrics,
+        context,
+      });
+
+      return response;
+    } catch (error) {
+      // Log the error
+      if (this.queryLogger) {
+        await this.queryLogger.logError(query, error as Error, {
+          searchType: 'hybrid',
+          topK,
+          filters: filters ?? {},
+          correlationId: context.correlationId,
+          useCase: context.useCase,
+          totalLatencyMs: timer.getMetrics().totalLatencyMs,
+        });
+      }
+      throw error;
+    }
   }
 
   /**
@@ -138,15 +247,16 @@ export class VectorSearchService {
   async search(
     queryEmbedding: number[],
     query: string,
-    options: Partial<SearchOptions> = {}
+    options: Partial<SearchOptions> = {},
+    context: VectorSearchContext = {}
   ): Promise<SearchResponse> {
     const searchType = options.type ?? 'hybrid';
 
     if (searchType === 'semantic') {
-      return this.semanticSearch(queryEmbedding, query, options);
+      return this.semanticSearch(queryEmbedding, query, options, context);
     }
 
-    return this.hybridSearch(queryEmbedding, query, options);
+    return this.hybridSearch(queryEmbedding, query, options, context);
   }
 
   /**
@@ -265,6 +375,98 @@ export class VectorSearchService {
   getRepository(): KnowledgeBaseRepository {
     return this.repository;
   }
+
+  /**
+   * Get query logger for direct access (e.g., for analytics)
+   */
+  getQueryLogger(): VectorSearchQueryLogger | null {
+    return this.queryLogger;
+  }
+
+  /**
+   * Enable or disable query logging at runtime
+   */
+  setQueryLoggingEnabled(enabled: boolean): void {
+    if (enabled && !this.queryLogger) {
+      this.queryLogger = new VectorSearchQueryLogger(this.pool, {}, this.logger);
+    } else if (!enabled) {
+      this.queryLogger = null;
+    }
+    this.config.enableQueryLogging = enabled;
+  }
+
+  // ===========================================================================
+  // Private Helpers
+  // ===========================================================================
+
+  /**
+   * Log a search query with metrics
+   */
+  private async logSearchQuery(params: {
+    queryText: string;
+    queryEmbedding: number[];
+    searchType: 'semantic' | 'hybrid';
+    topK: number;
+    similarityThreshold?: number;
+    semanticWeight?: number;
+    keywordWeight?: number;
+    filters: SearchFilters;
+    results: SearchResult[];
+    metrics: { embeddingLatencyMs?: number; searchLatencyMs?: number; totalLatencyMs: number };
+    context: VectorSearchContext;
+  }): Promise<void> {
+    if (!this.queryLogger) {
+      return;
+    }
+
+    const {
+      queryText,
+      queryEmbedding,
+      searchType,
+      topK,
+      similarityThreshold,
+      semanticWeight,
+      keywordWeight,
+      filters,
+      results,
+      metrics,
+      context,
+    } = params;
+
+    const entry: VectorSearchQueryLogEntry = {
+      queryText,
+      queryEmbedding,
+      searchType,
+      topK,
+      similarityThreshold,
+      semanticWeight,
+      keywordWeight,
+      filters: {
+        sourceType: filters.sourceType,
+        sourceTypes: filters.sourceTypes,
+        clinicId: filters.clinicId,
+        language: filters.language,
+        tags: filters.tags,
+        excludeIds: filters.excludeIds,
+      },
+      resultCount: results.length,
+      resultIds: results.map((r) => r.id),
+      resultScores: results.map((r) => r.similarity),
+      embeddingLatencyMs: metrics.embeddingLatencyMs,
+      searchLatencyMs: metrics.searchLatencyMs,
+      totalLatencyMs: metrics.totalLatencyMs,
+      correlationId: context.correlationId,
+      useCase: context.useCase,
+      cacheHit: context.cacheHit,
+      sourceTypesSearched:
+        filters.sourceTypes ?? (filters.sourceType ? [filters.sourceType] : undefined),
+      embeddingModel: this.config.embeddingModel,
+      embeddingDimensions: this.config.embeddingDimensions,
+      clientInfo: context.clientSource ? { source: context.clientSource } : undefined,
+    };
+
+    await this.queryLogger.logQuery(entry);
+  }
 }
 
 // =============================================================================
@@ -273,7 +475,14 @@ export class VectorSearchService {
 
 export function createVectorSearchService(
   pool: Pool,
-  config?: Partial<VectorSearchConfig>
+  config?: Partial<VectorSearchConfig>,
+  loggerConfig?: Partial<VectorSearchQueryLoggerConfig>
 ): VectorSearchService {
-  return new VectorSearchService(pool, config);
+  return new VectorSearchService(pool, config, loggerConfig);
 }
+
+// Re-export types for convenience
+export type {
+  VectorSearchQueryLogEntry,
+  VectorSearchQueryLoggerConfig,
+} from './vector-search-query-logger.js';

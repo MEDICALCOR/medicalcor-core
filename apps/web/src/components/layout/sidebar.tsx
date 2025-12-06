@@ -20,6 +20,7 @@ import {
   FileText,
   UserCog,
   Headphones,
+  MonitorCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -34,6 +35,7 @@ const navigation = [
   { name: 'Calendar', href: '/calendar', icon: Calendar },
   { name: 'Mesaje', href: '/messages', icon: MessageSquare },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { name: 'Supervisor', href: '/supervisor', icon: MonitorCheck },
   { name: 'Agenți', href: '/agent-performance', icon: Headphones },
   { name: 'Workflows', href: '/workflows', icon: Zap },
   { name: 'Rapoarte', href: '/reports', icon: FileText },
