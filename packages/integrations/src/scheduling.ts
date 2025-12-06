@@ -324,21 +324,29 @@ export class SchedulingService {
 
   /**
    * Get appointments for a patient
+   * Accepts either a phone string or an options object for flexibility
    */
   async getPatientAppointments(
-    patientPhone: string,
-    options?: {
-      status?: Appointment['status'];
-      limit?: number;
-    }
+    query:
+      | string
+      | { patientPhone: string; hubspotContactId?: string; status?: Appointment['status']; limit?: number }
   ): Promise<Appointment[]> {
+    // Handle both call signatures for flexibility
+    const patientPhone = typeof query === 'string' ? query : query.patientPhone;
+    const hubspotContactId = typeof query === 'string' ? undefined : query.hubspotContactId;
+    const status = typeof query === 'string' ? undefined : query.status;
+    const limit = typeof query === 'string' ? 10 : query.limit ?? 10;
+
     const params = new URLSearchParams({
       patient_phone: patientPhone,
-      limit: (options?.limit ?? 10).toString(),
+      limit: limit.toString(),
     });
 
-    if (options?.status) {
-      params.set('status', options.status);
+    if (hubspotContactId) {
+      params.set('hubspot_contact_id', hubspotContactId);
+    }
+    if (status) {
+      params.set('status', status);
     }
 
     const response = await this.request<{ appointments: Appointment[] }>(
@@ -653,6 +661,83 @@ export class MockSchedulingService {
     appointment.status = 'cancelled';
     appointment.updatedAt = new Date().toISOString();
     return Promise.resolve(appointment);
+  }
+
+  /**
+   * Mock reschedule appointment
+   */
+  rescheduleAppointment(input: RescheduleAppointmentInput): Promise<Appointment> {
+    const appointment = this.appointments.get(input.appointmentId);
+    if (!appointment) {
+      return Promise.reject(
+        new ExternalServiceError('MockSchedulingService', '404: Appointment not found')
+      );
+    }
+
+    // Update with new slot info (mock: 3 days from now)
+    appointment.slotId = input.newSlotId;
+    appointment.scheduledAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+    appointment.status = 'confirmed';
+    appointment.updatedAt = new Date().toISOString();
+    return Promise.resolve(appointment);
+  }
+
+  /**
+   * Mock get patient appointments
+   */
+  getPatientAppointments(
+    query:
+      | string
+      | { patientPhone: string; hubspotContactId?: string; status?: Appointment['status']; limit?: number }
+  ): Promise<Appointment[]> {
+    // Handle both call signatures for compatibility
+    const patientPhone = typeof query === 'string' ? query : query.patientPhone;
+    const status = typeof query === 'string' ? undefined : query.status;
+    const limit = typeof query === 'string' ? 10 : query.limit ?? 10;
+
+    const results: Appointment[] = [];
+    for (const appointment of this.appointments.values()) {
+      if (appointment.patientPhone === patientPhone) {
+        if (!status || appointment.status === status) {
+          results.push(appointment);
+        }
+      }
+    }
+    return Promise.resolve(results.slice(0, limit));
+  }
+
+  /**
+   * Mock get slot by ID
+   */
+  getSlot(slotId: string): Promise<TimeSlot | null> {
+    // Generate a mock slot based on ID
+    const mockSlot: TimeSlot = {
+      id: slotId,
+      date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] ?? '',
+      time: '10:00',
+      dateTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+      duration: 60,
+      available: true,
+      practitioner: {
+        id: 'dr_1',
+        name: 'Dr. Demo General',
+        specialty: 'Stomatologie Generală',
+      },
+      location: {
+        id: 'loc_1',
+        name: 'Demo Clinic Central',
+        address: 'Example Street 1, Demo City',
+      },
+    };
+    return Promise.resolve(mockSlot);
+  }
+
+  /**
+   * Mock check slot availability
+   */
+  isSlotAvailable(slotId: string): Promise<boolean> {
+    // In mock, slots starting with 'unavailable' are not available
+    return Promise.resolve(!slotId.startsWith('unavailable'));
   }
 
   /**

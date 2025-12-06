@@ -42,6 +42,33 @@ const UpdatePreferencesSchema = z.object({
   preferredLanguage: z.enum(['ro', 'en', 'de']).optional(),
 });
 
+// Appointment booking schemas
+const GetAvailableSlotsSchema = z.object({
+  procedureType: z.string().min(1).max(128),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  practitionerId: z.string().optional(),
+  locationId: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(20).optional(),
+});
+
+const BookAppointmentSchema = z.object({
+  slotId: z.string().min(1),
+  procedureType: z.string().min(1).max(128),
+  notes: z.string().max(500).optional(),
+});
+
+const CancelAppointmentSchema = z.object({
+  appointmentId: z.string().min(1),
+  reason: z.string().max(500).optional(),
+});
+
+const RescheduleAppointmentSchema = z.object({
+  appointmentId: z.string().min(1),
+  newSlotId: z.string().min(1),
+  reason: z.string().max(500).optional(),
+});
+
 interface PatientSession {
   patientId: string;
   phone: string;
@@ -504,6 +531,346 @@ async function handleUpdatePreferences(
 }
 
 // ============================================
+// Appointment Booking Handlers
+// ============================================
+
+async function handleGetAvailableSlots(
+  request: FastifyRequest<{ Querystring: z.infer<typeof GetAvailableSlotsSchema> }>,
+  reply: FastifyReply
+): Promise<FastifyReply> {
+  const correlationId = generateCorrelationId();
+  const clients = getClients();
+
+  const parseResult = GetAvailableSlotsSchema.safeParse(request.query);
+  if (!parseResult.success) {
+    return reply.status(400).send({
+      error: 'Invalid query parameters',
+      details: parseResult.error.flatten().fieldErrors,
+      correlationId,
+    });
+  }
+
+  if (!clients.scheduling) {
+    return reply.status(503).send({ error: 'Scheduling service unavailable', correlationId });
+  }
+
+  const { procedureType, startDate, endDate, practitionerId, locationId, limit } = parseResult.data;
+
+  try {
+    const slots = await clients.scheduling.getAvailableSlots({
+      procedureType,
+      startDate,
+      endDate,
+      practitionerId,
+      locationId,
+      limit: limit ?? 10,
+    });
+
+    return await reply.status(200).send({
+      success: true,
+      slots: slots.map((slot) => ({
+        id: slot.id,
+        date: slot.date,
+        time: slot.time,
+        dateTime: slot.dateTime,
+        duration: slot.duration,
+        practitioner: slot.practitioner
+          ? { id: slot.practitioner.id, name: slot.practitioner.name }
+          : undefined,
+        location: slot.location
+          ? { id: slot.location.id, name: slot.location.name }
+          : undefined,
+      })),
+      correlationId,
+    });
+  } catch (err) {
+    logger.error({ err, correlationId }, 'Failed to fetch available slots');
+    return await reply.status(500).send({ error: 'Failed to fetch available slots', correlationId });
+  }
+}
+
+async function handleBookAppointment(
+  request: FastifyRequest<{ Body: z.infer<typeof BookAppointmentSchema> }>,
+  reply: FastifyReply
+): Promise<FastifyReply> {
+  const session = (request as FastifyRequest & { patientSession: PatientSession }).patientSession;
+  const correlationId = generateCorrelationId();
+  const clients = getClients();
+
+  const parseResult = BookAppointmentSchema.safeParse(request.body);
+  if (!parseResult.success) {
+    return reply.status(400).send({
+      error: 'Invalid booking request',
+      details: parseResult.error.flatten().fieldErrors,
+      correlationId,
+    });
+  }
+
+  if (!clients.scheduling) {
+    return reply.status(503).send({ error: 'Scheduling service unavailable', correlationId });
+  }
+
+  const { slotId, procedureType, notes } = parseResult.data;
+
+  // Verify slot is still available
+  try {
+    const isAvailable = await clients.scheduling.isSlotAvailable(slotId);
+    if (!isAvailable) {
+      return await reply.status(409).send({
+        error: 'Selected time slot is no longer available',
+        code: 'SLOT_UNAVAILABLE',
+        correlationId,
+      });
+    }
+  } catch (err) {
+    logger.warn({ err, correlationId }, 'Failed to verify slot availability');
+    // Continue with booking attempt - the service will reject if unavailable
+  }
+
+  try {
+    const appointment = await clients.scheduling.bookAppointment({
+      slotId,
+      patientPhone: session.phone,
+      patientName: session.name,
+      patientEmail: session.email,
+      procedureType,
+      notes,
+      hubspotContactId: session.hubspotContactId,
+    });
+
+    // Emit booking event
+    await clients.eventStore.emit({
+      type: 'patient.appointment.booked',
+      correlationId,
+      aggregateId: appointment.id,
+      aggregateType: 'appointment',
+      payload: {
+        appointmentId: appointment.id,
+        patientId: session.patientId,
+        procedureType,
+        scheduledAt: appointment.scheduledAt,
+        confirmationCode: appointment.confirmationCode,
+        timestamp: new Date().toISOString(),
+      },
+    });
+
+    logger.info(
+      { correlationId, appointmentId: appointment.id },
+      'Patient booked appointment'
+    );
+
+    return await reply.status(201).send({
+      success: true,
+      appointment: {
+        id: appointment.id,
+        confirmationCode: appointment.confirmationCode,
+        date: appointment.scheduledAt,
+        procedureType: appointment.procedureType,
+        status: appointment.status,
+        practitioner: appointment.practitioner?.name,
+        location: appointment.location?.name,
+      },
+      correlationId,
+    });
+  } catch (err) {
+    logger.error({ err, correlationId }, 'Failed to book appointment');
+    return await reply.status(500).send({ error: 'Failed to book appointment', correlationId });
+  }
+}
+
+async function handleCancelAppointment(
+  request: FastifyRequest<{ Body: z.infer<typeof CancelAppointmentSchema> }>,
+  reply: FastifyReply
+): Promise<FastifyReply> {
+  const session = (request as FastifyRequest & { patientSession: PatientSession }).patientSession;
+  const correlationId = generateCorrelationId();
+  const clients = getClients();
+
+  const parseResult = CancelAppointmentSchema.safeParse(request.body);
+  if (!parseResult.success) {
+    return reply.status(400).send({
+      error: 'Invalid cancellation request',
+      details: parseResult.error.flatten().fieldErrors,
+      correlationId,
+    });
+  }
+
+  if (!clients.scheduling) {
+    return reply.status(503).send({ error: 'Scheduling service unavailable', correlationId });
+  }
+
+  const { appointmentId, reason } = parseResult.data;
+
+  // Verify the appointment belongs to this patient
+  try {
+    const existingAppointment = await clients.scheduling.getAppointment(appointmentId);
+    if (!existingAppointment) {
+      return await reply.status(404).send({ error: 'Appointment not found', correlationId });
+    }
+    if (existingAppointment.patientPhone !== session.phone) {
+      logger.warn(
+        { correlationId, appointmentId },
+        'Patient attempted to cancel another patient appointment'
+      );
+      return await reply.status(403).send({ error: 'Not authorized to cancel this appointment', correlationId });
+    }
+    if (existingAppointment.status === 'cancelled') {
+      return await reply.status(400).send({ error: 'Appointment already cancelled', correlationId });
+    }
+    if (existingAppointment.status === 'completed') {
+      return await reply.status(400).send({ error: 'Cannot cancel completed appointment', correlationId });
+    }
+  } catch (err) {
+    logger.error({ err, correlationId }, 'Failed to verify appointment ownership');
+    return await reply.status(500).send({ error: 'Failed to process cancellation', correlationId });
+  }
+
+  try {
+    const cancelledAppointment = await clients.scheduling.cancelAppointment({
+      appointmentId,
+      reason,
+      notifyPatient: false, // Patient is cancelling themselves
+    });
+
+    // Emit cancellation event
+    await clients.eventStore.emit({
+      type: 'patient.appointment.cancelled',
+      correlationId,
+      aggregateId: appointmentId,
+      aggregateType: 'appointment',
+      payload: {
+        appointmentId,
+        patientId: session.patientId,
+        reason,
+        cancelledAt: new Date().toISOString(),
+      },
+    });
+
+    logger.info({ correlationId, appointmentId }, 'Patient cancelled appointment');
+
+    return await reply.status(200).send({
+      success: true,
+      appointment: {
+        id: cancelledAppointment.id,
+        status: cancelledAppointment.status,
+      },
+      message: 'Appointment cancelled successfully',
+      correlationId,
+    });
+  } catch (err) {
+    logger.error({ err, correlationId }, 'Failed to cancel appointment');
+    return await reply.status(500).send({ error: 'Failed to cancel appointment', correlationId });
+  }
+}
+
+async function handleRescheduleAppointment(
+  request: FastifyRequest<{ Body: z.infer<typeof RescheduleAppointmentSchema> }>,
+  reply: FastifyReply
+): Promise<FastifyReply> {
+  const session = (request as FastifyRequest & { patientSession: PatientSession }).patientSession;
+  const correlationId = generateCorrelationId();
+  const clients = getClients();
+
+  const parseResult = RescheduleAppointmentSchema.safeParse(request.body);
+  if (!parseResult.success) {
+    return reply.status(400).send({
+      error: 'Invalid reschedule request',
+      details: parseResult.error.flatten().fieldErrors,
+      correlationId,
+    });
+  }
+
+  if (!clients.scheduling) {
+    return reply.status(503).send({ error: 'Scheduling service unavailable', correlationId });
+  }
+
+  const { appointmentId, newSlotId, reason } = parseResult.data;
+
+  // Verify the appointment belongs to this patient
+  try {
+    const existingAppointment = await clients.scheduling.getAppointment(appointmentId);
+    if (!existingAppointment) {
+      return await reply.status(404).send({ error: 'Appointment not found', correlationId });
+    }
+    if (existingAppointment.patientPhone !== session.phone) {
+      logger.warn(
+        { correlationId, appointmentId },
+        'Patient attempted to reschedule another patient appointment'
+      );
+      return await reply.status(403).send({ error: 'Not authorized to reschedule this appointment', correlationId });
+    }
+    if (existingAppointment.status === 'cancelled') {
+      return await reply.status(400).send({ error: 'Cannot reschedule cancelled appointment', correlationId });
+    }
+    if (existingAppointment.status === 'completed') {
+      return await reply.status(400).send({ error: 'Cannot reschedule completed appointment', correlationId });
+    }
+  } catch (err) {
+    logger.error({ err, correlationId }, 'Failed to verify appointment ownership');
+    return await reply.status(500).send({ error: 'Failed to process reschedule', correlationId });
+  }
+
+  // Verify new slot is available
+  try {
+    const isAvailable = await clients.scheduling.isSlotAvailable(newSlotId);
+    if (!isAvailable) {
+      return await reply.status(409).send({
+        error: 'Selected time slot is no longer available',
+        code: 'SLOT_UNAVAILABLE',
+        correlationId,
+      });
+    }
+  } catch (err) {
+    logger.warn({ err, correlationId }, 'Failed to verify new slot availability');
+  }
+
+  try {
+    const rescheduledAppointment = await clients.scheduling.rescheduleAppointment({
+      appointmentId,
+      newSlotId,
+      reason,
+      notifyPatient: false,
+    });
+
+    // Emit reschedule event
+    await clients.eventStore.emit({
+      type: 'patient.appointment.rescheduled',
+      correlationId,
+      aggregateId: appointmentId,
+      aggregateType: 'appointment',
+      payload: {
+        appointmentId,
+        patientId: session.patientId,
+        newSlotId,
+        newScheduledAt: rescheduledAppointment.scheduledAt,
+        reason,
+        rescheduledAt: new Date().toISOString(),
+      },
+    });
+
+    logger.info({ correlationId, appointmentId, newSlotId }, 'Patient rescheduled appointment');
+
+    return await reply.status(200).send({
+      success: true,
+      appointment: {
+        id: rescheduledAppointment.id,
+        confirmationCode: rescheduledAppointment.confirmationCode,
+        date: rescheduledAppointment.scheduledAt,
+        procedureType: rescheduledAppointment.procedureType,
+        status: rescheduledAppointment.status,
+        practitioner: rescheduledAppointment.practitioner?.name,
+        location: rescheduledAppointment.location?.name,
+      },
+      message: 'Appointment rescheduled successfully',
+      correlationId,
+    });
+  } catch (err) {
+    logger.error({ err, correlationId }, 'Failed to reschedule appointment');
+    return await reply.status(500).send({ error: 'Failed to reschedule appointment', correlationId });
+  }
+}
+
+// ============================================
 // Route Definitions
 // ============================================
 
@@ -520,6 +887,12 @@ export const patientPortalRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/patient/appointments', { preHandler: requirePatientAuth }, handleGetAppointments);
   fastify.get('/patient/preferences', { preHandler: requirePatientAuth }, handleGetPreferences);
   fastify.put('/patient/preferences', { preHandler: requirePatientAuth }, handleUpdatePreferences);
+
+  // Appointment booking routes
+  fastify.get('/patient/appointments/slots', { preHandler: requirePatientAuth }, handleGetAvailableSlots);
+  fastify.post('/patient/appointments/book', { preHandler: requirePatientAuth }, handleBookAppointment);
+  fastify.post('/patient/appointments/cancel', { preHandler: requirePatientAuth }, handleCancelAppointment);
+  fastify.post('/patient/appointments/reschedule', { preHandler: requirePatientAuth }, handleRescheduleAppointment);
 };
 
 // ============================================
