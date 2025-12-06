@@ -215,6 +215,49 @@ export const IdempotencyKeys = {
   custom: (prefix: string, ...parts: string[]): string => {
     return createNamespacedIdempotencyKey(prefix, ...parts);
   },
+
+  // ============================================
+  // Follow-up Task Automation (M13)
+  // ============================================
+
+  /**
+   * Generate key for follow-up task creation
+   * Prevents duplicate task creation for same trigger
+   */
+  followUpTaskCreation: (phone: string, taskType: string, correlationId: string): string => {
+    return createNamespacedIdempotencyKey('follow-up-create', phone, taskType, correlationId);
+  },
+
+  /**
+   * Generate key for follow-up task execution attempt
+   * Ensures each attempt is processed exactly once
+   */
+  followUpTaskExecution: (taskId: string, attemptNumber: number): string => {
+    return createNamespacedIdempotencyKey('follow-up-exec', taskId, attemptNumber.toString());
+  },
+
+  /**
+   * Generate key for follow-up task escalation
+   * Prevents duplicate escalation for same task
+   */
+  followUpTaskEscalation: (taskId: string): string => {
+    return createNamespacedIdempotencyKey('follow-up-escalate', taskId);
+  },
+
+  /**
+   * Generate key for automation trigger processing
+   * Prevents duplicate automation runs for same event
+   */
+  automationTrigger: (phone: string, ruleName: string, correlationId: string): string => {
+    return createNamespacedIdempotencyKey('automation-trigger', phone, ruleName, correlationId);
+  },
+
+  /**
+   * Generate key for follow-up task monitoring cron job item
+   */
+  followUpMonitor: (taskId: string, date: string): string => {
+    return createNamespacedIdempotencyKey('follow-up-monitor', taskId, date);
+  },
 };
 
 /**

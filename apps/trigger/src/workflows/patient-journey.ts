@@ -7,6 +7,7 @@ import {
   type TimeSlot,
   type Appointment,
 } from '@medicalcor/integrations';
+import { processAutomationTriggerWorkflow } from './follow-up-task.js';
 
 /**
  * Initialize clients lazily using shared factory
@@ -212,6 +213,37 @@ export const patientJourneyWorkflow = task({
       classification,
       correlationId,
     });
+
+    // ============================================
+    // FOLLOW-UP TASK AUTOMATION (M13)
+    // Trigger automated follow-up task creation based on lead classification
+    // ============================================
+    try {
+      await processAutomationTriggerWorkflow.trigger(
+        {
+          triggerEvent: 'lead.scored',
+          phone,
+          hubspotContactId,
+          score: initialScore,
+          classification,
+          procedureInterest,
+          channel: 'whatsapp',
+          preferredLanguage: 'ro',
+          correlationId: `${correlationId}_follow_up`,
+        },
+        {
+          idempotencyKey: IdempotencyKeys.automationTrigger(
+            phone,
+            'patient_journey',
+            correlationId
+          ),
+        }
+      );
+      logger.info('Triggered follow-up task automation', { classification, correlationId });
+    } catch (error) {
+      logger.error('Failed to trigger follow-up task automation', { error, correlationId });
+      // Non-critical - continue with journey
+    }
 
     // ============================================
     // STAGE 2: Qualification Check (after 4 hours for non-HOT)

@@ -529,3 +529,67 @@ export {
   type AgentPerformanceTimeRange,
   type GetAgentPerformanceRequest,
 } from './agent-performance.schema.js';
+
+// =============================================================================
+// Follow-up Task Automation Schemas (M13)
+// =============================================================================
+export {
+  // Enums (using FollowUpTaskPrioritySchema to avoid conflict with HubSpot)
+  FollowUpTaskPrioritySchema,
+  FollowUpStatusSchema,
+  FollowUpTypeSchema,
+  FollowUpTriggerSchema,
+  FollowUpChannelSchema,
+  FollowUpOutcomeSchema,
+  // Task Entity
+  FollowUpTaskSchema,
+  CreateFollowUpTaskSchema,
+  UpdateFollowUpTaskSchema,
+  // Templates
+  FollowUpMessageTemplatesSchema,
+  FollowUpTemplateSchema,
+  CreateFollowUpTemplateSchema,
+  // Automation Rules
+  AutomationConditionsSchema,
+  AssignmentStrategySchema,
+  FollowUpAutomationRuleSchema,
+  CreateFollowUpAutomationRuleSchema,
+  // History & Metrics
+  FollowUpHistoryActionSchema,
+  FollowUpTaskHistorySchema,
+  FollowUpTaskMetricsSchema,
+  // API Schemas
+  FollowUpTaskQuerySchema,
+  FollowUpTaskActionSchema,
+  FollowUpBulkActionSchema,
+  // Workflow Payloads
+  CreateFollowUpTaskWorkflowPayloadSchema,
+  ExecuteFollowUpTaskWorkflowPayloadSchema,
+  EscalateFollowUpTaskWorkflowPayloadSchema,
+  // Types (FollowUpPriority aliased to avoid conflict with HubSpot)
+  type FollowUpPriority as FollowUpTaskPriority,
+  type FollowUpStatus,
+  type FollowUpType,
+  type FollowUpTrigger,
+  type FollowUpChannel,
+  type FollowUpOutcome,
+  type FollowUpTask,
+  type CreateFollowUpTask,
+  type UpdateFollowUpTask,
+  type FollowUpMessageTemplates,
+  type FollowUpTemplate,
+  type CreateFollowUpTemplate,
+  type AutomationConditions,
+  type AssignmentStrategy,
+  type FollowUpAutomationRule,
+  type CreateFollowUpAutomationRule,
+  type FollowUpHistoryAction,
+  type FollowUpTaskHistory,
+  type FollowUpTaskMetrics,
+  type FollowUpTaskQuery,
+  type FollowUpTaskAction,
+  type FollowUpBulkAction,
+  type CreateFollowUpTaskWorkflowPayload,
+  type ExecuteFollowUpTaskWorkflowPayload,
+  type EscalateFollowUpTaskWorkflowPayload,
+} from './schemas/index.js';

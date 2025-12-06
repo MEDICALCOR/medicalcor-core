@@ -1511,6 +1511,490 @@ export const dsrDueDateMonitor = schedules.task({
 });
 
 // ============================================
+// Follow-up Task Automation (M13)
+// ============================================
+
+/**
+ * Follow-up task overdue monitor - checks for overdue tasks and escalates
+ * Runs every 30 minutes
+ */
+export const followUpTaskOverdueMonitor = schedules.task({
+  id: 'follow-up-task-overdue-monitor',
+  cron: '*/30 * * * *', // Every 30 minutes
+  run: async () => {
+    const correlationId = generateCorrelationId();
+    logger.info('Starting follow-up task overdue monitor', { correlationId });
+
+    const { hubspot, eventStore } = getClients();
+
+    let tasksEscalated = 0;
+    let errors = 0;
+
+    try {
+      // Get Supabase client for task queries
+      const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_SERVICE_KEY ?? process.env.SUPABASE_ANON_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        logger.warn('Supabase credentials not configured', { correlationId });
+        return { success: false, reason: 'Supabase not configured' };
+      }
+
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      const now = new Date();
+
+      // Find overdue tasks that haven't been escalated
+      const { data: overdueTasks, error: queryError } = await supabase
+        .from('follow_up_tasks')
+        .select('*')
+        .in('status', ['pending', 'in_progress'])
+        .lt('due_by', now.toISOString())
+        .eq('is_escalated', false)
+        .is('deleted_at', null)
+        .limit(50);
+
+      if (queryError) {
+        throw new Error(`Failed to query overdue tasks: ${queryError.message}`);
+      }
+
+      interface FollowUpTaskRow {
+        id: string;
+        phone: string;
+        hubspot_contact_id?: string;
+        title: string;
+        task_type: string;
+        priority: string;
+        attempt_count: number;
+        max_attempts: number;
+        due_by: string;
+      }
+
+      const tasks = (overdueTasks ?? []) as FollowUpTaskRow[];
+      logger.info(`Found ${tasks.length} overdue follow-up tasks`, { correlationId });
+
+      // Process overdue tasks
+      for (const task of tasks) {
+        try {
+          // Calculate how overdue the task is
+          const overdueMinutes = Math.floor(
+            (now.getTime() - new Date(task.due_by).getTime()) / 60000
+          );
+
+          // Escalate if significantly overdue (>60 min) or max attempts reached
+          const shouldEscalate =
+            overdueMinutes > 60 || task.attempt_count >= task.max_attempts;
+
+          if (shouldEscalate) {
+            // Update task as escalated
+            await supabase
+              .from('follow_up_tasks')
+              .update({
+                is_escalated: true,
+                escalated_at: now.toISOString(),
+                escalation_reason: `Task overdue by ${overdueMinutes} minutes. Attempts: ${task.attempt_count}/${task.max_attempts}`,
+                status: 'escalated',
+              })
+              .eq('id', task.id);
+
+            // Create HubSpot escalation task if contact exists
+            if (hubspot && task.hubspot_contact_id) {
+              await hubspot.createTask({
+                contactId: task.hubspot_contact_id,
+                subject: `ESCALATION: ${task.title}`,
+                body: [
+                  `Follow-up task has been escalated.`,
+                  `\nOriginal task: ${task.title}`,
+                  `\nOverdue by: ${overdueMinutes} minutes`,
+                  `\nAttempts made: ${task.attempt_count}/${task.max_attempts}`,
+                  `\nPriority: ${task.priority}`,
+                  `\n\nImmediate action required.`,
+                ].join(''),
+                priority: 'HIGH',
+                dueDate: new Date(now.getTime() + 30 * 60 * 1000), // Due in 30 min
+              });
+            }
+
+            // Emit escalation event
+            await eventStore.emit({
+              type: 'follow_up_task.escalated',
+              correlationId,
+              aggregateId: task.id,
+              aggregateType: 'FollowUpTask',
+              payload: {
+                taskId: task.id,
+                phone: task.phone,
+                escalationReason: `Overdue by ${overdueMinutes} minutes`,
+                escalatedAt: now.toISOString(),
+                escalatedBy: 'auto',
+                attemptCount: task.attempt_count,
+                priority: 'urgent',
+              },
+            });
+
+            tasksEscalated++;
+            logger.info('Escalated overdue follow-up task', {
+              taskId: task.id,
+              overdueMinutes,
+              correlationId,
+            });
+          }
+        } catch (error) {
+          errors++;
+          logger.error('Failed to process overdue task', {
+            taskId: task.id,
+            error,
+            correlationId,
+          });
+        }
+      }
+
+      // Emit job completion event
+      await emitJobEvent(eventStore, 'cron.follow_up_overdue_monitor.completed', {
+        overdueTasks: tasks.length,
+        tasksEscalated,
+        errors,
+        correlationId,
+      });
+
+      logger.info('Follow-up task overdue monitor completed', {
+        overdueTasks: tasks.length,
+        tasksEscalated,
+        errors,
+        correlationId,
+      });
+    } catch (error) {
+      logger.error('Follow-up task overdue monitor failed', { error, correlationId });
+      return { success: false, error: String(error) };
+    }
+
+    return { success: true, tasksEscalated, errors };
+  },
+});
+
+/**
+ * Follow-up task retry processor - processes tasks ready for retry
+ * Runs every 15 minutes
+ */
+export const followUpTaskRetryProcessor = schedules.task({
+  id: 'follow-up-task-retry-processor',
+  cron: '*/15 * * * *', // Every 15 minutes
+  run: async () => {
+    const correlationId = generateCorrelationId();
+    logger.info('Starting follow-up task retry processor', { correlationId });
+
+    const { whatsapp, eventStore } = getClients();
+
+    let tasksRetried = 0;
+    let tasksFailed = 0;
+    let errors = 0;
+
+    try {
+      const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_SERVICE_KEY ?? process.env.SUPABASE_ANON_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        logger.warn('Supabase credentials not configured', { correlationId });
+        return { success: false, reason: 'Supabase not configured' };
+      }
+
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      const now = new Date();
+
+      // Find tasks with next_attempt_at that has passed
+      const { data: retryTasks, error: queryError } = await supabase
+        .from('follow_up_tasks')
+        .select('*')
+        .in('status', ['pending', 'in_progress'])
+        .lte('next_attempt_at', now.toISOString())
+        .eq('is_escalated', false)
+        .is('deleted_at', null)
+        .limit(50);
+
+      if (queryError) {
+        throw new Error(`Failed to query retry tasks: ${queryError.message}`);
+      }
+
+      interface FollowUpTaskRetryRow {
+        id: string;
+        phone: string;
+        hubspot_contact_id?: string;
+        title: string;
+        task_type: string;
+        channel: string;
+        attempt_count: number;
+        max_attempts: number;
+        preferred_language: string;
+        metadata: Record<string, unknown>;
+      }
+
+      const tasks = (retryTasks ?? []) as FollowUpTaskRetryRow[];
+      logger.info(`Found ${tasks.length} tasks ready for retry`, { correlationId });
+
+      for (const task of tasks) {
+        try {
+          const newAttemptCount = task.attempt_count + 1;
+
+          if (newAttemptCount > task.max_attempts) {
+            // Mark as failed
+            await supabase
+              .from('follow_up_tasks')
+              .update({
+                status: 'failed',
+                outcome: 'max_attempts_reached',
+                updated_at: now.toISOString(),
+              })
+              .eq('id', task.id);
+
+            tasksFailed++;
+            logger.info('Task failed - max attempts reached', {
+              taskId: task.id,
+              attempts: task.attempt_count,
+              correlationId,
+            });
+            continue;
+          }
+
+          // Attempt to send follow-up
+          if (task.channel === 'whatsapp' && whatsapp) {
+            // Get default message for task type
+            const language = (task.preferred_language ?? 'ro') as 'ro' | 'en' | 'de';
+            const message = getFollowUpMessage(task.task_type, language);
+
+            await whatsapp.sendText({
+              to: task.phone,
+              text: message,
+            });
+
+            // Calculate next retry with exponential backoff
+            const nextRetryHours = Math.pow(2, newAttemptCount) * 2;
+            const nextAttemptAt = new Date(now.getTime() + nextRetryHours * 60 * 60 * 1000);
+
+            // Update task
+            await supabase
+              .from('follow_up_tasks')
+              .update({
+                attempt_count: newAttemptCount,
+                last_attempt_at: now.toISOString(),
+                next_attempt_at: nextAttemptAt.toISOString(),
+                status: 'in_progress',
+                updated_at: now.toISOString(),
+              })
+              .eq('id', task.id);
+
+            tasksRetried++;
+            logger.info('Follow-up retry sent', {
+              taskId: task.id,
+              attemptNumber: newAttemptCount,
+              nextRetryHours,
+              correlationId,
+            });
+          }
+        } catch (error) {
+          errors++;
+          logger.error('Failed to process retry task', {
+            taskId: task.id,
+            error,
+            correlationId,
+          });
+        }
+      }
+
+      await emitJobEvent(eventStore, 'cron.follow_up_retry_processor.completed', {
+        tasksFound: tasks.length,
+        tasksRetried,
+        tasksFailed,
+        errors,
+        correlationId,
+      });
+
+      logger.info('Follow-up task retry processor completed', {
+        tasksFound: tasks.length,
+        tasksRetried,
+        tasksFailed,
+        errors,
+        correlationId,
+      });
+    } catch (error) {
+      logger.error('Follow-up task retry processor failed', { error, correlationId });
+      return { success: false, error: String(error) };
+    }
+
+    return { success: true, tasksRetried, tasksFailed, errors };
+  },
+});
+
+/**
+ * Follow-up metrics aggregation - aggregates daily metrics
+ * Runs every day at 1:00 AM
+ */
+export const followUpMetricsAggregation = schedules.task({
+  id: 'follow-up-metrics-aggregation',
+  cron: '0 1 * * *', // 1:00 AM every day
+  run: async () => {
+    const correlationId = generateCorrelationId();
+    logger.info('Starting follow-up metrics aggregation', { correlationId });
+
+    const { eventStore } = getClients();
+
+    try {
+      const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_SERVICE_KEY ?? process.env.SUPABASE_ANON_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        logger.warn('Supabase credentials not configured', { correlationId });
+        return { success: false, reason: 'Supabase not configured' };
+      }
+
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      // Calculate yesterday's date range
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setHours(0, 0, 0, 0);
+      const periodStart = yesterday.toISOString();
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const periodEnd = today.toISOString();
+
+      // Aggregate metrics from tasks created/completed yesterday
+      const { data: tasks } = await supabase
+        .from('follow_up_tasks')
+        .select('*')
+        .gte('created_at', periodStart)
+        .lt('created_at', periodEnd);
+
+      interface FollowUpTaskMetricsRow {
+        status: string;
+        is_escalated: boolean;
+        scheduled_for: string;
+        completed_at?: string;
+        task_type: string;
+        priority: string;
+        assigned_to?: string;
+        sla_minutes: number;
+      }
+
+      const taskList = (tasks ?? []) as FollowUpTaskMetricsRow[];
+
+      // Calculate metrics
+      const metrics = {
+        tasksCreated: taskList.length,
+        tasksCompleted: taskList.filter((t) => t.status === 'completed').length,
+        tasksEscalated: taskList.filter((t) => t.is_escalated).length,
+        tasksFailed: taskList.filter((t) => t.status === 'failed').length,
+        tasksSkipped: taskList.filter((t) => t.status === 'skipped').length,
+        slaMetCount: 0,
+        slaBreachedCount: 0,
+        avgCompletionTimeMinutes: 0,
+        byType: {} as Record<string, number>,
+        byPriority: {} as Record<string, number>,
+      };
+
+      // Calculate SLA metrics for completed tasks
+      const completedTasks = taskList.filter(
+        (t) => t.status === 'completed' && t.completed_at
+      );
+
+      if (completedTasks.length > 0) {
+        let totalCompletionTime = 0;
+        for (const task of completedTasks) {
+          const scheduledTime = new Date(task.scheduled_for).getTime();
+          const completedTime = new Date(task.completed_at!).getTime();
+          const completionMinutes = (completedTime - scheduledTime) / 60000;
+          totalCompletionTime += completionMinutes;
+
+          if (completionMinutes <= task.sla_minutes) {
+            metrics.slaMetCount++;
+          } else {
+            metrics.slaBreachedCount++;
+          }
+        }
+        metrics.avgCompletionTimeMinutes = Math.round(
+          totalCompletionTime / completedTasks.length
+        );
+      }
+
+      // Count by type and priority
+      for (const task of taskList) {
+        metrics.byType[task.task_type] = (metrics.byType[task.task_type] ?? 0) + 1;
+        metrics.byPriority[task.priority] = (metrics.byPriority[task.priority] ?? 0) + 1;
+      }
+
+      // Insert metrics into database
+      await supabase.from('follow_up_task_metrics').insert({
+        period_start: periodStart,
+        period_end: periodEnd,
+        period_type: 'daily',
+        tasks_created: metrics.tasksCreated,
+        tasks_completed: metrics.tasksCompleted,
+        tasks_escalated: metrics.tasksEscalated,
+        tasks_failed: metrics.tasksFailed,
+        tasks_skipped: metrics.tasksSkipped,
+        sla_met_count: metrics.slaMetCount,
+        sla_breached_count: metrics.slaBreachedCount,
+        avg_completion_time_minutes: metrics.avgCompletionTimeMinutes,
+        by_type: metrics.byType,
+        by_priority: metrics.byPriority,
+      });
+
+      await emitJobEvent(eventStore, 'cron.follow_up_metrics_aggregation.completed', {
+        periodStart,
+        periodEnd,
+        metrics,
+        correlationId,
+      });
+
+      logger.info('Follow-up metrics aggregation completed', {
+        ...metrics,
+        correlationId,
+      });
+
+      return { success: true, metrics };
+    } catch (error) {
+      logger.error('Follow-up metrics aggregation failed', { error, correlationId });
+      return { success: false, error: String(error) };
+    }
+  },
+});
+
+/**
+ * Get default follow-up message for task type
+ */
+function getFollowUpMessage(taskType: string, language: 'ro' | 'en' | 'de'): string {
+  const messages: Record<string, Record<string, string>> = {
+    initial_contact: {
+      ro: 'Bună ziua! Vă mulțumim pentru interesul acordat serviciilor noastre. Suntem aici să vă ajutăm.',
+      en: 'Hello! Thank you for your interest in our services. We are here to help you.',
+      de: 'Guten Tag! Vielen Dank für Ihr Interesse an unseren Dienstleistungen.',
+    },
+    follow_up_message: {
+      ro: 'Bună ziua! Am dorit să verific dacă aveți întrebări suplimentare.',
+      en: 'Hello! Just wanted to check if you have any additional questions.',
+      de: 'Guten Tag! Wollte nur nachfragen, ob Sie weitere Fragen haben.',
+    },
+    nurture_check: {
+      ro: 'Bună ziua! Ne-am gândit la dumneavoastră. Vă putem ajuta cu ceva?',
+      en: 'Hello! We were thinking of you. Can we help you with anything?',
+      de: 'Guten Tag! Wir haben an Sie gedacht. Können wir Ihnen helfen?',
+    },
+    recall: {
+      ro: 'Bună ziua! Au trecut câteva luni de la ultima vizită. Vă recomandăm un control.',
+      en: 'Hello! It has been a while since your last visit. We recommend a check-up.',
+      de: 'Guten Tag! Es ist eine Weile her seit Ihrem letzten Besuch. Wir empfehlen eine Kontrolle.',
+    },
+  };
+
+  const taskMessages = messages[taskType] ?? messages.follow_up_message;
+  return taskMessages?.[language] ?? taskMessages?.ro ?? 'Hello!';
+}
+
+// ============================================
 // Helper Functions
 // ============================================
 

@@ -230,6 +230,9 @@ export * from './disposition/index.js';
 // Agent Performance (M7 Milestone)
 export * from './agent-performance/index.js';
 
+// Follow-up Task Automation (M13 Milestone)
+export * from './follow-up/index.js';
+
 // ============================================================================
 // SHARED TYPES & UTILITIES
 // ============================================================================
