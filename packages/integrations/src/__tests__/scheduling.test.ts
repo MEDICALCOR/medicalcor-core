@@ -1001,7 +1001,6 @@ describe('SchedulingService API methods', () => {
         return new Response(JSON.stringify({ appointments: [] }), { status: 200 });
       }) as typeof fetch;
 
-      await service.getPatientAppointments('+40712345678', {
       await service.getPatientAppointments({
         patientPhone: '+40712345678',
         status: 'confirmed',
