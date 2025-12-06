@@ -95,6 +95,14 @@ export {
 
 export { MemoryRetrievalService, createMemoryRetrievalService } from './memory-retrieval.js';
 
+// GDPR Erasure Service (H4 Production Fix)
+export {
+  CognitiveGDPRErasureService,
+  createCognitiveGDPRErasureService,
+  type CognitiveErasureResult,
+  type ErasureOptions,
+} from './gdpr-erasure.js';
+
 // =============================================================================
 // Factory Function
 // =============================================================================
