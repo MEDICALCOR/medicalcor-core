@@ -504,3 +504,182 @@ export function createProjectionMigrator(): ProjectionMigrator {
 export function createLiveProjectionUpdater(): LiveProjectionUpdater {
   return new LiveProjectionUpdater();
 }
+
+// ============================================================================
+// POSTGRESQL CHECKPOINT STORE
+// ============================================================================
+
+interface PostgresCheckpointRow {
+  projection_name: string;
+  projection_version: number;
+  last_event_id: string;
+  last_event_timestamp: Date;
+  events_processed: string | number; // BIGINT can come as string from pg
+  state: Record<string, unknown>;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export class PostgresCheckpointStore implements CheckpointStore {
+  private pool: unknown;
+  private tableName: string;
+  private logger: Logger;
+
+  constructor(
+    private connectionString: string,
+    tableName = 'projection_checkpoints'
+  ) {
+    this.tableName = tableName;
+    this.logger = createLogger({ name: 'checkpoint-store' });
+  }
+
+  async initialize(): Promise<void> {
+    const pg = await import('pg');
+    this.pool = new pg.default.Pool({
+      connectionString: this.connectionString,
+      max: 5,
+    });
+
+    const client = await (this.pool as { connect: () => Promise<unknown> }).connect();
+    try {
+      await (client as { query: (sql: string) => Promise<void> }).query(`
+        CREATE TABLE IF NOT EXISTS ${this.tableName} (
+          projection_name VARCHAR(255) NOT NULL,
+          projection_version INTEGER NOT NULL,
+          last_event_id VARCHAR(255) NOT NULL,
+          last_event_timestamp TIMESTAMPTZ NOT NULL,
+          events_processed BIGINT NOT NULL DEFAULT 0,
+          state JSONB NOT NULL DEFAULT '{}',
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          PRIMARY KEY (projection_name, projection_version)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_checkpoints_updated
+        ON ${this.tableName} (updated_at DESC);
+      `);
+
+      this.logger.info('PostgreSQL checkpoint store initialized');
+    } finally {
+      (client as { release: () => void }).release();
+    }
+  }
+
+  async save(checkpoint: CheckpointData): Promise<void> {
+    const client = await (this.pool as { connect: () => Promise<unknown> }).connect();
+
+    try {
+      await (client as { query: (sql: string, params: unknown[]) => Promise<void> }).query(
+        `INSERT INTO ${this.tableName}
+         (projection_name, projection_version, last_event_id, last_event_timestamp,
+          events_processed, state, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+         ON CONFLICT (projection_name, projection_version) DO UPDATE SET
+           last_event_id = $3,
+           last_event_timestamp = $4,
+           events_processed = $5,
+           state = $6,
+           updated_at = NOW()`,
+        [
+          checkpoint.projectionName,
+          checkpoint.projectionVersion,
+          checkpoint.lastEventId,
+          checkpoint.lastEventTimestamp,
+          checkpoint.eventsProcessed,
+          JSON.stringify(checkpoint.state),
+          checkpoint.createdAt,
+        ]
+      );
+    } finally {
+      (client as { release: () => void }).release();
+    }
+  }
+
+  async getLatest(projectionName: string, version: number): Promise<CheckpointData | null> {
+    const client = await (this.pool as { connect: () => Promise<unknown> }).connect();
+
+    try {
+      const result = await (
+        client as {
+          query: (sql: string, params: unknown[]) => Promise<{ rows: PostgresCheckpointRow[] }>;
+        }
+      ).query(
+        `SELECT * FROM ${this.tableName}
+         WHERE projection_name = $1 AND projection_version = $2`,
+        [projectionName, version]
+      );
+
+      const row = result.rows[0];
+      if (!row) {
+        return null;
+      }
+
+      return {
+        projectionName: row.projection_name,
+        projectionVersion: row.projection_version,
+        lastEventId: row.last_event_id,
+        lastEventTimestamp: row.last_event_timestamp,
+        eventsProcessed: Number(row.events_processed),
+        state: row.state,
+        createdAt: row.created_at,
+      };
+    } finally {
+      (client as { release: () => void }).release();
+    }
+  }
+
+  async delete(projectionName: string): Promise<void> {
+    const client = await (this.pool as { connect: () => Promise<unknown> }).connect();
+
+    try {
+      await (client as { query: (sql: string, params: unknown[]) => Promise<void> }).query(
+        `DELETE FROM ${this.tableName} WHERE projection_name = $1`,
+        [projectionName]
+      );
+    } finally {
+      (client as { release: () => void }).release();
+    }
+  }
+
+  /**
+   * Get all checkpoints (for monitoring)
+   */
+  async getAll(): Promise<CheckpointData[]> {
+    const client = await (this.pool as { connect: () => Promise<unknown> }).connect();
+
+    try {
+      const result = await (
+        client as { query: (sql: string) => Promise<{ rows: PostgresCheckpointRow[] }> }
+      ).query(`SELECT * FROM ${this.tableName} ORDER BY updated_at DESC`);
+
+      return result.rows.map((row) => ({
+        projectionName: row.projection_name,
+        projectionVersion: row.projection_version,
+        lastEventId: row.last_event_id,
+        lastEventTimestamp: row.last_event_timestamp,
+        eventsProcessed: Number(row.events_processed),
+        state: row.state,
+        createdAt: row.created_at,
+      }));
+    } finally {
+      (client as { release: () => void }).release();
+    }
+  }
+
+  async close(): Promise<void> {
+    if (this.pool) {
+      await (this.pool as { end: () => Promise<void> }).end();
+    }
+  }
+}
+
+export function createCheckpointStore(connectionString?: string): CheckpointStore {
+  if (connectionString) {
+    return new PostgresCheckpointStore(connectionString);
+  }
+  return new InMemoryCheckpointStore();
+}
+
+export function createPostgresCheckpointStore(connectionString: string): PostgresCheckpointStore {
+  return new PostgresCheckpointStore(connectionString);
+}

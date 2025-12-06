@@ -163,10 +163,13 @@ export {
 export {
   EventReplayService,
   InMemoryCheckpointStore,
+  PostgresCheckpointStore,
   ProjectionMigrator,
   LiveProjectionUpdater,
   createEventReplayService,
   createInMemoryCheckpointStore,
+  createCheckpointStore,
+  createPostgresCheckpointStore,
   createProjectionMigrator,
   createLiveProjectionUpdater,
   type ReplayConfig,
@@ -223,3 +226,45 @@ export {
   type FindSagasOptions,
   type SagaRepository,
 } from './saga-repository.js';
+
+// State Reconstruction - Point-in-time state replay (M6/H7)
+export {
+  StateReconstructionService,
+  createStateReconstructionService,
+  type ReconstructionOptions,
+  type ReconstructionResult,
+  type StateDiff,
+  type StateChange,
+  type AggregateFactory,
+} from './state-reconstruction.js';
+
+// Replay Audit - Audit trail for replay operations (M6/H7)
+export {
+  ReplayAuditService,
+  InMemoryReplayAuditStore,
+  PostgresReplayAuditStore,
+  createReplayAuditStore,
+  createReplayAuditService,
+  createInMemoryReplayAuditService,
+  type ReplayOperationType,
+  type ReplayOperationStatus,
+  type ReplayAuditEntry,
+  type ReplayParameters,
+  type ReplayResult as AuditReplayResult,
+  type ReplayError,
+  type ReplayProgress,
+  type ReplayAuditStore,
+} from './replay-audit.js';
+
+// Replay Orchestrator - Coordinated replay operations (M6/H7)
+export {
+  ReplayOrchestrator,
+  createReplayOrchestrator,
+  type ReplayOrchestratorConfig,
+  type ReconstructStateRequest,
+  type RebuildProjectionRequest,
+  type StateDiffRequest,
+  type EventTimelineRequest,
+  type VerifyStateRequest,
+  type OrchestratedReplayResult,
+} from './replay-orchestrator.js';
