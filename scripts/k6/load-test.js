@@ -319,33 +319,128 @@ export function teardown(data) {
 }
 
 /**
- * Handle summary generation
+ * Handle summary generation and POST results to dashboard API
  */
 export function handleSummary(data) {
+  // Extract all metrics safely with defaults
+  const httpReqs = data.metrics.http_reqs?.values ?? { count: 0 };
+  const httpReqDuration = data.metrics.http_req_duration?.values ?? {};
+  const errorsMetric = data.metrics.errors?.values ?? { rate: 0 };
+  const iterations = data.metrics.iterations?.values ?? { count: 0 };
+  const vus = data.metrics.vus?.values ?? { max: 0 };
+  const dataReceived = data.metrics.data_received?.values ?? { count: 0 };
+  const dataSent = data.metrics.data_sent?.values ?? { count: 0 };
+
+  // Calculate duration from state
+  const testDuration = data.state?.testRunDurationMs
+    ? data.state.testRunDurationMs / 1000
+    : 0;
+
+  // Build thresholds map
+  const thresholds = {};
+  for (const [name, metric] of Object.entries(data.metrics)) {
+    if (metric.thresholds) {
+      thresholds[name] = Object.entries(metric.thresholds).map(([threshold, passed]) => ({
+        threshold,
+        passed: passed.ok ?? passed,
+      }));
+    }
+  }
+
+  // Check if all thresholds passed
+  const thresholdsPassed = Object.values(data.metrics).every((metric) => {
+    if (!metric.thresholds) return true;
+    return Object.values(metric.thresholds).every((result) => result.ok ?? result);
+  });
+
+  // Build payload for dashboard API
+  const dashboardPayload = {
+    scenario: SCENARIO,
+    environment: __ENV.ENVIRONMENT || 'local',
+    baseUrl: BASE_URL,
+    startedAt: new Date(Date.now() - testDuration * 1000).toISOString(),
+    endedAt: new Date().toISOString(),
+    durationSeconds: testDuration,
+    metrics: {
+      totalRequests: httpReqs.count ?? 0,
+      successfulRequests: (httpReqs.count ?? 0) - Math.round((httpReqs.count ?? 0) * (errorsMetric.rate ?? 0)),
+      failedRequests: Math.round((httpReqs.count ?? 0) * (errorsMetric.rate ?? 0)),
+      successRate: (1 - (errorsMetric.rate ?? 0)) * 100,
+      errorRate: (errorsMetric.rate ?? 0) * 100,
+      vusMax: vus.max ?? 0,
+      iterations: iterations.count ?? 0,
+      avgDuration: httpReqDuration.avg ?? 0,
+      minDuration: httpReqDuration.min ?? 0,
+      maxDuration: httpReqDuration.max ?? 0,
+      p50Duration: httpReqDuration.med ?? httpReqDuration['p(50)'] ?? 0,
+      p90Duration: httpReqDuration['p(90)'] ?? 0,
+      p95Duration: httpReqDuration['p(95)'] ?? 0,
+      p99Duration: httpReqDuration['p(99)'] ?? 0,
+      requestsPerSecond: testDuration > 0 ? (httpReqs.count ?? 0) / testDuration : 0,
+      dataReceivedBytes: dataReceived.count ?? 0,
+      dataSentBytes: dataSent.count ?? 0,
+    },
+    thresholds,
+    thresholdsPassed,
+    tags: {
+      environment: __ENV.ENVIRONMENT || 'local',
+      testType: SCENARIO,
+    },
+    metadata: {
+      k6Version: __ENV.K6_VERSION || 'unknown',
+      runner: 'k6',
+    },
+  };
+
+  // Legacy summary format for backwards compatibility
   const summary = {
     timestamp: new Date().toISOString(),
     scenario: SCENARIO,
     baseUrl: BASE_URL,
     metrics: {
-      totalRequests: data.metrics.http_reqs.values.count,
-      successRate: (1 - data.metrics.errors.values.rate) * 100,
-      avgDuration: data.metrics.http_req_duration.values.avg,
-      p95Duration: data.metrics.http_req_duration.values['p(95)'],
-      p99Duration: data.metrics.http_req_duration.values['p(99)'],
+      totalRequests: httpReqs.count ?? 0,
+      successRate: (1 - (errorsMetric.rate ?? 0)) * 100,
+      avgDuration: httpReqDuration.avg ?? 0,
+      p95Duration: httpReqDuration['p(95)'] ?? 0,
+      p99Duration: httpReqDuration['p(99)'] ?? 0,
     },
-    thresholds: Object.entries(data.metrics).reduce((acc, [name, metric]) => {
-      if (metric.thresholds) {
-        acc[name] = Object.entries(metric.thresholds).map(([threshold, passed]) => ({
-          threshold,
-          passed,
-        }));
-      }
-      return acc;
-    }, {}),
+    thresholds,
   };
 
-  return {
+  // Build result object
+  const result = {
     stdout: JSON.stringify(summary, null, 2) + '\n',
     'summary.json': JSON.stringify(summary, null, 2),
+    'dashboard-payload.json': JSON.stringify(dashboardPayload, null, 2),
   };
+
+  // Post to dashboard API if DASHBOARD_API_URL is set
+  const dashboardApiUrl = __ENV.DASHBOARD_API_URL;
+  if (dashboardApiUrl) {
+    const apiKey = __ENV.API_SECRET_KEY || '';
+    try {
+      const response = http.post(
+        `${dashboardApiUrl}/load-tests`,
+        JSON.stringify(dashboardPayload),
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': apiKey,
+          },
+          timeout: '10s',
+        }
+      );
+      if (response.status === 201) {
+        console.log(`✓ Results posted to dashboard: ${dashboardApiUrl}/load-tests`);
+      } else {
+        console.warn(`⚠ Failed to post results to dashboard: ${response.status} ${response.body}`);
+      }
+    } catch (error) {
+      console.warn(`⚠ Failed to post results to dashboard: ${error}`);
+    }
+  } else {
+    console.log('ℹ Set DASHBOARD_API_URL to post results to the dashboard API');
+  }
+
+  return result;
 }
