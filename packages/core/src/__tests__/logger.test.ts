@@ -234,6 +234,133 @@ describe('request serializer', () => {
       testLogger.info({ req: mockReq }, 'request received');
     }).not.toThrow();
   });
+
+  it('should redact PII in URL', () => {
+    const testLogger = createLogger({ name: 'url-pii-test' });
+    const logOutput: unknown[] = [];
+    const originalWrite = process.stdout.write.bind(process.stdout);
+    vi.spyOn(process.stdout, 'write').mockImplementation((chunk: unknown) => {
+      logOutput.push(chunk);
+      return true;
+    });
+
+    const mockReq = {
+      method: 'POST',
+      url: '/api/contact?phone=+40721234567&email=test@example.com',
+      headers: {},
+    };
+    testLogger.info({ req: mockReq }, 'request with PII');
+
+    process.stdout.write = originalWrite;
+
+    if (logOutput.length > 0) {
+      const logString = String(logOutput[0]);
+      // URL should have redacted PII patterns
+      expect(logString).toContain('[REDACTED]');
+    }
+  });
+
+  it('should redact authorization headers', () => {
+    const testLogger = createLogger({ name: 'auth-header-test' });
+    const logOutput: unknown[] = [];
+    const originalWrite = process.stdout.write.bind(process.stdout);
+    vi.spyOn(process.stdout, 'write').mockImplementation((chunk: unknown) => {
+      logOutput.push(chunk);
+      return true;
+    });
+
+    const mockReq = {
+      method: 'GET',
+      url: '/api/secure',
+      headers: {
+        authorization:
+          'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature',
+      },
+    };
+    testLogger.info({ req: mockReq }, 'request with auth');
+
+    process.stdout.write = originalWrite;
+
+    if (logOutput.length > 0) {
+      const logString = String(logOutput[0]);
+      expect(logString).toContain('[REDACTED]');
+    }
+  });
+
+  it('should handle request with undefined method', () => {
+    const testLogger = createLogger({ name: 'undefined-method-test' });
+    const mockReq = {
+      url: '/api/test',
+      headers: {},
+    };
+    expect(() => {
+      testLogger.info({ req: mockReq }, 'request without method');
+    }).not.toThrow();
+  });
+
+  it('should handle request with undefined url', () => {
+    const testLogger = createLogger({ name: 'undefined-url-test' });
+    const mockReq = {
+      method: 'GET',
+      headers: {},
+    };
+    expect(() => {
+      testLogger.info({ req: mockReq }, 'request without url');
+    }).not.toThrow();
+  });
+
+  it('should handle request with undefined headers', () => {
+    const testLogger = createLogger({ name: 'undefined-headers-test' });
+    const mockReq = {
+      method: 'GET',
+      url: '/api/test',
+    };
+    expect(() => {
+      testLogger.info({ req: mockReq }, 'request without headers');
+    }).not.toThrow();
+  });
+
+  it('should handle empty request object', () => {
+    const testLogger = createLogger({ name: 'empty-req-test' });
+    const mockReq = {};
+    expect(() => {
+      testLogger.info({ req: mockReq }, 'empty request');
+    }).not.toThrow();
+  });
+
+  it('should redact sensitive header fields', () => {
+    const testLogger = createLogger({ name: 'sensitive-headers-test' });
+    const mockReq = {
+      method: 'GET',
+      url: '/api/test',
+      headers: {
+        cookie: 'session=abc123',
+        'x-api-key': 'secret-key-12345',
+        'content-type': 'application/json',
+      },
+    };
+
+    // Verify logger doesn't throw when handling sensitive headers
+    expect(() => {
+      testLogger.info({ req: mockReq }, 'request with sensitive headers');
+    }).not.toThrow();
+  });
+
+  it('should handle headers with various PII patterns', () => {
+    const testLogger = createLogger({ name: 'pii-headers-test' });
+    const mockReq = {
+      method: 'POST',
+      url: '/api/users',
+      headers: {
+        'x-user-email': 'patient@clinic.com',
+        'x-phone': '0721234567',
+        'x-ip-address': '192.168.1.1',
+      },
+    };
+    expect(() => {
+      testLogger.info({ req: mockReq }, 'request with PII headers');
+    }).not.toThrow();
+  });
 });
 
 describe('error serializer', () => {

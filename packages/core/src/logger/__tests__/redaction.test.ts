@@ -5,6 +5,10 @@ import {
   PII_PATTERNS,
   redactString,
   shouldRedactPath,
+  deepRedactObject,
+  maskPhone,
+  maskEmail,
+  maskName,
 } from '../redaction.js';
 
 describe('REDACTION_PATHS', () => {
@@ -383,5 +387,404 @@ describe('Security and HIPAA compliance', () => {
 
     expect(redacted).not.toContain('0712345678');
     expect(redacted).toContain('[REDACTED:phone]');
+  });
+});
+
+describe('deepRedactObject', () => {
+  describe('null and undefined handling', () => {
+    it('should return null for null input', () => {
+      expect(deepRedactObject(null)).toBeNull();
+    });
+
+    it('should return undefined for undefined input', () => {
+      expect(deepRedactObject(undefined)).toBeUndefined();
+    });
+  });
+
+  describe('string redaction', () => {
+    it('should redact PII in string values', () => {
+      const result = deepRedactObject('Call me at 0712345678');
+      expect(result).toBe('Call me at [REDACTED:phone]');
+    });
+
+    it('should redact multiple PII types in strings', () => {
+      const input = 'Email: test@example.com, Phone: +40723456789';
+      const result = deepRedactObject(input);
+      expect(result).toContain('[REDACTED:email]');
+      expect(result).toContain('[REDACTED:phone]');
+    });
+  });
+
+  describe('array redaction', () => {
+    it('should redact PII in array elements', () => {
+      const input = ['0712345678', 'test@example.com', 'safe text'];
+      const result = deepRedactObject(input);
+      expect(result).toEqual(['[REDACTED:phone]', '[REDACTED:email]', 'safe text']);
+    });
+
+    it('should handle nested arrays', () => {
+      const input = [['0712345678'], ['nested', 'test@example.com']];
+      const result = deepRedactObject(input);
+      expect(result).toEqual([['[REDACTED:phone]'], ['nested', '[REDACTED:email]']]);
+    });
+
+    it('should handle empty arrays', () => {
+      expect(deepRedactObject([])).toEqual([]);
+    });
+  });
+
+  describe('object redaction', () => {
+    it('should redact PII field values', () => {
+      const input = { phone: '+40712345678', name: 'John Doe', id: '123' };
+      const result = deepRedactObject(input);
+      expect(result).toEqual({
+        phone: '[REDACTED:phone]',
+        name: '[REDACTED:name]',
+        id: '123',
+      });
+    });
+
+    it('should redact nested object fields', () => {
+      const input = {
+        user: {
+          email: 'test@example.com',
+          profile: {
+            firstName: 'John',
+          },
+        },
+      };
+      const result = deepRedactObject(input);
+      expect(result.user.email).toBe('[REDACTED:email]');
+      expect(result.user.profile.firstName).toBe('[REDACTED:firstName]');
+    });
+
+    it('should redact PII patterns in non-sensitive field values', () => {
+      const input = {
+        message: 'Contact 0712345678 for details',
+        status: 'active',
+      };
+      const result = deepRedactObject(input);
+      expect(result.message).toBe('Contact [REDACTED:phone] for details');
+      expect(result.status).toBe('active');
+    });
+
+    it('should handle empty objects', () => {
+      expect(deepRedactObject({})).toEqual({});
+    });
+
+    it('should preserve non-string values', () => {
+      const input = { count: 42, active: true, ratio: 3.14 };
+      const result = deepRedactObject(input);
+      expect(result).toEqual({ count: 42, active: true, ratio: 3.14 });
+    });
+  });
+
+  describe('mixed types', () => {
+    it('should handle complex nested structures', () => {
+      const input = {
+        users: [
+          { email: 'user1@example.com', active: true },
+          { email: 'user2@example.com', active: false },
+        ],
+        metadata: {
+          timestamp: 1234567890,
+          source: 'Call from 0712345678',
+        },
+      };
+      const result = deepRedactObject(input);
+      expect(result.users[0].email).toBe('[REDACTED:email]');
+      expect(result.users[1].email).toBe('[REDACTED:email]');
+      expect(result.metadata.source).toContain('[REDACTED:phone]');
+      expect(result.metadata.timestamp).toBe(1234567890);
+    });
+  });
+
+  describe('primitive pass-through', () => {
+    it('should return numbers as-is', () => {
+      expect(deepRedactObject(42)).toBe(42);
+      expect(deepRedactObject(3.14)).toBe(3.14);
+      expect(deepRedactObject(-100)).toBe(-100);
+    });
+
+    it('should return booleans as-is', () => {
+      expect(deepRedactObject(true)).toBe(true);
+      expect(deepRedactObject(false)).toBe(false);
+    });
+  });
+});
+
+describe('maskPhone', () => {
+  describe('valid phone numbers', () => {
+    it('should mask Romanian phone number', () => {
+      const result = maskPhone('+40712345678');
+      expect(result).toBe('+40*****5678');
+    });
+
+    it('should mask local phone number', () => {
+      const result = maskPhone('0712345678');
+      expect(result).toBe('071***5678');
+    });
+
+    it('should mask US phone number', () => {
+      const result = maskPhone('+12025551234');
+      expect(result).toBe('+12*****1234');
+    });
+
+    it('should handle phone with spaces', () => {
+      const result = maskPhone('+40 712 345 678');
+      expect(result).toBe('+40*****5678');
+    });
+
+    it('should preserve first 3 and last 4 characters', () => {
+      const result = maskPhone('0712345678');
+      expect(result.startsWith('071')).toBe(true);
+      expect(result.endsWith('5678')).toBe(true);
+      expect(result).toContain('***');
+    });
+  });
+
+  describe('invalid inputs', () => {
+    it('should return [NO_PHONE] for null', () => {
+      expect(maskPhone(null)).toBe('[NO_PHONE]');
+    });
+
+    it('should return [NO_PHONE] for undefined', () => {
+      expect(maskPhone(undefined)).toBe('[NO_PHONE]');
+    });
+
+    it('should return [NO_PHONE] for empty string', () => {
+      expect(maskPhone('')).toBe('[NO_PHONE]');
+    });
+
+    it('should return [INVALID_PHONE] for short phone', () => {
+      expect(maskPhone('12345')).toBe('[INVALID_PHONE]');
+      expect(maskPhone('123')).toBe('[INVALID_PHONE]');
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should handle exactly 6 characters', () => {
+      const result = maskPhone('123456');
+      // prefix=123 (first 3), suffix=3456 (last 4), min 2 masks
+      expect(result).toBe('123**3456');
+    });
+
+    it('should handle long international numbers', () => {
+      const result = maskPhone('+442071234567890');
+      // 16 chars - 7 = 9 mask chars
+      expect(result).toBe('+44*********7890');
+    });
+  });
+});
+
+describe('maskEmail', () => {
+  describe('valid emails', () => {
+    it('should mask standard email', () => {
+      const result = maskEmail('john.doe@example.com');
+      expect(result).toBe('jo***@example.com');
+    });
+
+    it('should mask short local part', () => {
+      const result = maskEmail('jd@example.com');
+      expect(result).toBe('jd***@example.com');
+    });
+
+    it('should mask single character local part', () => {
+      const result = maskEmail('a@example.com');
+      expect(result).toBe('a***@example.com');
+    });
+
+    it('should preserve domain', () => {
+      const result = maskEmail('test@company.co.uk');
+      expect(result).toBe('te***@company.co.uk');
+    });
+  });
+
+  describe('invalid inputs', () => {
+    it('should return [NO_EMAIL] for null', () => {
+      expect(maskEmail(null)).toBe('[NO_EMAIL]');
+    });
+
+    it('should return [NO_EMAIL] for undefined', () => {
+      expect(maskEmail(undefined)).toBe('[NO_EMAIL]');
+    });
+
+    it('should return [NO_EMAIL] for empty string', () => {
+      expect(maskEmail('')).toBe('[NO_EMAIL]');
+    });
+
+    it('should return [INVALID_EMAIL] for email without @', () => {
+      expect(maskEmail('noemail')).toBe('[INVALID_EMAIL]');
+    });
+
+    it('should return [INVALID_EMAIL] for email starting with @', () => {
+      expect(maskEmail('@example.com')).toBe('[INVALID_EMAIL]');
+    });
+  });
+});
+
+describe('maskName', () => {
+  describe('valid names', () => {
+    it('should mask full name with two parts', () => {
+      const result = maskName('John Doe');
+      expect(result).toBe('J*** D***');
+    });
+
+    it('should mask name with multiple parts', () => {
+      const result = maskName('John Michael Doe');
+      expect(result).toBe('J*** M*** D***');
+    });
+
+    it('should mask single name', () => {
+      const result = maskName('Madonna');
+      expect(result).toBe('M***');
+    });
+
+    it('should handle extra whitespace', () => {
+      const result = maskName('  John   Doe  ');
+      expect(result).toBe('J*** D***');
+    });
+  });
+
+  describe('invalid inputs', () => {
+    it('should return [NO_NAME] for null', () => {
+      expect(maskName(null)).toBe('[NO_NAME]');
+    });
+
+    it('should return [NO_NAME] for undefined', () => {
+      expect(maskName(undefined)).toBe('[NO_NAME]');
+    });
+
+    it('should return [NO_NAME] for empty string', () => {
+      expect(maskName('')).toBe('[NO_NAME]');
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should handle single character name', () => {
+      const result = maskName('J');
+      expect(result).toBe('J***');
+    });
+
+    it('should handle name with special characters', () => {
+      const result = maskName("O'Brien");
+      expect(result).toBe('O***');
+    });
+  });
+});
+
+describe('PII_PATTERNS additional patterns', () => {
+  describe('internationalPhone', () => {
+    it('should match various international formats', () => {
+      expect('+12025551234'.match(PII_PATTERNS.internationalPhone)).toBeTruthy();
+      expect('+442071234567'.match(PII_PATTERNS.internationalPhone)).toBeTruthy();
+      expect('+33123456789'.match(PII_PATTERNS.internationalPhone)).toBeTruthy();
+    });
+
+    it('should not match numbers starting with 0', () => {
+      expect('+01234567'.match(PII_PATTERNS.internationalPhone)).toBeFalsy();
+    });
+  });
+
+  describe('ipv6Address', () => {
+    it('should match full IPv6 addresses', () => {
+      expect(
+        '2001:0db8:85a3:0000:0000:8a2e:0370:7334'.match(PII_PATTERNS.ipv6Address)
+      ).toBeTruthy();
+    });
+
+    it('should match shortened IPv6 formats', () => {
+      expect('2001:db8:85a3::8a2e:370:7334'.match(PII_PATTERNS.ipv6Address)).toBeTruthy();
+    });
+  });
+
+  describe('iban', () => {
+    it('should match IBAN formats', () => {
+      expect('RO49AAAA1B31007593840000'.match(PII_PATTERNS.iban)).toBeTruthy();
+      expect('DE89370400440532013000'.match(PII_PATTERNS.iban)).toBeTruthy();
+      expect('GB82WEST12345698765432'.match(PII_PATTERNS.iban)).toBeTruthy();
+    });
+  });
+
+  describe('jwtToken', () => {
+    it('should match JWT tokens', () => {
+      const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature';
+      expect(jwt.match(PII_PATTERNS.jwtToken)).toBeTruthy();
+    });
+  });
+
+  describe('dateOfBirth', () => {
+    it('should match DD/MM/YYYY format', () => {
+      expect('01/12/1990'.match(PII_PATTERNS.dateOfBirth)).toBeTruthy();
+      expect('31/01/2000'.match(PII_PATTERNS.dateOfBirth)).toBeTruthy();
+    });
+
+    it('should match DD-MM-YYYY format', () => {
+      expect('01-12-1990'.match(PII_PATTERNS.dateOfBirth)).toBeTruthy();
+    });
+
+    it('should match YYYY-MM-DD format', () => {
+      expect('1990-12-01'.match(PII_PATTERNS.dateOfBirth)).toBeTruthy();
+      expect('2000-01-31'.match(PII_PATTERNS.dateOfBirth)).toBeTruthy();
+    });
+  });
+
+  describe('ssn', () => {
+    it('should match SSN formats', () => {
+      expect('123-45-6789'.match(PII_PATTERNS.ssn)).toBeTruthy();
+      expect('123 45 6789'.match(PII_PATTERNS.ssn)).toBeTruthy();
+      expect('123456789'.match(PII_PATTERNS.ssn)).toBeTruthy();
+    });
+  });
+
+  describe('ukNin', () => {
+    it('should match UK National Insurance Number', () => {
+      expect('AB123456C'.match(PII_PATTERNS.ukNin)).toBeTruthy();
+      expect('ab123456c'.match(PII_PATTERNS.ukNin)).toBeTruthy();
+    });
+  });
+});
+
+describe('redactString additional patterns', () => {
+  it('should redact JWT tokens', () => {
+    const input = 'Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIn0.signature';
+    const result = redactString(input);
+    expect(result).toContain('[REDACTED:token]');
+  });
+
+  it('should redact international phone numbers', () => {
+    const input = 'Call me at +442071234567';
+    const result = redactString(input);
+    expect(result).toContain('[REDACTED:phone]');
+  });
+
+  it('should redact IBAN', () => {
+    const input = 'Transfer to RO49AAAA1B31007593840000';
+    const result = redactString(input);
+    expect(result).toContain('[REDACTED:iban]');
+  });
+
+  it('should redact IPv6 addresses', () => {
+    const input = 'Server: 2001:0db8:85a3:0000:0000:8a2e:0370:7334';
+    const result = redactString(input);
+    expect(result).toContain('[REDACTED:ip]');
+  });
+
+  it('should redact date of birth', () => {
+    const input = 'DOB: 01/12/1990';
+    const result = redactString(input);
+    expect(result).toContain('[REDACTED:date]');
+  });
+
+  it('should redact SSN', () => {
+    const input = 'SSN: 123-45-6789';
+    const result = redactString(input);
+    expect(result).toContain('[REDACTED:ssn]');
+  });
+
+  it('should redact UK NIN', () => {
+    const input = 'NIN: AB123456C';
+    const result = redactString(input);
+    expect(result).toContain('[REDACTED:nin]');
   });
 });
