@@ -120,8 +120,7 @@ describe('OSAX Journey Workflow', () => {
       };
 
       for (const severity of severities) {
-        const reviewWaitHours =
-          severity === 'SEVERE' ? 4 : severity === 'MODERATE' ? 24 : 48;
+        const reviewWaitHours = severity === 'SEVERE' ? 4 : severity === 'MODERATE' ? 24 : 48;
         expect(reviewWaitHours).toBe(expectedWaitHours[severity]);
       }
     });
@@ -135,8 +134,7 @@ describe('OSAX Journey Workflow', () => {
       };
 
       for (const severity of severities) {
-        const followUpDelayDays =
-          severity === 'SEVERE' ? 7 : severity === 'MODERATE' ? 14 : 30;
+        const followUpDelayDays = severity === 'SEVERE' ? 7 : severity === 'MODERATE' ? 14 : 30;
         expect(followUpDelayDays).toBe(expectedDelayDays[severity]);
       }
     });
@@ -192,7 +190,8 @@ describe('OSAX Journey Workflow', () => {
         status: 'approved',
       };
 
-      const stillPending = caseStatus.reviewStatus === 'PENDING' && !caseStatus.hasPhysicianReview;
+      const stillPending =
+        (caseStatus.reviewStatus as string) === 'PENDING' && !caseStatus.hasPhysicianReview;
       expect(stillPending).toBe(false);
     });
 

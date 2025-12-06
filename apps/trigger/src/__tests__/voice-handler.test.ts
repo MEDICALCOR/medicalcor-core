@@ -11,14 +11,8 @@ vi.stubEnv('OPENAI_API_KEY', 'test-openai-key');
 vi.stubEnv('DATABASE_URL', '');
 
 // Import after env setup
-import {
-  createHubSpotClient,
-  createOpenAIClient,
-} from '@medicalcor/integrations';
-import {
-  createScoringService,
-  createTriageService,
-} from '@medicalcor/domain';
+import { createHubSpotClient, createOpenAIClient } from '@medicalcor/integrations';
+import { createScoringService, createTriageService } from '@medicalcor/domain';
 import { createInMemoryEventStore, normalizeRomanianPhone } from '@medicalcor/core';
 import type { AIScoringContext } from '@medicalcor/types';
 
@@ -193,7 +187,7 @@ describe('Voice Handler Tasks', () => {
       const triageResult = await triage.assess({
         leadScore: scoreResult.classification,
         channel: 'voice',
-        messageContent: leadContext.messageHistory[0]?.content ?? '',
+        messageContent: leadContext.messageHistory?.[0]?.content ?? '',
         procedureInterest: scoreResult.procedureInterest ?? [],
         hasExistingRelationship: false,
       });
@@ -456,7 +450,10 @@ describe('Voice Handler Tasks', () => {
         notes: 'Patient reported discomfort',
       };
 
-      if (triageResult.prioritySchedulingRequested || triageResult.urgencyLevel === 'high_priority') {
+      if (
+        triageResult.prioritySchedulingRequested ||
+        triageResult.urgencyLevel === 'high_priority'
+      ) {
         const notificationContacts = triage.getNotificationContacts(triageResult.urgencyLevel);
 
         const task = await hubspot.createTask({
@@ -540,9 +537,9 @@ describe('Voice Handler Tasks', () => {
     it('should get notification contacts for different urgency levels', () => {
       const triage = createTriageService();
 
-      const urgencyLevels: Array<'low' | 'medium' | 'high' | 'high_priority'> = [
+      const urgencyLevels: Array<'low' | 'normal' | 'high' | 'high_priority'> = [
         'low',
-        'medium',
+        'normal',
         'high',
         'high_priority',
       ];

@@ -467,3 +467,9 @@ export {
   filterMap,
   partition,
 } from './lib/index.js';
+
+// =============================================================================
+// OSAX Adapters (Hexagonal Architecture)
+// =============================================================================
+
+export * from './adapters/index.js';

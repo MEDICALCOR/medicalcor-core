@@ -15,9 +15,9 @@
 import type {
   FinancialModelPort,
   FinancialPredictionInput,
-} from '../../ports/osax/FinancialModelPort.js';
-import { FinancialPrediction } from '@medicalcor/domain/osax/value-objects/FinancialPrediction.js';
-import type { EventPublisher } from '@medicalcor/application/ports/secondary/messaging/EventPublisher.js';
+} from '@medicalcor/core/ports/osax/FinancialModelPort.js';
+import type { FinancialPrediction } from '@medicalcor/domain/osax';
+import type { EventPublisher } from '../../../ports/secondary/messaging/EventPublisher.js';
 
 // ============================================================================
 // SERVICE IMPLEMENTATION
@@ -61,9 +61,7 @@ export class OsaxFinancialService {
    * @param input - Prediction request input
    * @returns FinancialPrediction value object with prediction results
    */
-  public async predictFinancialOutcome(
-    input: PredictFinancialInput
-  ): Promise<FinancialPrediction> {
+  public async predictFinancialOutcome(input: PredictFinancialInput): Promise<FinancialPrediction> {
     // 1. Validate input
     this.validateInput(input);
 
@@ -265,10 +263,7 @@ export interface PredictFinancialInput {
 /**
  * Error codes for financial service
  */
-export type FinancialServiceErrorCode =
-  | 'INVALID_INPUT'
-  | 'MODEL_ERROR'
-  | 'EVENT_PUBLISH_ERROR';
+export type FinancialServiceErrorCode = 'INVALID_INPUT' | 'MODEL_ERROR' | 'EVENT_PUBLISH_ERROR';
 
 /**
  * Error thrown by financial service

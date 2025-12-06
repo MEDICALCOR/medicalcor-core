@@ -13,11 +13,8 @@ import type {
   ImagingModelPort,
   ImagingAnalysisInput,
   ImagingModelHealth,
-} from '../../../ports/osax/ImagingModelPort.js';
-import type {
-  RegionFinding,
-  ImagingModality,
-} from '@medicalcor/domain/osax/value-objects/ImagingFindings.js';
+} from '@medicalcor/core/ports/osax/ImagingModelPort.js';
+import type { RegionFinding, ImagingModality } from '@medicalcor/domain/osax';
 
 // ============================================================================
 // ADAPTER IMPLEMENTATION
@@ -177,7 +174,8 @@ export class DummyImagingAdapter implements ImagingModelPort {
       ],
     };
 
-    return findingsByModality[modality] || [];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    return findingsByModality[modality] ?? [];
   }
 
   /**

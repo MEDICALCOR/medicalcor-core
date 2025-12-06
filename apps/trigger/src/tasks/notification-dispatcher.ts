@@ -382,11 +382,12 @@ export const dispatchNotification = task({
             });
 
           default:
+            // This should never happen as all channels are handled above
             return {
-              channel: channel as string,
+              channel,
               success: false,
               error: `Unknown channel: ${channel as string}`,
-            };
+            } satisfies DispatchResult;
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -399,7 +400,7 @@ export const dispatchNotification = task({
           channel,
           success: false,
           error: errorMessage,
-        };
+        } satisfies DispatchResult;
       }
     });
 
@@ -539,8 +540,7 @@ async function dispatchWhatsApp(
       templateName: options.templateName,
       language: options.templateLanguage ?? 'ro',
     });
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Pre-existing type inference issue with WhatsApp client
-    messageId = result.messageId;
+    messageId = result.messages[0]?.id;
   } else {
     // Send text message
     const messageText = content.shortBody ?? content.body;
@@ -548,8 +548,7 @@ async function dispatchWhatsApp(
       to: recipients.patientPhone,
       text: messageText,
     });
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Pre-existing type inference issue with WhatsApp client
-    messageId = result.messageId;
+    messageId = result.messages[0]?.id;
   }
 
   logger.info('WhatsApp notification sent', {

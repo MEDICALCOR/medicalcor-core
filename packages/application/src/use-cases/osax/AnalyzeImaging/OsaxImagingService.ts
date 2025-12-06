@@ -21,13 +21,10 @@ import type {
   ImagingModelPort,
   ImagingAnalysisInput,
   PatientAgeGroup,
-} from '../../ports/osax/ImagingModelPort.js';
-import type { StoragePort } from '../../ports/osax/StoragePort.js';
-import {
-  ImagingFindings,
-  type ImagingModality,
-} from '@medicalcor/domain/osax/value-objects/ImagingFindings.js';
-import type { EventPublisher } from '@medicalcor/application/ports/secondary/messaging/EventPublisher.js';
+} from '@medicalcor/core/ports/osax/ImagingModelPort.js';
+import type { StoragePort } from '@medicalcor/core/ports/osax/StoragePort.js';
+import { ImagingFindings, type ImagingModality } from '@medicalcor/domain/osax';
+import type { EventPublisher } from '../../../ports/secondary/messaging/EventPublisher.js';
 
 // ============================================================================
 // SERVICE IMPLEMENTATION

@@ -17,10 +17,7 @@
  * - All imaging data encrypted in transit (TLS 1.3)
  */
 
-import type {
-  RegionFinding,
-  ImagingModality,
-} from '@medicalcor/domain/osax/value-objects/ImagingFindings.js';
+import type { RegionFinding, ImagingModality } from '@medicalcor/domain/osax';
 
 // ============================================================================
 // PORT INTERFACE
@@ -195,7 +192,7 @@ export class ImagingAnalysisError extends Error {
   constructor(
     code: ImagingAnalysisErrorCode,
     message: string,
-    retryable: boolean = false,
+    retryable = false,
     details?: Record<string, unknown>
   ) {
     super(message);
@@ -229,6 +226,7 @@ export function isImagingModelPort(value: unknown): value is ImagingModelPort {
     typeof value === 'object' &&
     value !== null &&
     'portName' in value &&
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     (value as ImagingModelPort).portName === 'imaging-model' &&
     'analyzeImaging' in value &&
     typeof (value as ImagingModelPort).analyzeImaging === 'function'

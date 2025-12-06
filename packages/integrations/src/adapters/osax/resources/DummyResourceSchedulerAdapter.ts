@@ -16,11 +16,8 @@ import type {
   DateRange,
   SchedulerHealth,
   TimeSlot,
-} from '../../../ports/osax/ResourceSchedulerPort.js';
-import {
-  ResourceBlock,
-  type ResourceType,
-} from '@medicalcor/domain/osax/entities/ResourceBlock.js';
+} from '@medicalcor/core/ports/osax/ResourceSchedulerPort.js';
+import { ResourceBlock, type ResourceType } from '@medicalcor/domain/osax';
 
 // ============================================================================
 // ADAPTER IMPLEMENTATION
@@ -109,7 +106,7 @@ export class DummyResourceSchedulerAdapter implements ResourceSchedulerPort {
 
     for (const blockId of blockIds) {
       const block = this.blocks.get(blockId);
-      if (block && block.isSoftHeld()) {
+      if (block?.isSoftHeld()) {
         block.confirm(scheduledStart);
         confirmedBlocks.push(block);
       }
@@ -126,7 +123,7 @@ export class DummyResourceSchedulerAdapter implements ResourceSchedulerPort {
 
     for (const blockId of blockIds) {
       const block = this.blocks.get(blockId);
-      if (block && block.isActive()) {
+      if (block?.isActive()) {
         block.release(reason);
       }
     }
@@ -188,10 +185,7 @@ export class DummyResourceSchedulerAdapter implements ResourceSchedulerPort {
   /**
    * Generate mock suggested time slots
    */
-  private generateSuggestedSlots(
-    resources: ResourceType[],
-    dateRange: DateRange
-  ): TimeSlot[] {
+  private generateSuggestedSlots(resources: ResourceType[], dateRange: DateRange): TimeSlot[] {
     const slots: TimeSlot[] = [];
     const startDate = new Date(dateRange.start);
 
