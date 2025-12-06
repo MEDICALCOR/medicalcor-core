@@ -196,6 +196,12 @@ export * from './voice/index.js';
 // Cases - Treatment Plans to Payments (H1 Production Fix)
 export * from './cases/index.js';
 
+// LTV - Customer Lifetime Value (H2 Production Fix)
+export * from './ltv/index.js';
+
+// Disposition - Call Outcome Tracking (M1 Production Fix)
+export * from './disposition/index.js';
+
 // ============================================================================
 // SHARED TYPES & UTILITIES
 // ============================================================================
