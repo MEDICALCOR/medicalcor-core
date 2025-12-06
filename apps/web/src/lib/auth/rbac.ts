@@ -65,7 +65,12 @@ export type Permission =
   // Workflows
   | 'workflows:read'
   | 'workflows:write'
-  | 'workflows:delete';
+  | 'workflows:delete'
+  // Supervisor
+  | 'supervisor:view'
+  | 'supervisor:listen'
+  | 'supervisor:whisper'
+  | 'supervisor:barge';
 
 /**
  * Role-Permission mapping
@@ -114,6 +119,10 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'workflows:read',
     'workflows:write',
     'workflows:delete',
+    'supervisor:view',
+    'supervisor:listen',
+    'supervisor:whisper',
+    'supervisor:barge',
   ],
 
   doctor: [
@@ -140,6 +149,8 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'ai:replies',
     'workflows:read',
     'workflows:write',
+    'supervisor:view',
+    'supervisor:listen',
   ],
 
   receptionist: [
@@ -287,6 +298,9 @@ export const PAGE_ACCESS: Record<string, PageAccess> = {
 
   // Import
   '/import': { roles: ['admin'] },
+
+  // Supervisor Dashboard
+  '/supervisor': { permissions: ['supervisor:view'] },
 };
 
 /**
