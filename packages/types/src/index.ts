@@ -189,6 +189,11 @@ export {
   FlexQueueSchema,
   FlexTaskSchema,
   SupervisorDashboardStatsSchema,
+  // Queue SLA (H6)
+  QueueSLAConfigSchema,
+  QueueSLAStatusSchema,
+  SLABreachEventSchema,
+  SLAReportSchema,
   type SupervisorPermission,
   type SupervisorRole,
   type MonitoredCallState,
@@ -214,6 +219,11 @@ export {
   type FlexQueue,
   type FlexTask,
   type SupervisorDashboardStats,
+  // Queue SLA Types (H6)
+  type QueueSLAConfig,
+  type QueueSLAStatus,
+  type SLABreachEvent,
+  type SLAReport,
 } from './schemas/index.js';
 
 // =============================================================================
@@ -226,6 +236,7 @@ export {
   StripeCustomerSchema,
   InvoiceSchema,
   CheckoutSessionSchema,
+  SubscriptionSchema,
   StripeWebhookEventSchema,
   PaymentEventSchema,
   type StripeEventType,
@@ -234,6 +245,7 @@ export {
   type StripeCustomer,
   type Invoice,
   type CheckoutSession,
+  type Subscription,
   type StripeWebhookEvent,
   type PaymentEvent,
 } from './stripe.schema.js';

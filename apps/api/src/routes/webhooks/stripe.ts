@@ -414,12 +414,172 @@ export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
           break;
         }
 
+        // Subscription events
+        case 'customer.subscription.created': {
+          const subscription = event.data.object;
+          if ('status' in subscription) {
+            const items = 'items' in subscription ? subscription.items : null;
+            const firstItem = items && 'data' in items && Array.isArray(items.data) ? items.data[0] : null;
+
+            fastify.log.info(
+              {
+                correlationId,
+                subscriptionId: subscription.id,
+                status: subscription.status,
+              },
+              'Subscription created'
+            );
+
+            const subscriptionPayload = {
+              subscriptionId: subscription.id,
+              customerId: typeof subscription.customer === 'string' ? subscription.customer : '',
+              customerEmail: null as string | null,
+              status: subscription.status,
+              productName: firstItem?.price?.product as string | undefined,
+              amount: firstItem?.price?.unit_amount ?? undefined,
+              currency: firstItem?.price?.currency,
+              interval: firstItem?.price?.recurring?.interval,
+              trialEnd: 'trial_end' in subscription ? subscription.trial_end : null,
+              currentPeriodEnd: 'current_period_end' in subscription ? subscription.current_period_end : Date.now() / 1000,
+              metadata: 'metadata' in subscription ? subscription.metadata : undefined,
+              correlationId,
+            };
+
+            tasks
+              .trigger('subscription-created-handler', subscriptionPayload, {
+                idempotencyKey: IdempotencyKeys.paymentSucceeded(`sub_created_${subscription.id}`),
+              })
+              .catch((err: unknown) => {
+                fastify.log.error(
+                  { err, subscriptionId: subscription.id, correlationId },
+                  'Failed to trigger subscription created handler'
+                );
+              });
+          }
+          break;
+        }
+
+        case 'customer.subscription.updated': {
+          const subscription = event.data.object;
+          if ('status' in subscription) {
+            fastify.log.info(
+              {
+                correlationId,
+                subscriptionId: subscription.id,
+                status: subscription.status,
+              },
+              'Subscription updated'
+            );
+
+            const updatePayload = {
+              subscriptionId: subscription.id,
+              customerId: typeof subscription.customer === 'string' ? subscription.customer : '',
+              customerEmail: null as string | null,
+              newStatus: subscription.status,
+              cancelAt: 'cancel_at' in subscription ? subscription.cancel_at : null,
+              canceledAt: 'canceled_at' in subscription ? subscription.canceled_at : null,
+              endedAt: 'ended_at' in subscription ? subscription.ended_at : null,
+              metadata: 'metadata' in subscription ? subscription.metadata : undefined,
+              correlationId,
+            };
+
+            tasks
+              .trigger('subscription-updated-handler', updatePayload, {
+                idempotencyKey: IdempotencyKeys.paymentSucceeded(`sub_updated_${subscription.id}_${Date.now()}`),
+              })
+              .catch((err: unknown) => {
+                fastify.log.error(
+                  { err, subscriptionId: subscription.id, correlationId },
+                  'Failed to trigger subscription updated handler'
+                );
+              });
+          }
+          break;
+        }
+
+        case 'customer.subscription.deleted': {
+          const subscription = event.data.object;
+          fastify.log.warn(
+            {
+              correlationId,
+              subscriptionId: subscription.id,
+            },
+            'Subscription deleted'
+          );
+
+          const deletePayload = {
+            subscriptionId: subscription.id,
+            customerId: typeof subscription.customer === 'string' ? subscription.customer : '',
+            customerEmail: null as string | null,
+            cancellationReason: undefined as string | undefined,
+            metadata: 'metadata' in subscription ? subscription.metadata : undefined,
+            correlationId,
+          };
+
+          tasks
+            .trigger('subscription-deleted-handler', deletePayload, {
+              idempotencyKey: IdempotencyKeys.paymentSucceeded(`sub_deleted_${subscription.id}`),
+            })
+            .catch((err: unknown) => {
+              fastify.log.error(
+                { err, subscriptionId: subscription.id, correlationId },
+                'Failed to trigger subscription deleted handler'
+              );
+            });
+          break;
+        }
+
+        case 'customer.subscription.trial_will_end': {
+          const subscription = event.data.object;
+          if ('trial_end' in subscription && subscription.trial_end) {
+            const trialEnd = subscription.trial_end as number;
+            const daysRemaining = Math.ceil((trialEnd * 1000 - Date.now()) / (24 * 60 * 60 * 1000));
+
+            fastify.log.info(
+              {
+                correlationId,
+                subscriptionId: subscription.id,
+                trialEnd,
+                daysRemaining,
+              },
+              'Trial ending soon'
+            );
+
+            const trialPayload = {
+              subscriptionId: subscription.id,
+              customerId: typeof subscription.customer === 'string' ? subscription.customer : '',
+              customerEmail: null as string | null,
+              trialEnd,
+              daysRemaining,
+              metadata: 'metadata' in subscription ? subscription.metadata : undefined,
+              correlationId,
+            };
+
+            tasks
+              .trigger('trial-ending-handler', trialPayload, {
+                idempotencyKey: IdempotencyKeys.paymentSucceeded(`trial_ending_${subscription.id}`),
+              })
+              .catch((err: unknown) => {
+                fastify.log.error(
+                  { err, subscriptionId: subscription.id, correlationId },
+                  'Failed to trigger trial ending handler'
+                );
+              });
+          }
+          break;
+        }
+
         // Explicitly handle other expected event types (logged but not processed)
         case 'payment_intent.canceled':
         case 'customer.created':
         case 'customer.updated':
         case 'invoice.payment_failed':
+        case 'invoice.created':
+        case 'invoice.finalized':
+        case 'invoice.upcoming':
         case 'checkout.session.expired':
+        case 'customer.subscription.paused':
+        case 'customer.subscription.resumed':
         default:
           fastify.log.info({ correlationId, eventType: event.type }, 'Unhandled Stripe event type');
       }

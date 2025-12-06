@@ -195,6 +195,11 @@ export {
   FlexTaskSchema,
   // Dashboard
   SupervisorDashboardStatsSchema,
+  // Queue SLA (H6)
+  QueueSLAConfigSchema,
+  QueueSLAStatusSchema,
+  SLABreachEventSchema,
+  SLAReportSchema,
   // Types
   type SupervisorPermission,
   type SupervisorRole,
@@ -221,4 +226,9 @@ export {
   type FlexQueue,
   type FlexTask,
   type SupervisorDashboardStats,
+  // Queue SLA Types (H6)
+  type QueueSLAConfig,
+  type QueueSLAStatus,
+  type SLABreachEvent,
+  type SLAReport,
 } from './supervisor.js';
