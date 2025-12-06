@@ -202,7 +202,7 @@ describe('HIPAA Compliance Tests', () => {
 
       const fullCase: CaseData = {
         id: 'case-1',
-        caseNumber: 'OSAX-2025-00001',
+        caseNumber: 'CASE-2025-00001',
         patient_name: 'John Doe',
         diagnosis: 'Edentulous patient',
         treatment_notes: 'Recommend All-on-4',

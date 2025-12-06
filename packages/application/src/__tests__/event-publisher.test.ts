@@ -30,20 +30,20 @@ describe('createDomainEvent', () => {
       vi.setSystemTime(mockDate);
 
       const event = createDomainEvent(
-        'osax.case.created',
+        'case.created',
         'case-123',
-        'OsaxCase',
+        'Case',
         1,
-        { caseNumber: 'OSAX-2025-00001' },
+        { caseNumber: 'CASE-2025-00001' },
         'corr-456',
         'user-789'
       );
 
-      expect(event.eventType).toBe('osax.case.created');
+      expect(event.eventType).toBe('case.created');
       expect(event.aggregateId).toBe('case-123');
-      expect(event.aggregateType).toBe('OsaxCase');
+      expect(event.aggregateType).toBe('Case');
       expect(event.aggregateVersion).toBe(1);
-      expect(event.eventData).toEqual({ caseNumber: 'OSAX-2025-00001' });
+      expect(event.eventData).toEqual({ caseNumber: 'CASE-2025-00001' });
       expect(event.correlationId).toBe('corr-456');
       expect(event.actorId).toBe('user-789');
       expect(event.causationId).toBeNull();
@@ -108,15 +108,15 @@ describe('createDomainEvent', () => {
   describe('Event Type Variations', () => {
     it('should handle different event types', () => {
       const eventTypes = [
-        'osax.case.created',
-        'osax.case.updated',
-        'osax.case.deleted',
-        'osax.case.scored',
-        'osax.case.verified',
+        'case.created',
+        'case.updated',
+        'case.deleted',
+        'case.scored',
+        'case.verified',
       ];
 
       eventTypes.forEach((eventType) => {
-        const event = createDomainEvent(eventType, 'id', 'OsaxCase', 1, {}, 'corr', 'actor');
+        const event = createDomainEvent(eventType, 'id', 'Case', 1, {}, 'corr', 'actor');
         expect(event.eventType).toBe(eventType);
       });
     });
@@ -138,7 +138,7 @@ describe('createDomainEvent', () => {
 
   describe('Aggregate Information', () => {
     it('should handle different aggregate types', () => {
-      const aggregateTypes = ['OsaxCase', 'Patient', 'User', 'Appointment'];
+      const aggregateTypes = ['Case', 'Patient', 'User', 'Appointment'];
 
       aggregateTypes.forEach((aggregateType) => {
         const event = createDomainEvent('test', 'id', aggregateType, 1, {}, 'corr', 'actor');
@@ -367,18 +367,18 @@ describe('createDomainEvent', () => {
   });
 
   describe('Real-World Event Scenarios', () => {
-    it('should create OSAX case created event', () => {
+    it('should create clinical case created event', () => {
       const mockDate = new Date('2025-01-15T10:30:00Z');
       vi.setSystemTime(mockDate);
 
       const event = createDomainEvent(
-        'osax.case.created',
+        'case.created',
         'case-550e8400',
-        'OsaxCase',
+        'Case',
         1,
         {
           caseId: 'case-550e8400',
-          caseNumber: 'OSAX-2025-00042',
+          caseNumber: 'CASE-2025-00042',
           subjectId: 'patient-123',
           subjectType: 'patient',
           priority: 'NORMAL',
@@ -389,20 +389,20 @@ describe('createDomainEvent', () => {
         'user-789'
       );
 
-      expect(event.eventType).toBe('osax.case.created');
-      expect(event.aggregateType).toBe('OsaxCase');
+      expect(event.eventType).toBe('case.created');
+      expect(event.aggregateType).toBe('Case');
       expect(event.aggregateVersion).toBe(1);
       expect(event.eventData).toMatchObject({
-        caseNumber: 'OSAX-2025-00042',
+        caseNumber: 'CASE-2025-00042',
         priority: 'NORMAL',
       });
     });
 
-    it('should create OSAX case scored event with causation', () => {
+    it('should create clinical case scored event with causation', () => {
       const event = createDomainEvent(
-        'osax.case.scored',
+        'case.scored',
         'case-123',
-        'OsaxCase',
+        'Case',
         2,
         {
           globalScore: 85,
@@ -419,7 +419,7 @@ describe('createDomainEvent', () => {
         'event-case-created-123'
       );
 
-      expect(event.eventType).toBe('osax.case.scored');
+      expect(event.eventType).toBe('case.scored');
       expect(event.aggregateVersion).toBe(2);
       expect(event.causationId).toBe('event-case-created-123');
       expect(event.eventData).toMatchObject({
@@ -430,9 +430,9 @@ describe('createDomainEvent', () => {
 
     it('should create system-generated event', () => {
       const event = createDomainEvent(
-        'osax.case.reminder.scheduled',
+        'case.reminder.scheduled',
         'case-789',
-        'OsaxCase',
+        'Case',
         3,
         {
           reminderType: 'FOLLOW_UP',

@@ -25,7 +25,7 @@ function createPrincipal(overrides: Partial<SecurityPrincipal> = {}): SecurityPr
     id: 'user-123',
     type: SecurityPrincipalType.USER,
     roles: ['DOCTOR'],
-    permissions: [Permission.OSAX_CASE_READ, Permission.OSAX_CASE_CREATE],
+    permissions: [Permission.CASE_READ, Permission.CASE_CREATE],
     organizationId: 'org-456',
     displayName: 'Dr. Test',
     email: 'test@clinic.com',
@@ -107,31 +107,31 @@ describe('SecurityContext', () => {
 
   describe('Permission Checking', () => {
     it('should return true for hasPermission when permission exists', () => {
-      const principal = createPrincipal({ permissions: [Permission.OSAX_CASE_CREATE] });
+      const principal = createPrincipal({ permissions: [Permission.CASE_CREATE] });
       const context = SecurityContext.create(principal, 'corr-123');
 
-      expect(context.hasPermission(Permission.OSAX_CASE_CREATE)).toBe(true);
+      expect(context.hasPermission(Permission.CASE_CREATE)).toBe(true);
     });
 
     it('should return false for hasPermission when permission is missing', () => {
-      const principal = createPrincipal({ permissions: [Permission.OSAX_CASE_READ] });
+      const principal = createPrincipal({ permissions: [Permission.CASE_READ] });
       const context = SecurityContext.create(principal, 'corr-123');
 
-      expect(context.hasPermission(Permission.OSAX_CASE_DELETE)).toBe(false);
+      expect(context.hasPermission(Permission.CASE_DELETE)).toBe(false);
     });
 
     it('should not throw for requirePermission when permission exists', () => {
-      const principal = createPrincipal({ permissions: [Permission.OSAX_CASE_CREATE] });
+      const principal = createPrincipal({ permissions: [Permission.CASE_CREATE] });
       const context = SecurityContext.create(principal, 'corr-123');
 
-      expect(() => context.requirePermission(Permission.OSAX_CASE_CREATE)).not.toThrow();
+      expect(() => context.requirePermission(Permission.CASE_CREATE)).not.toThrow();
     });
 
     it('should throw DomainError for requirePermission when permission is missing', () => {
       const principal = createPrincipal({ permissions: [] });
       const context = SecurityContext.create(principal, 'corr-123');
 
-      expect(() => context.requirePermission(Permission.OSAX_CASE_CREATE)).toThrow(DomainError);
+      expect(() => context.requirePermission(Permission.CASE_CREATE)).toThrow(DomainError);
     });
 
     it('should include required permission in error details', () => {
@@ -139,41 +139,41 @@ describe('SecurityContext', () => {
       const context = SecurityContext.create(principal, 'corr-123');
 
       try {
-        context.requirePermission(Permission.OSAX_CASE_CREATE);
+        context.requirePermission(Permission.CASE_CREATE);
         expect.fail('Should have thrown');
       } catch (error) {
         expect(error).toBeInstanceOf(DomainError);
         const domainError = error as DomainError;
         expect(domainError.code).toBe('security.permission_denied');
-        expect(domainError.details?.requiredPermission).toBe(Permission.OSAX_CASE_CREATE);
+        expect(domainError.details?.requiredPermission).toBe(Permission.CASE_CREATE);
       }
     });
 
     it('should check hasAnyPermission correctly', () => {
       const principal = createPrincipal({
-        permissions: [Permission.OSAX_CASE_READ],
+        permissions: [Permission.CASE_READ],
       });
       const context = SecurityContext.create(principal, 'corr-123');
 
       expect(
-        context.hasAnyPermission([Permission.OSAX_CASE_READ, Permission.OSAX_CASE_CREATE])
+        context.hasAnyPermission([Permission.CASE_READ, Permission.CASE_CREATE])
       ).toBe(true);
-      expect(context.hasAnyPermission([Permission.OSAX_CASE_DELETE, Permission.PHI_DELETE])).toBe(
+      expect(context.hasAnyPermission([Permission.CASE_DELETE, Permission.PHI_DELETE])).toBe(
         false
       );
     });
 
     it('should check hasAllPermissions correctly', () => {
       const principal = createPrincipal({
-        permissions: [Permission.OSAX_CASE_READ, Permission.OSAX_CASE_CREATE],
+        permissions: [Permission.CASE_READ, Permission.CASE_CREATE],
       });
       const context = SecurityContext.create(principal, 'corr-123');
 
       expect(
-        context.hasAllPermissions([Permission.OSAX_CASE_READ, Permission.OSAX_CASE_CREATE])
+        context.hasAllPermissions([Permission.CASE_READ, Permission.CASE_CREATE])
       ).toBe(true);
       expect(
-        context.hasAllPermissions([Permission.OSAX_CASE_READ, Permission.OSAX_CASE_DELETE])
+        context.hasAllPermissions([Permission.CASE_READ, Permission.CASE_DELETE])
       ).toBe(false);
     });
   });
@@ -316,7 +316,7 @@ describe('SecurityContext', () => {
       });
       const context = SecurityContext.create(principal, 'corr-456');
 
-      const entry = context.createAuditEntry('CREATE', 'OsaxCase', 'case-789', 'SUCCESS', {
+      const entry = context.createAuditEntry('CREATE', 'Case', 'case-789', 'SUCCESS', {
         extra: 'data',
       });
 
@@ -326,7 +326,7 @@ describe('SecurityContext', () => {
       expect(entry.principalType).toBe(SecurityPrincipalType.USER);
       expect(entry.principalRoles).toEqual(['DOCTOR']);
       expect(entry.action).toBe('CREATE');
-      expect(entry.resourceType).toBe('OsaxCase');
+      expect(entry.resourceType).toBe('Case');
       expect(entry.resourceId).toBe('case-789');
       expect(entry.organizationId).toBe('org-123');
       expect(entry.result).toBe('SUCCESS');
@@ -340,7 +340,7 @@ describe('SecurityContext', () => {
     it('should include timestamp in audit entry', () => {
       const context = SecurityContext.create(createPrincipal(), 'corr-123');
       const before = new Date();
-      const entry = context.createAuditEntry('READ', 'OsaxCase', 'case-1', 'SUCCESS');
+      const entry = context.createAuditEntry('READ', 'Case', 'case-1', 'SUCCESS');
       const after = new Date();
 
       expect(entry.timestamp.getTime()).toBeGreaterThanOrEqual(before.getTime());
@@ -350,8 +350,8 @@ describe('SecurityContext', () => {
     it('should generate unique audit IDs', () => {
       const context = SecurityContext.create(createPrincipal(), 'corr-123');
 
-      const entry1 = context.createAuditEntry('READ', 'OsaxCase', 'case-1', 'SUCCESS');
-      const entry2 = context.createAuditEntry('READ', 'OsaxCase', 'case-1', 'SUCCESS');
+      const entry1 = context.createAuditEntry('READ', 'Case', 'case-1', 'SUCCESS');
+      const entry2 = context.createAuditEntry('READ', 'Case', 'case-1', 'SUCCESS');
 
       expect(entry1.auditId).not.toBe(entry2.auditId);
     });
@@ -359,8 +359,8 @@ describe('SecurityContext', () => {
     it('should support FAILURE and DENIED results', () => {
       const context = SecurityContext.create(createPrincipal(), 'corr-123');
 
-      const failureEntry = context.createAuditEntry('CREATE', 'OsaxCase', 'case-1', 'FAILURE');
-      const deniedEntry = context.createAuditEntry('DELETE', 'OsaxCase', 'case-2', 'DENIED');
+      const failureEntry = context.createAuditEntry('CREATE', 'Case', 'case-1', 'FAILURE');
+      const deniedEntry = context.createAuditEntry('DELETE', 'Case', 'case-2', 'DENIED');
 
       expect(failureEntry.result).toBe('FAILURE');
       expect(deniedEntry.result).toBe('DENIED');

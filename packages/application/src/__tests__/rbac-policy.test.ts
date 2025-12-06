@@ -42,7 +42,7 @@ function createPrincipal(overrides: Partial<SecurityPrincipal> = {}): SecurityPr
 
 function createResource(overrides: Partial<ResourceContext> = {}): ResourceContext {
   return {
-    type: 'OsaxCase',
+    type: 'Case',
     id: 'case-123',
     organizationId: 'org-abc',
     ...overrides,
@@ -54,11 +54,11 @@ describe('Role Permissions', () => {
     it('should have case management permissions', () => {
       const permissions = ROLE_PERMISSIONS[Role.DOCTOR];
 
-      expect(permissions).toContain(Permission.OSAX_CASE_CREATE);
-      expect(permissions).toContain(Permission.OSAX_CASE_READ);
-      expect(permissions).toContain(Permission.OSAX_CASE_UPDATE);
-      expect(permissions).toContain(Permission.OSAX_CASE_SCORE);
-      expect(permissions).toContain(Permission.OSAX_CASE_VERIFY);
+      expect(permissions).toContain(Permission.CASE_CREATE);
+      expect(permissions).toContain(Permission.CASE_READ);
+      expect(permissions).toContain(Permission.CASE_UPDATE);
+      expect(permissions).toContain(Permission.CASE_SCORE);
+      expect(permissions).toContain(Permission.CASE_VERIFY);
     });
 
     it('should have PHI read access', () => {
@@ -66,7 +66,7 @@ describe('Role Permissions', () => {
     });
 
     it('should NOT have case delete permission', () => {
-      expect(ROLE_PERMISSIONS[Role.DOCTOR]).not.toContain(Permission.OSAX_CASE_DELETE);
+      expect(ROLE_PERMISSIONS[Role.DOCTOR]).not.toContain(Permission.CASE_DELETE);
     });
 
     it('should NOT have PHI export or delete permissions', () => {
@@ -92,7 +92,7 @@ describe('Role Permissions', () => {
     });
 
     it('should have case delete permission', () => {
-      expect(ROLE_PERMISSIONS[Role.SURGEON]).toContain(Permission.OSAX_CASE_DELETE);
+      expect(ROLE_PERMISSIONS[Role.SURGEON]).toContain(Permission.CASE_DELETE);
     });
 
     it('should have PHI write and export permissions', () => {
@@ -109,10 +109,10 @@ describe('Role Permissions', () => {
     it('should have read and update but NOT create', () => {
       const nursePerms = ROLE_PERMISSIONS[Role.NURSE];
 
-      expect(nursePerms).toContain(Permission.OSAX_CASE_READ);
-      expect(nursePerms).toContain(Permission.OSAX_CASE_UPDATE);
-      expect(nursePerms).not.toContain(Permission.OSAX_CASE_CREATE);
-      expect(nursePerms).not.toContain(Permission.OSAX_CASE_DELETE);
+      expect(nursePerms).toContain(Permission.CASE_READ);
+      expect(nursePerms).toContain(Permission.CASE_UPDATE);
+      expect(nursePerms).not.toContain(Permission.CASE_CREATE);
+      expect(nursePerms).not.toContain(Permission.CASE_DELETE);
     });
 
     it('should have PHI read but NOT write', () => {
@@ -125,10 +125,10 @@ describe('Role Permissions', () => {
     it('should only have case create and read', () => {
       const receptionistPerms = ROLE_PERMISSIONS[Role.RECEPTIONIST];
 
-      expect(receptionistPerms).toContain(Permission.OSAX_CASE_CREATE);
-      expect(receptionistPerms).toContain(Permission.OSAX_CASE_READ);
-      expect(receptionistPerms).not.toContain(Permission.OSAX_CASE_UPDATE);
-      expect(receptionistPerms).not.toContain(Permission.OSAX_CASE_DELETE);
+      expect(receptionistPerms).toContain(Permission.CASE_CREATE);
+      expect(receptionistPerms).toContain(Permission.CASE_READ);
+      expect(receptionistPerms).not.toContain(Permission.CASE_UPDATE);
+      expect(receptionistPerms).not.toContain(Permission.CASE_DELETE);
     });
 
     it('should NOT have PHI access', () => {
@@ -160,10 +160,10 @@ describe('Role Permissions', () => {
       const auditorPerms = ROLE_PERMISSIONS[Role.AUDITOR];
 
       expect(auditorPerms).toContain(Permission.ADMIN_AUDIT_VIEW);
-      expect(auditorPerms).toContain(Permission.OSAX_CASE_READ);
+      expect(auditorPerms).toContain(Permission.CASE_READ);
       expect(auditorPerms).toContain(Permission.REPORT_VIEW);
-      expect(auditorPerms).not.toContain(Permission.OSAX_CASE_CREATE);
-      expect(auditorPerms).not.toContain(Permission.OSAX_CASE_UPDATE);
+      expect(auditorPerms).not.toContain(Permission.CASE_CREATE);
+      expect(auditorPerms).not.toContain(Permission.CASE_UPDATE);
       expect(auditorPerms).not.toContain(Permission.PHI_READ);
     });
   });
@@ -172,10 +172,10 @@ describe('Role Permissions', () => {
     it('should have read-only access for analytics', () => {
       const researcherPerms = ROLE_PERMISSIONS[Role.RESEARCHER];
 
-      expect(researcherPerms).toContain(Permission.OSAX_CASE_READ);
+      expect(researcherPerms).toContain(Permission.CASE_READ);
       expect(researcherPerms).toContain(Permission.REPORT_VIEW);
       expect(researcherPerms).not.toContain(Permission.PHI_READ); // No direct PHI
-      expect(researcherPerms).not.toContain(Permission.OSAX_CASE_UPDATE);
+      expect(researcherPerms).not.toContain(Permission.CASE_UPDATE);
     });
   });
 
@@ -183,7 +183,7 @@ describe('Role Permissions', () => {
     it('should have minimal read-only access', () => {
       const consultantPerms = ROLE_PERMISSIONS[Role.CONSULTANT];
 
-      expect(consultantPerms).toEqual([Permission.OSAX_CASE_READ]);
+      expect(consultantPerms).toEqual([Permission.CASE_READ]);
     });
   });
 
@@ -191,11 +191,11 @@ describe('Role Permissions', () => {
     it('should have financial data access only', () => {
       const billingPerms = ROLE_PERMISSIONS[Role.BILLING];
 
-      expect(billingPerms).toContain(Permission.OSAX_CASE_READ);
+      expect(billingPerms).toContain(Permission.CASE_READ);
       expect(billingPerms).toContain(Permission.REPORT_VIEW);
       expect(billingPerms).toContain(Permission.REPORT_EXPORT);
       expect(billingPerms).not.toContain(Permission.PHI_READ);
-      expect(billingPerms).not.toContain(Permission.OSAX_CASE_UPDATE);
+      expect(billingPerms).not.toContain(Permission.CASE_UPDATE);
     });
   });
 });
@@ -205,7 +205,7 @@ describe('Data Residency Policy', () => {
     const principal = createPrincipal({ organizationId: 'org-abc' });
     const resource = createResource({ organizationId: 'org-abc' });
 
-    const result = DATA_RESIDENCY_POLICY.check(principal, resource, Permission.OSAX_CASE_READ);
+    const result = DATA_RESIDENCY_POLICY.check(principal, resource, Permission.CASE_READ);
 
     expect(result.allowed).toBe(true);
     expect(result.policy).toBe('data_residency');
@@ -215,7 +215,7 @@ describe('Data Residency Policy', () => {
     const principal = createPrincipal({ organizationId: 'org-abc' });
     const resource = createResource({ organizationId: 'org-xyz' });
 
-    const result = DATA_RESIDENCY_POLICY.check(principal, resource, Permission.OSAX_CASE_READ);
+    const result = DATA_RESIDENCY_POLICY.check(principal, resource, Permission.CASE_READ);
 
     expect(result.allowed).toBe(false);
     expect(result.reason).toContain('different organization');
@@ -228,7 +228,7 @@ describe('Data Residency Policy', () => {
     const result = DATA_RESIDENCY_POLICY.check(
       systemPrincipal,
       resource,
-      Permission.OSAX_CASE_READ
+      Permission.CASE_READ
     );
 
     expect(result.allowed).toBe(true);
@@ -238,7 +238,7 @@ describe('Data Residency Policy', () => {
     const principal = createPrincipal({ organizationId: 'org-abc' });
     const resource = createResource({ organizationId: undefined });
 
-    const result = DATA_RESIDENCY_POLICY.check(principal, resource, Permission.OSAX_CASE_READ);
+    const result = DATA_RESIDENCY_POLICY.check(principal, resource, Permission.CASE_READ);
 
     expect(result.allowed).toBe(true);
   });
@@ -261,7 +261,7 @@ describe('Time-Based Access Policy', () => {
     const principal = createPrincipal();
     const resource = createResource();
 
-    const result = TIME_BASED_POLICY.check(principal, resource, Permission.OSAX_CASE_READ);
+    const result = TIME_BASED_POLICY.check(principal, resource, Permission.CASE_READ);
 
     expect(result.allowed).toBe(true);
   });
@@ -297,12 +297,12 @@ describe('Time-Based Access Policy', () => {
     expect(result.allowed).toBe(false);
   });
 
-  it('should deny OSAX_CASE_DELETE outside business hours', () => {
+  it('should deny CASE_DELETE outside business hours', () => {
     mockTime(20); // 8 PM
     const principal = createPrincipal();
     const resource = createResource();
 
-    const result = TIME_BASED_POLICY.check(principal, resource, Permission.OSAX_CASE_DELETE);
+    const result = TIME_BASED_POLICY.check(principal, resource, Permission.CASE_DELETE);
 
     expect(result.allowed).toBe(false);
   });
@@ -345,7 +345,7 @@ describe('MFA Policy', () => {
     });
     const resource = createResource();
 
-    const result = MFA_POLICY.check(principal, resource, Permission.OSAX_CASE_READ);
+    const result = MFA_POLICY.check(principal, resource, Permission.CASE_READ);
 
     expect(result.allowed).toBe(true);
   });
@@ -413,7 +413,7 @@ describe('Rate Limit Policy', () => {
     const principal = createPrincipal();
     const resource = createResource();
 
-    const result = RATE_LIMIT_POLICY.check(principal, resource, Permission.OSAX_CASE_READ);
+    const result = RATE_LIMIT_POLICY.check(principal, resource, Permission.CASE_READ);
 
     expect(result.allowed).toBe(true);
     expect(result.policy).toBe('rate_limit');
@@ -427,7 +427,7 @@ describe('PolicyEnforcer', () => {
       const principal = createPrincipal({ organizationId: 'org-abc' });
       const resource = createResource({ organizationId: 'org-abc' });
 
-      const result = enforcer.enforce(principal, resource, Permission.OSAX_CASE_READ);
+      const result = enforcer.enforce(principal, resource, Permission.CASE_READ);
 
       expect(result).toBe(true);
     });
@@ -437,7 +437,7 @@ describe('PolicyEnforcer', () => {
       const principal = createPrincipal({ organizationId: 'org-abc' });
       const resource = createResource({ organizationId: 'org-different' });
 
-      const result = enforcer.enforce(principal, resource, Permission.OSAX_CASE_READ);
+      const result = enforcer.enforce(principal, resource, Permission.CASE_READ);
 
       expect(result).toBe(false);
     });
@@ -449,7 +449,7 @@ describe('PolicyEnforcer', () => {
       const principal = createPrincipal({ organizationId: 'org-abc' });
       const resource = createResource({ organizationId: 'org-abc' });
 
-      const violations = enforcer.getViolations(principal, resource, Permission.OSAX_CASE_READ);
+      const violations = enforcer.getViolations(principal, resource, Permission.CASE_READ);
 
       expect(violations).toEqual([]);
     });
@@ -476,7 +476,7 @@ describe('PolicyEnforcer', () => {
       const principal = createPrincipal();
       const resource = createResource();
 
-      const results = enforcer.evaluateAll(principal, resource, Permission.OSAX_CASE_READ);
+      const results = enforcer.evaluateAll(principal, resource, Permission.CASE_READ);
 
       expect(results.length).toBe(3);
     });
@@ -507,16 +507,16 @@ describe('getPermissionsForRoles', () => {
   it('should combine permissions for multiple roles', () => {
     const permissions = getPermissionsForRoles(['NURSE', 'AUDITOR']);
 
-    expect(permissions).toContain(Permission.OSAX_CASE_READ); // Both have
-    expect(permissions).toContain(Permission.OSAX_CASE_UPDATE); // Nurse
+    expect(permissions).toContain(Permission.CASE_READ); // Both have
+    expect(permissions).toContain(Permission.CASE_UPDATE); // Nurse
     expect(permissions).toContain(Permission.ADMIN_AUDIT_VIEW); // Auditor
   });
 
   it('should deduplicate permissions', () => {
     const permissions = getPermissionsForRoles(['DOCTOR', 'SURGEON']);
 
-    // OSAX_CASE_READ is in both - should only appear once
-    const readCount = permissions.filter((p) => p === Permission.OSAX_CASE_READ).length;
+    // CASE_READ is in both - should only appear once
+    const readCount = permissions.filter((p) => p === Permission.CASE_READ).length;
     expect(readCount).toBe(1);
   });
 
@@ -535,8 +535,8 @@ describe('getPermissionsForRoles', () => {
   it('should handle mix of valid and invalid roles', () => {
     const permissions = getPermissionsForRoles(['DOCTOR', 'INVALID', 'NURSE']);
 
-    expect(permissions).toContain(Permission.OSAX_CASE_CREATE); // Doctor
-    expect(permissions).toContain(Permission.OSAX_CASE_UPDATE); // Nurse
+    expect(permissions).toContain(Permission.CASE_CREATE); // Doctor
+    expect(permissions).toContain(Permission.CASE_UPDATE); // Nurse
     expect(permissions.length).toBeGreaterThan(0);
   });
 });
@@ -573,7 +573,7 @@ describe('HIPAA Minimum Necessary Principle', () => {
 
   it('should ensure delete permissions are restricted', () => {
     const rolesWithCaseDelete = Object.entries(ROLE_PERMISSIONS)
-      .filter(([_, perms]) => perms.includes(Permission.OSAX_CASE_DELETE))
+      .filter(([_, perms]) => perms.includes(Permission.CASE_DELETE))
       .map(([role]) => role);
 
     expect(rolesWithCaseDelete).toContain(Role.SURGEON);

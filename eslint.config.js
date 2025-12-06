@@ -23,7 +23,6 @@ export default tseslint.config(
       'packages/core/src/events/handlers/**',
       'packages/core/src/repositories/**',
       'packages/core/src/security/gdpr/**',
-      'packages/core/src/metrics/osax.ts',
       // Architecture foundation - uses intentional patterns that trigger strict rules
       'packages/core/src/architecture/**',
     ],

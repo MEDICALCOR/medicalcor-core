@@ -35,14 +35,14 @@ export enum SecurityPrincipalType {
  * Format: domain:resource:action
  */
 export enum Permission {
-  // OSAX Case permissions
-  OSAX_CASE_CREATE = 'osax:case:create',
-  OSAX_CASE_READ = 'osax:case:read',
-  OSAX_CASE_UPDATE = 'osax:case:update',
-  OSAX_CASE_DELETE = 'osax:case:delete',
-  OSAX_CASE_SCORE = 'osax:case:score',
-  OSAX_CASE_VERIFY = 'osax:case:verify',
-  OSAX_CASE_EXPORT = 'osax:case:export',
+  // Clinical Case permissions
+  CASE_CREATE = 'case:create',
+  CASE_READ = 'case:read',
+  CASE_UPDATE = 'case:update',
+  CASE_DELETE = 'case:delete',
+  CASE_SCORE = 'case:score',
+  CASE_VERIFY = 'case:verify',
+  CASE_EXPORT = 'case:export',
 
   // PHI permissions (Protected Health Information)
   PHI_READ = 'phi:read',
@@ -141,12 +141,12 @@ export interface SecurityMetadata {
  * const context = SecurityContext.create(principal, correlationId);
  *
  * // Check permission before action
- * context.requirePermission(Permission.OSAX_CASE_CREATE);
+ * context.requirePermission(Permission.CASE_CREATE);
  *
  * // Create audit entry
  * const auditEntry = context.createAuditEntry(
  *   'CREATE_CASE',
- *   'OsaxCase',
+ *   'Case',
  *   caseId,
  *   'SUCCESS'
  * );

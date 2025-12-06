@@ -6,4 +6,4 @@
  * @module application/use-cases
  */
 
-export * from './osax/index.js';
+// Use cases will be added as bounded contexts are implemented

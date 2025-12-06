@@ -625,9 +625,6 @@ export {
 // - InMemoryConsentRepository: implements IConsentRepository (test/dev)
 // - PostgresSchedulingRepository: implements ISchedulingRepository
 //
-// Not exported (reference implementations):
-// - SupabaseOsaxCaseRepository: implements IOsaxCaseRepository
-//
 // To use, import from '@medicalcor/core/repositories' or implement your own adapter.
 
 // ============================================================================
@@ -649,29 +646,7 @@ export {
   type FeatureFlagService,
   type EvaluationContext,
   type EvaluationResult,
-  // OSAX Feature Flags
-  OSAX_FLAGS,
-  DEFAULT_OSAX_FLAGS,
-  OsaxFeatureFlags,
-  createOsaxFeatureFlags,
-  initializeOsaxFlags,
-  type OsaxFlagKey,
 } from './feature-flags/index.js';
-
-// =============================================================================
-// OSAX CLINICAL MODULE (Submodule)
-// =============================================================================
-// NOTE: OSAX infrastructure implementations that depend on @medicalcor/domain
-// are excluded from the main build to avoid circular dependencies.
-// They are exported from the @medicalcor/core/osax submodule.
-//
-// Available implementations (import from '@medicalcor/core/osax'):
-// - OsaxMetrics, createOsaxMetrics, OSAX_METRICS
-// - Event handlers: handleOsaxCaseCreated, handleOsaxCaseStatusChanged, etc.
-// - createOsaxEventHandler, routeOsaxEvent
-//
-// Reference implementations (not exported, in src/repositories):
-// - SupabaseOsaxCaseRepository: implements IOsaxCaseRepository
 
 // =============================================================================
 // COGNITIVE EPISODIC MEMORY (ADR-004)

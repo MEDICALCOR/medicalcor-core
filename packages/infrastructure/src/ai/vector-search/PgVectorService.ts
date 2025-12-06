@@ -11,7 +11,7 @@
  * - OpenAI text-embedding-ada-002 compatible embeddings (1536 dimensions)
  */
 
-import { Pool, type PoolClient } from 'pg';
+import { Pool } from 'pg';
 
 /**
  * Configuration for PgVectorService
@@ -122,7 +122,7 @@ export class PgVectorService {
 
       // Create embeddings table
       await client.query(`
-        CREATE TABLE IF NOT EXISTS osax_clinical_embeddings (
+        CREATE TABLE IF NOT EXISTS clinical_embeddings (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           case_id UUID NOT NULL,
           content TEXT NOT NULL,
@@ -138,28 +138,28 @@ export class PgVectorService {
 
       // Create HNSW index for fast similarity search
       await client.query(`
-        CREATE INDEX IF NOT EXISTS idx_osax_clinical_embeddings_vector
-        ON osax_clinical_embeddings
+        CREATE INDEX IF NOT EXISTS idx_clinical_embeddings_vector
+        ON clinical_embeddings
         USING hnsw (embedding vector_cosine_ops)
         WITH (m = 16, ef_construction = 64)
       `);
 
       // Create index for case lookups
       await client.query(`
-        CREATE INDEX IF NOT EXISTS idx_osax_clinical_embeddings_case
-        ON osax_clinical_embeddings(case_id)
+        CREATE INDEX IF NOT EXISTS idx_clinical_embeddings_case
+        ON clinical_embeddings(case_id)
       `);
 
       // Create index for content type filtering
       await client.query(`
-        CREATE INDEX IF NOT EXISTS idx_osax_clinical_embeddings_content_type
-        ON osax_clinical_embeddings(content_type)
+        CREATE INDEX IF NOT EXISTS idx_clinical_embeddings_content_type
+        ON clinical_embeddings(content_type)
       `);
 
       // Create GIN index for metadata JSONB queries
       await client.query(`
-        CREATE INDEX IF NOT EXISTS idx_osax_clinical_embeddings_metadata
-        ON osax_clinical_embeddings USING gin(metadata)
+        CREATE INDEX IF NOT EXISTS idx_clinical_embeddings_metadata
+        ON clinical_embeddings USING gin(metadata)
       `);
 
       this.initialized = true;
@@ -193,7 +193,7 @@ export class PgVectorService {
     try {
       // Use upsert to handle duplicates
       const result = await client.query<{ id: string }>(
-        `INSERT INTO osax_clinical_embeddings
+        `INSERT INTO clinical_embeddings
           (case_id, content, content_type, embedding, metadata)
          VALUES ($1, $2, $3, $4::vector, $5)
          ON CONFLICT (case_id, content_type, content)
@@ -247,7 +247,7 @@ export class PgVectorService {
           content_type,
           1 - (embedding <=> $1::vector) as similarity,
           metadata
-        FROM osax_clinical_embeddings
+        FROM clinical_embeddings
         WHERE 1=1
       `;
 
@@ -324,7 +324,7 @@ export class PgVectorService {
     try {
       // Get embeddings for the source case
       const sourceResult = await client.query<{ embedding: string }>(
-        `SELECT embedding FROM osax_clinical_embeddings
+        `SELECT embedding FROM clinical_embeddings
          WHERE case_id = $1
          ORDER BY created_at DESC
          LIMIT 1`,
@@ -361,7 +361,7 @@ export class PgVectorService {
    */
   async deleteEmbeddingsForCase(caseId: string): Promise<number> {
     const result = await this.pool.query(
-      'DELETE FROM osax_clinical_embeddings WHERE case_id = $1',
+      'DELETE FROM clinical_embeddings WHERE case_id = $1',
       [caseId]
     );
     return result.rowCount ?? 0;
@@ -379,10 +379,10 @@ export class PgVectorService {
     const client = await this.pool.connect();
     try {
       const [countResult, casesResult, typesResult] = await Promise.all([
-        client.query<{ count: string }>('SELECT COUNT(*) as count FROM osax_clinical_embeddings'),
-        client.query<{ count: string }>('SELECT COUNT(DISTINCT case_id) as count FROM osax_clinical_embeddings'),
+        client.query<{ count: string }>('SELECT COUNT(*) as count FROM clinical_embeddings'),
+        client.query<{ count: string }>('SELECT COUNT(DISTINCT case_id) as count FROM clinical_embeddings'),
         client.query<{ content_type: string; count: string }>(
-          'SELECT content_type, COUNT(*) as count FROM osax_clinical_embeddings GROUP BY content_type'
+          'SELECT content_type, COUNT(*) as count FROM clinical_embeddings GROUP BY content_type'
         ),
       ]);
 

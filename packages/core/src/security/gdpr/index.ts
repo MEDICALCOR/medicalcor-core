@@ -6,9 +6,6 @@
  * - DataInventoryService: Records of Processing Activities (Article 30)
  * - RetentionService: Data retention policy management
  *
- * Note: OsaxAuditService is available separately via direct import from
- * './osax-audit.js' due to circular dependency with @medicalcor/domain.
- *
  * @module core/security/gdpr
  */
 
