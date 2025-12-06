@@ -13,7 +13,7 @@ import {
 import { createInMemoryEventStore } from '../../event-store.js';
 import { createCommandBus } from '../../cqrs/command-bus.js';
 import { createQueryBus } from '../../cqrs/query-bus.js';
-import { createProjectionManager } from '../../cqrs/projections.js';
+import { createProjectionManager, ProjectionManager } from '../../cqrs/projections.js';
 import type { FunctionContext } from '../function-registry.js';
 
 describe('FunctionExecutor', () => {
@@ -336,6 +336,154 @@ describe('FunctionExecutor', () => {
       expect(mockConsentService.recordConsent).toHaveBeenCalled();
       expect((result.result as any).gdprCompliant).toBe(true);
     });
+
+    it('should handle command bus failure for record consent', async () => {
+      // Create fresh deps to register custom failing handler
+      const eventStore = createInMemoryEventStore('test');
+      const commandBus = createCommandBus(eventStore);
+      const queryBus = createQueryBus();
+      const projectionManager = createProjectionManager();
+
+      // Register failing command handler
+      commandBus.register('RecordConsent', async () => ({
+        success: false,
+        commandId: 'cmd-consent-fail',
+        error: { message: 'GDPR service unavailable' },
+        executionTimeMs: 1,
+      }));
+
+      const executorFailConsent = createFunctionExecutor({
+        eventStore,
+        commandBus,
+        queryBus,
+        projectionManager,
+      });
+
+      const result = await executorFailConsent.execute(
+        'record_consent',
+        {
+          patientId: 'patient-fail',
+          phone: '+40721234567',
+          consentType: 'marketing_whatsapp',
+          status: 'granted',
+          source: 'test',
+        },
+        context
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toContain('GDPR service unavailable');
+    });
+  });
+
+  describe('check_consent', () => {
+    it('should check consent using query bus when no consent service', async () => {
+      // Create fresh deps without consent service
+      const eventStore = createInMemoryEventStore('test');
+      const commandBus = createCommandBus(eventStore);
+      const queryBus = createQueryBus();
+      const projectionManager = createProjectionManager();
+
+      // Register CheckConsent query handler
+      queryBus.register('CheckConsent', async (query) => ({
+        success: true,
+        queryId: query.metadata.queryId,
+        data: {
+          consents: [
+            { type: 'data_processing', status: 'granted', recordedAt: '2024-12-01T00:00:00Z' },
+            { type: 'marketing_whatsapp', status: 'denied', recordedAt: '2024-12-01T00:00:00Z' },
+          ],
+          patientId: query.params.patientId,
+        },
+        cached: false,
+        executionTimeMs: 2,
+      }));
+
+      const executorNoConsent = createFunctionExecutor({
+        eventStore,
+        commandBus,
+        queryBus,
+        projectionManager,
+      });
+
+      const result = await executorNoConsent.execute(
+        'check_consent',
+        {
+          patientId: 'patient-check-123',
+          consentTypes: ['data_processing', 'marketing_whatsapp'],
+        },
+        context
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.function).toBe('check_consent');
+      expect((result.result as any).consents).toHaveLength(2);
+    });
+
+    it('should use consent service when provided', async () => {
+      const mockConsentService = {
+        recordConsent: vi.fn(),
+        checkConsent: vi.fn().mockResolvedValue({
+          consents: [
+            { type: 'data_processing', status: 'granted', recordedAt: '2024-12-01T00:00:00Z' },
+          ],
+        }),
+      };
+
+      const executorWithConsent = createFunctionExecutor({
+        ...deps,
+        consentService: mockConsentService,
+      });
+
+      const result = await executorWithConsent.execute(
+        'check_consent',
+        {
+          patientId: 'patient-service-123',
+          phone: '+40721234567',
+        },
+        context
+      );
+
+      expect(result.success).toBe(true);
+      expect(mockConsentService.checkConsent).toHaveBeenCalled();
+      expect((result.result as any).consents).toHaveLength(1);
+    });
+
+    it('should return empty consents when query bus returns no data', async () => {
+      // Create fresh deps without consent service
+      const eventStore = createInMemoryEventStore('test');
+      const commandBus = createCommandBus(eventStore);
+      const queryBus = createQueryBus();
+      const projectionManager = createProjectionManager();
+
+      // Register handler that returns no data
+      queryBus.register('CheckConsent', async (query) => ({
+        success: true,
+        queryId: query.metadata.queryId,
+        data: null,
+        cached: false,
+        executionTimeMs: 1,
+      }));
+
+      const executorNoConsent = createFunctionExecutor({
+        eventStore,
+        commandBus,
+        queryBus,
+        projectionManager,
+      });
+
+      const result = await executorNoConsent.execute(
+        'check_consent',
+        {
+          patientId: 'patient-empty',
+        },
+        context
+      );
+
+      expect(result.success).toBe(true);
+      expect((result.result as any).consents).toEqual([]);
+      expect((result.result as any).message).toBe('Consent service not available');
+    });
   });
 
   describe('get_lead_analytics', () => {
@@ -352,6 +500,279 @@ describe('FunctionExecutor', () => {
 
       expect(result.success).toBe(true);
       expect(result.result).toBeDefined();
+    });
+
+    it('should fallback to query bus when projections are not available', async () => {
+      // Create fresh projection manager WITHOUT default projections
+      // Using raw ProjectionManager instead of createProjectionManager()
+      const eventStore = createInMemoryEventStore('test');
+      const commandBus = createCommandBus(eventStore);
+      const queryBus = createQueryBus();
+      const projectionManager = new ProjectionManager(); // Empty - no default projections
+
+      // Register query handler for fallback - note: handler receives query.params
+      queryBus.register('GetLeadAnalytics', async (query) => ({
+        success: true,
+        queryId: query.metadata.queryId,
+        data: {
+          summary: { totalLeads: 100, averageScore: 3.5 },
+          byChannel: { whatsapp: 60, web: 40 },
+          byClassification: { HOT: 20, WARM: 50, COLD: 30 },
+          dateRange: { start: query.params.startDate, end: query.params.endDate },
+        },
+        cached: false,
+        executionTimeMs: 5,
+      }));
+
+      const executorWithoutProjections = createFunctionExecutor({
+        eventStore,
+        commandBus,
+        queryBus,
+        projectionManager,
+      });
+
+      const result = await executorWithoutProjections.execute(
+        'get_lead_analytics',
+        {
+          startDate: '2024-01-01',
+          endDate: '2024-12-31',
+          groupBy: 'month',
+        },
+        context
+      );
+
+      expect(result.success).toBe(true);
+      expect((result.result as any).summary.totalLeads).toBe(100);
+    });
+  });
+
+  describe('trigger_workflow', () => {
+    it('should trigger workflow using command bus when no workflow service', async () => {
+      // Register TriggerWorkflow command handler
+      deps.commandBus.register('TriggerWorkflow', async (command) => ({
+        success: true,
+        commandId: command.metadata.commandId,
+        result: {
+          taskId: 'task-mock-123',
+          status: 'pending',
+          workflow: command.payload.workflow,
+        },
+        executionTimeMs: 1,
+      }));
+
+      const result = await executor.execute(
+        'trigger_workflow',
+        {
+          workflow: 'lead-scoring',
+          payload: { leadId: 'lead-123' },
+          priority: 'high',
+        },
+        context
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.function).toBe('trigger_workflow');
+      expect((result.result as any).taskId).toBe('task-mock-123');
+    });
+
+    it('should use workflow service when provided', async () => {
+      const mockWorkflowService = {
+        triggerWorkflow: vi.fn().mockResolvedValue({
+          taskId: 'task-workflow-456',
+          status: 'started',
+          metadata: { priority: 'high' },
+        }),
+        getWorkflowStatus: vi.fn(),
+      };
+
+      const executorWithWorkflow = createFunctionExecutor({
+        ...deps,
+        workflowService: mockWorkflowService,
+      });
+
+      const result = await executorWithWorkflow.execute(
+        'trigger_workflow',
+        {
+          workflow: 'patient-journey',
+          payload: { patientId: 'patient-123', action: 'onboard' },
+          priority: 'normal',
+        },
+        context
+      );
+
+      expect(result.success).toBe(true);
+      expect(mockWorkflowService.triggerWorkflow).toHaveBeenCalledWith({
+        workflow: 'patient-journey',
+        payload: { patientId: 'patient-123', action: 'onboard' },
+        priority: 'normal',
+      });
+      expect((result.result as any).taskId).toBe('task-workflow-456');
+    });
+
+    it('should handle command bus failure', async () => {
+      // Register failing command handler
+      deps.commandBus.register('TriggerWorkflow', async () => ({
+        success: false,
+        commandId: 'cmd-123',
+        error: { message: 'Workflow service unavailable' },
+        executionTimeMs: 1,
+      }));
+
+      const result = await executor.execute(
+        'trigger_workflow',
+        {
+          workflow: 'lead-scoring',
+          payload: {},
+        },
+        context
+      );
+
+      expect(result.success).toBe(false);
+      // Error message is taken from result.error.message, fallback is 'Failed to trigger workflow'
+      expect(result.error?.message).toContain('Workflow service unavailable');
+    });
+
+    it('should emit WorkflowTriggered event when using workflow service', async () => {
+      const mockWorkflowService = {
+        triggerWorkflow: vi.fn().mockResolvedValue({
+          taskId: 'task-emit-789',
+          status: 'started',
+        }),
+        getWorkflowStatus: vi.fn(),
+      };
+
+      const executorWithWorkflow = createFunctionExecutor({
+        ...deps,
+        workflowService: mockWorkflowService,
+      });
+
+      await executorWithWorkflow.execute(
+        'trigger_workflow',
+        {
+          workflow: 'booking-agent',
+          payload: { appointmentRequest: true },
+        },
+        context
+      );
+
+      // Check that WorkflowTriggered event was emitted
+      const events = await deps.eventStore.getByType('WorkflowTriggered');
+      expect(events.length).toBeGreaterThan(0);
+      expect(events[0]?.payload).toMatchObject({
+        workflow: 'booking-agent',
+        taskId: 'task-emit-789',
+        source: 'ai-gateway',
+      });
+    });
+  });
+
+  describe('get_workflow_status', () => {
+    it('should get workflow status using query bus when no workflow service', async () => {
+      // Create fresh deps without workflow service to trigger query bus path
+      const eventStore = createInMemoryEventStore('test');
+      const commandBus = createCommandBus(eventStore);
+      const queryBus = createQueryBus();
+      const projectionManager = createProjectionManager();
+
+      // Register GetWorkflowStatus query handler - note: handler receives query.params
+      queryBus.register('GetWorkflowStatus', async (query) => ({
+        success: true,
+        queryId: query.metadata.queryId,
+        data: {
+          taskId: query.params.taskId,
+          status: 'completed',
+          completedAt: '2024-12-15T10:00:00Z',
+          result: { score: 4 },
+        },
+        cached: false,
+        executionTimeMs: 2,
+      }));
+
+      const executorNoWorkflow = createFunctionExecutor({
+        eventStore,
+        commandBus,
+        queryBus,
+        projectionManager,
+      });
+
+      const result = await executorNoWorkflow.execute(
+        'get_workflow_status',
+        {
+          taskId: 'task-query-123',
+        },
+        context
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.function).toBe('get_workflow_status');
+      expect((result.result as any).taskId).toBe('task-query-123');
+      expect((result.result as any).status).toBe('completed');
+    });
+
+    it('should use workflow service when provided', async () => {
+      const mockWorkflowService = {
+        triggerWorkflow: vi.fn(),
+        getWorkflowStatus: vi.fn().mockResolvedValue({
+          taskId: 'task-service-456',
+          status: 'running',
+          progress: 50,
+          startedAt: '2024-12-15T09:00:00Z',
+        }),
+      };
+
+      const executorWithWorkflow = createFunctionExecutor({
+        ...deps,
+        workflowService: mockWorkflowService,
+      });
+
+      const result = await executorWithWorkflow.execute(
+        'get_workflow_status',
+        {
+          taskId: 'task-service-456',
+        },
+        context
+      );
+
+      expect(result.success).toBe(true);
+      expect(mockWorkflowService.getWorkflowStatus).toHaveBeenCalledWith('task-service-456');
+      expect((result.result as any).status).toBe('running');
+      expect((result.result as any).progress).toBe(50);
+    });
+
+    it('should return unknown status when query bus returns no data', async () => {
+      // Create fresh deps without workflow service
+      const eventStore = createInMemoryEventStore('test');
+      const commandBus = createCommandBus(eventStore);
+      const queryBus = createQueryBus();
+      const projectionManager = createProjectionManager();
+
+      // Register handler that returns no data
+      queryBus.register('GetWorkflowStatus', async (query) => ({
+        success: true,
+        queryId: query.metadata.queryId,
+        data: null,
+        cached: false,
+        executionTimeMs: 1,
+      }));
+
+      const executorNoWorkflow = createFunctionExecutor({
+        eventStore,
+        commandBus,
+        queryBus,
+        projectionManager,
+      });
+
+      const result = await executorNoWorkflow.execute(
+        'get_workflow_status',
+        {
+          taskId: 'task-unknown-789',
+        },
+        context
+      );
+
+      expect(result.success).toBe(true);
+      expect((result.result as any).taskId).toBe('task-unknown-789');
+      expect((result.result as any).status).toBe('unknown');
     });
   });
 
