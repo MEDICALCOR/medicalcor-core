@@ -8,6 +8,7 @@
  * - Context injection for AI prompts
  * - HubSpot patient context integration
  * - Conversation embedding for semantic search
+ * - Embedding versioning and model upgrade path (M14)
  */
 
 export * from './knowledge-base-repository.js';
@@ -37,3 +38,71 @@ export {
   type ConversationContext,
   type ConversationEmbeddingConfig,
 } from './conversation-embedding-service.js';
+
+// =============================================================================
+// Embedding Versioning & Model Upgrade Path (M14)
+// =============================================================================
+
+// Embedding Model Registry
+export {
+  EmbeddingModelRegistry,
+  createEmbeddingModelRegistry,
+  getDefaultRegistry,
+  resetDefaultRegistry,
+  EMBEDDING_MODELS,
+  MIGRATION_PATHS,
+  EmbeddingModelIdSchema,
+  EmbeddingModelConfigSchema,
+  ModelStatusSchema,
+  MigrationPathSchema,
+  type EmbeddingModelId,
+  type EmbeddingModelConfig,
+  type ModelStatus,
+  type MigrationPath,
+  type ModelRegistryStats,
+  type CompatibilityResult,
+} from './embedding-model-registry.js';
+
+// Embedding Migration Orchestrator
+export {
+  EmbeddingMigrationOrchestrator,
+  createEmbeddingMigrationOrchestrator,
+  MigrationJobStatusSchema,
+  MigrationEntryStatusSchema,
+  MigrationJobConfigSchema,
+  type MigrationJobStatus,
+  type MigrationEntryStatus,
+  type MigrationJobConfig,
+  type MigrationJob,
+  type MigrationProgress,
+  type MigrationEntry,
+  type ModelDistribution,
+  type EmbeddingGenerator,
+} from './embedding-migration-orchestrator.js';
+
+// Embedding Version Compatibility Layer
+export {
+  EmbeddingVersionCompatibility,
+  createEmbeddingVersionCompatibility,
+  SearchStrategySchema,
+  VersionedSearchOptionsSchema,
+  type SearchStrategy,
+  type VersionedSearchOptions,
+  type VersionedSearchResult,
+  type VersionedSearchResponse,
+  type ModelCompatibilityInfo,
+} from './embedding-version-compatibility.js';
+
+// Embedding Health Check Service
+export {
+  EmbeddingHealthCheckService,
+  createEmbeddingHealthCheckService,
+  HealthCheckTypeSchema,
+  HealthStatusSchema,
+  type HealthCheckType,
+  type HealthStatus,
+  type HealthCheckIssue,
+  type HealthCheckRecommendation,
+  type HealthCheckResult,
+  type EmbeddingHealthSummary,
+} from './embedding-health-check.js';
