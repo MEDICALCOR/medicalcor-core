@@ -695,3 +695,47 @@ export {
   type LoadTestTimeRange,
   type LoadTestQuery,
 } from './load-testing.schema.js';
+
+// =============================================================================
+// Agent Skills & Skill-Based Routing Schemas (H6)
+// =============================================================================
+export {
+  // Skill Categories & Definitions
+  SkillCategorySchema,
+  ProficiencyLevelSchema,
+  PROFICIENCY_WEIGHTS,
+  SkillSchema,
+  AgentSkillSchema,
+  // Agent Profile
+  AgentProfileSchema,
+  // Skill Requirements
+  SkillMatchTypeSchema,
+  SkillRequirementSchema,
+  TaskSkillRequirementsSchema,
+  // Routing Rules
+  RoutingStrategySchema,
+  FallbackBehaviorSchema,
+  RoutingRuleSchema,
+  // Routing Results
+  AgentMatchScoreSchema,
+  RoutingDecisionSchema,
+  // Configuration
+  SkillRoutingConfigSchema,
+  // Standard Skills
+  STANDARD_SKILLS,
+  // Types
+  type SkillCategory,
+  type ProficiencyLevel,
+  type Skill,
+  type AgentSkill,
+  type AgentProfile,
+  type SkillMatchType,
+  type SkillRequirement,
+  type TaskSkillRequirements,
+  type RoutingStrategy,
+  type FallbackBehavior,
+  type RoutingRule,
+  type AgentMatchScore,
+  type RoutingDecision,
+  type SkillRoutingConfig,
+} from './schemas/agent-skills.js';

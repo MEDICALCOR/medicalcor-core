@@ -18,7 +18,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico, icons, manifest.json (public assets)
      * - offline page
+     * - investor-demo (public demo page for investors)
      */
-    '/((?!api(?!/auth)|_next/static|_next/image|favicon.ico|icons|manifest.json|offline).*)',
+    '/((?!api(?!/auth)|_next/static|_next/image|favicon.ico|icons|manifest.json|offline|investor-demo).*)',
   ],
 };
