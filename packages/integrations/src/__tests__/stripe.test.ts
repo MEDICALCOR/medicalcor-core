@@ -798,6 +798,132 @@ describe('StripeClient - getDailyRevenue', () => {
   });
 });
 
+describe('StripeClient - error handling', () => {
+  let client: StripeClient;
+
+  beforeEach(() => {
+    client = new StripeClient({
+      secretKey: 'sk_test_123',
+      retryConfig: { maxRetries: 1, baseDelayMs: 10 },
+      timeoutMs: 100,
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    global.fetch = originalFetch;
+  });
+
+  it('should convert AbortError to ExternalServiceError', async () => {
+    // Simulate an abort error (timeout)
+    const abortError = new Error('The operation was aborted');
+    abortError.name = 'AbortError';
+
+    global.fetch = vi.fn().mockRejectedValue(abortError);
+
+    await expect(client.getDailyRevenue()).rejects.toThrow('timeout');
+  });
+
+  it('should retry on rate limit errors', async () => {
+    let callCount = 0;
+    global.fetch = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve({
+          ok: false,
+          status: 429,
+          headers: new Headers({ 'Retry-After': '1' }),
+          json: async () => ({ error: { message: 'Rate limited' } }),
+        } as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        json: async () => ({
+          object: 'list',
+          data: [],
+          has_more: false,
+        }),
+      } as Response);
+    });
+
+    const result = await client.getDailyRevenue();
+    expect(result.amount).toBe(0);
+    expect(callCount).toBe(2);
+  });
+
+  it('should retry on 502 errors', async () => {
+    let callCount = 0;
+    global.fetch = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve({
+          ok: false,
+          status: 502,
+          headers: new Headers(),
+          json: async () => ({ error: { message: 'Bad Gateway' } }),
+        } as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        json: async () => ({
+          object: 'list',
+          data: [],
+          has_more: false,
+        }),
+      } as Response);
+    });
+
+    const result = await client.getDailyRevenue();
+    expect(result.amount).toBe(0);
+    expect(callCount).toBe(2);
+  });
+
+  it('should retry on 503 errors', async () => {
+    let callCount = 0;
+    global.fetch = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve({
+          ok: false,
+          status: 503,
+          headers: new Headers(),
+          json: async () => ({ error: { message: 'Service Unavailable' } }),
+        } as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        json: async () => ({
+          object: 'list',
+          data: [],
+          has_more: false,
+        }),
+      } as Response);
+    });
+
+    const result = await client.getDailyRevenue();
+    expect(result.amount).toBe(0);
+    expect(callCount).toBe(2);
+  });
+
+  it('should not retry on 400 errors', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      headers: new Headers(),
+      json: async () => ({ error: { message: 'Bad Request' } }),
+    } as Response);
+
+    await expect(client.getDailyRevenue()).rejects.toThrow('Request failed with status 400');
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('StripeClient - getRevenueForPeriod', () => {
   let client: StripeClient;
 
