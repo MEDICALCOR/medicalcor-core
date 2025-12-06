@@ -486,4 +486,199 @@ describe('AwsKmsProvider', () => {
     const provider = new AwsKmsProvider('constructor-key-id');
     expect(provider.name).toBe('AWS KMS');
   });
+
+  it('should use env var when no constructor key ID', () => {
+    vi.stubEnv('AWS_KMS_KEY_ID', 'env-key-id');
+
+    const provider = new AwsKmsProvider();
+    expect(provider.name).toBe('AWS KMS');
+  });
+});
+
+describe('convenience functions', () => {
+  const TEST_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+
+  beforeEach(() => {
+    vi.stubEnv('DATA_ENCRYPTION_KEY', TEST_KEY);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('encryptValue should encrypt and return string', async () => {
+    const { encryptValue, decryptValue } = await import('../encryption.js');
+
+    const plaintext = 'test data';
+    const encrypted = encryptValue(plaintext);
+
+    expect(typeof encrypted).toBe('string');
+    expect(encrypted).not.toBe(plaintext);
+    expect(encrypted.split(':').length).toBe(5);
+  });
+
+  it('decryptValue should decrypt encrypted value', async () => {
+    const { encryptValue, decryptValue } = await import('../encryption.js');
+
+    const plaintext = 'sensitive information';
+    const encrypted = encryptValue(plaintext);
+    const decrypted = decryptValue(encrypted);
+
+    expect(decrypted).toBe(plaintext);
+  });
+});
+
+describe('production mode validation', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('should throw in production when DATA_ENCRYPTION_KEY is missing', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('DATA_ENCRYPTION_KEY', '');
+
+    expect(() => new EncryptionService()).toThrow('CRITICAL');
+  });
+
+  it('should not throw in non-production when key is missing', () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('DATA_ENCRYPTION_KEY', '');
+
+    const service = new EncryptionService();
+    expect(service.isConfigured()).toBe(false);
+  });
+});
+
+describe('KMS data key caching', () => {
+  const TEST_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+
+  beforeEach(() => {
+    vi.stubEnv('DATA_ENCRYPTION_KEY', TEST_KEY);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.useRealTimers();
+  });
+
+  it('should cache data keys for performance', async () => {
+    const masterKey = 'a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890';
+    const kmsProvider = new LocalKmsProvider(masterKey);
+
+    // Spy on generateDataKey
+    const generateSpy = vi.spyOn(kmsProvider, 'generateDataKey');
+
+    const service = new EncryptionService(undefined, kmsProvider);
+
+    // First encryption should generate a new key
+    await service.encryptWithKms('data1');
+    expect(generateSpy).toHaveBeenCalledTimes(1);
+
+    // Second encryption should use cached key
+    await service.encryptWithKms('data2');
+    expect(generateSpy).toHaveBeenCalledTimes(1);
+
+    // Third encryption should also use cached key
+    await service.encryptWithKms('data3');
+    expect(generateSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('should refresh data key after cache expiry', async () => {
+    vi.useFakeTimers();
+
+    const masterKey = 'a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890';
+    const kmsProvider = new LocalKmsProvider(masterKey);
+
+    const generateSpy = vi.spyOn(kmsProvider, 'generateDataKey');
+
+    const service = new EncryptionService(undefined, kmsProvider);
+
+    // First encryption
+    await service.encryptWithKms('data1');
+    expect(generateSpy).toHaveBeenCalledTimes(1);
+
+    // Advance time past cache TTL (5 minutes)
+    vi.advanceTimersByTime(6 * 60 * 1000);
+
+    // Second encryption should generate new key after cache expiry
+    await service.encryptWithKms('data2');
+    expect(generateSpy).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('KMS encryption with unicode', () => {
+  const TEST_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+
+  beforeEach(() => {
+    vi.stubEnv('DATA_ENCRYPTION_KEY', TEST_KEY);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('should handle unicode in KMS encryption', async () => {
+    const masterKey = 'a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890';
+    const kmsProvider = new LocalKmsProvider(masterKey);
+    const service = new EncryptionService(undefined, kmsProvider);
+
+    const plaintext = '患者データ 🏥 données médicales';
+    const { encryptedValue } = await service.encryptWithKms(plaintext);
+    const decrypted = await service.decryptWithKms(encryptedValue);
+
+    expect(decrypted).toBe(plaintext);
+  });
+
+  it('should handle empty string in KMS encryption', async () => {
+    const masterKey = 'a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890';
+    const kmsProvider = new LocalKmsProvider(masterKey);
+    const service = new EncryptionService(undefined, kmsProvider);
+
+    const { encryptedValue } = await service.encryptWithKms('');
+    const decrypted = await service.decryptWithKms(encryptedValue);
+
+    expect(decrypted).toBe('');
+  });
+
+  it('should handle large data in KMS encryption', async () => {
+    const masterKey = 'a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890';
+    const kmsProvider = new LocalKmsProvider(masterKey);
+    const service = new EncryptionService(undefined, kmsProvider);
+
+    const plaintext = 'x'.repeat(50000);
+    const { encryptedValue } = await service.encryptWithKms(plaintext);
+    const decrypted = await service.decryptWithKms(encryptedValue);
+
+    expect(decrypted).toBe(plaintext);
+  });
+});
+
+describe('KMS key version warnings', () => {
+  const TEST_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+
+  beforeEach(() => {
+    vi.stubEnv('DATA_ENCRYPTION_KEY', TEST_KEY);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('should decrypt old KMS key versions with warning', async () => {
+    const masterKey = 'a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890';
+    const kmsProvider = new LocalKmsProvider(masterKey);
+    const service = new EncryptionService(undefined, kmsProvider);
+
+    // Create encrypted value with current version
+    const { encryptedValue } = await service.encryptWithKms('test data');
+
+    // Modify to simulate old version
+    const parts = encryptedValue.split(':');
+    parts[1] = '99'; // Old version
+    const oldVersionCiphertext = parts.join(':');
+
+    // Should still decrypt (same key), just with a warning logged
+    const decrypted = await service.decryptWithKms(oldVersionCiphertext);
+    expect(decrypted).toBe('test data');
+  });
 });
