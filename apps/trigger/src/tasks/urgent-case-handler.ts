@@ -1,7 +1,7 @@
 import { task, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
 import { normalizeRomanianPhone } from '@medicalcor/core';
-import { createIntegrationClients } from '@medicalcor/integrations';
+import { createIntegrationClients, createOpenAIClient } from '@medicalcor/integrations';
 
 /**
  * Urgent Case Handler Task
@@ -142,6 +142,7 @@ export const handleUrgentCase = task({
             priority: 'HIGH',
             dueDate,
           });
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Defensive check for API response
           taskId = task?.id;
           logger.info('Created urgent HubSpot task', { taskId, correlationId });
         } else {
@@ -228,15 +229,59 @@ function getAcknowledgmentMessage(urgencyLevel: 'critical' | 'high' | 'medium'):
 
 /**
  * Detect Urgent Keywords Task
- * Analyzes message content for urgent keywords and patterns
+ * Analyzes message content for urgent keywords, patterns, and AI sentiment
  */
 export const UrgentKeywordDetectionPayloadSchema = z.object({
   messageContent: z.string(),
   channel: z.enum(['whatsapp', 'voice', 'web']),
   correlationId: z.string(),
+  /** Enable AI sentiment analysis for more accurate urgency detection */
+  enableSentimentAnalysis: z.boolean().optional().default(true),
+  /** Patient phone for deduplication */
+  patientPhone: z.string().optional(),
 });
 
 export type UrgentKeywordDetectionPayload = z.infer<typeof UrgentKeywordDetectionPayloadSchema>;
+
+/**
+ * Analyze sentiment using AI for enhanced urgency detection
+ */
+async function analyzeMessageSentiment(
+  messageContent: string,
+  correlationId: string
+): Promise<{ score: number; isDistressed: boolean; reasoning: string }> {
+  const openaiApiKey = process.env.OPENAI_API_KEY;
+  if (!openaiApiKey) {
+    return { score: 0, isDistressed: false, reasoning: 'OpenAI not configured' };
+  }
+
+  try {
+    const openai = createOpenAIClient({ apiKey: openaiApiKey });
+    const result = await openai.analyzeSentiment(messageContent);
+
+    // Convert sentiment to numeric score (-1 to 1)
+    const sentimentScores: Record<string, number> = {
+      negative: -0.8,
+      neutral: 0,
+      positive: 0.5,
+    };
+
+    const score = sentimentScores[result.sentiment] ?? 0;
+    const isDistressed = result.sentiment === 'negative' && result.confidence > 0.7;
+
+    logger.info('AI sentiment analysis complete', {
+      sentiment: result.sentiment,
+      confidence: result.confidence,
+      isDistressed,
+      correlationId,
+    });
+
+    return { score, isDistressed, reasoning: result.reasoning };
+  } catch (err) {
+    logger.warn('AI sentiment analysis failed, using fallback', { err, correlationId });
+    return { score: 0, isDistressed: false, reasoning: 'Analysis failed' };
+  }
+}
 
 // Romanian urgent keywords with weighted scores
 const URGENT_KEYWORDS: Record<string, { score: number; level: 'critical' | 'high' | 'medium' }> = {
@@ -284,11 +329,18 @@ export const detectUrgentKeywords = task({
     factor: 2,
   },
   run: async (payload: UrgentKeywordDetectionPayload) => {
-    const { messageContent, channel, correlationId } = payload;
+    const {
+      messageContent,
+      channel,
+      correlationId,
+      enableSentimentAnalysis = true,
+      patientPhone,
+    } = payload;
 
     logger.info('Analyzing message for urgent keywords', {
       contentLength: messageContent.length,
       channel,
+      enableSentimentAnalysis,
       correlationId,
     });
 
@@ -310,14 +362,44 @@ export const detectUrgentKeywords = task({
     }
 
     // Additional pattern detection
-    const exclamationCount = (messageContent.match(/!/g) || []).length;
-    const capsRatio = (messageContent.match(/[A-Z]/g) || []).length / messageContent.length;
+    const exclamationCount = (messageContent.match(/!/g) ?? []).length;
+    const capsRatio = (messageContent.match(/[A-Z]/g) ?? []).length / messageContent.length;
 
     // Boost urgency for emotional indicators
     if (exclamationCount >= 3 || capsRatio > 0.5) {
       maxScore = Math.min(maxScore + 2, 10);
       if (urgencyLevel === 'medium' && maxScore >= 6) {
         urgencyLevel = 'high';
+      }
+    }
+
+    // AI Sentiment Analysis Enhancement
+    let sentimentScore = 0;
+    let sentimentReasoning = '';
+    let isDistressed = false;
+
+    if (enableSentimentAnalysis && messageContent.length >= 20) {
+      const sentiment = await analyzeMessageSentiment(messageContent, correlationId);
+      sentimentScore = sentiment.score;
+      sentimentReasoning = sentiment.reasoning;
+      isDistressed = sentiment.isDistressed;
+
+      // Elevate urgency based on AI sentiment
+      if (isDistressed) {
+        maxScore = Math.min(maxScore + 3, 10);
+        if (urgencyLevel === 'none' && maxScore >= 5) {
+          urgencyLevel = 'medium';
+        } else if (urgencyLevel === 'medium' && maxScore >= 7) {
+          urgencyLevel = 'high';
+        } else if (urgencyLevel === 'high' && maxScore >= 9) {
+          urgencyLevel = 'critical';
+        }
+        logger.info('Urgency elevated due to AI distress detection', {
+          originalLevel: payload,
+          newLevel: urgencyLevel,
+          sentimentReasoning,
+          correlationId,
+        });
       }
     }
 
@@ -328,6 +410,8 @@ export const detectUrgentKeywords = task({
       urgencyLevel,
       keywordCount: detectedKeywords.length,
       maxScore,
+      sentimentScore,
+      isDistressed,
       correlationId,
     });
 
@@ -336,6 +420,10 @@ export const detectUrgentKeywords = task({
       urgencyLevel: isUrgent ? urgencyLevel : null,
       keywords: detectedKeywords,
       score: maxScore,
+      sentimentScore,
+      sentimentReasoning,
+      isDistressed,
+      patientPhone,
       correlationId,
     };
   },
