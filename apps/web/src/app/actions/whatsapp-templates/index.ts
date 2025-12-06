@@ -1,8 +1,11 @@
 'use server';
 
 import { z } from 'zod';
-import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
+import { createDatabaseClient, type DatabasePool, createLogger } from '@medicalcor/core';
+import { createWhatsAppClient, type TemplateComponent } from '@medicalcor/integrations';
 import { requirePermission, requireCurrentUser } from '@/lib/auth/server-action-auth';
+
+const logger = createLogger({ name: 'whatsapp-templates-action' });
 
 /**
  * Server Actions for WhatsApp Template Management
@@ -605,26 +608,79 @@ export async function sendTestMessageAction(
     };
   }
 
-  // In production, this would call the WhatsApp API
-  // For now, simulate a successful test
-  const messageId = `test_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  // Check if WhatsApp API is configured
+  const apiKey = process.env.WHATSAPP_API_KEY;
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
 
-  // Log test message
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('[sendTestMessageAction] Test message sent:', {
-      templateId,
-      templateName: template.name,
-      phoneNumber: cleanPhone,
-      variables,
-      messageId,
-    });
+  if (!apiKey || !phoneNumberId) {
+    // Fallback to simulation if not configured
+    logger.warn(
+      { templateId, templateName: template.name },
+      'WhatsApp API not configured, simulating test message'
+    );
+
+    return {
+      success: true,
+      messageId: `test_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      sentAt: new Date().toISOString(),
+    };
   }
 
-  return {
-    success: true,
-    messageId,
-    sentAt: new Date().toISOString(),
-  };
+  try {
+    // Create WhatsApp client
+    const whatsapp = createWhatsAppClient({
+      apiKey,
+      phoneNumberId,
+    });
+
+    // Build template components with variables
+    const components: TemplateComponent[] = [];
+
+    if (template.variables.length > 0 && variables) {
+      const bodyParameters = template.variables.map((varName) => ({
+        type: 'text' as const,
+        text: variables[varName] ?? `{{${varName}}}`,
+      }));
+
+      components.push({
+        type: 'body',
+        parameters: bodyParameters,
+      });
+    }
+
+    // Send template message
+    const response = await whatsapp.sendTemplate({
+      to: cleanPhone,
+      templateName: template.name,
+      language: template.language,
+      components: components.length > 0 ? components : undefined,
+    });
+
+    const messageId = response.messages[0]?.id ?? `msg_${Date.now()}`;
+
+    logger.info(
+      { templateId, templateName: template.name, messageId },
+      'Test message sent successfully'
+    );
+
+    return {
+      success: true,
+      messageId,
+      sentAt: new Date().toISOString(),
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error(
+      { templateId, templateName: template.name, error: errorMessage },
+      'Failed to send test message'
+    );
+
+    return {
+      success: false,
+      error: `Failed to send message: ${errorMessage}`,
+      sentAt: new Date().toISOString(),
+    };
+  }
 }
 
 /**
