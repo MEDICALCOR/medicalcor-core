@@ -3,7 +3,7 @@ import { z } from 'zod';
 import crypto from 'crypto';
 import { IdempotencyKeys } from '@medicalcor/core';
 import { createIntegrationClients } from '@medicalcor/integrations';
-import { handleUrgentCase, detectUrgentKeywords } from '../tasks/urgent-case-handler';
+import { handleUrgentCase, detectUrgentKeywords } from '../tasks/urgent-case-handler.js';
 
 /**
  * Urgent Case Escalation Workflow
@@ -133,9 +133,14 @@ export const urgentCaseEscalationWorkflow = task({
     await wait.for({ minutes: firstCheckMinutes });
 
     // Check if case was acknowledged
-    if (hubspot && taskId) {
+    // TODO: Implement getTask method in HubSpotClient
+    if (hubspot && taskId && 'getTask' in hubspot) {
       try {
-        const task = await hubspot.getTask(taskId);
+        const task = await (
+          hubspot as unknown as {
+            getTask: (id: string) => Promise<{ status: string; assignedTo?: string } | null>;
+          }
+        ).getTask(taskId);
         if (task?.status === 'COMPLETED' || task?.status === 'IN_PROGRESS') {
           resolved = task.status === 'COMPLETED';
           resolvedBy = task.assignedTo;
@@ -185,8 +190,8 @@ export const urgentCaseEscalationWorkflow = task({
         }
       }
 
-      // Create escalation task for this tier
-      if (hubspot && tier.assignTo) {
+      // Create escalation task for this tier (only if we have a contact ID)
+      if (hubspot && tier.assignTo && hubspotContactId) {
         try {
           const escTaskSubject = `⬆️ ESCALATED (Tier ${currentTier + 1}): ${patientName ?? phone}`;
           const escTaskBody = [
@@ -204,7 +209,7 @@ export const urgentCaseEscalationWorkflow = task({
             body: escTaskBody,
             priority: 'HIGH',
             dueDate: new Date(Date.now() + tier.waitMinutes * 60 * 1000),
-            assignTo: tier.assignTo,
+            ownerId: tier.assignTo,
           });
 
           logger.info('Created escalation task', {
@@ -231,9 +236,13 @@ export const urgentCaseEscalationWorkflow = task({
       await wait.for({ minutes: tier.waitMinutes });
 
       // Check resolution
-      if (hubspot && taskId) {
+      if (hubspot && taskId && 'getTask' in hubspot) {
         try {
-          const task = await hubspot.getTask(taskId);
+          const task = await (
+            hubspot as unknown as {
+              getTask: (id: string) => Promise<{ status: string; assignedTo?: string } | null>;
+            }
+          ).getTask(taskId);
           if (task?.status === 'COMPLETED') {
             resolved = true;
             resolvedBy = task.assignedTo;
@@ -379,6 +388,7 @@ export const messageUrgencyDetectionWorkflow = task({
       messageContent,
       channel,
       correlationId: `${correlationId}_keywords`,
+      enableSentimentAnalysis: true,
     });
 
     if (!keywordResult.ok) {
@@ -406,7 +416,7 @@ export const messageUrgencyDetectionWorkflow = task({
     }
 
     // Step 3: Trigger escalation workflow if urgent
-    if (isUrgent && finalUrgencyLevel) {
+    if (isUrgent && finalUrgencyLevel && finalUrgencyLevel !== 'none') {
       logger.info('Triggering urgent case escalation', {
         urgencyLevel: finalUrgencyLevel,
         correlationId,
@@ -421,7 +431,7 @@ export const messageUrgencyDetectionWorkflow = task({
           patientName,
           channel,
           urgencyLevel: finalUrgencyLevel,
-          triggerReason: `Detected keywords: ${keywords?.join(', ') ?? 'sentiment analysis'}`,
+          triggerReason: `Detected keywords: ${keywords.join(', ') || 'sentiment analysis'}`,
           keywords,
           sentimentScore,
           messageContent,

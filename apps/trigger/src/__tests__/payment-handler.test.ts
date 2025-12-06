@@ -12,10 +12,7 @@ vi.stubEnv('WHATSAPP_PHONE_NUMBER_ID', '123456789');
 vi.stubEnv('DATABASE_URL', '');
 
 // Import after env setup
-import {
-  createHubSpotClient,
-  createWhatsAppClient,
-} from '@medicalcor/integrations';
+import { createHubSpotClient, createWhatsAppClient } from '@medicalcor/integrations';
 import { createInMemoryEventStore, normalizeRomanianPhone } from '@medicalcor/core';
 
 describe('Payment Handler Tasks', () => {
@@ -216,7 +213,7 @@ describe('Payment Handler Tasks', () => {
 
       expect(components).toBeDefined();
       expect(Array.isArray(components)).toBe(true);
-      expect(components[0].type).toBe('body');
+      expect(components[0]?.type).toBe('body');
     });
 
     it('should handle missing metadata gracefully', async () => {
