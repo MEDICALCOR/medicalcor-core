@@ -4,6 +4,7 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import fp from 'fastify-plugin';
 import crypto from 'crypto';
 
 export interface ApiAuthConfig {
@@ -50,7 +51,7 @@ function verifyApiKey(providedKey: string, validKeys: string[]): boolean {
  * API Authentication Plugin
  * Adds API key authentication to protected routes
  */
-export const apiAuthPlugin: FastifyPluginAsync<ApiAuthConfig> = async (fastify, options) => {
+const apiAuthPluginAsync: FastifyPluginAsync<ApiAuthConfig> = async (fastify, options) => {
   const headerName = options.headerName ?? 'x-api-key';
   const protectedPaths = options.protectedPaths ?? ['/workflows'];
 
@@ -67,12 +68,15 @@ export const apiAuthPlugin: FastifyPluginAsync<ApiAuthConfig> = async (fastify, 
   // This prevents the application from starting without proper authentication configured
   const isProduction = process.env.NODE_ENV === 'production';
   if (apiKeys.length === 0) {
-    const errorMsg = 'CRITICAL: API_SECRET_KEY not configured - workflow endpoints will reject all requests!';
+    const errorMsg =
+      'CRITICAL: API_SECRET_KEY not configured - workflow endpoints will reject all requests!';
     fastify.log.error(errorMsg);
 
     // SECURITY: In production, fail fast - do not start without API key
     if (isProduction) {
-      throw new Error('FATAL: API_SECRET_KEY must be configured in production. Server cannot start without authentication.');
+      throw new Error(
+        'FATAL: API_SECRET_KEY must be configured in production. Server cannot start without authentication.'
+      );
     }
   }
 
@@ -118,5 +122,10 @@ export const apiAuthPlugin: FastifyPluginAsync<ApiAuthConfig> = async (fastify, 
 
   return Promise.resolve();
 };
+
+export const apiAuthPlugin = fp(apiAuthPluginAsync, {
+  name: 'api-auth',
+  fastify: '5.x',
+});
 
 export default apiAuthPlugin;
