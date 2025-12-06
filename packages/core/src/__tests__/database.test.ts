@@ -9,7 +9,7 @@
  * - Error handling
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   type DatabasePool,
   type QueryResult,
@@ -21,6 +21,9 @@ import {
   withTransaction,
   withAdvisoryLock,
   stringToLockKey,
+  createDatabaseClient,
+  createIsolatedDatabaseClient,
+  closeDatabasePool,
 } from '../database.js';
 
 /**
@@ -552,5 +555,381 @@ describe('IsolationLevel enum', () => {
     expect(IsolationLevel.READ_COMMITTED).toBe('READ COMMITTED');
     expect(IsolationLevel.REPEATABLE_READ).toBe('REPEATABLE READ');
     expect(IsolationLevel.SERIALIZABLE).toBe('SERIALIZABLE');
+  });
+});
+
+// =============================================================================
+// DATABASE CLIENT FACTORY TESTS
+// =============================================================================
+
+describe('createDatabaseClient', () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    vi.resetModules();
+    process.env = { ...originalEnv };
+  });
+
+  afterEach(async () => {
+    process.env = originalEnv;
+    await closeDatabasePool();
+  });
+
+  describe('in-memory database fallback', () => {
+    it('should create in-memory database when DATABASE_URL not set in development', () => {
+      delete process.env.DATABASE_URL;
+      process.env.NODE_ENV = 'development';
+
+      const db = createDatabaseClient();
+      expect(db).toBeDefined();
+      expect(typeof db.query).toBe('function');
+      expect(typeof db.connect).toBe('function');
+      expect(typeof db.end).toBe('function');
+    });
+
+    it('should create in-memory database when DATABASE_URL not set in test', () => {
+      delete process.env.DATABASE_URL;
+      process.env.NODE_ENV = 'test';
+
+      const db = createDatabaseClient();
+      expect(db).toBeDefined();
+    });
+
+    it('should throw error when DATABASE_URL not set in production', () => {
+      delete process.env.DATABASE_URL;
+      process.env.NODE_ENV = 'production';
+
+      expect(() => createDatabaseClient()).toThrow('CRITICAL: DATABASE_URL must be configured');
+    });
+
+    it('should mention HIPAA compliance in production error', () => {
+      delete process.env.DATABASE_URL;
+      process.env.NODE_ENV = 'production';
+
+      expect(() => createDatabaseClient()).toThrow('HIPAA compliance requirement');
+    });
+  });
+
+  describe('singleton behavior', () => {
+    it('should return same instance when called multiple times without URL', () => {
+      delete process.env.DATABASE_URL;
+      process.env.NODE_ENV = 'test';
+
+      const db1 = createDatabaseClient();
+      const db2 = createDatabaseClient();
+      expect(db1).toBe(db2);
+    });
+  });
+});
+
+describe('createIsolatedDatabaseClient', () => {
+  it('should create a new database pool instance', () => {
+    const db = createIsolatedDatabaseClient({
+      connectionString: 'postgresql://user:pass@localhost:5432/testdb',
+    });
+
+    expect(db).toBeDefined();
+    expect(typeof db.query).toBe('function');
+    expect(typeof db.connect).toBe('function');
+    expect(typeof db.end).toBe('function');
+  });
+
+  it('should accept configuration options', () => {
+    const db = createIsolatedDatabaseClient({
+      connectionString: 'postgresql://user:pass@localhost:5432/testdb',
+      maxConnections: 5,
+      idleTimeoutMs: 10000,
+      connectionTimeoutMs: 3000,
+    });
+
+    expect(db).toBeDefined();
+  });
+});
+
+describe('closeDatabasePool', () => {
+  beforeEach(() => {
+    delete process.env.DATABASE_URL;
+    process.env.NODE_ENV = 'test';
+  });
+
+  afterEach(async () => {
+    await closeDatabasePool();
+  });
+
+  it('should close the global pool', async () => {
+    // Create a pool
+    createDatabaseClient();
+
+    // Close it
+    await closeDatabasePool();
+
+    // Should not throw
+    expect(true).toBe(true);
+  });
+
+  it('should handle being called when no pool exists', async () => {
+    // Should not throw when no pool
+    await closeDatabasePool();
+    await closeDatabasePool(); // Call twice
+
+    expect(true).toBe(true);
+  });
+});
+
+describe('InMemoryDatabase', () => {
+  let db: DatabasePool;
+
+  beforeEach(() => {
+    delete process.env.DATABASE_URL;
+    process.env.NODE_ENV = 'test';
+    db = createDatabaseClient();
+  });
+
+  afterEach(async () => {
+    await closeDatabasePool();
+  });
+
+  it('should return empty results for queries', async () => {
+    const result = await db.query('SELECT * FROM users');
+    expect(result.rows).toEqual([]);
+    expect(result.rowCount).toBe(0);
+  });
+
+  it('should support connect method', async () => {
+    const client = await db.connect();
+    expect(client).toBeDefined();
+    expect(typeof client.query).toBe('function');
+    expect(typeof client.release).toBe('function');
+  });
+
+  it('should have working release on client', async () => {
+    const client = await db.connect();
+    // Should not throw
+    client.release();
+    expect(true).toBe(true);
+  });
+
+  it('should support end method', async () => {
+    await db.end();
+    expect(true).toBe(true);
+  });
+
+  it('should return empty results from client query', async () => {
+    const client = await db.connect();
+    const result = await client.query('SELECT * FROM anything');
+    expect(result.rows).toEqual([]);
+    expect(result.rowCount).toBe(0);
+    client.release();
+  });
+});
+
+// =============================================================================
+// ADDITIONAL EDGE CASE TESTS
+// =============================================================================
+
+describe('withTransaction edge cases', () => {
+  let clientQueries: Array<{ query: string; params?: unknown[] }>;
+
+  beforeEach(() => {
+    clientQueries = [];
+  });
+
+  it('should handle rollback failure gracefully', async () => {
+    const mockPool = createMockPool({ clientQueries });
+    let rollbackCalled = false;
+
+    vi.mocked(mockPool.mockClient.query).mockImplementation(async (sql: string) => {
+      clientQueries.push({ query: sql });
+
+      if (sql.includes('ROLLBACK')) {
+        rollbackCalled = true;
+        throw new Error('Rollback failed');
+      }
+
+      if (sql.includes('USER QUERY')) {
+        throw new Error('User query failed');
+      }
+
+      return { rows: [], rowCount: 0 };
+    });
+
+    // Should still throw the original error even if rollback fails
+    await expect(
+      withTransaction(mockPool, async (tx) => {
+        await tx.query('USER QUERY');
+      })
+    ).rejects.toThrow('User query failed');
+
+    expect(rollbackCalled).toBe(true);
+    expect(mockPool.mockClient.release).toHaveBeenCalled();
+  });
+
+  it('should handle async transaction functions', async () => {
+    const mockPool = createMockPool({ clientQueries });
+
+    const result = await withTransaction(mockPool, async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      return 'async result';
+    });
+
+    expect(result).toBe('async result');
+  });
+
+  it('should handle transaction that throws non-Error', async () => {
+    const mockPool = createMockPool({ clientQueries });
+
+    await expect(
+      withTransaction(mockPool, async () => {
+        throw 'string error';
+      })
+    ).rejects.toBe('string error');
+  });
+});
+
+describe('withAdvisoryLock edge cases', () => {
+  let clientQueries: Array<{ query: string; params?: unknown[] }>;
+
+  beforeEach(() => {
+    clientQueries = [];
+  });
+
+  it('should release client on lock acquisition error', async () => {
+    const mockPool = createMockPool({ clientQueries });
+
+    vi.mocked(mockPool.mockClient.query).mockImplementation(async (sql: string) => {
+      if (sql.includes('pg_advisory_lock')) {
+        throw new Error('Lock acquisition failed');
+      }
+      return { rows: [], rowCount: 0 };
+    });
+
+    await expect(withAdvisoryLock(mockPool, 12345, async () => 'done')).rejects.toThrow(
+      'Lock acquisition failed'
+    );
+
+    expect(mockPool.mockClient.release).toHaveBeenCalled();
+  });
+
+  it('should handle negative lock keys', async () => {
+    const mockPool = createMockPool({
+      clientQueries,
+      queryResults: [{ rows: [{ pg_advisory_lock: null }], rowCount: 1 }],
+    });
+
+    await withAdvisoryLock(mockPool, -12345, async () => 'done');
+
+    const lockQuery = clientQueries.find((q) => q.query.includes('pg_advisory_lock'));
+    expect(lockQuery?.params).toContain(-12345);
+  });
+
+  it('should handle zero lock key', async () => {
+    const mockPool = createMockPool({
+      clientQueries,
+      queryResults: [{ rows: [{ pg_advisory_lock: null }], rowCount: 1 }],
+    });
+
+    await withAdvisoryLock(mockPool, 0, async () => 'done');
+
+    const lockQuery = clientQueries.find((q) => q.query.includes('pg_advisory_lock'));
+    expect(lockQuery?.params).toContain(0);
+  });
+});
+
+describe('stringToLockKey edge cases', () => {
+  it('should handle single character', () => {
+    const key = stringToLockKey('a');
+    expect(key).toBeGreaterThanOrEqual(0);
+    expect(typeof key).toBe('number');
+  });
+
+  it('should handle whitespace-only string', () => {
+    const key = stringToLockKey('   ');
+    expect(key).toBeGreaterThanOrEqual(0);
+  });
+
+  it('should handle numeric strings', () => {
+    const key = stringToLockKey('12345');
+    expect(key).toBeGreaterThanOrEqual(0);
+    expect(typeof key).toBe('number');
+  });
+
+  it('should produce different keys for similar strings', () => {
+    const key1 = stringToLockKey('test1');
+    const key2 = stringToLockKey('test2');
+    const key3 = stringToLockKey('1test');
+
+    expect(key1).not.toBe(key2);
+    expect(key1).not.toBe(key3);
+    expect(key2).not.toBe(key3);
+  });
+
+  it('should handle very long strings', () => {
+    const longString = 'a'.repeat(10000);
+    const key = stringToLockKey(longString);
+    expect(key).toBeGreaterThanOrEqual(0);
+    expect(Number.isInteger(key)).toBe(true);
+  });
+});
+
+describe('Transaction locking helper edge cases', () => {
+  let clientQueries: Array<{ query: string; params?: unknown[] }>;
+
+  beforeEach(() => {
+    clientQueries = [];
+  });
+
+  it('should handle selectForUpdate with trailing whitespace', async () => {
+    const queries: string[] = [];
+    const mockPool = createMockPool({ clientQueries });
+    vi.mocked(mockPool.mockClient.query).mockImplementation(async (sql: string) => {
+      queries.push(sql);
+      return { rows: [], rowCount: 0 };
+    });
+
+    await withTransaction(mockPool, async (tx) => {
+      await tx.selectForUpdate('SELECT * FROM accounts   ', []);
+    });
+
+    const selectQuery = queries.find((q) => q.includes('FOR UPDATE'));
+    expect(selectQuery).toBeDefined();
+    // Should trim and add FOR UPDATE
+    expect(selectQuery).toContain('FOR UPDATE');
+  });
+
+  it('should replace existing FOR UPDATE in selectForUpdateNowait', async () => {
+    const queries: string[] = [];
+    const mockPool = createMockPool({ clientQueries });
+    vi.mocked(mockPool.mockClient.query).mockImplementation(async (sql: string) => {
+      queries.push(sql);
+      return { rows: [], rowCount: 0 };
+    });
+
+    await withTransaction(mockPool, async (tx) => {
+      await tx.selectForUpdateNowait('SELECT * FROM accounts FOR UPDATE', []);
+    });
+
+    const selectQuery = queries.find((q) => q.includes('NOWAIT'));
+    expect(selectQuery).toBeDefined();
+    // Should replace FOR UPDATE with FOR UPDATE NOWAIT
+    expect(selectQuery).toContain('FOR UPDATE NOWAIT');
+    // Should not have double FOR UPDATE
+    expect((selectQuery?.match(/FOR UPDATE/gi) ?? []).length).toBe(1);
+  });
+
+  it('should replace existing FOR UPDATE in selectForUpdateSkipLocked', async () => {
+    const queries: string[] = [];
+    const mockPool = createMockPool({ clientQueries });
+    vi.mocked(mockPool.mockClient.query).mockImplementation(async (sql: string) => {
+      queries.push(sql);
+      return { rows: [], rowCount: 0 };
+    });
+
+    await withTransaction(mockPool, async (tx) => {
+      await tx.selectForUpdateSkipLocked('SELECT * FROM jobs FOR UPDATE', []);
+    });
+
+    const selectQuery = queries.find((q) => q.includes('SKIP LOCKED'));
+    expect(selectQuery).toBeDefined();
+    expect(selectQuery).toContain('FOR UPDATE SKIP LOCKED');
   });
 });
