@@ -227,6 +227,85 @@ describe('OsaxCase Entity', () => {
         const osaxCase = createMockCase({ priority: 'NORMAL' });
         expect(requiresImmediateAttention(osaxCase)).toBe(false);
       });
+
+      it('should return true for overdue clinical review', () => {
+        const clinicalScore = OsaxClinicalScore.fromIndicators({
+          ahi: 20,
+          odi: 15,
+          spo2Nadir: 82,
+          spo2Average: 92,
+          sleepEfficiency: 80,
+          essScore: 12,
+        });
+
+        // Create case with score history that exceeds even the longest SLA (168 hours/1 week)
+        const scoredAt = new Date(Date.now() - 200 * 60 * 60 * 1000); // 200 hours ago
+        const osaxCase = createMockCase({
+          status: 'SCORED',
+          reviewStatus: 'PENDING',
+          clinicalScore,
+          priority: 'NORMAL',
+          scoreHistory: [
+            {
+              score: clinicalScore,
+              scoredAt,
+              scoredBy: 'SYSTEM',
+            },
+          ],
+        });
+
+        expect(requiresImmediateAttention(osaxCase)).toBe(true);
+      });
+
+      it('should return false for recent score within SLA', () => {
+        const clinicalScore = OsaxClinicalScore.fromIndicators({
+          ahi: 20,
+          odi: 15,
+          spo2Nadir: 82,
+          spo2Average: 92,
+          sleepEfficiency: 80,
+          essScore: 12,
+        });
+
+        // Create case with very recent score
+        const scoredAt = new Date(Date.now() - 1 * 60 * 60 * 1000); // 1 hour ago
+        const osaxCase = createMockCase({
+          status: 'SCORED',
+          reviewStatus: 'PENDING',
+          clinicalScore,
+          priority: 'NORMAL',
+          scoreHistory: [
+            {
+              score: clinicalScore,
+              scoredAt,
+              scoredBy: 'SYSTEM',
+            },
+          ],
+        });
+
+        expect(requiresImmediateAttention(osaxCase)).toBe(false);
+      });
+
+      it('should return false for scored case without scoreHistory entry', () => {
+        const clinicalScore = OsaxClinicalScore.fromIndicators({
+          ahi: 20,
+          odi: 15,
+          spo2Nadir: 82,
+          spo2Average: 92,
+          sleepEfficiency: 80,
+          essScore: 12,
+        });
+
+        const osaxCase = createMockCase({
+          status: 'SCORED',
+          reviewStatus: 'PENDING',
+          clinicalScore,
+          priority: 'NORMAL',
+          scoreHistory: [], // Empty score history
+        });
+
+        expect(requiresImmediateAttention(osaxCase)).toBe(false);
+      });
     });
 
     describe('isActiveCase', () => {

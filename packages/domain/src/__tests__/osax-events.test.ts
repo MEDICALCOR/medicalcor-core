@@ -427,5 +427,73 @@ describe('OSAX Domain Events', () => {
         expect(isOsaxGdprEvent(event)).toBe(false);
       });
     });
+
+    describe('isOsaxCaseReviewedEvent', () => {
+      it('should return true for case reviewed events', () => {
+        const event: OsaxDomainEventUnion = {
+          type: 'osax.case.reviewed',
+          aggregateId: 'case-123',
+          aggregateType: 'OsaxCase',
+          metadata,
+          payload: {
+            caseNumber: 'OSA-2025-00001',
+            reviewedBy: 'clinician-123',
+            reviewedAt: '2025-01-15T10:00:00Z',
+            reviewType: 'CLINICAL',
+            reviewNotes: 'Patient shows improvement',
+            reviewOutcome: 'APPROVED',
+          },
+        };
+
+        expect(isOsaxCaseReviewedEvent(event)).toBe(true);
+      });
+
+      it('should return false for non-reviewed events', () => {
+        const payload: OsaxCaseCreatedPayload = {
+          caseNumber: 'OSA-2025-00001',
+          subjectId: 'osax_2025_001',
+          patientId: 'patient-123',
+          priority: 'NORMAL',
+          consentStatus: 'PENDING',
+        };
+        const event = createOsaxCaseCreatedEvent('case-123', payload, metadata);
+
+        expect(isOsaxCaseReviewedEvent(event)).toBe(false);
+      });
+    });
+
+    describe('isOsaxFollowUpCompletedEvent', () => {
+      it('should return true for follow-up completed events', () => {
+        const event: OsaxDomainEventUnion = {
+          type: 'osax.followup.completed',
+          aggregateId: 'case-123',
+          aggregateType: 'OsaxCase',
+          metadata,
+          payload: {
+            caseNumber: 'OSA-2025-00001',
+            followUpType: 'PHONE',
+            completedAt: '2025-01-15T10:00:00Z',
+            completedBy: 'care-coordinator-123',
+            outcome: 'PATIENT_CONTACTED',
+            notes: 'Patient confirmed appointment',
+          },
+        };
+
+        expect(isOsaxFollowUpCompletedEvent(event)).toBe(true);
+      });
+
+      it('should return false for non-followup events', () => {
+        const payload: OsaxCaseCreatedPayload = {
+          caseNumber: 'OSA-2025-00001',
+          subjectId: 'osax_2025_001',
+          patientId: 'patient-123',
+          priority: 'NORMAL',
+          consentStatus: 'PENDING',
+        };
+        const event = createOsaxCaseCreatedEvent('case-123', payload, metadata);
+
+        expect(isOsaxFollowUpCompletedEvent(event)).toBe(false);
+      });
+    });
   });
 });
