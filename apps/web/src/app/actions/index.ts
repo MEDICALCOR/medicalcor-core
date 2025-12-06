@@ -175,6 +175,13 @@ export {
   updateWhatsAppTemplateAction,
   deleteWhatsAppTemplateAction,
   duplicateWhatsAppTemplateAction,
+  // M9: Enhanced template management
+  previewWhatsAppTemplateAction,
+  sendTestMessageAction,
+  getTemplateAnalyticsAction,
+  getAllTemplateAnalyticsAction,
+  getVariableDefinitionsAction,
+  updateVariableDefinitionsAction,
 } from './whatsapp-templates/index';
 
 export type {
@@ -182,6 +189,11 @@ export type {
   TemplateCategory,
   TemplateStatus,
   TemplateStats,
+  // M9: Enhanced types
+  TemplateAnalytics,
+  TemplatePreview,
+  TestMessageResult,
+  VariableDefinition,
 } from './whatsapp-templates/index';
 
 // ============================================================================
@@ -262,9 +274,25 @@ export {
   updateShiftAction,
   deleteShiftAction,
   copyWeekScheduleAction,
+  // M12: Capacity Planning
+  getCapacityDashboardAction,
+  detectShiftConflictsAction,
+  getStaffingRecommendationsAction,
+  getDemandForecastAction,
 } from './staff-schedule/index';
 
-export type { StaffMember, StaffShift, Shift, ScheduleStats } from './staff-schedule/index';
+export type {
+  StaffMember,
+  StaffShift,
+  Shift,
+  ScheduleStats,
+  // M12: Capacity Planning Types
+  CapacityMetrics,
+  DemandForecast,
+  StaffingRecommendation,
+  ShiftConflict,
+  CapacityDashboardData,
+} from './staff-schedule/index';
 
 // ============================================================================
 // MEDICAL RECORDS ACTIONS
@@ -380,3 +408,27 @@ export type {
   PrescriptionStats,
   PrescriptionStats as PrescriptionsStats,
 } from './prescriptions/index';
+
+// ============================================================================
+// BEHAVIORAL INSIGHTS ACTIONS (M5)
+// ============================================================================
+
+export {
+  getBehavioralInsightsDashboardAction,
+  getPatternStatsAction,
+  getSubjectInsightsAction,
+  detectPatternsAction,
+  getPatternsByTypeAction,
+  getActionableInsightsAction,
+} from './behavioral-insights/index';
+
+export type {
+  BehavioralPattern,
+  CognitiveInsight,
+  PatternStats,
+  InsightsDashboardData,
+  SubjectInsights,
+  PatternType,
+  InsightType,
+  SubjectType as BehavioralSubjectType,
+} from './behavioral-insights/index';
