@@ -105,10 +105,11 @@ async function loadSLAConfigs(db: DatabasePool): Promise<Map<string, QueueSLACon
 
     for (const row of result.rows) {
       configs.set(row.queue_sid, {
-        queueSid: row.queue_sid,
-        queueName: row.queue_name,
         ...DEFAULT_SLA_CONFIG,
         ...row.config,
+        // Override with database row values to ensure correct identifiers
+        queueSid: row.queue_sid,
+        queueName: row.queue_name,
       });
     }
   } catch (error) {
