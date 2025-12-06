@@ -446,3 +446,48 @@ export {
   type CRMLeadStatus,
   type TreatmentPlanStage,
 } from './crm.schema.js';
+
+// =============================================================================
+// Agent Performance Schemas (M7)
+// =============================================================================
+export {
+  // Enums
+  AgentTypeSchema,
+  AgentRoleSchema,
+  AgentStatusSchema,
+  AgentAvailabilitySchema,
+  AssignmentReasonSchema,
+  LeadOutcomeSchema,
+  RatingTypeSchema,
+  // Core schemas
+  AgentSchema,
+  AgentSessionSchema,
+  AgentDailyMetricsSchema,
+  // Dashboard schemas
+  AgentPerformanceSummarySchema,
+  AgentTrendPointSchema,
+  AgentDetailSchema,
+  AgentDashboardMetricsSchema,
+  AgentPerformanceDashboardDataSchema,
+  // Request schemas
+  AgentPerformanceTimeRangeSchema,
+  GetAgentPerformanceRequestSchema,
+  // Types
+  type AgentType,
+  type AgentRole,
+  type AgentStatus,
+  type AgentAvailability,
+  type AssignmentReason,
+  type LeadOutcome,
+  type RatingType,
+  type Agent,
+  type AgentSession,
+  type AgentDailyMetrics,
+  type AgentPerformanceSummary,
+  type AgentTrendPoint,
+  type AgentDetail,
+  type AgentDashboardMetrics,
+  type AgentPerformanceDashboardData,
+  type AgentPerformanceTimeRange,
+  type GetAgentPerformanceRequest,
+} from './agent-performance.schema.js';

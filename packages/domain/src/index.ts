@@ -224,6 +224,9 @@ export * from './ltv/index.js';
 // Disposition - Call Outcome Tracking (M1 Production Fix)
 export * from './disposition/index.js';
 
+// Agent Performance (M7 Milestone)
+export * from './agent-performance/index.js';
+
 // ============================================================================
 // SHARED TYPES & UTILITIES
 // ============================================================================
