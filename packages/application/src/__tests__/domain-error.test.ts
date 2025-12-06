@@ -267,6 +267,8 @@ describe('DomainError', () => {
       expect(clientJson.code).toBe('test.code');
       expect(clientJson.message).toBe('Test message');
       expect(clientJson.correlationId).toBe('corr-789');
+      expect(clientJson.stack).toBeUndefined();
+      expect(clientJson.details).toBeUndefined();
       expect(clientJson).not.toHaveProperty('stack');
       expect(clientJson).not.toHaveProperty('details');
       expect(clientJson).not.toHaveProperty('severity');

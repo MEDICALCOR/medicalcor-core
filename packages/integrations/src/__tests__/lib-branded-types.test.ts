@@ -512,7 +512,19 @@ describe('lib/branded-types', () => {
     });
 
     it('should validate all supported currencies', () => {
-      const currencies = ['EUR', 'USD', 'RON', 'GBP', 'CHF', 'PLN', 'HUF', 'CZK', 'SEK', 'NOK', 'DKK'];
+      const currencies = [
+        'EUR',
+        'USD',
+        'RON',
+        'GBP',
+        'CHF',
+        'PLN',
+        'HUF',
+        'CZK',
+        'SEK',
+        'NOK',
+        'DKK',
+      ];
 
       for (const curr of currencies) {
         const result = currencyCode(curr);
@@ -539,7 +551,7 @@ describe('lib/branded-types', () => {
   describe('currency conversion', () => {
     describe('toMinorUnits', () => {
       it('should convert EUR to cents', () => {
-        const result = toMinorUnits(10.50, 'EUR' as CurrencyCode);
+        const result = toMinorUnits(10.5, 'EUR' as CurrencyCode);
 
         expect(result).toBe(1050);
       });
@@ -579,7 +591,7 @@ describe('lib/branded-types', () => {
       it('should convert cents to EUR', () => {
         const result = toMajorUnits(1050 as MinorCurrencyAmount, 'EUR' as CurrencyCode);
 
-        expect(result).toBe(10.50);
+        expect(result).toBe(10.5);
       });
 
       it('should convert whole numbers', () => {
@@ -778,7 +790,9 @@ describe('lib/branded-types', () => {
       it('should throw for invalid value', () => {
         const validator = (v: unknown): boolean => typeof v === 'string';
 
-        expect(() => assertBrand<string, 'Test'>(123, 'Test', validator)).toThrow(BrandValidationError);
+        expect(() => assertBrand<string, 'Test'>(123, 'Test', validator)).toThrow(
+          BrandValidationError
+        );
       });
 
       it('should throw with correct error details', () => {
@@ -795,6 +809,48 @@ describe('lib/branded-types', () => {
           }
         }
       });
+    });
+  });
+
+  describe('additional unsafe factories', () => {
+    it('should create timeSlotId', () => {
+      const id = unsafe.timeSlotId('slot-123');
+      expect(id).toBe('slot-123');
+    });
+
+    it('should create practitionerId', () => {
+      const id = unsafe.practitionerId('prac-456');
+      expect(id).toBe('prac-456');
+    });
+
+    it('should create locationId', () => {
+      const id = unsafe.locationId('loc-789');
+      expect(id).toBe('loc-789');
+    });
+
+    it('should create embeddingId', () => {
+      const id = unsafe.embeddingId('emb-abc');
+      expect(id).toBe('emb-abc');
+    });
+
+    it('should create externalContactId', () => {
+      const id = unsafe.externalContactId('ext-contact-123');
+      expect(id).toBe('ext-contact-123');
+    });
+
+    it('should create externalDealId', () => {
+      const id = unsafe.externalDealId('ext-deal-456');
+      expect(id).toBe('ext-deal-456');
+    });
+
+    it('should create unixTimestampSeconds', () => {
+      const timestamp = unsafe.unixTimestampSeconds(1700000000);
+      expect(timestamp).toBe(1700000000);
+    });
+
+    it('should create unixTimestampMs', () => {
+      const timestamp = unsafe.unixTimestampMs(1700000000000);
+      expect(timestamp).toBe(1700000000000);
     });
   });
 });

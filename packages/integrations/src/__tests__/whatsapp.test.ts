@@ -769,6 +769,56 @@ describe('TemplateCatalogService', () => {
     });
   });
 
+  describe('canSendTemplateSync (deprecated)', () => {
+    it('should allow first send', () => {
+      const service = new TemplateCatalogService();
+
+      const result = service.canSendTemplateSync('contact_sync_1', 'hot_lead_acknowledgment');
+
+      expect(result.allowed).toBe(true);
+    });
+
+    it('should return false for unknown template', () => {
+      const service = new TemplateCatalogService();
+
+      const result = service.canSendTemplateSync('contact_sync_2', 'unknown_template');
+
+      expect(result.allowed).toBe(false);
+    });
+
+    it('should allow templates with zero cooldown after send', () => {
+      const service = new TemplateCatalogService();
+
+      // appointment_confirmation has 0 cooldown
+      service.recordTemplateSendSync('contact_sync_3', 'appointment_confirmation');
+      const result = service.canSendTemplateSync('contact_sync_3', 'appointment_confirmation');
+
+      expect(result.allowed).toBe(true);
+    });
+
+    it('should block during cooldown period', () => {
+      const service = new TemplateCatalogService();
+
+      // hot_lead_acknowledgment has 60 minute cooldown
+      service.recordTemplateSendSync('contact_sync_4', 'hot_lead_acknowledgment');
+      const result = service.canSendTemplateSync('contact_sync_4', 'hot_lead_acknowledgment');
+
+      expect(result.allowed).toBe(false);
+      expect(result.waitMinutes).toBeGreaterThan(0);
+    });
+  });
+
+  describe('recordTemplateSendSync (deprecated)', () => {
+    it('should record template send synchronously', () => {
+      const service = new TemplateCatalogService();
+
+      service.recordTemplateSendSync('contact_sync_5', 'hot_lead_acknowledgment');
+
+      const result = service.canSendTemplateSync('contact_sync_5', 'hot_lead_acknowledgment');
+      expect(result.allowed).toBe(false);
+    });
+  });
+
   describe('createTemplateCatalogService factory', () => {
     it('should create a template catalog service instance', () => {
       const service = createTemplateCatalogService();

@@ -84,7 +84,10 @@ describe('Exhaustive Pattern Matching', () => {
   });
 
   describe('matchOn', () => {
-    type Status = { status: 'pending' } | { status: 'completed'; result: string } | { status: 'failed'; error: string };
+    type Status =
+      | { status: 'pending' }
+      | { status: 'completed'; result: string }
+      | { status: 'failed'; error: string };
 
     it('should match on specific discriminant key', () => {
       const handleStatus = matchOn<Status, 'status'>('status', {
@@ -141,9 +144,18 @@ describe('Fluent Pattern Matching', () => {
     it('should match with predicate guards', () => {
       const classify = (score: number): string =>
         Matcher.value(score)
-          .when((s) => s >= 90, () => 'Excellent')
-          .when((s) => s >= 70, () => 'Good')
-          .when((s) => s >= 50, () => 'Average')
+          .when(
+            (s) => s >= 90,
+            () => 'Excellent'
+          )
+          .when(
+            (s) => s >= 70,
+            () => 'Good'
+          )
+          .when(
+            (s) => s >= 50,
+            () => 'Average'
+          )
           .otherwise(() => 'Poor');
 
       expect(classify(95)).toBe('Excellent');
@@ -174,8 +186,14 @@ describe('Fluent Pattern Matching', () => {
       const value: unknown = 42;
 
       const result = Matcher.value(value)
-        .isType((v): v is string => typeof v === 'string', (s) => `String: ${s}`)
-        .isType((v): v is number => typeof v === 'number', (n) => `Number: ${n}`)
+        .isType(
+          (v): v is string => typeof v === 'string',
+          (s) => `String: ${s}`
+        )
+        .isType(
+          (v): v is number => typeof v === 'number',
+          (n) => `Number: ${n}`
+        )
         .otherwise(() => 'Other');
 
       expect(result).toBe('Number: 42');
@@ -183,27 +201,48 @@ describe('Fluent Pattern Matching', () => {
 
     it('should stop at first match', () => {
       const result = Matcher.value(10)
-        .when((n) => n > 5, () => 'greater than 5')
-        .when((n) => n > 8, () => 'greater than 8')
+        .when(
+          (n) => n > 5,
+          () => 'greater than 5'
+        )
+        .when(
+          (n) => n > 8,
+          () => 'greater than 8'
+        )
         .otherwise(() => 'other');
 
       expect(result).toBe('greater than 5');
     });
 
     it('should support run() without default', () => {
-      const result = Matcher.value(10).when((n) => n > 100, () => 'big').run();
+      const result = Matcher.value(10)
+        .when(
+          (n) => n > 100,
+          () => 'big'
+        )
+        .run();
 
       expect(result).toBeUndefined();
     });
 
     it('should support exhaustive() that throws on no match', () => {
       expect(() =>
-        Matcher.value(10).when((n) => n > 100, () => 'big').exhaustive()
+        Matcher.value(10)
+          .when(
+            (n) => n > 100,
+            () => 'big'
+          )
+          .exhaustive()
       ).toThrow();
     });
 
     it('should not throw with exhaustive() when matched', () => {
-      const result = Matcher.value(10).when((n) => n > 5, () => 'matched').exhaustive();
+      const result = Matcher.value(10)
+        .when(
+          (n) => n > 5,
+          () => 'matched'
+        )
+        .exhaustive();
 
       expect(result).toBe('matched');
     });
@@ -430,12 +469,7 @@ describe('Conditional Expression Helpers', () => {
   describe('cond', () => {
     it('should return first truthy condition', () => {
       const score = 85;
-      const grade = cond(
-        [score >= 90, 'A'],
-        [score >= 80, 'B'],
-        [score >= 70, 'C'],
-        ['F']
-      );
+      const grade = cond([score >= 90, 'A'], [score >= 80, 'B'], [score >= 70, 'C'], ['F']);
 
       expect(grade).toBe('B');
     });
@@ -467,10 +501,13 @@ describe('Conditional Expression Helpers', () => {
       let evaluated = false;
 
       condLazy(
-        [false, () => {
-          evaluated = true;
-          return 'not called';
-        }],
+        [
+          false,
+          () => {
+            evaluated = true;
+            return 'not called';
+          },
+        ],
         [true, () => 'called'],
         [() => 'default']
       );
@@ -482,18 +519,26 @@ describe('Conditional Expression Helpers', () => {
       const calls: number[] = [];
 
       condLazy(
-        [false, () => {
-          calls.push(1);
-          return 'one';
-        }],
-        [true, () => {
-          calls.push(2);
-          return 'two';
-        }],
-        [() => {
-          calls.push(3);
-          return 'three';
-        }]
+        [
+          false,
+          () => {
+            calls.push(1);
+            return 'one';
+          },
+        ],
+        [
+          true,
+          () => {
+            calls.push(2);
+            return 'two';
+          },
+        ],
+        [
+          () => {
+            calls.push(3);
+            return 'three';
+          },
+        ]
       );
 
       expect(calls).toEqual([2]);
@@ -614,5 +659,31 @@ describe('Pattern Matching Edge Cases', () => {
     expect(handleOuter({ type: 'inner', data: { kind: 'a', value: 42 } })).toBe('Number: 42');
     expect(handleOuter({ type: 'inner', data: { kind: 'b', text: 'hello' } })).toBe('Text: hello');
     expect(handleOuter({ type: 'other', message: 'test' })).toBe('test');
+  });
+
+  describe('match error handling', () => {
+    it('should throw when match receives unhandled discriminant', () => {
+      type TestType = { type: 'a' } | { type: 'b' };
+      const handlers = {
+        type: {
+          a: () => 'A',
+          // intentionally missing 'b' handler
+        },
+      };
+      const matcher = match(handlers as never);
+
+      expect(() => matcher({ type: 'b' } as TestType)).toThrow();
+    });
+
+    it('should throw when matchOn receives unhandled discriminant', () => {
+      type TestStatus = { status: 'active' } | { status: 'inactive' } | { status: 'pending' };
+      const handleStatus = matchOn<TestStatus, 'status'>('status', {
+        active: () => 'Active',
+        inactive: () => 'Inactive',
+        // intentionally missing 'pending' handler
+      } as never);
+
+      expect(() => handleStatus({ status: 'pending' })).toThrow(/No handler for status/);
+    });
   });
 });

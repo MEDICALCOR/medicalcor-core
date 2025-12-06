@@ -13,11 +13,7 @@ import {
   type AIRequest,
   type AIRouterConfig,
 } from '../ai-router.js';
-import {
-  FunctionRegistry,
-  type FunctionContext,
-  type AIFunction,
-} from '../function-registry.js';
+import { FunctionRegistry, type FunctionContext, type AIFunction } from '../function-registry.js';
 
 describe('AIRouter', () => {
   let registry: FunctionRegistry;
@@ -289,6 +285,278 @@ describe('AIRouter', () => {
       const intents = detectIntent('scorează lead', functions);
 
       expect(intents).toHaveLength(0);
+    });
+
+    it('should detect extraction service type', () => {
+      const functions: AIFunction[] = [
+        {
+          name: 'schedule_appointment',
+          description: 'Schedule appointment',
+          parameters: {
+            type: 'object',
+            properties: {},
+            required: [],
+          },
+          category: 'appointments',
+        },
+      ];
+
+      const intents = detectIntent('Programează o extracție dentară', functions);
+
+      expect(intents.length).toBeGreaterThan(0);
+      expect(intents[0]?.extractedArgs.serviceType).toBe('extraction');
+    });
+
+    it('should detect implant service type', () => {
+      const functions: AIFunction[] = [
+        {
+          name: 'schedule_appointment',
+          description: 'Schedule appointment',
+          parameters: {
+            type: 'object',
+            properties: {},
+            required: [],
+          },
+          category: 'appointments',
+        },
+      ];
+
+      const intents = detectIntent('Programează implant dentar', functions);
+
+      expect(intents.length).toBeGreaterThan(0);
+      expect(intents[0]?.extractedArgs.serviceType).toBe('implant');
+    });
+
+    it('should detect cancel appointment intent', () => {
+      const functions: AIFunction[] = [
+        {
+          name: 'cancel_appointment',
+          description: 'Cancel appointment',
+          parameters: {
+            type: 'object',
+            properties: {},
+            required: [],
+          },
+          category: 'appointments',
+        },
+      ];
+
+      const intents = detectIntent('Anulează programarea apt-123456', functions);
+
+      expect(intents.length).toBeGreaterThan(0);
+      expect(intents[0]?.function).toBe('cancel_appointment');
+      expect(intents[0]?.extractedArgs.appointmentId).toBe('apt-123456');
+    });
+
+    it('should detect record consent intent with denied status', () => {
+      const functions: AIFunction[] = [
+        {
+          name: 'record_consent',
+          description: 'Record consent',
+          parameters: {
+            type: 'object',
+            properties: {},
+            required: [],
+          },
+          category: 'compliance',
+        },
+      ];
+
+      const intents = detectIntent('Înregistrează acord - refuzat', functions);
+
+      expect(intents.length).toBeGreaterThan(0);
+      expect(intents[0]?.function).toBe('record_consent');
+      expect(intents[0]?.extractedArgs.status).toBe('denied');
+    });
+
+    it('should detect record consent intent with withdrawn status', () => {
+      const functions: AIFunction[] = [
+        {
+          name: 'record_consent',
+          description: 'Record consent',
+          parameters: {
+            type: 'object',
+            properties: {},
+            required: [],
+          },
+          category: 'compliance',
+        },
+      ];
+
+      const intents = detectIntent('Consimțământ - retrag acordul', functions);
+
+      expect(intents.length).toBeGreaterThan(0);
+      expect(intents[0]?.function).toBe('record_consent');
+      expect(intents[0]?.extractedArgs.status).toBe('withdrawn');
+    });
+
+    it('should detect get lead analytics intent with week groupBy', () => {
+      const functions: AIFunction[] = [
+        {
+          name: 'get_lead_analytics',
+          description: 'Get lead analytics',
+          parameters: {
+            type: 'object',
+            properties: {},
+            required: [],
+          },
+          category: 'analytics',
+        },
+      ];
+
+      const intents = detectIntent('Raport analitice pe săptămână', functions);
+
+      expect(intents.length).toBeGreaterThan(0);
+      expect(intents[0]?.function).toBe('get_lead_analytics');
+      expect(intents[0]?.extractedArgs.groupBy).toBe('week');
+    });
+
+    it('should detect get lead analytics intent with month groupBy', () => {
+      const functions: AIFunction[] = [
+        {
+          name: 'get_lead_analytics',
+          description: 'Get lead analytics',
+          parameters: {
+            type: 'object',
+            properties: {},
+            required: [],
+          },
+          category: 'analytics',
+        },
+      ];
+
+      const intents = detectIntent('Statistici lunare', functions);
+
+      expect(intents.length).toBeGreaterThan(0);
+      expect(intents[0]?.function).toBe('get_lead_analytics');
+      expect(intents[0]?.extractedArgs.groupBy).toBe('month');
+    });
+
+    it('should detect get lead analytics intent with channel groupBy', () => {
+      const functions: AIFunction[] = [
+        {
+          name: 'get_lead_analytics',
+          description: 'Get lead analytics',
+          parameters: {
+            type: 'object',
+            properties: {},
+            required: [],
+          },
+          category: 'analytics',
+        },
+      ];
+
+      const intents = detectIntent('Analytics per canal', functions);
+
+      expect(intents.length).toBeGreaterThan(0);
+      expect(intents[0]?.function).toBe('get_lead_analytics');
+      expect(intents[0]?.extractedArgs.groupBy).toBe('channel');
+    });
+
+    it('should detect get available slots intent', () => {
+      const functions: AIFunction[] = [
+        {
+          name: 'get_available_slots',
+          description: 'Get available slots',
+          parameters: {
+            type: 'object',
+            properties: {},
+            required: [],
+          },
+          category: 'appointments',
+        },
+      ];
+
+      const intents = detectIntent('Ce sloturi disponibile sunt?', functions);
+
+      expect(intents.length).toBeGreaterThan(0);
+      expect(intents[0]?.function).toBe('get_available_slots');
+      expect(intents[0]?.extractedArgs.startDate).toBeDefined();
+      expect(intents[0]?.extractedArgs.endDate).toBeDefined();
+    });
+
+    it('should detect trigger workflow intent with journey workflow', () => {
+      const functions: AIFunction[] = [
+        {
+          name: 'trigger_workflow',
+          description: 'Trigger workflow',
+          parameters: {
+            type: 'object',
+            properties: {},
+            required: [],
+          },
+          category: 'automation',
+        },
+      ];
+
+      const intents = detectIntent('Declanșează workflow patient journey', functions);
+
+      expect(intents.length).toBeGreaterThan(0);
+      expect(intents[0]?.function).toBe('trigger_workflow');
+      expect(intents[0]?.extractedArgs.workflow).toBe('patient-journey');
+    });
+
+    it('should detect trigger workflow intent with nurture workflow', () => {
+      const functions: AIFunction[] = [
+        {
+          name: 'trigger_workflow',
+          description: 'Trigger workflow',
+          parameters: {
+            type: 'object',
+            properties: {},
+            required: [],
+          },
+          category: 'automation',
+        },
+      ];
+
+      const intents = detectIntent('Pornește proces nurture', functions);
+
+      expect(intents.length).toBeGreaterThan(0);
+      expect(intents[0]?.function).toBe('trigger_workflow');
+      expect(intents[0]?.extractedArgs.workflow).toBe('nurture-sequence');
+    });
+
+    it('should detect trigger workflow intent with booking workflow', () => {
+      const functions: AIFunction[] = [
+        {
+          name: 'trigger_workflow',
+          description: 'Trigger workflow',
+          parameters: {
+            type: 'object',
+            properties: {},
+            required: [],
+          },
+          category: 'automation',
+        },
+      ];
+
+      const intents = detectIntent('Trigger workflow booking agent', functions);
+
+      expect(intents.length).toBeGreaterThan(0);
+      expect(intents[0]?.function).toBe('trigger_workflow');
+      expect(intents[0]?.extractedArgs.workflow).toBe('booking-agent');
+    });
+
+    it('should extract email from get patient query', () => {
+      const functions: AIFunction[] = [
+        {
+          name: 'get_patient',
+          description: 'Get patient',
+          parameters: {
+            type: 'object',
+            properties: {},
+            required: [],
+          },
+          category: 'patients',
+        },
+      ];
+
+      const intents = detectIntent('Găsește pacient test@example.com', functions);
+
+      expect(intents.length).toBeGreaterThan(0);
+      expect(intents[0]?.function).toBe('get_patient');
+      expect(intents[0]?.extractedArgs.email).toBe('test@example.com');
     });
   });
 
@@ -611,11 +879,7 @@ describe('AIRouter', () => {
         },
         category: 'custom',
       };
-      registry.register(
-        testInputDef,
-        z.object({}),
-        vi.fn().mockResolvedValue({ success: true })
-      );
+      registry.register(testInputDef, z.object({}), vi.fn().mockResolvedValue({ success: true }));
 
       const request: AIRequest = {
         type: 'workflow',
