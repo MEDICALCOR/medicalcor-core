@@ -522,6 +522,50 @@ export {
 } from './crm.schema.js';
 
 // =============================================================================
+// Bulk Import Schemas (L3 Feature)
+// =============================================================================
+export {
+  // Format & Status
+  BulkImportFormatSchema,
+  BulkImportStatusSchema,
+  BulkImportErrorCodeSchema,
+  // Row schemas
+  BulkImportRowSchema,
+  BulkImportRowResultSchema,
+  // Options & Request
+  BulkImportOptionsSchema,
+  BulkImportRequestSchema,
+  // Job tracking
+  BulkImportJobSchema,
+  // Response schemas
+  BulkImportSyncResponseSchema,
+  BulkImportAsyncResponseSchema,
+  BulkImportJobStatusSchema,
+  // CSV mapping
+  CSVColumnMappingSchema,
+  // Workflow payload
+  BulkImportWorkflowPayloadSchema,
+  // Helper functions
+  normalizePhoneForComparison,
+  generateExternalContactId,
+  calculateImportProgress,
+  // Types
+  type BulkImportFormat,
+  type BulkImportStatus,
+  type BulkImportErrorCode,
+  type BulkImportRow,
+  type BulkImportRowResult,
+  type BulkImportOptions,
+  type BulkImportRequest,
+  type BulkImportJob,
+  type BulkImportSyncResponse,
+  type BulkImportAsyncResponse,
+  type BulkImportJobStatus,
+  type CSVColumnMapping,
+  type BulkImportWorkflowPayload,
+} from './bulk-import.schema.js';
+
+// =============================================================================
 // Agent Performance Schemas (M7)
 // =============================================================================
 export {
