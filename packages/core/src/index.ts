@@ -705,3 +705,73 @@ export {
   type IOpenAIClient,
   // Note: IEmbeddingService is exported from './rag/index.js' to avoid duplicate
 } from './cognitive/index.js';
+
+// =============================================================================
+// DATA LINEAGE TRACKING (M15)
+// =============================================================================
+// Comprehensive data lineage for compliance (HIPAA/GDPR) and debugging
+
+export {
+  // Schemas
+  AggregateTypeSchema,
+  TransformationTypeSchema,
+  ComplianceFrameworkSchema,
+  LegalBasisSchema,
+  DataSensitivitySchema,
+  DataSourceSchema,
+  DataQualityMetricsSchema,
+  LineageEntrySchema,
+  CreateLineageEntrySchema,
+  // Types
+  type AggregateType,
+  type TransformationType,
+  type ComplianceFramework,
+  // Note: LegalBasis type is exported from security/gdpr/index.js
+  type DataSensitivity,
+  type DataSource,
+  type DataQualityMetrics,
+  type LineageEntry,
+  type CreateLineageEntry,
+  type LineageNode,
+  type LineageEdge,
+  type LineageGraph,
+  type LineageQueryOptions,
+  type LineageQueryResult,
+  type ImpactAnalysis,
+  type ComplianceLineageReport,
+  type DebugLineageTrace,
+  type DataFlowVisualization,
+  type LineageStore,
+  type LineageServiceConfig,
+  // Constants
+  DEFAULT_LINEAGE_CONFIG,
+  // Lineage Tracker
+  LineageTracker,
+  createLineageTracker,
+  type LineageContext,
+  // Graph Builder
+  LineageGraphBuilder,
+  createLineageGraphBuilder,
+  type GraphBuildOptions,
+  // Compliance Service
+  ComplianceLineageService,
+  createComplianceLineageService,
+  type DataSubjectReport,
+  type HIPAAAuditEntry,
+  type LawfulnessAssessment,
+  // Debug Reporter
+  DebugLineageReporter,
+  createDebugLineageReporter,
+  type LineageIssue,
+  type LineageHealthCheck,
+  type InvestigationResult,
+  // Stores
+  InMemoryLineageStore,
+  PostgresLineageStore,
+  createInMemoryLineageStore,
+  createPostgresLineageStore,
+  createLineageStore,
+  // Factory
+  createDataLineageSystem,
+  type DataLineageSystem,
+} from './data-lineage/index.js';

@@ -214,3 +214,62 @@ export interface RAGQueryLogEntry {
   feedbackNotes?: string;
   createdAt?: Date;
 }
+
+// =============================================================================
+// M4: Enhanced Query Logging Types
+// =============================================================================
+
+export const QueryLogUseCaseSchema = z.enum([
+  'scoring',
+  'reply_generation',
+  'general',
+  'faq_search',
+  'protocol_search',
+]);
+export type QueryLogUseCase = z.infer<typeof QueryLogUseCaseSchema>;
+
+export const QueryLogErrorCodeSchema = z.enum([
+  'TIMEOUT',
+  'CONNECTION_ERROR',
+  'EMBEDDING_ERROR',
+  'VECTOR_ERROR',
+  'DIMENSION_MISMATCH',
+  'INDEX_ERROR',
+  'MEMORY_ERROR',
+  'RATE_LIMIT',
+  'UNKNOWN_ERROR',
+]);
+export type QueryLogErrorCode = z.infer<typeof QueryLogErrorCodeSchema>;
+
+export interface QueryPerformanceMetrics {
+  embeddingLatencyMs?: number;
+  searchLatencyMs?: number;
+  totalLatencyMs: number;
+  cacheHit?: boolean;
+}
+
+export interface QueryResultMetrics {
+  resultCount: number;
+  avgScore: number;
+  minScore: number;
+  maxScore: number;
+  hasResults: boolean;
+}
+
+export interface QueryComplexityMetrics {
+  tokenCount: number;
+  wordCount: number;
+  filterCount: number;
+  isHybridSearch: boolean;
+}
+
+export interface RAGHealthMetrics {
+  successRate: number;
+  avgLatencyMs: number;
+  p95LatencyMs: number;
+  errorRate: number;
+  zeroResultRate: number;
+  cacheHitRate: number;
+}
+
+export type RAGHealthStatus = 'healthy' | 'degraded' | 'critical';
