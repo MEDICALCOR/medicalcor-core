@@ -26,6 +26,7 @@ import { ShortcutsHelp, GlobalShortcuts } from '@/components/keyboard';
 import { QuickSearchProvider } from '@/components/quick-search';
 import { ServiceWorkerRegistration } from '@/components/pwa/service-worker-registration';
 import { I18nProvider } from '@/lib/i18n';
+import { ThemePersistenceProvider } from '@/lib/theme';
 import { PageErrorBoundary } from '@/components/error-boundary';
 import { initWebVitalsReporting } from '@/lib/vitals/web-vitals';
 
@@ -135,13 +136,18 @@ function InfrastructureProviders({
 /**
  * UI foundation providers: Theme, i18n
  *
+ * Theme persistence layer syncs user preferences to both localStorage
+ * (for immediate access) and database (for cross-device sync).
+ *
  * @param props.children - Child components
  * @internal
  */
 function UIFoundationProviders({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-      <I18nProvider>{children}</I18nProvider>
+      <ThemePersistenceProvider>
+        <I18nProvider>{children}</I18nProvider>
+      </ThemePersistenceProvider>
     </ThemeProvider>
   );
 }
