@@ -578,6 +578,23 @@ export {
   type InsertInteractionOptions,
 } from './crm.db.js';
 
+// Bulk Lead Import (L3 Feature)
+export {
+  // CSV parsing
+  parseCSV,
+  // Core import functions
+  processBulkImport,
+  // Job management
+  createBulkImportJob,
+  getBulkImportJob,
+  updateJobProgress,
+  // Service factory
+  createBulkImportService,
+  // Types
+  type BulkImportService,
+  type BulkImportContext,
+} from './bulk-import.js';
+
 // GDPR Compliance Services
 export {
   // DSR Service (Data Subject Requests - Articles 15-22)
