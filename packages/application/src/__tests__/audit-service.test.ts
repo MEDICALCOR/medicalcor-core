@@ -35,7 +35,7 @@ describe('createAuditEntry', () => {
         'user-123',
         'USER',
         'CREATE',
-        'OsaxCase',
+        'Case',
         'case-456',
         'corr-789',
         'SUCCESS'
@@ -50,7 +50,7 @@ describe('createAuditEntry', () => {
       expect(entry.principalId).toBe('user-123');
       expect(entry.principalType).toBe('USER');
       expect(entry.action).toBe('CREATE');
-      expect(entry.resourceType).toBe('OsaxCase');
+      expect(entry.resourceType).toBe('Case');
       expect(entry.resourceId).toBe('case-456');
       expect(entry.result).toBe('SUCCESS');
     });
@@ -311,7 +311,7 @@ describe('createAuditEntry', () => {
         'user-123',
         'USER',
         'READ',
-        'OsaxCase',
+        'Case',
         'case-456',
         'corr-789',
         'SUCCESS',
@@ -378,7 +378,7 @@ describe('createAuditEntry', () => {
 
     it('should add custom details', () => {
       const details = {
-        caseNumber: 'OSAX-2025-00001',
+        caseNumber: 'CASE-2025-00001',
         priority: 'HIGH',
         tags: ['urgent', 'follow-up'],
         metadata: { source: 'web-app' },
@@ -714,7 +714,7 @@ describe('createAuditEntry', () => {
         'admin-789',
         'USER',
         'BULK_OPERATION',
-        'OsaxCase',
+        'Case',
         'bulk-update-001',
         'corr-bulk-1',
         'SUCCESS',
@@ -852,7 +852,7 @@ describe('createAuditEntry', () => {
         'user-123',
         'USER',
         'CREATE',
-        'OsaxCase',
+        'Case',
         'case-456',
         'corr-789',
         'SUCCESS',
@@ -870,7 +870,7 @@ describe('createAuditEntry', () => {
       expect(parsed.principalId).toBe('user-123');
       expect(parsed.principalType).toBe('USER');
       expect(parsed.action).toBe('CREATE');
-      expect(parsed.resourceType).toBe('OsaxCase');
+      expect(parsed.resourceType).toBe('Case');
       expect(parsed.result).toBe('SUCCESS');
       expect(new Date(parsed.timestamp)).toEqual(mockDate);
       expect(parsed.principalRoles).toEqual(['DOCTOR']);

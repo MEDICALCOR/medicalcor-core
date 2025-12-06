@@ -7,4 +7,4 @@
  * @module application/ports/primary
  */
 
-export * from './OsaxCaseService.js';
+// Primary ports will be added as bounded contexts are implemented

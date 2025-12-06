@@ -34,7 +34,7 @@ export class DomainError extends Error {
   /**
    * Create a new domain error
    *
-   * @param code - Machine-readable error code (e.g., 'osax.case.not_found')
+   * @param code - Machine-readable error code (e.g., ''case.not_found')
    * @param message - Human-readable error message
    * @param details - Additional context for debugging
    * @param severity - Error severity level

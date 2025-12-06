@@ -176,7 +176,6 @@ export * from './osax/index.js';
 
 // AllOnX Context - ONE STEP ALL ON X dental implant case management
 // Full-arch rehabilitation (All-on-4, All-on-6) procedures
-// NOTE: Import directly from '@medicalcor/domain/allonx' to avoid naming conflicts with OSAX
 // Example: import { AllOnXClinicalScore, calculateScore } from '@medicalcor/domain/allonx';
 export {
   // Core Value Object

@@ -7,9 +7,6 @@
  * @module application/ports/secondary
  */
 
-// Persistence ports
-export * from './persistence/OsaxCaseRepository.js';
-
 // Messaging ports
 export * from './messaging/EventPublisher.js';
 

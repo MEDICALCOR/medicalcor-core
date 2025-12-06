@@ -317,10 +317,10 @@ describe('DomainError', () => {
     });
 
     it('should handle different resource types', () => {
-      const caseError = DomainError.notFound('OsaxCase', 'case-789');
+      const caseError = DomainError.notFound('Case', 'case-789');
 
-      expect(caseError.code).toBe('osaxcase.not_found');
-      expect(caseError.message).toBe("OsaxCase with ID 'case-789' not found");
+      expect(caseError.code).toBe('case.not_found');
+      expect(caseError.message).toBe("Case with ID 'case-789' not found");
     });
 
     it('should work without correlation ID', () => {
@@ -409,14 +409,14 @@ describe('DomainError', () => {
 
   describe('Factory Method: permissionDenied', () => {
     it('should create permission denied error', () => {
-      const error = DomainError.permissionDenied('OSAX_CASE_DELETE', 'user-456', 'corr-111');
+      const error = DomainError.permissionDenied('CASE_DELETE', 'user-456', 'corr-111');
 
       expect(error.code).toBe('security.permission_denied');
-      expect(error.message).toBe('Permission denied: OSAX_CASE_DELETE');
+      expect(error.message).toBe('Permission denied: CASE_DELETE');
       expect(error.severity).toBe(ErrorSeverity.HIGH);
       expect(error.correlationId).toBe('corr-111');
       expect(error.details).toEqual({
-        permission: 'OSAX_CASE_DELETE',
+        permission: 'CASE_DELETE',
         principalId: 'user-456',
       });
     });
@@ -495,19 +495,19 @@ describe('DomainError', () => {
 
   describe('OptimisticLockError', () => {
     it('should create optimistic lock error', () => {
-      const error = new OptimisticLockError('OsaxCase', 'case-123', 5, 6, 'corr-444');
+      const error = new OptimisticLockError('Case', 'case-123', 5, 6, 'corr-444');
 
       expect(error).toBeInstanceOf(DomainError);
       expect(error).toBeInstanceOf(Error);
       expect(error.name).toBe('OptimisticLockError');
       expect(error.code).toBe('concurrency.optimistic_lock_failed');
       expect(error.message).toBe(
-        "Optimistic lock failed for OsaxCase 'case-123': expected version 5, actual 6"
+        "Optimistic lock failed for Case 'case-123': expected version 5, actual 6"
       );
       expect(error.severity).toBe(ErrorSeverity.MEDIUM);
       expect(error.correlationId).toBe('corr-444');
       expect(error.details).toEqual({
-        resourceType: 'OsaxCase',
+        resourceType: 'Case',
         resourceId: 'case-123',
         expectedVersion: 5,
         actualVersion: 6,

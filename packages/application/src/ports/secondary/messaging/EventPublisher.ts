@@ -26,7 +26,7 @@
  *   async publish(event: DomainEvent): Promise<void> {
  *     const producer = this.kafka.producer();
  *     await producer.send({
- *       topic: `osax.${event.eventType}`,
+ *       topic: `case.${event.eventType}`,
  *       messages: [{ value: JSON.stringify(event) }]
  *     });
  *   }
@@ -85,7 +85,7 @@ export interface EventPublisher {
  * Follows CloudEvents specification patterns.
  */
 export interface DomainEvent {
-  /** Event type identifier (e.g., 'osax.case.created') */
+  /** Event type identifier (e.g., 'case.created') */
   eventType: string;
 
   /** Aggregate/Entity ID that produced the event */

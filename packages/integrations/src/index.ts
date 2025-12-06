@@ -469,7 +469,7 @@ export {
 } from './lib/index.js';
 
 // =============================================================================
-// OSAX Adapters (Hexagonal Architecture)
+// Hexagonal Architecture Adapters
 // =============================================================================
 
 export * from './adapters/index.js';

@@ -23,13 +23,3 @@ export {
   type EvaluationResult,
   type FeatureFlagErrorCode,
 } from './types.js';
-
-// OSAX feature flags
-export {
-  OSAX_FLAGS,
-  DEFAULT_OSAX_FLAGS,
-  OsaxFeatureFlags,
-  createOsaxFeatureFlags,
-  initializeOsaxFlags,
-  type OsaxFlagKey,
-} from './osax-flags.js';

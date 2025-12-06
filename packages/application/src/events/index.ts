@@ -6,4 +6,4 @@
  * @module application/events
  */
 
-export * from './osax/index.js';
+// Domain events will be added as bounded contexts are implemented

@@ -6,4 +6,4 @@
  * @module integrations/adapters
  */
 
-export * from './osax/index.js';
+// Adapters will be added as bounded contexts are implemented

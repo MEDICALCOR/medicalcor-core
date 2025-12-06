@@ -2,13 +2,13 @@
  * @fileoverview Embedding Pipeline for Clinical Data
  *
  * Infrastructure component for generating and storing embeddings
- * for OSAX clinical data, enabling semantic search capabilities.
+ * for clinical data, enabling semantic search capabilities.
  *
  * @module infrastructure/ai/EmbeddingPipeline
  */
 
 import OpenAI from 'openai';
-import { PgVectorService, type VectorSearchResult } from './vector-search/PgVectorService.js';
+import { PgVectorService } from './vector-search/PgVectorService.js';
 
 /**
  * Configuration for EmbeddingPipeline
@@ -79,7 +79,7 @@ export interface SimilarCaseFilters {
  * );
  *
  * // Process a single case
- * await pipeline.processCase(osaxCase);
+ * await pipeline.processCase(caseData);
  *
  * // Find similar cases
  * const similar = await pipeline.findSimilarCases(
