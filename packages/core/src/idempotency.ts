@@ -194,6 +194,22 @@ export const IdempotencyKeys = {
   },
 
   /**
+   * Generate key for urgent case escalation
+   * Prevents duplicate escalation for same case
+   */
+  urgentCase: (phone: string, correlationId: string): string => {
+    return createNamespacedIdempotencyKey('urgent-case', phone, correlationId);
+  },
+
+  /**
+   * Generate key for notification dispatch
+   * Prevents duplicate notifications
+   */
+  notification: (type: string, recipientId: string, correlationId: string): string => {
+    return createNamespacedIdempotencyKey('notification', type, recipientId, correlationId);
+  },
+
+  /**
    * Custom key generator for edge cases
    */
   custom: (prefix: string, ...parts: string[]): string => {

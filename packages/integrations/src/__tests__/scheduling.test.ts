@@ -1002,6 +1002,8 @@ describe('SchedulingService API methods', () => {
       }) as typeof fetch;
 
       await service.getPatientAppointments('+40712345678', {
+      await service.getPatientAppointments({
+        patientPhone: '+40712345678',
         status: 'confirmed',
         limit: 5,
       });
@@ -1211,5 +1213,386 @@ describe('Validation schemas edge cases', () => {
         expect(validHours).toContain(slot.time);
       });
     });
+  });
+});
+
+// =============================================================================
+// New MockSchedulingService Methods Tests
+// =============================================================================
+
+describe('MockSchedulingService - Extended Methods', () => {
+  let mockService: MockSchedulingService;
+
+  beforeEach(() => {
+    mockService = new MockSchedulingService();
+  });
+
+  describe('rescheduleAppointment', () => {
+    it('should reschedule existing appointment', async () => {
+      const created = await mockService.bookAppointment({
+        slotId: 'slot-original',
+        patientPhone: '+40712345678',
+        procedureType: 'consultation',
+      });
+
+      const rescheduled = await mockService.rescheduleAppointment({
+        appointmentId: created.id,
+        newSlotId: 'slot-new',
+      });
+
+      expect(rescheduled.slotId).toBe('slot-new');
+      expect(rescheduled.status).toBe('confirmed');
+      expect(rescheduled.id).toBe(created.id);
+    });
+
+    it('should update scheduledAt on reschedule', async () => {
+      const created = await mockService.bookAppointment({
+        slotId: 'slot-rs-1',
+        patientPhone: '+40712345678',
+        procedureType: 'exam',
+      });
+
+      const originalScheduledAt = created.scheduledAt;
+
+      const rescheduled = await mockService.rescheduleAppointment({
+        appointmentId: created.id,
+        newSlotId: 'slot-rs-2',
+      });
+
+      expect(rescheduled.scheduledAt).not.toBe(originalScheduledAt);
+    });
+
+    it('should update timestamp on reschedule', async () => {
+      const created = await mockService.bookAppointment({
+        slotId: 'slot-ts-1',
+        patientPhone: '+40712345678',
+        procedureType: 'exam',
+      });
+
+      const originalUpdatedAt = created.updatedAt;
+
+      // Small delay to ensure different timestamp
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      const rescheduled = await mockService.rescheduleAppointment({
+        appointmentId: created.id,
+        newSlotId: 'slot-ts-2',
+      });
+
+      expect(new Date(rescheduled.updatedAt).getTime()).toBeGreaterThanOrEqual(
+        new Date(originalUpdatedAt).getTime()
+      );
+    });
+
+    it('should throw for non-existent appointment', async () => {
+      await expect(
+        mockService.rescheduleAppointment({
+          appointmentId: 'non-existent-id',
+          newSlotId: 'slot-new',
+        })
+      ).rejects.toThrow('404: Appointment not found');
+    });
+
+    it('should preserve original appointment data', async () => {
+      const created = await mockService.bookAppointment({
+        slotId: 'slot-preserve',
+        patientPhone: '+40712345678',
+        patientName: 'Test Patient',
+        patientEmail: 'test@example.com',
+        procedureType: 'implant',
+        notes: 'Patient notes',
+      });
+
+      const rescheduled = await mockService.rescheduleAppointment({
+        appointmentId: created.id,
+        newSlotId: 'slot-new-preserve',
+      });
+
+      expect(rescheduled.patientPhone).toBe('+40712345678');
+      expect(rescheduled.patientName).toBe('Test Patient');
+      expect(rescheduled.patientEmail).toBe('test@example.com');
+      expect(rescheduled.procedureType).toBe('implant');
+      expect(rescheduled.notes).toBe('Patient notes');
+    });
+  });
+
+  describe('getPatientAppointments', () => {
+    beforeEach(async () => {
+      // Create some appointments for testing
+      await mockService.bookAppointment({
+        slotId: 'slot-p1-1',
+        patientPhone: '+40711111111',
+        procedureType: 'consultation',
+      });
+      await mockService.bookAppointment({
+        slotId: 'slot-p1-2',
+        patientPhone: '+40711111111',
+        procedureType: 'cleaning',
+      });
+      await mockService.bookAppointment({
+        slotId: 'slot-p2-1',
+        patientPhone: '+40722222222',
+        procedureType: 'implant',
+      });
+    });
+
+    it('should return appointments for patient (string query)', async () => {
+      const appointments = await mockService.getPatientAppointments('+40711111111');
+
+      expect(appointments).toHaveLength(2);
+      appointments.forEach((apt) => {
+        expect(apt.patientPhone).toBe('+40711111111');
+      });
+    });
+
+    it('should return appointments for patient (object query)', async () => {
+      const appointments = await mockService.getPatientAppointments({
+        patientPhone: '+40711111111',
+      });
+
+      expect(appointments).toHaveLength(2);
+    });
+
+    it('should return empty array for patient with no appointments', async () => {
+      const appointments = await mockService.getPatientAppointments('+40799999999');
+
+      expect(appointments).toHaveLength(0);
+    });
+
+    it('should filter by status when provided', async () => {
+      // Cancel one appointment
+      const patientAppts = await mockService.getPatientAppointments('+40711111111');
+      await mockService.cancelAppointment({ appointmentId: patientAppts[0]!.id });
+
+      // Get only confirmed
+      const confirmedOnly = await mockService.getPatientAppointments({
+        patientPhone: '+40711111111',
+        status: 'confirmed',
+      });
+
+      expect(confirmedOnly).toHaveLength(1);
+      confirmedOnly.forEach((apt) => {
+        expect(apt.status).toBe('confirmed');
+      });
+    });
+
+    it('should respect limit parameter', async () => {
+      const appointments = await mockService.getPatientAppointments({
+        patientPhone: '+40711111111',
+        limit: 1,
+      });
+
+      expect(appointments).toHaveLength(1);
+    });
+
+    it('should use default limit of 10', async () => {
+      // Create 15 appointments for one patient
+      for (let i = 0; i < 13; i++) {
+        await mockService.bookAppointment({
+          slotId: `slot-bulk-${i}`,
+          patientPhone: '+40733333333',
+          procedureType: 'consultation',
+        });
+      }
+
+      const appointments = await mockService.getPatientAppointments('+40733333333');
+
+      expect(appointments.length).toBeLessThanOrEqual(10);
+    });
+
+    it('should handle hubspotContactId in query (ignored in mock)', async () => {
+      const appointments = await mockService.getPatientAppointments({
+        patientPhone: '+40711111111',
+        hubspotContactId: 'hs_contact_123',
+      });
+
+      expect(appointments).toHaveLength(2);
+    });
+  });
+
+  describe('getSlot', () => {
+    it('should return a slot for any slotId', async () => {
+      const slot = await mockService.getSlot('any-slot-id');
+
+      expect(slot).not.toBeNull();
+      expect(slot?.id).toBe('any-slot-id');
+    });
+
+    it('should return slot with valid structure', async () => {
+      const slot = await mockService.getSlot('test-slot-123');
+
+      expect(slot).toHaveProperty('id');
+      expect(slot).toHaveProperty('date');
+      expect(slot).toHaveProperty('time');
+      expect(slot).toHaveProperty('dateTime');
+      expect(slot).toHaveProperty('duration');
+      expect(slot).toHaveProperty('available');
+      expect(slot).toHaveProperty('practitioner');
+      expect(slot).toHaveProperty('location');
+    });
+
+    it('should return slot with practitioner info', async () => {
+      const slot = await mockService.getSlot('slot-with-practitioner');
+
+      expect(slot?.practitioner).toBeDefined();
+      expect(slot?.practitioner?.id).toBeDefined();
+      expect(slot?.practitioner?.name).toBeDefined();
+      expect(slot?.practitioner?.specialty).toBeDefined();
+    });
+
+    it('should return slot with location info', async () => {
+      const slot = await mockService.getSlot('slot-with-location');
+
+      expect(slot?.location).toBeDefined();
+      expect(slot?.location?.id).toBeDefined();
+      expect(slot?.location?.name).toBeDefined();
+      expect(slot?.location?.address).toBeDefined();
+    });
+
+    it('should return slot marked as available', async () => {
+      const slot = await mockService.getSlot('available-slot');
+
+      expect(slot?.available).toBe(true);
+    });
+
+    it('should return future date for slot', async () => {
+      const slot = await mockService.getSlot('future-slot');
+      const slotDate = new Date(slot!.dateTime);
+      const now = new Date();
+
+      expect(slotDate.getTime()).toBeGreaterThan(now.getTime());
+    });
+  });
+
+  describe('isSlotAvailable', () => {
+    it('should return true for normal slot IDs', async () => {
+      const isAvailable = await mockService.isSlotAvailable('slot-123');
+
+      expect(isAvailable).toBe(true);
+    });
+
+    it('should return true for various slot ID formats', async () => {
+      expect(await mockService.isSlotAvailable('slot_abc')).toBe(true);
+      expect(await mockService.isSlotAvailable('available-slot')).toBe(true);
+      expect(await mockService.isSlotAvailable('12345')).toBe(true);
+    });
+
+    it('should return false for slot IDs starting with "unavailable"', async () => {
+      expect(await mockService.isSlotAvailable('unavailable-slot')).toBe(false);
+      expect(await mockService.isSlotAvailable('unavailable_123')).toBe(false);
+      expect(await mockService.isSlotAvailable('unavailableSlot')).toBe(false);
+    });
+
+    it('should be case-sensitive for unavailable prefix', async () => {
+      // Only lowercase "unavailable" prefix is treated as unavailable
+      expect(await mockService.isSlotAvailable('Unavailable-slot')).toBe(true);
+      expect(await mockService.isSlotAvailable('UNAVAILABLE-slot')).toBe(true);
+    });
+
+    it('should handle empty slot ID', async () => {
+      const isAvailable = await mockService.isSlotAvailable('');
+
+      expect(isAvailable).toBe(true); // Empty string doesn't start with 'unavailable'
+    });
+  });
+});
+
+// =============================================================================
+// Integration Tests for New Methods
+// =============================================================================
+
+describe('MockSchedulingService - Integration Flows', () => {
+  let mockService: MockSchedulingService;
+
+  beforeEach(() => {
+    mockService = new MockSchedulingService();
+  });
+
+  it('should support full booking flow with slot check', async () => {
+    // 1. Get available slots
+    const slots = await mockService.getAvailableSlots({
+      procedureType: 'implant',
+      limit: 3,
+    });
+    expect(slots.length).toBeGreaterThan(0);
+
+    // 2. Check if specific slot is available
+    const slotId = slots[0]!.id;
+    const isAvailable = await mockService.isSlotAvailable(slotId);
+    expect(isAvailable).toBe(true);
+
+    // 3. Book the appointment
+    const appointment = await mockService.bookAppointment({
+      slotId,
+      patientPhone: '+40712345678',
+      patientName: 'Test Patient',
+      procedureType: 'implant',
+    });
+    expect(appointment.status).toBe('confirmed');
+
+    // 4. Verify appointment appears in patient's list
+    const patientAppointments = await mockService.getPatientAppointments('+40712345678');
+    expect(patientAppointments.some((a) => a.id === appointment.id)).toBe(true);
+  });
+
+  it('should support full reschedule flow', async () => {
+    // 1. Book initial appointment
+    const original = await mockService.bookAppointment({
+      slotId: 'original-slot',
+      patientPhone: '+40712345678',
+      procedureType: 'consultation',
+    });
+
+    // 2. Get a new slot
+    const newSlot = await mockService.getSlot('new-slot-id');
+    expect(newSlot).not.toBeNull();
+
+    // 3. Check new slot availability
+    const isAvailable = await mockService.isSlotAvailable('new-slot-id');
+    expect(isAvailable).toBe(true);
+
+    // 4. Reschedule
+    const rescheduled = await mockService.rescheduleAppointment({
+      appointmentId: original.id,
+      newSlotId: 'new-slot-id',
+    });
+
+    expect(rescheduled.slotId).toBe('new-slot-id');
+    expect(rescheduled.status).toBe('confirmed');
+
+    // 5. Verify old and new are same appointment
+    const fetched = await mockService.getAppointment(original.id);
+    expect(fetched?.slotId).toBe('new-slot-id');
+  });
+
+  it('should support cancellation and retrieval flow', async () => {
+    // 1. Book appointment
+    const appointment = await mockService.bookAppointment({
+      slotId: 'cancel-flow-slot',
+      patientPhone: '+40712345678',
+      procedureType: 'exam',
+    });
+
+    // 2. Verify it appears in patient list
+    let patientAppts = await mockService.getPatientAppointments('+40712345678');
+    expect(patientAppts.some((a) => a.id === appointment.id && a.status === 'confirmed')).toBe(
+      true
+    );
+
+    // 3. Cancel it
+    await mockService.cancelAppointment({ appointmentId: appointment.id });
+
+    // 4. Verify status changed
+    patientAppts = await mockService.getPatientAppointments('+40712345678');
+    expect(patientAppts.some((a) => a.id === appointment.id && a.status === 'cancelled')).toBe(
+      true
+    );
+
+    // 5. Filter by confirmed status should not include it
+    const confirmedOnly = await mockService.getPatientAppointments({
+      patientPhone: '+40712345678',
+      status: 'confirmed',
+    });
+    expect(confirmedOnly.some((a) => a.id === appointment.id)).toBe(false);
   });
 });

@@ -118,6 +118,18 @@ export {
   type DailyRevenueResult,
 } from './stripe.js';
 
+export {
+  createNotificationsService,
+  createMockNotificationsService,
+  type NotificationsService,
+  type MockNotificationsService,
+  type NotificationPayload,
+  type NotificationChannel,
+  type NotificationPreferences,
+  type NotificationsServiceConfig,
+  type SupervisorNotification,
+} from './notifications.js';
+
 // =============================================================================
 // Client Factory (Legacy)
 // =============================================================================
