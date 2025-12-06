@@ -21,6 +21,7 @@ import {
   UserCog,
   Headphones,
   MonitorCheck,
+  Presentation,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -42,6 +43,7 @@ const navigation = [
   { name: 'Import', href: '/import', icon: Upload },
   { name: 'Utilizatori', href: '/users', icon: UserCog },
   { name: 'Setări', href: '/settings', icon: Settings },
+  { name: 'Investor Demo', href: '/investor-demo', icon: Presentation, highlight: true },
 ];
 
 // Context for sidebar state
@@ -96,6 +98,7 @@ function SidebarNav({ collapsed, onLinkClick }: { collapsed?: boolean; onLinkCli
     <nav className="flex-1 space-y-1 p-2 overflow-y-auto">
       {filteredNavigation.map((item) => {
         const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+        const isHighlighted = 'highlight' in item && item.highlight;
         return (
           <Link
             key={item.name}
@@ -105,7 +108,9 @@ function SidebarNav({ collapsed, onLinkClick }: { collapsed?: boolean; onLinkCli
               'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
               isActive
                 ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                : isHighlighted
+                  ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-blue-400 border border-blue-500/30 hover:from-blue-600/30 hover:to-purple-600/30'
+                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
             )}
           >
             <item.icon className="h-5 w-5 shrink-0" />
