@@ -280,3 +280,49 @@ export {
   type SLABreachEvent,
   type SLAReport,
 } from './supervisor.js';
+
+// =============================================================================
+// NPS (Net Promoter Score) Schemas (M11 Milestone)
+// =============================================================================
+export {
+  // Score & Classification
+  NPSScoreSchema,
+  NPSClassificationSchema,
+  NPSSurveyStatusSchema,
+  NPSTriggerTypeSchema,
+  NPSSurveyChannelSchema,
+  // Survey Request/Response
+  NPSSurveyRequestSchema,
+  NPSResponseSchema,
+  NPSSurveyRecordSchema,
+  // Workflow Payloads
+  NPSCollectionPayloadSchema,
+  NPSResponseProcessingPayloadSchema,
+  NPSFollowUpPayloadSchema,
+  // Analytics
+  NPSScoreDistributionSchema,
+  NPSSummaryStatsSchema,
+  NPSTrendPointSchema,
+  NPSDashboardDataSchema,
+  // Helper Functions
+  classifyNPSScore,
+  calculateNPS,
+  requiresImmediateFollowUp,
+  getFollowUpPriority,
+  // Types
+  type NPSScore,
+  type NPSClassification,
+  type NPSSurveyStatus,
+  type NPSTriggerType,
+  type NPSSurveyChannel,
+  type NPSSurveyRequest,
+  type NPSResponse,
+  type NPSSurveyRecord,
+  type NPSCollectionPayload,
+  type NPSResponseProcessingPayload,
+  type NPSFollowUpPayload,
+  type NPSScoreDistribution,
+  type NPSSummaryStats,
+  type NPSTrendPoint,
+  type NPSDashboardData,
+} from './nps.js';
