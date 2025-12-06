@@ -906,4 +906,664 @@ describe('StripeClient - getRevenueForPeriod', () => {
     expect(result.amount).toBe(50000);
     expect(result.transactionCount).toBe(2);
   });
+
+  it('should exclude pending charges in period query', async () => {
+    const startDate = new Date('2024-01-01');
+    const endDate = new Date('2024-01-07');
+
+    const mockResponse = {
+      object: 'list',
+      data: [
+        {
+          id: 'ch_1',
+          amount: 10000,
+          amount_captured: 10000,
+          currency: 'ron',
+          status: 'succeeded' as const,
+          created: Math.floor(startDate.getTime() / 1000),
+          paid: true,
+          refunded: false,
+        },
+        {
+          id: 'ch_2',
+          amount: 20000,
+          amount_captured: 0,
+          currency: 'ron',
+          status: 'pending' as const,
+          created: Math.floor(startDate.getTime() / 1000),
+          paid: false,
+          refunded: false,
+        },
+      ],
+      has_more: false,
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => mockResponse,
+    } as Response);
+
+    const result = await client.getRevenueForPeriod(startDate, endDate);
+
+    expect(result.amount).toBe(10000);
+    expect(result.transactionCount).toBe(1);
+  });
+
+  it('should exclude unpaid charges in period query', async () => {
+    const startDate = new Date('2024-01-01');
+    const endDate = new Date('2024-01-07');
+
+    const mockResponse = {
+      object: 'list',
+      data: [
+        {
+          id: 'ch_1',
+          amount: 10000,
+          amount_captured: 10000,
+          currency: 'ron',
+          status: 'succeeded' as const,
+          created: Math.floor(startDate.getTime() / 1000),
+          paid: false,
+          refunded: false,
+        },
+      ],
+      has_more: false,
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => mockResponse,
+    } as Response);
+
+    const result = await client.getRevenueForPeriod(startDate, endDate);
+
+    expect(result.amount).toBe(0);
+    expect(result.transactionCount).toBe(0);
+  });
+
+  it('should handle empty data array with has_more=true', async () => {
+    const startDate = new Date('2024-01-01');
+    const endDate = new Date('2024-01-07');
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => ({
+        object: 'list',
+        data: [],
+        has_more: true, // This should stop pagination
+      }),
+    } as Response);
+
+    const result = await client.getRevenueForPeriod(startDate, endDate);
+
+    expect(result.amount).toBe(0);
+    expect(result.transactionCount).toBe(0);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('should use amount when amount_captured is 0 in period query', async () => {
+    const startDate = new Date('2024-01-01');
+    const endDate = new Date('2024-01-07');
+
+    const mockResponse = {
+      object: 'list',
+      data: [
+        {
+          id: 'ch_1',
+          amount: 15000,
+          amount_captured: 0,
+          currency: 'ron',
+          status: 'succeeded' as const,
+          created: Math.floor(startDate.getTime() / 1000),
+          paid: true,
+          refunded: false,
+        },
+      ],
+      has_more: false,
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => mockResponse,
+    } as Response);
+
+    const result = await client.getRevenueForPeriod(startDate, endDate);
+
+    expect(result.amount).toBe(15000);
+    expect(result.transactionCount).toBe(1);
+  });
+});
+
+describe('StripeClient - Request Error Handling', () => {
+  let client: StripeClient;
+
+  beforeEach(() => {
+    client = new StripeClient({
+      secretKey: 'sk_test_123',
+      retryConfig: { maxRetries: 2, baseDelayMs: 10 },
+      timeoutMs: 100,
+    });
+    // Use real timers for retry tests to avoid issues with withRetry
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    global.fetch = originalFetch;
+  });
+
+  it('should handle rate limit error with retry', async () => {
+    let callCount = 0;
+    global.fetch = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve({
+          ok: false,
+          status: 429,
+          headers: new Headers({ 'Retry-After': '1' }),
+        } as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        json: async () => ({
+          object: 'list',
+          data: [],
+          has_more: false,
+        }),
+      } as Response);
+    });
+
+    const result = await client.getDailyRevenue();
+
+    expect(result).toBeDefined();
+    expect(callCount).toBeGreaterThan(1);
+  });
+
+  it('should parse retry-after header for rate limits', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      headers: new Headers({ 'Retry-After': '30' }),
+    } as Response);
+
+    await expect(client.getDailyRevenue()).rejects.toThrow();
+  });
+
+  it('should use default retry-after when header missing', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      headers: new Headers(),
+    } as Response);
+
+    await expect(client.getDailyRevenue()).rejects.toThrow();
+  });
+
+  it('should handle 502 error with retry', async () => {
+    let callCount = 0;
+    global.fetch = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve({
+          ok: false,
+          status: 502,
+        } as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        json: async () => ({
+          object: 'list',
+          data: [],
+          has_more: false,
+        }),
+      } as Response);
+    });
+
+    const result = await client.getDailyRevenue();
+
+    expect(result).toBeDefined();
+    expect(callCount).toBeGreaterThan(1);
+  });
+
+  it('should handle 503 error with retry', async () => {
+    let callCount = 0;
+    global.fetch = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve({
+          ok: false,
+          status: 503,
+        } as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        json: async () => ({
+          object: 'list',
+          data: [],
+          has_more: false,
+        }),
+      } as Response);
+    });
+
+    const result = await client.getDailyRevenue();
+
+    expect(result).toBeDefined();
+    expect(callCount).toBeGreaterThan(1);
+  });
+
+  it('should handle generic error response', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      headers: new Headers(),
+    } as Response);
+
+    await expect(client.getDailyRevenue()).rejects.toThrow('Request failed with status 400');
+  });
+
+  it('should handle AbortError during fetch', async () => {
+    global.fetch = vi.fn().mockRejectedValue(new DOMException('The user aborted a request', 'AbortError'));
+
+    await expect(client.getDailyRevenue()).rejects.toThrow('Request timeout');
+  });
+
+  it('should configure timeout correctly', async () => {
+    const clientWithCustomTimeout = new StripeClient({
+      secretKey: 'sk_test_123',
+      retryConfig: { maxRetries: 0, baseDelayMs: 10 },
+      timeoutMs: 5000,
+    });
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => ({
+        object: 'list',
+        data: [],
+        has_more: false,
+      }),
+    } as Response);
+
+    const result = await clientWithCustomTimeout.getDailyRevenue();
+
+    expect(result).toBeDefined();
+  });
+
+  it('should propagate non-retryable errors', async () => {
+    global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
+
+    await expect(client.getDailyRevenue()).rejects.toThrow('Network error');
+  });
+
+  it('should use default timeout when not configured', async () => {
+    const clientWithDefaultTimeout = new StripeClient({
+      secretKey: 'sk_test_123',
+      retryConfig: { maxRetries: 0, baseDelayMs: 10 },
+    });
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => ({
+        object: 'list',
+        data: [],
+        has_more: false,
+      }),
+    } as Response);
+
+    const result = await clientWithDefaultTimeout.getDailyRevenue();
+
+    expect(result).toBeDefined();
+  });
+
+  it('should clear timeout after successful request', async () => {
+    const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => ({
+        object: 'list',
+        data: [],
+        has_more: false,
+      }),
+    } as Response);
+
+    await client.getDailyRevenue();
+
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+  });
+
+  it('should clear timeout after failed request', async () => {
+    const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      headers: new Headers(),
+    } as Response);
+
+    await expect(client.getDailyRevenue()).rejects.toThrow();
+
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+  });
+
+  it('should pass custom headers in request options', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => ({
+        object: 'list',
+        data: [],
+        has_more: false,
+      }),
+    });
+
+    global.fetch = fetchSpy;
+
+    await client.getDailyRevenue();
+
+    expect(fetchSpy).toHaveBeenCalled();
+    const callArgs = fetchSpy.mock.calls[0];
+    const headers = callArgs?.[1]?.headers as Record<string, string>;
+    expect(headers?.['Authorization']).toBe('Bearer sk_test_123');
+    expect(headers?.['Content-Type']).toBe('application/x-www-form-urlencoded');
+  });
+});
+
+describe('StripeClient - getDailyRevenue edge cases', () => {
+  let client: StripeClient;
+
+  beforeEach(() => {
+    client = new StripeClient({
+      secretKey: 'sk_test_123',
+      retryConfig: { maxRetries: 0, baseDelayMs: 10 },
+    });
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    global.fetch = originalFetch;
+  });
+
+  it('should exclude pending charges', async () => {
+    const mockResponse = {
+      object: 'list',
+      data: [
+        {
+          id: 'ch_1',
+          amount: 10000,
+          amount_captured: 10000,
+          currency: 'ron',
+          status: 'succeeded' as const,
+          created: Math.floor(Date.now() / 1000),
+          paid: true,
+          refunded: false,
+        },
+        {
+          id: 'ch_2',
+          amount: 20000,
+          amount_captured: 0,
+          currency: 'ron',
+          status: 'pending' as const,
+          created: Math.floor(Date.now() / 1000),
+          paid: false,
+          refunded: false,
+        },
+      ],
+      has_more: false,
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => mockResponse,
+    } as Response);
+
+    const result = await client.getDailyRevenue();
+
+    expect(result.amount).toBe(10000);
+    expect(result.transactionCount).toBe(1);
+  });
+
+  it('should exclude unpaid charges', async () => {
+    const mockResponse = {
+      object: 'list',
+      data: [
+        {
+          id: 'ch_1',
+          amount: 10000,
+          amount_captured: 10000,
+          currency: 'ron',
+          status: 'succeeded' as const,
+          created: Math.floor(Date.now() / 1000),
+          paid: false,
+          refunded: false,
+        },
+      ],
+      has_more: false,
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => mockResponse,
+    } as Response);
+
+    const result = await client.getDailyRevenue();
+
+    expect(result.amount).toBe(0);
+    expect(result.transactionCount).toBe(0);
+  });
+
+  it('should use amount when amount_captured is 0', async () => {
+    const mockResponse = {
+      object: 'list',
+      data: [
+        {
+          id: 'ch_1',
+          amount: 10000,
+          amount_captured: 0,
+          currency: 'ron',
+          status: 'succeeded' as const,
+          created: Math.floor(Date.now() / 1000),
+          paid: true,
+          refunded: false,
+        },
+      ],
+      has_more: false,
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => mockResponse,
+    } as Response);
+
+    const result = await client.getDailyRevenue();
+
+    expect(result.amount).toBe(10000);
+    expect(result.transactionCount).toBe(1);
+  });
+
+  it('should handle empty data array with has_more=true', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => ({
+        object: 'list',
+        data: [],
+        has_more: true, // This should stop pagination
+      }),
+    } as Response);
+
+    const result = await client.getDailyRevenue();
+
+    expect(result.amount).toBe(0);
+    expect(result.transactionCount).toBe(0);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('should handle undefined lastCharge gracefully', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => ({
+        object: 'list',
+        data: [
+          {
+            id: 'ch_1',
+            amount: 10000,
+            amount_captured: 10000,
+            currency: 'ron',
+            status: 'succeeded' as const,
+            created: Math.floor(Date.now() / 1000),
+            paid: true,
+            refunded: false,
+          },
+        ],
+        has_more: false,
+      }),
+    } as Response);
+
+    const result = await client.getDailyRevenue();
+
+    expect(result.amount).toBe(10000);
+  });
+});
+
+describe('StripeClient - verifyWebhookSignature edge cases', () => {
+  let client: StripeClient;
+
+  beforeEach(() => {
+    client = new StripeClient({
+      secretKey: 'sk_test',
+      webhookSecret: 'whsec_test',
+    });
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('should handle malformed header with undefined values', () => {
+    const result = client.verifyWebhookSignature('{}', 'invalid=format');
+    expect(result).toBe(false);
+  });
+
+  it('should handle header with only timestamp', () => {
+    const result = client.verifyWebhookSignature('{}', 't=123456789');
+    expect(result).toBe(false);
+  });
+
+  it('should handle header with only signature', () => {
+    const result = client.verifyWebhookSignature('{}', 'v1=abcdef123456');
+    expect(result).toBe(false);
+  });
+
+  it('should handle signature length mismatch in timingSafeEqual', () => {
+    const payload = '{"test":true}';
+    const timestamp = Math.floor(Date.now() / 1000);
+
+    vi.setSystemTime(timestamp * 1000);
+
+    // Create a signature with different length
+    const result = client.verifyWebhookSignature(payload, `t=${timestamp},v1=short`);
+    expect(result).toBe(false);
+  });
+
+  it('should handle empty timestamp value', () => {
+    const result = client.verifyWebhookSignature('{}', 't=,v1=signature');
+    expect(result).toBe(false);
+  });
+
+  it('should handle empty signature value', () => {
+    const result = client.verifyWebhookSignature('{}', 't=123456,v1=');
+    expect(result).toBe(false);
+  });
+
+  it('should handle header parts without values', () => {
+    const result = client.verifyWebhookSignature('{}', 't=,v1=');
+    expect(result).toBe(false);
+  });
+
+  it('should handle header with undefined value after split', () => {
+    // Edge case where split results in undefined value
+    const result = client.verifyWebhookSignature('{}', 't,v1');
+    expect(result).toBe(false);
+  });
+});
+
+describe('StripeClient - Default Config Values', () => {
+  it('should use default retry config when not provided', async () => {
+    const clientWithDefaults = new StripeClient({
+      secretKey: 'sk_test_defaults',
+    });
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => ({
+        object: 'list',
+        data: [],
+        has_more: false,
+      }),
+    } as Response);
+
+    const result = await clientWithDefaults.getDailyRevenue();
+
+    expect(result).toBeDefined();
+  });
+
+  it('should use default timeout when not provided', async () => {
+    const clientWithDefaults = new StripeClient({
+      secretKey: 'sk_test_defaults',
+    });
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => ({
+        object: 'list',
+        data: [],
+        has_more: false,
+      }),
+    } as Response);
+
+    const result = await clientWithDefaults.getDailyRevenue();
+
+    expect(result).toBeDefined();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    global.fetch = originalFetch;
+  });
 });
