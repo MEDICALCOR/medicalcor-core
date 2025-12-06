@@ -716,6 +716,9 @@ describe('Result Type', () => {
       const invalidAge = createUser('123', 'test@example.com', 200);
       expect(isErr(invalidAge)).toBe(true);
     });
+  });
+});
+
 describe('Ok', () => {
   it('should create Ok result with value', () => {
     const result = Ok(42);

@@ -844,9 +844,8 @@ describe('WhatsApp Message Parsing - Extended', () => {
     expect(service.parseConsentFromMessage('Refuz sa primesc')?.granted).toBe(false);
   });
 
-  // TODO: Known limitation - "nu sunt de acord" currently matches "sunt de acord" first
-  // This should be fixed by reordering patterns or using negative lookahead
-  it.skip('should detect "nu sunt de acord" (Romanian)', () => {
+  // Fixed: Uses negative lookbehind + pattern reordering to handle "nu sunt de acord"
+  it('should detect "nu sunt de acord" (Romanian)', () => {
     expect(service.parseConsentFromMessage('nu sunt de acord')?.granted).toBe(false);
     expect(service.parseConsentFromMessage('Nu sunt de acord')?.granted).toBe(false);
   });
