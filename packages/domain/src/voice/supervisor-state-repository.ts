@@ -115,12 +115,13 @@ export class PostgresSupervisorStateRepository implements ISupervisorStateReposi
     await this.pool.query(
       `INSERT INTO supervisor_monitored_calls (
         call_sid, clinic_id, phone_number, lead_id, contact_name,
-        state, direction, assistant_id, agent_id,
+        state, direction, duration, assistant_id, agent_id,
         started_at, answered_at, hold_started_at,
         sentiment, ai_score, flags, recent_transcript, metadata
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       ON CONFLICT (call_sid) DO UPDATE SET
         state = EXCLUDED.state,
+        duration = EXCLUDED.duration,
         assistant_id = EXCLUDED.assistant_id,
         agent_id = EXCLUDED.agent_id,
         answered_at = EXCLUDED.answered_at,
@@ -134,11 +135,12 @@ export class PostgresSupervisorStateRepository implements ISupervisorStateReposi
       [
         call.callSid,
         clinicId,
-        call.phoneNumber ?? null,
+        call.phoneNumber ?? call.customerPhone ?? null,
         call.leadId ?? null,
         call.contactName ?? null,
         call.state,
         call.direction,
+        call.duration ?? 0,
         call.assistantId ?? null,
         call.agentId ?? null,
         call.startedAt,
@@ -346,7 +348,7 @@ export class PostgresSupervisorStateRepository implements ISupervisorStateReposi
         note.callSid,
         note.supervisorId,
         note.supervisorName ?? null,
-        note.content,
+        note.content ?? note.note,
         note.isPrivate ?? false,
         note.timestamp,
       ]
@@ -448,12 +450,19 @@ export class PostgresSupervisorStateRepository implements ISupervisorStateReposi
     return {
       activeCalls: calls.length,
       callsInQueue: calls.filter((c) => c.state === 'ringing').length,
+      averageWaitTime: 0, // Would need historical calculation
+      agentsAvailable: 0, // Would need agent status tracking
+      agentsBusy: 0,
+      agentsOnBreak: 0,
+      agentsOffline: 0,
+      aiHandledCalls: calls.filter((c) => c.assistantId && !c.agentId).length,
+      aiHandoffRate: 0,
+      averageAiConfidence: 0,
       activeAlerts: activeEscalations.length + aiHandoffs.length + callsWithFlags.length,
       escalationsToday: escalationsToday.length,
       handoffsToday,
-      aiHandledCalls: calls.filter((c) => c.assistantId && !c.agentId).length,
-      avgHandleTime: 0, // Would need historical calculation
-      avgWaitTime: 0, // Would need historical calculation
+      callsHandledToday: 0, // Would need historical calculation
+      averageHandleTime: 0, // Would need historical calculation
       serviceLevelPercent: 100, // Would need SLA configuration
       abandonedCalls: 0, // Would need tracking of abandoned calls
       lastUpdated: new Date(),
@@ -492,13 +501,21 @@ export class PostgresSupervisorStateRepository implements ISupervisorStateReposi
       ? JSON.parse(transcript)
       : transcript ?? [];
 
+    // Get flags and ensure they match the expected enum values
+    const rawFlags = (row.flags as string[]) ?? [];
+    const validFlags = rawFlags.filter((f): f is MonitoredCall['flags'][number] =>
+      ['escalation-requested', 'high-value-lead', 'complaint', 'long-hold', 'silence-detected', 'ai-handoff-needed'].includes(f)
+    );
+
     return {
       callSid: row.call_sid as string,
+      customerPhone: (row.phone_number ?? row.customer_phone ?? '') as string,
       phoneNumber: row.phone_number as string | undefined,
       leadId: row.lead_id as string | undefined,
       contactName: row.contact_name as string | undefined,
       state: row.state as MonitoredCall['state'],
       direction: row.direction as MonitoredCall['direction'],
+      duration: (row.duration as number) ?? 0,
       assistantId: row.assistant_id as string | undefined,
       agentId: row.agent_id as string | undefined,
       startedAt: new Date(row.started_at as string),
@@ -506,7 +523,7 @@ export class PostgresSupervisorStateRepository implements ISupervisorStateReposi
       holdStartedAt: row.hold_started_at ? new Date(row.hold_started_at as string) : undefined,
       sentiment: row.sentiment as MonitoredCall['sentiment'],
       aiScore: row.ai_score as number | undefined,
-      flags: (row.flags as string[]) ?? [],
+      flags: validFlags,
       recentTranscript: parsedTranscript,
       metadata: row.metadata as Record<string, unknown> | undefined,
     };
@@ -532,7 +549,8 @@ export class PostgresSupervisorStateRepository implements ISupervisorStateReposi
       callSid: row.call_sid as string,
       supervisorId: row.supervisor_id as string,
       supervisorName: row.supervisor_name as string | undefined,
-      content: row.content as string,
+      note: row.content as string,
+      content: row.content as string | undefined,
       isPrivate: row.is_private as boolean,
       timestamp: new Date(row.timestamp as string),
     };

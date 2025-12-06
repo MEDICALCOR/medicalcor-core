@@ -55,14 +55,23 @@ export const MonitoredCallSchema = z.object({
 
   // Call participants
   customerPhone: E164PhoneSchema,
+  phoneNumber: z.string().optional(), // Alias for customerPhone in persistence
   agentId: z.string().optional(),
   agentName: z.string().optional(),
+
+  // Lead/contact info (for CRM integration)
+  leadId: z.string().optional(),
+  contactName: z.string().optional(),
 
   // Call state
   state: MonitoredCallStateSchema,
   direction: z.enum(['inbound', 'outbound']),
   startedAt: TimestampSchema,
   duration: z.number().default(0),
+
+  // Call timing
+  answeredAt: TimestampSchema.optional(),
+  holdStartedAt: TimestampSchema.optional(),
 
   // AI assistant info
   vapiCallId: z.string().optional(),
@@ -71,6 +80,7 @@ export const MonitoredCallSchema = z.object({
   // Real-time metrics
   sentiment: z.enum(['positive', 'neutral', 'negative']).optional(),
   urgencyLevel: z.enum(['low', 'medium', 'high', 'critical']).optional(),
+  aiScore: z.number().min(0).max(100).optional(),
 
   // Flags for supervisor attention
   flags: z
@@ -96,6 +106,9 @@ export const MonitoredCallSchema = z.object({
       })
     )
     .default([]),
+
+  // Additional metadata
+  metadata: z.record(z.unknown()).optional(),
 });
 
 // =============================================================================
@@ -192,6 +205,10 @@ export const HandoffRequestSchema = z.object({
   ]),
   targetAgentId: z.string().optional(),
   notes: z.string().max(500).optional(),
+  // Extended fields for handoff management
+  priority: z.enum(['low', 'normal', 'high', 'urgent']).optional(),
+  skillRequired: z.string().optional(),
+  context: z.record(z.unknown()).optional(),
 });
 
 /**
@@ -200,7 +217,9 @@ export const HandoffRequestSchema = z.object({
 export const SupervisorNoteSchema = z.object({
   callSid: z.string(),
   supervisorId: z.string(),
+  supervisorName: z.string().optional(),
   note: z.string().max(1000),
+  content: z.string().max(1000).optional(), // Alias for note
   timestamp: TimestampSchema,
   isPrivate: z.boolean().default(true),
 });
@@ -426,10 +445,12 @@ export const SupervisorDashboardStatsSchema = z.object({
   // Performance (today)
   callsHandledToday: z.number().default(0),
   averageHandleTime: z.number().default(0),
+  serviceLevelPercent: z.number().min(0).max(100).default(100),
+  abandonedCalls: z.number().default(0),
   customerSatisfaction: z.number().min(0).max(100).optional(),
 
   // Timestamp
-  lastUpdated: TimestampSchema,
+  lastUpdated: TimestampSchema.optional(),
 });
 
 // =============================================================================

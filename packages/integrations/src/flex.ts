@@ -785,6 +785,8 @@ export class FlexClient {
 
       callsHandledToday: 0,
       averageHandleTime: 0,
+      serviceLevelPercent: 100,
+      abandonedCalls: 0,
       customerSatisfaction: undefined,
 
       lastUpdated: new Date(),
