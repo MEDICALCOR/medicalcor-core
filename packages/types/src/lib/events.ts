@@ -696,7 +696,7 @@ export function projection<TState>(initialState: TState): ProjectionBuilder<TSta
  */
 export function matchEvent<R>(
   event: DomainEventUnion,
-  handlers: PartialEventHandlerMap & { _?: () => R }
+  handlers: { [E in DomainEventUnion as E['type']]?: (event: E) => R } & { _?: () => R }
 ): R | undefined {
   const handler = handlers[event.type as keyof typeof handlers];
   if (handler) {
