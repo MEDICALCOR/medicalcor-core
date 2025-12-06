@@ -193,6 +193,9 @@ export * from './language/index.js';
 // Voice AI & Supervisor (W3 Milestone)
 export * from './voice/index.js';
 
+// Cases - Treatment Plans to Payments (H1 Production Fix)
+export * from './cases/index.js';
+
 // ============================================================================
 // SHARED TYPES & UTILITIES
 // ============================================================================

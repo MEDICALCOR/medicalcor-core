@@ -13,3 +13,12 @@ export {
   type SupervisorAgentConfig,
   type SupervisorAgentEvents,
 } from './supervisor-agent.js';
+
+// State Persistence Repository (H3 Production Fix)
+export {
+  PostgresSupervisorStateRepository,
+  createSupervisorStateRepository,
+  type ISupervisorStateRepository,
+  type EscalationHistoryEntry,
+  type HandoffHistoryEntry,
+} from './supervisor-state-repository.js';
