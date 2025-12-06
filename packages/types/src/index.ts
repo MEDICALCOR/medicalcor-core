@@ -529,3 +529,44 @@ export {
   type AgentPerformanceTimeRange,
   type GetAgentPerformanceRequest,
 } from './agent-performance.schema.js';
+
+// =============================================================================
+// Retention Scoring Schemas (M8)
+// =============================================================================
+export {
+  // Risk & Priority Levels (ChurnRiskLevel uses ChurnRisk values, FollowUpPriority already exported from hubspot)
+  ChurnRiskLevelSchema,
+  RetentionClassificationSchema,
+  // Input Metrics
+  RetentionMetricsInputSchema,
+  ExtendedRetentionMetricsSchema,
+  // Score Output
+  RetentionScoreResultSchema,
+  RetentionScoreBreakdownSchema,
+  RetentionScoringOutputSchema,
+  // Patient Context
+  PatientRetentionContextSchema,
+  // Request/Response
+  ScorePatientRetentionRequestSchema,
+  BatchRetentionScoringRequestSchema,
+  RetentionScoringResponseSchema,
+  BatchRetentionScoringResultSchema,
+  // Events
+  ChurnRiskDetectedEventSchema,
+  BatchScoringCompletedEventSchema,
+  // Types (ChurnRiskLevel = ChurnRisk, FollowUpPriority is already exported from hubspot)
+  type ChurnRiskLevel,
+  type RetentionClassification,
+  type RetentionMetricsInput,
+  type ExtendedRetentionMetrics,
+  type RetentionScoreResult,
+  type RetentionScoreBreakdown,
+  type RetentionScoringOutput,
+  type PatientRetentionContext,
+  type ScorePatientRetentionRequest,
+  type BatchRetentionScoringRequest,
+  type RetentionScoringResponse,
+  type BatchRetentionScoringResult,
+  type ChurnRiskDetectedEvent as RetentionChurnRiskDetectedEvent,
+  type BatchScoringCompletedEvent,
+} from './schemas/retention.js';

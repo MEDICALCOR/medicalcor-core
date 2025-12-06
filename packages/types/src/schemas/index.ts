@@ -280,3 +280,46 @@ export {
   type SLABreachEvent,
   type SLAReport,
 } from './supervisor.js';
+
+// =============================================================================
+// Retention Scoring Schemas (M8 Milestone)
+// =============================================================================
+export {
+  // Risk & Priority Levels
+  ChurnRiskLevelSchema,
+  FollowUpPrioritySchema,
+  RetentionClassificationSchema,
+  // Input Metrics
+  RetentionMetricsInputSchema,
+  ExtendedRetentionMetricsSchema,
+  // Score Output
+  RetentionScoreResultSchema,
+  RetentionScoreBreakdownSchema,
+  RetentionScoringOutputSchema,
+  // Patient Context
+  PatientRetentionContextSchema,
+  // Request/Response
+  ScorePatientRetentionRequestSchema,
+  BatchRetentionScoringRequestSchema,
+  RetentionScoringResponseSchema,
+  BatchRetentionScoringResultSchema,
+  // Events
+  ChurnRiskDetectedEventSchema,
+  BatchScoringCompletedEventSchema,
+  // Types
+  type ChurnRiskLevel,
+  type FollowUpPriority,
+  type RetentionClassification,
+  type RetentionMetricsInput,
+  type ExtendedRetentionMetrics,
+  type RetentionScoreResult,
+  type RetentionScoreBreakdown,
+  type RetentionScoringOutput,
+  type PatientRetentionContext,
+  type ScorePatientRetentionRequest,
+  type BatchRetentionScoringRequest,
+  type RetentionScoringResponse,
+  type BatchRetentionScoringResult,
+  type ChurnRiskDetectedEvent,
+  type BatchScoringCompletedEvent,
+} from './retention.js';

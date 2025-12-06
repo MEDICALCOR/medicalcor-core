@@ -230,6 +230,9 @@ export * from './disposition/index.js';
 // Agent Performance (M7 Milestone)
 export * from './agent-performance/index.js';
 
+// Retention Scoring (M8 Milestone)
+export * from './retention/index.js';
+
 // ============================================================================
 // SHARED TYPES & UTILITIES
 // ============================================================================
