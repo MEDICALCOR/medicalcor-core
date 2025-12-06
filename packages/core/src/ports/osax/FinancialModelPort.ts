@@ -12,9 +12,7 @@
  * - Domain services depend on this port, not concrete implementations
  */
 
-import type {
-  FinancialPrediction,
-} from '@medicalcor/domain/osax/value-objects/FinancialPrediction.js';
+import type { FinancialPrediction } from '@medicalcor/domain/osax';
 
 // ============================================================================
 // PORT INTERFACE
@@ -236,7 +234,7 @@ export class FinancialPredictionError extends Error {
   constructor(
     code: FinancialPredictionErrorCode,
     message: string,
-    retryable: boolean = false,
+    retryable = false,
     details?: Record<string, unknown>
   ) {
     super(message);
@@ -270,6 +268,7 @@ export function isFinancialModelPort(value: unknown): value is FinancialModelPor
     typeof value === 'object' &&
     value !== null &&
     'portName' in value &&
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     (value as FinancialModelPort).portName === 'financial-model' &&
     'predict' in value &&
     typeof (value as FinancialModelPort).predict === 'function'

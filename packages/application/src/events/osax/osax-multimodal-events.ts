@@ -18,9 +18,9 @@
 import type {
   ImagingModality,
   RiskClass,
-} from '@medicalcor/domain/osax/value-objects/ImagingFindings.js';
-import type { ProbabilityTier } from '@medicalcor/domain/osax/value-objects/FinancialPrediction.js';
-import type { ResourceType } from '@medicalcor/domain/osax/entities/ResourceBlock.js';
+  ProbabilityTier,
+  ResourceType,
+} from '@medicalcor/domain/osax';
 
 // ============================================================================
 // EVENT METADATA (Shared with existing events)

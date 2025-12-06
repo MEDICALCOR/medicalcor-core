@@ -22,11 +22,8 @@ import type {
   FinancialModelHealth,
   FinancialModelInfo,
   CaseType,
-} from '../../../ports/osax/FinancialModelPort.js';
-import {
-  FinancialPrediction,
-  type PredictionFactor,
-} from '@medicalcor/domain/osax/value-objects/FinancialPrediction.js';
+} from '@medicalcor/core/ports/osax/FinancialModelPort.js';
+import { FinancialPrediction, type PredictionFactor } from '@medicalcor/domain/osax';
 
 // ============================================================================
 // CONSTANTS
@@ -38,11 +35,11 @@ import {
 const RULE_WEIGHTS = {
   baselineProbability: 0.5,
   hasInsurance: 0.15,
-  insurancePremium: 0.10,
+  insurancePremium: 0.1,
   insuranceStandard: 0.05,
   lowComplexity: 0.05,
-  highComplexity: -0.10,
-  highEngagement: 0.10,
+  highComplexity: -0.1,
+  highEngagement: 0.1,
   moderateEngagement: 0.05,
   clinicHighConversion: 0.08,
 } as const;
@@ -116,7 +113,7 @@ export class RuleBasedFinancialPredictor implements FinancialModelPort {
   /**
    * Predict case acceptance probability using rule-based calculation
    */
-  public async predict(input: FinancialPredictionInput): Promise<FinancialPrediction> {
+  public predict(input: FinancialPredictionInput): Promise<FinancialPrediction> {
     // Calculate probability and collect factors
     const { probability, factors, rationale } = this.calculateProbability(input);
 
@@ -124,29 +121,31 @@ export class RuleBasedFinancialPredictor implements FinancialModelPort {
     const valueRange = this.calculateValueRange(input);
 
     // Create and return prediction
-    return FinancialPrediction.create({
-      probability,
-      confidence: 0.75, // Rule-based has moderate-high confidence
-      rationale,
-      factors,
-      estimatedValueRange: {
-        min: valueRange.min,
-        max: valueRange.max,
-        currency: this.currency,
-      },
-      modelVersion: 'rule-based-v1.0.0',
-    });
+    return Promise.resolve(
+      FinancialPrediction.create({
+        probability,
+        confidence: 0.75, // Rule-based has moderate-high confidence
+        rationale,
+        factors,
+        estimatedValueRange: {
+          min: valueRange.min,
+          max: valueRange.max,
+          currency: this.currency,
+        },
+        modelVersion: 'rule-based-v1.0.0',
+      })
+    );
   }
 
   /**
    * Health check
    */
-  public async healthCheck(): Promise<FinancialModelHealth> {
-    return {
+  public healthCheck(): Promise<FinancialModelHealth> {
+    return Promise.resolve({
       available: true,
       latencyMs: 1, // Rule-based is very fast
       modelVersion: 'rule-based-v1.0.0',
-    };
+    });
   }
 
   /**
@@ -184,7 +183,7 @@ export class RuleBasedFinancialPredictor implements FinancialModelPort {
   } {
     const weights = { ...RULE_WEIGHTS, ...this.customWeights };
     const factors: PredictionFactor[] = [];
-    let probability = weights.baselineProbability;
+    let probability: number = weights.baselineProbability;
     const reasons: string[] = [];
 
     // Factor: Insurance coverage

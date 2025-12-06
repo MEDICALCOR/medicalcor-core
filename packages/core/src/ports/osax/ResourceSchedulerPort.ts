@@ -12,10 +12,7 @@
  * - Domain services depend on this port, not concrete implementations
  */
 
-import type {
-  ResourceBlock,
-  ResourceType,
-} from '@medicalcor/domain/osax/entities/ResourceBlock.js';
+import type { ResourceBlock, ResourceType } from '@medicalcor/domain/osax';
 
 // ============================================================================
 // PORT INTERFACE
@@ -91,10 +88,7 @@ export interface ResourceSchedulerPort {
    *
    * TODO: Add OpenTelemetry span: osax.resources.confirm
    */
-  confirmResources(
-    blockIds: string[],
-    scheduledStart: Date
-  ): Promise<ResourceBlock[]>;
+  confirmResources(blockIds: string[], scheduledStart: Date): Promise<ResourceBlock[]>;
 
   /**
    * Release soft-held or confirmed resources
@@ -107,10 +101,7 @@ export interface ResourceSchedulerPort {
    *
    * TODO: Add OpenTelemetry span: osax.resources.release
    */
-  releaseResources(
-    blockIds: string[],
-    reason?: string
-  ): Promise<void>;
+  releaseResources(blockIds: string[], reason?: string): Promise<void>;
 
   /**
    * Check resource availability for a date range
@@ -119,10 +110,7 @@ export interface ResourceSchedulerPort {
    * @param dateRange - Date range to check availability
    * @returns Availability result with conflicts and suggestions
    */
-  checkAvailability(
-    resources: ResourceType[],
-    dateRange: DateRange
-  ): Promise<AvailabilityResult>;
+  checkAvailability(resources: ResourceType[], dateRange: DateRange): Promise<AvailabilityResult>;
 
   /**
    * Get active blocks for a case
@@ -310,7 +298,7 @@ export class SchedulingError extends Error {
   constructor(
     code: SchedulingErrorCode,
     message: string,
-    retryable: boolean = false,
+    retryable = false,
     conflicts?: ResourceConflict[]
   ) {
     super(message);
@@ -363,6 +351,7 @@ export function isResourceSchedulerPort(value: unknown): value is ResourceSchedu
     typeof value === 'object' &&
     value !== null &&
     'portName' in value &&
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     (value as ResourceSchedulerPort).portName === 'resource-scheduler' &&
     'softHoldResources' in value &&
     typeof (value as ResourceSchedulerPort).softHoldResources === 'function'

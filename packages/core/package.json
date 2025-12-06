@@ -40,6 +40,22 @@
     "./distributed-rate-limiter": {
       "types": "./dist/distributed-rate-limiter.d.ts",
       "import": "./dist/distributed-rate-limiter.js"
+    },
+    "./ports/osax/ImagingModelPort.js": {
+      "types": "./dist/ports/osax/ImagingModelPort.d.ts",
+      "import": "./dist/ports/osax/ImagingModelPort.js"
+    },
+    "./ports/osax/FinancialModelPort.js": {
+      "types": "./dist/ports/osax/FinancialModelPort.d.ts",
+      "import": "./dist/ports/osax/FinancialModelPort.js"
+    },
+    "./ports/osax/ResourceSchedulerPort.js": {
+      "types": "./dist/ports/osax/ResourceSchedulerPort.d.ts",
+      "import": "./dist/ports/osax/ResourceSchedulerPort.js"
+    },
+    "./ports/osax/StoragePort.js": {
+      "types": "./dist/ports/osax/StoragePort.d.ts",
+      "import": "./dist/ports/osax/StoragePort.js"
     }
   },
   "main": "./dist/index.js",

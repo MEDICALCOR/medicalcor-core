@@ -48,6 +48,31 @@ export {
   type OsaxSubjectDemographics,
   type OsaxSubjectIdDTO,
   type OsaxSubjectIdParseResult,
+
+  // ImagingFindings (v3.2 Multimodal)
+  ImagingFindings,
+  InvalidImagingFindingsError,
+  isImagingFindings,
+  type ImagingModality,
+  type FindingType,
+  type RiskClass,
+  type BoundingBox,
+  type RegionFinding,
+  type CreateImagingFindingsInput,
+  type ImagingFindingsDTO,
+  type InvalidImagingFindingsErrorDetails,
+
+  // FinancialPrediction (v3.2 Multimodal)
+  FinancialPrediction,
+  InvalidFinancialPredictionError,
+  isFinancialPrediction,
+  type ProbabilityTier,
+  type FactorContribution,
+  type PredictionFactor,
+  type EstimatedValueRange,
+  type CreateFinancialPredictionInput,
+  type FinancialPredictionDTO,
+  type InvalidFinancialPredictionErrorDetails,
 } from './value-objects/index.js';
 
 // ============================================================================
@@ -82,6 +107,17 @@ export {
   isReadyForTreatment,
   calculateCaseProgress,
   getCaseSeveritySummary,
+
+  // ResourceBlock (v3.2 Multimodal)
+  ResourceBlock,
+  InvalidResourceBlockError,
+  InvalidResourceBlockTransitionError,
+  isResourceBlock,
+  type ResourceType,
+  type ResourceBlockStatus,
+  type CreateResourceBlockInput,
+  type ResourceBlockDTO,
+  type InvalidResourceBlockErrorDetails,
 } from './entities/index.js';
 
 // ============================================================================

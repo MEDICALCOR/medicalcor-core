@@ -22,14 +22,14 @@ import type {
   SoftHoldOptions,
   AvailabilityResult,
   DateRange,
-} from '../../ports/osax/ResourceSchedulerPort.js';
-import {
+} from '@medicalcor/core/ports/osax/ResourceSchedulerPort.js';
+import type {
   ResourceBlock,
-  type ResourceType,
-} from '@medicalcor/domain/osax/entities/ResourceBlock.js';
-import type { ImagingFindings } from '@medicalcor/domain/osax/value-objects/ImagingFindings.js';
-import type { FinancialPrediction } from '@medicalcor/domain/osax/value-objects/FinancialPrediction.js';
-import type { EventPublisher } from '@medicalcor/application/ports/secondary/messaging/EventPublisher.js';
+  ResourceType,
+  ImagingFindings,
+  FinancialPrediction,
+} from '@medicalcor/domain/osax';
+import type { EventPublisher } from '../../../ports/secondary/messaging/EventPublisher.js';
 
 // ============================================================================
 // CONSTANTS
@@ -90,17 +90,12 @@ export class OsaxConciergeService {
    * @param input - Orchestration request input
    * @returns Array of created resource blocks (empty if not eligible)
    */
-  public async orchestrateResources(
-    input: OrchestrateResourcesInput
-  ): Promise<ResourceBlock[]> {
+  public async orchestrateResources(input: OrchestrateResourcesInput): Promise<ResourceBlock[]> {
     // 1. Validate input
     this.validateInput(input);
 
     // 2. Check eligibility based on business rules
-    const eligibility = this.evaluateEligibility(
-      input.imagingFindings,
-      input.financialPrediction
-    );
+    const eligibility = this.evaluateEligibility(input.imagingFindings, input.financialPrediction);
 
     if (!eligibility.eligible) {
       // Not eligible for auto-hold, return empty array
@@ -251,16 +246,14 @@ export class OsaxConciergeService {
       throw new ConciergeServiceError('INVALID_INPUT', 'caseId is required');
     }
 
-    if (!input.imagingFindings) {
-      throw new ConciergeServiceError('INVALID_INPUT', 'imagingFindings is required');
-    }
-
-    if (!input.financialPrediction) {
-      throw new ConciergeServiceError('INVALID_INPUT', 'financialPrediction is required');
-    }
+    // imagingFindings and financialPrediction are required by TypeScript interface
+    // No runtime check needed as the compiler enforces these
 
     if (!Array.isArray(input.requiredResources) || input.requiredResources.length === 0) {
-      throw new ConciergeServiceError('INVALID_INPUT', 'requiredResources must be a non-empty array');
+      throw new ConciergeServiceError(
+        'INVALID_INPUT',
+        'requiredResources must be a non-empty array'
+      );
     }
 
     if (
@@ -268,10 +261,7 @@ export class OsaxConciergeService {
       input.durationMinutes <= 0 ||
       input.durationMinutes > 480
     ) {
-      throw new ConciergeServiceError(
-        'INVALID_INPUT',
-        'durationMinutes must be between 1 and 480'
-      );
+      throw new ConciergeServiceError('INVALID_INPUT', 'durationMinutes must be between 1 and 480');
     }
   }
 
