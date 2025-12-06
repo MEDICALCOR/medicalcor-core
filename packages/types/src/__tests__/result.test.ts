@@ -837,7 +837,7 @@ describe('Do Notation', () => {
     it('should short-circuit on Err', () => {
       const result = Do.result
         .bind('a', Ok(10))
-        .bind('b', () => Err('failed'))
+        .bind('b', (): Result<number, string> => Err('failed'))
         .bind('c', ({ a }) => Ok(a * 3))
         .map(({ a, b, c }) => a + b + c);
 
@@ -861,7 +861,7 @@ describe('Do Notation', () => {
     it('should short-circuit on None', () => {
       const result = Do.option
         .bind('a', Some(10))
-        .bind('b', () => None)
+        .bind('b', (): Option<number> => None)
         .map(({ a, b }) => a + b);
 
       expect(isNone(result)).toBe(true);
@@ -1108,12 +1108,20 @@ describe('Result Operations - Extended', () => {
 
   describe('zipWith edge cases', () => {
     it('should return first Err', () => {
-      const result = R.zipWith(Err('first error'), Ok(2), (a, b) => a + b);
+      const result = R.zipWith(
+        Err('first error') as Result<number, string>,
+        Ok(2),
+        (a, b) => a + b
+      );
       expect(isErr(result)).toBe(true);
     });
 
     it('should return second Err if first is Ok', () => {
-      const result = R.zipWith(Ok(1), Err('second error'), (a, b) => a + b);
+      const result = R.zipWith(
+        Ok(1),
+        Err('second error') as Result<number, string>,
+        (a, b) => a + b
+      );
       expect(isErr(result)).toBe(true);
     });
   });
@@ -1290,8 +1298,8 @@ describe('Option Operations - Extended', () => {
     });
 
     it('should return None if any is None', () => {
-      expect(isNone(O.zipWith(None, Some(3), (a, b) => a + b))).toBe(true);
-      expect(isNone(O.zipWith(Some(2), None, (a, b) => a + b))).toBe(true);
+      expect(isNone(O.zipWith(None as Option<number>, Some(3), (a, b) => a + b))).toBe(true);
+      expect(isNone(O.zipWith(Some(2), None as Option<number>, (a, b) => a + b))).toBe(true);
     });
   });
 

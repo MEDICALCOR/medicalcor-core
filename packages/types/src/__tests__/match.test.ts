@@ -254,7 +254,7 @@ describe('Fluent Pattern Matching', () => {
     it('should match discriminated union variants', () => {
       const result: Result<number, string> = { ok: true, value: 42 };
 
-      const message = UnionMatcher.on(result, 'ok')
+      const message = UnionMatcher.on<Result<number, string>, 'ok'>(result, 'ok')
         .case(true, (r) => `Success: ${r.value}`)
         .case(false, (r) => `Error: ${r.error}`)
         .done();
@@ -265,7 +265,7 @@ describe('Fluent Pattern Matching', () => {
     it('should support default handler', () => {
       const result: Result<number, string> = { ok: false, error: 'failed' };
 
-      const message = UnionMatcher.on(result, 'ok')
+      const message = UnionMatcher.on<Result<number, string>, 'ok'>(result, 'ok')
         .case(true, (r) => `Success: ${r.value}`)
         .default((r) => `Unknown result`);
 
@@ -277,7 +277,7 @@ describe('Fluent Pattern Matching', () => {
 
       const animal: Animal = { kind: 'dog', bark: 'woof' };
 
-      const sound = UnionMatcher.on(animal, 'kind')
+      const sound = UnionMatcher.on<Animal, 'kind'>(animal, 'kind')
         .case('dog', (d) => d.bark)
         .case('cat', (c) => c.meow)
         .done();
@@ -333,7 +333,7 @@ describe('Tagged Union Helpers', () => {
       const error: Result = { _tag: 'error', message: 'failed' };
 
       expect(isVariant(success, 'success')).toBe(true);
-      expect(isVariant(success, 'error')).toBe(false);
+      expect(isVariant<Result, 'error'>(success, 'error')).toBe(false);
       expect(isVariant(error, 'error')).toBe(true);
     });
 
@@ -392,7 +392,8 @@ describe('Pattern Utilities', () => {
       const isNumber = P((v: unknown): v is number => typeof v === 'number');
 
       expect(matchesPattern(42, isNumber)).toBe(true);
-      expect(matchesPattern('42', isNumber)).toBe(false);
+      // Test runtime type checking - '42' is not a number
+      expect(matchesPattern('42' as unknown as number, isNumber)).toBe(false);
     });
   });
 
@@ -408,7 +409,8 @@ describe('Pattern Utilities', () => {
       const pattern = P((v: unknown): v is string => typeof v === 'string');
 
       expect(matchesPattern('hello', pattern)).toBe(true);
-      expect(matchesPattern(123, pattern)).toBe(false);
+      // Test runtime type checking - 123 is not a string
+      expect(matchesPattern(123 as unknown as string, pattern)).toBe(false);
     });
   });
 });
@@ -454,7 +456,7 @@ describe('Switch Expression', () => {
       type Status = 'new' | 'processing' | 'completed';
       const status: Status = 'processing';
 
-      const message = switchExpr(status)
+      const message = switchExpr<Status>(status)
         .case('new', () => 'Just started')
         .case('processing', () => 'In progress')
         .case('completed', () => 'Done')
@@ -481,7 +483,8 @@ describe('Conditional Expression Helpers', () => {
     });
 
     it('should throw if no default and no match', () => {
-      expect(() => cond([false, 'no'])).toThrow();
+      // Use type assertion to test runtime behavior when no default is provided
+      expect(() => (cond as (...args: [boolean, string][]) => string)([false, 'no'])).toThrow();
     });
 
     it('should support complex conditions', () => {
@@ -548,7 +551,7 @@ describe('Conditional Expression Helpers', () => {
       const expensiveComputation = () => {
         let sum = 0;
         for (let i = 0; i < 1000; i++) sum += i;
-        return sum;
+        return String(sum);
       };
 
       const result = condLazy(

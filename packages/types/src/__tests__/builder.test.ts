@@ -442,9 +442,7 @@ describe('ApiRequestBuilder', () => {
 
   describe('withAuth', () => {
     it('should add Bearer auth header', () => {
-      const config = ApiRequestBuilder.get('/api/v1/leads')
-        .withAuth('token123')
-        .build();
+      const config = ApiRequestBuilder.get('/api/v1/leads').withAuth('token123').build();
 
       expect(config.headers?.['Authorization']).toBe('Bearer token123');
     });
@@ -621,10 +619,7 @@ describe('SchemaBuilder', () => {
 
   it('should merge shapes', () => {
     const baseShape = { id: z.string() };
-    const schema = SchemaBuilder.object()
-      .field('name', z.string())
-      .merge(baseShape)
-      .build();
+    const schema = SchemaBuilder.object().field('name', z.string()).merge(baseShape).build();
 
     expect(schema.parse({ id: '123', name: 'John' })).toEqual({ id: '123', name: 'John' });
   });
@@ -719,9 +714,7 @@ describe('QueryBuilder', () => {
   });
 
   it('should add in filter', () => {
-    const config = QueryBuilder.for<TestEntity>()
-      .whereIn('status', ['active', 'inactive'])
-      .build();
+    const config = QueryBuilder.for<TestEntity>().whereIn('status', ['active', 'inactive']).build();
 
     expect(config.filters).toEqual([
       { field: 'status', operator: 'in', value: ['active', 'inactive'] },
@@ -737,7 +730,7 @@ describe('QueryBuilder', () => {
   it('should default sort to ascending', () => {
     const config = QueryBuilder.for<TestEntity>().orderBy('name').build();
 
-    expect(config.sort[0].direction).toBe('asc');
+    expect(config.sort?.[0]?.direction).toBe('asc');
   });
 
   it('should add multiple sorts', () => {

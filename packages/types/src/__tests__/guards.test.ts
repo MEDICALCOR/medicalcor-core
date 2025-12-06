@@ -887,7 +887,7 @@ describe('Validation Utilities', () => {
       expect(isErr(result)).toBe(true);
       if (isErr(result)) {
         expect(result.error).toHaveLength(1);
-        expect(result.error[0].path).toEqual(['age']);
+        expect(result.error[0]?.path).toEqual(['age']);
       }
     });
   });
@@ -982,8 +982,8 @@ describe('Refinement Types', () => {
     });
 
     it('should return undefined for null/undefined', () => {
-      expect(getProperty(null, 'name')).toBeUndefined();
-      expect(getProperty(undefined, 'name')).toBeUndefined();
+      expect(getProperty(null as { name: string } | null, 'name')).toBeUndefined();
+      expect(getProperty(undefined as { name: string } | undefined, 'name')).toBeUndefined();
     });
   });
 

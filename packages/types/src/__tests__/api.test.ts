@@ -136,9 +136,9 @@ describe('createApiError', () => {
   });
 
   it('should use custom status code when provided', () => {
-    const err = createApiError('CUSTOM_ERROR', 'Custom error', { statusCode: 418 });
+    const err = createApiError('UNKNOWN_ERROR', 'Custom error', { statusCode: 503 });
 
-    expect(err.statusCode).toBe(418);
+    expect(err.statusCode).toBe(503);
   });
 
   it('should include details when provided', () => {
@@ -468,11 +468,9 @@ describe('Pagination', () => {
     });
 
     it('should include custom metadata', () => {
-      const response = paginatedSuccess(
-        [],
-        createPaginationMeta({ limit: 20, hasMore: false }),
-        { traceId: 'trace-123' }
-      );
+      const response = paginatedSuccess([], createPaginationMeta({ limit: 20, hasMore: false }), {
+        traceId: 'trace-123',
+      });
 
       expect(response.meta?.traceId).toBe('trace-123');
     });
