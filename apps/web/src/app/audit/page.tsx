@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   getAuditLogsAction,
   getAuditStatsAction,
-  exportAuditLogsAction,
   type AuditLog,
   type AuditStats,
 } from '@/app/actions';
@@ -69,10 +69,10 @@ const statusColors = {
 };
 
 export default function AuditLogPage() {
+  const router = useRouter();
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [stats, setStats] = useState<AuditStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isPending, startTransition] = useTransition();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const { toast } = useToast();
@@ -103,29 +103,7 @@ export default function AuditLogPage() {
   }
 
   function handleExport() {
-    startTransition(async () => {
-      try {
-        const result = await exportAuditLogsAction();
-        if (result.success) {
-          toast({
-            title: 'Succes',
-            description: 'Jurnalul de audit a fost exportat',
-          });
-        } else {
-          toast({
-            title: 'Eroare',
-            description: result.error,
-            variant: 'destructive',
-          });
-        }
-      } catch (_error) {
-        toast({
-          title: 'Eroare',
-          description: 'Nu s-a putut exporta jurnalul',
-          variant: 'destructive',
-        });
-      }
-    });
+    router.push('/audit/export');
   }
 
   const formatTimestamp = (date: Date): string => {
@@ -173,12 +151,8 @@ export default function AuditLogPage() {
           </h1>
           <p className="text-muted-foreground mt-1">Istoricul tuturor acțiunilor din sistem</p>
         </div>
-        <Button variant="outline" onClick={handleExport} disabled={isPending}>
-          {isPending ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <Download className="h-4 w-4 mr-2" />
-          )}
+        <Button variant="outline" onClick={handleExport}>
+          <Download className="h-4 w-4 mr-2" />
           Export log
         </Button>
       </div>
