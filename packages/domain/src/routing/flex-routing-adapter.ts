@@ -315,7 +315,6 @@ export class FlexRoutingAdapter {
    * Route a task using skill-based matching
    */
   async routeTask(task: FlexRoutingTask): Promise<FlexRoutingResult> {
-    const startTime = Date.now();
 
     // Build routing context
     const context: RoutingContext = {
