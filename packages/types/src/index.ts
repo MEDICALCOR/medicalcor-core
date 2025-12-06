@@ -522,6 +522,50 @@ export {
 } from './crm.schema.js';
 
 // =============================================================================
+// Bulk Import Schemas (L3 Feature)
+// =============================================================================
+export {
+  // Format & Status
+  BulkImportFormatSchema,
+  BulkImportStatusSchema,
+  BulkImportErrorCodeSchema,
+  // Row schemas
+  BulkImportRowSchema,
+  BulkImportRowResultSchema,
+  // Options & Request
+  BulkImportOptionsSchema,
+  BulkImportRequestSchema,
+  // Job tracking
+  BulkImportJobSchema,
+  // Response schemas
+  BulkImportSyncResponseSchema,
+  BulkImportAsyncResponseSchema,
+  BulkImportJobStatusSchema,
+  // CSV mapping
+  CSVColumnMappingSchema,
+  // Workflow payload
+  BulkImportWorkflowPayloadSchema,
+  // Helper functions
+  normalizePhoneForComparison,
+  generateExternalContactId,
+  calculateImportProgress,
+  // Types
+  type BulkImportFormat,
+  type BulkImportStatus,
+  type BulkImportErrorCode,
+  type BulkImportRow,
+  type BulkImportRowResult,
+  type BulkImportOptions,
+  type BulkImportRequest,
+  type BulkImportJob,
+  type BulkImportSyncResponse,
+  type BulkImportAsyncResponse,
+  type BulkImportJobStatus,
+  type CSVColumnMapping,
+  type BulkImportWorkflowPayload,
+} from './bulk-import.schema.js';
+
+// =============================================================================
 // Agent Performance Schemas (M7)
 // =============================================================================
 export {
@@ -606,3 +650,48 @@ export {
   type ChurnRiskDetectedEvent as RetentionChurnRiskDetectedEvent,
   type BatchScoringCompletedEvent,
 } from './schemas/retention.js';
+
+// =============================================================================
+// Load Testing Schemas (L7 - Performance Baseline)
+// =============================================================================
+export {
+  // Enums
+  LoadTestScenarioSchema,
+  LoadTestStatusSchema,
+  // Threshold schemas
+  ThresholdResultSchema,
+  ThresholdsMapSchema,
+  // Input schemas
+  LoadTestMetricsInputSchema,
+  EndpointMetricsInputSchema,
+  CreateLoadTestResultSchema,
+  // Output schemas
+  LoadTestResultSchema,
+  LoadTestEndpointMetricsSchema,
+  // Dashboard schemas
+  LoadTestSummaryStatsSchema,
+  LoadTestTrendPointSchema,
+  ScenarioBreakdownSchema,
+  EnvironmentComparisonSchema,
+  LoadTestDashboardDataSchema,
+  // Query schemas
+  LoadTestTimeRangeSchema,
+  LoadTestQuerySchema,
+  // Types
+  type LoadTestScenario,
+  type LoadTestStatus,
+  type ThresholdResult,
+  type ThresholdsMap,
+  type LoadTestMetricsInput,
+  type EndpointMetricsInput,
+  type CreateLoadTestResult,
+  type LoadTestResult,
+  type LoadTestEndpointMetrics,
+  type LoadTestSummaryStats,
+  type LoadTestTrendPoint,
+  type ScenarioBreakdown,
+  type EnvironmentComparison,
+  type LoadTestDashboardData,
+  type LoadTestTimeRange,
+  type LoadTestQuery,
+} from './load-testing.schema.js';

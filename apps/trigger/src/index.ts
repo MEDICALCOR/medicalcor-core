@@ -65,6 +65,14 @@ export {
   type UrgentCaseEscalationPayload,
   type MessageUrgencyDetectionPayload,
 } from './workflows/urgent-case-escalation.js';
+export {
+  bulkImportWorkflow,
+  bulkImportBatchTask,
+  largeImportOrchestrator,
+  BulkImportWorkflowPayloadSchema,
+  type BulkImportWorkflowPayload,
+  type BulkImportWorkflowResult,
+} from './workflows/bulk-import.js';
 
 // Scheduled Jobs
 export {

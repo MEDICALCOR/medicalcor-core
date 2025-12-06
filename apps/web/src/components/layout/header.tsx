@@ -1,15 +1,15 @@
 'use client';
 
 import { Moon, Sun, User, Stethoscope } from 'lucide-react';
-import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { ConnectionStatus, NotificationBell } from '@/components/realtime';
 import { MobileMenuTrigger, useSidebar } from './sidebar';
 import { LanguageSwitcher } from '@/components/i18n/language-switcher';
+import { useThemePersistence } from '@/lib/theme';
 import Link from 'next/link';
 
 export function Header() {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme } = useThemePersistence();
   const { isMobile } = useSidebar();
 
   return (
@@ -54,7 +54,12 @@ export function Header() {
         </Button>
 
         {/* User menu - ACCESSIBILITY FIX: Added aria-label for screen readers */}
-        <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-10 sm:w-10" aria-label="User menu">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 sm:h-10 sm:w-10"
+          aria-label="User menu"
+        >
           <User className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
         </Button>
       </div>

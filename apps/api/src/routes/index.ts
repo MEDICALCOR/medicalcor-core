@@ -19,3 +19,5 @@ export { patientPortalRoutes, internalNotificationRoutes } from './patient-porta
 export { createGuidanceRoutes, guidanceRoutes } from './guidance.js';
 export { createGuidanceWSRoutes, getGuidanceSSEManager } from './guidance-ws.js';
 export { createCognitiveRoutes, cognitiveRoutes } from './cognitive.js';
+export { bulkImportRoutes } from './bulk-import.js';
+export { loadTestingRoutes } from './load-testing.js';
