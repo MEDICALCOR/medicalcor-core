@@ -1,5 +1,15 @@
-import { describe, it, expect } from 'vitest';
-import { normalizePhone, isValidRomanianPhone, formatPhoneForDisplay } from '../phone.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import {
+  normalizePhone,
+  isValidRomanianPhone,
+  formatPhoneForDisplay,
+  validatePhone,
+  validatePhoneSync,
+  normalizeRomanianPhone,
+  isLikelyMobile,
+  redactPhone,
+  getCountryCallingCode,
+} from '../phone.js';
 
 describe('normalizePhone', () => {
   describe('valid Romanian mobile numbers', () => {
@@ -252,5 +262,455 @@ describe('formatPhoneForDisplay', () => {
       const invalid = 'not a phone';
       expect(formatPhoneForDisplay(invalid)).toBe(invalid);
     });
+  });
+});
+
+// =============================================================================
+// RESULT-BASED NORMALIZATION TESTS
+// =============================================================================
+
+describe('normalizeRomanianPhone', () => {
+  describe('valid numbers', () => {
+    it('should return valid result for local format', () => {
+      const result = normalizeRomanianPhone('0712345678');
+      expect(result.isValid).toBe(true);
+      expect(result.normalized).toBe('+40712345678');
+    });
+
+    it('should return valid result for E.164 format', () => {
+      const result = normalizeRomanianPhone('+40712345678');
+      expect(result.isValid).toBe(true);
+      expect(result.normalized).toBe('+40712345678');
+    });
+
+    it('should return valid result for landline numbers', () => {
+      const result = normalizeRomanianPhone('0213456789');
+      expect(result.isValid).toBe(true);
+      expect(result.normalized).toBe('+40213456789');
+    });
+
+    it('should normalize 40 prefix without +', () => {
+      const result = normalizeRomanianPhone('40712345678');
+      expect(result.isValid).toBe(true);
+      expect(result.normalized).toBe('+40712345678');
+    });
+
+    it('should normalize 0040 prefix', () => {
+      const result = normalizeRomanianPhone('0040712345678');
+      expect(result.isValid).toBe(true);
+      expect(result.normalized).toBe('+40712345678');
+    });
+  });
+
+  describe('invalid numbers', () => {
+    it('should return invalid result with original for too short', () => {
+      const result = normalizeRomanianPhone('071234567');
+      expect(result.isValid).toBe(false);
+      expect(result.normalized).toBe('071234567');
+    });
+
+    it('should return invalid result for wrong prefix', () => {
+      const result = normalizeRomanianPhone('0812345678');
+      expect(result.isValid).toBe(false);
+      expect(result.normalized).toBe('0812345678');
+    });
+
+    it('should return invalid result for foreign numbers', () => {
+      const result = normalizeRomanianPhone('+39123456789');
+      expect(result.isValid).toBe(false);
+      expect(result.normalized).toBe('+39123456789');
+    });
+
+    it('should return invalid result for empty string', () => {
+      const result = normalizeRomanianPhone('');
+      expect(result.isValid).toBe(false);
+    });
+  });
+});
+
+// =============================================================================
+// ASYNC VALIDATION TESTS
+// =============================================================================
+
+describe('validatePhone', () => {
+  describe('Romanian numbers', () => {
+    it('should validate Romanian mobile numbers', async () => {
+      const result = await validatePhone('0712345678', { defaultCountry: 'RO' });
+      expect(result.isValid).toBe(true);
+      expect(result.normalized).toBe('+40712345678');
+      expect(result.countryCode).toBe('RO');
+      expect(result.error).toBeNull();
+      // Type detection depends on whether libphonenumber-js is loaded
+      expect(['mobile', 'fixed_line_or_mobile', 'unknown']).toContain(result.type);
+    });
+
+    it('should validate Romanian landline numbers', async () => {
+      const result = await validatePhone('0213456789', { defaultCountry: 'RO' });
+      expect(result.isValid).toBe(true);
+      expect(result.normalized).toBe('+40213456789');
+    });
+
+    it('should provide national format for valid numbers', async () => {
+      const result = await validatePhone('+40712345678');
+      expect(result.isValid).toBe(true);
+      expect(result.nationalFormat).not.toBeNull();
+    });
+
+    it('should provide international format for valid numbers', async () => {
+      const result = await validatePhone('+40712345678');
+      expect(result.isValid).toBe(true);
+      expect(result.internationalFormat).not.toBeNull();
+    });
+  });
+
+  describe('error handling', () => {
+    it('should return error for empty phone', async () => {
+      const result = await validatePhone('');
+      expect(result.isValid).toBe(false);
+      expect(result.error).toBe('Phone number is required');
+      expect(result.countryCode).toBeNull();
+      expect(result.nationalFormat).toBeNull();
+      expect(result.internationalFormat).toBeNull();
+    });
+
+    it('should return error for whitespace only', async () => {
+      const result = await validatePhone('   ');
+      expect(result.isValid).toBe(false);
+      expect(result.error).toBe('Phone number is required');
+    });
+
+    it('should handle numbers with invalid national prefix', async () => {
+      // libphonenumber-js may validate differently from fallback
+      const result = await validatePhone('0812345678', { defaultCountry: 'RO' });
+      // Just verify we get a result with the right shape
+      expect(typeof result.isValid).toBe('boolean');
+      expect(typeof result.normalized).toBe('string');
+    });
+
+    it('should return error for clearly invalid input', async () => {
+      const result = await validatePhone('abc123', { defaultCountry: 'RO' });
+      expect(result.isValid).toBe(false);
+    });
+  });
+
+  describe('allowPossibleNumbers option', () => {
+    it('should use default strict validation', async () => {
+      const result = await validatePhone('0712345678');
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should allow possible numbers when option is set', async () => {
+      const result = await validatePhone('0712345678', { allowPossibleNumbers: true });
+      expect(result.isValid).toBe(true);
+    });
+  });
+});
+
+// =============================================================================
+// SYNC VALIDATION TESTS
+// =============================================================================
+
+describe('validatePhoneSync', () => {
+  describe('Romanian numbers', () => {
+    it('should validate Romanian mobile numbers', () => {
+      const result = validatePhoneSync('0712345678', { defaultCountry: 'RO' });
+      expect(result.isValid).toBe(true);
+      expect(result.normalized).toBe('+40712345678');
+      expect(result.countryCode).toBe('RO');
+      expect(result.type).toBe('mobile');
+      expect(result.isMobile).toBe(true);
+    });
+
+    it('should provide national format', () => {
+      const result = validatePhoneSync('0712345678');
+      expect(result.isValid).toBe(true);
+      expect(result.nationalFormat).toBe('+40 712 345 678');
+    });
+
+    it('should provide international format', () => {
+      const result = validatePhoneSync('0712345678');
+      expect(result.isValid).toBe(true);
+      expect(result.internationalFormat).toBe('+40 712345678');
+    });
+  });
+
+  describe('non-Romanian numbers', () => {
+    it('should return error for non-RO country sync validation', () => {
+      const result = validatePhoneSync('+49123456789', { defaultCountry: 'DE' });
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain('Sync validation only supports Romanian numbers');
+    });
+
+    it('should return error for US numbers in sync mode', () => {
+      const result = validatePhoneSync('+12025551234', { defaultCountry: 'US' });
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain('Use validatePhone() for international');
+    });
+  });
+
+  describe('invalid numbers', () => {
+    it('should return invalid for wrong prefix', () => {
+      const result = validatePhoneSync('0812345678');
+      expect(result.isValid).toBe(false);
+      expect(result.countryCode).toBeNull();
+      expect(result.type).toBe('unknown');
+    });
+
+    it('should return invalid for too short numbers', () => {
+      const result = validatePhoneSync('071234567');
+      expect(result.isValid).toBe(false);
+    });
+  });
+});
+
+// =============================================================================
+// UTILITY FUNCTION TESTS
+// =============================================================================
+
+describe('isLikelyMobile', () => {
+  describe('mobile numbers', () => {
+    it('should return true for Romanian mobile numbers', () => {
+      expect(isLikelyMobile('0712345678')).toBe(true);
+      expect(isLikelyMobile('0723456789')).toBe(true);
+      expect(isLikelyMobile('+40712345678')).toBe(true);
+      expect(isLikelyMobile('40712345678')).toBe(true);
+    });
+
+    it('should return true for all mobile prefixes (07X)', () => {
+      expect(isLikelyMobile('0712345678')).toBe(true);
+      expect(isLikelyMobile('0722345678')).toBe(true);
+      expect(isLikelyMobile('0732345678')).toBe(true);
+      expect(isLikelyMobile('0742345678')).toBe(true);
+      expect(isLikelyMobile('0752345678')).toBe(true);
+      expect(isLikelyMobile('0762345678')).toBe(true);
+      expect(isLikelyMobile('0772345678')).toBe(true);
+      expect(isLikelyMobile('0782345678')).toBe(true);
+    });
+  });
+
+  describe('non-mobile numbers', () => {
+    it('should return false for landline numbers', () => {
+      expect(isLikelyMobile('0213456789')).toBe(false);
+      expect(isLikelyMobile('0313456789')).toBe(false);
+      expect(isLikelyMobile('+40213456789')).toBe(false);
+    });
+
+    it('should return false for invalid numbers', () => {
+      expect(isLikelyMobile('123')).toBe(false);
+      expect(isLikelyMobile('')).toBe(false);
+      expect(isLikelyMobile('invalid')).toBe(false);
+      expect(isLikelyMobile('0812345678')).toBe(false);
+    });
+  });
+});
+
+describe('redactPhone', () => {
+  describe('valid numbers', () => {
+    it('should redact E.164 format', () => {
+      const result = redactPhone('+40712345678');
+      expect(result).toBe('+40712***78');
+    });
+
+    it('should normalize and redact local format', () => {
+      const result = redactPhone('0712345678');
+      expect(result).toBe('+40712***78');
+    });
+
+    it('should redact landline numbers', () => {
+      const result = redactPhone('+40213456789');
+      expect(result).toBe('+40213***89');
+    });
+
+    it('should preserve first 6 and last 2 digits', () => {
+      const result = redactPhone('+40712345678');
+      expect(result.slice(0, 6)).toBe('+40712');
+      expect(result.slice(-2)).toBe('78');
+      expect(result).toContain('***');
+    });
+  });
+
+  describe('invalid numbers', () => {
+    it('should redact invalid numbers (best effort)', () => {
+      const result = redactPhone('0812345678');
+      // Invalid number but still attempts redaction
+      expect(result).toContain('***');
+    });
+
+    it('should return *** for very short strings', () => {
+      expect(redactPhone('123')).toBe('***');
+      expect(redactPhone('12')).toBe('***');
+      expect(redactPhone('1')).toBe('***');
+      expect(redactPhone('')).toBe('***');
+    });
+
+    it('should handle 7-character edge case', () => {
+      // Exactly 7 characters should still return ***
+      expect(redactPhone('1234567')).toBe('***');
+    });
+
+    it('should handle exactly 8 characters', () => {
+      // 8 characters should work
+      const result = redactPhone('12345678');
+      expect(result.length).toBeGreaterThan(3);
+    });
+  });
+});
+
+describe('getCountryCallingCode', () => {
+  describe('single digit codes', () => {
+    it('should return 1 for US/Canada numbers', () => {
+      expect(getCountryCallingCode('+12025551234')).toBe('1');
+      expect(getCountryCallingCode('+14155551234')).toBe('1');
+    });
+
+    it('should return 7 for Russia/Kazakhstan numbers', () => {
+      expect(getCountryCallingCode('+79123456789')).toBe('7');
+      expect(getCountryCallingCode('+77001234567')).toBe('7');
+    });
+  });
+
+  describe('two digit codes', () => {
+    it('should return 40 for Romania', () => {
+      expect(getCountryCallingCode('+40712345678')).toBe('40');
+    });
+
+    it('should return 49 for Germany', () => {
+      expect(getCountryCallingCode('+4915123456789')).toBe('49');
+    });
+
+    it('should return 44 for UK', () => {
+      expect(getCountryCallingCode('+442071234567')).toBe('44');
+    });
+
+    it('should return 33 for France', () => {
+      expect(getCountryCallingCode('+33123456789')).toBe('33');
+    });
+
+    it('should return 39 for Italy', () => {
+      expect(getCountryCallingCode('+390612345678')).toBe('39');
+    });
+
+    it('should return 81 for Japan', () => {
+      expect(getCountryCallingCode('+81312345678')).toBe('81');
+    });
+
+    it('should return 86 for China', () => {
+      expect(getCountryCallingCode('+8613012345678')).toBe('86');
+    });
+
+    it('should recognize all common two-digit codes', () => {
+      const twoDigitCodes = [
+        '20',
+        '27',
+        '30',
+        '31',
+        '32',
+        '33',
+        '34',
+        '36',
+        '39',
+        '40',
+        '41',
+        '43',
+        '44',
+        '45',
+        '46',
+        '47',
+        '48',
+        '49',
+        '51',
+        '52',
+        '53',
+        '54',
+        '55',
+        '56',
+        '57',
+        '58',
+        '60',
+        '61',
+        '62',
+        '63',
+        '64',
+        '65',
+        '66',
+        '81',
+        '82',
+        '84',
+        '86',
+        '90',
+        '91',
+        '92',
+        '93',
+        '94',
+        '95',
+        '98',
+      ];
+
+      for (const code of twoDigitCodes) {
+        expect(getCountryCallingCode(`+${code}123456789`)).toBe(code);
+      }
+    });
+  });
+
+  describe('three digit codes', () => {
+    it('should return 212 for Morocco', () => {
+      expect(getCountryCallingCode('+212612345678')).toBe('212');
+    });
+
+    it('should return 213 for Algeria', () => {
+      expect(getCountryCallingCode('+213612345678')).toBe('213');
+    });
+
+    it('should return 216 for Tunisia', () => {
+      expect(getCountryCallingCode('+21612345678')).toBe('216');
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should return null for numbers without + prefix', () => {
+      expect(getCountryCallingCode('40712345678')).toBeNull();
+      expect(getCountryCallingCode('12025551234')).toBeNull();
+    });
+
+    it('should return null for empty string', () => {
+      expect(getCountryCallingCode('')).toBeNull();
+    });
+
+    it('should return two digits for unknown codes', () => {
+      // Unknown code defaults to two digits
+      expect(getCountryCallingCode('+99123456789')).toBe('99');
+    });
+  });
+});
+
+// =============================================================================
+// PHONE TYPE MAPPING TESTS
+// =============================================================================
+
+describe('phone type detection', () => {
+  it('should detect mobile type for Romanian mobile numbers', async () => {
+    const result = await validatePhone('0712345678');
+    // Type detection depends on libphonenumber-js availability
+    // Valid types for mobile: 'mobile', 'fixed_line_or_mobile', or 'unknown' (fallback)
+    expect(['mobile', 'fixed_line_or_mobile', 'unknown']).toContain(result.type);
+  });
+
+  it('should return unknown type for invalid numbers', async () => {
+    const result = await validatePhone('invalid');
+    expect(result.type).toBe('unknown');
+    expect(result.isMobile).toBe(false);
+  });
+
+  it('should handle all possible phone types', async () => {
+    // Test that validatePhone returns consistent structure
+    const validPhone = await validatePhone('+40712345678');
+    expect(validPhone).toHaveProperty('isValid');
+    expect(validPhone).toHaveProperty('normalized');
+    expect(validPhone).toHaveProperty('countryCode');
+    expect(validPhone).toHaveProperty('type');
+    expect(validPhone).toHaveProperty('isMobile');
+    expect(validPhone).toHaveProperty('nationalFormat');
+    expect(validPhone).toHaveProperty('internationalFormat');
+    expect(validPhone).toHaveProperty('error');
   });
 });

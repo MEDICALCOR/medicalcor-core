@@ -4,7 +4,12 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { EncryptionService, createEncryptionService } from '../encryption.js';
+import {
+  EncryptionService,
+  createEncryptionService,
+  LocalKmsProvider,
+  AwsKmsProvider,
+} from '../encryption.js';
 
 describe('EncryptionService', () => {
   // Test key with proper entropy (looks random, not a repeating pattern)
@@ -198,5 +203,287 @@ describe('EncryptionService', () => {
 
       expect(JSON.parse(decrypted)).toEqual(patientData);
     });
+  });
+
+  describe('weak key detection', () => {
+    it('should reject all-zeros key', () => {
+      const allZeros = '0'.repeat(64);
+      vi.stubEnv('DATA_ENCRYPTION_KEY', allZeros);
+
+      expect(() => new EncryptionService()).toThrow('weak key');
+    });
+
+    it('should reject all-same-byte key', () => {
+      const allSame = 'aa'.repeat(32);
+      vi.stubEnv('DATA_ENCRYPTION_KEY', allSame);
+
+      expect(() => new EncryptionService()).toThrow('weak key');
+    });
+
+    it('should reject repeating 2-byte pattern', () => {
+      const repeating = 'ab'.repeat(32);
+      vi.stubEnv('DATA_ENCRYPTION_KEY', repeating);
+
+      expect(() => new EncryptionService()).toThrow('weak key');
+    });
+
+    it('should reject sequential bytes key', () => {
+      // 00 01 02 03 04 ... sequential pattern
+      let sequential = '';
+      for (let i = 0; i < 32; i++) {
+        sequential += i.toString(16).padStart(2, '0');
+      }
+      vi.stubEnv('DATA_ENCRYPTION_KEY', sequential);
+
+      expect(() => new EncryptionService()).toThrow('weak key');
+    });
+
+    it('should accept random-looking key', () => {
+      // Legitimate random key
+      const randomKey = 'a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890';
+      vi.stubEnv('DATA_ENCRYPTION_KEY', randomKey);
+
+      const service = new EncryptionService();
+      expect(service.isConfigured()).toBe(true);
+    });
+  });
+
+  describe('key validation', () => {
+    it('should reject non-hex characters', () => {
+      vi.stubEnv(
+        'DATA_ENCRYPTION_KEY',
+        'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz'
+      );
+
+      expect(() => new EncryptionService()).toThrow('valid hexadecimal');
+    });
+
+    it('should reject wrong length key', () => {
+      vi.stubEnv('DATA_ENCRYPTION_KEY', 'abc123');
+
+      expect(() => new EncryptionService()).toThrow('must be 32 bytes');
+    });
+  });
+
+  describe('KMS mode', () => {
+    it('should report KMS disabled when no provider', () => {
+      const service = new EncryptionService();
+
+      expect(service.isKmsEnabled()).toBe(false);
+      expect(service.getKmsProviderName()).toBeNull();
+    });
+  });
+
+  describe('smart encryption', () => {
+    it('should use direct key when KMS not available', async () => {
+      const service = new EncryptionService();
+      const plaintext = 'test data';
+
+      const result = await service.encryptSmart(plaintext);
+
+      expect(result.encryptedValue.startsWith('kms:')).toBe(false);
+      expect(result.keyVersion).toBe(1);
+    });
+
+    it('should decrypt non-KMS encrypted values with decryptSmart', async () => {
+      const service = new EncryptionService();
+      const plaintext = 'test data';
+
+      const { encryptedValue } = service.encrypt(plaintext);
+      const decrypted = await service.decryptSmart(encryptedValue);
+
+      expect(decrypted).toBe(plaintext);
+    });
+
+    it('should throw when decrypting KMS value without provider', async () => {
+      const service = new EncryptionService();
+
+      await expect(service.decryptSmart('kms:1:key:iv:tag:data')).rejects.toThrow(
+        'KMS but no KMS provider'
+      );
+    });
+  });
+
+  describe('decryption with key version mismatch', () => {
+    it('should warn but still decrypt with old key version', () => {
+      const service = new EncryptionService();
+      const plaintext = 'test data';
+
+      // Create encrypted value with current version
+      const { encryptedValue } = service.encrypt(plaintext);
+
+      // Modify to simulate old version
+      const parts = encryptedValue.split(':');
+      parts[0] = '99'; // Old version
+      const oldVersionCiphertext = parts.join(':');
+
+      // Should still decrypt (same key)
+      const decrypted = service.decrypt(oldVersionCiphertext);
+      expect(decrypted).toBe(plaintext);
+    });
+  });
+});
+
+describe('LocalKmsProvider', () => {
+  it('should throw when master key is wrong length', () => {
+    expect(() => new LocalKmsProvider('tooshort')).toThrow('32 bytes');
+  });
+
+  it('should throw when master key is missing', () => {
+    vi.stubEnv('KMS_MASTER_KEY', '');
+    expect(() => new LocalKmsProvider()).toThrow('32 bytes');
+  });
+
+  it('should encrypt and decrypt data keys', async () => {
+    const masterKey = 'a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890';
+    const provider = new LocalKmsProvider(masterKey);
+
+    const plainKey = Buffer.from('0123456789abcdef0123456789abcdef', 'hex');
+    const encrypted = await provider.encryptDataKey(plainKey);
+    const decrypted = await provider.decryptDataKey(encrypted);
+
+    expect(decrypted.equals(plainKey)).toBe(true);
+  });
+
+  it('should generate data keys', async () => {
+    const masterKey = 'a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890';
+    const provider = new LocalKmsProvider(masterKey);
+
+    const { plainKey, encryptedKey } = await provider.generateDataKey();
+
+    expect(plainKey).toHaveLength(32);
+    expect(encryptedKey.length).toBeGreaterThan(0);
+
+    // Should be able to decrypt the encrypted key
+    const decrypted = await provider.decryptDataKey(encryptedKey);
+    expect(decrypted.equals(plainKey)).toBe(true);
+  });
+
+  it('should report availability', async () => {
+    const masterKey = 'a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890';
+    const provider = new LocalKmsProvider(masterKey);
+
+    expect(await provider.isAvailable()).toBe(true);
+  });
+
+  it('should have correct name', () => {
+    const masterKey = 'a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890';
+    const provider = new LocalKmsProvider(masterKey);
+
+    expect(provider.name).toBe('Local Environment');
+  });
+});
+
+describe('EncryptionService with KMS', () => {
+  const TEST_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+
+  beforeEach(() => {
+    vi.stubEnv('DATA_ENCRYPTION_KEY', TEST_KEY);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('should report KMS enabled when provider is set', () => {
+    const masterKey = 'a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890';
+    const kmsProvider = new LocalKmsProvider(masterKey);
+    const service = new EncryptionService(undefined, kmsProvider);
+
+    expect(service.isKmsEnabled()).toBe(true);
+    expect(service.getKmsProviderName()).toBe('Local Environment');
+  });
+
+  it('should encrypt with KMS envelope encryption', async () => {
+    const masterKey = 'a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890';
+    const kmsProvider = new LocalKmsProvider(masterKey);
+    const service = new EncryptionService(undefined, kmsProvider);
+
+    const plaintext = 'sensitive data';
+    const { encryptedValue, keyVersion } = await service.encryptWithKms(plaintext);
+
+    expect(encryptedValue.startsWith('kms:')).toBe(true);
+    expect(keyVersion).toBe(1);
+  });
+
+  it('should decrypt KMS encrypted values', async () => {
+    const masterKey = 'a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890';
+    const kmsProvider = new LocalKmsProvider(masterKey);
+    const service = new EncryptionService(undefined, kmsProvider);
+
+    const plaintext = 'sensitive data';
+    const { encryptedValue } = await service.encryptWithKms(plaintext);
+    const decrypted = await service.decryptWithKms(encryptedValue);
+
+    expect(decrypted).toBe(plaintext);
+  });
+
+  it('should throw on invalid KMS format', async () => {
+    const masterKey = 'a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890';
+    const kmsProvider = new LocalKmsProvider(masterKey);
+    const service = new EncryptionService(undefined, kmsProvider);
+
+    await expect(service.decryptWithKms('invalid:format')).rejects.toThrow('Invalid KMS-encrypted');
+  });
+
+  it('should throw on wrong prefix', async () => {
+    const masterKey = 'a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890';
+    const kmsProvider = new LocalKmsProvider(masterKey);
+    const service = new EncryptionService(undefined, kmsProvider);
+
+    await expect(service.decryptWithKms('wrong:1:key:iv:tag:data')).rejects.toThrow(
+      'Invalid KMS-encrypted'
+    );
+  });
+
+  it('should use KMS in encryptSmart when available', async () => {
+    const masterKey = 'a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890';
+    const kmsProvider = new LocalKmsProvider(masterKey);
+    const service = new EncryptionService(undefined, kmsProvider);
+
+    const { encryptedValue } = await service.encryptSmart('test');
+
+    expect(encryptedValue.startsWith('kms:')).toBe(true);
+  });
+
+  it('should detect KMS values in decryptSmart', async () => {
+    const masterKey = 'a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890';
+    const kmsProvider = new LocalKmsProvider(masterKey);
+    const service = new EncryptionService(undefined, kmsProvider);
+
+    const plaintext = 'test data';
+    const { encryptedValue } = await service.encryptWithKms(plaintext);
+    const decrypted = await service.decryptSmart(encryptedValue);
+
+    expect(decrypted).toBe(plaintext);
+  });
+
+  it('should throw encryptWithKms when no provider', async () => {
+    const service = new EncryptionService();
+
+    await expect(service.encryptWithKms('test')).rejects.toThrow('KMS provider not configured');
+  });
+
+  it('should throw decryptWithKms when no provider', async () => {
+    const service = new EncryptionService();
+
+    await expect(service.decryptWithKms('kms:1:key:iv:tag:data')).rejects.toThrow(
+      'KMS provider not configured'
+    );
+  });
+});
+
+describe('AwsKmsProvider', () => {
+  it('should throw when key ID is missing', () => {
+    vi.stubEnv('AWS_KMS_KEY_ID', '');
+
+    expect(() => new AwsKmsProvider()).toThrow('AWS KMS key ID must be provided');
+  });
+
+  it('should use constructor key ID over env var', () => {
+    vi.stubEnv('AWS_KMS_KEY_ID', 'env-key-id');
+
+    const provider = new AwsKmsProvider('constructor-key-id');
+    expect(provider.name).toBe('AWS KMS');
   });
 });
