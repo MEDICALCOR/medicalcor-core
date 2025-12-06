@@ -11,3 +11,4 @@
 export * from './lead-score.js';
 export * from './phone-number.js';
 export * from './retention-score.js';
+export * from './capacity-score.js';
