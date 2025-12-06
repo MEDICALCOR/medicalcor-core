@@ -12,7 +12,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   TemporalReplayService,
-  TemporalProjectionBuilder,
   createTemporalReplayService,
   defineTemporalProjection,
   type TemporalQueryOptions,
