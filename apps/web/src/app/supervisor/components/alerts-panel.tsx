@@ -34,6 +34,9 @@ interface Alert {
 
 interface AlertsPanelProps {
   alerts: Alert[];
+  onDismiss?: (alertId: string) => void;
+  onDismissAll?: () => void;
+  onAlertAction?: (alertId: string) => void;
 }
 
 function getAlertIcon(type: Alert['type']) {
@@ -74,6 +77,7 @@ function getAlertColors(severity: Alert['severity']): {
         icon: 'text-amber-500',
         badge: 'warm',
       };
+    case 'info':
     default:
       return {
         bg: 'bg-muted/50',
@@ -125,13 +129,7 @@ function AlertItem({ alert, onAction }: AlertItemProps) {
   const colors = getAlertColors(alert.severity);
 
   return (
-    <div
-      className={cn(
-        'rounded-lg border p-3 transition-colors',
-        colors.bg,
-        colors.border
-      )}
-    >
+    <div className={cn('rounded-lg border p-3 transition-colors', colors.bg, colors.border)}>
       <div className="flex items-start gap-3">
         <div className={cn('mt-0.5', colors.icon)}>{getAlertIcon(alert.type)}</div>
         <div className="flex-1 min-w-0">
@@ -145,18 +143,11 @@ function AlertItem({ alert, onAction }: AlertItemProps) {
           </div>
           <p className="text-sm mt-1">{alert.message}</p>
           {alert.agentName && (
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Agent: {alert.agentName}
-            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">Agent: {alert.agentName}</p>
           )}
         </div>
         {alert.callSid && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 px-2 shrink-0"
-            onClick={onAction}
-          >
+          <Button variant="ghost" size="sm" className="h-8 px-2 shrink-0" onClick={onAction}>
             <span className="text-xs">Vezi</span>
             <ChevronRight className="h-3 w-3 ml-1" />
           </Button>
@@ -166,7 +157,7 @@ function AlertItem({ alert, onAction }: AlertItemProps) {
   );
 }
 
-export function AlertsPanel({ alerts }: AlertsPanelProps) {
+export function AlertsPanel({ alerts, onDismiss, onDismissAll, onAlertAction }: AlertsPanelProps) {
   const criticalAlerts = alerts.filter((a) => a.severity === 'critical');
   const warningAlerts = alerts.filter((a) => a.severity === 'warning');
   const infoAlerts = alerts.filter((a) => a.severity === 'info');
@@ -174,11 +165,7 @@ export function AlertsPanel({ alerts }: AlertsPanelProps) {
   const sortedAlerts = [...criticalAlerts, ...warningAlerts, ...infoAlerts];
 
   return (
-    <Card
-      className={cn(
-        alerts.some((a) => a.severity === 'critical') && 'border-destructive/50'
-      )}
-    >
+    <Card className={cn(alerts.some((a) => a.severity === 'critical') && 'border-destructive/50')}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base sm:text-lg flex items-center gap-2">
@@ -191,16 +178,13 @@ export function AlertsPanel({ alerts }: AlertsPanelProps) {
             />
             Alerte
             {alerts.length > 0 && (
-              <Badge
-                variant={criticalAlerts.length > 0 ? 'hot' : 'warm'}
-                className="ml-1"
-              >
+              <Badge variant={criticalAlerts.length > 0 ? 'hot' : 'warm'} className="ml-1">
                 {alerts.length}
               </Badge>
             )}
           </CardTitle>
           {alerts.length > 0 && (
-            <Button variant="ghost" size="sm" className="h-7 text-xs">
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onDismissAll}>
               Toate citite
               <CheckCircle className="h-3 w-3 ml-1" />
             </Button>
@@ -217,7 +201,12 @@ export function AlertsPanel({ alerts }: AlertsPanelProps) {
         ) : (
           <div className="space-y-2">
             {sortedAlerts.map((alert) => (
-              <AlertItem key={alert.id} alert={alert} />
+              <AlertItem
+                key={alert.id}
+                alert={alert}
+                onDismiss={onDismiss ? () => onDismiss(alert.id) : undefined}
+                onAction={onAlertAction ? () => onAlertAction(alert.id) : undefined}
+              />
             ))}
           </div>
         )}

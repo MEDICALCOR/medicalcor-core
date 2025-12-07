@@ -4,44 +4,64 @@
  * Server Actions for Supervisor Dashboard
  *
  * Provides real-time data for the mobile supervisor dashboard.
- * Data is fetched from the supervisor state repository.
+ * Data is fetched from the supervisor API endpoints.
  */
 
-import type {
-  SupervisorDashboardStats,
-  MonitoredCall,
-  FlexWorker,
-} from '@medicalcor/types';
+import type { SupervisorDashboardStats, MonitoredCall, FlexWorker } from '@medicalcor/types';
+
+const API_URL = process.env.API_URL ?? 'http://localhost:3000';
 
 /**
  * Get supervisor dashboard statistics
  */
 export async function getSupervisorStatsAction(): Promise<SupervisorDashboardStats> {
-  // In production, this would fetch from the supervisor state repository
-  // For now, return mock data that follows the schema
+  try {
+    const response = await fetch(`${API_URL}/supervisor/dashboard`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-supervisor-id': 'server-action',
+      },
+      next: { revalidate: 10 }, // Cache for 10 seconds
+    });
+
+    if (!response.ok) {
+      console.error('Failed to fetch supervisor stats:', response.status);
+      return getDefaultStats();
+    }
+
+    const data = (await response.json()) as { stats: SupervisorDashboardStats };
+    return data.stats;
+  } catch (error) {
+    console.error('Error fetching supervisor stats:', error);
+    return getDefaultStats();
+  }
+}
+
+function getDefaultStats(): SupervisorDashboardStats {
   return {
-    activeCalls: 5,
-    callsInQueue: 3,
-    averageWaitTime: 45,
+    activeCalls: 0,
+    callsInQueue: 0,
+    averageWaitTime: 0,
 
-    agentsAvailable: 4,
-    agentsBusy: 3,
-    agentsOnBreak: 1,
-    agentsOffline: 2,
+    agentsAvailable: 0,
+    agentsBusy: 0,
+    agentsOnBreak: 0,
+    agentsOffline: 0,
 
-    aiHandledCalls: 12,
-    aiHandoffRate: 15,
-    averageAiConfidence: 87,
+    aiHandledCalls: 0,
+    aiHandoffRate: 0,
+    averageAiConfidence: 0,
 
-    activeAlerts: 2,
-    escalationsToday: 3,
-    handoffsToday: 8,
+    activeAlerts: 0,
+    escalationsToday: 0,
+    handoffsToday: 0,
 
-    callsHandledToday: 47,
-    averageHandleTime: 180,
-    serviceLevelPercent: 92,
-    abandonedCalls: 2,
-    customerSatisfaction: 94,
+    callsHandledToday: 0,
+    averageHandleTime: 0,
+    serviceLevelPercent: 100,
+    abandonedCalls: 0,
+    customerSatisfaction: 0,
 
     lastUpdated: new Date(),
   };
@@ -51,191 +71,92 @@ export async function getSupervisorStatsAction(): Promise<SupervisorDashboardSta
  * Get active calls for monitoring
  */
 export async function getActiveCallsAction(): Promise<MonitoredCall[]> {
-  // In production, this would fetch from Twilio/Vapi via the domain layer
-  // For now, return mock data that follows the schema
-  return [
-    {
-      callSid: 'CA001',
-      customerPhone: '+40722123456',
-      agentId: 'agent-1',
-      agentName: 'Maria Popescu',
-      contactName: 'Ion Ionescu',
-      state: 'in-progress',
-      direction: 'inbound',
-      startedAt: new Date(Date.now() - 180000),
-      duration: 180,
-      sentiment: 'positive',
-      urgencyLevel: 'low',
-      aiScore: 92,
-      flags: [],
-      recentTranscript: [
-        { speaker: 'customer', text: 'Bună ziua, doresc să fac o programare.', timestamp: Date.now() - 60000 },
-        { speaker: 'agent', text: 'Bună ziua! Cu plăcere vă ajut.', timestamp: Date.now() - 45000 },
-      ],
-    },
-    {
-      callSid: 'CA002',
-      customerPhone: '+40733456789',
-      agentId: 'agent-2',
-      agentName: 'Alexandru Marin',
-      contactName: 'Ana Gheorghe',
-      state: 'in-progress',
-      direction: 'inbound',
-      startedAt: new Date(Date.now() - 320000),
-      duration: 320,
-      sentiment: 'neutral',
-      urgencyLevel: 'high',
-      aiScore: 78,
-      flags: ['escalation-requested'],
-      recentTranscript: [
-        { speaker: 'customer', text: 'Am o problemă urgentă...', timestamp: Date.now() - 30000 },
-        { speaker: 'agent', text: 'Înțeleg, vă rog să-mi spuneți mai multe detalii.', timestamp: Date.now() - 15000 },
-      ],
-    },
-    {
-      callSid: 'CA003',
-      customerPhone: '+40744789012',
-      vapiCallId: 'vapi-123',
-      assistantId: 'dental-assistant',
-      contactName: 'Mihai Popa',
-      state: 'in-progress',
-      direction: 'inbound',
-      startedAt: new Date(Date.now() - 90000),
-      duration: 90,
-      sentiment: 'positive',
-      urgencyLevel: 'low',
-      aiScore: 95,
-      flags: [],
-      recentTranscript: [
-        { speaker: 'assistant', text: 'Bună ziua, sunt asistentul virtual al clinicii.', timestamp: Date.now() - 60000 },
-        { speaker: 'customer', text: 'Aș vrea să aflu programul de mâine.', timestamp: Date.now() - 30000 },
-      ],
-    },
-    {
-      callSid: 'CA004',
-      customerPhone: '+40755012345',
-      agentId: 'agent-3',
-      agentName: 'Elena Dumitrescu',
-      contactName: 'George Stanescu',
-      state: 'on-hold',
-      direction: 'outbound',
-      startedAt: new Date(Date.now() - 420000),
-      duration: 420,
-      sentiment: 'negative',
-      urgencyLevel: 'critical',
-      aiScore: 45,
-      flags: ['complaint', 'long-hold'],
-      recentTranscript: [
-        { speaker: 'customer', text: 'De ce durează atât de mult?', timestamp: Date.now() - 120000 },
-        { speaker: 'agent', text: 'Îmi cer scuze, verific imediat.', timestamp: Date.now() - 90000 },
-      ],
-    },
-    {
-      callSid: 'CA005',
-      customerPhone: '+40766345678',
-      agentId: 'agent-1',
-      agentName: 'Maria Popescu',
-      state: 'wrapping-up',
-      direction: 'inbound',
-      startedAt: new Date(Date.now() - 600000),
-      duration: 600,
-      sentiment: 'positive',
-      urgencyLevel: 'low',
-      aiScore: 88,
-      flags: ['high-value-lead'],
-      recentTranscript: [],
-    },
-  ];
+  try {
+    const response = await fetch(`${API_URL}/supervisor/calls`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-supervisor-id': 'server-action',
+      },
+      next: { revalidate: 5 }, // Cache for 5 seconds
+    });
+
+    if (!response.ok) {
+      console.error('Failed to fetch active calls:', response.status);
+      return [];
+    }
+
+    const data = (await response.json()) as { calls: MonitoredCall[] };
+
+    // Transform dates from JSON and ensure arrays are initialized
+    return data.calls.map((call) => {
+      // API response might have undefined arrays, so we normalize them
+      const transcript = call.recentTranscript as typeof call.recentTranscript | undefined;
+      const callFlags = call.flags as typeof call.flags | undefined;
+      return {
+        ...call,
+        startedAt: new Date(call.startedAt),
+        recentTranscript: transcript ?? [],
+        flags: callFlags ?? [],
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching active calls:', error);
+    return [];
+  }
 }
 
 /**
  * Get agent statuses
+ *
+ * Note: In production, this would integrate with Twilio Flex Insights API
+ * to get real-time agent status. For now, we derive agent info from active calls.
  */
 export async function getAgentStatusesAction(): Promise<FlexWorker[]> {
-  // In production, this would fetch from Twilio Flex
-  return [
-    {
-      workerSid: 'WK001',
-      friendlyName: 'Maria Popescu',
-      activityName: 'busy',
-      available: false,
-      skills: ['dental', 'orthodontics'],
-      languages: ['ro', 'en'],
-      currentCallSid: 'CA001',
-      tasksInProgress: 1,
-    },
-    {
-      workerSid: 'WK002',
-      friendlyName: 'Alexandru Marin',
-      activityName: 'busy',
-      available: false,
-      skills: ['dental', 'implants'],
-      languages: ['ro'],
-      currentCallSid: 'CA002',
-      tasksInProgress: 1,
-    },
-    {
-      workerSid: 'WK003',
-      friendlyName: 'Elena Dumitrescu',
-      activityName: 'busy',
-      available: false,
-      skills: ['dental', 'pediatric'],
-      languages: ['ro', 'en', 'fr'],
-      currentCallSid: 'CA004',
-      tasksInProgress: 1,
-    },
-    {
-      workerSid: 'WK004',
-      friendlyName: 'Andrei Stoica',
-      activityName: 'available',
-      available: true,
-      skills: ['dental'],
-      languages: ['ro'],
-      tasksInProgress: 0,
-    },
-    {
-      workerSid: 'WK005',
-      friendlyName: 'Cristina Radu',
-      activityName: 'available',
-      available: true,
-      skills: ['dental', 'cosmetic'],
-      languages: ['ro', 'en'],
-      tasksInProgress: 0,
-    },
-    {
-      workerSid: 'WK006',
-      friendlyName: 'Ionut Florea',
-      activityName: 'break',
-      available: false,
-      skills: ['dental'],
-      languages: ['ro'],
-      tasksInProgress: 0,
-    },
-    {
-      workerSid: 'WK007',
-      friendlyName: 'Diana Preda',
-      activityName: 'available',
-      available: true,
-      skills: ['dental', 'surgery'],
-      languages: ['ro', 'en'],
-      tasksInProgress: 0,
-    },
-    {
-      workerSid: 'WK008',
-      friendlyName: 'Victor Neagu',
-      activityName: 'available',
-      available: true,
-      skills: ['dental'],
-      languages: ['ro'],
-      tasksInProgress: 0,
-    },
-  ];
+  try {
+    // Get active calls to derive agent status
+    const callsResponse = await fetch(`${API_URL}/supervisor/calls`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-supervisor-id': 'server-action',
+      },
+      next: { revalidate: 10 },
+    });
+
+    if (!callsResponse.ok) {
+      console.error('Failed to fetch calls for agent status:', callsResponse.status);
+      return [];
+    }
+
+    const callsData = (await callsResponse.json()) as { calls: MonitoredCall[] };
+
+    // Build agent status from active calls
+    const agentMap = new Map<string, FlexWorker>();
+
+    for (const call of callsData.calls) {
+      if (call.agentId && call.agentName) {
+        agentMap.set(call.agentId, {
+          workerSid: call.agentId,
+          friendlyName: call.agentName,
+          activityName: 'busy',
+          available: false,
+          skills: ['dental'],
+          languages: ['ro'],
+          currentCallSid: call.callSid,
+          tasksInProgress: 1,
+        });
+      }
+    }
+
+    return Array.from(agentMap.values());
+  } catch (error) {
+    console.error('Error fetching agent statuses:', error);
+    return [];
+  }
 }
 
-/**
- * Get recent alerts for supervisor
- */
-export async function getAlertsAction(): Promise<Array<{
+export interface SupervisorAlert {
   id: string;
   type: 'escalation' | 'long-hold' | 'silence' | 'high-value' | 'ai-handoff';
   severity: 'info' | 'warning' | 'critical';
@@ -243,25 +164,113 @@ export async function getAlertsAction(): Promise<Array<{
   agentName?: string;
   message: string;
   timestamp: Date;
-}>> {
-  return [
-    {
-      id: 'alert-1',
-      type: 'escalation',
-      severity: 'critical',
-      callSid: 'CA002',
-      agentName: 'Alexandru Marin',
-      message: 'Solicitare de escaladare de la client',
-      timestamp: new Date(Date.now() - 60000),
-    },
-    {
-      id: 'alert-2',
-      type: 'long-hold',
-      severity: 'warning',
-      callSid: 'CA004',
-      agentName: 'Elena Dumitrescu',
-      message: 'Client în așteptare de peste 2 minute',
-      timestamp: new Date(Date.now() - 120000),
-    },
-  ];
+}
+
+/**
+ * Get recent alerts for supervisor
+ *
+ * Alerts are derived from flagged calls and escalation history.
+ * Real-time alerts come via SSE in the client.
+ */
+export async function getAlertsAction(): Promise<SupervisorAlert[]> {
+  try {
+    // Get flagged calls to derive alerts
+    const callsResponse = await fetch(`${API_URL}/supervisor/calls`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-supervisor-id': 'server-action',
+      },
+      next: { revalidate: 5 },
+    });
+
+    if (!callsResponse.ok) {
+      console.error('Failed to fetch calls for alerts:', callsResponse.status);
+      return [];
+    }
+
+    const callsData = (await callsResponse.json()) as { calls: MonitoredCall[] };
+    const alerts: SupervisorAlert[] = [];
+
+    // Generate alerts from flagged calls
+    for (const call of callsData.calls) {
+      // API response might have undefined flags array
+      const flags = (call.flags as typeof call.flags | undefined) ?? [];
+      for (const flag of flags) {
+        const alertType = mapFlagToAlertType(flag);
+        const severity = mapFlagToSeverity(flag);
+        const startedAt = call.startedAt as Date | string | undefined;
+
+        alerts.push({
+          id: `${call.callSid}-${flag}`,
+          type: alertType,
+          severity,
+          callSid: call.callSid,
+          agentName: call.agentName,
+          message: getAlertMessage(flag, call),
+          timestamp: startedAt ? new Date(startedAt) : new Date(),
+        });
+      }
+    }
+
+    // Sort by severity (critical first) then by timestamp (newest first)
+    return alerts.sort((a, b) => {
+      const severityOrder = { critical: 0, warning: 1, info: 2 };
+      const severityDiff = severityOrder[a.severity] - severityOrder[b.severity];
+      if (severityDiff !== 0) return severityDiff;
+      return b.timestamp.getTime() - a.timestamp.getTime();
+    });
+  } catch (error) {
+    console.error('Error fetching alerts:', error);
+    return [];
+  }
+}
+
+function mapFlagToAlertType(flag: string): SupervisorAlert['type'] {
+  switch (flag) {
+    case 'escalation-requested':
+      return 'escalation';
+    case 'long-hold':
+      return 'long-hold';
+    case 'silence-detected':
+      return 'silence';
+    case 'high-value-lead':
+      return 'high-value';
+    case 'ai-handoff-needed':
+      return 'ai-handoff';
+    default:
+      return 'escalation';
+  }
+}
+
+function mapFlagToSeverity(flag: string): SupervisorAlert['severity'] {
+  switch (flag) {
+    case 'escalation-requested':
+    case 'complaint':
+      return 'critical';
+    case 'long-hold':
+    case 'ai-handoff-needed':
+      return 'warning';
+    default:
+      return 'info';
+  }
+}
+
+function getAlertMessage(flag: string, call: MonitoredCall): string {
+  switch (flag) {
+    case 'escalation-requested':
+      return 'Solicitare de escaladare de la client';
+    case 'long-hold':
+      return `Client în așteptare de ${Math.round(call.duration / 60)} minute`;
+    case 'silence-detected':
+      return 'Tăcere prelungită detectată în apel';
+    case 'high-value-lead':
+      return 'Lead cu potențial ridicat identificat';
+    case 'ai-handoff-needed':
+      return 'AI solicită transfer către agent uman';
+    case 'complaint':
+      return 'Reclamație detectată în conversație';
+    default:
+      return 'Alertă activă';
+  }
 }

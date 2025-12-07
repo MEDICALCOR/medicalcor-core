@@ -1,25 +1,15 @@
 import { Suspense } from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Wifi } from 'lucide-react';
 import {
   getSupervisorStatsAction,
   getActiveCallsAction,
   getAgentStatusesAction,
   getAlertsAction,
 } from './actions';
-import {
-  SupervisorStats,
-  SupervisorStatsSkeleton,
-} from './components/supervisor-stats';
-import {
-  ActiveCallsList,
-  ActiveCallsListSkeleton,
-} from './components/active-calls-list';
-import {
-  AgentStatusGrid,
-  AgentStatusGridSkeleton,
-} from './components/agent-status-grid';
-import { AlertsPanel, AlertsPanelSkeleton } from './components/alerts-panel';
+import { SupervisorDashboard } from './components/supervisor-dashboard';
+import { SupervisorStatsSkeleton } from './components/supervisor-stats';
+import { ActiveCallsListSkeleton } from './components/active-calls-list';
+import { AgentStatusGridSkeleton } from './components/agent-status-grid';
+import { AlertsPanelSkeleton } from './components/alerts-panel';
 
 /**
  * Mobile Supervisor Dashboard
@@ -31,76 +21,64 @@ import { AlertsPanel, AlertsPanelSkeleton } from './components/alerts-panel';
  * - Mobile-first responsive design
  * - Touch-friendly interactions
  * - Bottom sheet call details
- * - Real-time stats updates
+ * - Real-time stats updates via SSE
  * - Horizontal scroll for stats on mobile
+ * - Live monitoring actions (Listen, Whisper, Barge)
  */
 
-// Async components for streaming
-async function SupervisorStatsSection() {
-  const stats = await getSupervisorStatsAction();
-  return <SupervisorStats stats={stats} />;
+// Fetch all initial data in parallel
+async function SupervisorDashboardLoader() {
+  const [stats, calls, agents, alerts] = await Promise.all([
+    getSupervisorStatsAction(),
+    getActiveCallsAction(),
+    getAgentStatusesAction(),
+    getAlertsAction(),
+  ]);
+
+  return (
+    <SupervisorDashboard
+      initialStats={stats}
+      initialCalls={calls}
+      initialAgents={agents}
+      initialAlerts={alerts}
+    />
+  );
 }
 
-async function ActiveCallsSection() {
-  const calls = await getActiveCallsAction();
-  return <ActiveCallsList calls={calls} />;
-}
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-4 sm:space-y-6 pb-20">
+      {/* Header skeleton */}
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="h-7 w-32 bg-muted rounded animate-pulse" />
+          <div className="h-4 w-48 bg-muted rounded animate-pulse mt-1" />
+        </div>
+        <div className="h-6 w-20 bg-muted rounded animate-pulse" />
+      </div>
 
-async function AgentStatusSection() {
-  const agents = await getAgentStatusesAction();
-  return <AgentStatusGrid agents={agents} />;
-}
+      {/* Stats skeleton */}
+      <SupervisorStatsSkeleton />
 
-async function AlertsSection() {
-  const alerts = await getAlertsAction();
-  return <AlertsPanel alerts={alerts} />;
+      {/* Main content skeleton */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-4">
+          <ActiveCallsListSkeleton />
+        </div>
+        <div className="space-y-4">
+          <AlertsPanelSkeleton />
+          <AgentStatusGridSkeleton />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function SupervisorDashboardPage() {
   return (
-    <div className="space-y-4 sm:space-y-6 pb-20">
-      {/* Header - compact on mobile */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
-            Supervisor
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Monitor apeluri în timp real
-          </p>
-        </div>
-        <Badge variant="outline" className="gap-1 text-xs">
-          <Wifi className="h-3 w-3 text-emerald-500" />
-          <span className="hidden sm:inline">Conectat</span>
-        </Badge>
-      </div>
-
-      {/* Stats Section */}
-      <Suspense fallback={<SupervisorStatsSkeleton />}>
-        <SupervisorStatsSection />
-      </Suspense>
-
-      {/* Main Content Grid */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* Active Calls - Full width on mobile, 2/3 on desktop */}
-        <div className="lg:col-span-2 space-y-4">
-          <Suspense fallback={<ActiveCallsListSkeleton />}>
-            <ActiveCallsSection />
-          </Suspense>
-        </div>
-
-        {/* Sidebar - Stacks below on mobile */}
-        <div className="space-y-4">
-          <Suspense fallback={<AlertsPanelSkeleton />}>
-            <AlertsSection />
-          </Suspense>
-
-          <Suspense fallback={<AgentStatusGridSkeleton />}>
-            <AgentStatusSection />
-          </Suspense>
-        </div>
-      </div>
-    </div>
+    <Suspense fallback={<DashboardSkeleton />}>
+      <SupervisorDashboardLoader />
+    </Suspense>
   );
 }
 
