@@ -1,0 +1,783 @@
+# =============================================================================
+# GitHub Issues Backlog - Ready for Bulk Import
+# Generated: 2025-12-07
+# Total Issues: 29
+#
+# Usage: Run the bulk-create-issues workflow with this file
+# gh workflow run bulk-create-issues.yml -f backlog_file=BACKLOG_IMPORT.yml
+# =============================================================================
+
+# ===========================================================================
+# HIGH PRIORITY (P0) - Must-Do for Production
+# ===========================================================================
+
+---
+title: "[H1] Verify Lead → LTV Event Chain with Integration Test"
+labels: ["priority: critical", "type: testing", "area: domain", "effort: 2-3h"]
+milestone: "Sprint 1 - Production Critical"
+body: |
+  ### ID: H1
+
+  ### Description
+  The Lead → LTV business flow lacks end-to-end verification. While individual
+  components work, there's no integration test proving the complete event chain:
+  LeadCreated → LeadScored → LeadQualified → CaseCreated → PaymentReceived → LTVUpdated
+
+  ### Acceptance Criteria
+  - [ ] Integration test traces a lead from creation to LTV calculation
+  - [ ] All domain events are emitted in correct order
+  - [ ] Event store contains complete audit trail
+  - [ ] LTV dashboard reflects accurate values after flow completion
+  - [ ] Test runs in CI pipeline
+
+  ### Related Files
+  - `packages/domain/src/leads/entities/Lead.ts`
+  - `packages/domain/src/ltv/ltv-service.ts`
+  - `packages/domain/src/cases/repositories/CaseRepository.ts`
+  - `apps/trigger/src/workflows/lead-scoring.ts`
+  - `apps/trigger/src/workflows/patient-journey.ts`
+  - `supabase/migrations/20251206000001_cases_payments.sql`
+
+  ### Effort Estimate
+  2-3 hours
+---
+title: "[H2] Wire Cognitive Memory to Agent Guidance Flows"
+labels: ["priority: critical", "type: feature", "area: cognitive-memory", "effort: 3-4h"]
+milestone: "Sprint 1 - Production Critical"
+body: |
+  ### ID: H2
+
+  ### Description
+  The Cognitive Memory module (episode builder, memory retrieval) is fully
+  implemented but not integrated into agent-facing flows. Agents don't benefit
+  from patient history during calls.
+
+  ### Acceptance Criteria
+  - [ ] MemoryRetrievalService injected into guidance service
+  - [ ] Agent scripts receive relevant patient context from episodic memory
+  - [ ] Recent interactions displayed in agent workspace (when built)
+  - [ ] Semantic search used for "similar past interactions"
+  - [ ] Performance: retrieval < 200ms p95
+
+  ### Related Files
+  - `packages/core/src/cognitive/memory-retrieval.ts`
+  - `packages/core/src/cognitive/episode-builder.ts`
+  - `packages/domain/src/guidance/`
+  - `packages/domain/src/voice/supervisor-agent.ts`
+  - `apps/trigger/src/tasks/whatsapp-handler.ts`
+
+  ### Effort Estimate
+  3-4 hours
+---
+title: "[H3] Add Critical E2E Tests for Core Flows"
+labels: ["priority: critical", "type: testing", "area: e2e", "effort: 4-6h"]
+milestone: "Sprint 1 - Production Critical"
+body: |
+  ### ID: H3
+
+  ### Description
+  Currently only 4 E2E tests exist. Medical software requires comprehensive
+  E2E coverage of critical flows.
+
+  ### Acceptance Criteria
+  - [ ] E2E test: Complete booking flow (search slot → book → confirm)
+  - [ ] E2E test: Payment flow (create invoice → process payment → receipt)
+  - [ ] E2E test: Lead scoring flow (receive message → score → triage)
+  - [ ] E2E test: Consent management (grant → verify → withdraw)
+  - [ ] E2E test: GDPR data export request
+  - [ ] All tests run in CI with Playwright
+  - [ ] Test data isolated per run
+
+  ### Related Files
+  - `apps/web/e2e/`
+  - `apps/web/playwright.config.ts`
+  - `.github/workflows/ci.yml`
+
+  ### Effort Estimate
+  4-6 hours
+---
+title: "[H4] Load Test RLS Policies for Performance Validation"
+labels: ["priority: critical", "type: testing", "area: database", "effort: 3-4h"]
+milestone: "Sprint 1 - Production Critical"
+body: |
+  ### ID: H4
+
+  ### Description
+  Row-Level Security policies are implemented but not validated under load.
+  RLS can cause significant query slowdown with large datasets.
+
+  ### Acceptance Criteria
+  - [ ] k6 load test with 10K+ records per table
+  - [ ] Query latency < 100ms p95 with RLS enabled
+  - [ ] Compare RLS-on vs RLS-off performance
+  - [ ] Document any policies needing optimization
+  - [ ] Test multi-tenant isolation under concurrent load
+
+  ### Related Files
+  - `supabase/migrations/20240101000017_rls_policies.sql`
+  - `scripts/k6/`
+
+  ### Effort Estimate
+  3-4 hours
+---
+title: "[H5] Implement Basic Agent Workspace UI"
+labels: ["priority: critical", "type: feature", "area: frontend", "effort: 1-2d"]
+milestone: "Sprint 1 - Production Critical"
+body: |
+  ### ID: H5
+
+  ### Description
+  Backend routing, SLA monitoring, and disposition tracking exist, but agents
+  have no native MedicalCor UI. They must use external tools.
+
+  ### Acceptance Criteria
+  - [ ] Agent can view assigned queue with priority sorting
+  - [ ] Agent can accept/reject incoming tasks
+  - [ ] Agent can see lead context (name, score, history) on accept
+  - [ ] Agent can set disposition code after call
+  - [ ] Agent can add follow-up notes
+  - [ ] Real-time queue updates via WebSocket
+  - [ ] Mobile-responsive layout
+
+  ### Related Files
+  - `apps/web/src/app/agent-workspace/`
+  - `packages/domain/src/routing/skill-routing-service.ts`
+  - `apps/api/src/routes/supervisor-ws.ts`
+
+  ### Effort Estimate
+  1-2 days
+---
+title: "[H6] Add Database Partitioning for Event Tables"
+labels: ["priority: critical", "type: infrastructure", "area: database", "effort: 4-6h"]
+milestone: "Sprint 1 - Production Critical"
+body: |
+  ### ID: H6
+
+  ### Description
+  domain_events and audit_log tables will grow unbounded. Without partitioning,
+  query performance will degrade and maintenance will become problematic.
+
+  ### Acceptance Criteria
+  - [ ] domain_events partitioned by month (range on created_at)
+  - [ ] audit_log partitioned by month
+  - [ ] Automated partition creation (1 month ahead)
+  - [ ] Old partitions can be archived/dropped independently
+  - [ ] Zero downtime migration from existing data
+  - [ ] Documented retention policy per partition
+
+  ### Related Files
+  - `supabase/migrations/`
+  - `apps/trigger/src/jobs/cron-jobs.ts`
+
+  ### Effort Estimate
+  4-6 hours
+---
+title: "[H7] Production Secrets Audit and Rotation Procedure"
+labels: ["priority: critical", "type: security", "area: infrastructure", "effort: 2-3h"]
+milestone: "Sprint 1 - Production Critical"
+body: |
+  ### ID: H7
+
+  ### Description
+  Ensure no secrets exist in codebase, all secrets are rotatable, and
+  rotation procedures are documented.
+
+  ### Acceptance Criteria
+  - [ ] Gitleaks scan passes with zero findings
+  - [ ] All secrets documented in .env.example with descriptions
+  - [ ] Each secret has documented rotation procedure
+  - [ ] Rotation can be done without downtime
+  - [ ] Secret access logged in audit trail
+  - [ ] Emergency rotation runbook exists
+
+  ### Related Files
+  - `.env.example`
+  - `.env.production.template`
+  - `.gitleaks.toml`
+  - `packages/core/src/secrets-validator.ts`
+  - `docs/runbooks/secret-rotation.md`
+
+  ### Effort Estimate
+  2-3 hours
+---
+title: "[H8] Complete Knowledge Graph Migration and Integration"
+labels: ["priority: critical", "type: feature", "area: cognitive-memory", "effort: 4-6h"]
+milestone: "Sprint 1 - Production Critical"
+body: |
+  ### ID: H8
+
+  ### Description
+  ADR-004 references knowledge_entities and knowledge_relations tables but
+  these are not in migrations. Cognitive memory is incomplete without graph.
+
+  ### Acceptance Criteria
+  - [ ] Migration adds knowledge_entities table with embeddings
+  - [ ] Migration adds knowledge_relations table with typed edges
+  - [ ] Entity extraction integrated into episode builder
+  - [ ] Graph queries available in memory retrieval service
+  - [ ] GDPR erasure includes knowledge graph cleanup
+  - [ ] Basic visualization available for debugging
+
+  ### Related Files
+  - `supabase/migrations/`
+  - `packages/core/src/cognitive/episode-builder.ts`
+  - `packages/core/src/cognitive/memory-retrieval.ts`
+  - `packages/core/src/cognitive/knowledge-graph.ts`
+
+  ### Effort Estimate
+  4-6 hours
+
+# ===========================================================================
+# MEDIUM PRIORITY (P1) - Top 1% Level
+# ===========================================================================
+
+---
+title: "[M1] Consolidate Audit Tables into Unified Schema"
+labels: ["priority: high", "type: refactor", "area: database", "effort: 4-6h"]
+milestone: "Sprint 2 - Top Quality"
+body: |
+  ### ID: M1
+
+  ### Description
+  Multiple audit tables exist with overlapping purposes. Consolidate into a single
+  unified audit schema for consistency and easier querying.
+
+  ### Acceptance Criteria
+  - [ ] Single unified_audit_log table with type discriminator
+  - [ ] All existing audit data migrated
+  - [ ] Audit insertion abstracted through single service
+  - [ ] Backwards-compatible views for legacy queries
+  - [ ] Indexes optimized for common query patterns
+
+  ### Related Files
+  - `supabase/migrations/`
+  - `packages/core/src/observability/audit.ts`
+
+  ### Effort Estimate
+  4-6 hours
+---
+title: "[M2] Implement Predicted LTV (pLTV) Model Infrastructure"
+labels: ["priority: high", "type: feature", "area: analytics", "effort: 2-3d"]
+milestone: "Sprint 2 - Top Quality"
+body: |
+  ### ID: M2
+
+  ### Description
+  pLTV model infrastructure for predictive lifetime value calculations.
+  Enables smarter lead prioritization and resource allocation.
+
+  ### Acceptance Criteria
+  - [ ] pLTV model interface defined
+  - [ ] Feature extraction from lead attributes
+  - [ ] Model serving infrastructure (or API integration)
+  - [ ] pLTV score displayed on lead cards
+  - [ ] pLTV used in lead routing decisions
+  - [ ] Model retraining pipeline defined
+
+  ### Related Files
+  - `packages/domain/src/ltv/pltv-service.ts`
+  - `packages/domain/src/ltv/pltv-model.ts`
+  - `apps/web/src/app/ltv-dashboard/`
+  - `apps/trigger/src/workflows/lead-scoring.ts`
+
+  ### Effort Estimate
+  2-3 days
+---
+title: "[M3] Implement Patient Aggregate with Full Lifecycle"
+labels: ["priority: high", "type: feature", "area: domain", "effort: 1-2d"]
+milestone: "Sprint 2 - Top Quality"
+body: |
+  ### ID: M3
+
+  ### Description
+  Complete Patient aggregate root with full lifecycle management from lead
+  conversion through retention.
+
+  ### Acceptance Criteria
+  - [ ] PatientAggregateRoot with lifecycle states
+  - [ ] Domain events: PatientOnboarded, PatientActivated, PatientChurned
+  - [ ] Conversion from Lead preserves history
+  - [ ] Patient timeline view in UI
+  - [ ] Retention scoring linked to patient aggregate
+
+  ### Related Files
+  - `packages/domain/src/patients/`
+  - `packages/domain/src/patients/entities/Patient.ts`
+  - `packages/domain/src/patients/events/`
+
+  ### Effort Estimate
+  1-2 days
+---
+title: "[M4] Wire Feature Flags to Runtime UI"
+labels: ["priority: high", "type: feature", "area: infrastructure", "effort: 3-4h"]
+milestone: "Sprint 2 - Top Quality"
+body: |
+  ### ID: M4
+
+  ### Description
+  Feature flags exist but lack runtime UI for management. Enable
+  non-developers to toggle features safely.
+
+  ### Acceptance Criteria
+  - [ ] FeatureFlagProvider React context
+  - [ ] useFeatureFlag(flagName) hook
+  - [ ] Admin UI for viewing/toggling flags
+  - [ ] Rollout percentage support
+  - [ ] Audit log for flag changes
+  - [ ] SSR-compatible flag evaluation
+
+  ### Related Files
+  - `apps/web/src/lib/feature-flags/`
+  - `apps/web/src/app/settings/feature-flags/page.tsx`
+  - `supabase/migrations/20251206000007_feature_flags.sql`
+
+  ### Effort Estimate
+  3-4 hours
+---
+title: "[M5] Add Real-Time Queue Visualization Dashboard"
+labels: ["priority: high", "type: feature", "area: frontend", "effort: 4-6h"]
+milestone: "Sprint 2 - Top Quality"
+body: |
+  ### ID: M5
+
+  ### Description
+  Real-time dashboard for queue monitoring. Critical for supervisor
+  visibility and SLA management.
+
+  ### Acceptance Criteria
+  - [ ] Dashboard showing all active queues
+  - [ ] Real-time metrics: wait time, queue depth, SLA status
+  - [ ] Visual SLA breach alerts
+  - [ ] Historical queue performance charts
+  - [ ] Drill-down to individual agents in queue
+  - [ ] WebSocket updates for live data
+
+  ### Related Files
+  - `apps/web/src/app/queues/page.tsx`
+  - `supabase/migrations/20251206000002_queue_sla.sql`
+  - `apps/api/src/routes/supervisor-ws.ts`
+
+  ### Effort Estimate
+  4-6 hours
+---
+title: "[M6] Complete Async Embedding Worker Pipeline"
+labels: ["priority: high", "type: feature", "area: cognitive-memory", "effort: 3-4h"]
+milestone: "Sprint 2 - Top Quality"
+body: |
+  ### ID: M6
+
+  ### Description
+  Async embedding pipeline for cognitive memory. Currently embeddings may
+  be computed synchronously, impacting request latency.
+
+  ### Acceptance Criteria
+  - [ ] Domain events trigger embedding worker
+  - [ ] Batch processing for efficiency
+  - [ ] Retry logic for API failures
+  - [ ] Cron job for embedding refresh (stale embeddings)
+  - [ ] Metrics for embedding pipeline health
+  - [ ] Backfill command for historical data
+
+  ### Related Files
+  - `apps/trigger/src/tasks/embedding-worker.ts`
+  - `apps/trigger/src/jobs/embedding-refresh.ts`
+  - `packages/core/src/cognitive/episode-builder.ts`
+
+  ### Effort Estimate
+  3-4 hours
+---
+title: "[M7] Add Cohort LTV Analysis View"
+labels: ["priority: high", "type: feature", "area: analytics", "effort: 4-6h"]
+milestone: "Sprint 2 - Top Quality"
+body: |
+  ### ID: M7
+
+  ### Description
+  Cohort-based LTV analysis for understanding customer value over time
+  and identifying trends by acquisition period.
+
+  ### Acceptance Criteria
+  - [ ] Cohort definition by first contact month
+  - [ ] LTV progression over time per cohort
+  - [ ] Cohort comparison visualization
+  - [ ] Export cohort data for analysis
+  - [ ] Materialized view for performance
+
+  ### Related Files
+  - `packages/domain/src/ltv/cohort-analysis.ts`
+  - `apps/web/src/app/ltv-dashboard/cohorts/page.tsx`
+  - `supabase/migrations/`
+
+  ### Effort Estimate
+  4-6 hours
+---
+title: "[M8] Create Operational Runbooks"
+labels: ["priority: high", "type: documentation", "area: operations", "effort: 4-6h"]
+milestone: "Sprint 2 - Top Quality"
+body: |
+  ### ID: M8
+
+  ### Description
+  Comprehensive operational runbooks for incident response, scaling,
+  and disaster recovery. Critical for production readiness.
+
+  ### Acceptance Criteria
+  - [ ] Incident response runbook (detection → triage → resolution)
+  - [ ] Rollback procedure for each service
+  - [ ] Database recovery procedure
+  - [ ] Scaling playbook (manual and automated)
+  - [ ] On-call rotation setup guide
+  - [ ] Postmortem template
+
+  ### Related Files
+  - `docs/runbooks/incident-response.md`
+  - `docs/runbooks/rollback.md`
+  - `docs/runbooks/database-recovery.md`
+  - `docs/runbooks/scaling.md`
+
+  ### Effort Estimate
+  4-6 hours
+---
+title: "[M9] Enhance Circuit Breaker Dashboard"
+labels: ["priority: medium", "type: feature", "area: observability", "effort: 2-3h"]
+milestone: "Sprint 2 - Top Quality"
+body: |
+  ### ID: M9
+
+  ### Description
+  Circuit breaker visualization and manual controls for operational
+  resilience management.
+
+  ### Acceptance Criteria
+  - [ ] Real-time circuit state (open/closed/half-open)
+  - [ ] Failure rate metrics per circuit
+  - [ ] Manual circuit trip/reset capability
+  - [ ] Historical state changes timeline
+  - [ ] Alerts when circuits open
+
+  ### Related Files
+  - `apps/web/src/app/circuit-breaker/page.tsx`
+  - `packages/core/src/circuit-breaker.ts`
+
+  ### Effort Estimate
+  2-3 hours
+---
+title: "[M10] Implement Data Lineage Visualization"
+labels: ["priority: medium", "type: feature", "area: compliance", "effort: 4-6h"]
+milestone: "Sprint 2 - Top Quality"
+body: |
+  ### ID: M10
+
+  ### Description
+  Data lineage tracking and visualization for HIPAA/GDPR compliance
+  audits and debugging data flows.
+
+  ### Acceptance Criteria
+  - [ ] Graph visualization of data flows
+  - [ ] Filter by data subject or resource
+  - [ ] Trace upstream sources for any data point
+  - [ ] Trace downstream impact of data changes
+  - [ ] Export lineage report for auditors
+  - [ ] HIPAA/GDPR compliance view
+
+  ### Related Files
+  - `apps/web/src/app/data-lineage/page.tsx`
+  - `supabase/migrations/20251206000006_data_lineage.sql`
+  - `packages/core/src/data-lineage/`
+
+  ### Effort Estimate
+  4-6 hours
+---
+title: "[M11] Complete Supervisor Live Monitoring UI"
+labels: ["priority: medium", "type: feature", "area: frontend", "effort: 4-6h"]
+milestone: "Sprint 2 - Top Quality"
+body: |
+  ### ID: M11
+
+  ### Description
+  Supervisor UI for live call monitoring with listen, whisper, and barge
+  capabilities.
+
+  ### Acceptance Criteria
+  - [ ] View all active calls with status
+  - [ ] Listen mode (silent monitoring)
+  - [ ] Whisper mode (speak to agent only)
+  - [ ] Barge mode (join call)
+  - [ ] Real-time transcript view
+  - [ ] Sentiment indicators
+  - [ ] Quick escalation actions
+
+  ### Related Files
+  - `apps/web/src/app/supervisor/page.tsx`
+  - `packages/domain/src/voice/supervisor-agent.ts`
+  - `supabase/migrations/20251206000002_supervisor_state_persistence.sql`
+
+  ### Effort Estimate
+  4-6 hours
+---
+title: "[M12] Add Contract Testing for External Integrations"
+labels: ["priority: medium", "type: testing", "area: integrations", "effort: 4-6h"]
+milestone: "Sprint 2 - Top Quality"
+body: |
+  ### ID: M12
+
+  ### Description
+  Contract testing with Pact for external API integrations to catch
+  breaking changes early.
+
+  ### Acceptance Criteria
+  - [ ] Pact contract tests for HubSpot API
+  - [ ] Pact contract tests for Stripe webhooks
+  - [ ] Pact contract tests for WhatsApp/360dialog
+  - [ ] Contract verification in CI
+  - [ ] Provider state management for test scenarios
+
+  ### Related Files
+  - `packages/integrations/src/__tests__/contracts/`
+  - `packages/integrations/src/hubspot.ts`
+  - `packages/integrations/src/stripe.ts`
+
+  ### Effort Estimate
+  4-6 hours
+---
+title: "[M13] Add Request Tracing Visualization"
+labels: ["priority: medium", "type: feature", "area: observability", "effort: 3-4h"]
+milestone: "Sprint 2 - Top Quality"
+body: |
+  ### ID: M13
+
+  ### Description
+  Request tracing visualization for debugging distributed flows
+  and identifying performance bottlenecks.
+
+  ### Acceptance Criteria
+  - [ ] Search traces by correlation ID
+  - [ ] Waterfall view of request flow
+  - [ ] Service-to-service hops visible
+  - [ ] Latency breakdown per hop
+  - [ ] Error highlighting in trace
+  - [ ] Link to related logs
+
+  ### Related Files
+  - `apps/web/src/app/traces/page.tsx`
+  - `packages/core/src/observability/instrumentation.ts`
+
+  ### Effort Estimate
+  3-4 hours
+
+# ===========================================================================
+# LOW PRIORITY (P2) - Polish
+# ===========================================================================
+
+---
+title: "[L1] Add Comprehensive Storybook Coverage"
+labels: ["priority: low", "type: documentation", "area: frontend", "effort: 4-6h"]
+milestone: "Sprint 3 - Polish"
+body: |
+  ### ID: L1
+
+  ### Description
+  Comprehensive Storybook coverage for UI component documentation
+  and visual regression testing.
+
+  ### Acceptance Criteria
+  - [ ] Stories for all components/ui/ primitives
+  - [ ] Stories for key feature components
+  - [ ] Interactive controls for props
+  - [ ] Accessibility addon configured
+  - [ ] Deployed Storybook for team reference
+
+  ### Related Files
+  - `apps/web/.storybook/`
+  - `apps/web/src/components/ui/__stories__/`
+
+  ### Effort Estimate
+  4-6 hours
+---
+title: "[L2] Implement Proper Dark Mode Toggle"
+labels: ["priority: low", "type: feature", "area: frontend", "effort: 2-3h"]
+milestone: "Sprint 3 - Polish"
+body: |
+  ### ID: L2
+
+  ### Description
+  Full dark mode support with user preference persistence and
+  system preference detection.
+
+  ### Acceptance Criteria
+  - [ ] Dark mode toggle in header/settings
+  - [ ] System preference detection
+  - [ ] Preference persisted in localStorage
+  - [ ] Smooth transition animation
+  - [ ] All components properly themed
+
+  ### Related Files
+  - `apps/web/src/app/layout.tsx`
+  - `apps/web/src/components/providers.tsx`
+  - `apps/web/src/globals.css`
+
+  ### Effort Estimate
+  2-3 hours
+---
+title: "[L3] Create API Documentation Portal"
+labels: ["priority: low", "type: documentation", "area: api", "effort: 3-4h"]
+milestone: "Sprint 3 - Polish"
+body: |
+  ### ID: L3
+
+  ### Description
+  Hosted API documentation with OpenAPI spec, examples, and
+  interactive testing.
+
+  ### Acceptance Criteria
+  - [ ] OpenAPI spec generated from routes
+  - [ ] Hosted docs (Redoc or Swagger UI)
+  - [ ] Authentication examples
+  - [ ] Request/response examples
+  - [ ] Webhook payload documentation
+
+  ### Related Files
+  - `apps/api/src/routes/`
+  - `apps/api/openapi.json`
+  - `docs/api/`
+
+  ### Effort Estimate
+  3-4 hours
+---
+title: "[L4] Optimize Vector Search Performance"
+labels: ["priority: low", "type: performance", "area: database", "effort: 2-3h"]
+milestone: "Sprint 3 - Polish"
+body: |
+  ### ID: L4
+
+  ### Description
+  Tune pgvector HNSW parameters for optimal semantic search
+  performance.
+
+  ### Acceptance Criteria
+  - [ ] Benchmark current query performance
+  - [ ] Tune HNSW parameters (m, ef_construction, ef_search)
+  - [ ] Document optimal settings
+  - [ ] Add performance regression test
+
+  ### Related Files
+  - `packages/infrastructure/src/ai/vector-search/PgVectorService.ts`
+  - `supabase/migrations/20240101000005_pgvector_rag.sql`
+
+  ### Effort Estimate
+  2-3 hours
+---
+title: "[L5] Add Mobile-Responsive Agent UI"
+labels: ["priority: low", "type: feature", "area: frontend", "effort: 3-4h"]
+milestone: "Sprint 3 - Polish"
+body: |
+  ### ID: L5
+
+  ### Description
+  Mobile-responsive enhancements to agent workspace for tablet
+  and mobile use cases.
+
+  ### Acceptance Criteria
+  - [ ] Responsive breakpoints for tablet (768px+)
+  - [ ] Touch-friendly controls
+  - [ ] Collapsible sidebar
+  - [ ] Swipe gestures for common actions
+
+  ### Related Files
+  - `apps/web/src/app/agent-workspace/`
+
+  ### Dependencies
+  Depends on: H5 (Basic Agent Workspace UI)
+
+  ### Effort Estimate
+  3-4 hours
+---
+title: "[L6] Implement Webhook Replay UI"
+labels: ["priority: low", "type: feature", "area: debugging", "effort: 3-4h"]
+milestone: "Sprint 3 - Polish"
+body: |
+  ### ID: L6
+
+  ### Description
+  Webhook replay functionality for debugging integration issues
+  and testing webhook handlers.
+
+  ### Acceptance Criteria
+  - [ ] View recent webhook deliveries
+  - [ ] Filter by source (WhatsApp, Stripe, etc.)
+  - [ ] Replay individual webhooks
+  - [ ] View request/response details
+  - [ ] Diff between original and replay
+
+  ### Related Files
+  - `apps/web/src/app/webhooks/page.tsx`
+  - `apps/api/src/routes/webhooks/`
+
+  ### Effort Estimate
+  3-4 hours
+---
+title: "[L7] Add Performance Budgets and Lighthouse CI"
+labels: ["priority: low", "type: infrastructure", "area: performance", "effort: 2-3h"]
+milestone: "Sprint 3 - Polish"
+body: |
+  ### ID: L7
+
+  ### Description
+  Lighthouse CI integration with performance budgets to prevent
+  performance regressions.
+
+  ### Acceptance Criteria
+  - [ ] Lighthouse CI configured
+  - [ ] Performance budgets defined
+  - [ ] CI fails on budget violations
+  - [ ] Core Web Vitals dashboard
+  - [ ] Bundle size tracking
+
+  ### Related Files
+  - `.github/workflows/ci.yml`
+  - `lighthouserc.js`
+  - `apps/web/`
+
+  ### Effort Estimate
+  2-3 hours
+---
+title: "[L8] Complete Localization Coverage"
+labels: ["priority: low", "type: feature", "area: i18n", "effort: 3-4h"]
+milestone: "Sprint 3 - Polish"
+body: |
+  ### ID: L8
+
+  ### Description
+  Complete i18n coverage with language switcher and translation
+  validation in CI.
+
+  ### Acceptance Criteria
+  - [ ] Audit all translation keys
+  - [ ] Complete Romanian translations
+  - [ ] Add language switcher UI
+  - [ ] Validate no missing keys in CI
+  - [ ] Document translation workflow
+
+  ### Related Files
+  - `apps/web/src/lib/i18n/`
+  - `apps/web/src/lib/i18n/locales/`
+
+  ### Effort Estimate
+  3-4 hours
+
+# ===========================================================================
+# Summary
+# ===========================================================================
+#
+# Priority Breakdown:
+# - Critical (P0): 8 issues, ~3-5 days effort
+# - High (P1): 13 issues, ~6-10 days effort
+# - Low (P2): 8 issues, ~3-4 days effort
+#
+# Total: 29 issues, ~12-19 days estimated effort
+#
+# Milestones:
+# - Sprint 1 - Production Critical (P0 issues)
+# - Sprint 2 - Top Quality (P1 issues)
+# - Sprint 3 - Polish (P2 issues)
+# ===========================================================================
