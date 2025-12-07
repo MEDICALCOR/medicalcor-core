@@ -38,17 +38,17 @@ pnpm test:e2e --project=chromium
 
 ## Test Files
 
-| File | Description |
-|------|-------------|
-| `auth.setup.ts` | Authentication setup (runs before all tests) |
-| `dashboard.spec.ts` | Dashboard page tests |
-| `patients.spec.ts` | Patient management tests |
-| `consent.spec.ts` | GDPR consent workflow tests |
-| `payment.spec.ts` | Payment processing tests |
-| `booking.spec.ts` | Appointment booking tests |
-| `workflows.spec.ts` | Workflow builder tests |
-| `lead-scoring.spec.ts` | Lead scoring UI tests |
-| `accessibility.spec.ts` | Accessibility compliance tests |
+| File                    | Description                                  |
+| ----------------------- | -------------------------------------------- |
+| `auth.setup.ts`         | Authentication setup (runs before all tests) |
+| `dashboard.spec.ts`     | Dashboard page tests                         |
+| `patients.spec.ts`      | Patient management tests                     |
+| `consent.spec.ts`       | GDPR consent workflow tests                  |
+| `payment.spec.ts`       | Payment processing tests                     |
+| `booking.spec.ts`       | Appointment booking tests                    |
+| `workflows.spec.ts`     | Workflow builder tests                       |
+| `lead-scoring.spec.ts`  | Lead scoring UI tests                        |
+| `accessibility.spec.ts` | Accessibility compliance tests               |
 
 ## Authentication
 
@@ -100,10 +100,10 @@ test.describe('Feature Name', () => {
   test('should do something', async ({ page }) => {
     // Navigate
     await page.goto('/path');
-    
+
     // Interact
     await page.click('button[type="submit"]');
-    
+
     // Assert
     await expect(page.locator('h1')).toContainText('Expected Text');
   });
@@ -118,11 +118,11 @@ For complex pages, use the Page Object Model pattern:
 // pages/dashboard.page.ts
 export class DashboardPage {
   constructor(private page: Page) {}
-  
+
   async goto() {
     await this.page.goto('/dashboard');
   }
-  
+
   async getLeadsCount() {
     return this.page.locator('[data-testid="leads-count"]').textContent();
   }
@@ -134,7 +134,7 @@ import { DashboardPage } from './pages/dashboard.page';
 test('should display leads count', async ({ page }) => {
   const dashboard = new DashboardPage(page);
   await dashboard.goto();
-  
+
   const count = await dashboard.getLeadsCount();
   expect(count).toBeTruthy();
 });
@@ -158,7 +158,8 @@ test('should display leads count', async ({ page }) => {
 
 ### "Login failed" or "Invalid credentials"
 
-**Solution**: 
+**Solution**:
+
 - Verify the test user exists in your test environment
 - Check credentials are correct
 - Ensure the account is active
@@ -166,6 +167,7 @@ test('should display leads count', async ({ page }) => {
 ### Tests timeout
 
 **Solution**:
+
 - Verify the application is running: `curl http://localhost:3001`
 - Increase timeout in `playwright.config.ts`
 - Check network connectivity
@@ -181,6 +183,7 @@ For detailed instructions on setting up E2E tests for both local development and
 📖 **[E2E Setup Guide](../../../docs/README/E2E_SETUP.md)**
 
 This guide includes:
+
 - Test user requirements and security best practices
 - Step-by-step CI/CD configuration
 - Troubleshooting common issues

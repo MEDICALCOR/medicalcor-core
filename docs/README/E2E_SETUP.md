@@ -38,6 +38,7 @@ MedicalCor uses [Playwright](https://playwright.dev/) for end-to-end testing. E2
 Before running E2E tests locally, you need a test user account in your development environment:
 
 1. Start your local development environment:
+
    ```bash
    pnpm dev
    ```
@@ -99,6 +100,7 @@ https://github.com/MEDICALCOR/medicalcor-core/settings/secrets/actions
 ```
 
 Or navigate manually:
+
 1. Go to your repository on GitHub
 2. Click **Settings** tab
 3. In the left sidebar, click **Secrets and variables** → **Actions**
@@ -107,10 +109,10 @@ Or navigate manually:
 
 Click **"New repository secret"** and add the following secrets:
 
-| Secret Name | Description | Example Value |
-|-------------|-------------|---------------|
-| `TEST_USER_EMAIL` | Email address of the test user account | `test@example.com` |
-| `TEST_USER_PASSWORD` | Password for the test user account | `SecureTestPassword123!` |
+| Secret Name          | Description                            | Example Value            |
+| -------------------- | -------------------------------------- | ------------------------ |
+| `TEST_USER_EMAIL`    | Email address of the test user account | `test@example.com`       |
+| `TEST_USER_PASSWORD` | Password for the test user account     | `SecureTestPassword123!` |
 
 **Important**: These secrets are required for E2E tests to run in CI/CD pipelines.
 
@@ -145,13 +147,13 @@ Check the workflow file section for E2E tests:
 
 The test user account should meet these requirements:
 
-| Requirement | Description |
-|-------------|-------------|
-| **Dedicated Account** | Use a separate account, not a real user account |
-| **Minimal Permissions** | Grant only the permissions needed for E2E test flows |
-| **Test Environment** | Use a separate test database/environment |
-| **Stable Credentials** | Don't change password or delete the account |
-| **Valid Session** | Account should not have expired sessions or require MFA |
+| Requirement             | Description                                             |
+| ----------------------- | ------------------------------------------------------- |
+| **Dedicated Account**   | Use a separate account, not a real user account         |
+| **Minimal Permissions** | Grant only the permissions needed for E2E test flows    |
+| **Test Environment**    | Use a separate test database/environment                |
+| **Stable Credentials**  | Don't change password or delete the account             |
+| **Valid Session**       | Account should not have expired sessions or require MFA |
 
 ### Recommended Test User Configuration
 
@@ -189,6 +191,7 @@ The test user account should meet these requirements:
 **Cause**: Environment variables are not set.
 
 **Solution**:
+
 - **Local**: Create `.env.local` file in `apps/web/` with `TEST_USER_EMAIL` and `TEST_USER_PASSWORD`
 - **CI**: Add secrets to GitHub repository settings
 
@@ -197,6 +200,7 @@ The test user account should meet these requirements:
 **Cause**: Test user credentials are incorrect or account is disabled.
 
 **Solution**:
+
 1. Verify the test user account exists in your test environment
 2. Verify credentials are correct
 3. Check if the account is active and not locked
@@ -207,6 +211,7 @@ The test user account should meet these requirements:
 **Cause**: Application is slow to start or login page is not accessible.
 
 **Solution**:
+
 1. Increase timeout in `playwright.config.ts`:
    ```typescript
    timeout: 60000, // 60 seconds
@@ -222,6 +227,7 @@ The test user account should meet these requirements:
 **Cause**: Playwright browsers are not installed.
 
 **Solution**:
+
 ```bash
 cd apps/web
 pnpm exec playwright install --with-deps chromium
@@ -232,6 +238,7 @@ pnpm exec playwright install --with-deps chromium
 **Cause**: Environment differences or missing secrets.
 
 **Solution**:
+
 1. Verify GitHub secrets are set correctly
 2. Check CI logs for error messages
 3. Ensure the test environment in CI matches local setup
@@ -295,13 +302,13 @@ pnpm exec playwright install --with-deps chromium
 
 ## Additional Resources
 
-| Resource | Description |
-|----------|-------------|
-| [Playwright Documentation](https://playwright.dev/) | Official Playwright docs |
-| [TESTING.md](./TESTING.md) | General testing guide for MedicalCor |
-| [SECURITY.md](./SECURITY.md) | Security best practices |
-| [CI Workflow](.github/workflows/ci.yml) | GitHub Actions CI configuration |
-| [GitHub Secrets Docs](https://docs.github.com/en/actions/security-guides/encrypted-secrets) | GitHub's encrypted secrets guide |
+| Resource                                                                                    | Description                          |
+| ------------------------------------------------------------------------------------------- | ------------------------------------ |
+| [Playwright Documentation](https://playwright.dev/)                                         | Official Playwright docs             |
+| [TESTING.md](./TESTING.md)                                                                  | General testing guide for MedicalCor |
+| [SECURITY.md](./SECURITY.md)                                                                | Security best practices              |
+| [CI Workflow](.github/workflows/ci.yml)                                                     | GitHub Actions CI configuration      |
+| [GitHub Secrets Docs](https://docs.github.com/en/actions/security-guides/encrypted-secrets) | GitHub's encrypted secrets guide     |
 
 ---
 
