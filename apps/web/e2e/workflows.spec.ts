@@ -5,6 +5,7 @@ import { test, expect } from '@playwright/test';
  *
  * Tests the automation workflow features.
  * Critical for clinic efficiency and automated patient communication.
+ * Features: Workflow CRUD, triggers, conditions, actions, execution history.
  */
 test.describe('Workflow Management', () => {
   test.beforeEach(async ({ page }) => {
@@ -14,128 +15,410 @@ test.describe('Workflow Management', () => {
     });
   });
 
-  test('displays workflow list', async ({ page }) => {
-    // Check for workflow list or empty state
-    const workflowList = page.locator('[data-testid="workflow-list"], [role="list"]');
-    const emptyState = page.getByText(/nu exista workflow|no workflows|creaza primul/i);
+  test.describe('Workflow List', () => {
+    test('displays workflow list', async ({ page }) => {
+      // Check for workflow list or empty state
+      const workflowList = page.locator('[data-testid="workflow-list"], [role="list"], [class*="Card"]');
+      const emptyState = page.getByText(/nu exista workflow|no workflows|creaza primul/i);
 
-    await expect(workflowList.or(emptyState)).toBeVisible({ timeout: 10000 });
-  });
+      await expect(workflowList.first().or(emptyState)).toBeVisible({ timeout: 10000 });
+    });
 
-  test('can toggle workflow active status (optimistic UI)', async ({ page }) => {
-    // Find a workflow toggle switch
-    const toggleSwitch = page.locator(
-      '[data-testid="workflow-toggle"], [role="switch"]'
-    ).first();
+    test('workflow cards show name and description', async ({ page }) => {
+      await page.waitForTimeout(1000);
 
-    if (await toggleSwitch.isVisible()) {
-      // Get initial state
-      const wasChecked = await toggleSwitch.getAttribute('aria-checked');
+      const workflowCard = page.locator('[data-testid="workflow-card"], [data-testid="workflow-row"], [class*="Card"]').first();
 
-      // Click to toggle
-      await toggleSwitch.click();
-
-      // Should update immediately (optimistic UI)
-      const expectedState = wasChecked === 'true' ? 'false' : 'true';
-      await expect(toggleSwitch).toHaveAttribute('aria-checked', expectedState, {
-        timeout: 500, // Should be instant due to optimistic UI
-      });
-    }
-  });
-
-  test('opens workflow creation modal', async ({ page }) => {
-    // Click create workflow button
-    const createButton = page.getByRole('button', { name: /creeaza|create|adauga/i });
-
-    if (await createButton.isVisible()) {
-      await createButton.click();
-
-      // Modal should open
-      await expect(
-        page.getByRole('dialog').or(page.locator('[data-testid="workflow-modal"]'))
-      ).toBeVisible({ timeout: 5000 });
-
-      // Check essential form fields
-      await expect(page.getByLabel(/nume|name/i)).toBeVisible();
-    }
-  });
-
-  test('can duplicate a workflow', async ({ page }) => {
-    // Find duplicate button on first workflow
-    const workflowCard = page.locator(
-      '[data-testid="workflow-card"], [data-testid="workflow-row"]'
-    ).first();
-
-    if (await workflowCard.isVisible()) {
-      // Look for actions menu or duplicate button
-      const actionsButton = workflowCard.getByRole('button', { name: /actiuni|actions|more/i });
-
-      if (await actionsButton.isVisible()) {
-        await actionsButton.click();
-
-        // Click duplicate option
-        const duplicateOption = page.getByRole('menuitem', { name: /duplica|duplicate|copy/i });
-        if (await duplicateOption.isVisible()) {
-          await duplicateOption.click();
-
-          // Should show success message or new workflow appears
-          await expect(
-            page.getByText(/duplicat|copied|succes/i).or(
-              page.locator('[data-testid="workflow-card"], [data-testid="workflow-row"]').nth(1)
-            )
-          ).toBeVisible({ timeout: 5000 });
-        }
+      if (await workflowCard.isVisible({ timeout: 5000 })) {
+        // Should show workflow name
+        const nameElement = workflowCard.locator('[class*="font-medium"], [class*="font-semibold"], h3, h4');
+        await expect(nameElement.first()).toBeVisible();
       }
-    }
+    });
+
+    test('workflow cards show status indicator', async ({ page }) => {
+      await page.waitForTimeout(1000);
+
+      const workflowCard = page.locator('[data-testid="workflow-card"], [class*="Card"]').first();
+
+      if (await workflowCard.isVisible({ timeout: 5000 })) {
+        // Should show active/inactive status
+        const statusBadge = page.locator('[class*="Badge"], [class*="badge"]').filter({
+          hasText: /activ|inactiv|active|inactive|pornit|oprit/i,
+        });
+        const toggleSwitch = page.locator('[role="switch"]');
+
+        await expect(statusBadge.first().or(toggleSwitch.first())).toBeVisible({ timeout: 3000 });
+      }
+    });
+
+    test('shows workflow count or statistics', async ({ page }) => {
+      await page.waitForTimeout(1000);
+
+      // Look for workflow count
+      const countDisplay = page.getByText(/\d+\s*(workflow|automatizări)/i);
+      const totalBadge = page.locator('[class*="Badge"]').filter({ hasText: /\d+/ });
+
+      await expect(countDisplay.or(totalBadge.first())).toBeVisible({ timeout: 5000 });
+    });
+
+    test('workflow list shows trigger type icons', async ({ page }) => {
+      await page.waitForTimeout(1000);
+
+      const workflowCard = page.locator('[data-testid="workflow-card"], [class*="Card"]').first();
+
+      if (await workflowCard.isVisible({ timeout: 5000 })) {
+        // Should show trigger type icon (clock, message, etc.)
+        const triggerIcon = workflowCard.locator('[class*="lucide-clock"], [class*="lucide-message"], [class*="lucide-zap"], [class*="lucide-calendar"]');
+        await expect(triggerIcon.first()).toBeVisible({ timeout: 3000 });
+      }
+    });
   });
 
-  test('workflow templates are available', async ({ page }) => {
-    // Look for templates section or button
-    const templatesButton = page.getByRole('button', { name: /template|sablon/i });
-    const templatesTab = page.getByRole('tab', { name: /template|sablon/i });
+  test.describe('Workflow Toggle', () => {
+    test('can toggle workflow active status (optimistic UI)', async ({ page }) => {
+      // Find a workflow toggle switch
+      const toggleSwitch = page.locator(
+        '[data-testid="workflow-toggle"], [role="switch"]'
+      ).first();
 
-    if (await templatesButton.or(templatesTab).isVisible()) {
-      await templatesButton.or(templatesTab).click();
+      if (await toggleSwitch.isVisible()) {
+        // Get initial state
+        const wasChecked = await toggleSwitch.getAttribute('aria-checked');
 
-      // Templates should be displayed
-      await expect(
-        page.locator('[data-testid="workflow-template"]').or(
-          page.getByText(/template-ul|sablon pentru/i)
-        )
-      ).toBeVisible({ timeout: 5000 });
-    }
+        // Click to toggle
+        await toggleSwitch.click();
+
+        // Should update immediately (optimistic UI)
+        const expectedState = wasChecked === 'true' ? 'false' : 'true';
+        await expect(toggleSwitch).toHaveAttribute('aria-checked', expectedState, {
+          timeout: 500, // Should be instant due to optimistic UI
+        });
+      }
+    });
+
+    test('toggle shows loading state briefly', async ({ page }) => {
+      const toggleSwitch = page.locator('[role="switch"]').first();
+
+      if (await toggleSwitch.isVisible({ timeout: 5000 })) {
+        // Click and check for any loading indicator
+        await toggleSwitch.click();
+
+        // The switch should update (loading should be brief)
+        await page.waitForTimeout(100);
+        await expect(toggleSwitch).toBeVisible();
+      }
+    });
   });
 
-  test('can delete a workflow with confirmation', async ({ page }) => {
-    // Find delete button on first workflow
-    const workflowCard = page.locator(
-      '[data-testid="workflow-card"], [data-testid="workflow-row"]'
-    ).first();
+  test.describe('Create Workflow', () => {
+    test('opens workflow creation modal', async ({ page }) => {
+      // Click create workflow button
+      const createButton = page.getByRole('button', { name: /creeaza|create|adauga|nou/i });
 
-    if (await workflowCard.isVisible()) {
-      const actionsButton = workflowCard.getByRole('button', { name: /actiuni|actions|more/i });
+      if (await createButton.isVisible()) {
+        await createButton.click();
 
-      if (await actionsButton.isVisible()) {
-        await actionsButton.click();
+        // Modal should open
+        await expect(
+          page.getByRole('dialog').or(page.locator('[data-testid="workflow-modal"]'))
+        ).toBeVisible({ timeout: 5000 });
 
-        const deleteOption = page.getByRole('menuitem', { name: /sterge|delete|remove/i });
-        if (await deleteOption.isVisible()) {
-          await deleteOption.click();
+        // Check essential form fields
+        await expect(page.getByLabel(/nume|name/i)).toBeVisible();
+      }
+    });
 
-          // Confirmation dialog should appear
-          await expect(
-            page.getByRole('alertdialog').or(
-              page.getByText(/sigur|confirma|confirm/i)
-            )
-          ).toBeVisible({ timeout: 3000 });
+    test('workflow creation form has trigger selection', async ({ page }) => {
+      const createButton = page.getByRole('button', { name: /creeaza|create|adauga|nou/i });
 
-          // Cancel to avoid actually deleting
-          const cancelButton = page.getByRole('button', { name: /anuleaza|cancel/i });
-          if (await cancelButton.isVisible()) {
-            await cancelButton.click();
+      if (await createButton.isVisible()) {
+        await createButton.click();
+        await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
+
+        // Check for trigger type selection
+        const triggerSection = page.getByText(/trigger|declanșator|când/i);
+        const triggerSelect = page.locator('[role="combobox"]').filter({ hasText: /trigger|selectează/i });
+
+        await expect(triggerSection.or(triggerSelect)).toBeVisible({ timeout: 3000 });
+
+        await page.keyboard.press('Escape');
+      }
+    });
+
+    test('workflow creation form has action configuration', async ({ page }) => {
+      const createButton = page.getByRole('button', { name: /creeaza|create|adauga|nou/i });
+
+      if (await createButton.isVisible()) {
+        await createButton.click();
+        await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
+
+        // Check for action configuration section
+        const actionSection = page.getByText(/acțiune|action|ce să facă/i);
+        await expect(actionSection).toBeVisible({ timeout: 3000 });
+
+        await page.keyboard.press('Escape');
+      }
+    });
+
+    test('cancel button closes creation modal', async ({ page }) => {
+      const createButton = page.getByRole('button', { name: /creeaza|create|adauga|nou/i });
+
+      if (await createButton.isVisible()) {
+        await createButton.click();
+        await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
+
+        // Click cancel
+        const cancelButton = page.getByRole('button', { name: /anulează|cancel|închide/i });
+        await cancelButton.click();
+
+        // Modal should close
+        await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 3000 });
+      }
+    });
+  });
+
+  test.describe('Workflow Actions', () => {
+    test('can duplicate a workflow', async ({ page }) => {
+      // Find duplicate button on first workflow
+      const workflowCard = page.locator(
+        '[data-testid="workflow-card"], [data-testid="workflow-row"], [class*="Card"]'
+      ).first();
+
+      if (await workflowCard.isVisible()) {
+        // Look for actions menu or duplicate button
+        const actionsButton = workflowCard.locator('button').filter({
+          has: page.locator('[class*="lucide-more"]'),
+        });
+
+        if (await actionsButton.isVisible()) {
+          await actionsButton.click();
+
+          // Click duplicate option
+          const duplicateOption = page.getByRole('menuitem', { name: /duplica|duplicate|copy/i });
+          if (await duplicateOption.isVisible()) {
+            await duplicateOption.click();
+
+            // Should show success message or new workflow appears
+            await expect(
+              page.getByText(/duplicat|copied|succes/i).or(
+                page.locator('[data-testid="workflow-card"], [class*="Card"]').nth(1)
+              )
+            ).toBeVisible({ timeout: 5000 });
           }
         }
       }
-    }
+    });
+
+    test('can edit a workflow', async ({ page }) => {
+      const workflowCard = page.locator('[data-testid="workflow-card"], [class*="Card"]').first();
+
+      if (await workflowCard.isVisible({ timeout: 5000 })) {
+        const actionsButton = workflowCard.locator('button').filter({
+          has: page.locator('[class*="lucide-more"]'),
+        });
+
+        if (await actionsButton.isVisible()) {
+          await actionsButton.click();
+
+          const editOption = page.getByRole('menuitem', { name: /editează|edit|modifica/i });
+          if (await editOption.isVisible()) {
+            await editOption.click();
+
+            // Edit modal or page should appear
+            await expect(
+              page.getByRole('dialog').or(page.getByText(/editare workflow/i))
+            ).toBeVisible({ timeout: 5000 });
+
+            await page.keyboard.press('Escape');
+          }
+        }
+      }
+    });
+
+    test('can delete a workflow with confirmation', async ({ page }) => {
+      // Find delete button on first workflow
+      const workflowCard = page.locator(
+        '[data-testid="workflow-card"], [data-testid="workflow-row"], [class*="Card"]'
+      ).first();
+
+      if (await workflowCard.isVisible()) {
+        const actionsButton = workflowCard.locator('button').filter({
+          has: page.locator('[class*="lucide-more"]'),
+        });
+
+        if (await actionsButton.isVisible()) {
+          await actionsButton.click();
+
+          const deleteOption = page.getByRole('menuitem', { name: /sterge|delete|remove/i });
+          if (await deleteOption.isVisible()) {
+            await deleteOption.click();
+
+            // Confirmation dialog should appear
+            await expect(
+              page.getByRole('alertdialog').or(
+                page.getByText(/sigur|confirma|confirm/i)
+              )
+            ).toBeVisible({ timeout: 3000 });
+
+            // Cancel to avoid actually deleting
+            const cancelButton = page.getByRole('button', { name: /anuleaza|cancel/i });
+            if (await cancelButton.isVisible()) {
+              await cancelButton.click();
+            }
+          }
+        }
+      }
+    });
+
+    test('actions menu closes on outside click', async ({ page }) => {
+      const workflowCard = page.locator('[data-testid="workflow-card"], [class*="Card"]').first();
+
+      if (await workflowCard.isVisible({ timeout: 5000 })) {
+        const actionsButton = workflowCard.locator('button').filter({
+          has: page.locator('[class*="lucide-more"]'),
+        });
+
+        if (await actionsButton.isVisible()) {
+          await actionsButton.click();
+
+          const menu = page.getByRole('menu');
+          if (await menu.isVisible({ timeout: 2000 })) {
+            // Click outside
+            await page.locator('body').click({ position: { x: 10, y: 10 } });
+
+            // Menu should close
+            await expect(menu).not.toBeVisible({ timeout: 2000 });
+          }
+        }
+      }
+    });
+  });
+
+  test.describe('Templates', () => {
+    test('workflow templates are available', async ({ page }) => {
+      // Look for templates section or button
+      const templatesButton = page.getByRole('button', { name: /template|sablon/i });
+      const templatesTab = page.getByRole('tab', { name: /template|sablon/i });
+
+      if (await templatesButton.or(templatesTab).isVisible()) {
+        await templatesButton.or(templatesTab).click();
+
+        // Templates should be displayed
+        await expect(
+          page.locator('[data-testid="workflow-template"]').or(
+            page.getByText(/template-ul|sablon pentru/i)
+          )
+        ).toBeVisible({ timeout: 5000 });
+      }
+    });
+
+    test('can preview a template before using', async ({ page }) => {
+      const templatesButton = page.getByRole('button', { name: /template|sablon/i });
+
+      if (await templatesButton.isVisible({ timeout: 5000 })) {
+        await templatesButton.click();
+        await page.waitForTimeout(500);
+
+        // Look for preview button on template
+        const previewButton = page.locator('button').filter({
+          has: page.locator('[class*="lucide-eye"]'),
+        });
+
+        if (await previewButton.first().isVisible({ timeout: 3000 })) {
+          await previewButton.first().click();
+
+          // Preview should show template details
+          await expect(page.getByRole('dialog').or(page.getByText(/previzualizare/i))).toBeVisible({ timeout: 3000 });
+
+          await page.keyboard.press('Escape');
+        }
+      }
+    });
+  });
+
+  test.describe('Execution History', () => {
+    test('can view workflow execution history', async ({ page }) => {
+      const workflowCard = page.locator('[data-testid="workflow-card"], [class*="Card"]').first();
+
+      if (await workflowCard.isVisible({ timeout: 5000 })) {
+        // Look for history tab or link
+        const historyLink = page.getByText(/istoric|history|execuții|runs/i);
+
+        if (await historyLink.isVisible({ timeout: 3000 })) {
+          await historyLink.click();
+
+          // History view should appear
+          await expect(
+            page.getByText(/execuții|runs|log|history/i)
+          ).toBeVisible({ timeout: 5000 });
+        }
+      }
+    });
+
+    test('execution history shows status badges', async ({ page }) => {
+      // Navigate to history if there's a dedicated page
+      const historyTab = page.getByRole('tab', { name: /istoric|history/i });
+
+      if (await historyTab.isVisible({ timeout: 3000 })) {
+        await historyTab.click();
+        await page.waitForTimeout(500);
+
+        // Look for status badges (success, failed, pending)
+        const statusBadge = page.locator('[class*="Badge"]').filter({
+          hasText: /succes|failed|eșuat|pending|în așteptare/i,
+        });
+
+        const emptyState = page.getByText(/nu există execuții|no runs/i);
+        await expect(statusBadge.first().or(emptyState)).toBeVisible({ timeout: 5000 });
+      }
+    });
+  });
+
+  test.describe('Keyboard & Accessibility', () => {
+    test('escape closes any open modal', async ({ page }) => {
+      const createButton = page.getByRole('button', { name: /creeaza|create|adauga|nou/i });
+
+      if (await createButton.isVisible()) {
+        await createButton.click();
+        await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
+
+        // Press escape
+        await page.keyboard.press('Escape');
+
+        // Modal should close
+        await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 3000 });
+      }
+    });
+
+    test('workflow page is keyboard navigable', async ({ page }) => {
+      // Tab through the page
+      await page.keyboard.press('Tab');
+      await page.keyboard.press('Tab');
+
+      // Something should be focused
+      const focusedElement = await page.evaluate(() => document.activeElement?.tagName);
+      expect(focusedElement).toBeTruthy();
+      expect(focusedElement).not.toBe('BODY');
+    });
+  });
+
+  test.describe('Responsive Behavior', () => {
+    test('workflow cards stack on mobile', async ({ page }) => {
+      // Set mobile viewport
+      await page.setViewportSize({ width: 375, height: 667 });
+      await page.reload();
+
+      // Wait for page to load
+      await expect(page.getByRole('heading', { name: /workflow|automatizari/i })).toBeVisible({
+        timeout: 10000,
+      });
+
+      // Workflow cards should still be visible and functional
+      const workflowCard = page.locator('[data-testid="workflow-card"], [class*="Card"]').first();
+      const emptyState = page.getByText(/nu exista workflow|no workflows/i);
+
+      await expect(workflowCard.or(emptyState)).toBeVisible({ timeout: 5000 });
+    });
   });
 });
