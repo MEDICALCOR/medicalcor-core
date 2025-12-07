@@ -8,10 +8,22 @@
  * IMPORTANT: Run the migration SQL in db/migrations/20241127000001_create_core_tables.sql
  * before using this repository.
  *
+ * Uses the Result pattern for consistent error handling across all repository methods.
+ * Methods return Result<T, E> where E is a typed error from @medicalcor/core/errors.
+ *
  * @module @medicalcor/core/repositories/PostgresConsentRepository
  */
 
 import { createLogger, type Logger } from '../logger.js';
+import { RecordCreateError } from '../errors.js';
+import { Ok, Err, type Result } from '../types/result.js';
+
+// ============================================================================
+// REPOSITORY ERROR TYPES
+// ============================================================================
+
+/** Error types that can be returned from PostgresConsentRepository operations */
+export type ConsentRepositoryError = RecordCreateError;
 
 /**
  * Database client interface
@@ -90,8 +102,10 @@ export interface ConsentAuditEntry {
  * This is the contract that this adapter implements
  */
 export interface IConsentRepository {
-  save(consent: ConsentRecord): Promise<ConsentRecord>;
-  upsert(consent: ConsentRecord): Promise<{ record: ConsentRecord; wasCreated: boolean }>;
+  save(consent: ConsentRecord): Promise<Result<ConsentRecord, RecordCreateError>>;
+  upsert(
+    consent: ConsentRecord
+  ): Promise<Result<{ record: ConsentRecord; wasCreated: boolean }, RecordCreateError>>;
   findByContactAndType(contactId: string, consentType: ConsentType): Promise<ConsentRecord | null>;
   findByContact(contactId: string): Promise<ConsentRecord[]>;
   delete(consentId: string): Promise<void>;
@@ -182,7 +196,11 @@ function toAuditRows(rows: Record<string, unknown>[]): AuditRow[] {
 export class PostgresConsentRepository implements IConsentRepository {
   constructor(private readonly db: ConsentDatabaseClient) {}
 
-  async save(consent: ConsentRecord): Promise<ConsentRecord> {
+  /**
+   * Save a consent record
+   * @returns Result containing the saved ConsentRecord or a RecordCreateError
+   */
+  async save(consent: ConsentRecord): Promise<Result<ConsentRecord, RecordCreateError>> {
     const sql = `
       INSERT INTO consents (
         id, contact_id, phone, consent_type, status, version,
@@ -231,17 +249,26 @@ export class PostgresConsentRepository implements IConsentRepository {
     const result = await this.db.query(sql, params);
     const row = result.rows[0] as ConsentRow | undefined;
     if (!row) {
-      throw new Error('Failed to save consent: no row returned');
+      return Err(
+        new RecordCreateError(
+          'ConsentRepository',
+          'Consent',
+          'Failed to save consent: no row returned'
+        )
+      );
     }
-    return this.rowToConsent(row);
+    return Ok(this.rowToConsent(row));
   }
 
   /**
    * Atomically upsert a consent record
    * SECURITY FIX: This method uses PostgreSQL's ON CONFLICT to prevent race conditions
    * and returns whether the record was created or updated for correct audit logging
+   * @returns Result containing the upserted ConsentRecord and wasCreated flag, or a RecordCreateError
    */
-  async upsert(consent: ConsentRecord): Promise<{ record: ConsentRecord; wasCreated: boolean }> {
+  async upsert(
+    consent: ConsentRecord
+  ): Promise<Result<{ record: ConsentRecord; wasCreated: boolean }, RecordCreateError>> {
     // Use xmax system column to determine if row was inserted or updated
     // xmax = 0 means it was an INSERT, otherwise it was an UPDATE
     const sql = `
@@ -292,12 +319,18 @@ export class PostgresConsentRepository implements IConsentRepository {
     const result = await this.db.query(sql, params);
     const row = result.rows[0] as (ConsentRow & { was_created: boolean }) | undefined;
     if (!row) {
-      throw new Error('Failed to upsert consent: no row returned');
+      return Err(
+        new RecordCreateError(
+          'ConsentRepository',
+          'Consent',
+          'Failed to upsert consent: no row returned'
+        )
+      );
     }
-    return {
+    return Ok({
       record: this.rowToConsent(row),
       wasCreated: row.was_created,
-    };
+    });
   }
 
   async findByContactAndType(

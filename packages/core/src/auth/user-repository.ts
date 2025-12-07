@@ -1,12 +1,17 @@
 /**
  * User Repository
  * Database operations for user management
+ *
+ * Uses the Result pattern for consistent error handling across all repository methods.
+ * Methods return Result<T, E> where E is a typed error from @medicalcor/core/errors.
  */
 
 import bcrypt from 'bcryptjs';
 import { createHash, randomBytes } from 'crypto';
 import type { DatabasePool } from '../database.js';
 import { createLogger, type Logger } from '../logger.js';
+import { type RecordNotFoundError, RecordCreateError, RecordUpdateError } from '../errors.js';
+import { Ok, Err, type Result } from '../types/result.js';
 import type {
   User,
   SafeUser,
@@ -15,6 +20,13 @@ import type {
   UserRole,
   UserStatus,
 } from './types.js';
+
+// ============================================================================
+// REPOSITORY ERROR TYPES
+// ============================================================================
+
+/** Error types that can be returned from UserRepository operations */
+export type UserRepositoryError = RecordNotFoundError | RecordCreateError | RecordUpdateError;
 
 const logger: Logger = createLogger({ name: 'user-repository' });
 
@@ -93,8 +105,9 @@ export class UserRepository {
 
   /**
    * Create a new user
+   * @returns Result containing the created User or a RecordCreateError
    */
-  async create(data: CreateUserData): Promise<User> {
+  async create(data: CreateUserData): Promise<Result<User, RecordCreateError>> {
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_COST);
 
     const result = await this.db.query(
@@ -114,10 +127,10 @@ export class UserRepository {
 
     const row = result.rows[0];
     if (!row) {
-      throw new Error('Failed to create user');
+      return Err(new RecordCreateError('UserRepository', 'User'));
     }
     logger.info({ email: data.email, role: data.role }, 'User created');
-    return mapRowToUser(row);
+    return Ok(mapRowToUser(row));
   }
 
   /**
@@ -215,8 +228,11 @@ export class UserRepository {
    * Increment failed login attempts
    * SECURITY FIX: Properly handle lockout timer - only set new lockout if not already locked
    * This prevents indefinite lockout from repeated attempts
+   * @returns Result containing the updated attempts info or a RecordUpdateError
    */
-  async incrementFailedAttempts(id: string): Promise<{ attempts: number; lockedUntil?: Date }> {
+  async incrementFailedAttempts(
+    id: string
+  ): Promise<Result<{ attempts: number; lockedUntil?: Date }, RecordUpdateError>> {
     const result = await this.db.query(
       `UPDATE users SET
         failed_login_attempts = failed_login_attempts + 1,
@@ -239,7 +255,9 @@ export class UserRepository {
 
     const row = result.rows[0];
     if (!row) {
-      throw new Error('Failed to increment login attempts');
+      return Err(
+        new RecordUpdateError('UserRepository', 'User', id, 'Failed to increment login attempts')
+      );
     }
     const response: { attempts: number; lockedUntil?: Date } = {
       attempts: row.failed_login_attempts as number,
@@ -247,7 +265,7 @@ export class UserRepository {
     if (row.locked_until) {
       response.lockedUntil = new Date(row.locked_until as string);
     }
-    return response;
+    return Ok(response);
   }
 
   /**
