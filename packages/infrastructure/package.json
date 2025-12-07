@@ -39,16 +39,19 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@medicalcor/core": "workspace:*",
     "@medicalcor/domain": "workspace:*",
     "@medicalcor/application": "workspace:*",
     "@supabase/supabase-js": "^2.86.2",
     "pg": "^8.13.1",
     "openai": "^4.20.0",
-    "pino": "^8.17.2"
+    "pino": "^8.17.2",
+    "uuid": "^11.0.3"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",
     "@types/pg": "^8.11.10",
+    "@types/uuid": "^10.0.0",
     "typescript": "^5.6.3",
     "vitest": "^2.1.4"
   }
