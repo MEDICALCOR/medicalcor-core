@@ -493,3 +493,36 @@ export {
   type CohortSegmentDistribution,
   type CohortPaybackAnalysis,
 } from './cohort-ltv.js';
+
+// =============================================================================
+// Collections & Overdue Payment Schemas (M5 Milestone)
+// =============================================================================
+export {
+  // Status & Levels
+  InstallmentStatusSchema,
+  ReminderLevelSchema,
+  // Core Schemas
+  OverdueInstallmentSchema,
+  ReminderConfigSchema,
+  PaymentReminderPayloadSchema,
+  OverdueDetectionResultSchema,
+  // Events
+  PaymentReminderSentEventSchema,
+  CollectionEscalatedEventSchema,
+  // Helper Functions
+  determineReminderLevel,
+  getReminderTemplateName,
+  shouldSendReminder,
+  calculateLateFee,
+  formatCurrencyForReminder,
+  formatDateForReminder,
+  // Types
+  type InstallmentStatus,
+  type ReminderLevel,
+  type OverdueInstallment,
+  type ReminderConfig,
+  type PaymentReminderPayload,
+  type OverdueDetectionResult,
+  type PaymentReminderSentEvent,
+  type CollectionEscalatedEvent,
+} from './collections.js';
