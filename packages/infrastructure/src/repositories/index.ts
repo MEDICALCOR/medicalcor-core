@@ -8,13 +8,13 @@
  *
  * ## Hexagonal Architecture
  *
- * Repositories here are **ADAPTERS** implementing application **PORTS**:
  * Repositories here are **ADAPTERS** implementing domain **PORTS**:
  * - PostgresCaseRepository implements ICaseRepository (PostgreSQL)
  * - CalendarSchedulingAdapter implements ISchedulingRepository (external calendar)
  * - CaseRepository implements ICaseRepository (cohort analysis)
- * - PostgresCaseRepository implements ICaseRepository (payments & LTV)
  * - PostgresReadModelRepository implements IReadModelRepository (CQRS read models)
+ * - PostgresAgentPerformanceRepository implements IAgentPerformanceRepository
+ * - PostgresWrapUpTimeRepository implements IWrapUpTimeRepository
  *
  * @module @medicalcor/infrastructure/repositories
  *
@@ -29,6 +29,10 @@
  *   PostgresReadModelRepository,
  *   createPostgresReadModelRepository,
  *   ReadModelRefreshService,
+ *   PostgresAgentPerformanceRepository,
+ *   createAgentPerformanceRepository,
+ *   PostgresWrapUpTimeRepository,
+ *   createWrapUpTimeRepository,
  * } from '@medicalcor/infrastructure';
  * ```
  */
@@ -111,3 +115,23 @@ export {
   type RefreshStats,
   type RefreshSchedule,
 } from './ReadModelRefreshService.js';
+
+// =============================================================================
+// AGENT PERFORMANCE REPOSITORY (M7)
+// =============================================================================
+
+export {
+  // Class and factory
+  PostgresAgentPerformanceRepository,
+  createAgentPerformanceRepository,
+} from './PostgresAgentPerformanceRepository.js';
+
+// =============================================================================
+// WRAP-UP TIME REPOSITORY (M8)
+// =============================================================================
+
+export {
+  // Class and factory
+  PostgresWrapUpTimeRepository,
+  createWrapUpTimeRepository,
+} from './PostgresWrapUpTimeRepository.js';

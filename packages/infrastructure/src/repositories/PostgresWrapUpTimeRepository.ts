@@ -1,13 +1,18 @@
 /**
- * @fileoverview Wrap-Up Time Repository
+ * @fileoverview PostgreSQL Wrap-Up Time Repository (Infrastructure Layer)
  *
  * M8: Wrap-Up Time Tracking - Repository implementation for wrap-up time data.
  * Provides PostgreSQL persistence for wrap-up events and statistics.
  *
- * @module domain/agent-performance/wrap-up-time-repository
+ * ## Hexagonal Architecture
+ *
+ * This is an **ADAPTER** - it implements the IWrapUpTimeRepository port
+ * defined in the domain layer. The domain depends only on the interface.
+ *
+ * @module @medicalcor/infrastructure/repositories/postgres-wrap-up-time-repository
  */
 
-import type { Pool, QueryResult } from 'pg';
+import type { Pool } from 'pg';
 import type {
   WrapUpEvent,
   WrapUpStats,
@@ -18,7 +23,7 @@ import type {
   CompleteWrapUpRequest,
   AgentPerformanceTimeRange,
 } from '@medicalcor/types';
-import type { IWrapUpTimeRepository } from './wrap-up-time-service.js';
+import type { IWrapUpTimeRepository } from '@medicalcor/domain';
 
 // ============================================================================
 // CONSTANTS
@@ -32,7 +37,7 @@ const TIME_RANGE_DAYS: Record<AgentPerformanceTimeRange, number> = {
 };
 
 // ============================================================================
-// ROW TYPES
+// DATABASE ROW TYPES
 // ============================================================================
 
 interface WrapUpEventRow {
@@ -56,7 +61,7 @@ interface WrapUpStatsRow {
   completed_wrap_ups: number;
   abandoned_wrap_ups: number;
   total_wrap_up_time: number;
-  avg_wrap_up_time: string | number;
+  avg_wrap_up_time: string;
   min_wrap_up_time: number | null;
   max_wrap_up_time: number | null;
 }
@@ -71,25 +76,25 @@ interface WrapUpTrendRow {
 interface AgentPerformanceRow {
   agent_id: string;
   agent_name: string;
-  avg_wrap_up_seconds: string | number;
+  avg_wrap_up_seconds: string;
   total_wrap_ups: number;
-  completion_rate: string | number;
-  compared_to_team_avg: string | number;
+  completion_rate: string;
+  compared_to_team_avg: string;
 }
 
 interface TeamStatsRow {
   total_wrap_ups: number;
   total_wrap_up_time: number;
-  team_avg_wrap_up_seconds: string | number;
+  team_avg_wrap_up_seconds: string;
 }
 
 interface CompletionRow {
-  completed: string | number;
-  total: string | number;
+  completed: string;
+  total: string;
 }
 
 interface CountRow {
-  count: string | number;
+  count: string;
 }
 
 // ============================================================================
@@ -119,7 +124,7 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
     );
 
     // Create new wrap-up event
-    const result: QueryResult<WrapUpEventRow> = await this.pool.query(
+    const result = await this.pool.query<WrapUpEventRow>(
       `INSERT INTO agent_wrap_up_events (
         agent_id, clinic_id, call_sid, lead_id, status, started_at
       ) VALUES ($1, $2, $3, $4, 'in_progress', NOW())
@@ -131,7 +136,7 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
   }
 
   async completeWrapUp(request: CompleteWrapUpRequest): Promise<WrapUpEvent | null> {
-    const result: QueryResult<WrapUpEventRow> = await this.pool.query(
+    const result = await this.pool.query<WrapUpEventRow>(
       `UPDATE agent_wrap_up_events
        SET status = 'completed',
            completed_at = NOW(),
@@ -151,11 +156,7 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
     const event = this.rowToWrapUpEvent(result.rows[0]);
 
     // Update daily metrics
-    await this.updateDailyMetrics(
-      event.agentId,
-      event.clinicId,
-      event.durationSeconds ?? 0
-    );
+    await this.updateDailyMetrics(event.agentId, event.clinicId, event.durationSeconds ?? 0);
 
     return event;
   }
@@ -173,7 +174,7 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
   }
 
   async getActiveWrapUp(agentId: string): Promise<WrapUpEvent | null> {
-    const result: QueryResult<WrapUpEventRow> = await this.pool.query(
+    const result = await this.pool.query<WrapUpEventRow>(
       `SELECT * FROM agent_wrap_up_events
        WHERE agent_id = $1 AND status = 'in_progress'
        ORDER BY started_at DESC
@@ -189,7 +190,7 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
   }
 
   async getWrapUpByCallSid(callSid: string, agentId: string): Promise<WrapUpEvent | null> {
-    const result: QueryResult<WrapUpEventRow> = await this.pool.query(
+    const result = await this.pool.query<WrapUpEventRow>(
       `SELECT * FROM agent_wrap_up_events
        WHERE call_sid = $1 AND agent_id = $2
        ORDER BY started_at DESC
@@ -208,12 +209,8 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
   // STATISTICS
   // ============================================================================
 
-  async getWrapUpStats(
-    agentId: string,
-    startDate: Date,
-    endDate: Date
-  ): Promise<WrapUpStats> {
-    const result: QueryResult<WrapUpStatsRow> = await this.pool.query(
+  async getWrapUpStats(agentId: string, startDate: Date, endDate: Date): Promise<WrapUpStats> {
+    const result = await this.pool.query<WrapUpStatsRow>(
       `SELECT
          COUNT(*)::INTEGER AS total_wrap_ups,
          COUNT(*) FILTER (WHERE status = 'completed')::INTEGER AS completed_wrap_ups,
@@ -250,7 +247,7 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
   ): Promise<WrapUpTrendPoint[]> {
     const days = TIME_RANGE_DAYS[timeRange];
 
-    const result: QueryResult<WrapUpTrendRow> = await this.pool.query(
+    const result = await this.pool.query<WrapUpTrendRow>(
       `SELECT
          metric_date::TEXT AS date,
          COALESCE(wrap_up_count, 0) AS wrap_up_count,
@@ -271,12 +268,8 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
     }));
   }
 
-  async getTeamWrapUpStats(
-    clinicId: string,
-    startDate: Date,
-    endDate: Date
-  ): Promise<WrapUpStats> {
-    const result: QueryResult<WrapUpStatsRow> = await this.pool.query(
+  async getTeamWrapUpStats(clinicId: string, startDate: Date, endDate: Date): Promise<WrapUpStats> {
+    const result = await this.pool.query<WrapUpStatsRow>(
       `SELECT
          COUNT(*)::INTEGER AS total_wrap_ups,
          COUNT(*) FILTER (WHERE status = 'completed')::INTEGER AS completed_wrap_ups,
@@ -317,7 +310,7 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
   ): Promise<AgentWrapUpPerformance[]> {
     const days = TIME_RANGE_DAYS[timeRange];
 
-    const result: QueryResult<AgentPerformanceRow> = await this.pool.query(
+    const result = await this.pool.query<AgentPerformanceRow>(
       `WITH agent_stats AS (
          SELECT
            a.id AS agent_id,
@@ -359,17 +352,17 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
        SELECT
          s.agent_id,
          s.agent_name,
-         s.avg_wrap_up_seconds,
+         s.avg_wrap_up_seconds::TEXT,
          s.total_wrap_ups,
          CASE
            WHEN COALESCE(ca.completed, 0) + COALESCE(ca.abandoned, 0) > 0
-           THEN ROUND((COALESCE(ca.completed, 0) / (COALESCE(ca.completed, 0) + COALESCE(ca.abandoned, 0))) * 100, 1)
-           ELSE 100
+           THEN ROUND((COALESCE(ca.completed, 0) / (COALESCE(ca.completed, 0) + COALESCE(ca.abandoned, 0))) * 100, 1)::TEXT
+           ELSE '100'
          END AS completion_rate,
          CASE
            WHEN t.team_avg_seconds > 0
-           THEN ROUND(((s.avg_wrap_up_seconds - t.team_avg_seconds) / t.team_avg_seconds) * 100, 1)
-           ELSE 0
+           THEN ROUND(((s.avg_wrap_up_seconds - t.team_avg_seconds) / t.team_avg_seconds) * 100, 1)::TEXT
+           ELSE '0'
          END AS compared_to_team_avg
        FROM agent_stats s
        CROSS JOIN team_avg t
@@ -381,11 +374,11 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
     return result.rows.map((row) => ({
       agentId: row.agent_id,
       agentName: row.agent_name,
-      avgWrapUpTimeSeconds: Number(row.avg_wrap_up_seconds), // string | number from ROUND()
+      avgWrapUpTimeSeconds: Number(row.avg_wrap_up_seconds),
       totalWrapUps: row.total_wrap_ups,
-      completionRate: Number(row.completion_rate), // string | number from ROUND()
+      completionRate: Number(row.completion_rate),
       trend: 'stable' as const, // Would need historical comparison for real trend
-      comparedToTeamAvg: Number(row.compared_to_team_avg), // string | number from ROUND()
+      comparedToTeamAvg: Number(row.compared_to_team_avg),
     }));
   }
 
@@ -396,14 +389,14 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
     const days = TIME_RANGE_DAYS[timeRange];
 
     // Get current period stats
-    const currentStatsResult: QueryResult<TeamStatsRow> = await this.pool.query(
+    const currentStatsResult = await this.pool.query<TeamStatsRow>(
       `SELECT
          COALESCE(SUM(wrap_up_count), 0)::INTEGER AS total_wrap_ups,
          COALESCE(SUM(wrap_up_time_seconds), 0)::INTEGER AS total_wrap_up_time,
          CASE
            WHEN SUM(wrap_up_count) > 0
-           THEN ROUND(SUM(wrap_up_time_seconds)::NUMERIC / SUM(wrap_up_count), 0)
-           ELSE 0
+           THEN ROUND(SUM(wrap_up_time_seconds)::NUMERIC / SUM(wrap_up_count), 0)::TEXT
+           ELSE '0'
          END AS team_avg_wrap_up_seconds
        FROM agent_performance_daily
        WHERE clinic_id = $1
@@ -412,12 +405,14 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
     );
 
     // Get previous period stats for comparison
-    const previousStatsResult: QueryResult<TeamStatsRow> = await this.pool.query(
+    const previousStatsResult = await this.pool.query<TeamStatsRow>(
       `SELECT
+         COALESCE(SUM(wrap_up_count), 0)::INTEGER AS total_wrap_ups,
+         COALESCE(SUM(wrap_up_time_seconds), 0)::INTEGER AS total_wrap_up_time,
          CASE
            WHEN SUM(wrap_up_count) > 0
-           THEN ROUND(SUM(wrap_up_time_seconds)::NUMERIC / SUM(wrap_up_count), 0)
-           ELSE 0
+           THEN ROUND(SUM(wrap_up_time_seconds)::NUMERIC / SUM(wrap_up_count), 0)::TEXT
+           ELSE '0'
          END AS team_avg_wrap_up_seconds
        FROM agent_performance_daily
        WHERE clinic_id = $1
@@ -427,10 +422,10 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
     );
 
     // Get completion rate
-    const completionResult: QueryResult<CompletionRow> = await this.pool.query(
+    const completionResult = await this.pool.query<CompletionRow>(
       `SELECT
-         COUNT(*) FILTER (WHERE status = 'completed')::NUMERIC AS completed,
-         COUNT(*)::NUMERIC AS total
+         COUNT(*) FILTER (WHERE status = 'completed')::TEXT AS completed,
+         COUNT(*)::TEXT AS total
        FROM agent_wrap_up_events
        WHERE clinic_id = $1
        AND started_at >= CURRENT_DATE - ($2 || ' days')::INTERVAL`,
@@ -438,13 +433,13 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
     );
 
     // Get daily trend
-    const trendResult: QueryResult<WrapUpTrendRow> = await this.pool.query(
+    const trendResult = await this.pool.query<WrapUpTrendRow>(
       `SELECT
          metric_date::TEXT AS date,
          COALESCE(SUM(wrap_up_count), 0)::INTEGER AS wrap_up_count,
          CASE
            WHEN SUM(wrap_up_count) > 0
-           THEN ROUND(SUM(wrap_up_time_seconds)::NUMERIC / SUM(wrap_up_count), 0)
+           THEN ROUND(SUM(wrap_up_time_seconds)::NUMERIC / SUM(wrap_up_count), 0)::INTEGER
            ELSE 0
          END AS avg_wrap_up_time_seconds,
          COALESCE(SUM(wrap_up_time_seconds), 0)::INTEGER AS total_wrap_up_time_seconds
@@ -465,16 +460,16 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
     const completion = completionResult.rows[0];
 
     const teamAvgWrapUpSeconds = Number(currentStats.team_avg_wrap_up_seconds);
-    const prevTeamAvg = Number(previousStats?.team_avg_wrap_up_seconds ?? 0);
-    const teamAvgChange = prevTeamAvg > 0
-      ? Math.round(((teamAvgWrapUpSeconds - prevTeamAvg) / prevTeamAvg) * 1000) / 10
-      : 0;
+    const prevTeamAvg = Number(previousStats.team_avg_wrap_up_seconds);
+    const teamAvgChange =
+      prevTeamAvg > 0
+        ? Math.round(((teamAvgWrapUpSeconds - prevTeamAvg) / prevTeamAvg) * 1000) / 10
+        : 0;
 
     const totalCompletion = Number(completion.total);
     const completedCount = Number(completion.completed);
-    const completionRate = totalCompletion > 0
-      ? Math.round((completedCount / totalCompletion) * 1000) / 10
-      : 100;
+    const completionRate =
+      totalCompletion > 0 ? Math.round((completedCount / totalCompletion) * 1000) / 10 : 100;
 
     // Sort for top/bottom performers
     const sortedByAvg = [...agentPerformance]
@@ -507,7 +502,7 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
   // ============================================================================
 
   async abandonStaleWrapUps(maxAgeMinutes: number): Promise<number> {
-    const result: QueryResult<CountRow> = await this.pool.query(
+    const result = await this.pool.query<CountRow>(
       `WITH abandoned AS (
          UPDATE agent_wrap_up_events
          SET status = 'abandoned',
@@ -518,11 +513,11 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
          AND started_at < NOW() - ($1 || ' minutes')::INTERVAL
          RETURNING id
        )
-       SELECT COUNT(*) AS count FROM abandoned`,
+       SELECT COUNT(*)::TEXT AS count FROM abandoned`,
       [maxAgeMinutes]
     );
 
-    return Number(result.rows[0]?.count ?? 0);
+    return Number(result.rows[0].count);
   }
 
   // ============================================================================
