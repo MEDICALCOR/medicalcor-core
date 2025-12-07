@@ -805,6 +805,8 @@ export interface QueryMaskingOptions {
 
   /** Include audit info in result */
   includeAudit?: boolean;
+}
+
 // Real-Time Pattern Stream Types (L5: Stream Processing for Patterns)
 // =============================================================================
 
