@@ -7,7 +7,7 @@ Quick onboarding for new developers using Claude Code with MedicalCor.
 - [ ] Repository cloned
 - [ ] `.claude/` directory exists
 - [ ] Run validation: `./.claude/scripts/validate-config.sh`
-- [ ] All 44 checks passing
+- [ ] All validation checks passing
 
 ## 📖 Essential Reading (15 minutes)
 

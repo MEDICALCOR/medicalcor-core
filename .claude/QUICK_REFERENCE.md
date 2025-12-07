@@ -254,4 +254,4 @@ Links
 ./.claude/scripts/validate-config.sh
 ```
 
-All 44 checks should pass ✅
+All validation checks should pass ✅

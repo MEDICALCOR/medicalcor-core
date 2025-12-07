@@ -381,13 +381,13 @@ Code examples and guidance...
 
 ### Documentation
 
-- [.claude/README.md](./.claude/README.md) - Complete configuration guide
-- [.claude/DIRECTORY.md](./.claude/DIRECTORY.md) - Full component reference
+- [.claude/README.md](../../.claude/README.md) - Complete configuration guide
+- [.claude/DIRECTORY.md](../../.claude/DIRECTORY.md) - Full component reference
 - [CLAUDE.md](../../CLAUDE.md) - MedicalCor development guide
 
 ### Skills
 
-- [MedicalCor Skills](./.claude/skills/medicalcor/) - 6 specialized skills
+- [MedicalCor Skills](../../.claude/skills/medicalcor/skill.md) - 6 specialized skills
 - [SkillsMP](https://skillsmp.com) - 13,000+ community skills
 
 ### TOON Format
