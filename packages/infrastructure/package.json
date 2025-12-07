@@ -39,6 +39,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@medicalcor/core": "workspace:*",
     "@medicalcor/domain": "workspace:*",
     "@medicalcor/application": "workspace:*",
     "@supabase/supabase-js": "^2.86.2",

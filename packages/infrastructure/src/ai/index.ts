@@ -7,4 +7,5 @@
  */
 
 export * from './EmbeddingPipeline.js';
+export * from './EmbeddingCacheRedis.js';
 export * from './vector-search/PgVectorService.js';
