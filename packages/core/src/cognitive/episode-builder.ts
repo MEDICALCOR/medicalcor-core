@@ -18,7 +18,9 @@ import {
   type KeyEntity,
   type Sentiment,
   type CognitiveSystemConfig,
+  type KnowledgeEntity,
 } from './types.js';
+import type { KnowledgeGraphService } from './knowledge-graph.js';
 
 const logger = createLogger({ name: 'cognitive-episode-builder' });
 
@@ -83,6 +85,7 @@ const EVENT_CATEGORY_MAP: Record<string, EventCategory> = {
 
 export class EpisodeBuilder {
   private config: CognitiveSystemConfig;
+  private knowledgeGraph: KnowledgeGraphService | null = null;
 
   constructor(
     private openai: IOpenAIClient,
@@ -91,6 +94,13 @@ export class EpisodeBuilder {
     config: Partial<CognitiveSystemConfig> = {}
   ) {
     this.config = { ...DEFAULT_COGNITIVE_CONFIG, ...config };
+  }
+
+  /**
+   * Set the knowledge graph service for entity extraction
+   */
+  setKnowledgeGraph(knowledgeGraph: KnowledgeGraphService): void {
+    this.knowledgeGraph = knowledgeGraph;
   }
 
   /**
@@ -137,11 +147,29 @@ export class EpisodeBuilder {
       // 4. Persist to database
       await this.save(episode);
 
+      // 5. Extract entities to knowledge graph (H8)
+      let extractedEntities: KnowledgeEntity[] = [];
+      if (this.knowledgeGraph && episode.keyEntities.length > 0) {
+        try {
+          extractedEntities = await this.knowledgeGraph.processEntitiesFromEvent(
+            episode.id,
+            episode.keyEntities,
+            episode.occurredAt
+          );
+        } catch (error) {
+          logger.warn(
+            { error, episodeId: episode.id },
+            'Failed to extract entities to knowledge graph, continuing...'
+          );
+        }
+      }
+
       logger.info(
         {
           subjectId,
           eventType: rawEvent.eventType,
           processingTimeMs: Date.now() - startTime,
+          extractedEntities: extractedEntities.length,
         },
         'Episodic memory created'
       );

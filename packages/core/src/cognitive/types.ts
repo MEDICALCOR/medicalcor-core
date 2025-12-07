@@ -300,3 +300,164 @@ export const DEFAULT_COGNITIVE_CONFIG: CognitiveSystemConfig = {
   llmTemperature: 0.3,
   llmMaxTokens: 500,
 };
+
+// =============================================================================
+// Knowledge Graph Types (H8)
+// =============================================================================
+
+export const EntityTypeSchema = z.enum([
+  'procedure',
+  'date',
+  'amount',
+  'person',
+  'location',
+  'product',
+  'other',
+]);
+export type EntityType = z.infer<typeof EntityTypeSchema>;
+
+export const RelationTypeSchema = z.enum([
+  'used_for',
+  'part_of',
+  'associated_with',
+  'mentioned_with',
+  'prerequisite',
+  'alternative_to',
+  'contradicts',
+  'temporal_before',
+  'temporal_after',
+  'temporal_during',
+  'related',
+  'other',
+]);
+export type RelationType = z.infer<typeof RelationTypeSchema>;
+
+export const ExtractionMethodSchema = z.enum([
+  'llm_extracted',
+  'rule_based',
+  'co_occurrence',
+  'manual',
+]);
+export type ExtractionMethod = z.infer<typeof ExtractionMethodSchema>;
+
+// =============================================================================
+// Knowledge Entity Schema
+// =============================================================================
+
+export const KnowledgeEntitySchema = z.object({
+  id: z.string().uuid(),
+  entityType: EntityTypeSchema,
+  entityValue: z.string().max(500),
+  entityHash: z.string().length(64),
+  canonicalForm: z.string().max(500).optional(),
+  mentionCount: z.number().int().min(1).default(1),
+  firstMentionedEventId: z.string().uuid().optional(),
+  avgConfidence: z.number().min(0).max(1).optional(),
+  firstObservedAt: z.date(),
+  lastObservedAt: z.date(),
+  metadata: z.record(z.unknown()).optional(),
+});
+
+export type KnowledgeEntity = z.infer<typeof KnowledgeEntitySchema>;
+
+export interface KnowledgeEntityWithEmbedding extends KnowledgeEntity {
+  embedding: number[];
+  embeddingModel: string;
+}
+
+// =============================================================================
+// Knowledge Relation Schema
+// =============================================================================
+
+export const KnowledgeRelationSchema = z.object({
+  id: z.string().uuid(),
+  sourceEntityId: z.string().uuid(),
+  targetEntityId: z.string().uuid(),
+  relationType: RelationTypeSchema,
+  confidence: z.number().min(0).max(1),
+  weight: z.number().default(1.0),
+  extractionMethod: ExtractionMethodSchema,
+  supportingEventIds: z.array(z.string().uuid()).default([]),
+  relationDescription: z.string().optional(),
+  occurrenceCount: z.number().int().min(1).default(1),
+  firstObservedAt: z.date(),
+  lastObservedAt: z.date(),
+  metadata: z.record(z.unknown()).optional(),
+});
+
+export type KnowledgeRelation = z.infer<typeof KnowledgeRelationSchema>;
+
+// =============================================================================
+// Entity-Event Mapping Schema
+// =============================================================================
+
+export const EntityEventMappingSchema = z.object({
+  id: z.string().uuid(),
+  entityId: z.string().uuid(),
+  eventId: z.string().uuid(),
+  extractionPosition: z.number().int().min(1).optional(),
+  confidence: z.number().min(0).max(1).optional(),
+  createdAt: z.date(),
+});
+
+export type EntityEventMapping = z.infer<typeof EntityEventMappingSchema>;
+
+// =============================================================================
+// Knowledge Graph Query Types
+// =============================================================================
+
+export interface RelatedEntityResult {
+  entityId: string;
+  entityType: EntityType;
+  entityValue: string;
+  relationType: RelationType;
+  confidence: number;
+  depth: number;
+  path: string[];
+}
+
+export interface EntityCooccurrenceResult {
+  cooccurringEntityId: string;
+  entityType: EntityType;
+  entityValue: string;
+  cooccurrenceCount: number;
+  sharedEventIds: string[];
+}
+
+export interface EntitySearchResult {
+  id: string;
+  entityType: EntityType;
+  entityValue: string;
+  canonicalForm?: string;
+  mentionCount: number;
+  similarity: number;
+}
+
+// =============================================================================
+// Knowledge Graph Service Configuration
+// =============================================================================
+
+export interface KnowledgeGraphConfig {
+  /** Enable knowledge graph entity extraction */
+  enabled: boolean;
+
+  /** Minimum confidence for storing entities */
+  minEntityConfidence: number;
+
+  /** Minimum co-occurrence count to create a relation */
+  minCooccurrenceForRelation: number;
+
+  /** Generate embeddings for entities */
+  enableEntityEmbeddings: boolean;
+
+  /** Enable LLM-based relation extraction */
+  enableLLMRelations: boolean;
+}
+
+export const DEFAULT_KNOWLEDGE_GRAPH_CONFIG: KnowledgeGraphConfig = {
+  enabled: true,
+  minEntityConfidence: 0.5,
+  minCooccurrenceForRelation: 2,
+  enableEntityEmbeddings: true,
+  enableLLMRelations: false, // Expensive, opt-in
+};
