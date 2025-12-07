@@ -1,6 +1,7 @@
 /**
  * Voice Domain Module
  * W3 Milestone: Voice AI + Realtime Supervisor
+ * H8: Queue SLA Tracking
  *
  * Exports supervisor agent and related domain logic for
  * real-time call monitoring and AI-to-human handoff.
@@ -22,3 +23,17 @@ export {
   type EscalationHistoryEntry,
   type HandoffHistoryEntry,
 } from './supervisor-state-repository.js';
+
+// Queue SLA Service (H8 Queue SLA Tracking)
+export {
+  QueueSLAService,
+  getQueueSLAService,
+  createQueueSLAService,
+  resetQueueSLAService,
+  type SLABreachType,
+  type QueueMetricsInput,
+  type SLAEvaluationResult,
+  type HistoricalMetrics,
+  type IQueueMetricsPort,
+  type QueueSLAServiceConfig,
+} from './queue-sla-service.js';
