@@ -79,6 +79,26 @@ export {
   type LLMPattern,
   type MemoryContext,
   type CognitiveSystemConfig,
+
+  // Knowledge Graph Types (H8)
+  EntityTypeSchema,
+  RelationTypeSchema,
+  ExtractionMethodSchema,
+  KnowledgeEntitySchema,
+  KnowledgeRelationSchema,
+  EntityEventMappingSchema,
+  DEFAULT_KNOWLEDGE_GRAPH_CONFIG,
+  type EntityType,
+  type RelationType,
+  type ExtractionMethod,
+  type KnowledgeEntity,
+  type KnowledgeEntityWithEmbedding,
+  type KnowledgeRelation,
+  type EntityEventMapping,
+  type RelatedEntityResult,
+  type EntityCooccurrenceResult,
+  type EntitySearchResult,
+  type KnowledgeGraphConfig,
 } from './types.js';
 
 // =============================================================================
@@ -106,6 +126,9 @@ export {
 // Pattern Detection Service (M5: Behavioral Insights)
 export { PatternDetector, createPatternDetector } from './pattern-detector.js';
 
+// Knowledge Graph Service (H8: Knowledge Graph Integration)
+export { KnowledgeGraphService, createKnowledgeGraphService } from './knowledge-graph.js';
+
 // =============================================================================
 // Factory Function
 // =============================================================================
@@ -114,7 +137,8 @@ import type { Pool } from 'pg';
 import { EpisodeBuilder, type IOpenAIClient, type IEmbeddingService } from './episode-builder.js';
 import { MemoryRetrievalService } from './memory-retrieval.js';
 import { PatternDetector } from './pattern-detector.js';
-import type { CognitiveSystemConfig } from './types.js';
+import { KnowledgeGraphService } from './knowledge-graph.js';
+import type { CognitiveSystemConfig, KnowledgeGraphConfig } from './types.js';
 
 /**
  * Dependencies for creating the cognitive system
@@ -128,6 +152,8 @@ export interface CognitiveSystemDependencies {
   embeddings: IEmbeddingService;
   /** Optional configuration overrides */
   config?: Partial<CognitiveSystemConfig>;
+  /** Optional knowledge graph configuration (H8) */
+  knowledgeGraphConfig?: Partial<KnowledgeGraphConfig>;
 }
 
 /**
@@ -140,6 +166,8 @@ export interface CognitiveSystem {
   memoryRetrieval: MemoryRetrievalService;
   /** Pattern detector for behavioral insights (M5) */
   patternDetector: PatternDetector;
+  /** Knowledge graph service for entity relationships (H8) */
+  knowledgeGraph: KnowledgeGraphService;
 }
 
 /**
@@ -173,9 +201,20 @@ export function createCognitiveSystem(deps: CognitiveSystemDependencies): Cognit
 
   const patternDetector = new PatternDetector(deps.pool, deps.openai, deps.config);
 
+  // H8: Knowledge Graph Integration
+  const knowledgeGraph = new KnowledgeGraphService(
+    deps.pool,
+    deps.embeddings,
+    deps.knowledgeGraphConfig
+  );
+
+  // Wire knowledge graph to episode builder for automatic entity extraction
+  episodeBuilder.setKnowledgeGraph(knowledgeGraph);
+
   return {
     episodeBuilder,
     memoryRetrieval,
     patternDetector,
+    knowledgeGraph,
   };
 }
