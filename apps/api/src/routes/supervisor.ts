@@ -7,10 +7,19 @@
  */
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import type { MonitoredCall, SupervisorSession, SupervisorNote } from '@medicalcor/types';
-import { HandoffRequestSchema, SupervisorRoleSchema } from '@medicalcor/types';
+import type {
+  MonitoredCall,
+  SupervisorSession,
+  SupervisorNote,
+  QueueSLAStatus,
+} from '@medicalcor/types';
+import {
+  HandoffRequestSchema,
+  SupervisorRoleSchema,
+  QueueSLAConfigSchema,
+} from '@medicalcor/types';
 import { ValidationError, toSafeErrorResponse, generateCorrelationId } from '@medicalcor/core';
-import { getSupervisorAgent } from '@medicalcor/domain';
+import { getSupervisorAgent, getQueueSLAService } from '@medicalcor/domain';
 
 // =============================================================================
 // Request Schemas
@@ -689,6 +698,224 @@ export const supervisorRoutes: FastifyPluginAsync = async (fastify) => {
         });
       } catch (error) {
         fastify.log.error({ correlationId, error }, 'Get notes error');
+        return await reply.status(500).send(toSafeErrorResponse(error));
+      }
+    }
+  );
+
+  // ==========================================================================
+  // Queue SLA Management
+  // ==========================================================================
+
+  const queueService = getQueueSLAService();
+
+  /**
+   * GET /supervisor/queues
+   * List all queues with their current SLA status
+   */
+  fastify.get('/supervisor/queues', async (request: FastifyRequest, reply: FastifyReply) => {
+    const correlationId = generateCorrelationId();
+
+    try {
+      const queues = await queueService.getAllQueueStatuses();
+
+      return await reply.send({
+        queues,
+        total: queues.length,
+        correlationId,
+      });
+    } catch (error) {
+      fastify.log.error({ correlationId, error }, 'List queues error');
+      return await reply.status(500).send(toSafeErrorResponse(error));
+    }
+  });
+
+  /**
+   * GET /supervisor/queues/:queueSid
+   * Get specific queue details with SLA status
+   */
+  fastify.get(
+    '/supervisor/queues/:queueSid',
+    async (request: FastifyRequest<{ Params: { queueSid: string } }>, reply: FastifyReply) => {
+      const correlationId = generateCorrelationId();
+
+      try {
+        const { queueSid } = request.params;
+        const status = await queueService.getQueueStatus(queueSid);
+
+        if (!status) {
+          return await reply.status(404).send({
+            error: 'Queue not found',
+            correlationId,
+          });
+        }
+
+        const config = await queueService.getSLAConfig(queueSid);
+
+        return await reply.send({
+          status,
+          config,
+          correlationId,
+        });
+      } catch (error) {
+        fastify.log.error({ correlationId, error }, 'Get queue error');
+        return await reply.status(500).send(toSafeErrorResponse(error));
+      }
+    }
+  );
+
+  /**
+   * GET /supervisor/queues/:queueSid/breaches
+   * Get SLA breaches for a queue
+   */
+  fastify.get(
+    '/supervisor/queues/:queueSid/breaches',
+    async (
+      request: FastifyRequest<{
+        Params: { queueSid: string };
+        Querystring: { startTime?: string; endTime?: string; limit?: string };
+      }>,
+      reply: FastifyReply
+    ) => {
+      const correlationId = generateCorrelationId();
+
+      try {
+        const { queueSid } = request.params;
+        const { startTime, endTime, limit } = request.query as {
+          startTime?: string;
+          endTime?: string;
+          limit?: string;
+        };
+
+        const start = startTime ? new Date(startTime) : new Date(Date.now() - 24 * 60 * 60 * 1000); // Default: last 24 hours
+        const end = endTime ? new Date(endTime) : new Date();
+        const maxResults = limit ? parseInt(limit, 10) : 100;
+
+        const breaches = await queueService.getBreaches(queueSid, start, end, maxResults);
+
+        return await reply.send({
+          breaches,
+          total: breaches.length,
+          period: { start, end },
+          correlationId,
+        });
+      } catch (error) {
+        fastify.log.error({ correlationId, error }, 'Get breaches error');
+        return await reply.status(500).send(toSafeErrorResponse(error));
+      }
+    }
+  );
+
+  /**
+   * GET /supervisor/queues/:queueSid/config
+   * Get SLA configuration for a queue
+   */
+  fastify.get(
+    '/supervisor/queues/:queueSid/config',
+    async (request: FastifyRequest<{ Params: { queueSid: string } }>, reply: FastifyReply) => {
+      const correlationId = generateCorrelationId();
+
+      try {
+        const { queueSid } = request.params;
+        const config = await queueService.getSLAConfig(queueSid);
+
+        if (!config) {
+          return await reply.status(404).send({
+            error: 'Queue configuration not found',
+            correlationId,
+          });
+        }
+
+        return await reply.send({
+          config,
+          correlationId,
+        });
+      } catch (error) {
+        fastify.log.error({ correlationId, error }, 'Get queue config error');
+        return await reply.status(500).send(toSafeErrorResponse(error));
+      }
+    }
+  );
+
+  /**
+   * PUT /supervisor/queues/:queueSid/config
+   * Update SLA configuration for a queue
+   */
+  fastify.put(
+    '/supervisor/queues/:queueSid/config',
+    async (
+      request: FastifyRequest<{ Params: { queueSid: string }; Body: unknown }>,
+      reply: FastifyReply
+    ) => {
+      const correlationId = generateCorrelationId();
+
+      try {
+        const { queueSid } = request.params;
+        const parseResult = QueueSLAConfigSchema.partial().safeParse(request.body);
+
+        if (!parseResult.success) {
+          const error = new ValidationError('Invalid config body', parseResult.error.flatten());
+          return await reply.status(400).send(toSafeErrorResponse(error));
+        }
+
+        const updatedConfig = await queueService.updateSLAConfig(queueSid, parseResult.data);
+
+        fastify.log.info({ correlationId, queueSid }, 'Queue SLA config updated');
+
+        return await reply.send({
+          config: updatedConfig,
+          correlationId,
+        });
+      } catch (error) {
+        fastify.log.error({ correlationId, error }, 'Update queue config error');
+        return await reply.status(500).send(toSafeErrorResponse(error));
+      }
+    }
+  );
+
+  /**
+   * GET /supervisor/queues/summary
+   * Get summary of all queues SLA status
+   */
+  fastify.get(
+    '/supervisor/queues/summary',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const correlationId = generateCorrelationId();
+
+      try {
+        const queues = await queueService.getAllQueueStatuses();
+
+        const summary = {
+          totalQueues: queues.length,
+          compliantQueues: queues.filter((q: QueueSLAStatus) => q.isCompliant).length,
+          warningQueues: queues.filter((q: QueueSLAStatus) => q.severity === 'warning').length,
+          criticalQueues: queues.filter((q: QueueSLAStatus) => q.severity === 'critical').length,
+          totalCallsInQueue: queues.reduce(
+            (sum: number, q: QueueSLAStatus) => sum + q.currentQueueSize,
+            0
+          ),
+          totalAvailableAgents: queues.reduce(
+            (sum: number, q: QueueSLAStatus) => sum + q.availableAgents,
+            0
+          ),
+          totalBusyAgents: queues.reduce((sum: number, q: QueueSLAStatus) => sum + q.busyAgents, 0),
+          averageServiceLevel:
+            queues.length > 0
+              ? queues.reduce((sum: number, q: QueueSLAStatus) => sum + q.serviceLevel, 0) /
+                queues.length
+              : 100,
+          activeBreaches: queues.reduce(
+            (sum: number, q: QueueSLAStatus) => sum + q.breaches.length,
+            0
+          ),
+        };
+
+        return await reply.send({
+          summary,
+          correlationId,
+        });
+      } catch (error) {
+        fastify.log.error({ correlationId, error }, 'Get queue summary error');
         return await reply.status(500).send(toSafeErrorResponse(error));
       }
     }

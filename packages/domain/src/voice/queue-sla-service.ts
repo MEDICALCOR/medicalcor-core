@@ -153,12 +153,142 @@ const DEFAULT_SLA_CONFIG: Omit<QueueSLAConfig, 'queueSid' | 'queueName'> = {
 export class QueueSLAService {
   private readonly config: Required<QueueSLAServiceConfig>;
 
+  // In-memory stores for queue data (would be replaced by infrastructure adapter in production)
+  private readonly queueStatuses = new Map<string, QueueSLAStatus>();
+  private readonly queueConfigs = new Map<string, QueueSLAConfig>();
+  private readonly breachHistory = new Map<string, SLABreachEvent[]>();
+
   constructor(config: QueueSLAServiceConfig = {}) {
     this.config = {
       defaultConfig: { ...DEFAULT_SLA_CONFIG, ...config.defaultConfig },
       minCallsForAbandonRate: config.minCallsForAbandonRate ?? 10,
       minCallsForServiceLevel: config.minCallsForServiceLevel ?? 10,
     };
+
+    // Initialize with demo queues for development
+    this.initializeDemoQueues();
+  }
+
+  /**
+   * Initialize demo queues for development/testing
+   */
+  private initializeDemoQueues(): void {
+    const demoQueues = [
+      { queueSid: 'WQ001', queueName: 'General Inquiries', size: 3, waitTime: 45 },
+      { queueSid: 'WQ002', queueName: 'All-on-X Consultations', size: 5, waitTime: 120 },
+      { queueSid: 'WQ003', queueName: 'Emergency Line', size: 1, waitTime: 15 },
+      { queueSid: 'WQ004', queueName: 'Scheduling', size: 2, waitTime: 30 },
+    ];
+
+    for (const demo of demoQueues) {
+      const config = this.getConfigWithDefaults(demo.queueSid, demo.queueName);
+      this.queueConfigs.set(demo.queueSid, config);
+
+      const metrics: QueueMetricsInput = {
+        queueSid: demo.queueSid,
+        queueName: demo.queueName,
+        currentQueueSize: demo.size,
+        longestWaitTime: demo.waitTime,
+        averageWaitTime: Math.floor(demo.waitTime * 0.7),
+        availableAgents: Math.max(1, 4 - demo.size),
+        busyAgents: Math.min(3, demo.size),
+        totalAgents: 4,
+        callsHandledToday: 45 + Math.floor(Math.random() * 30),
+        callsAbandonedToday: Math.floor(Math.random() * 5),
+        serviceLevel: 75 + Math.floor(Math.random() * 20),
+      };
+
+      const result = this.evaluateSLA(metrics, config);
+      this.queueStatuses.set(demo.queueSid, result.status);
+
+      // Store any breaches
+      if (result.breaches.length > 0) {
+        this.breachHistory.set(demo.queueSid, result.breaches);
+      }
+    }
+  }
+
+  // ===========================================================================
+  // DATA ACCESS METHODS (for API/UI integration)
+  // ===========================================================================
+
+  /**
+   * Get all queue statuses
+   */
+  getAllQueueStatuses(): Promise<QueueSLAStatus[]> {
+    return Promise.resolve(Array.from(this.queueStatuses.values()));
+  }
+
+  /**
+   * Get status for a specific queue
+   */
+  getQueueStatus(queueSid: string): Promise<QueueSLAStatus | null> {
+    return Promise.resolve(this.queueStatuses.get(queueSid) ?? null);
+  }
+
+  /**
+   * Get SLA configuration for a queue
+   */
+  getSLAConfig(queueSid: string): Promise<QueueSLAConfig | null> {
+    return Promise.resolve(this.queueConfigs.get(queueSid) ?? null);
+  }
+
+  /**
+   * Update SLA configuration for a queue
+   */
+  updateSLAConfig(queueSid: string, updates: Partial<QueueSLAConfig>): Promise<QueueSLAConfig> {
+    const existing = this.queueConfigs.get(queueSid);
+    if (!existing) {
+      return Promise.reject(new Error(`Queue configuration not found: ${queueSid}`));
+    }
+
+    const updated = QueueSLAConfigSchema.parse({
+      ...existing,
+      ...updates,
+      queueSid, // Ensure queueSid can't be changed
+    });
+
+    this.queueConfigs.set(queueSid, updated);
+    return Promise.resolve(updated);
+  }
+
+  /**
+   * Get breaches for a queue within a time period
+   */
+  getBreaches(
+    queueSid: string,
+    startTime: Date,
+    endTime: Date,
+    limit = 100
+  ): Promise<SLABreachEvent[]> {
+    const breaches = this.breachHistory.get(queueSid) ?? [];
+    const filtered = breaches
+      .filter((b) => b.detectedAt >= startTime && b.detectedAt <= endTime)
+      .sort((a, b) => b.detectedAt.getTime() - a.detectedAt.getTime())
+      .slice(0, limit);
+    return Promise.resolve(filtered);
+  }
+
+  /**
+   * Update queue status with new metrics
+   */
+  updateQueueStatus(metrics: QueueMetricsInput): Promise<SLAEvaluationResult> {
+    let config = this.queueConfigs.get(metrics.queueSid);
+    if (!config) {
+      config = this.getConfigWithDefaults(metrics.queueSid, metrics.queueName);
+      this.queueConfigs.set(metrics.queueSid, config);
+    }
+
+    const result = this.evaluateSLA(metrics, config);
+    this.queueStatuses.set(metrics.queueSid, result.status);
+
+    // Append new breaches to history
+    if (result.breaches.length > 0) {
+      const existing = this.breachHistory.get(metrics.queueSid) ?? [];
+      this.breachHistory.set(metrics.queueSid, [...existing, ...result.breaches]);
+    }
+
+    return Promise.resolve(result);
   }
 
   // ===========================================================================
@@ -349,6 +479,11 @@ export class QueueSLAService {
           threshold: config.serviceLevelTarget,
           currentValue: metrics.serviceLevel,
         };
+      default:
+        return {
+          threshold: 0,
+          currentValue: 0,
+        };
     }
   }
 
@@ -507,6 +642,8 @@ export class QueueSLAService {
         return 'yellow';
       case 'critical':
         return 'red';
+      default:
+        return 'gray';
     }
   }
 

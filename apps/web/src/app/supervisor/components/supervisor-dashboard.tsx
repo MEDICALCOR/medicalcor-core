@@ -7,9 +7,11 @@
  * with the dashboard UI components.
  */
 
+import Link from 'next/link';
 import { SupervisorProvider, useSupervisor } from '@/lib/supervisor';
 import { Badge } from '@/components/ui/badge';
-import { Wifi, WifiOff, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Wifi, WifiOff, Loader2, LayoutGrid } from 'lucide-react';
 import type { MonitoredCall, SupervisorDashboardStats, FlexWorker } from '@medicalcor/types';
 import type { SupervisorAlert } from '../actions';
 import { SupervisorStats } from './supervisor-stats';
@@ -75,7 +77,15 @@ function SupervisorDashboardInner({
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Supervisor</h1>
           <p className="text-xs sm:text-sm text-muted-foreground">Monitor apeluri în timp real</p>
         </div>
-        <ConnectionBadge state={connectionState.status} />
+        <div className="flex items-center gap-2">
+          <Link href="/supervisor/queues">
+            <Button variant="outline" size="sm" className="gap-2">
+              <LayoutGrid className="h-4 w-4" />
+              <span className="hidden sm:inline">Queue SLA</span>
+            </Button>
+          </Link>
+          <ConnectionBadge state={connectionState.status} />
+        </div>
       </div>
 
       {/* Stats Section */}
