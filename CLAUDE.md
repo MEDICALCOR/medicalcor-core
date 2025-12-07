@@ -4,6 +4,23 @@
 
 MedicalCor Core is an **AI-powered medical CRM platform** for dental clinics featuring GPT-4o lead scoring, omnichannel communication (WhatsApp, Voice, Web), and HIPAA/GDPR-compliant infrastructure. It follows hexagonal architecture (ports & adapters) for testability and technology flexibility.
 
+## Claude Code Configuration
+
+This repository includes comprehensive Claude Code configuration in the [`.claude/`](./.claude/) directory with:
+
+- **46 auto-activating skills** including 6 MedicalCor-specific expertise domains
+- **7 slash commands** for TOON format tools and skill marketplace
+- **5 smart hooks** for automated validation and security
+- **Complete documentation** with guides and references
+
+**Key Features:**
+- Medical CRM domain expertise (HIPAA/GDPR compliance, patient data handling)
+- Tech stack knowledge (Fastify 5, Next.js 15, Trigger.dev, Supabase)
+- AI integration patterns (GPT-4o, RAG, embeddings, vector search)
+- Omnichannel communication (WhatsApp, Voice AI, web forms)
+
+**See [.claude/README.md](./.claude/README.md) for complete usage guide.**
+
 ## Tech Stack
 
 | Category | Technology | Version |

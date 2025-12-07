@@ -243,6 +243,31 @@ pnpm format           # Format with Prettier
 pnpm typecheck        # Run TypeScript checks
 ```
 
+## AI-Assisted Development
+
+This project includes comprehensive [Claude Code configuration](./.claude/README.md) to enhance AI-assisted development:
+
+| Feature | Description |
+|---------|-------------|
+| **46 Auto-Activating Skills** | Domain expertise including MedicalCor, HIPAA/GDPR, Fastify, Next.js, AI integrations |
+| **7 Slash Commands** | TOON format tools for 30-60% token savings + SkillsMP marketplace access |
+| **5 Smart Hooks** | Automated validation, security scanning, and formatting |
+| **MedicalCor Expertise** | 6 specialized skills for medical CRM development |
+
+**Quick Start with Claude Code:**
+```bash
+# Browse available skills
+/discover-skills medical CRM
+
+# Convert large JSON to TOON format (saves tokens)
+/convert-to-toon data.json
+
+# Install community skills
+/install-skill <github-url>
+```
+
+See [.claude/README.md](./.claude/README.md) for complete documentation.
+
 ## Documentation
 
 ### Essential Guides
@@ -253,6 +278,7 @@ pnpm typecheck        # Run TypeScript checks
 | [Architecture](./docs/README/ARCHITECTURE.md) | System design and data flow |
 | [API Reference](./docs/README/API_REFERENCE.md) | Endpoint documentation |
 | [Configuration](./docs/README/CONFIGURATION.md) | Environment variables |
+| [Claude Code Setup](./.claude/README.md) | AI-assisted development configuration |
 
 ### Development
 
