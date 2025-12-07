@@ -449,6 +449,12 @@ export const SupervisorDashboardStatsSchema = z.object({
   abandonedCalls: z.number().default(0),
   customerSatisfaction: z.number().min(0).max(100).optional(),
 
+  // Wrap-up stats (M10)
+  agentsInWrapUp: z.number().default(0),
+  wrapUpsToday: z.number().default(0),
+  averageWrapUpTime: z.number().default(0), // seconds
+  longestCurrentWrapUp: z.number().optional(), // seconds
+
   // Timestamp
   lastUpdated: TimestampSchema.optional(),
 });

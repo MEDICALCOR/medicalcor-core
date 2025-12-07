@@ -465,6 +465,10 @@ export class PostgresSupervisorStateRepository implements ISupervisorStateReposi
       averageHandleTime: 0, // Would need historical calculation
       serviceLevelPercent: 100, // Would need SLA configuration
       abandonedCalls: 0, // Would need tracking of abandoned calls
+      // Wrap-up stats (M10) - would need wrap-up time repository integration
+      agentsInWrapUp: calls.filter((c) => c.state === 'wrapping-up').length,
+      wrapUpsToday: 0,
+      averageWrapUpTime: 0,
       lastUpdated: new Date(),
     };
   }

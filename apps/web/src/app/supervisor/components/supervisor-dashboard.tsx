@@ -16,6 +16,7 @@ import { SupervisorStats } from './supervisor-stats';
 import { ActiveCallsList } from './active-calls-list';
 import { AgentStatusGrid } from './agent-status-grid';
 import { AlertsPanel } from './alerts-panel';
+import { WrapUpTimeWidget } from './wrap-up-time-widget';
 
 interface SupervisorDashboardInnerProps {
   initialStats: SupervisorDashboardStats;
@@ -103,6 +104,8 @@ function SupervisorDashboardInner({
             onDismissAll={dismissAllAlerts}
             onAlertAction={handleAlertAction}
           />
+
+          <WrapUpTimeWidget stats={stats} />
 
           <AgentStatusGrid agents={agents} />
         </div>
