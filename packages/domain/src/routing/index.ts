@@ -12,6 +12,7 @@ export {
   type RoutingRuleRepository,
   type RoutingQueue,
   type RoutingContext,
+  type QueuedTaskInfo,
 } from './skill-routing-service.js';
 
 export {
