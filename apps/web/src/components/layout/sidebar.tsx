@@ -22,6 +22,7 @@ import {
   Headphones,
   MonitorCheck,
   Presentation,
+  PhoneCall,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ const navigation = [
   { name: 'Pacienți', href: '/patients', icon: Users },
   { name: 'Calendar', href: '/calendar', icon: Calendar },
   { name: 'Mesaje', href: '/messages', icon: MessageSquare },
+  { name: 'Agent Workspace', href: '/agent-workspace', icon: PhoneCall },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   { name: 'Supervisor', href: '/supervisor', icon: MonitorCheck },
   { name: 'Agenți', href: '/agent-performance', icon: Headphones },
