@@ -2,6 +2,8 @@
 
 Complete guide to setting up end-to-end (E2E) tests with Playwright for MedicalCor Core.
 
+> 💡 **Visual Learner?** Check out the [E2E Setup Flowchart](./E2E_SETUP_FLOWCHART.md) for visual diagrams and quick reference.
+
 ## Table of Contents
 
 - [Overview](#overview)
