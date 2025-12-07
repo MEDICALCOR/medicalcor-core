@@ -8,6 +8,7 @@
  *
  * Repositories here are **ADAPTERS** implementing domain **PORTS**:
  * - CalendarSchedulingAdapter implements ISchedulingRepository (external calendar)
+ * - CaseRepository implements ICaseRepository (cohort analysis)
  *
  * @module @medicalcor/infrastructure/repositories
  *
@@ -16,6 +17,8 @@
  * import {
  *   CalendarSchedulingAdapter,
  *   createCalendarSchedulingAdapter,
+ *   CaseRepository,
+ *   createCaseRepository,
  * } from '@medicalcor/infrastructure';
  * ```
  */
@@ -39,3 +42,12 @@ export {
   type AppointmentDetails,
   type DomainGetAvailableSlotsOptions,
 } from './CalendarSchedulingAdapter.js';
+
+// Case Repository Adapter (Cohort Analysis & Trend Tracking)
+export {
+  // Class and factory
+  CaseRepository,
+  createCaseRepository,
+  // Configuration types
+  type CaseRepositoryConfig,
+} from './CaseRepository.js';
