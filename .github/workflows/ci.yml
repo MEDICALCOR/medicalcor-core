@@ -266,6 +266,13 @@ jobs:
 
   # =============================================================================
   # E2E Tests (Sharded for speed)
+  # 
+  # REQUIRED SECRETS:
+  # - TEST_USER_EMAIL: Test user email for authentication
+  # - TEST_USER_PASSWORD: Test user password
+  # 
+  # Setup: https://github.com/MEDICALCOR/medicalcor-core/settings/secrets/actions
+  # Guide: docs/README/E2E_SETUP.md
   # =============================================================================
   e2e:
     name: E2E Tests (${{ matrix.shard }}/${{ matrix.total-shards }})

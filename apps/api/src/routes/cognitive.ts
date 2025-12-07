@@ -5,7 +5,7 @@
  * REST API endpoints for accessing behavioral patterns, cognitive insights,
  * and episodic memory data for leads and patients.
  */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, max-lines, max-lines-per-function */
+/* eslint-disable max-lines-per-function */
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import type { Pool } from 'pg';
@@ -18,6 +18,7 @@ import {
   SubjectTypeSchema,
   type IEmbeddingService,
   type IOpenAIClient,
+  type SourceChannel,
 } from '@medicalcor/core';
 
 // =============================================================================
@@ -166,7 +167,10 @@ export function createCognitiveRoutes(deps: CognitiveRouteDependencies): Fastify
 
           const bodyResult = TriggerDetectionSchema.safeParse(request.body ?? {});
           if (!bodyResult.success) {
-            const error = new ValidationError('Invalid detection options', bodyResult.error.flatten());
+            const error = new ValidationError(
+              'Invalid detection options',
+              bodyResult.error.flatten()
+            );
             return await reply.status(400).send(toSafeErrorResponse(error));
           }
 
@@ -256,6 +260,78 @@ export function createCognitiveRoutes(deps: CognitiveRouteDependencies): Fastify
       }
     );
 
+    /**
+     * GET /cognitive/insights/:subjectId
+     * Simplified endpoint for dashboard - get cognitive insights with optional subject type
+     * Defaults to 'lead' if subjectType not specified in query params
+     */
+    fastify.get(
+      '/cognitive/insights/:subjectId',
+      async (
+        request: FastifyRequest<{
+          Params: { subjectId: string };
+          Querystring: { types?: string; subjectType?: string };
+        }>,
+        reply: FastifyReply
+      ) => {
+        const correlationId = generateCorrelationId();
+
+        try {
+          const { subjectId } = request.params;
+
+          // Validate subjectId is a UUID
+          const idResult = z.string().uuid().safeParse(subjectId);
+          if (!idResult.success) {
+            return await reply.status(400).send({
+              error: 'Invalid subjectId - must be a valid UUID',
+              correlationId,
+            });
+          }
+
+          const queryResult = InsightsQuerySchema.safeParse(request.query);
+          if (!queryResult.success) {
+            return await reply.status(400).send({
+              error: 'Invalid query parameters',
+              details: queryResult.error.flatten(),
+              correlationId,
+            });
+          }
+
+          // Default to 'lead' if subjectType not provided
+          const subjectTypeRaw = request.query.subjectType ?? 'lead';
+          const subjectTypeResult = SubjectTypeSchema.safeParse(subjectTypeRaw);
+          if (!subjectTypeResult.success) {
+            return await reply.status(400).send({
+              error: 'Invalid subjectType - must be lead, patient, or contact',
+              correlationId,
+            });
+          }
+
+          const subjectType = subjectTypeResult.data;
+          const { types } = queryResult.data;
+
+          let insights = await patternDetector.generateInsights(subjectType, subjectId);
+
+          // Filter by types if specified
+          if (types) {
+            const typeList = types.split(',').map((t) => t.trim());
+            insights = insights.filter((i) => typeList.includes(i.type));
+          }
+
+          return await reply.send({
+            subjectId,
+            subjectType,
+            insights,
+            total: insights.length,
+            correlationId,
+          });
+        } catch (error) {
+          fastify.log.error({ correlationId, error }, 'Get insights error');
+          return await reply.status(500).send(toSafeErrorResponse(error));
+        }
+      }
+    );
+
     // ========================================================================
     // Memory Endpoints
     // ========================================================================
@@ -309,7 +385,7 @@ export function createCognitiveRoutes(deps: CognitiveRouteDependencies): Fastify
             subjectId,
             semanticQuery,
             eventTypes: eventTypes?.split(',').map((t) => t.trim()),
-            channels: channels?.split(',').map((c) => c.trim()) as any,
+            channels: channels?.split(',').map((c) => c.trim()) as SourceChannel[] | undefined,
             fromDate: fromDate ? new Date(fromDate) : undefined,
             toDate: toDate ? new Date(toDate) : undefined,
             limit,
@@ -428,21 +504,24 @@ export function createCognitiveRoutes(deps: CognitiveRouteDependencies): Fastify
      * GET /cognitive/stats/patterns
      * Get pattern detection statistics for dashboard
      */
-    fastify.get('/cognitive/stats/patterns', async (_request: FastifyRequest, reply: FastifyReply) => {
-      const correlationId = generateCorrelationId();
+    fastify.get(
+      '/cognitive/stats/patterns',
+      async (_request: FastifyRequest, reply: FastifyReply) => {
+        const correlationId = generateCorrelationId();
 
-      try {
-        const stats = await patternDetector.getPatternStats();
+        try {
+          const stats = await patternDetector.getPatternStats();
 
-        return await reply.send({
-          stats,
-          correlationId,
-        });
-      } catch (error) {
-        fastify.log.error({ correlationId, error }, 'Get pattern stats error');
-        return await reply.status(500).send(toSafeErrorResponse(error));
+          return await reply.send({
+            stats,
+            correlationId,
+          });
+        } catch (error) {
+          fastify.log.error({ correlationId, error }, 'Get pattern stats error');
+          return await reply.status(500).send(toSafeErrorResponse(error));
+        }
       }
-    });
+    );
   };
 
   return cognitiveRoutes;

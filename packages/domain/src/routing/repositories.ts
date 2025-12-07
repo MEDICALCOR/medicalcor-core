@@ -12,7 +12,7 @@ import type {
   TaskSkillRequirements,
   ProficiencyLevel,
 } from '@medicalcor/types';
-import type { AgentRepository, RoutingRuleRepository, RoutingQueue } from './skill-routing-service.js';
+import type { AgentRepository, RoutingRuleRepository, RoutingQueue, QueuedTaskInfo } from './skill-routing-service.js';
 import { PROFICIENCY_WEIGHTS } from '@medicalcor/types';
 
 // =============================================================================
@@ -207,13 +207,8 @@ export class InMemoryRoutingRuleRepository implements RoutingRuleRepository {
 // In-Memory Routing Queue
 // =============================================================================
 
-interface QueuedTask {
-  taskId: string;
-  requirements: TaskSkillRequirements;
-  priority: number;
-  queuedAt: Date;
-  queueId: string;
-}
+// Use the shared interface from the service
+type QueuedTask = QueuedTaskInfo;
 
 export class InMemoryRoutingQueue implements RoutingQueue {
   private queues: Map<string, QueuedTask[]> = new Map();
@@ -351,9 +346,24 @@ export class InMemoryRoutingQueue implements RoutingQueue {
   }
 
   /**
+   * Get all tasks in a queue (implements QueuedTaskInfo[] interface)
+   */
+  getQueuedTasks(queueId: string): QueuedTaskInfo[] {
+    return this.queues.get(queueId) ?? [];
+  }
+
+  /**
+   * Get all queue IDs
+   */
+  getQueueIds(): string[] {
+    return Array.from(this.queues.keys());
+  }
+
+  /**
    * Get all tasks in a queue
+   * @deprecated Use getQueuedTasks instead
    */
   getQueueTasks(queueId: string): QueuedTask[] {
-    return this.queues.get(queueId) ?? [];
+    return this.getQueuedTasks(queueId);
   }
 }

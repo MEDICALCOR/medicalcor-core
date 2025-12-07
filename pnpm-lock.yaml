@@ -616,6 +616,9 @@ importers:
       '@medicalcor/domain':
         specifier: workspace:*
         version: link:../domain
+      '@medicalcor/integrations':
+        specifier: workspace:*
+        version: link:../integrations
       '@supabase/supabase-js':
         specifier: ^2.86.2
         version: 2.86.2
@@ -631,6 +634,9 @@ importers:
       uuid:
         specifier: ^11.0.3
         version: 11.1.0
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^22.9.0

@@ -51,6 +51,17 @@ export interface RoutingRuleRepository {
 }
 
 /**
+ * Queued task with full requirements for processing
+ */
+export interface QueuedTaskInfo {
+  taskId: string;
+  requirements: TaskSkillRequirements;
+  priority: number;
+  queuedAt: Date;
+  queueId: string;
+}
+
+/**
  * Queue interface for pending tasks
  */
 export interface RoutingQueue {
@@ -62,6 +73,12 @@ export interface RoutingQueue {
   dequeue(queueId: string): Promise<string | null>;
   getPosition(taskId: string): Promise<number | null>;
   getEstimatedWaitTime(queueId: string): Promise<number>;
+  /** Get all queued tasks for processing */
+  getQueuedTasks?(queueId: string): QueuedTaskInfo[];
+  /** Remove a specific task from the queue */
+  removeTask?(taskId: string): Promise<boolean>;
+  /** Get all queue IDs */
+  getQueueIds?(): string[];
 }
 
 /**
@@ -124,6 +141,9 @@ export class SkillRoutingService {
   // Skill inheritance cache (skillId -> parentSkillIds)
   private skillHierarchy: Map<string, string[]> = new Map();
 
+  // Round-robin state: tracks last assigned agent index per team
+  private roundRobinIndex: Map<string, number> = new Map();
+
   constructor(options: {
     config?: Partial<SkillRoutingConfig>;
     agentRepository: AgentRepository;
@@ -184,7 +204,7 @@ export class SkillRoutingService {
       }
 
       // Step 5: Apply routing strategy to select best agent
-      const selectedAgent = this.selectAgent(qualifiedCandidates, strategy);
+      const selectedAgent = this.selectAgent(qualifiedCandidates, strategy, effectiveRequirements.teamId);
 
       logger.info(
         {
@@ -559,7 +579,8 @@ export class SkillRoutingService {
    */
   private selectAgent(
     candidates: AgentMatchScore[],
-    strategy: RoutingStrategy
+    strategy: RoutingStrategy,
+    teamId?: string
   ): AgentMatchScore {
     switch (strategy) {
       case 'best_match':
@@ -567,9 +588,25 @@ export class SkillRoutingService {
         candidates.sort((a, b) => b.totalScore - a.totalScore);
         return candidates[0]!;
 
-      case 'round_robin':
-        // Simple round robin - just pick first qualified
-        return candidates[0]!;
+      case 'round_robin': {
+        // True round-robin: rotate through candidates evenly
+        const key = teamId ?? 'default';
+        const lastIndex = this.roundRobinIndex.get(key) ?? -1;
+
+        // Sort candidates by agentId for stable ordering
+        candidates.sort((a, b) => a.agentId.localeCompare(b.agentId));
+
+        // Find next agent index, wrapping around
+        const nextIndex = (lastIndex + 1) % candidates.length;
+        this.roundRobinIndex.set(key, nextIndex);
+
+        logger.debug(
+          { teamId: key, lastIndex, nextIndex, agentId: candidates[nextIndex]!.agentId },
+          'Round-robin agent selection'
+        );
+
+        return candidates[nextIndex]!;
+      }
 
       case 'least_occupied':
         // Sort by current task count ascending, then by score
@@ -660,7 +697,7 @@ export class SkillRoutingService {
               (c) => c.totalScore >= this.config.thresholds.minimumMatchScore
             );
             if (qualified.length > 0) {
-              const selected = this.selectAgent(qualified, this.config.defaultStrategy);
+              const selected = this.selectAgent(qualified, this.config.defaultStrategy, expandedRequirements.teamId);
               return {
                 decisionId,
                 timestamp: new Date(),
@@ -787,10 +824,167 @@ export class SkillRoutingService {
    */
   getStats(): {
     skillHierarchySize: number;
+    roundRobinTeams: number;
   } {
     return {
       skillHierarchySize: this.skillHierarchy.size,
+      roundRobinTeams: this.roundRobinIndex.size,
     };
+  }
+
+  // =============================================================================
+  // Queue Processing - Agent Availability Handler
+  // =============================================================================
+
+  /**
+   * Process queued tasks when an agent becomes available.
+   * This should be called when an agent's availability changes to 'available'.
+   *
+   * @param agentId - The agent that became available
+   * @returns Array of routing decisions for tasks assigned to this agent
+   */
+  async processQueueForAgent(agentId: string): Promise<RoutingDecision[]> {
+    if (!this.queue || !this.queue.getQueuedTasks || !this.queue.removeTask) {
+      logger.debug({ agentId }, 'Queue processing not available - missing queue methods');
+      return [];
+    }
+
+    const agent = await this.agentRepo.getAgentById(agentId);
+    if (!agent || agent.availability !== 'available') {
+      logger.debug({ agentId }, 'Agent not available for queue processing');
+      return [];
+    }
+
+    // Check if agent has capacity
+    const capacityThreshold = agent.maxConcurrentTasks * this.config.thresholds.maxConcurrentTaskRatio;
+    if (agent.currentTaskCount >= capacityThreshold) {
+      logger.debug({ agentId, currentTasks: agent.currentTaskCount }, 'Agent at capacity');
+      return [];
+    }
+
+    const assignedDecisions: RoutingDecision[] = [];
+    const queueIds = this.queue.getQueueIds?.() ?? [agent.teamId ?? 'default'];
+
+    for (const queueId of queueIds) {
+      // Only process team queue or default queue for this agent
+      if (agent.teamId && queueId !== agent.teamId && queueId !== 'default') {
+        continue;
+      }
+
+      const queuedTasks = this.queue.getQueuedTasks(queueId);
+
+      // Process tasks in priority order (already sorted by queue)
+      for (const task of queuedTasks) {
+        // Check agent still has capacity
+        const currentCapacity = agent.currentTaskCount + assignedDecisions.length;
+        if (currentCapacity >= capacityThreshold) {
+          break;
+        }
+
+        // Check if agent matches task requirements
+        const { matches } = await this.checkAgentMatch(agentId, task.requirements);
+        if (!matches) {
+          continue;
+        }
+
+        // Score the agent for this task
+        const [scored] = await this.scoreAgents([agent], task.requirements);
+        if (!scored || scored.totalScore < this.config.thresholds.minimumMatchScore) {
+          continue;
+        }
+
+        // Remove from queue and create routing decision
+        const removed = await this.queue.removeTask(task.taskId);
+        if (!removed) {
+          continue;
+        }
+
+        const decision: RoutingDecision = {
+          decisionId: task.taskId,
+          timestamp: new Date(),
+          taskId: task.taskId,
+          requirements: task.requirements,
+          outcome: 'routed',
+          selectedAgentId: agent.agentId,
+          selectedAgentName: agent.name,
+          selectedWorkerSid: agent.workerSid,
+          candidateAgents: [scored],
+          selectionReason: `Assigned from queue after agent ${agentId} became available`,
+          fallbacksAttempted: 0,
+          processingTimeMs: 0,
+          queuedAt: task.queuedAt,
+          waitTimeMs: Date.now() - task.queuedAt.getTime(),
+        };
+
+        assignedDecisions.push(decision);
+
+        logger.info(
+          {
+            taskId: task.taskId,
+            agentId,
+            queueId,
+            waitTimeMs: decision.waitTimeMs,
+          },
+          'Queued task assigned to available agent'
+        );
+      }
+    }
+
+    if (assignedDecisions.length > 0) {
+      logger.info(
+        { agentId, assignedCount: assignedDecisions.length },
+        'Queue processing completed for agent'
+      );
+    }
+
+    return assignedDecisions;
+  }
+
+  /**
+   * Process all queues and distribute tasks to available agents.
+   * This can be called periodically (e.g., every minute) to rebalance queues.
+   *
+   * @returns Array of routing decisions for all assigned tasks
+   */
+  async rebalanceQueues(): Promise<RoutingDecision[]> {
+    if (!this.queue || !this.queue.getQueueIds) {
+      logger.debug('Queue rebalancing not available - missing queue methods');
+      return [];
+    }
+
+    const allDecisions: RoutingDecision[] = [];
+    const queueIds = this.queue.getQueueIds();
+
+    for (const queueId of queueIds) {
+      // Get available agents for this queue's team
+      const teamId = queueId === 'default' ? undefined : queueId;
+      const agents = await this.agentRepo.getAvailableAgents(teamId);
+
+      for (const agent of agents) {
+        // Check capacity
+        const capacityThreshold = agent.maxConcurrentTasks * this.config.thresholds.maxConcurrentTaskRatio;
+        if (agent.currentTaskCount >= capacityThreshold) {
+          continue;
+        }
+
+        const decisions = await this.processQueueForAgent(agent.agentId);
+        allDecisions.push(...decisions);
+      }
+    }
+
+    if (allDecisions.length > 0) {
+      logger.info({ assignedCount: allDecisions.length }, 'Queue rebalancing completed');
+    }
+
+    return allDecisions;
+  }
+
+  /**
+   * Reset round-robin state (useful for testing or when agent pool changes significantly)
+   */
+  resetRoundRobinState(): void {
+    this.roundRobinIndex.clear();
+    logger.debug('Round-robin state reset');
   }
 }
 

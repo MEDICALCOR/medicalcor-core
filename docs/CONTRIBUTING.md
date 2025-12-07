@@ -98,8 +98,10 @@ Then create a Pull Request on GitHub.
 
 - Write unit tests for utilities
 - Write integration tests for API routes
-- Write E2E tests for critical flows
+- Write E2E tests for critical flows (see [E2E Setup Guide](./README/E2E_SETUP.md))
 - Aim for meaningful coverage, not 100%
+
+**Note**: Before running E2E tests, you must configure test user credentials. See [E2E Setup Guide](./README/E2E_SETUP.md) for instructions.
 
 ### File Organization
 

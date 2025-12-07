@@ -24,6 +24,14 @@
     "./observability/*": {
       "types": "./dist/observability/*.d.ts",
       "import": "./dist/observability/*.js"
+    },
+    "./repositories": {
+      "types": "./dist/repositories/index.d.ts",
+      "import": "./dist/repositories/index.js"
+    },
+    "./repositories/*": {
+      "types": "./dist/repositories/*.d.ts",
+      "import": "./dist/repositories/*.js"
     }
   },
   "main": "./dist/index.js",
@@ -42,11 +50,13 @@
     "@medicalcor/core": "workspace:*",
     "@medicalcor/domain": "workspace:*",
     "@medicalcor/application": "workspace:*",
+    "@medicalcor/integrations": "workspace:*",
     "@supabase/supabase-js": "^2.86.2",
     "pg": "^8.13.1",
     "openai": "^4.20.0",
     "pino": "^8.17.2",
     "uuid": "^11.0.3"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",
