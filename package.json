@@ -47,7 +47,8 @@
     "k6:rls": "k6 run --env SCENARIO=smoke scripts/k6/rls-performance.js",
     "k6:rls:load": "k6 run --env SCENARIO=load scripts/k6/rls-performance.js",
     "k6:rls:stress": "k6 run --env SCENARIO=stress scripts/k6/rls-performance.js",
-    "k6:rls:soak": "k6 run --env SCENARIO=soak scripts/k6/rls-performance.js"
+    "k6:rls:soak": "k6 run --env SCENARIO=soak scripts/k6/rls-performance.js",
+    "check:layer-boundaries": "tsx scripts/check-layer-boundaries.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.59",
