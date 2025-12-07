@@ -12,6 +12,7 @@ export * from './messaging/EventPublisher.js';
 
 // External service ports
 export * from './external/AuditService.js';
+export * from './external/InsuranceVerificationGateway.js';
 export * from './external/FinancingService.js';
 
 // Persistence ports

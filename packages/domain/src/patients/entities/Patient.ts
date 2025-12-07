@@ -1017,6 +1017,49 @@ export class PatientAggregateRoot {
   }
 
   /**
+   * Verify insurance after external verification
+   *
+   * @param verificationResult - Result from external verification
+   * @param verifiedBy - Identifier of system or user who performed verification
+   * @param correlationId - Correlation ID for tracing
+   */
+  verifyInsurance(
+    verificationResult: {
+      readonly verificationStatus: 'active' | 'expired' | 'invalid';
+      readonly coverageDetails?: {
+        readonly deductible?: number;
+        readonly remainingDeductible?: number;
+        readonly annualMaximum?: number;
+        readonly remainingMaximum?: number;
+      };
+    },
+    verifiedBy?: string,
+    correlationId?: string
+  ): void {
+    this.ensureCanModify();
+
+    if (!this._state.insuranceInfo) {
+      throw new PatientError(
+        'INSURANCE_NOT_FOUND',
+        this._state.id,
+        'No insurance information to verify'
+      );
+    }
+
+    this.raise(
+      'patient.insurance_verified',
+      {
+        phone: this._state.phone.e164,
+        insuranceId: this._state.insuranceInfo.id,
+        verificationStatus: verificationResult.verificationStatus,
+        coverageDetails: verificationResult.coverageDetails,
+        verifiedBy,
+      },
+      correlationId
+    );
+  }
+
+  /**
    * Grant consent
    */
   grantConsent(
