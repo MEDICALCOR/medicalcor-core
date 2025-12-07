@@ -44,7 +44,6 @@ const adminQueryDuration = new Trend('rls_admin_query_duration', true);
 const noRlsQueryDuration = new Trend('rls_bypass_query_duration', true);
 
 // Comparative metrics
-const rlsOverhead = new Gauge('rls_overhead_percentage');
 const successfulQueries = new Counter('rls_successful_queries');
 const failedQueries = new Counter('rls_failed_queries');
 
