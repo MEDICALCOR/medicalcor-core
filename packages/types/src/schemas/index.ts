@@ -658,3 +658,41 @@ export {
   type AgentPresenceMetrics,
   type TeamPresenceSummary,
 } from './agent-presence.js';
+
+// =============================================================================
+// Invoice Generation Schemas (L3 Feature)
+// =============================================================================
+export {
+  // Status
+  InvoiceStatusSchema,
+  // Components
+  InvoiceLineItemSchema,
+  ClinicDetailsSchema,
+  InvoiceCustomerSchema,
+  InvoiceDataSchema,
+  // Email Options
+  InvoiceEmailOptionsSchema,
+  // Payload & Result
+  InvoiceGenerationPayloadSchema,
+  InvoiceGenerationResultSchema,
+  // Events
+  InvoiceGeneratedEventSchema,
+  InvoiceSentEventSchema,
+  // Helper Functions
+  formatInvoiceCurrency,
+  formatInvoiceDate,
+  calculateInvoiceTotals,
+  getDefaultInvoiceStoragePath,
+  getInvoiceLabels,
+  // Types
+  type InvoiceStatus,
+  type InvoiceLineItem,
+  type ClinicDetails,
+  type InvoiceCustomer,
+  type InvoiceData,
+  type InvoiceEmailOptions,
+  type InvoiceGenerationPayload,
+  type InvoiceGenerationResult,
+  type InvoiceGeneratedEvent,
+  type InvoiceSentEvent,
+} from './invoice-generation.js';
