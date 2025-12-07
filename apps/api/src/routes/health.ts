@@ -372,6 +372,52 @@ async function checkCRM(): Promise<HealthCheckResult> {
   }
 }
 
+// OpenAPI schemas for health endpoints
+const HealthCheckResultSchema = {
+  type: 'object',
+  properties: {
+    status: { type: 'string', enum: ['ok', 'error', 'degraded'] },
+    message: { type: 'string' },
+    latencyMs: { type: 'number' },
+    details: { type: 'object', additionalProperties: true },
+  },
+} as const;
+
+const HealthResponseSchema = {
+  type: 'object',
+  properties: {
+    status: { type: 'string', enum: ['ok', 'degraded', 'unhealthy', 'ready', 'alive'] },
+    timestamp: { type: 'string', format: 'date-time' },
+    version: { type: 'string' },
+    uptime: { type: 'number', description: 'Uptime in seconds' },
+    checks: {
+      type: 'object',
+      additionalProperties: HealthCheckResultSchema,
+    },
+    circuitBreakers: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          state: { type: 'string' },
+          failures: { type: 'number' },
+          successRate: { type: 'number' },
+        },
+      },
+    },
+    memory: {
+      type: 'object',
+      properties: {
+        heapUsed: { type: 'number' },
+        heapTotal: { type: 'number' },
+        external: { type: 'number' },
+        rss: { type: 'number' },
+      },
+    },
+  },
+} as const;
+
 /**
  * Health check routes
  *
@@ -386,7 +432,19 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
    * Verifies database, Redis, and circuit breaker status.
    * Returns 200 if the service is operational.
    */
-  fastify.get<{ Reply: HealthResponse }>('/health', async (_request, reply) => {
+  fastify.get<{ Reply: HealthResponse }>(
+    '/health',
+    {
+      schema: {
+        description: 'Comprehensive health check for load balancers and monitoring',
+        tags: ['Health'],
+        response: {
+          200: HealthResponseSchema,
+          503: HealthResponseSchema,
+        },
+      },
+    },
+    async (_request, reply) => {
     // Run all health checks in parallel
     const [databaseCheck, redisCheck, crmCheck] = await Promise.all([
       checkDatabase(),
@@ -448,7 +506,20 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
    * Deep health check that verifies all dependencies.
    * Use sparingly as it performs actual connectivity tests.
    */
-  fastify.get<{ Reply: HealthResponse }>('/health/deep', async (_request, reply) => {
+  fastify.get<{ Reply: HealthResponse }>(
+    '/health/deep',
+    {
+      schema: {
+        description:
+          'Deep health check that verifies all dependencies. Use sparingly as it performs actual connectivity tests.',
+        tags: ['Health'],
+        response: {
+          200: HealthResponseSchema,
+          503: HealthResponseSchema,
+        },
+      },
+    },
+    async (_request, reply) => {
     // Run all health checks in parallel
     const [databaseCheck, redisCheck, crmCheck] = await Promise.all([
       checkDatabase(),
@@ -555,7 +626,20 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
    * Returns 200 when the service is ready to accept traffic.
    * Checks database and cache connectivity.
    */
-  fastify.get<{ Reply: HealthResponse }>('/ready', async (_request, reply) => {
+  fastify.get<{ Reply: HealthResponse }>(
+    '/ready',
+    {
+      schema: {
+        description:
+          'Kubernetes readiness probe. Returns 200 when the service is ready to accept traffic.',
+        tags: ['Health'],
+        response: {
+          200: HealthResponseSchema,
+          503: HealthResponseSchema,
+        },
+      },
+    },
+    async (_request, reply) => {
     // Run health checks in parallel
     const [databaseCheck, redisCheck] = await Promise.all([checkDatabase(), checkRedis()]);
     const triggerCheck = checkTrigger();
@@ -597,12 +681,30 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
    * Liveness probe for Kubernetes.
    * Returns 200 if the process is alive.
    */
-  fastify.get<{ Reply: HealthResponse }>('/live', async (_request, _reply) => {
-    return {
-      status: 'alive',
-      timestamp: new Date().toISOString(),
-    };
-  });
+  fastify.get<{ Reply: HealthResponse }>(
+    '/live',
+    {
+      schema: {
+        description: 'Kubernetes liveness probe. Returns 200 if the process is alive.',
+        tags: ['Health'],
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              status: { type: 'string', enum: ['alive'] },
+              timestamp: { type: 'string', format: 'date-time' },
+            },
+          },
+        },
+      },
+    },
+    async (_request, _reply) => {
+      return {
+        status: 'alive',
+        timestamp: new Date().toISOString(),
+      };
+    }
+  );
 
   /**
    * GET /health/crm
@@ -610,7 +712,51 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
    * Dedicated CRM health check endpoint.
    * Returns detailed information about the CRM provider status.
    */
-  fastify.get('/health/crm', async (_request, reply) => {
+  fastify.get(
+    '/health/crm',
+    {
+      schema: {
+        description: 'Dedicated CRM health check with detailed provider status',
+        tags: ['Health'],
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              status: { type: 'string', enum: ['healthy', 'degraded', 'unhealthy'] },
+              timestamp: { type: 'string', format: 'date-time' },
+              provider: { type: 'string' },
+              isMock: { type: 'boolean' },
+              latencyMs: { type: 'number' },
+              message: { type: 'string' },
+              details: {
+                type: 'object',
+                properties: {
+                  configured: { type: 'boolean' },
+                  apiConnected: { type: 'boolean' },
+                  authenticated: { type: 'boolean' },
+                  apiVersion: { type: 'string' },
+                  rateLimit: { type: 'object' },
+                  lastSuccessfulCall: { type: 'string' },
+                  error: { type: 'string' },
+                },
+              },
+              consecutiveFailures: { type: 'number' },
+            },
+          },
+          503: {
+            type: 'object',
+            properties: {
+              status: { type: 'string' },
+              timestamp: { type: 'string' },
+              provider: { type: 'string' },
+              isMock: { type: 'boolean' },
+              error: { type: 'object' },
+            },
+          },
+        },
+      },
+    },
+    async (_request, reply) => {
     try {
       const crmProvider = getCRMProvider();
       const result = await crmHealthService.check(crmProvider);
@@ -658,7 +804,42 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
    *
    * Get detailed circuit breaker status for all services.
    */
-  fastify.get('/health/circuit-breakers', async () => {
+  fastify.get(
+    '/health/circuit-breakers',
+    {
+      schema: {
+        description: 'Get detailed circuit breaker status for all services',
+        tags: ['Health'],
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              timestamp: { type: 'string', format: 'date-time' },
+              openCircuits: { type: 'array', items: { type: 'string' } },
+              services: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string' },
+                    state: { type: 'string', enum: ['CLOSED', 'OPEN', 'HALF_OPEN'] },
+                    failures: { type: 'number' },
+                    successes: { type: 'number' },
+                    totalRequests: { type: 'number' },
+                    totalFailures: { type: 'number' },
+                    totalSuccesses: { type: 'number' },
+                    successRate: { type: 'number' },
+                    lastFailure: { type: 'string', nullable: true },
+                    lastSuccess: { type: 'string', nullable: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async () => {
     const stats = globalCircuitBreakerRegistry.getAllStats();
     const openCircuits = globalCircuitBreakerRegistry.getOpenCircuits();
 
@@ -693,6 +874,56 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
    */
   fastify.post<{ Params: { service: string } }>(
     '/health/circuit-breakers/:service/reset',
+    {
+      schema: {
+        description:
+          'Manually reset a circuit breaker. Requires API key authentication.',
+        tags: ['Health'],
+        security: [{ ApiKeyAuth: [] }],
+        params: {
+          type: 'object',
+          required: ['service'],
+          properties: {
+            service: {
+              type: 'string',
+              description: 'Name of the service circuit breaker to reset',
+            },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              message: { type: 'string' },
+              timestamp: { type: 'string', format: 'date-time' },
+            },
+          },
+          400: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              message: { type: 'string' },
+            },
+          },
+          401: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              message: { type: 'string' },
+            },
+          },
+          429: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              message: { type: 'string' },
+              retryAfterMs: { type: 'number' },
+            },
+          },
+        },
+      },
+    },
     async (request, reply) => {
       // SECURITY: Require API key authentication for circuit breaker reset
       const apiKey = request.headers['x-api-key'] as string | undefined;

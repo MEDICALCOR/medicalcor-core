@@ -14,6 +14,33 @@
 import { Pool } from 'pg';
 
 /**
+ * HNSW index configuration
+ */
+export interface HNSWConfig {
+  /** Max connections per node (M parameter). Higher = more accurate, slower build. Default: 24 */
+  m?: number;
+  /** Candidate list size during construction. Higher = better recall. Default: 200 */
+  efConstruction?: number;
+  /** Default candidate list size during search. Default: 100 */
+  efSearchDefault?: number;
+}
+
+/**
+ * Search profile for adaptive ef_search tuning
+ */
+export type SearchProfile = 'fast' | 'balanced' | 'accurate' | 'exact';
+
+/**
+ * ef_search values by profile for optimal performance/accuracy tradeoff
+ */
+export const EF_SEARCH_BY_PROFILE: Record<SearchProfile, number> = {
+  fast: 40, // ~90% recall, lowest latency
+  balanced: 100, // ~95% recall, good balance
+  accurate: 200, // ~98% recall, for scoring
+  exact: 400, // ~99.5% recall, near-exact
+};
+
+/**
  * Configuration for PgVectorService
  */
 export interface PgVectorConfig {
@@ -25,6 +52,8 @@ export interface PgVectorConfig {
   idleTimeoutMs?: number;
   /** Connection timeout in milliseconds */
   connectionTimeoutMs?: number;
+  /** HNSW index configuration */
+  hnsw?: HNSWConfig;
 }
 
 /**
@@ -55,6 +84,16 @@ export interface VectorSearchFilters {
   contentTypes?: string[];
   /** Filter by metadata fields */
   metadata?: Record<string, unknown>;
+}
+
+/**
+ * Advanced search options for performance tuning
+ */
+export interface VectorSearchOptions {
+  /** Search profile for accuracy/speed tradeoff. Default: 'balanced' */
+  profile?: SearchProfile;
+  /** Override ef_search directly (takes precedence over profile) */
+  efSearch?: number;
 }
 
 /**
@@ -90,12 +129,11 @@ export interface VectorSearchFilters {
  */
 export class PgVectorService {
   private pool: Pool;
-  private initialized: boolean = false;
+  private initialized = false;
+  private hnswConfig: Required<HNSWConfig>;
 
   constructor(config: PgVectorConfig | string) {
-    const connectionConfig = typeof config === 'string'
-      ? { connectionString: config }
-      : config;
+    const connectionConfig = typeof config === 'string' ? { connectionString: config } : config;
 
     this.pool = new Pool({
       connectionString: connectionConfig.connectionString,
@@ -103,6 +141,20 @@ export class PgVectorService {
       idleTimeoutMillis: connectionConfig.idleTimeoutMs ?? 30000,
       connectionTimeoutMillis: connectionConfig.connectionTimeoutMs ?? 5000,
     });
+
+    // HNSW defaults optimized for medical knowledge base (~10K-100K vectors)
+    this.hnswConfig = {
+      m: connectionConfig.hnsw?.m ?? 24,
+      efConstruction: connectionConfig.hnsw?.efConstruction ?? 200,
+      efSearchDefault: connectionConfig.hnsw?.efSearchDefault ?? 100,
+    };
+  }
+
+  /**
+   * Get the connection pool for advanced operations
+   */
+  getPool(): Pool {
+    return this.pool;
   }
 
   /**
@@ -137,11 +189,12 @@ export class PgVectorService {
       `);
 
       // Create HNSW index for fast similarity search
+      // Parameters tuned for medical knowledge base workload
       await client.query(`
         CREATE INDEX IF NOT EXISTS idx_clinical_embeddings_vector
         ON clinical_embeddings
         USING hnsw (embedding vector_cosine_ops)
-        WITH (m = 16, ef_construction = 64)
+        WITH (m = ${this.hnswConfig.m}, ef_construction = ${this.hnswConfig.efConstruction})
       `);
 
       // Create index for case lookups
@@ -211,10 +264,31 @@ export class PgVectorService {
         ]
       );
 
-      return result.rows[0]!.id;
+      const insertedRow = result.rows[0];
+      if (!insertedRow) {
+        throw new Error('Failed to insert embedding - no row returned');
+      }
+      return insertedRow.id;
     } finally {
       client.release();
     }
+  }
+
+  /**
+   * Compute ef_search value based on options and defaults
+   */
+  private computeEfSearch(limit: number, options?: VectorSearchOptions): number {
+    // Direct ef_search override takes precedence
+    if (options?.efSearch) {
+      return options.efSearch;
+    }
+
+    // Use profile-based ef_search
+    const profile = options?.profile ?? 'balanced';
+    const baseEfSearch = EF_SEARCH_BY_PROFILE[profile];
+
+    // ef_search should be at least 2x limit for good recall
+    return Math.max(baseEfSearch, limit * 2);
   }
 
   /**
@@ -224,13 +298,15 @@ export class PgVectorService {
    * @param limit - Maximum number of results
    * @param threshold - Minimum similarity threshold (0-1)
    * @param filters - Optional filters
+   * @param options - Performance tuning options
    * @returns Sorted array of search results
    */
   async semanticSearch(
     queryEmbedding: number[],
-    limit: number = 10,
-    threshold: number = 0.7,
-    filters?: VectorSearchFilters
+    limit = 10,
+    threshold = 0.7,
+    filters?: VectorSearchFilters,
+    options?: VectorSearchOptions
   ): Promise<VectorSearchResult[]> {
     if (queryEmbedding.length !== 1536) {
       throw new Error(`Expected 1536-dimensional embedding, got ${queryEmbedding.length}`);
@@ -238,6 +314,10 @@ export class PgVectorService {
 
     const client = await this.pool.connect();
     try {
+      // Set ef_search for this query based on profile/options
+      const efSearch = this.computeEfSearch(limit, options);
+      await client.query(`SET LOCAL hnsw.ef_search = ${efSearch}`);
+
       // Build query with filters
       let query = `
         SELECT
@@ -294,7 +374,7 @@ export class PgVectorService {
         metadata: Record<string, unknown> | null;
       }>(query, params);
 
-      return result.rows.map(row => ({
+      return result.rows.map((row) => ({
         id: row.id,
         caseId: row.case_id,
         content: row.content,
@@ -317,8 +397,8 @@ export class PgVectorService {
    */
   async findSimilarCases(
     caseId: string,
-    limit: number = 5,
-    threshold: number = 0.7
+    limit = 5,
+    threshold = 0.7
   ): Promise<VectorSearchResult[]> {
     const client = await this.pool.connect();
     try {
@@ -331,13 +411,16 @@ export class PgVectorService {
         [caseId]
       );
 
-      if (sourceResult.rows.length === 0) {
+      const sourceRow = sourceResult.rows[0];
+      if (!sourceRow) {
         return [];
       }
 
       // Parse the embedding
-      const embeddingStr = sourceResult.rows[0]!.embedding;
-      const embedding = JSON.parse(embeddingStr.replace(/^\[/, '[').replace(/\]$/, ']')) as number[];
+      const embeddingStr = sourceRow.embedding;
+      const embedding = JSON.parse(
+        embeddingStr.replace(/^\[/, '[').replace(/\]$/, ']')
+      ) as number[];
 
       // Search for similar, excluding the source case
       const results = await this.semanticSearch(
@@ -347,7 +430,7 @@ export class PgVectorService {
       );
 
       // Filter out the source case
-      return results.filter(r => r.caseId !== caseId).slice(0, limit);
+      return results.filter((r) => r.caseId !== caseId).slice(0, limit);
     } finally {
       client.release();
     }
@@ -360,10 +443,9 @@ export class PgVectorService {
    * @returns Number of deleted records
    */
   async deleteEmbeddingsForCase(caseId: string): Promise<number> {
-    const result = await this.pool.query(
-      'DELETE FROM clinical_embeddings WHERE case_id = $1',
-      [caseId]
-    );
+    const result = await this.pool.query('DELETE FROM clinical_embeddings WHERE case_id = $1', [
+      caseId,
+    ]);
     return result.rowCount ?? 0;
   }
 
@@ -380,7 +462,9 @@ export class PgVectorService {
     try {
       const [countResult, casesResult, typesResult] = await Promise.all([
         client.query<{ count: string }>('SELECT COUNT(*) as count FROM clinical_embeddings'),
-        client.query<{ count: string }>('SELECT COUNT(DISTINCT case_id) as count FROM clinical_embeddings'),
+        client.query<{ count: string }>(
+          'SELECT COUNT(DISTINCT case_id) as count FROM clinical_embeddings'
+        ),
         client.query<{ content_type: string; count: string }>(
           'SELECT content_type, COUNT(*) as count FROM clinical_embeddings GROUP BY content_type'
         ),

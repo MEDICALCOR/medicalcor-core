@@ -1,5 +1,11 @@
 import { withSentryConfig } from '@sentry/nextjs';
 import withPWAInit from '@ducanh2912/next-pwa';
+import bundleAnalyzer from '@next/bundle-analyzer';
+
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+  openAnalyzer: process.env.ANALYZE_OPEN !== 'false',
+});
 
 const withPWA = withPWAInit({
   dest: 'public',
@@ -122,9 +128,13 @@ const sentryWebpackPluginOptions = {
   },
 };
 
+// Compose all config wrappers
+// Order: bundleAnalyzer -> PWA -> Sentry (outermost)
+const composedConfig = withBundleAnalyzer(withPWA(nextConfig));
+
 // Only wrap with Sentry if DSN is configured
 const finalConfig = process.env.NEXT_PUBLIC_SENTRY_DSN
-  ? withSentryConfig(withPWA(nextConfig), sentryWebpackPluginOptions)
-  : withPWA(nextConfig);
+  ? withSentryConfig(composedConfig, sentryWebpackPluginOptions)
+  : composedConfig;
 
 export default finalConfig;
