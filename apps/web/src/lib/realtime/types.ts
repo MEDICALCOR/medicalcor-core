@@ -18,6 +18,8 @@ export type RealtimeEventType =
   | 'task.completed'
   | 'urgency.new'
   | 'urgency.resolved'
+  | 'circuit_breaker.state_change'
+  | 'circuit_breaker.stats_update'
   | 'auth_success'
   | 'auth_error'
   | 'ping'
@@ -76,6 +78,47 @@ export interface UrgencyPayload {
   reason: string;
   priority: 'critical' | 'high' | 'medium';
   waitingTime: number;
+}
+
+export type CircuitState = 'CLOSED' | 'OPEN' | 'HALF_OPEN';
+
+export interface CircuitBreakerStateChangePayload {
+  service: string;
+  fromState: CircuitState;
+  toState: CircuitState;
+  reason?: string;
+  failures: number;
+  successes: number;
+  totalRequests: number;
+  totalFailures: number;
+  successRate: number;
+}
+
+export interface CircuitBreakerServiceStats {
+  name: string;
+  state: CircuitState;
+  failures: number;
+  successes: number;
+  totalRequests: number;
+  totalFailures: number;
+  totalSuccesses: number;
+  successRate: number;
+  lastFailure: string | null;
+  lastSuccess: string | null;
+}
+
+export interface CircuitBreakerStatsUpdatePayload {
+  services: CircuitBreakerServiceStats[];
+  openCircuits: string[];
+  stats: {
+    totalCircuits: number;
+    openCount: number;
+    halfOpenCount: number;
+    closedCount: number;
+    averageSuccessRate: number;
+    totalRequests: number;
+    totalFailures: number;
+  };
 }
 
 export interface ConnectionState {
