@@ -11,13 +11,16 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       // COVERAGE THRESHOLDS - Progressive ratcheting approach
-      // Current: ~62% -> Target: 80%+ (Medical/Banking "Platinum" standard)
-      // Increased from 30% baseline after comprehensive test suite expansion
+      // Medical/Banking "Platinum" standard requires 80%+ coverage
+      // Roadmap:
+      //   - Phase 1 (Dec 2025): 70% - Current target
+      //   - Phase 2 (Q1 2026):  80% - Medical compliance target
+      // See: https://owasp.org/www-project-web-security-testing-guide/
       thresholds: {
-        lines: 60,
-        functions: 60,
-        branches: 50,
-        statements: 60,
+        lines: 70,
+        functions: 70,
+        branches: 60,
+        statements: 70,
       },
       exclude: [
         'node_modules/',
