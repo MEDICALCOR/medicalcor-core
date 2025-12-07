@@ -144,16 +144,16 @@ export default function AgentWorkspacePage() {
   if (isInitialLoading) {
     return (
       <PagePermissionGate pathname="/agent-workspace">
-        <div className="h-[calc(100vh-8rem)] flex flex-col gap-4">
+        <div className="min-h-[calc(100vh-8rem)] lg:h-[calc(100vh-8rem)] flex flex-col gap-4">
           <AgentStatusBarSkeleton />
-          <div className="flex-1 grid grid-cols-12 gap-4 min-h-0">
-            <div className="col-span-3">
+          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 min-h-0">
+            <div className="md:col-span-1 lg:col-span-3 min-h-[300px] lg:min-h-0">
               <QueueViewSkeleton />
             </div>
-            <div className="col-span-5">
+            <div className="md:col-span-1 lg:col-span-5 min-h-[400px] lg:min-h-0">
               <CallPanelSkeleton />
             </div>
-            <div className="col-span-4">
+            <div className="md:col-span-2 lg:col-span-4 min-h-[350px] lg:min-h-0">
               <ScriptGuidanceSkeleton />
             </div>
           </div>
@@ -164,16 +164,16 @@ export default function AgentWorkspacePage() {
 
   return (
     <PagePermissionGate pathname="/agent-workspace">
-      <div className="h-[calc(100vh-8rem)] flex flex-col gap-4">
+      <div className="min-h-[calc(100vh-8rem)] lg:h-[calc(100vh-8rem)] flex flex-col gap-4">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <Headphones className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-xl font-semibold">Agent Workspace</h1>
-              <p className="text-sm text-muted-foreground">
+              <h1 className="text-lg sm:text-xl font-semibold">Agent Workspace</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 Gestionează apeluri și lead-uri în timp real
               </p>
             </div>
@@ -184,7 +184,7 @@ export default function AgentWorkspacePage() {
             size="sm"
             onClick={handleRefresh}
             disabled={isPending}
-            className="gap-2"
+            className="gap-2 w-full sm:w-auto"
           >
             {isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -200,15 +200,16 @@ export default function AgentWorkspacePage() {
           <AgentStatusBar session={session} stats={stats} onSessionUpdate={handleSessionUpdate} />
         )}
 
-        {/* Main Content Grid */}
-        <div className="flex-1 grid grid-cols-12 gap-4 min-h-0">
+        {/* Main Content Grid - Responsive layout */}
+        {/* Mobile: stacked, Tablet (md): 2 columns, Desktop (lg): 3 columns */}
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 min-h-0">
           {/* Queue View - Left Panel */}
-          <div className="col-span-12 lg:col-span-3 h-full overflow-hidden">
+          <div className="md:col-span-1 lg:col-span-3 min-h-[300px] lg:min-h-0 lg:h-full overflow-hidden order-2 md:order-1">
             <QueueView items={queueItems} onItemAccepted={handleItemAccepted} />
           </div>
 
-          {/* Call Panel - Center Panel */}
-          <div className="col-span-12 lg:col-span-5 h-full overflow-hidden">
+          {/* Call Panel - Center Panel (priority on mobile) */}
+          <div className="md:col-span-1 lg:col-span-5 min-h-[400px] lg:min-h-0 lg:h-full overflow-hidden order-1 md:order-2">
             <CallPanel
               call={activeCall}
               onCallEnded={handleCallEnded}
@@ -217,7 +218,7 @@ export default function AgentWorkspacePage() {
           </div>
 
           {/* Script Guidance - Right Panel */}
-          <div className="col-span-12 lg:col-span-4 h-full overflow-hidden">
+          <div className="md:col-span-2 lg:col-span-4 min-h-[350px] lg:min-h-0 lg:h-full overflow-hidden order-3">
             <ScriptGuidance script={callScript} activeStep={1} />
           </div>
         </div>

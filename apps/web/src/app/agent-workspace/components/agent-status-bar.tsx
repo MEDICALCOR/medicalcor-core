@@ -115,12 +115,12 @@ export function AgentStatusBar({ session, stats, onSessionUpdate }: AgentStatusB
   };
 
   return (
-    <div className="flex items-center justify-between bg-card border rounded-lg px-4 py-3">
+    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between bg-card border rounded-lg px-3 sm:px-4 py-3 gap-3 lg:gap-4">
       {/* Agent Info & Status */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 sm:gap-4">
         {/* Avatar with status indicator */}
-        <div className="relative">
-          <div className="w-10 h-10 rounded-full bg-primary/20 text-primary flex items-center justify-center font-semibold">
+        <div className="relative shrink-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-primary/20 text-primary flex items-center justify-center font-semibold text-sm sm:text-base">
             {localSession.agentName
               .split(' ')
               .map((n) => n[0])
@@ -128,15 +128,15 @@ export function AgentStatusBar({ session, stats, onSessionUpdate }: AgentStatusB
           </div>
           <div
             className={cn(
-              'absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-card',
+              'absolute -bottom-0.5 -right-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full border-2 border-card',
               currentConfig.bgColor
             )}
           />
         </div>
 
         {/* Name & Status Dropdown */}
-        <div>
-          <p className="font-medium text-sm">{localSession.agentName}</p>
+        <div className="min-w-0">
+          <p className="font-medium text-sm truncate">{localSession.agentName}</p>
           <DropdownMenu>
             <DropdownMenuTrigger asChild disabled={isPending}>
               <Button
@@ -168,13 +168,13 @@ export function AgentStatusBar({ session, stats, onSessionUpdate }: AgentStatusB
           </DropdownMenu>
         </div>
 
-        <div className="h-8 w-px bg-border" />
+        <div className="hidden md:block h-8 w-px bg-border" />
 
-        {/* Session Stats */}
-        <div className="flex items-center gap-6 text-sm">
-          <div className="flex items-center gap-1.5">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Sesiune:</span>
+        {/* Session Stats - scrollable on mobile */}
+        <div className="hidden md:flex items-center gap-3 lg:gap-6 text-xs sm:text-sm overflow-x-auto">
+          <div className="flex items-center gap-1 sm:gap-1.5 whitespace-nowrap">
+            <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
+            <span className="text-muted-foreground hidden lg:inline">Sesiune:</span>
             <span className="font-medium">
               {formatDuration(
                 Math.floor((Date.now() - new Date(localSession.sessionStartedAt).getTime()) / 1000)
@@ -182,51 +182,66 @@ export function AgentStatusBar({ session, stats, onSessionUpdate }: AgentStatusB
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <Phone className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Apeluri:</span>
+          <div className="flex items-center gap-1 sm:gap-1.5 whitespace-nowrap">
+            <Phone className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
+            <span className="text-muted-foreground hidden lg:inline">Apeluri:</span>
             <span className="font-medium">{localSession.callsHandled}</span>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Lead-uri:</span>
+          <div className="flex items-center gap-1 sm:gap-1.5 whitespace-nowrap">
+            <MessageSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
+            <span className="text-muted-foreground hidden lg:inline">Lead-uri:</span>
             <span className="font-medium">{localSession.leadsHandled}</span>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <Timer className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Talk time:</span>
+          <div className="flex items-center gap-1 sm:gap-1.5 whitespace-nowrap">
+            <Timer className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
+            <span className="text-muted-foreground hidden lg:inline">Talk time:</span>
             <span className="font-medium">{formatDuration(localSession.totalTalkTime)}</span>
           </div>
         </div>
       </div>
 
       {/* Queue & Performance Stats */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between md:justify-end gap-3 sm:gap-4 border-t lg:border-t-0 pt-3 lg:pt-0">
+        {/* Mobile-only session stats summary */}
+        <div className="flex md:hidden items-center gap-3 text-xs">
+          <div className="flex items-center gap-1">
+            <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="font-medium">{localSession.callsHandled}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="font-medium">{localSession.leadsHandled}</span>
+          </div>
+        </div>
+
         {/* Queue Info */}
         <div className="flex items-center gap-2">
           <Badge
             variant={
               stats.queueLength > 5 ? 'destructive' : stats.queueLength > 2 ? 'warm' : 'secondary'
             }
+            className="text-xs"
           >
             {stats.queueLength} în coadă
           </Badge>
-          <span className="text-xs text-muted-foreground">avg {formatTime(stats.avgWaitTime)}</span>
+          <span className="text-xs text-muted-foreground hidden sm:inline">
+            avg {formatTime(stats.avgWaitTime)}
+          </span>
         </div>
 
-        <div className="h-8 w-px bg-border" />
+        <div className="hidden sm:block h-8 w-px bg-border" />
 
         {/* Today's Performance */}
-        <div className="flex items-center gap-4 text-sm">
-          <div className="flex items-center gap-1.5">
-            <TrendingUp className="h-4 w-4 text-emerald-500" />
+        <div className="hidden sm:flex items-center gap-3 lg:gap-4 text-xs sm:text-sm">
+          <div className="flex items-center gap-1 sm:gap-1.5">
+            <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-500" />
             <span className="font-medium">{stats.conversionsToday} conversii</span>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <Star className="h-4 w-4 text-yellow-500" />
+          <div className="flex items-center gap-1 sm:gap-1.5">
+            <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-500" />
             <span className="font-medium">{stats.satisfactionScore.toFixed(1)}</span>
           </div>
         </div>
@@ -238,26 +253,31 @@ export function AgentStatusBar({ session, stats, onSessionUpdate }: AgentStatusB
 // Skeleton for loading state
 export function AgentStatusBarSkeleton() {
   return (
-    <div className="flex items-center justify-between bg-card border rounded-lg px-4 py-3">
-      <div className="flex items-center gap-4">
-        <div className="w-10 h-10 rounded-full bg-muted animate-pulse" />
-        <div className="space-y-2">
+    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between bg-card border rounded-lg px-3 sm:px-4 py-3 gap-3 lg:gap-4">
+      <div className="flex items-center gap-3 sm:gap-4">
+        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-muted animate-pulse shrink-0" />
+        <div className="space-y-2 min-w-0">
           <div className="h-4 w-24 bg-muted animate-pulse rounded" />
           <div className="h-3 w-16 bg-muted animate-pulse rounded" />
         </div>
-        <div className="h-8 w-px bg-border" />
-        <div className="flex gap-6">
+        <div className="hidden md:block h-8 w-px bg-border" />
+        <div className="hidden md:flex gap-3 lg:gap-6">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-4 w-20 bg-muted animate-pulse rounded" />
+            <div key={i} className="h-4 w-16 lg:w-20 bg-muted animate-pulse rounded" />
           ))}
         </div>
       </div>
-      <div className="flex items-center gap-4">
-        <div className="h-6 w-24 bg-muted animate-pulse rounded-full" />
-        <div className="h-8 w-px bg-border" />
-        <div className="flex gap-4">
+      <div className="flex items-center justify-between md:justify-end gap-3 sm:gap-4 border-t lg:border-t-0 pt-3 lg:pt-0">
+        <div className="flex md:hidden gap-3">
           {[1, 2].map((i) => (
-            <div key={i} className="h-4 w-20 bg-muted animate-pulse rounded" />
+            <div key={i} className="h-4 w-8 bg-muted animate-pulse rounded" />
+          ))}
+        </div>
+        <div className="h-6 w-20 sm:w-24 bg-muted animate-pulse rounded-full" />
+        <div className="hidden sm:block h-8 w-px bg-border" />
+        <div className="hidden sm:flex gap-3 lg:gap-4">
+          {[1, 2].map((i) => (
+            <div key={i} className="h-4 w-16 lg:w-20 bg-muted animate-pulse rounded" />
           ))}
         </div>
       </div>

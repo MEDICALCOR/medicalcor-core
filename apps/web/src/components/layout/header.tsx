@@ -1,15 +1,14 @@
 'use client';
 
-import { Moon, Sun, User, Stethoscope } from 'lucide-react';
+import { User, Stethoscope } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConnectionStatus, NotificationBell } from '@/components/realtime';
 import { MobileMenuTrigger, useSidebar } from './sidebar';
 import { LanguageSwitcher } from '@/components/i18n/language-switcher';
-import { useThemePersistence } from '@/lib/theme';
+import { ThemeToggle } from './theme-toggle';
 import Link from 'next/link';
 
 export function Header() {
-  const { theme, setTheme } = useThemePersistence();
   const { isMobile } = useSidebar();
 
   return (
@@ -42,16 +41,7 @@ export function Header() {
         <LanguageSwitcher />
 
         {/* Theme toggle */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="h-9 w-9 sm:h-10 sm:w-10"
-        >
-          <Sun className="h-4 w-4 sm:h-5 sm:w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute h-4 w-4 sm:h-5 sm:w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          <span className="sr-only">Toggle theme</span>
-        </Button>
+        <ThemeToggle />
 
         {/* User menu - ACCESSIBILITY FIX: Added aria-label for screen readers */}
         <Button
