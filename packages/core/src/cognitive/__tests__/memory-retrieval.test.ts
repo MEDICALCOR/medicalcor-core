@@ -5,7 +5,12 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MemoryRetrievalService, createMemoryRetrievalService } from '../memory-retrieval.js';
+import {
+  MemoryRetrievalService,
+  createMemoryRetrievalService,
+  encodeCursor,
+  decodeCursor,
+} from '../memory-retrieval.js';
 import { DEFAULT_COGNITIVE_CONFIG } from '../types.js';
 import type { IEmbeddingService } from '../episode-builder.js';
 
@@ -630,6 +635,334 @@ describe('MemoryRetrievalService Extended Tests', () => {
         defaultQueryLimit: 50,
       });
       expect(svc).toBeInstanceOf(MemoryRetrievalService);
+    });
+  });
+
+  describe('Cursor encoding/decoding', () => {
+    it('should encode and decode cursor correctly', () => {
+      const cursorData = {
+        occurredAt: '2024-12-01T10:00:00.000Z',
+        id: '550e8400-e29b-41d4-a716-446655440000',
+      };
+
+      const encoded = encodeCursor(cursorData);
+      expect(typeof encoded).toBe('string');
+      expect(encoded.length).toBeGreaterThan(0);
+
+      const decoded = decodeCursor(encoded);
+      expect(decoded).toEqual(cursorData);
+    });
+
+    it('should encode cursor with similarity for semantic search', () => {
+      const cursorData = {
+        occurredAt: '2024-12-01T10:00:00.000Z',
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        similarity: 0.95,
+      };
+
+      const encoded = encodeCursor(cursorData);
+      const decoded = decodeCursor(encoded);
+      expect(decoded).toEqual(cursorData);
+    });
+
+    it('should return null for invalid cursor', () => {
+      expect(decodeCursor('invalid-cursor')).toBeNull();
+      expect(decodeCursor('')).toBeNull();
+    });
+
+    it('should return null for malformed JSON', () => {
+      const malformed = Buffer.from('not-json', 'utf-8').toString('base64url');
+      expect(decodeCursor(malformed)).toBeNull();
+    });
+
+    it('should return null for invalid cursor data schema', () => {
+      const invalid = Buffer.from(JSON.stringify({ foo: 'bar' }), 'utf-8').toString('base64url');
+      expect(decodeCursor(invalid)).toBeNull();
+    });
+  });
+
+  describe('queryPaginated', () => {
+    it('should return paginated results with hasMore=true when more results exist', async () => {
+      const rows = [
+        {
+          id: 'event-1',
+          subject_type: 'lead',
+          subject_id: testLeadId,
+          event_type: 'message.received',
+          event_category: 'communication',
+          source_channel: 'whatsapp',
+          summary: 'First event',
+          key_entities: [],
+          sentiment: 'neutral',
+          occurred_at: new Date('2024-12-01T12:00:00Z'),
+          metadata: {},
+        },
+        {
+          id: 'event-2',
+          subject_type: 'lead',
+          subject_id: testLeadId,
+          event_type: 'message.received',
+          event_category: 'communication',
+          source_channel: 'whatsapp',
+          summary: 'Second event',
+          key_entities: [],
+          sentiment: 'neutral',
+          occurred_at: new Date('2024-12-01T11:00:00Z'),
+          metadata: {},
+        },
+        {
+          id: 'event-3',
+          subject_type: 'lead',
+          subject_id: testLeadId,
+          event_type: 'message.received',
+          event_category: 'communication',
+          source_channel: 'whatsapp',
+          summary: 'Third event (extra)',
+          key_entities: [],
+          sentiment: 'neutral',
+          occurred_at: new Date('2024-12-01T10:00:00Z'),
+          metadata: {},
+        },
+      ];
+
+      mockPool.query.mockResolvedValue({ rows });
+
+      const result = await service.queryPaginated({
+        subjectId: testLeadId,
+        pageSize: 2,
+      });
+
+      expect(result.items).toHaveLength(2);
+      expect(result.hasMore).toBe(true);
+      expect(result.nextCursor).not.toBeNull();
+    });
+
+    it('should return hasMore=false when no more results', async () => {
+      mockPool.query.mockResolvedValue({
+        rows: [
+          {
+            id: 'event-1',
+            subject_type: 'lead',
+            subject_id: testLeadId,
+            event_type: 'message.received',
+            event_category: 'communication',
+            source_channel: 'whatsapp',
+            summary: 'Only event',
+            key_entities: [],
+            sentiment: 'neutral',
+            occurred_at: new Date('2024-12-01'),
+            metadata: {},
+          },
+        ],
+      });
+
+      const result = await service.queryPaginated({
+        subjectId: testLeadId,
+        pageSize: 10,
+      });
+
+      expect(result.items).toHaveLength(1);
+      expect(result.hasMore).toBe(false);
+      expect(result.nextCursor).toBeNull();
+    });
+
+    it('should handle empty results', async () => {
+      mockPool.query.mockResolvedValue({ rows: [] });
+
+      const result = await service.queryPaginated({
+        subjectId: testLeadId,
+        pageSize: 10,
+      });
+
+      expect(result.items).toHaveLength(0);
+      expect(result.hasMore).toBe(false);
+      expect(result.nextCursor).toBeNull();
+    });
+
+    it('should accept and use cursor for pagination', async () => {
+      mockPool.query.mockResolvedValue({ rows: [] });
+
+      const cursor = encodeCursor({
+        occurredAt: '2024-12-01T10:00:00.000Z',
+        id: '550e8400-e29b-41d4-a716-446655440001',
+      });
+
+      await service.queryPaginated({
+        subjectId: testLeadId,
+        pageSize: 10,
+        cursor,
+      });
+
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining('occurred_at <'),
+        expect.any(Array)
+      );
+    });
+
+    it('should throw error for invalid cursor', async () => {
+      await expect(
+        service.queryPaginated({
+          subjectId: testLeadId,
+          cursor: 'invalid-cursor',
+        })
+      ).rejects.toThrow('Invalid pagination cursor');
+    });
+
+    it('should use default pageSize from config when not specified', async () => {
+      mockPool.query.mockResolvedValue({ rows: [] });
+
+      await service.queryPaginated({
+        subjectId: testLeadId,
+      });
+
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining(`LIMIT ${DEFAULT_COGNITIVE_CONFIG.defaultQueryLimit + 1}`),
+        expect.any(Array)
+      );
+    });
+
+    it('should apply all filters correctly', async () => {
+      mockPool.query.mockResolvedValue({ rows: [] });
+
+      const fromDate = new Date('2024-01-01');
+      const toDate = new Date('2024-12-31');
+
+      await service.queryPaginated({
+        subjectType: 'lead',
+        subjectId: testLeadId,
+        eventTypes: ['message.received'],
+        eventCategories: ['communication'],
+        channels: ['whatsapp'],
+        fromDate,
+        toDate,
+        pageSize: 5,
+      });
+
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining('subject_type'),
+        expect.arrayContaining(['lead'])
+      );
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining('event_type = ANY'),
+        expect.any(Array)
+      );
+    });
+
+    it('should include similarity in cursor for semantic search', async () => {
+      const eventId1 = '550e8400-e29b-41d4-a716-446655440001';
+      const eventId2 = '550e8400-e29b-41d4-a716-446655440002';
+      const rows = [
+        {
+          id: eventId1,
+          subject_type: 'lead',
+          subject_id: testLeadId,
+          event_type: 'message.received',
+          event_category: 'communication',
+          source_channel: 'whatsapp',
+          summary: 'First event',
+          key_entities: [],
+          sentiment: 'neutral',
+          occurred_at: new Date('2024-12-01T10:00:00.000Z'),
+          metadata: {},
+          similarity: 0.95,
+        },
+        {
+          id: eventId2,
+          subject_type: 'lead',
+          subject_id: testLeadId,
+          event_type: 'message.received',
+          event_category: 'communication',
+          source_channel: 'whatsapp',
+          summary: 'Second event (extra)',
+          key_entities: [],
+          sentiment: 'neutral',
+          occurred_at: new Date('2024-11-30T10:00:00.000Z'),
+          metadata: {},
+          similarity: 0.9,
+        },
+      ];
+
+      mockPool.query.mockResolvedValue({ rows });
+
+      const result = await service.queryPaginated({
+        subjectId: testLeadId,
+        semanticQuery: 'dental implants',
+        pageSize: 1,
+      });
+
+      expect(result.hasMore).toBe(true);
+      expect(result.nextCursor).not.toBeNull();
+
+      // Verify cursor contains required fields
+      const decoded = decodeCursor(result.nextCursor!);
+      expect(decoded).not.toBeNull();
+      expect(decoded?.id).toBe(eventId1);
+      expect(decoded?.occurredAt).toBeDefined();
+      // Similarity should be included for semantic search results
+      expect(decoded?.similarity).toBe(0.95);
+    });
+
+    it('should use cursor with similarity for semantic search pagination', async () => {
+      mockPool.query.mockResolvedValue({ rows: [] });
+
+      const cursor = encodeCursor({
+        occurredAt: '2024-12-01T10:00:00.000Z',
+        id: '550e8400-e29b-41d4-a716-446655440001',
+        similarity: 0.9,
+      });
+
+      await service.queryPaginated({
+        subjectId: testLeadId,
+        semanticQuery: 'dental implants',
+        pageSize: 10,
+        cursor,
+      });
+
+      expect(mockEmbeddings.embed).toHaveBeenCalledWith('dental implants');
+      expect(mockPool.query).toHaveBeenCalled();
+    });
+
+    it('should order by similarity DESC for semantic search', async () => {
+      mockPool.query.mockResolvedValue({ rows: [] });
+
+      await service.queryPaginated({
+        subjectId: testLeadId,
+        semanticQuery: 'dental work',
+        pageSize: 10,
+      });
+
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining('ORDER BY similarity DESC'),
+        expect.any(Array)
+      );
+    });
+
+    it('should order by occurred_at DESC for non-semantic queries', async () => {
+      mockPool.query.mockResolvedValue({ rows: [] });
+
+      await service.queryPaginated({
+        subjectId: testLeadId,
+        pageSize: 10,
+      });
+
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining('ORDER BY occurred_at DESC, id DESC'),
+        expect.any(Array)
+      );
+    });
+
+    it('should use limit from query if pageSize not provided', async () => {
+      mockPool.query.mockResolvedValue({ rows: [] });
+
+      await service.queryPaginated({
+        subjectId: testLeadId,
+        limit: 15,
+      });
+
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining('LIMIT 16'),
+        expect.any(Array)
+      );
     });
   });
 });
