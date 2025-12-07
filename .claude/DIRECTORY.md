@@ -31,6 +31,7 @@ The `.claude` directory contains all Claude Code configuration, skills, commands
 .claude/
 ├── README.md              # Quick start and overview
 ├── DIRECTORY.md           # This file - complete documentation
+├── setup.sh               # Installer script - bootstraps .claude configuration
 ├── commands/              # Slash commands (manual invocation)
 ├── docs/                  # Documentation and guides
 ├── hooks/                 # Auto-run scripts on tool use
