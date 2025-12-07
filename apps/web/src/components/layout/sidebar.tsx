@@ -23,6 +23,7 @@ import {
   MonitorCheck,
   Presentation,
   PhoneCall,
+  Route,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -42,6 +43,7 @@ const navigation = [
   { name: 'Agenți', href: '/agent-performance', icon: Headphones },
   { name: 'Workflows', href: '/workflows', icon: Zap },
   { name: 'Rapoarte', href: '/reports', icon: FileText },
+  { name: 'Traces', href: '/traces', icon: Route },
   { name: 'Import', href: '/import', icon: Upload },
   { name: 'Utilizatori', href: '/users', icon: UserCog },
   { name: 'Setări', href: '/settings', icon: Settings },

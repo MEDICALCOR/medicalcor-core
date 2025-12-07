@@ -652,6 +652,73 @@ export {
 } from './schemas/retention.js';
 
 // =============================================================================
+// Unified Audit Log Schemas (M1 - Consolidated Audit Tables)
+// =============================================================================
+export {
+  // Enums
+  AuditTypeSchema,
+  AuditActorTypeSchema,
+  AuditActionSchema,
+  AuditSeveritySchema,
+  GeneralAuditStatusSchema,
+  GeneralAuditCategorySchema,
+  ReplayOperationTypeSchema,
+  ReplayStatusSchema,
+  ConsentAuditActionSchema,
+  // Actor schema
+  AuditActorSchema,
+  // Base and entry schemas
+  BaseAuditEntrySchema,
+  ComplianceAuditEntrySchema,
+  GeneralAuditEntrySchema,
+  ConsentAuditEntrySchema,
+  ReplayAuditEntrySchema,
+  UnifiedAuditEntrySchema,
+  // Replay sub-schemas
+  ReplayProgressSchema,
+  ReplayResultSchema,
+  ReplayErrorSchema,
+  // Create schemas
+  CreateComplianceAuditSchema,
+  CreateGeneralAuditSchema,
+  CreateConsentAuditSchema,
+  CreateReplayAuditSchema,
+  // Query schemas
+  AuditQueryFiltersSchema,
+  AuditQueryResultSchema,
+  // Stats schemas
+  AuditTypeStatsSchema,
+  AuditStatsSchema,
+  // Types
+  type AuditType,
+  type AuditActorType,
+  type AuditAction,
+  type AuditSeverity,
+  type GeneralAuditStatus,
+  type GeneralAuditCategory,
+  type ReplayOperationType,
+  type ReplayStatus,
+  type ConsentAuditAction,
+  type AuditActor,
+  type ComplianceAuditEntry,
+  type GeneralAuditEntry,
+  type ConsentAuditEntry,
+  type ReplayAuditEntry,
+  type UnifiedAuditEntry,
+  type ReplayProgress,
+  type ReplayResult,
+  type ReplayError,
+  type CreateComplianceAudit,
+  type CreateGeneralAudit,
+  type CreateConsentAudit,
+  type CreateReplayAudit,
+  type AuditQueryFilters,
+  type AuditQueryResult,
+  type AuditTypeStats,
+  type AuditStats,
+} from './audit.schema.js';
+
+// =============================================================================
 // Load Testing Schemas (L7 - Performance Baseline)
 // =============================================================================
 export {

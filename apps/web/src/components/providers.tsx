@@ -27,6 +27,7 @@ import { QuickSearchProvider } from '@/components/quick-search';
 import { ServiceWorkerRegistration } from '@/components/pwa/service-worker-registration';
 import { I18nProvider } from '@/lib/i18n';
 import { ThemePersistenceProvider } from '@/lib/theme';
+import { FeatureFlagProvider } from '@/lib/feature-flags';
 import { PageErrorBoundary } from '@/components/error-boundary';
 import { initWebVitalsReporting } from '@/lib/vitals/web-vitals';
 
@@ -157,22 +158,24 @@ function UIFoundationProviders({ children }: { children: ReactNode }) {
 // ============================================================================
 
 /**
- * Application feature providers: Keyboard, Realtime, QuickSearch
+ * Application feature providers: Feature Flags, Keyboard, Realtime, QuickSearch
  *
  * @param props.children - Child components
  * @internal
  */
 function ApplicationFeatureProviders({ children }: { children: ReactNode }) {
   return (
-    <KeyboardProvider>
-      <RealtimeProvider>
-        <RealtimeAutoConnect>
-          <QuickSearchProvider>
-            <KeyboardFeatures>{children}</KeyboardFeatures>
-          </QuickSearchProvider>
-        </RealtimeAutoConnect>
-      </RealtimeProvider>
-    </KeyboardProvider>
+    <FeatureFlagProvider>
+      <KeyboardProvider>
+        <RealtimeProvider>
+          <RealtimeAutoConnect>
+            <QuickSearchProvider>
+              <KeyboardFeatures>{children}</KeyboardFeatures>
+            </QuickSearchProvider>
+          </RealtimeAutoConnect>
+        </RealtimeProvider>
+      </KeyboardProvider>
+    </FeatureFlagProvider>
   );
 }
 

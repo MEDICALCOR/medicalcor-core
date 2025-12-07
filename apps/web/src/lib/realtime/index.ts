@@ -24,3 +24,11 @@ export {
   type MemoryStats,
   type BufferStats,
 } from './memory-monitor';
+export {
+  useCircuitBreakerRealtime,
+  useCircuitBreakerConnectionStatus,
+  type CircuitBreakerStateEvent,
+  type CircuitBreakerStats,
+  type CircuitBreakerRealtimeData,
+  type UseCircuitBreakerRealtimeOptions,
+} from './use-circuit-breaker-realtime';

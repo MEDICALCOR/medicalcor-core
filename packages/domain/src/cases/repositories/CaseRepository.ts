@@ -109,6 +109,81 @@ export interface CasePipelineSummary {
 }
 
 // ============================================================================
+// COHORT LTV TYPES
+// ============================================================================
+
+/**
+ * Monthly cohort LTV summary
+ */
+export interface CohortLTVSummary {
+  clinicId: string;
+  cohortMonth: Date;
+  acquisitionSource: string | null;
+  acquisitionChannel: string | null;
+  cohortSize: number;
+  convertedLeads: number;
+  conversionRate: number | null;
+  totalRevenue: number;
+  totalCollected: number;
+  totalOutstanding: number;
+  avgLtv: number | null;
+  avgLtvConverted: number | null;
+  totalCases: number;
+  completedCases: number;
+  avgCasesPerCustomer: number | null;
+  avgDaysToFirstCase: number | null;
+  maxMonthsActive: number | null;
+  collectionRate: number | null;
+}
+
+/**
+ * Cohort LTV evolution point (revenue at specific month after acquisition)
+ */
+export interface CohortLTVEvolutionPoint {
+  clinicId: string;
+  cohortMonth: Date;
+  monthsSinceAcquisition: number;
+  cohortSize: number;
+  periodRevenue: number;
+  payingCustomers: number;
+  cumulativeRevenue: number;
+  cumulativeLtvPerLead: number | null;
+  payingPercentage: number | null;
+}
+
+/**
+ * Cohort comparison with growth metrics
+ */
+export interface CohortComparison {
+  clinicId: string;
+  cohortMonth: Date;
+  cohortSize: number;
+  convertedLeads: number;
+  conversionRate: number | null;
+  totalCollected: number;
+  avgLtv: number | null;
+  avgLtvConverted: number | null;
+  collectionRate: number | null;
+  avgDaysToFirstCase: number | null;
+  prevCohortAvgLtv: number | null;
+  ltvGrowthVsPrev: number | null;
+  yoyCohortAvgLtv: number | null;
+  ltvGrowthYoy: number | null;
+}
+
+/**
+ * Cohort query options
+ */
+export interface CohortQueryOptions {
+  startMonth?: Date;
+  endMonth?: Date;
+  acquisitionSource?: string;
+  acquisitionChannel?: string;
+  limit?: number;
+  includeBreakdown?: boolean;
+}
+
+// ============================================================================
 // REPOSITORY INTERFACE
 // ============================================================================
 
@@ -135,7 +210,10 @@ export interface ICaseRepository {
   /**
    * Find cases matching filters
    */
-  findMany(filters: CaseQueryFilters, pagination?: PaginationOptions): Promise<PaginatedResult<Case>>;
+  findMany(
+    filters: CaseQueryFilters,
+    pagination?: PaginationOptions
+  ): Promise<PaginatedResult<Case>>;
 
   /**
    * Find cases for a specific lead
@@ -277,4 +355,35 @@ export interface ICaseRepository {
    * Get total outstanding amount for a clinic
    */
   getTotalOutstanding(clinicId: string): Promise<number>;
+
+  // ============================================================================
+  // COHORT LTV OPERATIONS
+  // ============================================================================
+
+  /**
+   * Get cohort LTV summaries for a clinic
+   */
+  getCohortLTVSummaries(
+    clinicId: string,
+    options?: CohortQueryOptions
+  ): Promise<CohortLTVSummary[]>;
+
+  /**
+   * Get cohort comparison data with growth metrics
+   */
+  getCohortComparisons(clinicId: string, options?: CohortQueryOptions): Promise<CohortComparison[]>;
+
+  /**
+   * Get LTV evolution for a specific cohort
+   */
+  getCohortLTVEvolution(
+    clinicId: string,
+    cohortMonth: Date,
+    maxMonths?: number
+  ): Promise<CohortLTVEvolutionPoint[]>;
+
+  /**
+   * Refresh cohort LTV materialized views
+   */
+  refreshCohortLTVViews(): Promise<void>;
 }

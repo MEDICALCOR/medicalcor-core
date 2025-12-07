@@ -74,6 +74,20 @@ export {
   type BulkImportWorkflowResult,
 } from './workflows/bulk-import.js';
 
+// Embedding Worker Tasks
+export {
+  embedContent,
+  embedBatch,
+  reembedContent,
+  processEmbeddingEvents,
+  type EmbedContentPayload,
+  type BatchEmbedPayload,
+  type ProcessEmbeddingEventsPayload,
+  EmbedContentPayloadSchema,
+  BatchEmbedPayloadSchema,
+  ProcessEmbeddingEventsPayloadSchema,
+} from './tasks/embedding-worker.js';
+
 // Scheduled Jobs
 export {
   dailyRecallCheck,
@@ -83,5 +97,35 @@ export {
   staleLeadCleanup,
   gdprConsentAudit,
   crmHealthMonitor,
+  nightlyKnowledgeIngest,
+  gdprHardDeletionExecutor,
+  dsrDueDateMonitor,
+  npsPostAppointmentSurvey,
+  npsSurveyExpiryCheck,
+  npsFollowUpReminder,
 } from './jobs/cron-jobs.js';
+export {
+  weeklyEmbeddingRefresh,
+  dailyEmbeddingStats,
+  scheduledEmbeddingEventProcessor,
+  dailyStaleEmbeddingCleanup,
+} from './jobs/embedding-refresh.js';
 export { weeklyEmbeddingRefresh, dailyEmbeddingStats } from './jobs/embedding-refresh.js';
+export { queueSLAMonitor, dailySLAReport } from './jobs/queue-sla-monitor.js';
+
+// Embedding Worker Tasks (M6)
+export {
+  embedContent,
+  embedBatch,
+  reembedContent,
+  EmbedContentPayloadSchema,
+  BatchEmbedPayloadSchema,
+  type EmbedContentPayload,
+  type BatchEmbedPayload,
+} from './tasks/embedding-worker.js';
+
+// Domain Event-driven Embedding Task
+export {
+  processEmbeddingEvent,
+  embeddingEventCron,
+} from './tasks/embedding-event-handler.js';

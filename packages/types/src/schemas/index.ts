@@ -463,3 +463,33 @@ export {
   type PLTVChangedEvent,
   type BatchPLTVScoringCompletedEvent,
 } from './pltv.js';
+// Cohort LTV (Lifetime Value) Analysis Schemas (M7 Milestone)
+// =============================================================================
+export {
+  // Monthly Summary
+  CohortLTVMonthlySummarySchema,
+  // Evolution Tracking
+  CohortLTVEvolutionPointSchema,
+  CohortLTVEvolutionSchema,
+  // Comparison
+  CohortComparisonSchema,
+  // Query Parameters
+  CohortLTVQuerySchema,
+  CohortEvolutionQuerySchema,
+  // Dashboard Response
+  CohortLTVDashboardSchema,
+  // Segment Analysis
+  CohortSegmentDistributionSchema,
+  // Payback Analysis
+  CohortPaybackAnalysisSchema,
+  // Types
+  type CohortLTVMonthlySummary,
+  type CohortLTVEvolutionPoint,
+  type CohortLTVEvolution,
+  type CohortComparison,
+  type CohortLTVQuery,
+  type CohortEvolutionQuery,
+  type CohortLTVDashboard,
+  type CohortSegmentDistribution,
+  type CohortPaybackAnalysis,
+} from './cohort-ltv.js';

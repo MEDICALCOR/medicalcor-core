@@ -286,7 +286,8 @@ export class PostgresReplayAuditStore implements ReplayAuditStore {
 
   constructor(
     private connectionString: string,
-    tableName = 'replay_audit_log'
+    // Note: Uses replay_audit_log_view for backward compatibility after M1 consolidation
+    tableName = 'replay_audit_log_view'
   ) {
     this.tableName = tableName;
     this.logger = createLogger({ name: 'replay-audit-store' });
