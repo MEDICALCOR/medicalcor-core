@@ -526,6 +526,78 @@ export {
   type PaymentReminderSentEvent,
   type CollectionEscalatedEvent,
 } from './collections.js';
+
+// =============================================================================
+// Follow-up Scheduling Schemas (M9 Milestone)
+// =============================================================================
+export {
+  // Status & Type Enums
+  FollowUpTaskStatusSchema,
+  FollowUpTaskTypeSchema,
+  FollowUpTaskPrioritySchema,
+  FollowUpChannelSchema,
+  // Core Entity
+  FollowUpTaskSchema,
+  // Input Schemas
+  CreateFollowUpTaskSchema,
+  UpdateFollowUpTaskSchema,
+  SnoozeFollowUpTaskSchema,
+  CompleteFollowUpTaskSchema,
+  RecordFollowUpAttemptSchema,
+  // Configuration
+  FollowUpSchedulingConfigSchema,
+  // Query Schemas
+  FollowUpTaskFiltersSchema,
+  FollowUpTaskPaginationSchema,
+  FollowUpTaskPaginatedResultSchema,
+  // Workflow Payloads
+  FollowUpTaskCreationPayloadSchema,
+  FollowUpReminderPayloadSchema,
+  ProcessDueFollowUpsPayloadSchema,
+  // Events
+  FollowUpTaskCreatedEventSchema,
+  FollowUpTaskCompletedEventSchema,
+  FollowUpTaskOverdueEventSchema,
+  FollowUpTaskSnoozedEventSchema,
+  FollowUpReminderSentEventSchema,
+  // Analytics
+  FollowUpTaskSummarySchema,
+  AgentFollowUpPerformanceSchema,
+  // Helper Functions
+  calculateDueDate,
+  getPriorityForLeadScore,
+  isTaskOverdue,
+  canSnoozeTask,
+  canAttemptTask,
+  getNextBusinessDay,
+  adjustToBusinessHours,
+  getFollowUpTypeForDisposition,
+  // Types
+  type FollowUpTaskStatus,
+  type FollowUpTaskType,
+  type FollowUpTaskPriority,
+  type FollowUpChannel,
+  type FollowUpTask,
+  type CreateFollowUpTask,
+  type UpdateFollowUpTask,
+  type SnoozeFollowUpTask,
+  type CompleteFollowUpTask,
+  type RecordFollowUpAttempt,
+  type FollowUpSchedulingConfig,
+  type FollowUpTaskFilters,
+  type FollowUpTaskPagination,
+  type FollowUpTaskPaginatedResult,
+  type FollowUpTaskCreationPayload,
+  type FollowUpReminderPayload,
+  type ProcessDueFollowUpsPayload,
+  type FollowUpTaskCreatedEvent,
+  type FollowUpTaskCompletedEvent,
+  type FollowUpTaskOverdueEvent,
+  type FollowUpTaskSnoozedEvent,
+  type FollowUpReminderSentEvent,
+  type FollowUpTaskSummary,
+  type AgentFollowUpPerformance,
+} from './followup-scheduling.js';
 // Agent Presence Schemas (M2 Milestone)
 // =============================================================================
 export {
