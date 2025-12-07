@@ -322,6 +322,64 @@ export {
   type OverdueDetectionResult,
   type PaymentReminderSentEvent,
   type CollectionEscalatedEvent,
+
+  // Follow-up Scheduling (M9)
+  FollowUpTaskStatusSchema,
+  FollowUpTaskTypeSchema,
+  FollowUpTaskPrioritySchema,
+  FollowUpChannelSchema,
+  FollowUpTaskSchema,
+  CreateFollowUpTaskSchema,
+  UpdateFollowUpTaskSchema,
+  SnoozeFollowUpTaskSchema,
+  CompleteFollowUpTaskSchema,
+  RecordFollowUpAttemptSchema,
+  FollowUpSchedulingConfigSchema,
+  FollowUpTaskFiltersSchema,
+  FollowUpTaskPaginationSchema,
+  FollowUpTaskPaginatedResultSchema,
+  FollowUpTaskCreationPayloadSchema,
+  FollowUpReminderPayloadSchema,
+  ProcessDueFollowUpsPayloadSchema,
+  FollowUpTaskCreatedEventSchema,
+  FollowUpTaskCompletedEventSchema,
+  FollowUpTaskOverdueEventSchema,
+  FollowUpTaskSnoozedEventSchema,
+  FollowUpReminderSentEventSchema,
+  FollowUpTaskSummarySchema,
+  AgentFollowUpPerformanceSchema,
+  calculateDueDate,
+  getPriorityForLeadScore,
+  isTaskOverdue,
+  canSnoozeTask,
+  canAttemptTask,
+  getNextBusinessDay,
+  adjustToBusinessHours,
+  getFollowUpTypeForDisposition,
+  type FollowUpTaskStatus,
+  type FollowUpTaskType,
+  type FollowUpTaskPriority,
+  type FollowUpChannel,
+  type FollowUpTask,
+  type CreateFollowUpTask,
+  type UpdateFollowUpTask,
+  type SnoozeFollowUpTask,
+  type CompleteFollowUpTask,
+  type RecordFollowUpAttempt,
+  type FollowUpSchedulingConfig,
+  type FollowUpTaskFilters,
+  type FollowUpTaskPagination,
+  type FollowUpTaskPaginatedResult,
+  type FollowUpTaskCreationPayload,
+  type FollowUpReminderPayload,
+  type ProcessDueFollowUpsPayload,
+  type FollowUpTaskCreatedEvent,
+  type FollowUpTaskCompletedEvent,
+  type FollowUpTaskOverdueEvent,
+  type FollowUpTaskSnoozedEvent,
+  type FollowUpReminderSentEvent,
+  type FollowUpTaskSummary,
+  type AgentFollowUpPerformance,
 } from './schemas/index.js';
 
 // =============================================================================
@@ -788,6 +846,88 @@ export {
 } from './load-testing.schema.js';
 
 // =============================================================================
+// Cohort LTV Analysis Schemas (M6/M7 - Cohort Analysis)
+// =============================================================================
+export {
+  // Monthly Summary
+  CohortLTVMonthlySummarySchema,
+  // Evolution Tracking
+  CohortLTVEvolutionPointSchema,
+  CohortLTVEvolutionSchema,
+  // Comparison
+  CohortComparisonSchema,
+  // Query Parameters
+  CohortLTVQuerySchema,
+  CohortEvolutionQuerySchema,
+  // Dashboard Response
+  CohortLTVDashboardSchema,
+  // Segment Analysis
+  CohortSegmentDistributionSchema,
+  // Payback Analysis
+  CohortPaybackAnalysisSchema,
+  // Types
+  type CohortLTVMonthlySummary,
+  type CohortLTVEvolutionPoint,
+  type CohortLTVEvolution,
+  type CohortComparison,
+  type CohortLTVQuery,
+  type CohortEvolutionQuery,
+  type CohortLTVDashboard,
+  type CohortSegmentDistribution,
+  type CohortPaybackAnalysis,
+} from './schemas/cohort-ltv.js';
+
+// =============================================================================
+// pLTV (Predicted Lifetime Value) Schemas (M2 Milestone)
+// =============================================================================
+export {
+  // Classification & Tiers
+  PLTVTierSchema,
+  PLTVGrowthPotentialSchema,
+  PLTVInvestmentPrioritySchema,
+  // Input Metrics
+  HistoricalLTVInputSchema,
+  PaymentBehaviorInputSchema,
+  EngagementMetricsInputSchema,
+  ProcedureInterestInputSchema,
+  PLTVPredictionInputSchema,
+  // Score Output
+  PLTVConfidenceIntervalSchema,
+  PLTVFactorBreakdownSchema,
+  PLTVScoreResultSchema,
+  PLTVScoringOutputSchema,
+  // Request/Response
+  ScorePatientPLTVRequestSchema,
+  BatchPLTVScoringRequestSchema,
+  PLTVScoringResponseSchema,
+  BatchPLTVScoringResultSchema,
+  // Events
+  HighValuePatientIdentifiedEventSchema,
+  PLTVScoredEventSchema,
+  PLTVChangedEventSchema,
+  BatchPLTVScoringCompletedEventSchema,
+  // Types
+  type PLTVTier,
+  type PLTVGrowthPotential,
+  type PLTVInvestmentPriority,
+  type HistoricalLTVInput,
+  type PaymentBehaviorInput,
+  type EngagementMetricsInput,
+  type ProcedureInterestInput,
+  type PLTVPredictionInput,
+  type PLTVConfidenceInterval,
+  type PLTVFactorBreakdown,
+  type PLTVScoreResult,
+  type PLTVScoringOutput,
+  type ScorePatientPLTVRequest,
+  type BatchPLTVScoringRequest,
+  type PLTVScoringResponse,
+  type BatchPLTVScoringResult,
+  type HighValuePatientIdentifiedEvent,
+  type PLTVScoredEvent,
+  type PLTVChangedEvent,
+  type BatchPLTVScoringCompletedEvent,
+} from './schemas/pltv.js';
 // Agent Presence Schemas (M2 - WebSocket Presence)
 // =============================================================================
 export {

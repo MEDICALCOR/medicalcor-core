@@ -93,6 +93,132 @@ export default tseslint.config(
     },
   },
 
+  // ==========================================================================
+  // Layer Boundary Enforcement: types → core → domain → application →
+  //                             infrastructure → integrations → apps
+  // Lower packages must never import from higher packages.
+  // ==========================================================================
+
+  // Domain layer restrictions (no infrastructure dependencies)
+  {
+    files: ['packages/domain/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@medicalcor/application', '@medicalcor/application/*'],
+              message: 'Domain layer cannot import from application layer',
+            },
+            {
+              group: ['@medicalcor/infrastructure', '@medicalcor/infrastructure/*'],
+              message: 'Domain layer cannot import from infrastructure layer',
+            },
+            {
+              group: ['@medicalcor/integrations', '@medicalcor/integrations/*'],
+              message: 'Domain layer cannot import from integrations layer',
+            },
+            {
+              group: ['pg', 'pg/*'],
+              message: 'Domain layer cannot import infrastructure dependencies (pg)',
+            },
+            {
+              group: ['@supabase/supabase-js', '@supabase/*'],
+              message: 'Domain layer cannot import infrastructure dependencies (supabase)',
+            },
+            {
+              group: ['openai', 'openai/*'],
+              message: 'Domain layer cannot import external SDK dependencies (openai)',
+            },
+            {
+              group: ['fastify', 'fastify/*', '@fastify/*'],
+              message: 'Domain layer cannot import HTTP framework dependencies (fastify)',
+            },
+            {
+              group: ['ioredis', 'ioredis/*'],
+              message: 'Domain layer cannot import infrastructure dependencies (redis)',
+            },
+            {
+              group: ['@aws-sdk/*'],
+              message: 'Domain layer cannot import infrastructure dependencies (AWS SDK)',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  // Core layer restrictions
+  {
+    files: ['packages/core/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@medicalcor/domain', '@medicalcor/domain/*'],
+              message: 'Core layer cannot import from domain layer',
+            },
+            {
+              group: ['@medicalcor/application', '@medicalcor/application/*'],
+              message: 'Core layer cannot import from application layer',
+            },
+            {
+              group: ['@medicalcor/infrastructure', '@medicalcor/infrastructure/*'],
+              message: 'Core layer cannot import from infrastructure layer',
+            },
+            {
+              group: ['@medicalcor/integrations', '@medicalcor/integrations/*'],
+              message: 'Core layer cannot import from integrations layer',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  // Types layer restrictions (foundation - no internal dependencies)
+  {
+    files: ['packages/types/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@medicalcor/*'],
+              message: 'Types layer is the foundation and cannot import from any other @medicalcor package',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  // Application layer restrictions
+  {
+    files: ['packages/application/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@medicalcor/infrastructure', '@medicalcor/infrastructure/*'],
+              message: 'Application layer cannot import from infrastructure layer',
+            },
+            {
+              group: ['@medicalcor/integrations', '@medicalcor/integrations/*'],
+              message: 'Application layer cannot import from integrations layer',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   // Custom rules for code quality
   {
     rules: {

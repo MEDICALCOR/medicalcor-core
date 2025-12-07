@@ -51,6 +51,7 @@
     "@medicalcor/domain": "workspace:*",
     "@medicalcor/application": "workspace:*",
     "@medicalcor/integrations": "workspace:*",
+    "@medicalcor/types": "workspace:*",
     "@supabase/supabase-js": "^2.86.2",
     "pg": "^8.13.1",
     "openai": "^4.20.0",
