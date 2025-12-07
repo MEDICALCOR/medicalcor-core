@@ -83,6 +83,28 @@ const BookingAgentPayloadSchema = z.object({
   selectedSlotId: z.string().optional(),
 });
 
+// OpenAPI response schemas
+const WorkflowTriggerResponseSchema = {
+  type: 'object',
+  properties: {
+    status: { type: 'string', enum: ['triggered'] },
+    taskId: { type: 'string', description: 'Trigger.dev task ID' },
+    correlationId: { type: 'string', description: 'Request correlation ID' },
+    message: { type: 'string', description: 'Human-readable status message' },
+  },
+  required: ['status', 'taskId', 'correlationId', 'message'],
+} as const;
+
+const ErrorResponseSchema = {
+  type: 'object',
+  properties: {
+    code: { type: 'string', description: 'Error code' },
+    message: { type: 'string', description: 'Error message' },
+    details: { type: 'object', description: 'Additional error details' },
+  },
+  required: ['code', 'message'],
+} as const;
+
 // eslint-disable-next-line @typescript-eslint/require-await -- Fastify plugin pattern
 export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
   /**
@@ -90,7 +112,60 @@ export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
    *
    * POST /workflows/lead-score
    */
-  fastify.post('/workflows/lead-score', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.post(
+    '/workflows/lead-score',
+    {
+      schema: {
+        description:
+          'Trigger lead scoring workflow to evaluate a lead based on their message and history',
+        tags: ['Workflows'],
+        security: [{ ApiKeyAuth: [] }],
+        body: {
+          type: 'object',
+          required: ['phone', 'message'],
+          properties: {
+            phone: {
+              type: 'string',
+              description: 'Phone number (will be normalized to E.164)',
+              example: '+40712345678',
+            },
+            hubspotContactId: {
+              type: 'string',
+              description: 'Optional HubSpot contact ID',
+            },
+            message: {
+              type: 'string',
+              description: 'Message content to score',
+              example: 'I am interested in dental implants',
+            },
+            channel: {
+              type: 'string',
+              enum: ['whatsapp', 'voice', 'web'],
+              default: 'whatsapp',
+              description: 'Communication channel',
+            },
+            messageHistory: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  role: { type: 'string', enum: ['user', 'assistant'] },
+                  content: { type: 'string' },
+                  timestamp: { type: 'string' },
+                },
+              },
+              description: 'Optional conversation history for context',
+            },
+          },
+        },
+        response: {
+          202: WorkflowTriggerResponseSchema,
+          400: ErrorResponseSchema,
+          500: ErrorResponseSchema,
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
     const correlationId = getCorrelationId(request);
 
     try {
@@ -166,6 +241,57 @@ export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post(
     '/workflows/patient-journey',
+    {
+      schema: {
+        description:
+          'Initiate patient journey workflow for automated follow-up and nurturing',
+        tags: ['Workflows'],
+        security: [{ ApiKeyAuth: [] }],
+        body: {
+          type: 'object',
+          required: ['phone', 'hubspotContactId'],
+          properties: {
+            phone: {
+              type: 'string',
+              description: 'Phone number (will be normalized to E.164)',
+              example: '+40712345678',
+            },
+            hubspotContactId: {
+              type: 'string',
+              description: 'HubSpot contact ID',
+            },
+            channel: {
+              type: 'string',
+              enum: ['whatsapp', 'voice', 'web'],
+              default: 'whatsapp',
+            },
+            initialScore: {
+              type: 'integer',
+              minimum: 1,
+              maximum: 5,
+              default: 3,
+              description: 'Initial lead score (1-5)',
+            },
+            classification: {
+              type: 'string',
+              enum: ['HOT', 'WARM', 'COLD', 'UNQUALIFIED'],
+              default: 'WARM',
+              description: 'Lead classification',
+            },
+            procedureInterest: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'List of procedures the patient is interested in',
+            },
+          },
+        },
+        response: {
+          202: WorkflowTriggerResponseSchema,
+          400: ErrorResponseSchema,
+          500: ErrorResponseSchema,
+        },
+      },
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const correlationId = getCorrelationId(request);
 
@@ -244,6 +370,38 @@ export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post(
     '/workflows/nurture-sequence',
+    {
+      schema: {
+        description: 'Start an automated nurture sequence for a contact',
+        tags: ['Workflows'],
+        security: [{ ApiKeyAuth: [] }],
+        body: {
+          type: 'object',
+          required: ['phone', 'hubspotContactId', 'sequenceType'],
+          properties: {
+            phone: {
+              type: 'string',
+              description: 'Phone number (will be normalized to E.164)',
+              example: '+40712345678',
+            },
+            hubspotContactId: {
+              type: 'string',
+              description: 'HubSpot contact ID',
+            },
+            sequenceType: {
+              type: 'string',
+              enum: ['warm_lead', 'cold_lead', 'post_consultation', 'recall'],
+              description: 'Type of nurture sequence to run',
+            },
+          },
+        },
+        response: {
+          202: WorkflowTriggerResponseSchema,
+          400: ErrorResponseSchema,
+          500: ErrorResponseSchema,
+        },
+      },
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const correlationId = getCorrelationId(request);
 
@@ -308,7 +466,65 @@ export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
    *
    * POST /workflows/booking-agent
    */
-  fastify.post('/workflows/booking-agent', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.post(
+    '/workflows/booking-agent',
+    {
+      schema: {
+        description: 'Initiate AI-powered booking agent to schedule an appointment',
+        tags: ['Workflows'],
+        security: [{ ApiKeyAuth: [] }],
+        body: {
+          type: 'object',
+          required: ['phone', 'hubspotContactId', 'procedureType'],
+          properties: {
+            phone: {
+              type: 'string',
+              description: 'Phone number (will be normalized to E.164)',
+              example: '+40712345678',
+            },
+            hubspotContactId: {
+              type: 'string',
+              description: 'HubSpot contact ID',
+            },
+            procedureType: {
+              type: 'string',
+              description: 'Type of dental procedure',
+              example: 'dental-implant',
+            },
+            preferredDates: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'ISO date strings for preferred appointment dates',
+            },
+            patientName: {
+              type: 'string',
+              description: 'Patient full name',
+            },
+            patientEmail: {
+              type: 'string',
+              format: 'email',
+              description: 'Patient email address',
+            },
+            language: {
+              type: 'string',
+              enum: ['ro', 'en', 'de'],
+              default: 'ro',
+              description: 'Preferred language for communication',
+            },
+            selectedSlotId: {
+              type: 'string',
+              description: 'Pre-selected appointment slot ID',
+            },
+          },
+        },
+        response: {
+          202: WorkflowTriggerResponseSchema,
+          400: ErrorResponseSchema,
+          500: ErrorResponseSchema,
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
     const correlationId = getCorrelationId(request);
 
     try {
@@ -389,24 +605,59 @@ export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
    *
    * GET /workflows/status/:taskId
    */
-  fastify.get('/workflows/status/:taskId', async (request: FastifyRequest, reply: FastifyReply) => {
-    const { taskId } = request.params as { taskId: string };
-    const correlationId = getCorrelationId(request);
+  fastify.get(
+    '/workflows/status/:taskId',
+    {
+      schema: {
+        description: 'Get the current status of a triggered workflow by task ID',
+        tags: ['Workflows'],
+        security: [{ ApiKeyAuth: [] }],
+        params: {
+          type: 'object',
+          required: ['taskId'],
+          properties: {
+            taskId: {
+              type: 'string',
+              description: 'Trigger.dev task ID returned from workflow trigger',
+            },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              taskId: { type: 'string' },
+              status: {
+                type: 'string',
+                enum: ['pending', 'running', 'completed', 'failed', 'unknown'],
+              },
+              message: { type: 'string' },
+              correlationId: { type: 'string' },
+            },
+          },
+          500: ErrorResponseSchema,
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { taskId } = request.params as { taskId: string };
+      const correlationId = getCorrelationId(request);
 
-    try {
-      // Note: This requires Trigger.dev runs API access
-      // For now, return a placeholder response
-      fastify.log.info({ correlationId, taskId }, 'Workflow status requested');
+      try {
+        // Note: This requires Trigger.dev runs API access
+        // For now, return a placeholder response
+        fastify.log.info({ correlationId, taskId }, 'Workflow status requested');
 
-      return await reply.status(200).send({
-        taskId,
-        status: 'unknown',
-        message: 'Use Trigger.dev dashboard to check task status',
-        correlationId,
-      });
-    } catch (error) {
-      fastify.log.error({ correlationId, error }, 'Failed to get workflow status');
-      return await reply.status(500).send(toSafeErrorResponse(error));
+        return await reply.status(200).send({
+          taskId,
+          status: 'unknown',
+          message: 'Use Trigger.dev dashboard to check task status',
+          correlationId,
+        });
+      } catch (error) {
+        fastify.log.error({ correlationId, error }, 'Failed to get workflow status');
+        return await reply.status(500).send(toSafeErrorResponse(error));
+      }
     }
-  });
+  );
 };

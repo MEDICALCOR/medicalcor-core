@@ -23,6 +23,7 @@ import {
   metricsRoutes,
   loadTestingRoutes,
   rlsTestRoutes,
+  apiDocsRoutes,
 } from './routes/index.js';
 import { chatgptPluginRoutes } from './routes/chatgpt-plugin.js';
 import { instrumentFastify } from '@medicalcor/core/observability/instrumentation';
@@ -266,6 +267,7 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
         { name: 'Metrics', description: 'Prometheus metrics for monitoring' },
         { name: 'Backup', description: 'Backup management operations' },
         { name: 'ChatGPT Plugin', description: 'ChatGPT plugin integration endpoints' },
+        { name: 'Documentation', description: 'API documentation portal and OpenAPI spec exports' },
       ],
       components: {
         securitySchemes: {
@@ -418,6 +420,7 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
   await fastify.register(gdprRoutes);
   await fastify.register(loadTestingRoutes);
   await fastify.register(rlsTestRoutes);
+  await fastify.register(apiDocsRoutes);
 
   // Global error handler
   fastify.setErrorHandler((error, request, reply) => {
