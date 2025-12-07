@@ -88,6 +88,21 @@ export {
   ProcessEmbeddingEventsPayloadSchema,
 } from './tasks/embedding-worker.js';
 
+// Domain Event-driven Embedding Task
+export { processEmbeddingEvent, embeddingEventCron } from './tasks/embedding-event-handler.js';
+
+// Embedding Queue Utilities (for non-blocking API requests)
+export {
+  queueEmbedding,
+  queueBatchEmbeddings,
+  queueManyEmbeddings,
+  generateIdempotencyKey,
+  EmbeddingIdempotencyKeys,
+  type QueueEmbeddingPayload,
+  type QueueBatchEmbeddingsPayload,
+  type QueueResult,
+} from './utils/embedding-queue.js';
+
 // Scheduled Jobs
 export {
   dailyRecallCheck,
@@ -110,22 +125,4 @@ export {
   scheduledEmbeddingEventProcessor,
   dailyStaleEmbeddingCleanup,
 } from './jobs/embedding-refresh.js';
-export { weeklyEmbeddingRefresh, dailyEmbeddingStats } from './jobs/embedding-refresh.js';
 export { queueSLAMonitor, dailySLAReport } from './jobs/queue-sla-monitor.js';
-
-// Embedding Worker Tasks (M6)
-export {
-  embedContent,
-  embedBatch,
-  reembedContent,
-  EmbedContentPayloadSchema,
-  BatchEmbedPayloadSchema,
-  type EmbedContentPayload,
-  type BatchEmbedPayload,
-} from './tasks/embedding-worker.js';
-
-// Domain Event-driven Embedding Task
-export {
-  processEmbeddingEvent,
-  embeddingEventCron,
-} from './tasks/embedding-event-handler.js';
