@@ -43,7 +43,11 @@
     "smoke-test:budget": "tsx scripts/smoke-tests/ai-budget-check.ts",
     "k6:smoke": "k6 run --env SCENARIO=smoke scripts/k6/load-test.js",
     "k6:load": "k6 run --env SCENARIO=load scripts/k6/load-test.js",
-    "k6:stress": "k6 run --env SCENARIO=stress scripts/k6/load-test.js"
+    "k6:stress": "k6 run --env SCENARIO=stress scripts/k6/load-test.js",
+    "k6:rls": "k6 run --env SCENARIO=smoke scripts/k6/rls-performance.js",
+    "k6:rls:load": "k6 run --env SCENARIO=load scripts/k6/rls-performance.js",
+    "k6:rls:stress": "k6 run --env SCENARIO=stress scripts/k6/rls-performance.js",
+    "k6:rls:soak": "k6 run --env SCENARIO=soak scripts/k6/rls-performance.js"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.59",
