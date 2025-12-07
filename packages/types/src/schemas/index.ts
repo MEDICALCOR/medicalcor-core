@@ -411,3 +411,55 @@ export {
   type NPSTrendPoint,
   type NPSDashboardData,
 } from './nps.js';
+
+// =============================================================================
+// pLTV (Predicted Lifetime Value) Schemas (M2 Milestone)
+// =============================================================================
+export {
+  // Classification & Tiers
+  PLTVTierSchema,
+  PLTVGrowthPotentialSchema,
+  PLTVInvestmentPrioritySchema,
+  // Input Metrics
+  HistoricalLTVInputSchema,
+  PaymentBehaviorInputSchema,
+  EngagementMetricsInputSchema,
+  ProcedureInterestInputSchema,
+  PLTVPredictionInputSchema,
+  // Score Output
+  PLTVConfidenceIntervalSchema,
+  PLTVFactorBreakdownSchema,
+  PLTVScoreResultSchema,
+  PLTVScoringOutputSchema,
+  // Request/Response
+  ScorePatientPLTVRequestSchema,
+  BatchPLTVScoringRequestSchema,
+  PLTVScoringResponseSchema,
+  BatchPLTVScoringResultSchema,
+  // Events
+  HighValuePatientIdentifiedEventSchema,
+  PLTVScoredEventSchema,
+  PLTVChangedEventSchema,
+  BatchPLTVScoringCompletedEventSchema,
+  // Types
+  type PLTVTier,
+  type PLTVGrowthPotential,
+  type PLTVInvestmentPriority,
+  type HistoricalLTVInput,
+  type PaymentBehaviorInput,
+  type EngagementMetricsInput,
+  type ProcedureInterestInput,
+  type PLTVPredictionInput,
+  type PLTVConfidenceInterval,
+  type PLTVFactorBreakdown,
+  type PLTVScoreResult,
+  type PLTVScoringOutput,
+  type ScorePatientPLTVRequest,
+  type BatchPLTVScoringRequest,
+  type PLTVScoringResponse,
+  type BatchPLTVScoringResult,
+  type HighValuePatientIdentifiedEvent,
+  type PLTVScoredEvent,
+  type PLTVChangedEvent,
+  type BatchPLTVScoringCompletedEvent,
+} from './pltv.js';
