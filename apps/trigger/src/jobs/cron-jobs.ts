@@ -1915,6 +1915,143 @@ Generated: ${new Date(metrics.generatedAt).toLocaleString('ro-RO')}
 }
 
 /**
+ * Database Partition Maintenance - creates future partitions and cleans old ones
+ * Runs every day at 1:00 AM
+ *
+ * This job ensures partitions exist for future data insertion and optionally
+ * drops old partitions based on retention policy.
+ *
+ * H6: Database Partitioning for Event Tables
+ */
+export const databasePartitionMaintenance = schedules.task({
+  id: 'database-partition-maintenance',
+  cron: '0 1 * * *', // 1:00 AM every day
+  run: async () => {
+    const correlationId = generateCorrelationId();
+    logger.info('Starting database partition maintenance', { correlationId });
+
+    const { eventStore } = getClients();
+
+    try {
+      const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_SERVICE_KEY ?? process.env.SUPABASE_ANON_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        logger.warn('Supabase credentials not configured', { correlationId });
+        return { success: false, reason: 'Supabase not configured' };
+      }
+
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      // Type for partition statistics
+      interface PartitionStats {
+        partition_name: string;
+        row_count: number;
+        total_size: string;
+        partition_range: string;
+      }
+
+      // Create future partitions (3 months ahead)
+      const createResponse = await supabase.rpc('create_future_partitions', {
+        p_months_ahead: 3,
+      });
+      const partitionsCreated = (createResponse.data as number | null) ?? 0;
+
+      if (createResponse.error) {
+        logger.error('Failed to create future partitions', {
+          error: createResponse.error.message,
+          correlationId,
+        });
+      } else {
+        logger.info('Created future partitions', {
+          partitionsCreated,
+          correlationId,
+        });
+      }
+
+      // Get partition statistics for monitoring
+      const domainEventsResponse = await supabase.rpc('get_partition_stats', {
+        p_table_name: 'domain_events',
+      });
+      const domainEventsStats = (domainEventsResponse.data as PartitionStats[] | null) ?? [];
+
+      const auditLogResponse = await supabase.rpc('get_partition_stats', {
+        p_table_name: 'audit_log',
+      });
+      const auditLogStats = (auditLogResponse.data as PartitionStats[] | null) ?? [];
+
+      // Calculate total sizes
+      const totalDomainEventsPartitions = domainEventsStats.length;
+      const totalAuditLogPartitions = auditLogStats.length;
+
+      // Check retention policy (24 months by default)
+      // Note: We only log partitions that could be dropped, actual deletion requires manual approval
+      const retentionMonthsStr = process.env.PARTITION_RETENTION_MONTHS ?? '24';
+      const retentionMonths = Number.parseInt(retentionMonthsStr, 10);
+      const cutoffDate = new Date();
+      cutoffDate.setMonth(cutoffDate.getMonth() - retentionMonths);
+
+      const allPartitions = [...domainEventsStats, ...auditLogStats];
+      const oldPartitions = allPartitions.filter((p) => {
+        // Extract date from partition name (e.g., domain_events_y2024m01)
+        const match = /y(\d{4})m(\d{2})/.exec(p.partition_name);
+        if (match && match[1] && match[2]) {
+          const year = Number.parseInt(match[1], 10);
+          const month = Number.parseInt(match[2], 10);
+          const partitionDate = new Date(year, month - 1, 1);
+          return partitionDate < cutoffDate;
+        }
+        return false;
+      });
+
+      if (oldPartitions.length > 0) {
+        logger.warn('Old partitions found that could be archived', {
+          count: oldPartitions.length,
+          partitions: oldPartitions.map((p) => p.partition_name),
+          retentionMonths,
+          correlationId,
+        });
+      }
+
+      // Emit monitoring event
+      await emitJobEvent(eventStore, 'cron.partition_maintenance.completed', {
+        partitionsCreated,
+        domainEventsPartitions: totalDomainEventsPartitions,
+        auditLogPartitions: totalAuditLogPartitions,
+        oldPartitionsFound: oldPartitions.length,
+        retentionMonths,
+        correlationId,
+      });
+
+      logger.info('Database partition maintenance completed', {
+        partitionsCreated,
+        domainEventsPartitions: totalDomainEventsPartitions,
+        auditLogPartitions: totalAuditLogPartitions,
+        correlationId,
+      });
+
+      return {
+        success: true,
+        partitionsCreated,
+        domainEventsPartitions: totalDomainEventsPartitions,
+        auditLogPartitions: totalAuditLogPartitions,
+        oldPartitionsFound: oldPartitions.length,
+      };
+    } catch (error) {
+      logger.error('Database partition maintenance failed', { error, correlationId });
+
+      await emitJobEvent(eventStore, 'cron.partition_maintenance.failed', {
+        error: String(error),
+        correlationId,
+      });
+
+      return { success: false, error: String(error) };
+    }
+  },
+});
+
+/**
  * Emit job completion event
  */
 async function emitJobEvent(
