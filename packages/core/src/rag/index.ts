@@ -133,5 +133,5 @@ export {
   type TrendData,
   type QueryTrend,
   type AlertThresholds,
-  type HealthStatus,
+  type HealthStatus as RAGQueryHealthStatus,
 } from './rag-query-analytics.js';
