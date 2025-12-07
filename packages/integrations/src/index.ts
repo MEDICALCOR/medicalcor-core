@@ -119,6 +119,16 @@ export {
 } from './stripe.js';
 
 export {
+  StripeFinancingClient,
+  MockStripeFinancingClient,
+  createStripeFinancingClient,
+  createMockStripeFinancingClient,
+  getStripeFinancingCredentials,
+  StripeFinancingClientConfigSchema,
+  type StripeFinancingClientConfig,
+} from './stripe-financing.js';
+
+export {
   createNotificationsService,
   createMockNotificationsService,
   type NotificationsService,
