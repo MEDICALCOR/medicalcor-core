@@ -170,6 +170,44 @@ export {
   InvalidStatusTransitionError,
 } from './leads/index.js';
 
+// Patients Context - Patient Aggregate Root (M3 Lead → Patient Transition)
+// The Patient aggregate root models the full patient lifecycle after lead conversion
+export {
+  // Patient Aggregate Root
+  PatientAggregateRoot,
+  type PatientAggregateState,
+  type PatientDomainEvent,
+  type MedicalHistoryEntry,
+  type AllergyRecord,
+  type TreatmentPlanReference,
+  type AppointmentReference,
+  type InsuranceInfo,
+  type ConsentRecord,
+  type ProviderAssignment,
+  type PatientPreferences,
+  type FromLeadConversionParams,
+  type CreatePatientParams,
+  type StartTreatmentParams,
+  type CompleteTreatmentParams,
+  type ScheduleAppointmentParams,
+  type UpdateDemographicsParams,
+  // Patient Factory
+  PatientFactory,
+  patientFactory,
+  type PatientAggregateSnapshot,
+  type PatientSnapshotState,
+  type PatientRecord,
+  // Patient Status Types
+  type PatientStatus,
+  type CommunicationChannel,
+  // Patient Errors
+  PatientError,
+  PatientDeletedError,
+  PatientArchivedError,
+  PatientNotActiveError,
+  InvalidPatientStatusTransitionError,
+} from './patients/index.js';
+
 // AllOnX Context - ONE STEP ALL ON X dental implant case management
 // Full-arch rehabilitation (All-on-4, All-on-6) procedures
 // Example: import { AllOnXClinicalScore, calculateScore } from '@medicalcor/domain/allonx';
