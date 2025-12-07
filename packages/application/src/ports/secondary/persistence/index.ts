@@ -8,3 +8,4 @@
  */
 
 export * from './CaseRepository.js';
+export * from './ReadModelRepository.js';

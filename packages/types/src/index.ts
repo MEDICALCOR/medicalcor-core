@@ -322,6 +322,64 @@ export {
   type OverdueDetectionResult,
   type PaymentReminderSentEvent,
   type CollectionEscalatedEvent,
+
+  // Follow-up Scheduling (M9)
+  FollowUpTaskStatusSchema,
+  FollowUpTaskTypeSchema,
+  FollowUpTaskPrioritySchema,
+  FollowUpChannelSchema,
+  FollowUpTaskSchema,
+  CreateFollowUpTaskSchema,
+  UpdateFollowUpTaskSchema,
+  SnoozeFollowUpTaskSchema,
+  CompleteFollowUpTaskSchema,
+  RecordFollowUpAttemptSchema,
+  FollowUpSchedulingConfigSchema,
+  FollowUpTaskFiltersSchema,
+  FollowUpTaskPaginationSchema,
+  FollowUpTaskPaginatedResultSchema,
+  FollowUpTaskCreationPayloadSchema,
+  FollowUpReminderPayloadSchema,
+  ProcessDueFollowUpsPayloadSchema,
+  FollowUpTaskCreatedEventSchema,
+  FollowUpTaskCompletedEventSchema,
+  FollowUpTaskOverdueEventSchema,
+  FollowUpTaskSnoozedEventSchema,
+  FollowUpReminderSentEventSchema,
+  FollowUpTaskSummarySchema,
+  AgentFollowUpPerformanceSchema,
+  calculateDueDate,
+  getPriorityForLeadScore,
+  isTaskOverdue,
+  canSnoozeTask,
+  canAttemptTask,
+  getNextBusinessDay,
+  adjustToBusinessHours,
+  getFollowUpTypeForDisposition,
+  type FollowUpTaskStatus,
+  type FollowUpTaskType,
+  type FollowUpTaskPriority,
+  type FollowUpChannel,
+  type FollowUpTask,
+  type CreateFollowUpTask,
+  type UpdateFollowUpTask,
+  type SnoozeFollowUpTask,
+  type CompleteFollowUpTask,
+  type RecordFollowUpAttempt,
+  type FollowUpSchedulingConfig,
+  type FollowUpTaskFilters,
+  type FollowUpTaskPagination,
+  type FollowUpTaskPaginatedResult,
+  type FollowUpTaskCreationPayload,
+  type FollowUpReminderPayload,
+  type ProcessDueFollowUpsPayload,
+  type FollowUpTaskCreatedEvent,
+  type FollowUpTaskCompletedEvent,
+  type FollowUpTaskOverdueEvent,
+  type FollowUpTaskSnoozedEvent,
+  type FollowUpReminderSentEvent,
+  type FollowUpTaskSummary,
+  type AgentFollowUpPerformance,
 } from './schemas/index.js';
 
 // =============================================================================
@@ -632,6 +690,23 @@ export {
   type AgentPerformanceDashboardData,
   type AgentPerformanceTimeRange,
   type GetAgentPerformanceRequest,
+  // Wrap-up time tracking (M8)
+  WrapUpStatusSchema,
+  WrapUpEventSchema,
+  StartWrapUpRequestSchema,
+  CompleteWrapUpRequestSchema,
+  WrapUpStatsSchema,
+  WrapUpTrendPointSchema,
+  AgentWrapUpPerformanceSchema,
+  WrapUpDashboardDataSchema,
+  type WrapUpStatus,
+  type WrapUpEvent,
+  type StartWrapUpRequest,
+  type CompleteWrapUpRequest,
+  type WrapUpStats,
+  type WrapUpTrendPoint,
+  type AgentWrapUpPerformance,
+  type WrapUpDashboardData,
 } from './agent-performance.schema.js';
 
 // =============================================================================
@@ -930,3 +1005,104 @@ export {
   type AgentPresenceMetrics,
   type TeamPresenceSummary,
 } from './schemas/agent-presence.js';
+
+// =============================================================================
+// Financing & Payment Plan Schemas (L2 Feature)
+// =============================================================================
+export {
+  // Status & Types
+  FinancingApplicationStatusSchema,
+  FinancingPlanTypeSchema,
+  FinancingTermSchema,
+  FinancingDecisionCodeSchema,
+  FinancingProviderSchema,
+  // Applicant & Application
+  FinancingApplicantSchema,
+  CreateFinancingApplicationSchema,
+  FinancingOfferSchema,
+  FinancingApplicationSchema,
+  // Acceptance
+  AcceptFinancingOfferSchema,
+  FinancingAcceptanceResultSchema,
+  // Eligibility
+  FinancingEligibilityCheckSchema,
+  FinancingEligibilityResultSchema,
+  // Events
+  FinancingApplicationSubmittedEventSchema,
+  FinancingApplicationApprovedEventSchema,
+  FinancingApplicationDeclinedEventSchema,
+  FinancingOfferAcceptedEventSchema,
+  FinancingFundsDisbursedEventSchema,
+  FinancingApplicationExpiredEventSchema,
+  FinancingEventSchema,
+  // Summary
+  FinancingSummarySchema,
+  // Helper Functions
+  toMajorCurrencyUnits,
+  toMinorCurrencyUnits,
+  formatFinancingAmount,
+  calculateMonthlyPayment,
+  calculateTotalRepayment,
+  calculateFinanceCharge,
+  isApplicationActionable,
+  isApplicationExpired,
+  getFinancingStatusLabel,
+  // Types
+  type FinancingApplicationStatus,
+  type FinancingPlanType,
+  type FinancingTerm,
+  type FinancingDecisionCode,
+  type FinancingProvider,
+  type FinancingApplicant,
+  type CreateFinancingApplication,
+  type FinancingOffer,
+  type FinancingApplication,
+  type AcceptFinancingOffer,
+  type FinancingAcceptanceResult,
+  type FinancingEligibilityCheck,
+  type FinancingEligibilityResult,
+  type FinancingApplicationSubmittedEvent,
+  type FinancingApplicationApprovedEvent,
+  type FinancingApplicationDeclinedEvent,
+  type FinancingOfferAcceptedEvent,
+  type FinancingFundsDisbursedEvent,
+  type FinancingApplicationExpiredEvent,
+  type FinancingEvent,
+  type FinancingSummary,
+} from './schemas/financing.js';
+// Invoice Generation Schemas (L3 Feature)
+// =============================================================================
+export {
+  // Status
+  InvoiceStatusSchema,
+  // Components
+  InvoiceLineItemSchema,
+  ClinicDetailsSchema,
+  InvoiceCustomerSchema,
+  InvoiceDataSchema,
+  // Email Options
+  InvoiceEmailOptionsSchema,
+  // Payload & Result
+  InvoiceGenerationPayloadSchema,
+  InvoiceGenerationResultSchema,
+  // Events
+  InvoiceGeneratedEventSchema,
+  InvoiceSentEventSchema,
+  // Helper Functions
+  formatInvoiceCurrency,
+  formatInvoiceDate,
+  calculateInvoiceTotals,
+  getDefaultInvoiceStoragePath,
+  getInvoiceLabels,
+  // Types
+  type InvoiceStatus,
+  type InvoiceLineItem,
+  type ClinicDetails,
+  type InvoiceCustomer,
+  type InvoiceData,
+  type InvoiceEmailOptions,
+  type InvoiceGenerationPayload,
+  type InvoiceGenerationResult,
+  type InvoiceGeneratedEvent,
+  type InvoiceSentEvent,
+} from './schemas/invoice-generation.js';

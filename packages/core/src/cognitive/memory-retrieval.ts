@@ -3,6 +3,8 @@
  *
  * ADR-004: Provides temporal and semantic search across episodic events
  * for context retrieval and pattern analysis.
+ *
+ * L6: Supports optional PII masking at query time for non-admin roles.
  */
 
 import type { Pool } from 'pg';
