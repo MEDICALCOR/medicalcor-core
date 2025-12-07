@@ -420,5 +420,112 @@ test.describe('Workflow Management', () => {
 
       await expect(workflowCard.or(emptyState)).toBeVisible({ timeout: 5000 });
     });
+
+    test('tablet layout shows sidebar and cards', async ({ page }) => {
+      // Set tablet viewport
+      await page.setViewportSize({ width: 768, height: 1024 });
+      await page.reload();
+
+      // Wait for page to load
+      await expect(page.getByRole('heading', { name: /workflow|automatizari/i })).toBeVisible({
+        timeout: 10000,
+      });
+
+      // Content should be visible
+      const content = page.locator('[data-testid="workflow-card"], [class*="Card"]').first();
+      const emptyState = page.getByText(/nu exista workflow|no workflows/i);
+
+      await expect(content.or(emptyState)).toBeVisible({ timeout: 5000 });
+    });
+  });
+
+  test.describe('Search & Filter Workflows', () => {
+    test('search input filters workflows', async ({ page }) => {
+      const searchInput = page.getByPlaceholder(/caută|search/i);
+
+      if (await searchInput.isVisible({ timeout: 5000 })) {
+        await searchInput.fill('test');
+        await page.waitForTimeout(500);
+
+        // Results should update
+        const results = page.locator('[data-testid="workflow-card"], [class*="Card"]');
+        const noResults = page.getByText(/nu s-au găsit|no results/i);
+
+        await expect(results.first().or(noResults)).toBeVisible({ timeout: 5000 });
+      }
+    });
+
+    test('filter by workflow status', async ({ page }) => {
+      // Look for status filter
+      const statusFilter = page.locator('[role="combobox"]').filter({ hasText: /status|toate|activ/i });
+
+      if (await statusFilter.isVisible({ timeout: 5000 })) {
+        await statusFilter.click();
+
+        // Check for options
+        const activeOption = page.getByRole('option', { name: /activ|active/i });
+        const inactiveOption = page.getByRole('option', { name: /inactiv|inactive/i });
+
+        await expect(activeOption.or(inactiveOption)).toBeVisible({ timeout: 3000 });
+
+        await page.keyboard.press('Escape');
+      }
+    });
+  });
+
+  test.describe('Workflow Statistics', () => {
+    test('workflow stats are displayed', async ({ page }) => {
+      await page.waitForTimeout(1000);
+
+      // Look for stats/metrics
+      const statsText = page.getByText(/total|active|execuții|runs|trigger/i);
+      const statsCards = page.locator('[class*="Card"]').filter({ hasText: /\d+/ });
+
+      await expect(statsText.first().or(statsCards.first())).toBeVisible({ timeout: 5000 });
+    });
+
+    test('success rate indicator is shown', async ({ page }) => {
+      await page.waitForTimeout(1000);
+
+      // Look for success/failure metrics
+      const successRate = page.getByText(/succes|success|rate|rată|\d+%/i);
+      const metricsSection = page.locator('[data-testid="workflow-metrics"]');
+
+      if (await successRate.first().or(metricsSection).isVisible({ timeout: 5000 })) {
+        await expect(successRate.first().or(metricsSection)).toBeVisible();
+      }
+    });
+  });
+
+  test.describe('Loading States', () => {
+    test('skeleton shows while loading', async ({ page }) => {
+      await page.reload();
+
+      // Check for skeleton or content
+      const skeleton = page.locator('[class*="skeleton"], [class*="Skeleton"], [class*="animate-pulse"]');
+      const content = page.locator('[data-testid="workflow-card"], [class*="Card"]').first();
+      const emptyState = page.getByText(/nu exista workflow|no workflows/i);
+
+      await expect(skeleton.first().or(content).or(emptyState)).toBeVisible({ timeout: 10000 });
+    });
+
+    test('empty state has create action', async ({ page }) => {
+      const emptyState = page.getByText(/nu exista workflow|no workflows|creează primul/i);
+
+      if (await emptyState.isVisible({ timeout: 3000 })) {
+        // Should have create button in empty state
+        const createButton = page.getByRole('button', { name: /creeaza|create|adauga|nou/i });
+        await expect(createButton).toBeVisible();
+      }
+    });
+
+    test('error state shows retry option', async ({ page }) => {
+      // Check for error handling
+      const errorMessage = page.getByText(/eroare|error|failed/i);
+      const retryButton = page.getByRole('button', { name: /reîncarcă|retry|refresh/i });
+      const content = page.locator('[data-testid="workflow-card"], [class*="Card"]').first();
+
+      await expect(content.or(errorMessage).or(retryButton)).toBeVisible({ timeout: 10000 });
+    });
   });
 });

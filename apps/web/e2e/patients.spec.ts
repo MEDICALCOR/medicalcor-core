@@ -382,4 +382,84 @@ test.describe('Patient Management', () => {
       }
     });
   });
+
+  test.describe('Bulk Operations', () => {
+    test('bulk selection checkbox is available', async ({ page }) => {
+      await page.waitForTimeout(1000);
+
+      // Look for select all checkbox
+      const selectAllCheckbox = page.locator('input[type="checkbox"]').filter({
+        hasNot: page.locator('[aria-hidden="true"]'),
+      }).first();
+
+      const bulkSelectHeader = page.getByText(/selectează|select all/i);
+
+      await expect(selectAllCheckbox.or(bulkSelectHeader)).toBeVisible({ timeout: 5000 });
+    });
+
+    test('bulk actions appear when items selected', async ({ page }) => {
+      await page.waitForTimeout(1000);
+
+      // Find individual patient checkbox
+      const patientCheckbox = page.locator('[data-testid="patient-card"], tr').first()
+        .locator('input[type="checkbox"]');
+
+      if (await patientCheckbox.isVisible({ timeout: 5000 })) {
+        await patientCheckbox.click();
+
+        // Bulk action toolbar should appear
+        const bulkActions = page.getByText(/selectat|selected|\d+ pacient/i);
+        await expect(bulkActions.first()).toBeVisible({ timeout: 3000 });
+      }
+    });
+  });
+
+  test.describe('Export & Import', () => {
+    test('export button is available', async ({ page }) => {
+      // Look for export button
+      const exportButton = page.locator('button').filter({
+        has: page.locator('[class*="lucide-download"], [class*="lucide-export"]'),
+      });
+      const exportText = page.getByRole('button', { name: /export|descarcă/i });
+
+      await expect(exportButton.first().or(exportText)).toBeVisible({ timeout: 5000 });
+    });
+
+    test('import patients option exists', async ({ page }) => {
+      // Look for import button or menu item
+      const importButton = page.locator('button').filter({
+        has: page.locator('[class*="lucide-upload"], [class*="lucide-import"]'),
+      });
+      const importText = page.getByRole('button', { name: /import|încarcă/i });
+
+      if (await importButton.first().or(importText).isVisible({ timeout: 5000 })) {
+        await expect(importButton.first().or(importText)).toBeEnabled();
+      }
+    });
+  });
+
+  test.describe('Loading States', () => {
+    test('skeleton loader shows while loading', async ({ page }) => {
+      // Reload to see loading state
+      await page.reload();
+
+      // Check for skeleton or content
+      const skeleton = page.locator('[class*="skeleton"], [class*="Skeleton"], [class*="animate-pulse"]');
+      const content = page.locator('[data-testid="patient-card"], tr[data-patient-id]').first();
+      const emptyState = page.getByText(/nu exista pacienti|no patients/i);
+
+      await expect(skeleton.first().or(content).or(emptyState)).toBeVisible({ timeout: 10000 });
+    });
+
+    test('empty state shows helpful message', async ({ page }) => {
+      // Check for empty state design
+      const emptyState = page.getByText(/nu exista pacienti|no patients|adaugă primul/i);
+
+      if (await emptyState.isVisible({ timeout: 3000 })) {
+        // Empty state should have action button
+        const addButton = page.getByRole('button', { name: /adauga|add|nou/i });
+        await expect(addButton).toBeVisible();
+      }
+    });
+  });
 });

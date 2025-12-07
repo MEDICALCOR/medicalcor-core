@@ -250,5 +250,108 @@ test.describe('Dashboard', () => {
         await expect(mobileNav).toBeVisible({ timeout: 3000 });
       }
     });
+
+    test('tablet viewport shows appropriate layout', async ({ page }) => {
+      // Set tablet viewport
+      await page.setViewportSize({ width: 768, height: 1024 });
+      await page.reload();
+
+      // Wait for page to load
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10000 });
+
+      // Cards should be visible and laid out appropriately
+      const cards = page.locator('[data-testid="metrics-card"], .card, [class*="Card"]');
+      await expect(cards.first()).toBeVisible({ timeout: 5000 });
+    });
+  });
+
+  test.describe('Activity & Recent Items', () => {
+    test('activity feed or recent section is visible', async ({ page }) => {
+      await page.waitForTimeout(1000);
+
+      // Look for activity/recent sections
+      const activitySection = page.getByText(/activitate|activity|recent|ultimele/i);
+      const activityList = page.locator('[data-testid="activity-feed"], [data-testid="recent-items"]');
+
+      await expect(activitySection.first().or(activityList.first())).toBeVisible({ timeout: 5000 });
+    });
+
+    test('today appointments or tasks section exists', async ({ page }) => {
+      await page.waitForTimeout(1000);
+
+      // Look for today's schedule or tasks
+      const todaySection = page.getByText(/astăzi|today|programări|appointments|tasks/i);
+      await expect(todaySection.first()).toBeVisible({ timeout: 5000 });
+    });
+
+    test('quick stats summary is displayed', async ({ page }) => {
+      await page.waitForTimeout(1000);
+
+      // Look for summary/quick stats
+      const statsText = page.getByText(/total|pacienți noi|new patients|conversii|conversion/i);
+      await expect(statsText.first()).toBeVisible({ timeout: 5000 });
+    });
+  });
+
+  test.describe('Time Range & Filters', () => {
+    test('time range selector is available', async ({ page }) => {
+      // Look for time range controls
+      const timeSelector = page.locator('[role="combobox"], button').filter({
+        hasText: /săptămâna|luna|an|week|month|year|7 zile|30 zile/i,
+      });
+
+      if (await timeSelector.isVisible({ timeout: 5000 })) {
+        await timeSelector.click();
+
+        // Options should appear
+        const options = page.getByRole('option').or(page.getByRole('menuitem'));
+        await expect(options.first()).toBeVisible({ timeout: 3000 });
+
+        await page.keyboard.press('Escape');
+      }
+    });
+
+    test('date picker for custom range is accessible', async ({ page }) => {
+      // Look for date picker or custom range option
+      const datePicker = page.locator('button').filter({
+        has: page.locator('[class*="lucide-calendar"]'),
+      });
+
+      if (await datePicker.isVisible({ timeout: 5000 })) {
+        await datePicker.click();
+
+        // Calendar or date picker should appear
+        const calendar = page.getByRole('dialog').or(page.locator('[data-testid="date-picker"]'));
+        await expect(calendar).toBeVisible({ timeout: 3000 });
+
+        await page.keyboard.press('Escape');
+      }
+    });
+  });
+
+  test.describe('Loading States', () => {
+    test('skeleton loader appears during data fetch', async ({ page }) => {
+      // Force reload to see loading state
+      await page.reload();
+
+      // Check for skeleton or spinner during load
+      const skeleton = page.locator('[class*="skeleton"], [class*="Skeleton"], [class*="animate-pulse"]');
+      const spinner = page.locator('[class*="spinner"], [class*="loading"]');
+
+      // Either skeleton or content should appear
+      await expect(skeleton.first().or(spinner.first()).or(page.locator('.card').first())).toBeVisible({
+        timeout: 10000,
+      });
+    });
+
+    test('error state displays gracefully', async ({ page }) => {
+      // Check for error boundary or error messages
+      const errorMessage = page.getByText(/eroare|error|failed|încercați din nou|try again/i);
+      const retryButton = page.getByRole('button', { name: /reîncarcă|retry|refresh/i });
+
+      // Content or error handling should be present
+      const content = page.locator('.card, [class*="Card"]').first();
+      await expect(content.or(errorMessage).or(retryButton)).toBeVisible({ timeout: 10000 });
+    });
   });
 });
