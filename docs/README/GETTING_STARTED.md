@@ -336,6 +336,7 @@ Now that you have MedicalCor running locally, explore these guides:
 ### Start Developing
 - [Development Guide](./DEVELOPMENT.md) - Code standards and workflows
 - [Testing Guide](./TESTING.md) - How to write and run tests
+- [E2E Setup Guide](./E2E_SETUP.md) - Configure end-to-end tests with Playwright
 
 ### Configure Integrations
 - [HubSpot Setup](./CONFIGURATION.md#hubspot-crm)

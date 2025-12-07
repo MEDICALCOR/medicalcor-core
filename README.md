@@ -260,6 +260,7 @@ pnpm typecheck        # Run TypeScript checks
 |----------|-------------|
 | [Development Guide](./docs/README/DEVELOPMENT.md) | Contributing guidelines |
 | [Testing Guide](./docs/README/TESTING.md) | Test patterns and coverage |
+| [E2E Setup Guide](./docs/README/E2E_SETUP.md) | End-to-end test configuration |
 | [Troubleshooting](./docs/README/TROUBLESHOOTING.md) | Common issues |
 
 ### Operations
