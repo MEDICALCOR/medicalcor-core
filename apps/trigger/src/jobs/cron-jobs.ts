@@ -1723,6 +1723,81 @@ export const npsPostAppointmentSurvey = schedules.task({
 });
 
 /**
+ * Database Partition Maintenance - creates future partitions and cleans up old ones
+ * Runs on the 1st of every month at 1:00 AM
+ *
+ * This job ensures partitions exist for:
+ * - domain_events (partitioned by created_at)
+ * - audit_log (partitioned by timestamp)
+ * - episodic_events (partitioned by occurred_at)
+ *
+ * Performance benefits:
+ * - Partition pruning improves query performance for time-range queries
+ * - Easier data lifecycle management (archival, deletion)
+ * - More efficient vacuum and maintenance operations
+ */
+export const databasePartitionMaintenance = schedules.task({
+  id: 'database-partition-maintenance',
+  cron: '0 1 1 * *', // 1:00 AM on the 1st of every month
+  run: async () => {
+    const correlationId = generateCorrelationId();
+    logger.info('Starting database partition maintenance', { correlationId });
+
+    const { eventStore } = getClients();
+
+    try {
+      const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_SERVICE_KEY ?? process.env.SUPABASE_ANON_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        logger.warn('Supabase credentials not configured, skipping partition maintenance', {
+          correlationId,
+        });
+        return { success: false, reason: 'Supabase not configured' };
+      }
+
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      // Create future partitions (3 months ahead)
+      const { data: createResult, error: createError } = await supabase.rpc(
+        'create_future_partitions',
+        { p_months_ahead: 3 }
+      );
+
+      if (createError) {
+        throw new Error(`Failed to create future partitions: ${createError.message}`);
+      }
+
+      const partitionsCreated = typeof createResult === 'number' ? createResult : 0;
+      logger.info('Created future partitions', { partitionsCreated, correlationId });
+
+      // Emit job completion event
+      await emitJobEvent(eventStore, 'cron.partition_maintenance.completed', {
+        partitionsCreated,
+        correlationId,
+      });
+
+      logger.info('Database partition maintenance completed', {
+        partitionsCreated,
+        correlationId,
+      });
+
+      return { success: true, partitionsCreated };
+    } catch (error) {
+      logger.error('Database partition maintenance failed', { error, correlationId });
+
+      await emitJobEvent(eventStore, 'cron.partition_maintenance.failed', {
+        error: String(error),
+        correlationId,
+      });
+
+      return { success: false, error: String(error) };
+    }
+  },
+});
+
+/**
  * NPS Survey Expiry Check - expires surveys that haven't been responded to
  * Runs every day at 6:00 AM
  */

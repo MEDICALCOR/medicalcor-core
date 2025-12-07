@@ -7,7 +7,13 @@ import {
   createDatabaseClient,
   type DatabasePool,
 } from '@medicalcor/core';
-import { createEmbeddingService, getOpenAIApiKey } from '@medicalcor/integrations';
+import {
+  createEmbeddingService,
+  getOpenAIApiKey,
+  createEmbeddingCache,
+  createCachedEmbeddingService,
+  type RedisClient,
+} from '@medicalcor/integrations';
 
 /**
  * Async Embedding Worker (H5)
@@ -124,6 +130,23 @@ const MAX_BATCH_SIZE = 100;
 // HELPER FUNCTIONS
 // ============================================================================
 
+/**
+ * Create a Redis client from URL
+ * Uses dynamic import to avoid bundle issues
+ */
+async function createRedisClient(url: string): Promise<RedisClient | null> {
+  try {
+    // Dynamic import for optional Redis dependency
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const ioredis: { default: new (url: string) => RedisClient } = await import('ioredis');
+    const client = new ioredis.default(url);
+    return client;
+  } catch {
+    logger.warn('Redis client not available, caching disabled');
+    return null;
+  }
+}
+
 function getClients() {
   const databaseUrl = process.env.DATABASE_URL;
 
@@ -134,6 +157,90 @@ function getClients() {
     : createInMemoryEventStore('embedding-worker');
 
   return { db, eventStore };
+}
+
+/**
+ * Get a cached embedding service if Redis is available
+ * Falls back to direct service if not
+ */
+async function getCachedEmbeddingService(openaiKey: string) {
+  const baseService = createEmbeddingService({
+    apiKey: openaiKey,
+    model: EMBEDDING_MODEL,
+  });
+
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) {
+    return {
+      embed: async (text: string) => {
+        const result = await baseService.embed(text);
+        return result;
+      },
+      embedBatch: async (inputs: { text: string; id?: string }[]) => {
+        const result = await baseService.embedBatch(inputs);
+        return result;
+      },
+      isCached: false,
+    };
+  }
+
+  const redis = await createRedisClient(redisUrl);
+  if (!redis) {
+    return {
+      embed: async (text: string) => {
+        const result = await baseService.embed(text);
+        return result;
+      },
+      embedBatch: async (inputs: { text: string; id?: string }[]) => {
+        const result = await baseService.embedBatch(inputs);
+        return result;
+      },
+      isCached: false,
+    };
+  }
+
+  const cache = createEmbeddingCache(redis, { ttlSeconds: 86400 * 7 }); // 7 days
+  const cachedService = createCachedEmbeddingService({
+    cache,
+    embedFn: async (text: string) => {
+      const result = await baseService.embed(text);
+      return result.embedding;
+    },
+    embedBatchFn: async (texts: string[]) => {
+      const result = await baseService.embedBatch(texts.map((text) => ({ text })));
+      return result.embeddings.map((e) => e.embedding);
+    },
+    model: EMBEDDING_MODEL,
+  });
+
+  return {
+    embed: async (text: string) => {
+      const embedding = await cachedService.embed(text);
+      return {
+        embedding,
+        contentHash: hashContent(text),
+        model: EMBEDDING_MODEL,
+        dimensions: embedding.length,
+        tokensUsed: Math.ceil(text.length / 4), // Approximate
+      };
+    },
+    embedBatch: async (inputs: { text: string; id?: string }[]) => {
+      const embeddings = await cachedService.embedBatch(inputs.map((i) => i.text));
+      return {
+        embeddings: embeddings.map((embedding, idx) => ({
+          embedding,
+          contentHash: hashContent(inputs[idx]?.text ?? ''),
+          model: EMBEDDING_MODEL,
+          dimensions: embedding.length,
+          tokensUsed: Math.ceil((inputs[idx]?.text ?? '').length / 4),
+        })),
+        totalTokensUsed: inputs.reduce((sum, i) => sum + Math.ceil(i.text.length / 4), 0),
+        processingTimeMs: 0, // Not tracked in cached version
+      };
+    },
+    isCached: true,
+    getStats: () => cachedService.getStats(),
+  };
 }
 
 /**
@@ -301,14 +408,11 @@ export const embedContent = task({
       throw new Error('OpenAI API key not configured');
     }
 
-    // Create embedding service
-    const embeddingService = createEmbeddingService({
-      apiKey: openaiKey,
-      model: EMBEDDING_MODEL,
-    });
+    // Create cached embedding service (uses Redis cache if available)
+    const embeddingService = await getCachedEmbeddingService(openaiKey);
 
     try {
-      // Generate embedding
+      // Generate embedding (with cache support)
       const result = await embeddingService.embed(content);
 
       logger.info('Embedding generated successfully', {
@@ -454,11 +558,8 @@ export const embedBatch = task({
       throw new Error('OpenAI API key not configured');
     }
 
-    // Create embedding service
-    const embeddingService = createEmbeddingService({
-      apiKey: openaiKey,
-      model: EMBEDDING_MODEL,
-    });
+    // Create cached embedding service (uses Redis cache if available)
+    const embeddingService = await getCachedEmbeddingService(openaiKey);
 
     const results: BatchEmbeddingResult['results'] = [];
     let totalTokensUsed = 0;
@@ -466,7 +567,7 @@ export const embedBatch = task({
     let failedItems = 0;
 
     try {
-      // Generate embeddings in batch
+      // Generate embeddings in batch (with cache support)
       const batchResult = await embeddingService.embedBatch(
         items.map((item) => ({ text: item.content, id: item.contentId }))
       );
@@ -806,11 +907,8 @@ export const processEmbeddingEvents = task({
 
       logger.info(`Found ${events.length} events to process`, { correlationId });
 
-      // Create embedding service
-      const embeddingService = createEmbeddingService({
-        apiKey: openaiKey,
-        model: EMBEDDING_MODEL,
-      });
+      // Create cached embedding service (uses Redis cache if available)
+      const embeddingService = await getCachedEmbeddingService(openaiKey);
 
       // Process each event
       for (const event of events) {
@@ -1029,12 +1127,8 @@ export const reembedContent = task({
         throw new Error(`Content not found: ${contentId}`);
       }
 
-      // Generate new embedding
-      const embeddingService = createEmbeddingService({
-        apiKey: openaiKey,
-        model: EMBEDDING_MODEL,
-      });
-
+      // Generate new embedding (with cache support)
+      const embeddingService = await getCachedEmbeddingService(openaiKey);
       const result = await embeddingService.embed(content);
 
       // Update database

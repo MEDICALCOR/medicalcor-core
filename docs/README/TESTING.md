@@ -7,6 +7,7 @@ Comprehensive guide to testing in MedicalCor Core.
 - [Overview](#overview)
 - [Test Stack](#test-stack)
 - [Running Tests](#running-tests)
+- [Load Testing with k6](#load-testing-with-k6)
 - [Writing Tests](#writing-tests)
 - [Test Patterns](#test-patterns)
 - [Mocking](#mocking)
@@ -25,6 +26,7 @@ MedicalCor Core uses a comprehensive testing strategy with multiple test types:
 | Integration | Test component interactions | `__tests__/integration/` | Vitest |
 | E2E | Test full user flows | `e2e/` | Playwright |
 | API | Test HTTP endpoints | `apps/api/__tests__/` | Vitest + Supertest |
+| Load | Test performance under load | `scripts/k6/` | k6 |
 
 ---
 
@@ -75,6 +77,8 @@ pnpm test -- -t "should score HOT leads"
 
 ### E2E Tests
 
+> **Setup Required**: Before running E2E tests, you must configure test user credentials. See [E2E Setup Guide](./E2E_SETUP.md) for complete instructions.
+
 ```bash
 # Run Playwright tests
 pnpm test:e2e
@@ -85,6 +89,113 @@ pnpm test:e2e --ui
 # Run specific browser
 pnpm test:e2e --project=chromium
 ```
+
+**Quick Setup for E2E Tests:**
+1. Create test user account in your development environment
+2. Add credentials to `apps/web/.env.local`:
+   ```bash
+   TEST_USER_EMAIL=test@example.com
+   TEST_USER_PASSWORD=your-secure-password
+   ```
+3. Install Playwright browsers: `cd apps/web && pnpm exec playwright install --with-deps chromium`
+4. Run tests: `pnpm test:e2e`
+
+For CI/CD setup, see the [E2E Setup Guide](./E2E_SETUP.md) for instructions on adding GitHub Secrets.
+
+---
+
+## Load Testing with k6
+
+MedicalCor uses [k6](https://k6.io/) for load and performance testing. Two main test suites are available:
+
+### General API Load Testing
+
+Tests general API endpoints (health checks, metrics, circuit breakers):
+
+```bash
+# Smoke test (1 minute, 5 VUs)
+pnpm k6:smoke
+
+# Load test (5 minutes, ramping to 50 VUs)
+pnpm k6:load
+
+# Stress test (10 minutes, ramping to 100 VUs)
+pnpm k6:stress
+```
+
+**Direct k6 commands:**
+```bash
+k6 run scripts/k6/load-test.js
+k6 run --env SCENARIO=load scripts/k6/load-test.js
+k6 run --env SCENARIO=stress scripts/k6/load-test.js
+```
+
+### RLS Performance Testing
+
+Tests Row-Level Security (RLS) performance to ensure database policies don't degrade query performance:
+
+```bash
+# Smoke test (1 minute, 5 VUs)
+pnpm k6:rls
+
+# Load test (5 minutes, ramping to 50 VUs)
+pnpm k6:rls:load
+
+# Stress test (10 minutes, ramping to 100 VUs)
+pnpm k6:rls:stress
+
+# Soak test (30 minutes, 25 VUs sustained load)
+pnpm k6:rls:soak
+```
+
+**Direct k6 commands:**
+```bash
+# Smoke test (1 min, 5 VUs)
+k6 run scripts/k6/rls-performance.js
+
+# Load test (5 min, up to 50 VUs)
+k6 run --env SCENARIO=load scripts/k6/rls-performance.js
+
+# Stress test (10 min, up to 100 VUs)
+k6 run --env SCENARIO=stress scripts/k6/rls-performance.js
+```
+
+### RLS Performance Scenarios
+
+The RLS test validates:
+- **Clinic ID isolation**: Multi-tenant data separation
+- **User ID isolation**: User-specific data access
+- **Phone-based lookups**: Consent and message queries
+- **Admin bypass**: System-level access
+- **Cross-tenant isolation**: Ensures no data leakage
+
+### Thresholds
+
+| Metric | Target |
+|--------|--------|
+| Error rate | < 1% |
+| RLS clinic_id query (p95) | < 100ms |
+| RLS user_id query (p95) | < 100ms |
+| RLS phone query (p95) | < 150ms |
+| RLS overhead | < 50% vs non-RLS |
+
+### Custom Environment Variables
+
+```bash
+# Test against different environments
+k6 run --env BASE_URL=https://staging-api.medicalcor.ro scripts/k6/rls-performance.js
+
+# Specify API key
+k6 run --env API_SECRET_KEY=your-key scripts/k6/load-test.js
+```
+
+### Output and Reports
+
+Test results include:
+- Console summary with pass/fail status
+- JSON summary file: `rls-performance-summary.json`
+- Metrics exported to stdout
+- Performance breakdown by RLS pattern
 
 ---
 

@@ -75,7 +75,14 @@ pnpm db:reset             # Reset database (Supabase)
 # Quality
 pnpm check:duplication    # Check code duplication (jscpd)
 pnpm smoke-test           # Run smoke tests
-pnpm k6:smoke             # k6 load testing (smoke)
+
+# Load Testing (k6)
+pnpm k6:smoke             # General API load test (1 min, 5 VUs)
+pnpm k6:load              # General API load test (5 min, 50 VUs)
+pnpm k6:stress            # General API stress test (10 min, 100 VUs)
+pnpm k6:rls               # RLS performance test (smoke)
+pnpm k6:rls:load          # RLS performance test (load)
+pnpm k6:rls:stress        # RLS performance test (stress)
 ```
 
 ## Key Conventions

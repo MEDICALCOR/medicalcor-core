@@ -24,7 +24,7 @@ Pre-deployment verification checklist for MedicalCor releases.
 
 - [ ] Unit tests for new functionality
 - [ ] Integration tests updated
-- [ ] E2E tests passing
+- [ ] E2E tests passing (see [E2E Setup Guide](./README/E2E_SETUP.md) for configuration)
 - [ ] Manual testing completed
 - [ ] Edge cases considered
 
@@ -114,9 +114,9 @@ git push origin main
 
 ## Sign-Off
 
-| Role | Name | Date | Signature |
-|------|------|------|-----------|
-| Developer | | | |
-| Reviewer | | | |
-| QA | | | |
-| DevOps | | | |
+| Role      | Name | Date | Signature |
+| --------- | ---- | ---- | --------- |
+| Developer |      |      |           |
+| Reviewer  |      |      |           |
+| QA        |      |      |           |
+| DevOps    |      |      |           |

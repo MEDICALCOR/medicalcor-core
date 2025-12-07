@@ -10,7 +10,16 @@
  * @security All actions require VIEW_ANALYTICS permission
  */
 
-import { requirePermission } from '@/lib/auth/server-action-auth';
+import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
+import { requirePermission, requireCurrentUser } from '@/lib/auth/server-action-auth';
+
+// Lazy-initialized database connection
+let db: DatabasePool | null = null;
+
+function getDatabase(): DatabasePool {
+  db ??= createDatabaseClient();
+  return db;
+}
 
 // ============================================================================
 // TYPES
@@ -82,172 +91,121 @@ export interface LTVDashboardData {
 }
 
 // ============================================================================
-// MOCK DATA GENERATORS
+// DATABASE ROW TYPES
 // ============================================================================
 
 /**
- * Generate mock LTV statistics
- * @internal
+ * Row type from lead_ltv view
  */
-function generateMockStats(): LTVDashboardStats {
+interface LeadLTVRow {
+  lead_id: string;
+  clinic_id: string;
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+  lead_created_at: Date;
+  total_cases: string;
+  completed_cases: string;
+  total_case_value: string;
+  total_paid: string;
+  total_outstanding: string;
+  avg_case_value: string;
+  first_case_date: Date | null;
+  last_case_date: Date | null;
+}
+
+/**
+ * Row type from monthly_revenue view
+ */
+interface MonthlyRevenueRow {
+  month: Date;
+  clinic_id: string;
+  cases_with_payments: string;
+  payment_count: string;
+  gross_revenue: string;
+  refunds: string;
+  net_revenue: string;
+  avg_payment_amount: string | null;
+}
+
+/**
+ * Row type from case_pipeline view
+ */
+interface CasePipelineRow {
+  clinic_id: string;
+  status: string;
+  payment_status: string;
+  case_count: string;
+  total_value: string;
+  paid_value: string;
+  outstanding_value: string;
+  avg_case_value: string;
+}
+
+/**
+ * Stats aggregate query row
+ */
+interface StatsRow {
+  total_revenue: string;
+  total_outstanding: string;
+  avg_ltv: string;
+  total_cases: string;
+  paid_cases: string;
+  partial_cases: string;
+  current_month_revenue: string;
+  previous_month_revenue: string;
+}
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Convert lead_ltv row to LeadLTV interface
+ */
+function rowToLeadLTV(row: LeadLTVRow): LeadLTV {
   return {
-    totalRevenue: 1247500,
-    totalOutstanding: 342800,
-    avgLTV: 8450,
-    totalCases: 156,
-    paidCases: 98,
-    partialCases: 34,
-    monthlyGrowth: 12.5,
+    leadId: row.lead_id,
+    fullName: row.full_name ?? 'Unknown',
+    email: row.email,
+    phone: row.phone,
+    totalCases: parseInt(row.total_cases, 10),
+    completedCases: parseInt(row.completed_cases, 10),
+    totalCaseValue: parseFloat(row.total_case_value),
+    totalPaid: parseFloat(row.total_paid),
+    totalOutstanding: parseFloat(row.total_outstanding),
+    avgCaseValue: parseFloat(row.avg_case_value),
+    firstCaseDate: row.first_case_date?.toISOString().slice(0, 10) ?? null,
+    lastCaseDate: row.last_case_date?.toISOString().slice(0, 10) ?? null,
   };
 }
 
 /**
- * Generate mock top customers
- * @internal
+ * Convert monthly_revenue row to MonthlyRevenue interface
  */
-function generateMockTopCustomers(): LeadLTV[] {
-  return [
-    {
-      leadId: 'lead-001',
-      fullName: 'Maria Ionescu',
-      email: 'maria.ionescu@email.com',
-      phone: '+40721123456',
-      totalCases: 3,
-      completedCases: 2,
-      totalCaseValue: 45000,
-      totalPaid: 38000,
-      totalOutstanding: 7000,
-      avgCaseValue: 15000,
-      firstCaseDate: '2024-03-15',
-      lastCaseDate: '2024-11-20',
-    },
-    {
-      leadId: 'lead-002',
-      fullName: 'Ion Popescu',
-      email: 'ion.popescu@email.com',
-      phone: '+40722234567',
-      totalCases: 2,
-      completedCases: 2,
-      totalCaseValue: 32000,
-      totalPaid: 32000,
-      totalOutstanding: 0,
-      avgCaseValue: 16000,
-      firstCaseDate: '2024-01-10',
-      lastCaseDate: '2024-09-05',
-    },
-    {
-      leadId: 'lead-003',
-      fullName: 'Elena Gheorghe',
-      email: 'elena.g@email.com',
-      phone: '+40723345678',
-      totalCases: 4,
-      completedCases: 3,
-      totalCaseValue: 28500,
-      totalPaid: 21000,
-      totalOutstanding: 7500,
-      avgCaseValue: 7125,
-      firstCaseDate: '2023-11-22',
-      lastCaseDate: '2024-12-01',
-    },
-    {
-      leadId: 'lead-004',
-      fullName: 'Andrei Marin',
-      email: 'andrei.m@email.com',
-      phone: '+40724456789',
-      totalCases: 1,
-      completedCases: 1,
-      totalCaseValue: 24000,
-      totalPaid: 24000,
-      totalOutstanding: 0,
-      avgCaseValue: 24000,
-      firstCaseDate: '2024-08-15',
-      lastCaseDate: '2024-08-15',
-    },
-    {
-      leadId: 'lead-005',
-      fullName: 'Ana Dumitrescu',
-      email: 'ana.d@email.com',
-      phone: '+40725567890',
-      totalCases: 2,
-      completedCases: 1,
-      totalCaseValue: 19500,
-      totalPaid: 12000,
-      totalOutstanding: 7500,
-      avgCaseValue: 9750,
-      firstCaseDate: '2024-06-10',
-      lastCaseDate: '2024-11-28',
-    },
-  ];
+function rowToMonthlyRevenue(row: MonthlyRevenueRow): MonthlyRevenue {
+  return {
+    month: row.month.toISOString().slice(0, 7),
+    grossRevenue: parseFloat(row.gross_revenue),
+    netRevenue: parseFloat(row.net_revenue),
+    refunds: parseFloat(row.refunds),
+    paymentCount: parseInt(row.payment_count, 10),
+    casesWithPayments: parseInt(row.cases_with_payments, 10),
+  };
 }
 
 /**
- * Generate mock monthly revenue
- * @internal
+ * Convert case_pipeline row to CasePipeline interface
  */
-function generateMockMonthlyRevenue(): MonthlyRevenue[] {
-  const now = new Date();
-  const months: MonthlyRevenue[] = [];
-
-  for (let i = 0; i < 6; i++) {
-    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const monthStr = date.toISOString().slice(0, 7);
-
-    // Generate slightly varied revenue data
-    const baseRevenue = 100000 + Math.floor(Math.random() * 50000);
-    const refunds = Math.floor(baseRevenue * 0.02);
-
-    months.push({
-      month: monthStr,
-      grossRevenue: baseRevenue,
-      netRevenue: baseRevenue - refunds,
-      refunds,
-      paymentCount: 30 + Math.floor(Math.random() * 20),
-      casesWithPayments: 20 + Math.floor(Math.random() * 15),
-    });
-  }
-
-  return months;
-}
-
-/**
- * Generate mock case pipeline
- * @internal
- */
-function generateMockCasePipeline(): CasePipeline[] {
-  return [
-    {
-      status: 'pending',
-      paymentStatus: 'unpaid',
-      caseCount: 24,
-      totalValue: 456000,
-      paidValue: 0,
-      outstandingValue: 456000,
-    },
-    {
-      status: 'in_progress',
-      paymentStatus: 'partial',
-      caseCount: 34,
-      totalValue: 612000,
-      paidValue: 342000,
-      outstandingValue: 270000,
-    },
-    {
-      status: 'in_progress',
-      paymentStatus: 'paid',
-      caseCount: 18,
-      totalValue: 324000,
-      paidValue: 324000,
-      outstandingValue: 0,
-    },
-    {
-      status: 'completed',
-      paymentStatus: 'paid',
-      caseCount: 80,
-      totalValue: 1440000,
-      paidValue: 1440000,
-      outstandingValue: 0,
-    },
-  ];
+function rowToCasePipeline(row: CasePipelineRow): CasePipeline {
+  return {
+    status: row.status,
+    paymentStatus: row.payment_status,
+    caseCount: parseInt(row.case_count, 10),
+    totalValue: parseFloat(row.total_value),
+    paidValue: parseFloat(row.paid_value),
+    outstandingValue: parseFloat(row.outstanding_value),
+  };
 }
 
 // ============================================================================
@@ -262,10 +220,57 @@ function generateMockCasePipeline(): CasePipeline[] {
  */
 export async function getLTVStatsAction(): Promise<LTVDashboardStats> {
   await requirePermission('VIEW_ANALYTICS');
+  const user = await requireCurrentUser();
+  if (!user.clinicId) {
+    throw new Error('No clinic associated with user');
+  }
 
-  // TODO: Replace with actual database queries when backend is ready
-  // Use the lead_ltv, monthly_revenue, and case_pipeline views
-  return generateMockStats();
+  const database = getDatabase();
+
+  // Aggregate stats from cases and payments
+  const result = await database.query<StatsRow>(
+    `WITH monthly_totals AS (
+      SELECT
+        DATE_TRUNC('month', processed_at) AS month,
+        SUM(CASE WHEN type != 'refund' THEN amount ELSE -amount END) AS net_revenue
+      FROM payments
+      WHERE clinic_id = $1
+        AND status = 'completed'
+        AND processed_at >= DATE_TRUNC('month', NOW() - INTERVAL '1 month')
+      GROUP BY DATE_TRUNC('month', processed_at)
+    )
+    SELECT
+      COALESCE(SUM(c.paid_amount), 0) AS total_revenue,
+      COALESCE(SUM(c.outstanding_amount), 0) AS total_outstanding,
+      COALESCE(AVG(c.paid_amount) FILTER (WHERE c.paid_amount > 0), 0) AS avg_ltv,
+      COUNT(*) AS total_cases,
+      COUNT(*) FILTER (WHERE c.payment_status = 'paid') AS paid_cases,
+      COUNT(*) FILTER (WHERE c.payment_status = 'partial') AS partial_cases,
+      COALESCE((SELECT net_revenue FROM monthly_totals WHERE month = DATE_TRUNC('month', NOW())), 0) AS current_month_revenue,
+      COALESCE((SELECT net_revenue FROM monthly_totals WHERE month = DATE_TRUNC('month', NOW() - INTERVAL '1 month')), 0) AS previous_month_revenue
+    FROM cases c
+    WHERE c.clinic_id = $1 AND c.deleted_at IS NULL`,
+    [user.clinicId]
+  );
+
+  const stats = result.rows[0];
+  const currentMonthRevenue = parseFloat(stats.current_month_revenue);
+  const previousMonthRevenue = parseFloat(stats.previous_month_revenue);
+  const monthlyGrowth =
+    previousMonthRevenue > 0
+      ? Math.round(((currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue) * 1000) /
+        10
+      : 0;
+
+  return {
+    totalRevenue: parseFloat(stats.total_revenue),
+    totalOutstanding: parseFloat(stats.total_outstanding),
+    avgLTV: parseFloat(stats.avg_ltv),
+    totalCases: parseInt(stats.total_cases, 10),
+    paidCases: parseInt(stats.paid_cases, 10),
+    partialCases: parseInt(stats.partial_cases, 10),
+    monthlyGrowth,
+  };
 }
 
 /**
@@ -277,11 +282,37 @@ export async function getLTVStatsAction(): Promise<LTVDashboardStats> {
  */
 export async function getTopCustomersAction(limit = 10): Promise<LeadLTV[]> {
   await requirePermission('VIEW_ANALYTICS');
+  const user = await requireCurrentUser();
+  if (!user.clinicId) {
+    throw new Error('No clinic associated with user');
+  }
 
-  // TODO: Replace with actual database query
-  // SELECT * FROM lead_ltv ORDER BY total_paid DESC LIMIT $1
-  const customers = generateMockTopCustomers();
-  return customers.slice(0, limit);
+  const database = getDatabase();
+
+  const result = await database.query<LeadLTVRow>(
+    `SELECT
+      lead_id,
+      clinic_id,
+      full_name,
+      email,
+      phone,
+      lead_created_at,
+      total_cases,
+      completed_cases,
+      total_case_value,
+      total_paid,
+      total_outstanding,
+      avg_case_value,
+      first_case_date,
+      last_case_date
+    FROM lead_ltv
+    WHERE clinic_id = $1 AND total_cases > 0
+    ORDER BY total_paid DESC
+    LIMIT $2`,
+    [user.clinicId, limit]
+  );
+
+  return result.rows.map(rowToLeadLTV);
 }
 
 /**
@@ -293,11 +324,32 @@ export async function getTopCustomersAction(limit = 10): Promise<LeadLTV[]> {
  */
 export async function getMonthlyRevenueAction(months = 6): Promise<MonthlyRevenue[]> {
   await requirePermission('VIEW_ANALYTICS');
+  const user = await requireCurrentUser();
+  if (!user.clinicId) {
+    throw new Error('No clinic associated with user');
+  }
 
-  // TODO: Replace with actual database query
-  // SELECT * FROM monthly_revenue WHERE month >= DATE_TRUNC('month', NOW() - INTERVAL '$1 months')
-  const revenue = generateMockMonthlyRevenue();
-  return revenue.slice(0, months);
+  const database = getDatabase();
+
+  const result = await database.query<MonthlyRevenueRow>(
+    `SELECT
+      month,
+      clinic_id,
+      cases_with_payments,
+      payment_count,
+      gross_revenue,
+      refunds,
+      net_revenue,
+      avg_payment_amount
+    FROM monthly_revenue
+    WHERE clinic_id = $1
+      AND month >= DATE_TRUNC('month', NOW() - ($2 || ' months')::INTERVAL)
+    ORDER BY month DESC
+    LIMIT $2`,
+    [user.clinicId, months]
+  );
+
+  return result.rows.map(rowToMonthlyRevenue);
 }
 
 /**
@@ -308,10 +360,30 @@ export async function getMonthlyRevenueAction(months = 6): Promise<MonthlyRevenu
  */
 export async function getCasePipelineAction(): Promise<CasePipeline[]> {
   await requirePermission('VIEW_ANALYTICS');
+  const user = await requireCurrentUser();
+  if (!user.clinicId) {
+    throw new Error('No clinic associated with user');
+  }
 
-  // TODO: Replace with actual database query
-  // SELECT * FROM case_pipeline WHERE clinic_id = $1
-  return generateMockCasePipeline();
+  const database = getDatabase();
+
+  const result = await database.query<CasePipelineRow>(
+    `SELECT
+      clinic_id,
+      status,
+      payment_status,
+      case_count,
+      total_value,
+      paid_value,
+      outstanding_value,
+      avg_case_value
+    FROM case_pipeline
+    WHERE clinic_id = $1
+    ORDER BY status, payment_status`,
+    [user.clinicId]
+  );
+
+  return result.rows.map(rowToCasePipeline);
 }
 
 /**
