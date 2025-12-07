@@ -58,3 +58,26 @@ export type {
   MedicalContext,
   ConsentRecord,
 } from './PatientAcquisitionUseCase.js';
+
+// Revenue Forecasting Use Case
+export type {
+  RevenueForecastingUseCase,
+  RevenueForecastingUseCaseConfig,
+  GenerateForecastInput,
+  GenerateForecastOutput,
+  BatchForecastInput,
+  BatchForecastOutput,
+  BatchForecastItem,
+  CompareForecastInput,
+  ForecastAccuracyOutput,
+  ForecastDashboardSummary,
+  HistoricalRevenuePoint,
+  ForecastedPoint,
+  ForecastConfidenceInterval,
+  ModelFitStatistics,
+  TrendAnalysis,
+  ForecastMethod,
+  ForecastConfidenceLevel,
+  RevenueTrend,
+  ForecastGranularity,
+} from './RevenueForecastingUseCase.js';

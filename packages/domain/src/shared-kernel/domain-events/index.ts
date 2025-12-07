@@ -10,3 +10,4 @@
 export * from './lead-events.js';
 export * from './nps-events.js';
 export * from './pltv-events.js';
+export * from './revenue-forecast-events.js';
