@@ -261,13 +261,13 @@ CREATE TRIGGER trigger_behavioral_patterns_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 -- =============================================================================
--- RLS Policies (if RLS is enabled)
+-- RLS Policies
 -- =============================================================================
--- Note: RLS policies should be added based on your security requirements
--- For medical data, typically:
--- 1. Users can only see events for patients/leads they have access to
--- 2. System accounts have full access for processing
-
--- Enable RLS (uncomment when ready)
--- ALTER TABLE episodic_events ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE behavioral_patterns ENABLE ROW LEVEL SECURITY;
+-- Row Level Security for episodic_events and behavioral_patterns is enabled
+-- in migration: 20251207400001_cognitive_memory_rls.sql
+--
+-- That migration:
+-- 1. Adds clinic_id column for multi-tenant isolation
+-- 2. Enables RLS on both tables
+-- 3. Creates policies for system, clinic, and subject-based access
+-- 4. Includes auto-population triggers for clinic_id
