@@ -11,6 +11,24 @@ This directory contains GitHub Actions workflow definitions for MedicalCor Core.
 - **`trigger-deploy.yml`** - Manual deployment trigger
 - **`rollback.yml`** - Rollback to previous deployment
 
+### Required Secrets for CI/CD
+
+The CI workflow requires the following GitHub Secrets to be configured:
+
+#### E2E Test Secrets
+
+| Secret Name | Description | Required |
+|-------------|-------------|----------|
+| `TEST_USER_EMAIL` | Email of test user for E2E tests | Yes (for E2E tests) |
+| `TEST_USER_PASSWORD` | Password of test user | Yes (for E2E tests) |
+
+**To add secrets:**
+1. Go to: `https://github.com/MEDICALCOR/medicalcor-core/settings/secrets/actions`
+2. Click "New repository secret"
+3. Add each secret with the appropriate value
+
+For detailed instructions, see the [E2E Setup Guide](../../docs/README/E2E_SETUP.md).
+
 ### Maintenance Workflows
 
 - **`bulk-create-issues.yml`** - Bulk create GitHub issues from YAML file

@@ -77,6 +77,8 @@ pnpm test -- -t "should score HOT leads"
 
 ### E2E Tests
 
+> **Setup Required**: Before running E2E tests, you must configure test user credentials. See [E2E Setup Guide](./E2E_SETUP.md) for complete instructions.
+
 ```bash
 # Run Playwright tests
 pnpm test:e2e
@@ -87,6 +89,18 @@ pnpm test:e2e --ui
 # Run specific browser
 pnpm test:e2e --project=chromium
 ```
+
+**Quick Setup for E2E Tests:**
+1. Create test user account in your development environment
+2. Add credentials to `apps/web/.env.local`:
+   ```bash
+   TEST_USER_EMAIL=test@example.com
+   TEST_USER_PASSWORD=your-secure-password
+   ```
+3. Install Playwright browsers: `cd apps/web && pnpm exec playwright install --with-deps chromium`
+4. Run tests: `pnpm test:e2e`
+
+For CI/CD setup, see the [E2E Setup Guide](./E2E_SETUP.md) for instructions on adding GitHub Secrets.
 
 ---
 
