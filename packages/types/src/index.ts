@@ -298,6 +298,30 @@ export {
   type NPSSummaryStats,
   type NPSTrendPoint,
   type NPSDashboardData,
+
+  // Collections & Overdue Payments (M5)
+  InstallmentStatusSchema,
+  ReminderLevelSchema,
+  OverdueInstallmentSchema,
+  ReminderConfigSchema,
+  PaymentReminderPayloadSchema,
+  OverdueDetectionResultSchema,
+  PaymentReminderSentEventSchema,
+  CollectionEscalatedEventSchema,
+  determineReminderLevel,
+  getReminderTemplateName,
+  shouldSendReminder,
+  calculateLateFee,
+  formatCurrencyForReminder,
+  formatDateForReminder,
+  type InstallmentStatus,
+  type ReminderLevel,
+  type OverdueInstallment,
+  type ReminderConfig,
+  type PaymentReminderPayload,
+  type OverdueDetectionResult,
+  type PaymentReminderSentEvent,
+  type CollectionEscalatedEvent,
 } from './schemas/index.js';
 
 // =============================================================================
