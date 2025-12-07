@@ -33,12 +33,19 @@ import {
   Smile,
   Meh,
   Frown,
+  Loader2,
+  CheckCircle,
 } from 'lucide-react';
 import type { MonitoredCall } from '@medicalcor/types';
 import { cn } from '@/lib/utils';
 
 interface ActiveCallsListProps {
   calls: MonitoredCall[];
+  onStartMonitoring?: (callSid: string, mode: 'listen' | 'whisper' | 'barge') => Promise<boolean>;
+  onStopMonitoring?: () => Promise<boolean>;
+  onEndCall?: (callSid: string) => Promise<boolean>;
+  activeMonitoringCallSid?: string;
+  activeMonitoringMode?: 'listen' | 'whisper' | 'barge';
 }
 
 function formatDuration(seconds: number): string {
@@ -53,6 +60,8 @@ function getSentimentIcon(sentiment?: 'positive' | 'neutral' | 'negative') {
       return <Smile className="h-4 w-4 text-emerald-500" aria-label="Sentiment pozitiv" />;
     case 'negative':
       return <Frown className="h-4 w-4 text-destructive" aria-label="Sentiment negativ" />;
+    case 'neutral':
+    case undefined:
     default:
       return <Meh className="h-4 w-4 text-muted-foreground" aria-label="Sentiment neutru" />;
   }
@@ -66,6 +75,8 @@ function getUrgencyColor(urgency?: 'low' | 'medium' | 'high' | 'critical'): stri
       return 'border-l-4 border-l-amber-500';
     case 'medium':
       return 'border-l-4 border-l-yellow-400';
+    case 'low':
+    case undefined:
     default:
       return '';
   }
@@ -102,16 +113,14 @@ function CallItem({ call, onClick }: CallItemProps) {
           )}
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <p className="font-medium truncate">
-                {call.contactName || call.customerPhone}
-              </p>
+              <p className="font-medium truncate">{call.contactName ?? call.customerPhone}</p>
               {getSentimentIcon(call.sentiment)}
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               {isAI ? (
                 <span className="text-primary">AI Assistant</span>
               ) : (
-                <span>{call.agentName || 'Fără agent'}</span>
+                <span>{call.agentName ?? 'Fără agent'}</span>
               )}
               <span>•</span>
               <span className="flex items-center gap-1">
@@ -144,7 +153,10 @@ function CallItem({ call, onClick }: CallItemProps) {
             {hasFlags && (
               <div className="flex gap-0.5">
                 {call.flags.includes('escalation-requested') && (
-                  <AlertTriangle className="h-3 w-3 text-destructive" aria-label="Escaladare solicitată" />
+                  <AlertTriangle
+                    className="h-3 w-3 text-destructive"
+                    aria-label="Escaladare solicitată"
+                  />
                 )}
                 {call.flags.includes('high-value-lead') && (
                   <Flag className="h-3 w-3 text-primary" aria-label="Lead valoros" />
@@ -163,12 +175,81 @@ interface CallDetailSheetProps {
   call: MonitoredCall | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onStartMonitoring?: (callSid: string, mode: 'listen' | 'whisper' | 'barge') => Promise<boolean>;
+  onStopMonitoring?: () => Promise<boolean>;
+  onEndCall?: (callSid: string) => Promise<boolean>;
+  isMonitoring?: boolean;
+  monitoringMode?: 'listen' | 'whisper' | 'barge';
 }
 
-function CallDetailSheet({ call, open, onOpenChange }: CallDetailSheetProps) {
+function CallDetailSheet({
+  call,
+  open,
+  onOpenChange,
+  onStartMonitoring,
+  onStopMonitoring,
+  onEndCall,
+  isMonitoring,
+  monitoringMode,
+}: CallDetailSheetProps) {
+  const [loadingAction, setLoadingAction] = useState<string | null>(null);
+
   if (!call) return null;
 
   const isAI = Boolean(call.vapiCallId);
+
+  const handleListen = async () => {
+    if (!onStartMonitoring) return;
+    setLoadingAction('listen');
+    try {
+      await onStartMonitoring(call.callSid, 'listen');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const handleWhisper = async () => {
+    if (!onStartMonitoring) return;
+    setLoadingAction('whisper');
+    try {
+      await onStartMonitoring(call.callSid, 'whisper');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const handleBarge = async () => {
+    if (!onStartMonitoring) return;
+    setLoadingAction('barge');
+    try {
+      await onStartMonitoring(call.callSid, 'barge');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const handleEndCall = async () => {
+    if (!onEndCall) return;
+    setLoadingAction('end');
+    try {
+      const success = await onEndCall(call.callSid);
+      if (success) {
+        onOpenChange(false);
+      }
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const handleStopMonitoring = async () => {
+    if (!onStopMonitoring) return;
+    setLoadingAction('stop');
+    try {
+      await onStopMonitoring();
+    } finally {
+      setLoadingAction(null);
+    }
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -186,7 +267,7 @@ function CallDetailSheet({ call, open, onOpenChange }: CallDetailSheetProps) {
             )}
             <div>
               <SheetTitle className="flex items-center gap-2">
-                {call.contactName || call.customerPhone}
+                {call.contactName ?? call.customerPhone}
                 {getSentimentIcon(call.sentiment)}
               </SheetTitle>
               <SheetDescription>
@@ -205,14 +286,18 @@ function CallDetailSheet({ call, open, onOpenChange }: CallDetailSheetProps) {
             </div>
             <div className="rounded-lg bg-muted/50 p-3">
               <p className="text-xs text-muted-foreground">Direcție</p>
-              <p className="text-sm capitalize">{call.direction === 'inbound' ? 'Intrare' : 'Ieșire'}</p>
+              <p className="text-sm capitalize">
+                {call.direction === 'inbound' ? 'Intrare' : 'Ieșire'}
+              </p>
             </div>
             <div className="rounded-lg bg-muted/50 p-3">
               <p className="text-xs text-muted-foreground">Scor AI</p>
               <div className="flex items-center gap-2">
                 <p className="text-sm font-semibold">{call.aiScore ?? '-'}%</p>
                 {call.aiScore && call.aiScore < 60 && (
-                  <Badge variant="hot" className="text-[10px]">Low</Badge>
+                  <Badge variant="hot" className="text-[10px]">
+                    Low
+                  </Badge>
                 )}
               </div>
             </div>
@@ -244,23 +329,21 @@ function CallDetailSheet({ call, open, onOpenChange }: CallDetailSheetProps) {
             <div className="rounded-lg border border-amber-500/50 bg-amber-500/5 p-3">
               <p className="text-xs font-medium text-amber-600 mb-2">Alerte Active</p>
               <div className="flex flex-wrap gap-2">
-                {call.flags.map((flag) => (
-                  <Badge key={flag} variant="outline" className="text-xs">
-                    {flag === 'escalation-requested'
-                      ? 'Escaladare Solicitată'
-                      : flag === 'high-value-lead'
-                        ? 'Lead Valoros'
-                        : flag === 'complaint'
-                          ? 'Reclamație'
-                          : flag === 'long-hold'
-                            ? 'Așteptare Lungă'
-                            : flag === 'silence-detected'
-                              ? 'Tăcere Detectată'
-                              : flag === 'ai-handoff-needed'
-                                ? 'Necesită Transfer'
-                                : flag}
-                  </Badge>
-                ))}
+                {call.flags.map((flag) => {
+                  const flagLabels: Record<string, string> = {
+                    'escalation-requested': 'Escaladare Solicitată',
+                    'high-value-lead': 'Lead Valoros',
+                    complaint: 'Reclamație',
+                    'long-hold': 'Așteptare Lungă',
+                    'silence-detected': 'Tăcere Detectată',
+                    'ai-handoff-needed': 'Necesită Transfer',
+                  };
+                  return (
+                    <Badge key={flag} variant="outline" className="text-xs">
+                      {flagLabels[flag] ?? flag}
+                    </Badge>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -299,23 +382,83 @@ function CallDetailSheet({ call, open, onOpenChange }: CallDetailSheetProps) {
 
         {/* Action buttons - sticky at bottom */}
         <div className="absolute bottom-0 left-0 right-0 border-t bg-background p-4 space-y-3">
+          {isMonitoring && (
+            <div className="flex items-center justify-between p-2 rounded-lg bg-primary/10 mb-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">
+                  {monitoringMode === 'listen' && 'Ascultând apelul'}
+                  {monitoringMode === 'whisper' && 'Mod șoaptă activ'}
+                  {monitoringMode === 'barge' && 'În apel'}
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleStopMonitoring}
+                disabled={loadingAction === 'stop'}
+              >
+                {loadingAction === 'stop' ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  'Oprește'
+                )}
+              </Button>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" className="gap-2">
-              <Ear className="h-4 w-4" />
+            <Button
+              variant={isMonitoring && monitoringMode === 'listen' ? 'default' : 'outline'}
+              className="gap-2"
+              onClick={handleListen}
+              disabled={loadingAction !== null || (isMonitoring && monitoringMode === 'listen')}
+            >
+              {loadingAction === 'listen' ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Ear className="h-4 w-4" />
+              )}
               Ascultă
             </Button>
-            <Button variant="outline" className="gap-2">
-              <MessageSquare className="h-4 w-4" />
+            <Button
+              variant={isMonitoring && monitoringMode === 'whisper' ? 'default' : 'outline'}
+              className="gap-2"
+              onClick={handleWhisper}
+              disabled={loadingAction !== null || (isMonitoring && monitoringMode === 'whisper')}
+            >
+              {loadingAction === 'whisper' ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <MessageSquare className="h-4 w-4" />
+              )}
               Șoptește
             </Button>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <Button variant="default" className="gap-2">
-              <PhoneForwarded className="h-4 w-4" />
+            <Button
+              variant={isMonitoring && monitoringMode === 'barge' ? 'secondary' : 'default'}
+              className="gap-2"
+              onClick={handleBarge}
+              disabled={loadingAction !== null || (isMonitoring && monitoringMode === 'barge')}
+            >
+              {loadingAction === 'barge' ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <PhoneForwarded className="h-4 w-4" />
+              )}
               Intră în Apel
             </Button>
-            <Button variant="destructive" className="gap-2">
-              <PhoneOff className="h-4 w-4" />
+            <Button
+              variant="destructive"
+              className="gap-2"
+              onClick={handleEndCall}
+              disabled={loadingAction !== null}
+            >
+              {loadingAction === 'end' ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <PhoneOff className="h-4 w-4" />
+              )}
               Încheie
             </Button>
           </div>
@@ -325,7 +468,14 @@ function CallDetailSheet({ call, open, onOpenChange }: CallDetailSheetProps) {
   );
 }
 
-export function ActiveCallsList({ calls }: ActiveCallsListProps) {
+export function ActiveCallsList({
+  calls,
+  onStartMonitoring,
+  onStopMonitoring,
+  onEndCall,
+  activeMonitoringCallSid,
+  activeMonitoringMode,
+}: ActiveCallsListProps) {
   const [selectedCall, setSelectedCall] = useState<MonitoredCall | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -350,6 +500,9 @@ export function ActiveCallsList({ calls }: ActiveCallsListProps) {
     return b.duration - a.duration;
   });
 
+  // Check if the selected call is being monitored
+  const isSelectedCallMonitored = selectedCall?.callSid === activeMonitoringCallSid;
+
   return (
     <>
       <Card>
@@ -362,6 +515,12 @@ export function ActiveCallsList({ calls }: ActiveCallsListProps) {
                 {calls.length}
               </Badge>
             </CardTitle>
+            {activeMonitoringCallSid && (
+              <Badge variant="default" className="gap-1">
+                <Ear className="h-3 w-3" />
+                Monitorizare activă
+              </Badge>
+            )}
           </div>
         </CardHeader>
         <CardContent className="p-3 pt-0">
@@ -374,11 +533,7 @@ export function ActiveCallsList({ calls }: ActiveCallsListProps) {
           ) : (
             <div className="space-y-2">
               {sortedCalls.map((call) => (
-                <CallItem
-                  key={call.callSid}
-                  call={call}
-                  onClick={() => handleCallClick(call)}
-                />
+                <CallItem key={call.callSid} call={call} onClick={() => handleCallClick(call)} />
               ))}
             </div>
           )}
@@ -389,6 +544,11 @@ export function ActiveCallsList({ calls }: ActiveCallsListProps) {
         call={selectedCall}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
+        onStartMonitoring={onStartMonitoring}
+        onStopMonitoring={onStopMonitoring}
+        onEndCall={onEndCall}
+        isMonitoring={isSelectedCallMonitored}
+        monitoringMode={isSelectedCallMonitored ? activeMonitoringMode : undefined}
       />
     </>
   );
