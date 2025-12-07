@@ -74,6 +74,12 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  console.error('Fatal error during startup:', error);
+  // Use structured logger if available, fallback to console.error only if logger fails
+  try {
+    logger.fatal({ err: error }, 'Fatal error during startup');
+  } catch {
+    // Logger failed - use console.error as last resort (allowed by eslint config)
+    console.error('Fatal error during startup (logger unavailable):', error);
+  }
   process.exit(1);
 });
