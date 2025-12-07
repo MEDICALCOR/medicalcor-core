@@ -456,6 +456,9 @@ importers:
       '@medicalcor/domain':
         specifier: workspace:*
         version: link:../domain
+      '@medicalcor/types':
+        specifier: workspace:*
+        version: link:../types
       zod:
         specifier: ^3.23.8
         version: 3.25.76
@@ -619,6 +622,9 @@ importers:
       '@medicalcor/integrations':
         specifier: workspace:*
         version: link:../integrations
+      '@medicalcor/types':
+        specifier: workspace:*
+        version: link:../types
       '@supabase/supabase-js':
         specifier: ^2.86.2
         version: 2.86.2

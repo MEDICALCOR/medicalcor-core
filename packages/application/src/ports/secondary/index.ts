@@ -12,3 +12,6 @@ export * from './messaging/EventPublisher.js';
 
 // External service ports
 export * from './external/AuditService.js';
+
+// Persistence ports
+export * from './persistence/index.js';

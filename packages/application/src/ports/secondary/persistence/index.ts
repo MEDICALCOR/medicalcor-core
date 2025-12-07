@@ -1,0 +1,10 @@
+/**
+ * @fileoverview Persistence Ports Index
+ *
+ * Exports all persistence-related secondary ports for the hexagonal architecture.
+ * These ports define what the application needs from data persistence infrastructure.
+ *
+ * @module application/ports/secondary/persistence
+ */
+
+export * from './CaseRepository.js';
