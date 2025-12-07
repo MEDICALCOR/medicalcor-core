@@ -2,8 +2,8 @@
 
 Comprehensive operational runbooks for MedicalCor Core platform operations, incident response, and troubleshooting.
 
-**Version:** 1.0
-**Last Updated:** December 2024
+**Version:** 1.1
+**Last Updated:** December 2025
 **Owner:** Platform Team
 
 ---
@@ -17,6 +17,7 @@ Comprehensive operational runbooks for MedicalCor Core platform operations, inci
 | [Rollback](./ROLLBACK.md) | Service and database rollback procedures | On-call, DevOps |
 | [On-Call](./ON_CALL.md) | On-call responsibilities, handoff, and procedures | On-call Engineers |
 | [Common Issues](./COMMON_ISSUES.md) | Troubleshooting guide for frequent issues | All Engineers |
+| [Partition Maintenance](./PARTITION_MAINTENANCE.md) | Database partition creation, monitoring, and archival | DevOps, DBA |
 
 ---
 
@@ -140,3 +141,4 @@ gcloud run services update-traffic medicalcor-api --to-revisions=PREV_REVISION=1
 | Date | Version | Author | Changes |
 |------|---------|--------|---------|
 | 2024-12 | 1.0 | Platform Team | Initial runbook creation |
+| 2025-12 | 1.1 | Platform Team | Added Partition Maintenance runbook |
