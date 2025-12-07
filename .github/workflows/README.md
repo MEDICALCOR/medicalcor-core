@@ -211,6 +211,10 @@ These are automatically provided by `${{ secrets.GITHUB_TOKEN }}`.
 #### Invalid YAML
 ❌ **Fails with parse error** - Validate YAML syntax:
 ```bash
+# Replace 'your-backlog.yml' with your actual filename
+python -c "import yaml; yaml.safe_load(open('your-backlog.yml'))"
+
+# Example with BACKLOG_IMPORT.yml
 python -c "import yaml; yaml.safe_load(open('BACKLOG_IMPORT.yml'))"
 ```
 
