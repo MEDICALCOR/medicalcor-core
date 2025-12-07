@@ -140,15 +140,18 @@ fi
 
 # Copy .claude directory using rsync or cp
 info "Copying .claude configuration..."
+EXCLUDE_PATTERNS=('.DS_Store' '*.log')
 if command -v rsync >/dev/null 2>&1; then
   info "Using rsync for efficient copying"
   rsync -a --exclude='.DS_Store' --exclude='*.log' "$FROM_DIR/" "$TARGET_CLAUDE/"
 else
   info "Using cp -a (rsync not available)"
-  cp -a "$FROM_DIR" "$TARGET_CLAUDE"
-  # Clean up common cruft
-  find "$TARGET_CLAUDE" -name '.DS_Store' -delete 2>/dev/null || true
-  find "$TARGET_CLAUDE" -name '*.log' -delete 2>/dev/null || true
+  # Create target directory first
+  mkdir -p "$TARGET_CLAUDE"
+  # Copy contents (not the directory itself)
+  cp -a "$FROM_DIR/." "$TARGET_CLAUDE/"
+  # Clean up common cruft in one pass
+  find "$TARGET_CLAUDE" \( -name '.DS_Store' -o -name '*.log' \) -delete 2>/dev/null || true
 fi
 
 # Make TOON binaries executable if present
