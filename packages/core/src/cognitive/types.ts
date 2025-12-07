@@ -645,3 +645,151 @@ export interface DeduplicationRunSummary {
   /** Duration of the run in milliseconds */
   durationMs: number;
 }
+
+// =============================================================================
+// Real-Time Pattern Stream Types (L5: Stream Processing for Patterns)
+// =============================================================================
+
+/**
+ * Configuration for real-time pattern stream processing
+ */
+export interface RealtimePatternStreamConfig {
+  /** Enable real-time pattern updates */
+  enabled: boolean;
+
+  /** Minimum events before running incremental pattern detection */
+  minEventsForIncremental: number;
+
+  /** Maximum events to buffer before forcing pattern detection */
+  maxEventBufferSize: number;
+
+  /** Debounce window in milliseconds for batching rapid events */
+  debounceWindowMs: number;
+
+  /** Enable LLM patterns in real-time (expensive, usually disabled) */
+  enableRealtimeLLMPatterns: boolean;
+
+  /** Minimum confidence change to emit a pattern update event */
+  minConfidenceChangeThreshold: number;
+
+  /** Time window for incremental analysis (recent events only) */
+  incrementalWindowMs: number;
+}
+
+export const DEFAULT_REALTIME_STREAM_CONFIG: RealtimePatternStreamConfig = {
+  enabled: true,
+  minEventsForIncremental: 1,
+  maxEventBufferSize: 10,
+  debounceWindowMs: 1000,
+  enableRealtimeLLMPatterns: false,
+  minConfidenceChangeThreshold: 0.1,
+  incrementalWindowMs: 7 * 24 * 60 * 60 * 1000, // 7 days
+};
+
+/**
+ * Type of change in a pattern update
+ */
+export const PatternChangeTypeSchema = z.enum([
+  'created', // New pattern detected
+  'updated', // Existing pattern confidence/evidence changed
+  'strengthened', // Pattern confidence increased
+  'weakened', // Pattern confidence decreased
+  'removed', // Pattern no longer meets threshold
+]);
+export type PatternChangeType = z.infer<typeof PatternChangeTypeSchema>;
+
+/**
+ * Describes a change in a behavioral pattern
+ */
+export interface PatternDelta {
+  /** Type of change */
+  changeType: PatternChangeType;
+
+  /** The pattern type that changed */
+  patternType: string;
+
+  /** Previous confidence (null if new) */
+  previousConfidence: number | null;
+
+  /** New confidence (null if removed) */
+  newConfidence: number | null;
+
+  /** Events that triggered this change */
+  triggeringEventIds: string[];
+
+  /** Human-readable description of the change */
+  changeDescription: string;
+}
+
+/**
+ * Event emitted when patterns are updated in real-time
+ */
+export interface PatternUpdateEvent {
+  /** Unique event ID */
+  eventId: string;
+
+  /** Subject information */
+  subjectType: SubjectType;
+  subjectId: string;
+
+  /** Timestamp of the update */
+  timestamp: Date;
+
+  /** The episodic event that triggered this update */
+  triggeringEventId: string;
+
+  /** List of pattern changes */
+  deltas: PatternDelta[];
+
+  /** Current patterns after the update */
+  currentPatterns: BehavioralPattern[];
+
+  /** Processing metadata */
+  metadata: {
+    processingTimeMs: number;
+    isIncremental: boolean;
+    eventsAnalyzed: number;
+  };
+}
+
+/**
+ * Callback type for pattern update notifications
+ */
+export type PatternUpdateCallback = (event: PatternUpdateEvent) => void | Promise<void>;
+
+/**
+ * Stats for real-time pattern stream processing
+ */
+export interface RealtimePatternStats {
+  /** Total events processed */
+  totalEventsProcessed: number;
+
+  /** Total pattern updates emitted */
+  totalPatternUpdates: number;
+
+  /** Events currently buffered */
+  bufferedEventCount: number;
+
+  /** Subjects currently being tracked */
+  activeSubjects: number;
+
+  /** Average processing time in ms */
+  avgProcessingTimeMs: number;
+
+  /** Pattern changes by type */
+  changesByType: Record<PatternChangeType, number>;
+
+  /** Last update timestamp */
+  lastUpdateAt: Date | null;
+}
+
+/**
+ * Subject buffer for tracking events per subject
+ */
+export interface SubjectEventBuffer {
+  subjectType: SubjectType;
+  subjectId: string;
+  events: EpisodicEvent[];
+  lastFlushAt: Date | null;
+  pendingFlush: boolean;
+}
