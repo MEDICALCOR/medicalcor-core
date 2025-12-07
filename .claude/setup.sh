@@ -170,7 +170,7 @@ if [ -f "$TOON_BINARY" ]; then
 fi
 
 # Additional scripts that might need executable permissions
-find "$TARGET_CLAUDE" -type f -name '*.sh' -exec chmod +x {} \; 2>/dev/null || true
+find "$TARGET_CLAUDE" -type f -name '*.sh' -exec chmod +x {} + 2>/dev/null || true
 
 # Write settings.local.json
 SETTINGS_LOCAL="$TARGET_CLAUDE/settings.local.json"
@@ -242,7 +242,9 @@ if [ "$PULL_DOCS" = true ]; then
     info "Pulling documentation for: $DOCS_LIST"
     IFS=',' read -ra DOCS <<< "$DOCS_LIST"
     for doc in "${DOCS[@]}"; do
-      doc="$(echo "$doc" | xargs)" # trim whitespace
+      # Trim leading/trailing whitespace
+      doc="${doc#"${doc%%[![:space:]]*}"}"
+      doc="${doc%"${doc##*[![:space:]]}"}"
       case "$doc" in
         stripe)
           info "  Pulling Stripe documentation (this may take a while)..."
