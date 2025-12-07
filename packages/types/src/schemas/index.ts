@@ -660,6 +660,62 @@ export {
 } from './agent-presence.js';
 
 // =============================================================================
+// Revenue Forecasting Schemas
+// =============================================================================
+export {
+  // Method & Classification
+  ForecastMethodSchema,
+  ForecastConfidenceLevelSchema,
+  ForecastGranularitySchema,
+  RevenueTrendSchema,
+  // Historical Data
+  HistoricalRevenuePointSchema,
+  HistoricalRevenueInputSchema,
+  // Configuration
+  SeasonalFactorsSchema,
+  ForecastConfigSchema,
+  // Output
+  ForecastConfidenceIntervalSchema,
+  ForecastedRevenuePointSchema,
+  ModelFitStatisticsSchema,
+  TrendAnalysisSchema,
+  RevenueForecastOutputSchema,
+  // Request/Response
+  GenerateRevenueForecastRequestSchema,
+  RevenueForecastResponseSchema,
+  BatchRevenueForecastRequestSchema,
+  BatchRevenueForecastResultSchema,
+  // Analytics
+  ForecastAccuracyPointSchema,
+  ForecastAccuracyAnalysisSchema,
+  // Events
+  RevenueForecastGeneratedEventSchema,
+  RevenueGrowthDetectedEventSchema,
+  RevenueDeclineAlertEventSchema,
+  // Types
+  type ForecastMethod,
+  type ForecastConfidenceLevel,
+  type ForecastGranularity,
+  type RevenueTrend,
+  type HistoricalRevenuePoint,
+  type HistoricalRevenueInput,
+  type SeasonalFactors,
+  type ForecastConfig,
+  type ForecastConfidenceInterval,
+  type ForecastedRevenuePoint,
+  type ModelFitStatistics,
+  type TrendAnalysis,
+  type RevenueForecastOutput,
+  type GenerateRevenueForecastRequest,
+  type RevenueForecastResponse,
+  type BatchRevenueForecastRequest,
+  type BatchRevenueForecastResult,
+  type ForecastAccuracyPoint,
+  type ForecastAccuracyAnalysis,
+  type RevenueForecastGeneratedEvent,
+  type RevenueGrowthDetectedEvent,
+  type RevenueDeclineAlertEvent,
+} from './revenue-forecast.js';
 // Financing & Payment Plan Schemas (L2 Feature)
 // =============================================================================
 export {
