@@ -296,8 +296,142 @@ See `.env.example` for full list with descriptions.
 |----------|------|
 | Architecture | `docs/ARCHITECTURE.md` |
 | ADRs | `docs/adr/` |
+| Cognitive Memory | `docs/adr/004-cognitive-episodic-memory.md` |
+| OSAX Specification | `docs/SPEC_OSAX_V3.2_MULTIMODAL.md` |
+| Workflows (Trigger.dev) | `docs/README/WORKFLOWS.md` |
 | API Reference | `docs/README/API_REFERENCE.md` |
-| Security | `docs/README/SECURITY.md` |
+| Security | `docs/SECURITY.md` |
 | Testing | `docs/README/TESTING.md` |
 | Deployment | `docs/README/DEPLOYMENT.md` |
 | Contributing | `docs/CONTRIBUTING.md` |
+| Claude Code Rules | `docs/PROJECT_RULES_CLAUDE.md` |
+
+---
+
+## Change Classification (Quality Gates)
+
+Before making changes, classify them:
+
+| Type | Examples | Requirements |
+|------|----------|--------------|
+| **FAST** (safe) | Bug fixes, tests, docs, UI tweaks | Direct commit to feature branch |
+| **SLOW** (needs review) | New domain services, new integrations, schema changes | Requires ADR or RFC discussion |
+| **BLOCKED** (forbidden) | Direct `main` push, migration drops, security bypasses | Never proceed without explicit approval |
+
+### SLOW changes require ADR when:
+- Adding new bounded context or aggregate
+- Changing database schema (especially drops/renames)
+- Adding new external service integration
+- Modifying authentication/authorization logic
+- Changes to `packages/core/src/cognitive/` (episodic memory)
+
+## Layer Boundaries & Refactoring Rules
+
+### Forbidden in Domain Layer (`packages/domain/`)
+```typescript
+// NEVER import these in domain:
+import { Pool } from 'pg';           // ❌ Infrastructure
+import { OpenAI } from 'openai';     // ❌ External SDK
+import { FastifyRequest } from 'fastify'; // ❌ HTTP framework
+import { createClient } from '@supabase/supabase-js'; // ❌ Adapter
+```
+
+### Allowed Refactoring Zones
+| Zone | Refactoring Allowed | Notes |
+|------|---------------------|-------|
+| `apps/web/src/components/` | Yes | UI components, keep Storybook updated |
+| `packages/domain/src/` | Careful | Pure logic only, no infra leaks |
+| `packages/infrastructure/` | Yes | Adapter implementations |
+| `packages/core/src/cognitive/` | **ADR Required** | Critical AI memory system |
+| `db/migrations/` | **Never modify existing** | Only add new migrations |
+
+### Detecting Layer Violations
+Before committing, verify:
+```bash
+# Check domain doesn't import infrastructure
+pnpm --filter @medicalcor/domain build  # Should pass with no external deps
+pnpm lint                                # ESLint catches import violations
+```
+
+## Migration Safety Rules
+
+### Never
+- Modify or delete existing migration files
+- Use `DROP COLUMN` or `DROP TABLE` without explicit approval
+- Add `NOT NULL` columns without defaults to existing tables
+
+### Always
+- Name migrations: `YYYYMMDDHHMM_description.sql`
+- Make migrations idempotent (use `IF NOT EXISTS`, `IF EXISTS`)
+- Test rollback: `pnpm db:migrate` then `pnpm db:reset`
+- Add indexes concurrently for large tables: `CREATE INDEX CONCURRENTLY`
+
+## Medical Compliance Rules (HIPAA/GDPR)
+
+When writing code that handles patient/lead data:
+
+### PII Handling
+```typescript
+// ✅ Correct - use structured logger with auto-redaction
+logger.info({ phone: patient.phone }, 'Processing patient');
+
+// ❌ Wrong - raw console.log exposes PII
+console.log(`Processing patient ${patient.phone}`);
+```
+
+### PHI in Code
+- Never hardcode phone numbers, emails, or names in tests (use faker)
+- Never log message content without redaction
+- Never store raw PII in error messages or stack traces
+
+### Consent Checks
+Before any outbound communication:
+```typescript
+// Always verify consent before messaging
+const hasConsent = await consentService.hasValidConsent(leadId, 'marketing');
+if (!hasConsent) {
+  logger.warn({ leadId }, 'Skipping message - no valid consent');
+  return;
+}
+```
+
+## Cognitive Memory System
+
+The episodic memory system (`packages/core/src/cognitive/`) is critical infrastructure.
+
+**See**: `docs/adr/004-cognitive-episodic-memory.md` for full architecture.
+
+### Key Components
+| Component | Purpose |
+|-----------|---------|
+| `episode-builder.ts` | Processes events into episodic memories |
+| `memory-retrieval.ts` | Semantic + temporal queries |
+| `pattern-detector.ts` | Behavioral pattern recognition |
+| `knowledge-graph.ts` | Entity relationships |
+| `gdpr-erasure.ts` | GDPR right-to-erasure implementation |
+
+### Rules for Cognitive System
+- Never modify embedding dimensions without migration plan
+- Never delete episodic events (use soft delete for GDPR)
+- Always include `correlationId` when creating episodes
+- Pattern detection runs async via Trigger.dev, never in request path
+
+## Workflow Development
+
+**See**: `docs/README/WORKFLOWS.md` for Trigger.dev patterns.
+
+### Adding a New Workflow
+1. Define task in `apps/trigger/src/tasks/`
+2. Create workflow in `apps/trigger/src/workflows/`
+3. Add Zod schema for payload validation
+4. Configure retry policy (default: 3 attempts, exponential backoff)
+5. Add to cron schedule if recurring (`apps/trigger/src/jobs/`)
+
+### Workflow Idempotency
+All workflows must be idempotent:
+```typescript
+// Use idempotency key to prevent duplicate processing
+const idempotencyKey = `${taskName}:${payload.id}:${payload.timestamp}`;
+const existing = await redis.get(idempotencyKey);
+if (existing) return { skipped: true };
+```
