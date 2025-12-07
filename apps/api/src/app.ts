@@ -24,7 +24,10 @@ import {
   loadTestingRoutes,
   rlsTestRoutes,
   apiDocsRoutes,
+  createCognitiveRoutes,
 } from './routes/index.js';
+import { Pool } from 'pg';
+import { createOpenAIClient, createEmbeddingService } from '@medicalcor/integrations';
 import { chatgptPluginRoutes } from './routes/chatgpt-plugin.js';
 import { instrumentFastify } from '@medicalcor/core/observability/instrumentation';
 import { rateLimitPlugin, type RateLimitConfig } from './plugins/rate-limit.js';
@@ -360,6 +363,8 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
       '/backup',
       // GDPR endpoints require authentication (contains PII export/deletion functionality)
       '/gdpr',
+      // Cognitive endpoints expose behavioral insights and patterns (contains PII)
+      '/cognitive',
     ],
   });
 
@@ -421,6 +426,29 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
   await fastify.register(loadTestingRoutes);
   await fastify.register(rlsTestRoutes);
   await fastify.register(apiDocsRoutes);
+
+  // Cognitive routes - requires database and OpenAI dependencies
+  // Only register if required environment variables are present
+  if (process.env.DATABASE_URL && process.env.OPENAI_API_KEY) {
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    // Type assertions needed as integrations package returns compatible interfaces
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    const openai = createOpenAIClient({ apiKey: process.env.OPENAI_API_KEY }) as unknown;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    const embeddings = createEmbeddingService({ apiKey: process.env.OPENAI_API_KEY }) as unknown;
+
+    const cognitiveRoutes = createCognitiveRoutes({
+      pool,
+
+      openai: openai as Parameters<typeof createCognitiveRoutes>[0]['openai'],
+
+      embeddings: embeddings as Parameters<typeof createCognitiveRoutes>[0]['embeddings'],
+    });
+    await fastify.register(cognitiveRoutes);
+    logger.info('Cognitive routes registered');
+  } else {
+    logger.warn('Cognitive routes not registered - DATABASE_URL or OPENAI_API_KEY not configured');
+  }
 
   // Global error handler
   fastify.setErrorHandler((error, request, reply) => {

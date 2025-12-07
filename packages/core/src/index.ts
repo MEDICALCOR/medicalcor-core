@@ -678,6 +678,8 @@ export {
   createEpisodeBuilder,
   MemoryRetrievalService,
   createMemoryRetrievalService,
+  PatternDetector,
+  createPatternDetector,
   // Configuration
   DEFAULT_COGNITIVE_CONFIG,
   // Schemas

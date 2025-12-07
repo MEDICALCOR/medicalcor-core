@@ -1,6 +1,7 @@
 /**
  * Skill-Based Routing Module
  * H6 Milestone: Intelligent Agent Routing
+ * M7 Milestone: Round-Robin Agent Assignment
  *
  * Exports routing service, repositories, commands, and utilities
  */
@@ -12,7 +13,26 @@ export {
   type RoutingRuleRepository,
   type RoutingQueue,
   type RoutingContext,
+  type QueuedTaskInfo,
 } from './skill-routing-service.js';
+
+// Round-Robin Agent Assignment (M7)
+export {
+  RoundRobinAssignmentService,
+  createRoundRobinAssignmentService,
+  InMemoryRoundRobinStateRepository,
+  InMemoryAssignableAgentRepository,
+  type AssignableAgent,
+  type LeadForAssignment,
+  type AssignmentDecision,
+  type ConsideredAgent,
+  type RoundRobinState,
+  type AssignmentStats,
+  type RoundRobinAssignmentConfig,
+  type RoundRobinStateRepository,
+  type AssignableAgentRepository,
+  type AgentAssignmentStatus,
+} from './round-robin-assignment-service.js';
 
 export {
   InMemoryAgentRepository,

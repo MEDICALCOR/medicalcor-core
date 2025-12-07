@@ -28,6 +28,19 @@
  *   semanticQuery: 'appointment scheduling',
  *   limit: 5,
  * });
+ *
+ * // Paginated query for large result sets
+ * const page1 = await cognitive.memoryRetrieval.queryPaginated({
+ *   subjectId: leadId,
+ *   pageSize: 20,
+ * });
+ * if (page1.hasMore) {
+ *   const page2 = await cognitive.memoryRetrieval.queryPaginated({
+ *     subjectId: leadId,
+ *     pageSize: 20,
+ *     cursor: page1.nextCursor,
+ *   });
+ * }
  * ```
  */
 
@@ -51,6 +64,8 @@ export {
   CreateEpisodicEventSchema,
   BehavioralPatternSchema,
   MemoryQuerySchema,
+  PaginationCursorDataSchema,
+  PaginatedMemoryQuerySchema,
   CognitiveInsightSchema,
 
   // Configuration
@@ -70,6 +85,9 @@ export {
   type CreateEpisodicEvent,
   type BehavioralPattern,
   type MemoryQuery,
+  type PaginatedMemoryQuery,
+  type PaginatedResult,
+  type PaginationCursorData,
   type SubjectMemorySummary,
   type CognitiveInsight,
   type CognitiveInsightWithEvents,
@@ -113,7 +131,12 @@ export {
   // The interface is compatible and can be used with cognitive services
 } from './episode-builder.js';
 
-export { MemoryRetrievalService, createMemoryRetrievalService } from './memory-retrieval.js';
+export {
+  MemoryRetrievalService,
+  createMemoryRetrievalService,
+  encodeCursor,
+  decodeCursor,
+} from './memory-retrieval.js';
 
 // GDPR Erasure Service (H4 Production Fix)
 export {

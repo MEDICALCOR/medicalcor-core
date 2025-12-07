@@ -786,3 +786,65 @@ export {
   type LoadTestTimeRange,
   type LoadTestQuery,
 } from './load-testing.schema.js';
+
+// =============================================================================
+// Agent Presence Schemas (M2 - WebSocket Presence)
+// =============================================================================
+export {
+  // Status & Reason
+  AgentPresenceStatusSchema,
+  PresenceChangeReasonSchema,
+  // Agent State
+  AgentPresenceSchema,
+  // Heartbeat
+  HeartbeatConfigSchema,
+  HeartbeatMessageSchema,
+  HeartbeatAckSchema,
+  // Event Types
+  PresenceEventTypeSchema,
+  PresenceEventBaseSchema,
+  // Connection Events
+  PresenceConnectEventSchema,
+  PresenceConnectedEventSchema,
+  PresenceDisconnectEventSchema,
+  PresenceDisconnectedEventSchema,
+  // Status Events
+  PresenceStatusChangeEventSchema,
+  // Heartbeat Events
+  PresenceHeartbeatEventSchema,
+  PresenceHeartbeatAckEventSchema,
+  // Query Events
+  PresenceQueryEventSchema,
+  PresenceQueryResponseEventSchema,
+  // Bulk Events
+  PresenceBulkUpdateEventSchema,
+  PresenceRosterEventSchema,
+  // Union Event
+  PresenceEventSchema,
+  // Metrics
+  AgentPresenceMetricsSchema,
+  TeamPresenceSummarySchema,
+  // Types
+  type AgentPresenceStatus,
+  type PresenceChangeReason,
+  type AgentPresence,
+  type HeartbeatConfig,
+  type HeartbeatMessage,
+  type HeartbeatAck,
+  type PresenceEventType,
+  type PresenceEventBase,
+  type PresenceConnectEvent,
+  type PresenceConnectedEvent,
+  type PresenceDisconnectEvent,
+  type PresenceDisconnectedEvent,
+  type PresenceStatusChangeEvent,
+  type PresenceHeartbeatEvent,
+  type PresenceHeartbeatAckEvent,
+  type PresenceQueryEvent,
+  type PresenceQueryResponseEvent,
+  type PresenceBulkUpdateEvent,
+  type PresenceRosterEvent,
+  type PresenceEvent,
+  type AgentPresenceMetrics,
+  type TeamPresenceSummary,
+} from './schemas/agent-presence.js';

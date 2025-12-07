@@ -1076,4 +1076,418 @@ describe('InMemoryRoutingQueue', () => {
     const waitTime = await queue.getEstimatedWaitTime('default');
     expect(waitTime).toBe(240); // 2 tasks * 120 seconds
   });
+
+  it('should get all queue IDs', async () => {
+    const requirements: TaskSkillRequirements = {
+      requiredSkills: [],
+      preferredSkills: [],
+      preferredLanguages: [],
+      excludeAgentIds: [],
+      preferAgentIds: [],
+      priority: 50,
+    };
+
+    await queue.enqueue('task-1', requirements, 50);
+    await queue.enqueue('task-2', { ...requirements, teamId: 'team-a' }, 50);
+
+    const queueIds = queue.getQueueIds();
+    expect(queueIds).toContain('default');
+    expect(queueIds).toContain('team-a');
+  });
+
+  it('should get queued tasks with requirements', () => {
+    const requirements: TaskSkillRequirements = {
+      requiredSkills: [
+        {
+          skillId: STANDARD_SKILLS.IMPLANTS.skillId,
+          matchType: 'required',
+          minimumProficiency: 'intermediate',
+          weight: 50,
+        },
+      ],
+      preferredSkills: [],
+      preferredLanguages: [],
+      excludeAgentIds: [],
+      preferAgentIds: [],
+      priority: 50,
+    };
+
+    queue.enqueue('task-1', requirements, 75);
+    queue.enqueue('task-2', requirements, 50);
+
+    const tasks = queue.getQueuedTasks('default');
+    expect(tasks).toHaveLength(2);
+    expect(tasks[0]?.taskId).toBe('task-1'); // Higher priority first
+    expect(tasks[0]?.requirements).toEqual(requirements);
+    expect(tasks[1]?.taskId).toBe('task-2');
+  });
+
+  it('should remove specific task from queue', async () => {
+    const requirements: TaskSkillRequirements = {
+      requiredSkills: [],
+      preferredSkills: [],
+      preferredLanguages: [],
+      excludeAgentIds: [],
+      preferAgentIds: [],
+      priority: 50,
+    };
+
+    await queue.enqueue('task-1', requirements, 50);
+    await queue.enqueue('task-2', requirements, 50);
+    await queue.enqueue('task-3', requirements, 50);
+
+    const removed = await queue.removeTask('task-2');
+    expect(removed).toBe(true);
+
+    const tasks = queue.getQueuedTasks('default');
+    expect(tasks).toHaveLength(2);
+    expect(tasks.find(t => t.taskId === 'task-2')).toBeUndefined();
+  });
+});
+
+describe('Round-Robin Strategy', () => {
+  let agentRepo: InMemoryAgentRepository;
+  let routingService: SkillRoutingService;
+
+  beforeEach(() => {
+    agentRepo = new InMemoryAgentRepository();
+    routingService = new SkillRoutingService({
+      agentRepository: agentRepo,
+      config: { defaultStrategy: 'round_robin' },
+    });
+  });
+
+  it('should rotate between agents on consecutive calls', async () => {
+    // Create 3 agents with identical skills
+    const agents = ['agent-a', 'agent-b', 'agent-c'].map(id =>
+      createTestAgent({
+        agentId: id,
+        name: `Agent ${id}`,
+        skills: [createTestSkill(id, STANDARD_SKILLS.GENERAL_DENTISTRY.skillId, 'intermediate')],
+      })
+    );
+    agents.forEach(agent => agentRepo.addAgent(agent));
+
+    const requirements: TaskSkillRequirements = {
+      requiredSkills: [],
+      preferredSkills: [],
+      preferredLanguages: [],
+      excludeAgentIds: [],
+      preferAgentIds: [],
+      priority: 50,
+    };
+
+    const selectedAgents: string[] = [];
+
+    // Make multiple routing calls
+    for (let i = 0; i < 6; i++) {
+      const decision = await routingService.route(requirements);
+      expect(decision.outcome).toBe('routed');
+      selectedAgents.push(decision.selectedAgentId!);
+    }
+
+    // Should have cycled through all agents at least once
+    expect(selectedAgents).toContain('agent-a');
+    expect(selectedAgents).toContain('agent-b');
+    expect(selectedAgents).toContain('agent-c');
+
+    // Verify rotation pattern (each agent should appear twice in 6 calls)
+    const counts = selectedAgents.reduce((acc, id) => {
+      acc[id] = (acc[id] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    expect(counts['agent-a']).toBe(2);
+    expect(counts['agent-b']).toBe(2);
+    expect(counts['agent-c']).toBe(2);
+  });
+
+  it('should maintain separate round-robin state per team', async () => {
+    const teamAAgents = ['team-a-1', 'team-a-2'].map(id =>
+      createTestAgent({
+        agentId: id,
+        name: `Agent ${id}`,
+        teamId: 'team-a',
+        skills: [createTestSkill(id, STANDARD_SKILLS.GENERAL_DENTISTRY.skillId, 'intermediate')],
+      })
+    );
+    const teamBAgents = ['team-b-1', 'team-b-2'].map(id =>
+      createTestAgent({
+        agentId: id,
+        name: `Agent ${id}`,
+        teamId: 'team-b',
+        skills: [createTestSkill(id, STANDARD_SKILLS.GENERAL_DENTISTRY.skillId, 'intermediate')],
+      })
+    );
+    [...teamAAgents, ...teamBAgents].forEach(agent => agentRepo.addAgent(agent));
+
+    const teamARequirements: TaskSkillRequirements = {
+      requiredSkills: [],
+      preferredSkills: [],
+      preferredLanguages: [],
+      excludeAgentIds: [],
+      preferAgentIds: [],
+      teamId: 'team-a',
+      priority: 50,
+    };
+    const teamBRequirements: TaskSkillRequirements = {
+      ...teamARequirements,
+      teamId: 'team-b',
+    };
+
+    // Route to team A twice
+    const decisionA1 = await routingService.route(teamARequirements);
+    const decisionA2 = await routingService.route(teamARequirements);
+
+    // Route to team B twice
+    const decisionB1 = await routingService.route(teamBRequirements);
+    const decisionB2 = await routingService.route(teamBRequirements);
+
+    // Team A should have rotated between its agents
+    expect(decisionA1.selectedAgentId).not.toBe(decisionA2.selectedAgentId);
+    expect(['team-a-1', 'team-a-2']).toContain(decisionA1.selectedAgentId);
+    expect(['team-a-1', 'team-a-2']).toContain(decisionA2.selectedAgentId);
+
+    // Team B should have rotated between its agents
+    expect(decisionB1.selectedAgentId).not.toBe(decisionB2.selectedAgentId);
+    expect(['team-b-1', 'team-b-2']).toContain(decisionB1.selectedAgentId);
+    expect(['team-b-1', 'team-b-2']).toContain(decisionB2.selectedAgentId);
+  });
+
+  it('should reset round-robin state', async () => {
+    const agents = ['agent-1', 'agent-2'].map(id =>
+      createTestAgent({
+        agentId: id,
+        name: `Agent ${id}`,
+        skills: [createTestSkill(id, STANDARD_SKILLS.GENERAL_DENTISTRY.skillId, 'intermediate')],
+      })
+    );
+    agents.forEach(agent => agentRepo.addAgent(agent));
+
+    const requirements: TaskSkillRequirements = {
+      requiredSkills: [],
+      preferredSkills: [],
+      preferredLanguages: [],
+      excludeAgentIds: [],
+      preferAgentIds: [],
+      priority: 50,
+    };
+
+    const firstCall = await routingService.route(requirements);
+    routingService.resetRoundRobinState();
+    const afterReset = await routingService.route(requirements);
+
+    // After reset, should start from the beginning (same agent as first call)
+    expect(afterReset.selectedAgentId).toBe(firstCall.selectedAgentId);
+  });
+});
+
+describe('Queue Processing - Agent Availability', () => {
+  let agentRepo: InMemoryAgentRepository;
+  let queue: InMemoryRoutingQueue;
+  let routingService: SkillRoutingService;
+
+  beforeEach(() => {
+    agentRepo = new InMemoryAgentRepository();
+    queue = new InMemoryRoutingQueue();
+    routingService = new SkillRoutingService({
+      agentRepository: agentRepo,
+      queue,
+    });
+  });
+
+  it('should process queued tasks when agent becomes available', async () => {
+    // Add agent that was unavailable
+    const agent = createTestAgent({
+      agentId: 'agent-1',
+      name: 'Available Agent',
+      availability: 'available',
+      skills: [createTestSkill('agent-1', STANDARD_SKILLS.IMPLANTS.skillId, 'advanced')],
+    });
+    agentRepo.addAgent(agent);
+
+    // Queue some tasks
+    const requirements: TaskSkillRequirements = {
+      requiredSkills: [
+        {
+          skillId: STANDARD_SKILLS.IMPLANTS.skillId,
+          matchType: 'required',
+          minimumProficiency: 'intermediate',
+          weight: 50,
+        },
+      ],
+      preferredSkills: [],
+      preferredLanguages: [],
+      excludeAgentIds: [],
+      preferAgentIds: [],
+      priority: 50,
+    };
+
+    await queue.enqueue('queued-task-1', requirements, 75);
+    await queue.enqueue('queued-task-2', requirements, 50);
+
+    // Process queue for the agent
+    const decisions = await routingService.processQueueForAgent('agent-1');
+
+    expect(decisions).toHaveLength(2);
+    expect(decisions[0]?.taskId).toBe('queued-task-1'); // Higher priority first
+    expect(decisions[0]?.selectedAgentId).toBe('agent-1');
+    expect(decisions[0]?.outcome).toBe('routed');
+    expect(decisions[0]?.waitTimeMs).toBeDefined();
+    expect(decisions[1]?.taskId).toBe('queued-task-2');
+
+    // Queue should be empty now
+    expect(queue.getQueuedTasks('default')).toHaveLength(0);
+  });
+
+  it('should respect agent capacity when processing queue', async () => {
+    const agent = createTestAgent({
+      agentId: 'agent-1',
+      name: 'Limited Agent',
+      availability: 'available',
+      currentTaskCount: 2,
+      maxConcurrentTasks: 3, // Only room for ~1 more task (80% threshold)
+      skills: [createTestSkill('agent-1', STANDARD_SKILLS.GENERAL_DENTISTRY.skillId, 'intermediate')],
+    });
+    agentRepo.addAgent(agent);
+
+    const requirements: TaskSkillRequirements = {
+      requiredSkills: [],
+      preferredSkills: [],
+      preferredLanguages: [],
+      excludeAgentIds: [],
+      preferAgentIds: [],
+      priority: 50,
+    };
+
+    // Queue multiple tasks
+    await queue.enqueue('task-1', requirements, 50);
+    await queue.enqueue('task-2', requirements, 50);
+    await queue.enqueue('task-3', requirements, 50);
+
+    const decisions = await routingService.processQueueForAgent('agent-1');
+
+    // Should only process up to capacity (maxConcurrentTasks * 0.8 - currentTaskCount = 3*0.8 - 2 = 0.4 rounded = 0)
+    // Actually agent is already at 2/3 which is 66%, so they have capacity for 80% - 66% = 14% more
+    // This means they're already over the 80% threshold
+    expect(decisions.length).toBeLessThanOrEqual(1);
+  });
+
+  it('should skip tasks that do not match agent skills', async () => {
+    const implantAgent = createTestAgent({
+      agentId: 'implant-specialist',
+      name: 'Implant Specialist',
+      availability: 'available',
+      skills: [createTestSkill('implant-specialist', STANDARD_SKILLS.IMPLANTS.skillId, 'expert')],
+    });
+    agentRepo.addAgent(implantAgent);
+
+    const implantRequirements: TaskSkillRequirements = {
+      requiredSkills: [
+        {
+          skillId: STANDARD_SKILLS.IMPLANTS.skillId,
+          matchType: 'required',
+          minimumProficiency: 'intermediate',
+          weight: 50,
+        },
+      ],
+      preferredSkills: [],
+      preferredLanguages: [],
+      excludeAgentIds: [],
+      preferAgentIds: [],
+      priority: 50,
+    };
+
+    const schedulingRequirements: TaskSkillRequirements = {
+      requiredSkills: [
+        {
+          skillId: STANDARD_SKILLS.SCHEDULING.skillId,
+          matchType: 'required',
+          minimumProficiency: 'advanced',
+          weight: 50,
+        },
+      ],
+      preferredSkills: [],
+      preferredLanguages: [],
+      excludeAgentIds: [],
+      preferAgentIds: [],
+      priority: 50,
+    };
+
+    await queue.enqueue('implant-task', implantRequirements, 50);
+    await queue.enqueue('scheduling-task', schedulingRequirements, 75);
+
+    const decisions = await routingService.processQueueForAgent('implant-specialist');
+
+    // Should only process the implant task, skip the scheduling task
+    expect(decisions).toHaveLength(1);
+    expect(decisions[0]?.taskId).toBe('implant-task');
+
+    // Scheduling task should still be in queue
+    const remainingTasks = queue.getQueuedTasks('default');
+    expect(remainingTasks).toHaveLength(1);
+    expect(remainingTasks[0]?.taskId).toBe('scheduling-task');
+  });
+
+  it('should return empty array when agent is not available', async () => {
+    const busyAgent = createTestAgent({
+      agentId: 'busy-agent',
+      name: 'Busy Agent',
+      availability: 'busy',
+      skills: [createTestSkill('busy-agent', STANDARD_SKILLS.GENERAL_DENTISTRY.skillId, 'intermediate')],
+    });
+    agentRepo.addAgent(busyAgent);
+
+    const requirements: TaskSkillRequirements = {
+      requiredSkills: [],
+      preferredSkills: [],
+      preferredLanguages: [],
+      excludeAgentIds: [],
+      preferAgentIds: [],
+      priority: 50,
+    };
+
+    await queue.enqueue('task-1', requirements, 50);
+
+    const decisions = await routingService.processQueueForAgent('busy-agent');
+
+    expect(decisions).toHaveLength(0);
+    // Task should still be in queue
+    expect(queue.getQueuedTasks('default')).toHaveLength(1);
+  });
+
+  it('should rebalance all queues across available agents', async () => {
+    const agents = [
+      createTestAgent({
+        agentId: 'agent-1',
+        name: 'Agent 1',
+        availability: 'available',
+        skills: [createTestSkill('agent-1', STANDARD_SKILLS.GENERAL_DENTISTRY.skillId, 'intermediate')],
+      }),
+      createTestAgent({
+        agentId: 'agent-2',
+        name: 'Agent 2',
+        availability: 'available',
+        skills: [createTestSkill('agent-2', STANDARD_SKILLS.GENERAL_DENTISTRY.skillId, 'intermediate')],
+      }),
+    ];
+    agents.forEach(agent => agentRepo.addAgent(agent));
+
+    const requirements: TaskSkillRequirements = {
+      requiredSkills: [],
+      preferredSkills: [],
+      preferredLanguages: [],
+      excludeAgentIds: [],
+      preferAgentIds: [],
+      priority: 50,
+    };
+
+    await queue.enqueue('task-1', requirements, 50);
+    await queue.enqueue('task-2', requirements, 50);
+
+    const decisions = await routingService.rebalanceQueues();
+
+    expect(decisions.length).toBeGreaterThanOrEqual(2);
+    expect(queue.getQueuedTasks('default')).toHaveLength(0);
+  });
 });
