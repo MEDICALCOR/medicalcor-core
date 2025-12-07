@@ -178,7 +178,9 @@ export class AuthService {
 
     if (!isValid) {
       // Increment failed attempts
-      const { attempts, lockedUntil } = await this.userRepo.incrementFailedAttempts(user.id);
+      const incrementResult = await this.userRepo.incrementFailedAttempts(user.id);
+      const attempts = incrementResult.isOk ? incrementResult.value.attempts : 0;
+      const lockedUntil = incrementResult.isOk ? incrementResult.value.lockedUntil : undefined;
 
       await this.attemptRepo.record({
         email,
@@ -234,13 +236,23 @@ export class AuthService {
     const tokenHash = createHash('sha256').update(sessionToken).digest('hex');
     const expiresAt = new Date(Date.now() + SESSION_CONFIG.durationHours * 60 * 60 * 1000);
 
-    const session = await this.sessionRepo.create({
+    const sessionResult = await this.sessionRepo.create({
       userId: user.id,
       tokenHash,
       ipAddress,
       userAgent,
       expiresAt,
     });
+
+    if (sessionResult.isErr) {
+      logger.error({ userId: user.id, error: sessionResult.error }, 'Failed to create session');
+      return {
+        success: false,
+        error: 'Failed to create session. Please try again.',
+      };
+    }
+
+    const session = sessionResult.value;
 
     // Record successful login
     await this.attemptRepo.record({
@@ -356,7 +368,13 @@ export class AuthService {
       throw new Error(`Invalid password: ${validation.errors.join(', ')}`);
     }
 
-    const user = await this.userRepo.create(data);
+    const userResult = await this.userRepo.create(data);
+
+    if (userResult.isErr) {
+      throw new Error(`Failed to create user: ${userResult.error.message}`);
+    }
+
+    const user = userResult.value;
 
     await this.eventRepo.log({
       userId: user.id,

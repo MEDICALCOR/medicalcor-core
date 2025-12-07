@@ -152,6 +152,7 @@ export {
   PostgresSnapshotStore,
   SnapshotManager,
   SnapshotEnabledRepository,
+  SnapshotEnabledLeadRepository,
   createSnapshotStore,
   createSnapshotManager,
   createInMemorySnapshotManager,

@@ -127,6 +127,29 @@ export {
   type EntityMergeResult,
   type MergeOptions,
   type DeduplicationRunSummary,
+
+  // PII Masking Types (L6: Dynamic Query-Time Masking)
+  UserRoleSchema,
+  PiiFieldTypeSchema,
+  MaskingLevelSchema,
+  DEFAULT_PII_MASKING_CONFIG,
+  type UserRole,
+  type PiiFieldType,
+  type MaskingLevel,
+  type MaskingContext,
+  type PiiMaskingConfig,
+  type MaskingResult,
+  type QueryMaskingOptions,
+  // Real-Time Pattern Stream Types (L5: Stream Processing for Patterns)
+  PatternChangeTypeSchema,
+  DEFAULT_REALTIME_STREAM_CONFIG,
+  type RealtimePatternStreamConfig,
+  type PatternChangeType,
+  type PatternDelta,
+  type PatternUpdateEvent,
+  type PatternUpdateCallback,
+  type RealtimePatternStats,
+  type SubjectEventBuffer,
 } from './types.js';
 
 // =============================================================================
@@ -137,9 +160,13 @@ export {
   EpisodeBuilder,
   createEpisodeBuilder,
   type IOpenAIClient,
+  type OnEventProcessedCallback,
   // Note: IEmbeddingService is exported from '@medicalcor/core/rag' to avoid duplicate
   // The interface is compatible and can be used with cognitive services
 } from './episode-builder.js';
+
+// Real-Time Pattern Stream (L5: Stream Processing for Patterns)
+export { RealtimePatternStream, createRealtimePatternStream } from './realtime-pattern-stream.js';
 
 export {
   MemoryRetrievalService,
@@ -147,6 +174,21 @@ export {
   encodeCursor,
   decodeCursor,
 } from './memory-retrieval.js';
+
+// Masked Memory Retrieval Service (L6: Dynamic Query-Time Masking)
+export {
+  MaskedMemoryRetrievalService,
+  createMaskedMemoryRetrievalService,
+  type MaskedMemoryRetrievalConfig,
+} from './masked-memory-retrieval.js';
+
+// PII Masking Service (L6: Dynamic Query-Time Masking)
+export {
+  PiiMaskingService,
+  createPiiMaskingService,
+  roleRequiresMasking,
+  getMaskingLevelForRole,
+} from './pii-masking.js';
 
 // GDPR Erasure Service (H4 Production Fix)
 export {
@@ -175,13 +217,18 @@ export {
 import type { Pool } from 'pg';
 import { EpisodeBuilder, type IOpenAIClient, type IEmbeddingService } from './episode-builder.js';
 import { MemoryRetrievalService } from './memory-retrieval.js';
+import { MaskedMemoryRetrievalService } from './masked-memory-retrieval.js';
 import { PatternDetector } from './pattern-detector.js';
 import { KnowledgeGraphService } from './knowledge-graph.js';
 import { EntityDeduplicationService } from './entity-deduplication.js';
+import { PiiMaskingService } from './pii-masking.js';
+import { RealtimePatternStream } from './realtime-pattern-stream.js';
 import type {
   CognitiveSystemConfig,
   KnowledgeGraphConfig,
   EntityDeduplicationConfig,
+  PiiMaskingConfig,
+  RealtimePatternStreamConfig,
 } from './types.js';
 
 /**
@@ -200,6 +247,10 @@ export interface CognitiveSystemDependencies {
   knowledgeGraphConfig?: Partial<KnowledgeGraphConfig>;
   /** Optional entity deduplication configuration (H8) */
   deduplicationConfig?: Partial<EntityDeduplicationConfig>;
+  /** Optional PII masking configuration (L6) */
+  maskingConfig?: Partial<PiiMaskingConfig>;
+  /** Optional real-time pattern stream configuration (L5) */
+  realtimeStreamConfig?: Partial<RealtimePatternStreamConfig>;
 }
 
 /**
@@ -210,12 +261,18 @@ export interface CognitiveSystem {
   episodeBuilder: EpisodeBuilder;
   /** Memory retrieval service for querying episodic memory */
   memoryRetrieval: MemoryRetrievalService;
+  /** Memory retrieval with built-in PII masking (L6) */
+  maskedMemoryRetrieval: MaskedMemoryRetrievalService;
+  /** PII masking service for query-time masking (L6) */
+  piiMasking: PiiMaskingService;
   /** Pattern detector for behavioral insights (M5) */
   patternDetector: PatternDetector;
   /** Knowledge graph service for entity relationships (H8) */
   knowledgeGraph: KnowledgeGraphService;
   /** Entity deduplication service for auto-merging similar entities (H8) */
   entityDeduplication: EntityDeduplicationService;
+  /** Real-time pattern stream for automatic pattern updates (L5) */
+  realtimePatternStream: RealtimePatternStream;
 }
 
 /**
@@ -247,6 +304,15 @@ export function createCognitiveSystem(deps: CognitiveSystemDependencies): Cognit
 
   const memoryRetrieval = new MemoryRetrievalService(deps.pool, deps.embeddings, deps.config);
 
+  // L6: PII Masking Service for query-time masking
+  const piiMasking = new PiiMaskingService(deps.maskingConfig);
+
+  // L6: Memory retrieval with built-in PII masking
+  const maskedMemoryRetrieval = new MaskedMemoryRetrievalService(deps.pool, deps.embeddings, {
+    cognitiveConfig: deps.config,
+    maskingConfig: deps.maskingConfig,
+  });
+
   const patternDetector = new PatternDetector(deps.pool, deps.openai, deps.config);
 
   // H8: Knowledge Graph Integration
@@ -263,14 +329,28 @@ export function createCognitiveSystem(deps: CognitiveSystemDependencies): Cognit
     deps.deduplicationConfig
   );
 
+  // L5: Real-Time Pattern Stream for automatic pattern updates
+  const realtimePatternStream = new RealtimePatternStream(
+    deps.pool,
+    deps.openai,
+    deps.realtimeStreamConfig,
+    deps.config
+  );
+
   // Wire knowledge graph to episode builder for automatic entity extraction
   episodeBuilder.setKnowledgeGraph(knowledgeGraph);
+
+  // L5: Wire real-time pattern stream to episode builder for automatic pattern detection
+  episodeBuilder.setRealtimePatternStream(realtimePatternStream);
 
   return {
     episodeBuilder,
     memoryRetrieval,
+    maskedMemoryRetrieval,
+    piiMasking,
     patternDetector,
     knowledgeGraph,
     entityDeduplication,
+    realtimePatternStream,
   };
 }
