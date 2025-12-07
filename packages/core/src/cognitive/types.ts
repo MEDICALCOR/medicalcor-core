@@ -150,6 +150,51 @@ export const MemoryQuerySchema = z.object({
 export type MemoryQuery = z.infer<typeof MemoryQuerySchema>;
 
 // =============================================================================
+// Pagination Types (Cursor-based)
+// =============================================================================
+
+/**
+ * Cursor data for stable pagination across large result sets.
+ * Uses occurred_at + id for deterministic ordering.
+ */
+export const PaginationCursorDataSchema = z.object({
+  /** Timestamp of the last item in the previous page */
+  occurredAt: z.string().datetime(),
+  /** ID of the last item for tie-breaking */
+  id: z.string().uuid(),
+  /** Similarity score for semantic search pagination */
+  similarity: z.number().optional(),
+});
+
+export type PaginationCursorData = z.infer<typeof PaginationCursorDataSchema>;
+
+/**
+ * Extended memory query with cursor-based pagination support.
+ */
+export const PaginatedMemoryQuerySchema = MemoryQuerySchema.extend({
+  /** Opaque cursor string from previous page */
+  cursor: z.string().optional(),
+  /** Page size (defaults to config defaultQueryLimit) */
+  pageSize: z.number().int().min(1).max(100).optional(),
+});
+
+export type PaginatedMemoryQuery = z.infer<typeof PaginatedMemoryQuerySchema>;
+
+/**
+ * Paginated result container with cursor for next page.
+ */
+export interface PaginatedResult<T> {
+  /** Items in the current page */
+  items: T[];
+  /** Cursor for fetching the next page (null if no more pages) */
+  nextCursor: string | null;
+  /** Whether there are more items available */
+  hasMore: boolean;
+  /** Total count if available (only when includeCount is true) */
+  totalCount?: number;
+}
+
+// =============================================================================
 // Subject Memory Summary Types
 // =============================================================================
 

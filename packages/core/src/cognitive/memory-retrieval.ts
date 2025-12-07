@@ -9,8 +9,12 @@ import type { Pool } from 'pg';
 import { createLogger } from '../logger.js';
 import {
   DEFAULT_COGNITIVE_CONFIG,
+  PaginationCursorDataSchema,
   type EpisodicEvent,
   type MemoryQuery,
+  type PaginatedMemoryQuery,
+  type PaginatedResult,
+  type PaginationCursorData,
   type SubjectMemorySummary,
   type SourceChannel,
   type SentimentTrend,
@@ -44,6 +48,34 @@ interface ChannelRow {
 interface SentimentRow {
   recent_avg: string | number | null;
   older_avg: string | number | null;
+}
+
+// =============================================================================
+// Cursor Encoding/Decoding Utilities
+// =============================================================================
+
+/**
+ * Encode pagination cursor data to an opaque base64 string.
+ * Uses URL-safe base64 encoding for HTTP compatibility.
+ */
+export function encodeCursor(data: PaginationCursorData): string {
+  const json = JSON.stringify(data);
+  return Buffer.from(json, 'utf-8').toString('base64url');
+}
+
+/**
+ * Decode an opaque cursor string to pagination cursor data.
+ * Returns null if the cursor is invalid or malformed.
+ */
+export function decodeCursor(cursor: string): PaginationCursorData | null {
+  try {
+    const json = Buffer.from(cursor, 'base64url').toString('utf-8');
+    const parsed: unknown = JSON.parse(json);
+    const result = PaginationCursorDataSchema.safeParse(parsed);
+    return result.success ? result.data : null;
+  } catch {
+    return null;
+  }
 }
 
 // =============================================================================
@@ -144,6 +176,245 @@ export class MemoryRetrievalService {
     const result = await this.pool.query(sql, params);
 
     return result.rows.map((row: Record<string, unknown>) => this.rowToEpisodicEvent(row));
+  }
+
+  /**
+   * Query episodic memories with cursor-based pagination.
+   * Prevents OOM issues with large result sets by returning pages of results.
+   */
+  async queryPaginated(query: PaginatedMemoryQuery): Promise<PaginatedResult<EpisodicEvent>> {
+    const cursorData = this.decodePaginationCursor(query.cursor);
+    const queryContext = await this.buildPaginatedQueryContext(query, cursorData);
+
+    const result = await this.pool.query(queryContext.sql, queryContext.params);
+    const rawRows = result.rows as Record<string, unknown>[];
+
+    return this.buildPaginatedResult(rawRows, queryContext.pageSize);
+  }
+
+  /**
+   * Decode and validate pagination cursor, throwing if invalid.
+   */
+  private decodePaginationCursor(cursor?: string): PaginationCursorData | null {
+    if (!cursor) return null;
+    const cursorData = decodeCursor(cursor);
+    if (!cursorData) throw new Error('Invalid pagination cursor');
+    return cursorData;
+  }
+
+  /**
+   * Build the SQL query context for paginated queries.
+   */
+  private async buildPaginatedQueryContext(
+    query: PaginatedMemoryQuery,
+    cursorData: PaginationCursorData | null
+  ): Promise<{ sql: string; params: unknown[]; pageSize: number }> {
+    const ctx = { conditions: ['deleted_at IS NULL'], params: [] as unknown[], paramIndex: 1 };
+
+    this.addBaseFilters(ctx, query);
+    const { selectClause, orderBy } = await this.addSemanticOrTemporalConditions(
+      ctx,
+      query,
+      cursorData
+    );
+
+    const pageSize = query.pageSize ?? query.limit ?? this.config.defaultQueryLimit;
+    const sql = `
+      SELECT ${selectClause}
+      FROM episodic_events
+      WHERE ${ctx.conditions.join(' AND ')}
+      ORDER BY ${orderBy}
+      LIMIT ${pageSize + 1}
+    `;
+
+    return { sql, params: ctx.params, pageSize };
+  }
+
+  /**
+   * Add base query filters (subject, event types, channels, dates).
+   */
+  private addBaseFilters(
+    ctx: { conditions: string[]; params: unknown[]; paramIndex: number },
+    query: PaginatedMemoryQuery
+  ): void {
+    if (query.subjectType) {
+      ctx.conditions.push(`subject_type = $${ctx.paramIndex++}`);
+      ctx.params.push(query.subjectType);
+    }
+    if (query.subjectId) {
+      ctx.conditions.push(`subject_id = $${ctx.paramIndex++}`);
+      ctx.params.push(query.subjectId);
+    }
+    if (query.eventTypes?.length) {
+      ctx.conditions.push(`event_type = ANY($${ctx.paramIndex++})`);
+      ctx.params.push(query.eventTypes);
+    }
+    if (query.eventCategories?.length) {
+      ctx.conditions.push(`event_category = ANY($${ctx.paramIndex++})`);
+      ctx.params.push(query.eventCategories);
+    }
+    if (query.channels?.length) {
+      ctx.conditions.push(`source_channel = ANY($${ctx.paramIndex++})`);
+      ctx.params.push(query.channels);
+    }
+    if (query.fromDate) {
+      ctx.conditions.push(`occurred_at >= $${ctx.paramIndex++}`);
+      ctx.params.push(query.fromDate);
+    }
+    if (query.toDate) {
+      ctx.conditions.push(`occurred_at <= $${ctx.paramIndex++}`);
+      ctx.params.push(query.toDate);
+    }
+  }
+
+  /**
+   * Add semantic search or temporal ordering conditions.
+   */
+  private async addSemanticOrTemporalConditions(
+    ctx: { conditions: string[]; params: unknown[]; paramIndex: number },
+    query: PaginatedMemoryQuery,
+    cursorData: PaginationCursorData | null
+  ): Promise<{ selectClause: string; orderBy: string }> {
+    const baseSelect = `id, subject_type, subject_id, event_type, event_category,
+      source_channel, raw_event_id, summary, key_entities,
+      sentiment, intent, occurred_at, processed_at, metadata`;
+
+    if (query.semanticQuery) {
+      return this.addSemanticSearchConditions(
+        ctx,
+        query.semanticQuery,
+        query.minSimilarity,
+        cursorData,
+        baseSelect
+      );
+    }
+
+    this.addTemporalCursorConditions(ctx, cursorData);
+    return { selectClause: baseSelect, orderBy: 'occurred_at DESC, id DESC' };
+  }
+
+  /**
+   * Add semantic search conditions to query context.
+   */
+  private async addSemanticSearchConditions(
+    ctx: { conditions: string[]; params: unknown[]; paramIndex: number },
+    semanticQuery: string,
+    minSimilarityOverride: number | undefined,
+    cursorData: PaginationCursorData | null,
+    baseSelect: string
+  ): Promise<{ selectClause: string; orderBy: string }> {
+    const embeddingResult = await this.embeddings.embed(semanticQuery);
+    const embeddingParamIdx = ctx.paramIndex++;
+    ctx.params.push(JSON.stringify(embeddingResult.embedding));
+
+    const selectClause = `${baseSelect}, 1 - (embedding <=> $${embeddingParamIdx}::vector) as similarity`;
+    const minSimilarity = minSimilarityOverride ?? this.config.minSimilarity;
+
+    ctx.conditions.push(`embedding IS NOT NULL`);
+    ctx.conditions.push(
+      `1 - (embedding <=> $${embeddingParamIdx}::vector) >= $${ctx.paramIndex++}`
+    );
+    ctx.params.push(minSimilarity);
+
+    if (cursorData) {
+      this.addSemanticCursorConditions(ctx, cursorData, embeddingParamIdx);
+    }
+
+    return { selectClause, orderBy: 'similarity DESC, occurred_at DESC, id DESC' };
+  }
+
+  /**
+   * Add cursor conditions for semantic search ordering.
+   */
+  private addSemanticCursorConditions(
+    ctx: { conditions: string[]; params: unknown[]; paramIndex: number },
+    cursorData: PaginationCursorData,
+    embeddingParamIdx: number
+  ): void {
+    const cursorSimilarity = cursorData.similarity ?? 0;
+    const p1 = ctx.paramIndex++;
+    const p2 = ctx.paramIndex++;
+    const p3 = ctx.paramIndex++;
+    const p4 = ctx.paramIndex++;
+    const p5 = ctx.paramIndex++;
+
+    ctx.conditions.push(`(
+      (1 - (embedding <=> $${embeddingParamIdx}::vector)) < $${p1}
+      OR ((1 - (embedding <=> $${embeddingParamIdx}::vector)) = $${p2}
+        AND (occurred_at < $${p3} OR (occurred_at = $${p4} AND id < $${p5})))
+    )`);
+    ctx.params.push(
+      cursorSimilarity,
+      cursorSimilarity,
+      new Date(cursorData.occurredAt),
+      new Date(cursorData.occurredAt),
+      cursorData.id
+    );
+  }
+
+  /**
+   * Add cursor conditions for temporal ordering.
+   */
+  private addTemporalCursorConditions(
+    ctx: { conditions: string[]; params: unknown[]; paramIndex: number },
+    cursorData: PaginationCursorData | null
+  ): void {
+    if (!cursorData) return;
+    const p1 = ctx.paramIndex++;
+    const p2 = ctx.paramIndex++;
+    const p3 = ctx.paramIndex++;
+    ctx.conditions.push(`(occurred_at < $${p1} OR (occurred_at = $${p2} AND id < $${p3}))`);
+    ctx.params.push(
+      new Date(cursorData.occurredAt),
+      new Date(cursorData.occurredAt),
+      cursorData.id
+    );
+  }
+
+  /**
+   * Build paginated result from raw database rows.
+   */
+  private buildPaginatedResult(
+    rawRows: Record<string, unknown>[],
+    pageSize: number
+  ): PaginatedResult<EpisodicEvent> {
+    const hasMore = rawRows.length > pageSize;
+    const pageRows = rawRows.slice(0, pageSize);
+    const items = pageRows.map((row) => this.rowToEpisodicEvent(row));
+
+    const nextCursor = this.buildNextCursor(pageRows, items, hasMore);
+
+    return { items, nextCursor, hasMore };
+  }
+
+  /**
+   * Build the next cursor from the last item in the result set.
+   */
+  private buildNextCursor(
+    pageRows: Record<string, unknown>[],
+    items: EpisodicEvent[],
+    hasMore: boolean
+  ): string | null {
+    if (!hasMore || pageRows.length === 0) return null;
+
+    const lastRawRow = pageRows[pageRows.length - 1];
+    const lastItem = items[items.length - 1];
+    if (!lastItem || !lastRawRow) return null;
+
+    const cursorPayload: PaginationCursorData = {
+      occurredAt: lastItem.occurredAt.toISOString(),
+      id: lastItem.id,
+    };
+
+    const rawSimilarity = lastRawRow.similarity;
+    if (rawSimilarity !== undefined && rawSimilarity !== null) {
+      const numSimilarity = Number(rawSimilarity);
+      if (!isNaN(numSimilarity)) {
+        cursorPayload.similarity = numSimilarity;
+      }
+    }
+
+    return encodeCursor(cursorPayload);
   }
 
   /**
