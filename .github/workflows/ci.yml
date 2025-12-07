@@ -307,17 +307,34 @@ jobs:
 
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: cd apps/api && pnpm exec playwright install --with-deps chromium
+        run: cd apps/web && pnpm exec playwright install --with-deps chromium
 
       - name: Install Playwright deps (cached)
         if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: cd apps/api && pnpm exec playwright install-deps chromium
+        run: cd apps/web && pnpm exec playwright install-deps chromium
+
+      - name: Build web app
+        run: pnpm --filter @medicalcor/web build
+        env:
+          NODE_ENV: production
+          NEXT_TELEMETRY_DISABLED: '1'
+
+      - name: Start web app
+        run: |
+          cd apps/web && pnpm start &
+          npx wait-on http://localhost:3001 --timeout 60000
+        env:
+          NODE_ENV: production
+          PORT: 3001
 
       - name: Run E2E tests (shard ${{ matrix.shard }})
-        run: cd apps/api && pnpm test:e2e --shard=${{ matrix.shard }}/${{ matrix.total-shards }}
+        run: cd apps/web && pnpm test:e2e --shard=${{ matrix.shard }}/${{ matrix.total-shards }}
         env:
           NODE_ENV: test
           API_URL: http://localhost:3000
+          PLAYWRIGHT_BASE_URL: http://localhost:3001
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
           WHATSAPP_WEBHOOK_SECRET: test-secret
           TWILIO_WEBHOOK_SECRET: test-secret
           STRIPE_WEBHOOK_SECRET: test-secret
@@ -330,7 +347,7 @@ jobs:
         if: always()
         with:
           name: playwright-report-${{ matrix.shard }}
-          path: apps/api/playwright-report/
+          path: apps/web/playwright-report/
           retention-days: 7
 
   # =============================================================================
