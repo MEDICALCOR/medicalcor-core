@@ -586,3 +586,68 @@ export {
   type AgentPresenceMetrics,
   type TeamPresenceSummary,
 } from './agent-presence.js';
+
+// =============================================================================
+// Financing & Payment Plan Schemas (L2 Feature)
+// =============================================================================
+export {
+  // Status & Types
+  FinancingApplicationStatusSchema,
+  FinancingPlanTypeSchema,
+  FinancingTermSchema,
+  FinancingDecisionCodeSchema,
+  FinancingProviderSchema,
+  // Applicant & Application
+  FinancingApplicantSchema,
+  CreateFinancingApplicationSchema,
+  FinancingOfferSchema,
+  FinancingApplicationSchema,
+  // Acceptance
+  AcceptFinancingOfferSchema,
+  FinancingAcceptanceResultSchema,
+  // Eligibility
+  FinancingEligibilityCheckSchema,
+  FinancingEligibilityResultSchema,
+  // Events
+  FinancingApplicationSubmittedEventSchema,
+  FinancingApplicationApprovedEventSchema,
+  FinancingApplicationDeclinedEventSchema,
+  FinancingOfferAcceptedEventSchema,
+  FinancingFundsDisbursedEventSchema,
+  FinancingApplicationExpiredEventSchema,
+  FinancingEventSchema,
+  // Summary
+  FinancingSummarySchema,
+  // Helper Functions
+  toMajorCurrencyUnits,
+  toMinorCurrencyUnits,
+  formatFinancingAmount,
+  calculateMonthlyPayment,
+  calculateTotalRepayment,
+  calculateFinanceCharge,
+  isApplicationActionable,
+  isApplicationExpired,
+  getFinancingStatusLabel,
+  // Types
+  type FinancingApplicationStatus,
+  type FinancingPlanType,
+  type FinancingTerm,
+  type FinancingDecisionCode,
+  type FinancingProvider,
+  type FinancingApplicant,
+  type CreateFinancingApplication,
+  type FinancingOffer,
+  type FinancingApplication,
+  type AcceptFinancingOffer,
+  type FinancingAcceptanceResult,
+  type FinancingEligibilityCheck,
+  type FinancingEligibilityResult,
+  type FinancingApplicationSubmittedEvent,
+  type FinancingApplicationApprovedEvent,
+  type FinancingApplicationDeclinedEvent,
+  type FinancingOfferAcceptedEvent,
+  type FinancingFundsDisbursedEvent,
+  type FinancingApplicationExpiredEvent,
+  type FinancingEvent,
+  type FinancingSummary,
+} from './financing.js';
