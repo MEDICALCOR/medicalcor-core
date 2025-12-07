@@ -1,0 +1,199 @@
+{
+  "$schema": "https://raw.githubusercontent.com/ArmandPhilworthy/performance-budget-schema/main/schema.json",
+  "name": "MedicalCor Web Dashboard Performance Budget",
+  "description": "Performance budgets for the MedicalCor medical CRM admin dashboard",
+  "version": "1.0.0",
+
+  "budgets": {
+    "coreWebVitals": {
+      "description": "Google Core Web Vitals - Critical for user experience and SEO",
+      "lcp": {
+        "good": 2500,
+        "needsImprovement": 4000,
+        "unit": "ms",
+        "description": "Largest Contentful Paint - measures loading performance"
+      },
+      "inp": {
+        "good": 200,
+        "needsImprovement": 500,
+        "unit": "ms",
+        "description": "Interaction to Next Paint - measures interactivity"
+      },
+      "cls": {
+        "good": 0.1,
+        "needsImprovement": 0.25,
+        "unit": "score",
+        "description": "Cumulative Layout Shift - measures visual stability"
+      }
+    },
+
+    "additionalMetrics": {
+      "description": "Additional performance metrics for comprehensive monitoring",
+      "fcp": {
+        "good": 1800,
+        "needsImprovement": 3000,
+        "unit": "ms",
+        "description": "First Contentful Paint - initial render time"
+      },
+      "ttfb": {
+        "good": 800,
+        "needsImprovement": 1800,
+        "unit": "ms",
+        "description": "Time to First Byte - server response time"
+      },
+      "tti": {
+        "good": 3800,
+        "needsImprovement": 7300,
+        "unit": "ms",
+        "description": "Time to Interactive - full interactivity"
+      },
+      "tbt": {
+        "good": 200,
+        "needsImprovement": 600,
+        "unit": "ms",
+        "description": "Total Blocking Time - main thread blocking"
+      },
+      "speedIndex": {
+        "good": 3400,
+        "needsImprovement": 5800,
+        "unit": "ms",
+        "description": "Speed Index - visual completeness over time"
+      }
+    },
+
+    "bundleSize": {
+      "description": "JavaScript and CSS bundle size limits",
+      "javascript": {
+        "total": {
+          "maxSize": 500,
+          "unit": "KB",
+          "compressed": true,
+          "description": "Total JavaScript bundle size (gzipped)"
+        },
+        "initialLoad": {
+          "maxSize": 200,
+          "unit": "KB",
+          "compressed": true,
+          "description": "Initial page load JavaScript (gzipped)"
+        },
+        "perChunk": {
+          "maxSize": 100,
+          "unit": "KB",
+          "compressed": true,
+          "description": "Maximum size per lazy-loaded chunk"
+        }
+      },
+      "css": {
+        "total": {
+          "maxSize": 100,
+          "unit": "KB",
+          "compressed": true,
+          "description": "Total CSS size (gzipped)"
+        }
+      },
+      "images": {
+        "perImage": {
+          "maxSize": 200,
+          "unit": "KB",
+          "description": "Maximum size per image"
+        },
+        "totalInitialLoad": {
+          "maxSize": 500,
+          "unit": "KB",
+          "description": "Total images loaded on initial page"
+        }
+      },
+      "fonts": {
+        "total": {
+          "maxSize": 150,
+          "unit": "KB",
+          "description": "Total font files size"
+        }
+      }
+    },
+
+    "resourceCounts": {
+      "description": "Limits on number of resources to reduce HTTP overhead",
+      "javascript": {
+        "maxRequests": 20,
+        "description": "Maximum JavaScript file requests"
+      },
+      "css": {
+        "maxRequests": 5,
+        "description": "Maximum CSS file requests"
+      },
+      "images": {
+        "maxRequests": 30,
+        "description": "Maximum image requests on initial load"
+      },
+      "thirdParty": {
+        "maxRequests": 10,
+        "description": "Maximum third-party requests"
+      }
+    },
+
+    "lighthouseScores": {
+      "description": "Minimum Lighthouse audit scores (0-100)",
+      "performance": {
+        "min": 80,
+        "target": 90,
+        "description": "Performance score - must be green"
+      },
+      "accessibility": {
+        "min": 90,
+        "target": 100,
+        "description": "Accessibility score - critical for medical compliance"
+      },
+      "bestPractices": {
+        "min": 90,
+        "target": 100,
+        "description": "Best practices score"
+      },
+      "seo": {
+        "min": 90,
+        "target": 100,
+        "description": "SEO score"
+      }
+    }
+  },
+
+  "routes": {
+    "/": {
+      "description": "Landing page - first impression",
+      "lcp": 2000,
+      "cls": 0.05,
+      "priority": "critical"
+    },
+    "/login": {
+      "description": "Login page - must be fast and stable",
+      "lcp": 1500,
+      "cls": 0.05,
+      "priority": "critical"
+    },
+    "/dashboard": {
+      "description": "Main dashboard - data-heavy page",
+      "lcp": 3000,
+      "cls": 0.1,
+      "priority": "high"
+    },
+    "/patients": {
+      "description": "Patient list - large data table",
+      "lcp": 3000,
+      "cls": 0.1,
+      "priority": "high"
+    },
+    "/appointments": {
+      "description": "Appointments calendar - complex UI",
+      "lcp": 3500,
+      "cls": 0.15,
+      "priority": "medium"
+    }
+  },
+
+  "ciEnforcement": {
+    "failOnError": true,
+    "warnThreshold": 0.9,
+    "errorThreshold": 1.0,
+    "description": "Fail CI when budgets are exceeded by error threshold percentage"
+  }
+}

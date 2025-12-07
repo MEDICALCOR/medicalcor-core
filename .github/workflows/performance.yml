@@ -1,0 +1,422 @@
+# Performance Budget CI Workflow
+# Runs Lighthouse CI and bundle size checks on PRs affecting web app
+
+name: Performance Budget
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '9.14.2'
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+
+jobs:
+  # =============================================================================
+  # Bundle Size Analysis
+  # =============================================================================
+  bundle-size:
+    name: Bundle Size Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build with bundle analysis
+        run: |
+          cd apps/web
+          ANALYZE=true ANALYZE_OPEN=false pnpm build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+          # Skip Sentry in CI builds for bundle analysis
+          NEXT_PUBLIC_SENTRY_DSN: ''
+
+      - name: Analyze bundle size
+        id: bundle-size
+        run: |
+          cd apps/web
+
+          # Get build output sizes
+          echo "## Bundle Size Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -d ".next" ]; then
+            # Calculate sizes
+            TOTAL_SIZE=$(du -sb .next | cut -f1)
+            TOTAL_SIZE_MB=$(echo "scale=2; $TOTAL_SIZE / 1048576" | bc)
+
+            # Static files
+            if [ -d ".next/static" ]; then
+              STATIC_SIZE=$(du -sb .next/static | cut -f1)
+              STATIC_SIZE_KB=$(echo "scale=2; $STATIC_SIZE / 1024" | bc)
+
+              # JavaScript chunks
+              if [ -d ".next/static/chunks" ]; then
+                JS_SIZE=$(find .next/static/chunks -name "*.js" -exec du -cb {} + | tail -n1 | cut -f1)
+                JS_SIZE_KB=$(echo "scale=2; $JS_SIZE / 1024" | bc)
+                echo "js_size_kb=$JS_SIZE_KB" >> $GITHUB_OUTPUT
+              fi
+
+              # CSS
+              if [ -d ".next/static/css" ]; then
+                CSS_SIZE=$(find .next/static/css -name "*.css" -exec du -cb {} + 2>/dev/null | tail -n1 | cut -f1 || echo "0")
+                CSS_SIZE_KB=$(echo "scale=2; ${CSS_SIZE:-0} / 1024" | bc)
+                echo "css_size_kb=$CSS_SIZE_KB" >> $GITHUB_OUTPUT
+              fi
+            fi
+
+            echo "| Asset Type | Size |" >> $GITHUB_STEP_SUMMARY
+            echo "|------------|------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Total Build | ${TOTAL_SIZE_MB} MB |" >> $GITHUB_STEP_SUMMARY
+            echo "| JavaScript | ${JS_SIZE_KB:-0} KB |" >> $GITHUB_STEP_SUMMARY
+            echo "| CSS | ${CSS_SIZE_KB:-0} KB |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # Budget checks (in KB)
+            JS_BUDGET=500
+            CSS_BUDGET=100
+
+            if [ "${JS_SIZE_KB:-0}" != "0" ]; then
+              JS_OVER=$(echo "${JS_SIZE_KB:-0} > $JS_BUDGET" | bc)
+              if [ "$JS_OVER" -eq 1 ]; then
+                echo "**Warning:** JavaScript bundle exceeds ${JS_BUDGET}KB budget" >> $GITHUB_STEP_SUMMARY
+                echo "js_exceeded=true" >> $GITHUB_OUTPUT
+              fi
+            fi
+
+            if [ "${CSS_SIZE_KB:-0}" != "0" ]; then
+              CSS_OVER=$(echo "${CSS_SIZE_KB:-0} > $CSS_BUDGET" | bc)
+              if [ "$CSS_OVER" -eq 1 ]; then
+                echo "**Warning:** CSS bundle exceeds ${CSS_BUDGET}KB budget" >> $GITHUB_STEP_SUMMARY
+                echo "css_exceeded=true" >> $GITHUB_OUTPUT
+              fi
+            fi
+          fi
+
+      - name: Upload bundle analysis
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: bundle-analysis
+          path: apps/web/.next/analyze/
+          retention-days: 30
+          if-no-files-found: ignore
+
+  # =============================================================================
+  # Lighthouse CI
+  # =============================================================================
+  lighthouse:
+    name: Lighthouse CI
+    runs-on: ubuntu-latest
+    needs: [bundle-size]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build application
+        run: pnpm build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+          NEXT_PUBLIC_SENTRY_DSN: ''
+
+      - name: Install Lighthouse CI
+        run: npm install -g @lhci/cli@0.14.x
+
+      - name: Start server and run Lighthouse
+        run: |
+          cd apps/web
+
+          # Start the production server in background
+          pnpm start &
+          SERVER_PID=$!
+
+          # Wait for server to be ready
+          echo "Waiting for server to start..."
+          timeout 60 bash -c 'until curl -s http://localhost:3001 > /dev/null 2>&1; do sleep 1; done'
+
+          echo "Server started, running Lighthouse CI..."
+
+          # Run Lighthouse CI
+          lhci autorun --config=./lighthouserc.js || LHCI_EXIT=$?
+
+          # Cleanup
+          kill $SERVER_PID 2>/dev/null || true
+
+          exit ${LHCI_EXIT:-0}
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+          LHCI_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Lighthouse reports
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: lighthouse-reports
+          path: apps/web/.lighthouseci/
+          retention-days: 30
+
+      - name: Post Lighthouse results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const lhciDir = 'apps/web/.lighthouseci';
+
+            if (!fs.existsSync(lhciDir)) {
+              console.log('No Lighthouse results found');
+              return;
+            }
+
+            // Find the manifest file
+            const manifestPath = path.join(lhciDir, 'manifest.json');
+            if (!fs.existsSync(manifestPath)) {
+              console.log('No manifest.json found');
+              return;
+            }
+
+            const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+
+            // Calculate average scores across all runs
+            const scores = {
+              performance: [],
+              accessibility: [],
+              'best-practices': [],
+              seo: []
+            };
+
+            for (const entry of manifest) {
+              if (entry.isRepresentativeRun && entry.summary) {
+                for (const [key, value] of Object.entries(entry.summary)) {
+                  if (scores[key] !== undefined) {
+                    scores[key].push(value * 100);
+                  }
+                }
+              }
+            }
+
+            const getEmoji = (score) => {
+              if (score >= 90) return '🟢';
+              if (score >= 50) return '🟡';
+              return '🔴';
+            };
+
+            const getAvg = (arr) => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(0) : 'N/A';
+
+            const perfScore = getAvg(scores.performance);
+            const a11yScore = getAvg(scores.accessibility);
+            const bpScore = getAvg(scores['best-practices']);
+            const seoScore = getAvg(scores.seo);
+
+            const body = `## Lighthouse Performance Report
+
+            | Category | Score |
+            |----------|-------|
+            | ${getEmoji(perfScore)} Performance | ${perfScore} |
+            | ${getEmoji(a11yScore)} Accessibility | ${a11yScore} |
+            | ${getEmoji(bpScore)} Best Practices | ${bpScore} |
+            | ${getEmoji(seoScore)} SEO | ${seoScore} |
+
+            ### Performance Budgets
+            - **LCP Target:** < 2.5s (good)
+            - **CLS Target:** < 0.1 (good)
+            - **TBT Target:** < 200ms (good)
+
+            View full reports in the workflow artifacts.`;
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' &&
+              c.body.includes('Lighthouse Performance Report')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body
+              });
+            }
+
+  # =============================================================================
+  # Core Web Vitals Budget Validation
+  # =============================================================================
+  web-vitals-budget:
+    name: Web Vitals Budget Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate performance budget configuration
+        run: |
+          cd apps/web
+
+          echo "## Performance Budget Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f ".performance-budget.json" ]; then
+            echo "**Budget file found**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # Parse and display budgets
+            node -e "
+              const budget = require('./.performance-budget.json');
+              const cwv = budget.budgets.coreWebVitals;
+
+              console.log('### Core Web Vitals Budgets');
+              console.log('');
+              console.log('| Metric | Good | Needs Improvement |');
+              console.log('|--------|------|-------------------|');
+              console.log('| LCP | < ' + cwv.lcp.good + 'ms | < ' + cwv.lcp.needsImprovement + 'ms |');
+              console.log('| INP | < ' + cwv.inp.good + 'ms | < ' + cwv.inp.needsImprovement + 'ms |');
+              console.log('| CLS | < ' + cwv.cls.good + ' | < ' + cwv.cls.needsImprovement + ' |');
+            " >> $GITHUB_STEP_SUMMARY
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # Validate Lighthouse config exists
+            if [ -f "lighthouserc.js" ]; then
+              echo "**Lighthouse CI configuration found**" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "**Warning:** Lighthouse CI configuration not found" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "**Error:** Performance budget configuration not found" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Check web-vitals integration
+        run: |
+          cd apps/web
+
+          # Verify web-vitals reporting is configured
+          if grep -r "reportWebVitalToSentry\|web-vitals" src/lib/vitals/ > /dev/null 2>&1; then
+            echo "Web Vitals integration: **Configured**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Web Vitals integration: **Missing**" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+  # =============================================================================
+  # Performance Success Gate
+  # =============================================================================
+  performance-success:
+    name: Performance Checks
+    runs-on: ubuntu-latest
+    needs: [bundle-size, lighthouse, web-vitals-budget]
+    if: always()
+    steps:
+      - name: Check all performance jobs
+        run: |
+          echo "## Performance CI Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Bundle Size | ${{ needs.bundle-size.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Lighthouse CI | ${{ needs.lighthouse.result == 'success' && '✅' || (needs.lighthouse.result == 'skipped' && '⏭️' || '⚠️') }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Web Vitals Budget | ${{ needs.web-vitals-budget.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+
+          # Check required jobs
+          if [[ "${{ needs.bundle-size.result }}" == "failure" ]] || \
+             [[ "${{ needs.web-vitals-budget.result }}" == "failure" ]]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**❌ Performance checks failed**" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          # Lighthouse is a warning, not blocking
+          if [[ "${{ needs.lighthouse.result }}" == "failure" ]]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**⚠️ Lighthouse checks failed - review recommended**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**✅ Performance checks passed!**" >> $GITHUB_STEP_SUMMARY
