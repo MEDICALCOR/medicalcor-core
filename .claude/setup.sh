@@ -140,7 +140,6 @@ fi
 
 # Copy .claude directory using rsync or cp
 info "Copying .claude configuration..."
-EXCLUDE_PATTERNS=('.DS_Store' '*.log')
 if command -v rsync >/dev/null 2>&1; then
   info "Using rsync for efficient copying"
   rsync -a --exclude='.DS_Store' --exclude='*.log' "$FROM_DIR/" "$TARGET_CLAUDE/"
@@ -166,7 +165,8 @@ find "$TARGET_CLAUDE" -type f -name '*.sh' -exec chmod +x {} \; 2>/dev/null || t
 
 # Write settings.local.json
 SETTINGS_LOCAL="$TARGET_CLAUDE/settings.local.json"
-info "Creating settings.local.json with hooks ${ENABLE_HOOKS:-disabled}"
+HOOKS_STATUS=$([ "$ENABLE_HOOKS" = true ] && echo "enabled" || echo "disabled")
+info "Creating settings.local.json with hooks $HOOKS_STATUS"
 
 if [ "$ENABLE_HOOKS" = true ]; then
   cat > "$SETTINGS_LOCAL" <<'EOJSON'
