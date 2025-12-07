@@ -1,17 +1,7 @@
 /**
- * @fileoverview Repository Adapters
- *
- * PostgreSQL adapters implementing domain repository interfaces.
- *
- * @module @medicalcor/infrastructure/repositories
- */
-
-export {
-  PostgresCaseRepository,
-  createPostgresCaseRepository,
-  type PostgresCaseRepositoryConfig,
-} from './PostgresCaseRepository.js';
  * @fileoverview Repository Adapters (Infrastructure Layer)
+ *
+ * PostgreSQL and external service adapters implementing domain repository interfaces.
  *
  * This module exports concrete repository adapters that implement
  * the port interfaces defined in the domain layer.
@@ -19,6 +9,7 @@ export {
  * ## Hexagonal Architecture
  *
  * Repositories here are **ADAPTERS** implementing domain **PORTS**:
+ * - PostgresCaseRepository implements ICaseRepository (PostgreSQL)
  * - CalendarSchedulingAdapter implements ISchedulingRepository (external calendar)
  *
  * @module @medicalcor/infrastructure/repositories
@@ -26,11 +17,19 @@ export {
  * @example
  * ```typescript
  * import {
+ *   PostgresCaseRepository,
  *   CalendarSchedulingAdapter,
- *   createCalendarSchedulingAdapter,
  * } from '@medicalcor/infrastructure';
  * ```
  */
+
+// PostgreSQL Case Repository
+export {
+  PostgresCaseRepository,
+  createPostgresCaseRepository,
+  type PostgresCaseRepositoryConfig,
+  type CaseRepositoryError,
+} from './PostgresCaseRepository.js';
 
 // Calendar Scheduling Adapter (External Calendar Integration)
 export {

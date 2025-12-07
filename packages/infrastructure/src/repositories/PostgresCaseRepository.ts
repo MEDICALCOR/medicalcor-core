@@ -27,7 +27,22 @@
 
 import { Pool } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '@medicalcor/core';
+import {
+  createLogger,
+  RecordNotFoundError,
+  type RecordUpdateError,
+  type RecordDeleteError,
+  Ok,
+  Err,
+  type Result,
+} from '@medicalcor/core';
+
+// ============================================================================
+// REPOSITORY ERROR TYPES
+// ============================================================================
+
+/** Error types that can be returned from PostgresCaseRepository operations */
+export type CaseRepositoryError = RecordNotFoundError | RecordUpdateError | RecordDeleteError;
 
 import type {
   Case,
@@ -451,7 +466,14 @@ export class PostgresCaseRepository implements ICaseRepository {
     return this.mapRowToCase(result.rows[0]!);
   }
 
-  async update(id: string, updates: Partial<Omit<Case, 'id' | 'createdAt'>>): Promise<Case> {
+  /**
+   * Update a case
+   * @returns Result containing the updated Case or a RecordNotFoundError
+   */
+  async update(
+    id: string,
+    updates: Partial<Omit<Case, 'id' | 'createdAt'>>
+  ): Promise<Result<Case, RecordNotFoundError>> {
     const setClauses: string[] = ['updated_at = NOW()'];
     const params: unknown[] = [id];
     let paramIndex = 2;
@@ -496,15 +518,19 @@ export class PostgresCaseRepository implements ICaseRepository {
     const result = await this.pool.query<CaseRow>(sql, params);
 
     if (result.rows.length === 0) {
-      throw new Error(`Case not found: ${id}`);
+      return Err(new RecordNotFoundError('CaseRepository', 'Case', id));
     }
 
     logger.info({ caseId: id }, 'Case updated');
 
-    return this.mapRowToCase(result.rows[0]!);
+    return Ok(this.mapRowToCase(result.rows[0]!));
   }
 
-  async softDelete(id: string, deletedBy?: string): Promise<void> {
+  /**
+   * Soft delete a case
+   * @returns Result containing void or a RecordNotFoundError
+   */
+  async softDelete(id: string, deletedBy?: string): Promise<Result<void, RecordNotFoundError>> {
     const sql = `
       UPDATE cases
       SET deleted_at = NOW(), updated_by = $2, updated_at = NOW()
@@ -514,10 +540,11 @@ export class PostgresCaseRepository implements ICaseRepository {
     const result = await this.pool.query(sql, [id, deletedBy ?? null]);
 
     if (result.rowCount === 0) {
-      throw new Error(`Case not found: ${id}`);
+      return Err(new RecordNotFoundError('CaseRepository', 'Case', id));
     }
 
     logger.info({ caseId: id, deletedBy }, 'Case soft deleted');
+    return Ok(undefined);
   }
 
   async generateCaseNumber(clinicId: string): Promise<string> {
@@ -589,10 +616,14 @@ export class PostgresCaseRepository implements ICaseRepository {
     return this.mapRowToPayment(result.rows[0]!);
   }
 
+  /**
+   * Update a payment
+   * @returns Result containing the updated Payment or a RecordNotFoundError
+   */
   async updatePayment(
     id: string,
     updates: Partial<Omit<Payment, 'id' | 'createdAt'>>
-  ): Promise<Payment> {
+  ): Promise<Result<Payment, RecordNotFoundError>> {
     const setClauses: string[] = ['updated_at = NOW()'];
     const params: unknown[] = [id];
     let paramIndex = 2;
@@ -636,19 +667,23 @@ export class PostgresCaseRepository implements ICaseRepository {
     const result = await this.pool.query<PaymentRow>(sql, params);
 
     if (result.rows.length === 0) {
-      throw new Error(`Payment not found: ${id}`);
+      return Err(new RecordNotFoundError('CaseRepository', 'Payment', id));
     }
 
     logger.info({ paymentId: id }, 'Payment updated');
 
-    return this.mapRowToPayment(result.rows[0]!);
+    return Ok(this.mapRowToPayment(result.rows[0]!));
   }
 
+  /**
+   * Process a payment
+   * @returns Result containing the processed Payment or a RecordNotFoundError
+   */
   async processPayment(
     paymentId: string,
     processorName: string,
     processorTransactionId: string
-  ): Promise<Payment> {
+  ): Promise<Result<Payment, RecordNotFoundError>> {
     const sql = `
       UPDATE payments
       SET status = 'completed',
@@ -667,15 +702,22 @@ export class PostgresCaseRepository implements ICaseRepository {
     ]);
 
     if (result.rows.length === 0) {
-      throw new Error(`Payment not found: ${paymentId}`);
+      return Err(new RecordNotFoundError('CaseRepository', 'Payment', paymentId));
     }
 
     logger.info({ paymentId, processorName }, 'Payment processed');
 
-    return this.mapRowToPayment(result.rows[0]!);
+    return Ok(this.mapRowToPayment(result.rows[0]!));
   }
 
-  async failPayment(paymentId: string, reason: string): Promise<Payment> {
+  /**
+   * Mark a payment as failed
+   * @returns Result containing the failed Payment or a RecordNotFoundError
+   */
+  async failPayment(
+    paymentId: string,
+    reason: string
+  ): Promise<Result<Payment, RecordNotFoundError>> {
     const sql = `
       UPDATE payments
       SET status = 'failed',
@@ -688,12 +730,12 @@ export class PostgresCaseRepository implements ICaseRepository {
     const result = await this.pool.query<PaymentRow>(sql, [paymentId, reason]);
 
     if (result.rows.length === 0) {
-      throw new Error(`Payment not found: ${paymentId}`);
+      return Err(new RecordNotFoundError('CaseRepository', 'Payment', paymentId));
     }
 
     logger.info({ paymentId, reason }, 'Payment failed');
 
-    return this.mapRowToPayment(result.rows[0]!);
+    return Ok(this.mapRowToPayment(result.rows[0]!));
   }
 
   async generatePaymentReference(clinicId: string): Promise<string> {

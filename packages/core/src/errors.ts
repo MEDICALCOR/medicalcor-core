@@ -192,3 +192,174 @@ export function toSafeErrorResponse(error: unknown): SafeErrorDetails {
     statusCode: 500,
   };
 }
+
+// ============================================================================
+// REPOSITORY ERRORS - Standardized error types for data access layer
+// ============================================================================
+
+/**
+ * Base repository error
+ * All repository-specific errors extend this class
+ */
+export class RepositoryError extends AppError {
+  public readonly repository: string;
+  public readonly operation: string;
+  public readonly originalError: Error | undefined;
+
+  constructor(repository: string, operation: string, message: string, originalError?: Error) {
+    super(message, 'REPOSITORY_ERROR', 500);
+    this.name = 'RepositoryError';
+    this.repository = repository;
+    this.operation = operation;
+    this.originalError = originalError;
+  }
+}
+
+/**
+ * Record not found error
+ * Thrown when a requested record does not exist
+ */
+export class RecordNotFoundError extends AppError {
+  public readonly repository: string;
+  public readonly operation: string = 'find';
+  public readonly recordType: string;
+  public readonly recordId: string;
+
+  constructor(repository: string, recordType: string, recordId: string) {
+    super(`${recordType} not found: ${recordId}`, 'RECORD_NOT_FOUND', 404);
+    this.name = 'RecordNotFoundError';
+    this.repository = repository;
+    this.recordType = recordType;
+    this.recordId = recordId;
+  }
+}
+
+/**
+ * Record creation error
+ * Thrown when a record cannot be created
+ */
+export class RecordCreateError extends AppError {
+  public readonly repository: string;
+  public readonly operation: string = 'create';
+  public readonly recordType: string;
+  public readonly originalError: Error | undefined;
+
+  constructor(repository: string, recordType: string, message?: string, originalError?: Error) {
+    super(message ?? `Failed to create ${recordType}`, 'RECORD_CREATE_FAILED', 500);
+    this.name = 'RecordCreateError';
+    this.repository = repository;
+    this.recordType = recordType;
+    this.originalError = originalError;
+  }
+}
+
+/**
+ * Record update error
+ * Thrown when a record cannot be updated
+ */
+export class RecordUpdateError extends AppError {
+  public readonly repository: string;
+  public readonly operation: string = 'update';
+  public readonly recordType: string;
+  public readonly recordId: string;
+  public readonly originalError: Error | undefined;
+
+  constructor(
+    repository: string,
+    recordType: string,
+    recordId: string,
+    message?: string,
+    originalError?: Error
+  ) {
+    super(message ?? `Failed to update ${recordType}: ${recordId}`, 'RECORD_UPDATE_FAILED', 500);
+    this.name = 'RecordUpdateError';
+    this.repository = repository;
+    this.recordType = recordType;
+    this.recordId = recordId;
+    this.originalError = originalError;
+  }
+}
+
+/**
+ * Record delete error
+ * Thrown when a record cannot be deleted
+ */
+export class RecordDeleteError extends AppError {
+  public readonly repository: string;
+  public readonly operation: string = 'delete';
+  public readonly recordType: string;
+  public readonly recordId: string;
+  public readonly originalError: Error | undefined;
+
+  constructor(
+    repository: string,
+    recordType: string,
+    recordId: string,
+    message?: string,
+    originalError?: Error
+  ) {
+    super(message ?? `Failed to delete ${recordType}: ${recordId}`, 'RECORD_DELETE_FAILED', 500);
+    this.name = 'RecordDeleteError';
+    this.repository = repository;
+    this.recordType = recordType;
+    this.recordId = recordId;
+    this.originalError = originalError;
+  }
+}
+
+/**
+ * Concurrency error (optimistic locking failure)
+ * Thrown when a concurrent modification is detected
+ */
+export class ConcurrencyError extends AppError {
+  public readonly repository: string;
+  public readonly operation: string = 'update';
+  public readonly recordType: string;
+  public readonly recordId: string;
+
+  constructor(repository: string, recordType: string, recordId: string) {
+    super(
+      `Concurrent modification detected for ${recordType}: ${recordId}. Please retry.`,
+      'CONCURRENCY_ERROR',
+      409
+    );
+    this.name = 'ConcurrencyError';
+    this.repository = repository;
+    this.recordType = recordType;
+    this.recordId = recordId;
+  }
+}
+
+/**
+ * Consent required error
+ * Thrown when patient consent is required but not present (GDPR/HIPAA)
+ */
+export class ConsentRequiredError extends AppError {
+  public readonly contactId: string;
+  public readonly missingConsents: string[];
+
+  constructor(contactId: string, missingConsents: string[]) {
+    super(
+      `Patient consent required before scheduling. Missing consents: ${missingConsents.join(', ')}`,
+      'CONSENT_REQUIRED',
+      403
+    );
+    this.name = 'ConsentRequiredError';
+    this.contactId = contactId;
+    this.missingConsents = missingConsents;
+  }
+}
+
+/**
+ * Database configuration error
+ * Thrown when database is not properly configured
+ */
+export class DatabaseConfigError extends AppError {
+  public readonly repository: string;
+
+  constructor(repository: string, message?: string) {
+    super(message ?? 'Database connection not configured', 'DATABASE_CONFIG_ERROR', 503);
+    this.name = 'DatabaseConfigError';
+    this.repository = repository;
+  }
+}
