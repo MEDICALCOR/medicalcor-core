@@ -63,6 +63,11 @@ function getDefaultStats(): SupervisorDashboardStats {
     abandonedCalls: 0,
     customerSatisfaction: 0,
 
+    // Wrap-up stats (M10)
+    agentsInWrapUp: 0,
+    wrapUpsToday: 0,
+    averageWrapUpTime: 0,
+
     lastUpdated: new Date(),
   };
 }
