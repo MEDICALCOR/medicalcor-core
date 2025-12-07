@@ -690,6 +690,23 @@ export {
   type AgentPerformanceDashboardData,
   type AgentPerformanceTimeRange,
   type GetAgentPerformanceRequest,
+  // Wrap-up time tracking (M8)
+  WrapUpStatusSchema,
+  WrapUpEventSchema,
+  StartWrapUpRequestSchema,
+  CompleteWrapUpRequestSchema,
+  WrapUpStatsSchema,
+  WrapUpTrendPointSchema,
+  AgentWrapUpPerformanceSchema,
+  WrapUpDashboardDataSchema,
+  type WrapUpStatus,
+  type WrapUpEvent,
+  type StartWrapUpRequest,
+  type CompleteWrapUpRequest,
+  type WrapUpStats,
+  type WrapUpTrendPoint,
+  type AgentWrapUpPerformance,
+  type WrapUpDashboardData,
 } from './agent-performance.schema.js';
 
 // =============================================================================
