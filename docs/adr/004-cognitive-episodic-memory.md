@@ -2,7 +2,10 @@
 
 ## Status
 
-**PROPOSED** - 2024-12-02
+**IMPLEMENTED** - 2024-12-02 (Proposed) → 2025-01-15 (Implemented)
+
+> **Note**: This ADR was implemented with additional features beyond the original proposal.
+> See [Additional Implemented Features](#additional-implemented-features) section below.
 
 ## Context
 
@@ -89,15 +92,26 @@ Implement a **Cognitive Episodic Memory** system as an extension to the existing
 packages/
 ├── core/
 │   └── src/
-│       └── cognitive/              # NEW: Cognitive Memory Module
-│           ├── index.ts
-│           ├── types.ts
-│           ├── episodic-event.ts
-│           ├── episode-builder.ts
-│           ├── memory-repository.ts
-│           ├── memory-retrieval.ts
-│           ├── pattern-detector.ts
-│           └── cognitive-analyzer.ts
+│       └── cognitive/              # Cognitive Memory Module
+│           ├── index.ts            # Main exports and factory function
+│           ├── types.ts            # Zod schemas and TypeScript types
+│           ├── episode-builder.ts  # Event processing into episodic memories
+│           ├── memory-retrieval.ts # Semantic + temporal queries
+│           ├── pattern-detector.ts # Behavioral pattern recognition
+│           ├── knowledge-graph.ts  # H8: Entity relationships (added)
+│           ├── pii-masking.ts      # L6: Query-time PII masking (added)
+│           ├── masked-memory-retrieval.ts  # L6: Masked queries (added)
+│           ├── gdpr-erasure.ts     # H4: GDPR right-to-erasure (added)
+│           ├── entity-deduplication.ts     # H8: Auto-merge entities (added)
+│           ├── realtime-pattern-stream.ts  # L5: Stream processing (added)
+│           └── __tests__/          # Comprehensive test coverage
+│               ├── cognitive.test.ts
+│               ├── episode-builder.test.ts
+│               ├── memory-retrieval.test.ts
+│               ├── knowledge-graph.test.ts
+│               ├── pii-masking.test.ts
+│               ├── entity-deduplication.test.ts
+│               └── realtime-pattern-stream.test.ts
 ```
 
 ### 1. Database Schema
@@ -1268,29 +1282,158 @@ async function getLeadInsights(leadId: string): Promise<CognitiveInsight[]> {
 
 ## Implementation Plan
 
-### Phase 1: Foundation (Week 1)
-- [ ] Create database migration for episodic_events
-- [ ] Implement EpisodeBuilder
-- [ ] Implement MemoryRetrievalService
-- [ ] Unit tests for core components
+### Phase 1: Foundation ✅
+- [x] Create database migration for episodic_events
+- [x] Implement EpisodeBuilder
+- [x] Implement MemoryRetrievalService
+- [x] Unit tests for core components
 
-### Phase 2: Integration (Week 2)
-- [ ] Integrate with WhatsApp handler
-- [ ] Integrate with Voice handler
-- [ ] Add memory context to reply generation
-- [ ] Integration tests
+### Phase 2: Integration ✅
+- [x] Integrate with WhatsApp handler
+- [x] Integrate with Voice handler
+- [x] Add memory context to reply generation
+- [x] Integration tests
 
-### Phase 3: Intelligence (Week 3)
-- [ ] Implement PatternDetector
-- [ ] Implement CognitiveAnalyzer
-- [ ] Add insights API endpoint
-- [ ] Dashboard integration
+### Phase 3: Intelligence ✅
+- [x] Implement PatternDetector
+- [x] Implement CognitiveAnalyzer (distributed across services)
+- [x] Add insights API endpoint
+- [x] Dashboard integration
 
-### Phase 4: Optimization (Week 4)
-- [ ] Add embedding cache
-- [ ] Batch processing for high-volume
-- [ ] Performance testing
-- [ ] Documentation
+### Phase 4: Optimization ✅
+- [x] Add embedding cache
+- [x] Batch processing for high-volume
+- [x] Performance testing
+- [x] Documentation
+
+---
+
+## Additional Implemented Features
+
+Beyond the original ADR proposal, the following features were added during implementation:
+
+### H8: Knowledge Graph Integration
+
+**File**: `packages/core/src/cognitive/knowledge-graph.ts`
+
+The Knowledge Graph Service provides entity and relation management for semantic entity search and relationship discovery.
+
+**Capabilities:**
+- Entity extraction and normalization from episodic memories
+- Co-occurrence relation creation between entities
+- Graph traversal for finding related entities
+- Semantic entity search using embeddings
+- GDPR-compliant entity erasure
+
+```typescript
+// Find entities semantically similar to a query
+const results = await knowledgeGraph.searchEntities('dental implants', {
+  entityType: 'procedure',
+  matchThreshold: 0.7,
+  limit: 10,
+});
+
+// Get related entities via graph traversal
+const related = await knowledgeGraph.getRelatedEntities(entityId, {
+  relationTypes: ['mentioned_with', 'similar_to'],
+  maxDepth: 2,
+});
+```
+
+### H8: Entity Deduplication
+
+**File**: `packages/core/src/cognitive/entity-deduplication.ts`
+
+Auto-merge similar entities to maintain a clean knowledge graph.
+
+**Capabilities:**
+- Fuzzy matching for similar entity values
+- Embedding similarity for semantic deduplication
+- Configurable merge strategies
+- Audit trail for merged entities
+
+### L6: Dynamic Query-Time PII Masking
+
+**File**: `packages/core/src/cognitive/pii-masking.ts`
+
+Role-based PII masking for HIPAA/GDPR compliance at query time.
+
+**Capabilities:**
+- Multiple masking levels: `none`, `partial`, `full`, `hash`
+- Role-based access control (admin, clinician, staff, analyst, viewer)
+- Emergency access (break-the-glass) with audit logging
+- Configurable field-level masking rules
+
+```typescript
+const maskingService = createPiiMaskingService({
+  auditLogging: true,
+  roleLevels: {
+    admin: 'none',
+    clinician: 'partial',
+    analyst: 'full',
+  },
+});
+
+// Mask events for a non-admin user
+const result = maskingService.maskEvents(events, {
+  context: { userRole: 'analyst', userId: 'user-123' },
+});
+```
+
+### L6: Masked Memory Retrieval
+
+**File**: `packages/core/src/cognitive/masked-memory-retrieval.ts`
+
+Memory retrieval service with built-in PII masking, combining query functionality with automatic masking based on user context.
+
+### H4: GDPR Erasure Service
+
+**File**: `packages/core/src/cognitive/gdpr-erasure.ts`
+
+Implements GDPR Article 17 (Right to Erasure) for the cognitive memory system.
+
+**Capabilities:**
+- Soft delete (anonymization) and hard delete options
+- Batch erasure for multiple subjects
+- Data export for GDPR portability (Article 20)
+- Scheduled purge of expired soft-deleted records
+- Comprehensive audit logging
+
+```typescript
+const result = await erasureService.eraseSubjectMemory(
+  'lead',
+  'a1b2c3d4-...',
+  { reason: 'GDPR erasure request', requestedBy: 'user-123' }
+);
+
+// Export data for portability
+const exportData = await erasureService.exportSubjectData('lead', leadId);
+```
+
+### L5: Real-Time Pattern Stream
+
+**File**: `packages/core/src/cognitive/realtime-pattern-stream.ts`
+
+Stream processing for automatic pattern detection and updates.
+
+**Capabilities:**
+- Event buffering per subject for efficient batch processing
+- Configurable detection intervals and batch sizes
+- Pattern delta tracking (new, updated, unchanged)
+- Callback-based pattern update notifications
+
+```typescript
+const stream = createRealtimePatternStream(pool, openai, {
+  batchSize: 50,
+  detectionIntervalMs: 30000,
+});
+
+stream.onPatternUpdate((event) => {
+  console.log(`Pattern ${event.delta} for ${event.subjectId}: ${event.pattern.patternType}`);
+});
+
+stream.start();
+```
 
 ## References
 
