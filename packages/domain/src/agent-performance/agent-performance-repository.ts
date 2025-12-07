@@ -757,6 +757,12 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       timeLoggedSeconds: (row.time_logged_seconds as number) ?? 0,
       timeOnBreakSeconds: (row.time_on_break_seconds as number) ?? 0,
       timeInCallsSeconds: (row.time_in_calls_seconds as number) ?? 0,
+      // Wrap-up time tracking (M8)
+      wrapUpTimeSeconds: (row.wrap_up_time_seconds as number) ?? 0,
+      wrapUpCount: (row.wrap_up_count as number) ?? 0,
+      avgWrapUpTimeSeconds: (row.avg_wrap_up_time_seconds as number) ?? 0,
+      minWrapUpTimeSeconds: row.min_wrap_up_time_seconds as number | null | undefined,
+      maxWrapUpTimeSeconds: row.max_wrap_up_time_seconds as number | null | undefined,
     };
   }
 }

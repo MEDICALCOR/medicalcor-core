@@ -526,6 +526,78 @@ export {
   type PaymentReminderSentEvent,
   type CollectionEscalatedEvent,
 } from './collections.js';
+
+// =============================================================================
+// Follow-up Scheduling Schemas (M9 Milestone)
+// =============================================================================
+export {
+  // Status & Type Enums
+  FollowUpTaskStatusSchema,
+  FollowUpTaskTypeSchema,
+  FollowUpTaskPrioritySchema,
+  FollowUpChannelSchema,
+  // Core Entity
+  FollowUpTaskSchema,
+  // Input Schemas
+  CreateFollowUpTaskSchema,
+  UpdateFollowUpTaskSchema,
+  SnoozeFollowUpTaskSchema,
+  CompleteFollowUpTaskSchema,
+  RecordFollowUpAttemptSchema,
+  // Configuration
+  FollowUpSchedulingConfigSchema,
+  // Query Schemas
+  FollowUpTaskFiltersSchema,
+  FollowUpTaskPaginationSchema,
+  FollowUpTaskPaginatedResultSchema,
+  // Workflow Payloads
+  FollowUpTaskCreationPayloadSchema,
+  FollowUpReminderPayloadSchema,
+  ProcessDueFollowUpsPayloadSchema,
+  // Events
+  FollowUpTaskCreatedEventSchema,
+  FollowUpTaskCompletedEventSchema,
+  FollowUpTaskOverdueEventSchema,
+  FollowUpTaskSnoozedEventSchema,
+  FollowUpReminderSentEventSchema,
+  // Analytics
+  FollowUpTaskSummarySchema,
+  AgentFollowUpPerformanceSchema,
+  // Helper Functions
+  calculateDueDate,
+  getPriorityForLeadScore,
+  isTaskOverdue,
+  canSnoozeTask,
+  canAttemptTask,
+  getNextBusinessDay,
+  adjustToBusinessHours,
+  getFollowUpTypeForDisposition,
+  // Types
+  type FollowUpTaskStatus,
+  type FollowUpTaskType,
+  type FollowUpTaskPriority,
+  type FollowUpChannel,
+  type FollowUpTask,
+  type CreateFollowUpTask,
+  type UpdateFollowUpTask,
+  type SnoozeFollowUpTask,
+  type CompleteFollowUpTask,
+  type RecordFollowUpAttempt,
+  type FollowUpSchedulingConfig,
+  type FollowUpTaskFilters,
+  type FollowUpTaskPagination,
+  type FollowUpTaskPaginatedResult,
+  type FollowUpTaskCreationPayload,
+  type FollowUpReminderPayload,
+  type ProcessDueFollowUpsPayload,
+  type FollowUpTaskCreatedEvent,
+  type FollowUpTaskCompletedEvent,
+  type FollowUpTaskOverdueEvent,
+  type FollowUpTaskSnoozedEvent,
+  type FollowUpReminderSentEvent,
+  type FollowUpTaskSummary,
+  type AgentFollowUpPerformance,
+} from './followup-scheduling.js';
 // Agent Presence Schemas (M2 Milestone)
 // =============================================================================
 export {
@@ -586,3 +658,160 @@ export {
   type AgentPresenceMetrics,
   type TeamPresenceSummary,
 } from './agent-presence.js';
+
+// =============================================================================
+// Revenue Forecasting Schemas
+// =============================================================================
+export {
+  // Method & Classification
+  ForecastMethodSchema,
+  ForecastConfidenceLevelSchema,
+  ForecastGranularitySchema,
+  RevenueTrendSchema,
+  // Historical Data
+  HistoricalRevenuePointSchema,
+  HistoricalRevenueInputSchema,
+  // Configuration
+  SeasonalFactorsSchema,
+  ForecastConfigSchema,
+  // Output
+  ForecastConfidenceIntervalSchema,
+  ForecastedRevenuePointSchema,
+  ModelFitStatisticsSchema,
+  TrendAnalysisSchema,
+  RevenueForecastOutputSchema,
+  // Request/Response
+  GenerateRevenueForecastRequestSchema,
+  RevenueForecastResponseSchema,
+  BatchRevenueForecastRequestSchema,
+  BatchRevenueForecastResultSchema,
+  // Analytics
+  ForecastAccuracyPointSchema,
+  ForecastAccuracyAnalysisSchema,
+  // Events
+  RevenueForecastGeneratedEventSchema,
+  RevenueGrowthDetectedEventSchema,
+  RevenueDeclineAlertEventSchema,
+  // Types
+  type ForecastMethod,
+  type ForecastConfidenceLevel,
+  type ForecastGranularity,
+  type RevenueTrend,
+  type HistoricalRevenuePoint,
+  type HistoricalRevenueInput,
+  type SeasonalFactors,
+  type ForecastConfig,
+  type ForecastConfidenceInterval,
+  type ForecastedRevenuePoint,
+  type ModelFitStatistics,
+  type TrendAnalysis,
+  type RevenueForecastOutput,
+  type GenerateRevenueForecastRequest,
+  type RevenueForecastResponse,
+  type BatchRevenueForecastRequest,
+  type BatchRevenueForecastResult,
+  type ForecastAccuracyPoint,
+  type ForecastAccuracyAnalysis,
+  type RevenueForecastGeneratedEvent,
+  type RevenueGrowthDetectedEvent,
+  type RevenueDeclineAlertEvent,
+} from './revenue-forecast.js';
+// Financing & Payment Plan Schemas (L2 Feature)
+// =============================================================================
+export {
+  // Status & Types
+  FinancingApplicationStatusSchema,
+  FinancingPlanTypeSchema,
+  FinancingTermSchema,
+  FinancingDecisionCodeSchema,
+  FinancingProviderSchema,
+  // Applicant & Application
+  FinancingApplicantSchema,
+  CreateFinancingApplicationSchema,
+  FinancingOfferSchema,
+  FinancingApplicationSchema,
+  // Acceptance
+  AcceptFinancingOfferSchema,
+  FinancingAcceptanceResultSchema,
+  // Eligibility
+  FinancingEligibilityCheckSchema,
+  FinancingEligibilityResultSchema,
+  // Events
+  FinancingApplicationSubmittedEventSchema,
+  FinancingApplicationApprovedEventSchema,
+  FinancingApplicationDeclinedEventSchema,
+  FinancingOfferAcceptedEventSchema,
+  FinancingFundsDisbursedEventSchema,
+  FinancingApplicationExpiredEventSchema,
+  FinancingEventSchema,
+  // Summary
+  FinancingSummarySchema,
+  // Helper Functions
+  toMajorCurrencyUnits,
+  toMinorCurrencyUnits,
+  formatFinancingAmount,
+  calculateMonthlyPayment,
+  calculateTotalRepayment,
+  calculateFinanceCharge,
+  isApplicationActionable,
+  isApplicationExpired,
+  getFinancingStatusLabel,
+  // Types
+  type FinancingApplicationStatus,
+  type FinancingPlanType,
+  type FinancingTerm,
+  type FinancingDecisionCode,
+  type FinancingProvider,
+  type FinancingApplicant,
+  type CreateFinancingApplication,
+  type FinancingOffer,
+  type FinancingApplication,
+  type AcceptFinancingOffer,
+  type FinancingAcceptanceResult,
+  type FinancingEligibilityCheck,
+  type FinancingEligibilityResult,
+  type FinancingApplicationSubmittedEvent,
+  type FinancingApplicationApprovedEvent,
+  type FinancingApplicationDeclinedEvent,
+  type FinancingOfferAcceptedEvent,
+  type FinancingFundsDisbursedEvent,
+  type FinancingApplicationExpiredEvent,
+  type FinancingEvent,
+  type FinancingSummary,
+} from './financing.js';
+// Invoice Generation Schemas (L3 Feature)
+// =============================================================================
+export {
+  // Status
+  InvoiceStatusSchema,
+  // Components
+  InvoiceLineItemSchema,
+  ClinicDetailsSchema,
+  InvoiceCustomerSchema,
+  InvoiceDataSchema,
+  // Email Options
+  InvoiceEmailOptionsSchema,
+  // Payload & Result
+  InvoiceGenerationPayloadSchema,
+  InvoiceGenerationResultSchema,
+  // Events
+  InvoiceGeneratedEventSchema,
+  InvoiceSentEventSchema,
+  // Helper Functions
+  formatInvoiceCurrency,
+  formatInvoiceDate,
+  calculateInvoiceTotals,
+  getDefaultInvoiceStoragePath,
+  getInvoiceLabels,
+  // Types
+  type InvoiceStatus,
+  type InvoiceLineItem,
+  type ClinicDetails,
+  type InvoiceCustomer,
+  type InvoiceData,
+  type InvoiceEmailOptions,
+  type InvoiceGenerationPayload,
+  type InvoiceGenerationResult,
+  type InvoiceGeneratedEvent,
+  type InvoiceSentEvent,
+} from './invoice-generation.js';

@@ -29,8 +29,39 @@ import { Pool } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { randomBytes } from 'crypto';
 import { createLogger } from '../logger.js';
+import {
+  AppError,
+  ConsentRequiredError,
+  DatabaseConfigError,
+  RecordNotFoundError,
+  ConcurrencyError,
+} from '../errors.js';
+import { Ok, Err, type Result } from '../types/result.js';
 
 const logger = createLogger({ name: 'postgres-scheduling-repository' });
+
+// ============================================================================
+// REPOSITORY ERROR TYPES
+// ============================================================================
+
+/** Slot is already booked by another appointment */
+export class SlotAlreadyBookedError extends AppError {
+  public readonly slotId: string;
+
+  constructor(slotId: string) {
+    super(`Slot already booked: ${slotId}`, 'SLOT_ALREADY_BOOKED', 409);
+    this.name = 'SlotAlreadyBookedError';
+    this.slotId = slotId;
+  }
+}
+
+/** Error types that can be returned from PostgresSchedulingRepository operations */
+export type SchedulingRepositoryError =
+  | ConsentRequiredError
+  | DatabaseConfigError
+  | RecordNotFoundError
+  | SlotAlreadyBookedError
+  | ConcurrencyError;
 
 // ============================================================================
 // LOCAL TYPE DEFINITIONS
@@ -117,27 +148,13 @@ export interface ConsentService {
  */
 export interface ISchedulingRepository {
   getAvailableSlots(options: string | GetAvailableSlotsOptions): Promise<TimeSlot[]>;
-  bookAppointment(request: BookingRequest): Promise<BookingResult>;
+  bookAppointment(
+    request: BookingRequest
+  ): Promise<Result<BookingResult, SchedulingRepositoryError>>;
   getUpcomingAppointments(startDate: Date, endDate: Date): Promise<AppointmentDetails[]>;
 }
 
-/**
- * Error thrown when patient has not provided required consent
- */
-export class ConsentRequiredError extends Error {
-  public readonly code = 'CONSENT_REQUIRED';
-  public readonly contactId: string;
-  public readonly missingConsents: string[];
-
-  constructor(contactId: string, missingConsents: string[]) {
-    super(
-      `Patient consent required before scheduling. Missing consents: ${missingConsents.join(', ')}`
-    );
-    this.name = 'ConsentRequiredError';
-    this.contactId = contactId;
-    this.missingConsents = missingConsents;
-  }
-}
+// ConsentRequiredError is now imported from '../errors.js'
 
 // ============================================================================
 // CONFIGURATION
@@ -291,17 +308,18 @@ export class PostgresSchedulingRepository implements ISchedulingRepository {
    * GDPR/HIPAA COMPLIANCE (MANDATORY):
    * - Patient consent is ALWAYS verified before any booking operation
    * - Consent verification is NON-NEGOTIABLE and cannot be skipped
-   * - Throws ConsentRequiredError if patient lacks required consent
+   * - Returns Err(ConsentRequiredError) if patient lacks required consent
    *
    * CONCURRENCY PROTECTION:
    * - Uses pessimistic locking (FOR UPDATE) for transaction safety
    * - Uses optimistic locking (version check) for defense-in-depth
    * - Double-checks for existing appointments to prevent data inconsistency
    *
-   * @throws ConsentRequiredError - If patient lacks required consent
-   * @throws Error - If slot not found, already booked, or concurrent modification detected
+   * @returns Result containing BookingResult or a SchedulingRepositoryError
    */
-  async bookAppointment(request: BookingRequest): Promise<BookingResult> {
+  async bookAppointment(
+    request: BookingRequest
+  ): Promise<Result<BookingResult, SchedulingRepositoryError>> {
     // MANDATORY: Verify patient consent before processing booking (GDPR/HIPAA requirement)
     // This check happens FIRST to ensure we don't access any data without consent
     // Consent verification is NON-NEGOTIABLE for all patient data operations
@@ -314,7 +332,7 @@ export class PostgresSchedulingRepository implements ISchedulingRepository {
         },
         'Booking rejected: patient lacks required consent'
       );
-      throw new ConsentRequiredError(request.hubspotContactId, consentCheck.missing);
+      return Err(new ConsentRequiredError(request.hubspotContactId, consentCheck.missing));
     }
 
     logger.debug(
@@ -323,7 +341,12 @@ export class PostgresSchedulingRepository implements ISchedulingRepository {
     );
 
     if (!this.pool) {
-      throw new Error('Database connection not configured - connectionString is required');
+      return Err(
+        new DatabaseConfigError(
+          'SchedulingRepository',
+          'Database connection not configured - connectionString is required'
+        )
+      );
     }
 
     const client = await this.pool.connect();
@@ -337,8 +360,14 @@ export class PostgresSchedulingRepository implements ISchedulingRepository {
         [request.slotId]
       );
 
-      if (slotCheck.rows.length === 0) throw new Error('Slot not found');
-      if (slotCheck.rows[0]?.is_booked) throw new Error('Slot already booked');
+      if (slotCheck.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return Err(new RecordNotFoundError('SchedulingRepository', 'TimeSlot', request.slotId));
+      }
+      if (slotCheck.rows[0]?.is_booked) {
+        await client.query('ROLLBACK');
+        return Err(new SlotAlreadyBookedError(request.slotId));
+      }
 
       const currentVersion = slotCheck.rows[0]?.version ?? 1;
 
@@ -352,7 +381,8 @@ export class PostgresSchedulingRepository implements ISchedulingRepository {
       );
 
       if (existingAppointment.rows.length > 0) {
-        throw new Error('Slot already has an active appointment');
+        await client.query('ROLLBACK');
+        return Err(new SlotAlreadyBookedError(request.slotId));
       }
 
       // 2. Create the Appointment record
@@ -393,7 +423,8 @@ export class PostgresSchedulingRepository implements ISchedulingRepository {
           { slotId: request.slotId, expectedVersion: currentVersion },
           'Optimistic lock failure: slot was modified concurrently'
         );
-        throw new Error('Slot booking failed: concurrent modification detected. Please try again.');
+        await client.query('ROLLBACK');
+        return Err(new ConcurrencyError('SchedulingRepository', 'TimeSlot', request.slotId));
       }
 
       logger.info(
@@ -407,11 +438,11 @@ export class PostgresSchedulingRepository implements ISchedulingRepository {
       );
 
       await client.query('COMMIT');
-      return { id: appointmentId, status: 'confirmed' };
+      return Ok({ id: appointmentId, status: 'confirmed' });
     } catch (error) {
       await client.query('ROLLBACK');
       logger.error({ error, slotId: request.slotId }, 'Failed to book appointment');
-      throw error;
+      throw error; // Re-throw unexpected errors (will be caught by caller)
     } finally {
       client.release();
     }

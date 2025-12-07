@@ -261,6 +261,9 @@ export * from './ltv/index.js';
 // Disposition - Call Outcome Tracking (M1 Production Fix)
 export * from './disposition/index.js';
 
+// Follow-up Scheduling - Post-Disposition Task Scheduling (M9 Feature)
+export * from './followup-scheduling/index.js';
+
 // Routing - Skill-Based Agent Routing (H6 Milestone)
 export * from './routing/index.js';
 // Agent Performance (M7 Milestone)
