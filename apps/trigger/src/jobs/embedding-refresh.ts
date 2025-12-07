@@ -7,6 +7,7 @@ import {
   type DatabasePool,
 } from '@medicalcor/core';
 import { createEmbeddingService, getOpenAIApiKey } from '@medicalcor/integrations';
+import { processEmbeddingEvents } from '../tasks/embedding-worker.js';
 
 /**
  * Embedding Refresh Job
@@ -490,6 +491,175 @@ export const dailyEmbeddingStats = schedules.task({
     } catch (error) {
       logger.error('Daily embedding stats collection failed', { error, correlationId });
       return { success: false, error: String(error) };
+    } finally {
+      try {
+        await db.end();
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+  },
+});
+
+// ============================================================================
+// CRON JOB: Domain Event Embedding Processor
+// ============================================================================
+
+/**
+ * Scheduled job to process domain events for embedding generation
+ *
+ * Runs every 5 minutes to process new domain events (messages, knowledge base
+ * updates, voice transcriptions) and generate their embeddings.
+ *
+ * This ensures the async embedding pipeline stays current without
+ * overwhelming the API during peak hours.
+ */
+export const scheduledEmbeddingEventProcessor = schedules.task({
+  id: 'scheduled-embedding-event-processor',
+  cron: '*/5 * * * *', // Every 5 minutes
+  run: async () => {
+    const correlationId = generateCorrelationId();
+    logger.info('Starting scheduled embedding event processor', { correlationId });
+
+    try {
+      // Trigger the embedding events processor task
+      const handle = await processEmbeddingEvents.trigger({
+        limit: 100,
+        correlationId,
+      });
+
+      logger.info('Embedding event processor triggered', {
+        taskId: handle.id,
+        correlationId,
+      });
+
+      return {
+        success: true,
+        taskId: handle.id,
+        correlationId,
+      };
+    } catch (error) {
+      logger.error('Failed to trigger embedding event processor', {
+        error,
+        correlationId,
+      });
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        correlationId,
+      };
+    }
+  },
+});
+
+// ============================================================================
+// CRON JOB: Stale Embedding Cleanup
+// ============================================================================
+
+/**
+ * Daily job to identify and re-process stale embeddings
+ *
+ * Finds content that may have been missed or failed during initial processing
+ * and queues them for re-embedding.
+ *
+ * Runs daily at 4:00 AM to avoid peak hours.
+ */
+export const dailyStaleEmbeddingCleanup = schedules.task({
+  id: 'daily-stale-embedding-cleanup',
+  cron: '0 4 * * *', // 4:00 AM every day
+  run: async () => {
+    const correlationId = generateCorrelationId();
+    logger.info('Starting daily stale embedding cleanup', { correlationId });
+
+    const { db, eventStore } = getClients();
+
+    if (!db) {
+      logger.warn('Database not configured, skipping stale embedding cleanup', { correlationId });
+      return { success: false, reason: 'Database not configured' };
+    }
+
+    try {
+      // Find knowledge base entries without embeddings
+      const missingKbEmbeddings = await db.query<{ id: string; content: string }>(
+        `
+        SELECT id, content
+        FROM knowledge_base
+        WHERE embedding IS NULL
+          AND content IS NOT NULL
+          AND LENGTH(content) >= 10
+        ORDER BY created_at DESC
+        LIMIT 200
+        `
+      );
+
+      // Find message embeddings without vectors
+      const missingMsgEmbeddings = await db.query<{ id: string; content_sanitized: string }>(
+        `
+        SELECT id, content_sanitized
+        FROM message_embeddings
+        WHERE embedding IS NULL
+          AND content_sanitized IS NOT NULL
+          AND LENGTH(content_sanitized) >= 10
+        ORDER BY created_at DESC
+        LIMIT 200
+        `
+      );
+
+      const kbCount = missingKbEmbeddings.rows.length;
+      const msgCount = missingMsgEmbeddings.rows.length;
+
+      logger.info('Found content without embeddings', {
+        knowledgeBaseEntries: kbCount,
+        messageEntries: msgCount,
+        correlationId,
+      });
+
+      if (kbCount === 0 && msgCount === 0) {
+        logger.info('No stale embeddings found', { correlationId });
+        return {
+          success: true,
+          knowledgeBaseRequeued: 0,
+          messagesRequeued: 0,
+          correlationId,
+        };
+      }
+
+      // Trigger batch re-embedding if we have stale entries
+      if (kbCount > 0 || msgCount > 0) {
+        const handle = await processEmbeddingEvents.trigger({
+          limit: 200,
+          correlationId: `${correlationId}_stale_cleanup`,
+        });
+
+        logger.info('Triggered embedding processor for stale content', {
+          taskId: handle.id,
+          knowledgeBaseEntries: kbCount,
+          messageEntries: msgCount,
+          correlationId,
+        });
+      }
+
+      // Emit event for monitoring
+      await emitJobEvent(eventStore, 'embedding.stale.cleanup', {
+        knowledgeBaseEntries: kbCount,
+        messageEntries: msgCount,
+        correlationId,
+      });
+
+      return {
+        success: true,
+        knowledgeBaseRequeued: kbCount,
+        messagesRequeued: msgCount,
+        correlationId,
+      };
+    } catch (error) {
+      logger.error('Daily stale embedding cleanup failed', { error, correlationId });
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        correlationId,
+      };
     } finally {
       try {
         await db.end();
