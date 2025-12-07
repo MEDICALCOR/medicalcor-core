@@ -279,6 +279,7 @@ See [.claude/README.md](./.claude/README.md) for complete documentation.
 | [API Reference](./docs/README/API_REFERENCE.md) | Endpoint documentation |
 | [Configuration](./docs/README/CONFIGURATION.md) | Environment variables |
 | [Claude Code Setup](./.claude/README.md) | AI-assisted development configuration |
+| [Claude Quick Ref](./.claude/QUICK_REFERENCE.md) | One-page Claude Code cheat sheet |
 
 ### Development
 
