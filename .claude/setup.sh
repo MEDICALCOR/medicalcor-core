@@ -72,10 +72,16 @@ EOF
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --from)
+      if [[ -z "${2:-}" ]] || [[ "$2" == --* ]]; then
+        err "--from requires a directory argument"
+      fi
       FROM_DIR="$2"
       shift 2
       ;;
     --to)
+      if [[ -z "${2:-}" ]] || [[ "$2" == --* ]]; then
+        err "--to requires a directory argument"
+      fi
       TO_DIR="$2"
       shift 2
       ;;
@@ -84,6 +90,9 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --docs-list)
+      if [[ -z "${2:-}" ]] || [[ "$2" == --* ]]; then
+        err "--docs-list requires a comma-separated list argument"
+      fi
       DOCS_LIST="$2"
       shift 2
       ;;
