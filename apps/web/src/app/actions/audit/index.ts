@@ -150,8 +150,9 @@ export async function getAuditLogsAction(
     }
 
     // Get total count
+    // Note: Uses audit_logs_view for backward compatibility after M1 consolidation
     const countResult = await database.query<{ count: string }>(
-      `SELECT COUNT(*) as count FROM audit_logs ${whereClause}`,
+      `SELECT COUNT(*) as count FROM audit_logs_view ${whereClause}`,
       params
     );
 
@@ -160,7 +161,7 @@ export async function getAuditLogsAction(
     const result = await database.query<AuditLogRow>(
       `SELECT id, created_at, user_name, user_role, action, category, status,
               details, entity_type, entity_id::text, entity_name, ip_address::text
-       FROM audit_logs
+       FROM audit_logs_view
        ${whereClause}
        ORDER BY created_at DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex}`,
@@ -183,6 +184,7 @@ export async function getAuditStatsAction(): Promise<{ stats: AuditStats | null;
     const user = await requireCurrentUser();
     const database = getDatabase();
 
+    // Note: Uses audit_logs_view for backward compatibility after M1 consolidation
     const result = await database.query<{
       total_logs: string;
       today_logs: string;
@@ -198,7 +200,7 @@ export async function getAuditStatsAction(): Promise<{ stats: AuditStats | null;
         COUNT(DISTINCT user_id) FILTER (WHERE user_id IS NOT NULL) as unique_users,
         COUNT(*) FILTER (WHERE status = 'success') as success_count,
         COUNT(*) FILTER (WHERE status = 'warning') as warning_count
-       FROM audit_logs
+       FROM audit_logs_view
        WHERE clinic_id = $1`,
       [user.clinicId]
     );
@@ -233,8 +235,9 @@ export async function createAuditLogAction(
 
     const validated = CreateAuditLogSchema.parse(data);
 
+    // Note: Uses audit_logs_view with INSTEAD OF trigger for backward compatibility after M1 consolidation
     const result = await database.query<AuditLogRow>(
-      `INSERT INTO audit_logs (clinic_id, user_id, user_name, user_role, action, category,
+      `INSERT INTO audit_logs_view (clinic_id, user_id, user_name, user_role, action, category,
               status, details, entity_type, entity_id, entity_name)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING id, created_at, user_name, user_role, action, category, status,
@@ -270,10 +273,11 @@ export async function getAuditLogsByEntityAction(
     const user = await requireCurrentUser();
     const database = getDatabase();
 
+    // Note: Uses audit_logs_view for backward compatibility after M1 consolidation
     const result = await database.query<AuditLogRow>(
       `SELECT id, created_at, user_name, user_role, action, category, status,
               details, entity_type, entity_id::text, entity_name, ip_address::text
-       FROM audit_logs
+       FROM audit_logs_view
        WHERE clinic_id = $1 AND entity_type = $2 AND entity_id = $3
        ORDER BY created_at DESC
        LIMIT 50`,
@@ -308,10 +312,11 @@ export async function exportAuditLogsAction(
       params.push(filters.endDate);
     }
 
+    // Note: Uses audit_logs_view for backward compatibility after M1 consolidation
     const result = await database.query<AuditLogRow>(
       `SELECT id, created_at, user_name, user_role, action, category, status,
               details, entity_type, entity_id::text, entity_name, ip_address::text
-       FROM audit_logs
+       FROM audit_logs_view
        ${whereClause}
        ORDER BY created_at DESC
        LIMIT 10000`,
@@ -348,7 +353,9 @@ export async function exportAuditLogsAction(
       row.ip_address ?? '',
     ]);
 
-    const csv = [headers.join(','), ...rows.map((r) => r.map((v) => `"${v}"`).join(','))].join('\n');
+    const csv = [headers.join(','), ...rows.map((r) => r.map((v) => `"${v}"`).join(','))].join(
+      '\n'
+    );
 
     return { success: true, data: csv };
   } catch (error) {
