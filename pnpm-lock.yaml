@@ -610,6 +610,9 @@ importers:
       '@medicalcor/application':
         specifier: workspace:*
         version: link:../application
+      '@medicalcor/core':
+        specifier: workspace:*
+        version: link:../core
       '@medicalcor/domain':
         specifier: workspace:*
         version: link:../domain
