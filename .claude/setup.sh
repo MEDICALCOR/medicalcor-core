@@ -156,7 +156,7 @@ else
   info "Using cp -a (rsync not available)"
   # Create target directory first
   mkdir -p "$TARGET_CLAUDE"
-  # Copy contents (not the directory itself)
+  # Copy all contents including hidden files (/.* notation)
   cp -a "$FROM_DIR/." "$TARGET_CLAUDE/"
   # Clean up common cruft in one pass
   find "$TARGET_CLAUDE" \( -name '.DS_Store' -o -name '*.log' \) -delete 2>/dev/null || true
@@ -170,7 +170,9 @@ if [ -f "$TOON_BINARY" ]; then
 fi
 
 # Additional scripts that might need executable permissions
-find "$TARGET_CLAUDE" -type f -name '*.sh' -exec chmod +x {} + 2>/dev/null || true
+if ! find "$TARGET_CLAUDE" -type f -name '*.sh' -exec chmod +x {} + 2>/dev/null; then
+  warn "Some shell scripts could not be made executable (permissions issue)"
+fi
 
 # Write settings.local.json
 SETTINGS_LOCAL="$TARGET_CLAUDE/settings.local.json"
