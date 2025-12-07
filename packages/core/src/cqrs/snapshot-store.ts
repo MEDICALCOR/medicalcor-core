@@ -8,7 +8,12 @@
  * - PostgreSQL persistence with TTL cleanup
  */
 
-import type { AggregateSnapshot, AggregateState } from './aggregate.js';
+import type {
+  AggregateSnapshot,
+  AggregateState,
+  LeadState,
+  LeadProjectionClient,
+} from './aggregate.js';
 import { createLogger, type Logger } from '../logger.js';
 
 // ============================================================================
@@ -192,7 +197,9 @@ export class PostgresSnapshotStore implements SnapshotStoreRepository {
 
     try {
       const result = await (
-        client as { query: (sql: string, params: unknown[]) => Promise<{ rows: PostgresSnapshotRow[] }> }
+        client as {
+          query: (sql: string, params: unknown[]) => Promise<{ rows: PostgresSnapshotRow[] }>;
+        }
       ).query(
         `SELECT * FROM ${this.tableName}
          WHERE aggregate_id = $1 AND aggregate_type = $2
@@ -283,6 +290,13 @@ export class SnapshotManager {
   }
 
   /**
+   * Get the configured snapshot frequency (every N events)
+   */
+  getSnapshotFrequency(): number {
+    return this.config.snapshotFrequency;
+  }
+
+  /**
    * Check if a snapshot should be taken for the given aggregate
    */
   shouldSnapshot(eventsSinceLastSnapshot: number): boolean {
@@ -304,10 +318,7 @@ export class SnapshotManager {
     );
 
     if (deleted > 0) {
-      this.logger.debug(
-        { aggregateId: snapshot.aggregateId, deleted },
-        'Cleaned up old snapshots'
-      );
+      this.logger.debug({ aggregateId: snapshot.aggregateId, deleted }, 'Cleaned up old snapshots');
     }
   }
 
@@ -364,19 +375,15 @@ export class SnapshotManager {
 
 import type { EventStore } from '../event-store.js';
 import type { AggregateRoot } from './aggregate.js';
-import { EventSourcedRepository } from './aggregate.js';
+import { EventSourcedRepository, LeadAggregate } from './aggregate.js';
 
 export abstract class SnapshotEnabledRepository<
   T extends AggregateRoot<TState>,
-  TState extends AggregateState
+  TState extends AggregateState,
 > extends EventSourcedRepository<T> {
   protected snapshotManager: SnapshotManager;
 
-  constructor(
-    eventStore: EventStore,
-    aggregateType: string,
-    snapshotManager: SnapshotManager
-  ) {
+  constructor(eventStore: EventStore, aggregateType: string, snapshotManager: SnapshotManager) {
     super(eventStore, aggregateType);
     this.snapshotManager = snapshotManager;
   }
@@ -386,10 +393,7 @@ export abstract class SnapshotEnabledRepository<
    */
   override async getById(id: string): Promise<T | null> {
     // Try to get latest snapshot first
-    const snapshot = await this.snapshotManager.getLatestSnapshot<TState>(
-      id,
-      this.aggregateType
-    );
+    const snapshot = await this.snapshotManager.getLatestSnapshot<TState>(id, this.aggregateType);
 
     // Get events after snapshot (or all events if no snapshot)
     const afterVersion = snapshot?.version ?? -1;
@@ -421,6 +425,13 @@ export abstract class SnapshotEnabledRepository<
 
   /**
    * Save aggregate and optionally take a snapshot
+   *
+   * Snapshots are taken when the aggregate version crosses a snapshot frequency
+   * boundary (e.g., at versions 100, 200, 300, etc. with frequency=100).
+   *
+   * The algorithm checks if the version before applying events and the version
+   * after applying events cross a snapshot boundary, ensuring we capture
+   * snapshots even when multiple events are applied at once.
    */
   override async save(aggregate: T): Promise<void> {
     const events = aggregate.getUncommittedEvents();
@@ -429,13 +440,21 @@ export abstract class SnapshotEnabledRepository<
       return;
     }
 
+    // Calculate version before and after this save
+    // Note: aggregate.version already includes the uncommitted events
+    const currentVersion = aggregate.version;
+    const previousVersion = currentVersion - events.length;
+    const snapshotFrequency = this.snapshotManager.getSnapshotFrequency();
+
     // Save events first
     await super.save(aggregate);
 
-    // Check if we should take a snapshot
-    // Access config via public method pattern - config is internal
-    const eventsSinceLastSnapshot = aggregate.version % (this.snapshotManager as unknown as { config: SnapshotStoreConfig }).config.snapshotFrequency;
-    if (this.snapshotManager.shouldSnapshot(eventsSinceLastSnapshot + events.length)) {
+    // Check if we crossed a snapshot boundary during this save
+    // A snapshot boundary is crossed when Math.floor(currentVersion / frequency) > Math.floor(previousVersion / frequency)
+    const previousBoundary = Math.floor(previousVersion / snapshotFrequency);
+    const currentBoundary = Math.floor(currentVersion / snapshotFrequency);
+
+    if (currentBoundary > previousBoundary && currentVersion >= snapshotFrequency) {
       const snapshot = aggregate.createSnapshot();
       await this.snapshotManager.saveSnapshot(snapshot);
     }
@@ -443,10 +462,150 @@ export abstract class SnapshotEnabledRepository<
 }
 
 // ============================================================================
+// SNAPSHOT-ENABLED LEAD REPOSITORY
+// ============================================================================
+
+/**
+ * Lead repository with snapshot optimization for fast aggregate hydration.
+ *
+ * This repository extends SnapshotEnabledRepository to provide:
+ * - Automatic snapshot creation every N events (configurable)
+ * - Fast aggregate loading from snapshot + recent events
+ * - Projection-based lookups for O(1) queries
+ *
+ * @example
+ * ```typescript
+ * const snapshotManager = createInMemorySnapshotManager({ snapshotFrequency: 100 });
+ * const repo = new SnapshotEnabledLeadRepository(eventStore, snapshotManager, projectionClient);
+ *
+ * // Load lead - uses snapshot if available
+ * const lead = await repo.getById('lead-123');
+ *
+ * // Save lead - automatically creates snapshot at version boundaries
+ * lead.score(5, 'HOT');
+ * await repo.save(lead);
+ * ```
+ */
+export class SnapshotEnabledLeadRepository extends SnapshotEnabledRepository<
+  LeadAggregate,
+  LeadState
+> {
+  private projectionClient: LeadProjectionClient | null = null;
+
+  constructor(
+    eventStore: EventStore,
+    snapshotManager: SnapshotManager,
+    projectionClient?: LeadProjectionClient
+  ) {
+    super(eventStore, 'Lead', snapshotManager);
+    this.projectionClient = projectionClient ?? null;
+  }
+
+  protected createEmpty(id: string): LeadAggregate {
+    // Create with placeholder values - will be overwritten by event replay or snapshot
+    return new LeadAggregate(id, '', 'whatsapp');
+  }
+
+  /**
+   * Find lead by phone number using SQL projection (O(1) lookup)
+   *
+   * Uses leads_lookup table for fast lookup, then hydrates from snapshot + events.
+   * Falls back to event store scan if projection client is not configured.
+   */
+  async findByPhone(phone: string): Promise<LeadAggregate | null> {
+    if (this.projectionClient) {
+      const result = await this.projectionClient.query<{ id: string }>(
+        'SELECT id FROM leads_lookup WHERE phone = $1 LIMIT 1',
+        [phone]
+      );
+
+      if (result.rows.length > 0 && result.rows[0]) {
+        return this.getById(result.rows[0].id);
+      }
+
+      return null;
+    }
+
+    // Fallback: Event Store scan (O(N)) - only for development/testing
+    const events = await this.eventStore.getByType('LeadCreated');
+
+    for (const event of events) {
+      if ((event.payload as { phone: string }).phone === phone && event.aggregateId) {
+        return this.getById(event.aggregateId);
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Check if a lead exists by phone (uses projection for efficiency)
+   */
+  async existsByPhone(phone: string): Promise<boolean> {
+    if (this.projectionClient) {
+      const result = await this.projectionClient.query<{ exists: boolean }>(
+        'SELECT EXISTS(SELECT 1 FROM leads_lookup WHERE phone = $1) as exists',
+        [phone]
+      );
+      return result.rows[0]?.exists ?? false;
+    }
+
+    const lead = await this.findByPhone(phone);
+    return lead !== null;
+  }
+
+  /**
+   * Find leads by status using SQL projection
+   * Hydrates aggregates from snapshot + events for consistency.
+   */
+  async findByStatus(status: string, limit = 50): Promise<LeadAggregate[]> {
+    if (!this.projectionClient) {
+      return [];
+    }
+
+    const result = await this.projectionClient.query<{ id: string }>(
+      `SELECT id FROM leads_lookup
+       WHERE status = $1
+       ORDER BY created_at DESC
+       LIMIT $2`,
+      [status, limit]
+    );
+
+    const leads = await Promise.all(result.rows.map((row) => this.getById(row.id)));
+    return leads.filter((lead): lead is LeadAggregate => lead !== null);
+  }
+
+  /**
+   * Find leads by classification using SQL projection
+   */
+  async findByClassification(
+    classification: 'HOT' | 'WARM' | 'COLD' | 'UNQUALIFIED',
+    limit = 50
+  ): Promise<LeadAggregate[]> {
+    if (!this.projectionClient) {
+      return [];
+    }
+
+    const result = await this.projectionClient.query<{ id: string }>(
+      `SELECT id FROM leads_lookup
+       WHERE classification = $1
+       ORDER BY created_at DESC
+       LIMIT $2`,
+      [classification, limit]
+    );
+
+    const leads = await Promise.all(result.rows.map((row) => this.getById(row.id)));
+    return leads.filter((lead): lead is LeadAggregate => lead !== null);
+  }
+}
+
+// ============================================================================
 // FACTORY FUNCTIONS
 // ============================================================================
 
-export function createSnapshotStore(config: Partial<SnapshotStoreConfig> = {}): SnapshotStoreRepository {
+export function createSnapshotStore(
+  config: Partial<SnapshotStoreConfig> = {}
+): SnapshotStoreRepository {
   const fullConfig = { ...DEFAULT_CONFIG, ...config };
 
   if (fullConfig.connectionString) {

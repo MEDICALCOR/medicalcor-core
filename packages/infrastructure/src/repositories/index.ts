@@ -1,12 +1,16 @@
 /**
  * @fileoverview Repository Adapters (Infrastructure Layer)
  *
+ * PostgreSQL and external service adapters implementing domain repository interfaces.
+ *
  * This module exports concrete repository adapters that implement
  * the port interfaces defined in the application layer.
  *
  * ## Hexagonal Architecture
  *
  * Repositories here are **ADAPTERS** implementing application **PORTS**:
+ * Repositories here are **ADAPTERS** implementing domain **PORTS**:
+ * - PostgresCaseRepository implements ICaseRepository (PostgreSQL)
  * - CalendarSchedulingAdapter implements ISchedulingRepository (external calendar)
  * - CaseRepository implements ICaseRepository (cohort analysis)
  * - PostgresCaseRepository implements ICaseRepository (payments & LTV)
@@ -17,6 +21,7 @@
  * @example
  * ```typescript
  * import {
+ *   PostgresCaseRepository,
  *   CalendarSchedulingAdapter,
  *   createCalendarSchedulingAdapter,
  *   CaseRepository,
@@ -32,6 +37,15 @@
 // CALENDAR SCHEDULING ADAPTER
 // =============================================================================
 
+// PostgreSQL Case Repository
+export {
+  PostgresCaseRepository,
+  createPostgresCaseRepository,
+  type PostgresCaseRepositoryConfig,
+  type CaseRepositoryError,
+} from './PostgresCaseRepository.js';
+
+// Calendar Scheduling Adapter (External Calendar Integration)
 export {
   // Class and factory
   CalendarSchedulingAdapter,

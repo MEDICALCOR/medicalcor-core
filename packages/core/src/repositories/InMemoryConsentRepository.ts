@@ -7,9 +7,13 @@
  * WARNING: Not suitable for production - data is lost on restart.
  * For production, use PostgresConsentRepository.
  *
+ * Uses the Result pattern for consistent error handling.
+ *
  * @module @medicalcor/core/repositories/InMemoryConsentRepository
  */
 
+import { Ok, type Result } from '../types/result.js';
+import type { RecordCreateError } from '../errors.js';
 import type {
   IConsentRepository,
   ConsentRecord,
@@ -41,13 +45,15 @@ export class InMemoryConsentRepository implements IConsentRepository {
     return `${contactId}:${consentType}`;
   }
 
-  save(consent: ConsentRecord): Promise<ConsentRecord> {
+  save(consent: ConsentRecord): Promise<Result<ConsentRecord, RecordCreateError>> {
     const key = this.getKey(consent.contactId, consent.consentType);
     this.consents.set(key, consent);
-    return Promise.resolve(consent);
+    return Promise.resolve(Ok(consent));
   }
 
-  upsert(consent: ConsentRecord): Promise<{ record: ConsentRecord; wasCreated: boolean }> {
+  upsert(
+    consent: ConsentRecord
+  ): Promise<Result<{ record: ConsentRecord; wasCreated: boolean }, RecordCreateError>> {
     const key = this.getKey(consent.contactId, consent.consentType);
     const existing = this.consents.get(key);
     const wasCreated = !existing;
@@ -62,7 +68,7 @@ export class InMemoryConsentRepository implements IConsentRepository {
         };
 
     this.consents.set(key, recordToSave);
-    return Promise.resolve({ record: recordToSave, wasCreated });
+    return Promise.resolve(Ok({ record: recordToSave, wasCreated }));
   }
 
   findByContactAndType(contactId: string, consentType: ConsentType): Promise<ConsentRecord | null> {

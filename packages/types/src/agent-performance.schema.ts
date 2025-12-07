@@ -168,6 +168,13 @@ export const AgentDailyMetricsSchema = z.object({
   timeLoggedSeconds: z.number().int().default(0),
   timeOnBreakSeconds: z.number().int().default(0),
   timeInCallsSeconds: z.number().int().default(0),
+
+  // Wrap-up time tracking (M8)
+  wrapUpTimeSeconds: z.number().int().default(0),
+  wrapUpCount: z.number().int().default(0),
+  avgWrapUpTimeSeconds: z.number().int().default(0),
+  minWrapUpTimeSeconds: z.number().int().optional().nullable(),
+  maxWrapUpTimeSeconds: z.number().int().optional().nullable(),
 });
 
 // ============================================================================
@@ -295,6 +302,108 @@ export const GetAgentPerformanceRequestSchema = z.object({
 });
 
 // ============================================================================
+// WRAP-UP TIME TRACKING SCHEMAS (M8)
+// ============================================================================
+
+/**
+ * Wrap-up event status
+ */
+export const WrapUpStatusSchema = z.enum(['in_progress', 'completed', 'abandoned']);
+
+/**
+ * Individual wrap-up event record
+ */
+export const WrapUpEventSchema = z.object({
+  id: z.string().uuid(),
+  agentId: z.string().uuid(),
+  clinicId: z.string().uuid(),
+  callSid: z.string(),
+  leadId: z.string().uuid().optional().nullable(),
+  dispositionId: z.string().uuid().optional().nullable(),
+  status: WrapUpStatusSchema,
+  startedAt: z.string(),
+  completedAt: z.string().optional().nullable(),
+  durationSeconds: z.number().int().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+/**
+ * Start wrap-up request
+ */
+export const StartWrapUpRequestSchema = z.object({
+  agentId: z.string().uuid(),
+  clinicId: z.string().uuid(),
+  callSid: z.string(),
+  leadId: z.string().uuid().optional(),
+});
+
+/**
+ * Complete wrap-up request
+ */
+export const CompleteWrapUpRequestSchema = z.object({
+  callSid: z.string(),
+  agentId: z.string().uuid(),
+  dispositionId: z.string().uuid().optional(),
+  notes: z.string().optional(),
+});
+
+/**
+ * Wrap-up statistics for an agent
+ */
+export const WrapUpStatsSchema = z.object({
+  agentId: z.string().uuid(),
+  totalWrapUps: z.number().int(),
+  completedWrapUps: z.number().int(),
+  abandonedWrapUps: z.number().int(),
+  totalWrapUpTimeSeconds: z.number().int(),
+  avgWrapUpTimeSeconds: z.number(),
+  minWrapUpTimeSeconds: z.number().int().nullable(),
+  maxWrapUpTimeSeconds: z.number().int().nullable(),
+  periodStart: z.string(),
+  periodEnd: z.string(),
+});
+
+/**
+ * Wrap-up time trend data point
+ */
+export const WrapUpTrendPointSchema = z.object({
+  date: z.string(),
+  wrapUpCount: z.number().int(),
+  avgWrapUpTimeSeconds: z.number(),
+  totalWrapUpTimeSeconds: z.number().int(),
+});
+
+/**
+ * Agent wrap-up performance for dashboard
+ */
+export const AgentWrapUpPerformanceSchema = z.object({
+  agentId: z.string().uuid(),
+  agentName: z.string(),
+  avgWrapUpTimeSeconds: z.number(),
+  totalWrapUps: z.number().int(),
+  completionRate: z.number(), // Percentage of completed vs abandoned
+  trend: z.enum(['improving', 'stable', 'declining']),
+  comparedToTeamAvg: z.number(), // Percentage difference from team average
+});
+
+/**
+ * Wrap-up time dashboard data
+ */
+export const WrapUpDashboardDataSchema = z.object({
+  teamAvgWrapUpSeconds: z.number(),
+  teamAvgWrapUpSecondsChange: z.number(), // vs previous period
+  totalWrapUps: z.number().int(),
+  totalWrapUpTimeSeconds: z.number().int(),
+  completionRate: z.number(),
+  agentPerformance: z.array(AgentWrapUpPerformanceSchema),
+  trend: z.array(WrapUpTrendPointSchema),
+  topPerformers: z.array(AgentWrapUpPerformanceSchema),
+  needsImprovement: z.array(AgentWrapUpPerformanceSchema),
+});
+
+// ============================================================================
 // TYPE EXPORTS
 // ============================================================================
 
@@ -316,3 +425,13 @@ export type AgentDashboardMetrics = z.infer<typeof AgentDashboardMetricsSchema>;
 export type AgentPerformanceDashboardData = z.infer<typeof AgentPerformanceDashboardDataSchema>;
 export type AgentPerformanceTimeRange = z.infer<typeof AgentPerformanceTimeRangeSchema>;
 export type GetAgentPerformanceRequest = z.infer<typeof GetAgentPerformanceRequestSchema>;
+
+// Wrap-up time tracking types (M8)
+export type WrapUpStatus = z.infer<typeof WrapUpStatusSchema>;
+export type WrapUpEvent = z.infer<typeof WrapUpEventSchema>;
+export type StartWrapUpRequest = z.infer<typeof StartWrapUpRequestSchema>;
+export type CompleteWrapUpRequest = z.infer<typeof CompleteWrapUpRequestSchema>;
+export type WrapUpStats = z.infer<typeof WrapUpStatsSchema>;
+export type WrapUpTrendPoint = z.infer<typeof WrapUpTrendPointSchema>;
+export type AgentWrapUpPerformance = z.infer<typeof AgentWrapUpPerformanceSchema>;
+export type WrapUpDashboardData = z.infer<typeof WrapUpDashboardDataSchema>;

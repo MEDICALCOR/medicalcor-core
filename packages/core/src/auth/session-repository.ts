@@ -1,11 +1,23 @@
 /**
  * Session Repository
  * Database operations for session management and revocation
+ *
+ * Uses the Result pattern for consistent error handling across all repository methods.
+ * Methods return Result<T, E> where E is a typed error from @medicalcor/core/errors.
  */
 
 import type { DatabasePool } from '../database.js';
 import { createLogger, type Logger } from '../logger.js';
+import { RecordCreateError } from '../errors.js';
+import { Ok, Err, type Result } from '../types/result.js';
 import type { Session, CreateSessionData } from './types.js';
+
+// ============================================================================
+// REPOSITORY ERROR TYPES
+// ============================================================================
+
+/** Error types that can be returned from SessionRepository operations */
+export type SessionRepositoryError = RecordCreateError;
 
 const logger: Logger = createLogger({ name: 'session-repository' });
 
@@ -35,8 +47,9 @@ export class SessionRepository {
 
   /**
    * Create a new session
+   * @returns Result containing the created Session or a RecordCreateError
    */
-  async create(data: CreateSessionData): Promise<Session> {
+  async create(data: CreateSessionData): Promise<Result<Session, RecordCreateError>> {
     const result = await this.db.query(
       `INSERT INTO sessions (user_id, token_hash, ip_address, user_agent, device_info, expires_at)
        VALUES ($1, $2, $3, $4, $5, $6)
@@ -53,10 +66,10 @@ export class SessionRepository {
 
     const row = result.rows[0];
     if (!row) {
-      throw new Error('Failed to create session');
+      return Err(new RecordCreateError('SessionRepository', 'Session'));
     }
     logger.debug({ userId: data.userId }, 'Session created');
-    return mapRowToSession(row);
+    return Ok(mapRowToSession(row));
   }
 
   /**
@@ -210,7 +223,10 @@ export class SessionRepository {
 
     const count = result.rowCount ?? 0;
     if (count > 0) {
-      logger.info({ userId, count, maxSessions, reason }, 'Excess sessions revoked to enforce limit');
+      logger.info(
+        { userId, count, maxSessions, reason },
+        'Excess sessions revoked to enforce limit'
+      );
     }
     return count;
   }
