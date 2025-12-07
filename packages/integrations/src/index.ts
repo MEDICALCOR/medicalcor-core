@@ -130,6 +130,21 @@ export {
   type SupervisorNotification,
 } from './notifications.js';
 
+export {
+  InsuranceClient,
+  MockInsuranceClient,
+  createInsuranceClient,
+  createMockInsuranceClient,
+  getInsuranceCredentials,
+  SUPPORTED_PROVIDERS as INSURANCE_PROVIDERS,
+  InsuranceVerificationRequestSchema,
+  InsuranceVerificationResponseSchema,
+  type InsuranceClientConfig,
+  type InsuranceClientError,
+  type InsuranceVerificationRequest,
+  type InsuranceVerificationResponse,
+} from './insurance.js';
+
 // =============================================================================
 // Client Factory (Legacy)
 // =============================================================================
