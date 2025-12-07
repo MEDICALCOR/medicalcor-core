@@ -379,10 +379,12 @@ export const RoutingDecisionSchema = z.object({
   candidateAgents: z.array(AgentMatchScoreSchema).default([]),
   selectionReason: z.string(),
 
-  // Queue info (if queued)
+  // Queue info (if queued or routed from queue)
   queueId: z.string().optional(),
   queuePosition: z.number().int().optional(),
   estimatedWaitTime: z.number().int().optional(), // seconds
+  queuedAt: TimestampSchema.optional(), // When task was added to queue
+  waitTimeMs: z.number().int().optional(), // Actual wait time in milliseconds
 
   // Fallback info
   fallbacksAttempted: z.number().int().min(0).default(0),

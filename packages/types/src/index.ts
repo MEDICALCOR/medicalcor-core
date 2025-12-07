@@ -298,6 +298,30 @@ export {
   type NPSSummaryStats,
   type NPSTrendPoint,
   type NPSDashboardData,
+
+  // Collections & Overdue Payments (M5)
+  InstallmentStatusSchema,
+  ReminderLevelSchema,
+  OverdueInstallmentSchema,
+  ReminderConfigSchema,
+  PaymentReminderPayloadSchema,
+  OverdueDetectionResultSchema,
+  PaymentReminderSentEventSchema,
+  CollectionEscalatedEventSchema,
+  determineReminderLevel,
+  getReminderTemplateName,
+  shouldSendReminder,
+  calculateLateFee,
+  formatCurrencyForReminder,
+  formatDateForReminder,
+  type InstallmentStatus,
+  type ReminderLevel,
+  type OverdueInstallment,
+  type ReminderConfig,
+  type PaymentReminderPayload,
+  type OverdueDetectionResult,
+  type PaymentReminderSentEvent,
+  type CollectionEscalatedEvent,
 } from './schemas/index.js';
 
 // =============================================================================
@@ -846,3 +870,63 @@ export {
   type PLTVChangedEvent,
   type BatchPLTVScoringCompletedEvent,
 } from './schemas/pltv.js';
+// Agent Presence Schemas (M2 - WebSocket Presence)
+// =============================================================================
+export {
+  // Status & Reason
+  AgentPresenceStatusSchema,
+  PresenceChangeReasonSchema,
+  // Agent State
+  AgentPresenceSchema,
+  // Heartbeat
+  HeartbeatConfigSchema,
+  HeartbeatMessageSchema,
+  HeartbeatAckSchema,
+  // Event Types
+  PresenceEventTypeSchema,
+  PresenceEventBaseSchema,
+  // Connection Events
+  PresenceConnectEventSchema,
+  PresenceConnectedEventSchema,
+  PresenceDisconnectEventSchema,
+  PresenceDisconnectedEventSchema,
+  // Status Events
+  PresenceStatusChangeEventSchema,
+  // Heartbeat Events
+  PresenceHeartbeatEventSchema,
+  PresenceHeartbeatAckEventSchema,
+  // Query Events
+  PresenceQueryEventSchema,
+  PresenceQueryResponseEventSchema,
+  // Bulk Events
+  PresenceBulkUpdateEventSchema,
+  PresenceRosterEventSchema,
+  // Union Event
+  PresenceEventSchema,
+  // Metrics
+  AgentPresenceMetricsSchema,
+  TeamPresenceSummarySchema,
+  // Types
+  type AgentPresenceStatus,
+  type PresenceChangeReason,
+  type AgentPresence,
+  type HeartbeatConfig,
+  type HeartbeatMessage,
+  type HeartbeatAck,
+  type PresenceEventType,
+  type PresenceEventBase,
+  type PresenceConnectEvent,
+  type PresenceConnectedEvent,
+  type PresenceDisconnectEvent,
+  type PresenceDisconnectedEvent,
+  type PresenceStatusChangeEvent,
+  type PresenceHeartbeatEvent,
+  type PresenceHeartbeatAckEvent,
+  type PresenceQueryEvent,
+  type PresenceQueryResponseEvent,
+  type PresenceBulkUpdateEvent,
+  type PresenceRosterEvent,
+  type PresenceEvent,
+  type AgentPresenceMetrics,
+  type TeamPresenceSummary,
+} from './schemas/agent-presence.js';
