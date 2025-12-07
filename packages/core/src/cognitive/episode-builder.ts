@@ -10,6 +10,7 @@ import { createLogger } from '../logger.js';
 import {
   DEFAULT_COGNITIVE_CONFIG,
   type EpisodicEventWithEmbedding,
+  type EpisodicEvent,
   type RawEventContext,
   type EventAnalysisResult,
   type SubjectType,
@@ -19,8 +20,18 @@ import {
   type Sentiment,
   type CognitiveSystemConfig,
   type KnowledgeEntity,
+  type PatternUpdateEvent,
 } from './types.js';
 import type { KnowledgeGraphService } from './knowledge-graph.js';
+import type { RealtimePatternStream } from './realtime-pattern-stream.js';
+
+/**
+ * Callback invoked after an episodic event is processed
+ */
+export type OnEventProcessedCallback = (
+  event: EpisodicEvent,
+  patternUpdate: PatternUpdateEvent | null
+) => void | Promise<void>;
 
 const logger = createLogger({ name: 'cognitive-episode-builder' });
 
@@ -86,6 +97,8 @@ const EVENT_CATEGORY_MAP: Record<string, EventCategory> = {
 export class EpisodeBuilder {
   private config: CognitiveSystemConfig;
   private knowledgeGraph: KnowledgeGraphService | null = null;
+  private realtimePatternStream: RealtimePatternStream | null = null;
+  private onEventProcessedCallbacks = new Set<OnEventProcessedCallback>();
 
   constructor(
     private openai: IOpenAIClient,
@@ -101,6 +114,25 @@ export class EpisodeBuilder {
    */
   setKnowledgeGraph(knowledgeGraph: KnowledgeGraphService): void {
     this.knowledgeGraph = knowledgeGraph;
+  }
+
+  /**
+   * Set the real-time pattern stream for automatic pattern updates (L5)
+   */
+  setRealtimePatternStream(stream: RealtimePatternStream): void {
+    this.realtimePatternStream = stream;
+    logger.info('Real-time pattern stream connected to episode builder');
+  }
+
+  /**
+   * Subscribe to event processing notifications
+   * Callback receives the processed event and any resulting pattern update
+   */
+  onEventProcessed(callback: OnEventProcessedCallback): () => void {
+    this.onEventProcessedCallbacks.add(callback);
+    return () => {
+      this.onEventProcessedCallbacks.delete(callback);
+    };
   }
 
   /**
@@ -164,12 +196,55 @@ export class EpisodeBuilder {
         }
       }
 
+      // 6. Trigger real-time pattern detection (L5)
+      let patternUpdate: PatternUpdateEvent | null = null;
+      if (this.realtimePatternStream) {
+        try {
+          // Convert to base EpisodicEvent for pattern processing
+          const baseEvent: EpisodicEvent = {
+            id: episode.id,
+            subjectType: episode.subjectType,
+            subjectId: episode.subjectId,
+            eventType: episode.eventType,
+            eventCategory: episode.eventCategory,
+            sourceChannel: episode.sourceChannel,
+            rawEventId: episode.rawEventId,
+            summary: episode.summary,
+            keyEntities: episode.keyEntities,
+            sentiment: episode.sentiment,
+            intent: episode.intent,
+            occurredAt: episode.occurredAt,
+            processedAt: episode.processedAt,
+            metadata: episode.metadata,
+          };
+          patternUpdate = await this.realtimePatternStream.processEvent(baseEvent);
+          if (patternUpdate) {
+            logger.debug(
+              {
+                subjectId,
+                deltaCount: patternUpdate.deltas.length,
+              },
+              'Real-time pattern update triggered'
+            );
+          }
+        } catch (error) {
+          logger.warn(
+            { error, episodeId: episode.id },
+            'Failed to trigger real-time pattern detection, continuing...'
+          );
+        }
+      }
+
+      // 7. Notify callbacks
+      await this.notifyEventProcessed(episode, patternUpdate);
+
       logger.info(
         {
           subjectId,
           eventType: rawEvent.eventType,
           processingTimeMs: Date.now() - startTime,
           extractedEntities: extractedEntities.length,
+          patternUpdateTriggered: patternUpdate !== null,
         },
         'Episodic memory created'
       );
@@ -353,6 +428,35 @@ Guidelines:
       sentiment: 'neutral',
       intent: 'unknown',
     };
+  }
+
+  /**
+   * Notify all registered callbacks about processed event (L5)
+   */
+  private async notifyEventProcessed(
+    event: EpisodicEvent,
+    patternUpdate: PatternUpdateEvent | null
+  ): Promise<void> {
+    const promises: Promise<void>[] = [];
+
+    for (const callback of this.onEventProcessedCallbacks) {
+      try {
+        const result = callback(event, patternUpdate);
+        if (result instanceof Promise) {
+          promises.push(
+            result.catch((error: unknown) => {
+              logger.warn({ error }, 'Event processed callback failed');
+            })
+          );
+        }
+      } catch (error) {
+        logger.warn({ error }, 'Event processed callback threw synchronously');
+      }
+    }
+
+    if (promises.length > 0) {
+      await Promise.all(promises);
+    }
   }
 
   /**
