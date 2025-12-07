@@ -100,11 +100,11 @@ interface BatchEmbeddingResult {
   totalItems: number;
   successfulItems: number;
   failedItems: number;
-  results: Array<{
+  results: {
     contentId: string;
     success: boolean;
     error?: string;
-  }>;
+  }[];
   totalTokensUsed: number;
   processingTimeMs: number;
   correlationId: string;
@@ -172,7 +172,7 @@ async function storeKnowledgeBaseEmbedding(
     RETURNING id
     `,
     [
-      contentId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.exec(contentId)
         ? contentId
         : null,
       metadata?.sourceType ?? 'custom',
@@ -217,7 +217,7 @@ async function storeMessageEmbedding(
     RETURNING id
     `,
     [
-      contentId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.exec(contentId)
         ? contentId
         : null,
       metadata?.phone ?? 'unknown',
@@ -248,9 +248,11 @@ async function emitEmbeddingEvent(
   payload: Record<string, unknown>
 ): Promise<void> {
   try {
+    const correlationId =
+      typeof payload.correlationId === 'string' ? payload.correlationId : crypto.randomUUID();
     await eventStore.emit({
       type,
-      correlationId: (payload.correlationId as string) ?? crypto.randomUUID(),
+      correlationId,
       payload,
       aggregateType: 'embedding',
     });
@@ -569,6 +571,374 @@ export const embedBatch = task({
 });
 
 // ============================================================================
+// TYPES FOR DOMAIN EVENT PROCESSING
+// ============================================================================
+
+/** Events that should trigger embedding generation */
+const EMBEDDABLE_EVENT_TYPES = [
+  'whatsapp.message.received',
+  'lead.message_received',
+  'knowledge_base.created',
+  'knowledge_base.updated',
+  'voice.transcription.completed',
+] as const;
+
+// Using const assertion above, type can be inferred where needed
+
+/** Domain event from the event store */
+interface StoredDomainEvent {
+  id: string;
+  type: string;
+  correlation_id: string;
+  aggregate_id: string | null;
+  aggregate_type: string | null;
+  payload: Record<string, unknown>;
+  created_at: Date;
+  processed_for_embedding?: boolean;
+}
+
+/** Result of processing domain events */
+interface DomainEventProcessingResult {
+  success: boolean;
+  eventsProcessed: number;
+  embeddingsGenerated: number;
+  errors: number;
+  processingTimeMs: number;
+  correlationId: string;
+}
+
+/** Payload for the domain event processor task */
+export const ProcessEmbeddingEventsPayloadSchema = z.object({
+  /** Maximum number of events to process per run */
+  limit: z.number().min(1).max(500).default(100),
+  /** Only process events of specific types (optional) */
+  eventTypes: z.array(z.string()).optional(),
+  /** Correlation ID for tracing */
+  correlationId: z.string(),
+});
+
+export type ProcessEmbeddingEventsPayload = z.infer<typeof ProcessEmbeddingEventsPayloadSchema>;
+
+// ============================================================================
+// HELPER: Extract embeddable content from domain events
+// ============================================================================
+
+/**
+ * Extract content and metadata from a domain event for embedding
+ */
+function extractEmbeddableContent(event: StoredDomainEvent): {
+  contentId: string;
+  content: string;
+  targetType: EmbeddingTargetType;
+  metadata: EmbedContentPayload['metadata'];
+} | null {
+  const payload = event.payload;
+
+  // Helper to safely extract string from unknown
+  const getString = (key: string): string | undefined => {
+    const val = payload[key];
+    return typeof val === 'string' ? val : undefined;
+  };
+
+  const getStringArray = (key: string): string[] | undefined => {
+    const val = payload[key];
+    return Array.isArray(val) ? (val as string[]) : undefined;
+  };
+
+  switch (event.type) {
+    case 'whatsapp.message.received':
+    case 'lead.message_received': {
+      const textContent = getString('content') ?? getString('messagePreview');
+      if (!textContent || textContent.length < 10) {
+        return null;
+      }
+
+      return {
+        contentId: getString('messageId') ?? event.id,
+        content: textContent,
+        targetType: 'message',
+        metadata: {
+          phone: getString('phone') ?? getString('from'),
+          direction: (getString('direction') as 'IN' | 'OUT' | undefined) ?? 'IN',
+          language: (getString('language') as 'ro' | 'en' | 'de' | undefined) ?? 'ro',
+        },
+      };
+    }
+
+    case 'knowledge_base.created':
+    case 'knowledge_base.updated': {
+      const content = getString('content');
+      if (!content || content.length < 10) {
+        return null;
+      }
+
+      return {
+        contentId: getString('id') ?? event.aggregate_id ?? event.id,
+        content,
+        targetType: 'knowledge_base',
+        metadata: {
+          title: getString('title'),
+          sourceType: getString('sourceType'),
+          clinicId: getString('clinicId'),
+          language: (getString('language') as 'ro' | 'en' | 'de' | undefined) ?? 'ro',
+          tags: getStringArray('tags'),
+        },
+      };
+    }
+
+    case 'voice.transcription.completed': {
+      const transcript = getString('transcript');
+      if (!transcript || transcript.length < 20) {
+        return null;
+      }
+
+      return {
+        contentId: getString('callId') ?? event.id,
+        content: transcript,
+        targetType: 'message',
+        metadata: {
+          phone: getString('phone'),
+          direction: 'IN',
+          language: (getString('language') as 'ro' | 'en' | 'de' | undefined) ?? 'ro',
+        },
+      };
+    }
+
+    default:
+      return null;
+  }
+}
+
+// ============================================================================
+// TASK: Process Domain Events for Embedding
+// ============================================================================
+
+/**
+ * Process pending domain events and generate embeddings
+ *
+ * This task:
+ * 1. Fetches unprocessed domain events that may need embedding
+ * 2. Extracts content from each event
+ * 3. Generates embeddings and stores them
+ * 4. Marks events as processed
+ *
+ * Use this task to wire domain events to the embedding pipeline.
+ */
+export const processEmbeddingEvents = task({
+  id: 'process-embedding-events',
+  retry: {
+    maxAttempts: 3,
+    minTimeoutInMs: 2000,
+    maxTimeoutInMs: 30000,
+    factor: 2,
+  },
+  run: async (payload: ProcessEmbeddingEventsPayload): Promise<DomainEventProcessingResult> => {
+    const startTime = Date.now();
+    const { limit, eventTypes, correlationId } = payload;
+
+    logger.info('Starting domain event processing for embeddings', {
+      limit,
+      eventTypes: eventTypes ?? EMBEDDABLE_EVENT_TYPES,
+      correlationId,
+    });
+
+    const { db, eventStore } = getClients();
+
+    if (!db) {
+      logger.warn('Database not configured, skipping event processing', { correlationId });
+      return {
+        success: false,
+        eventsProcessed: 0,
+        embeddingsGenerated: 0,
+        errors: 0,
+        processingTimeMs: Date.now() - startTime,
+        correlationId,
+      };
+    }
+
+    const openaiKey = getOpenAIApiKey();
+    if (!openaiKey) {
+      logger.warn('OpenAI API key not configured', { correlationId });
+      return {
+        success: false,
+        eventsProcessed: 0,
+        embeddingsGenerated: 0,
+        errors: 0,
+        processingTimeMs: Date.now() - startTime,
+        correlationId,
+      };
+    }
+
+    let eventsProcessed = 0;
+    let embeddingsGenerated = 0;
+    let errors = 0;
+
+    try {
+      // Fetch unprocessed domain events
+      const typesToProcess = eventTypes ?? [...EMBEDDABLE_EVENT_TYPES];
+      const placeholders = typesToProcess.map((_, i) => `$${i + 1}`).join(', ');
+
+      const eventsResult = await db.query<StoredDomainEvent>(
+        `
+        SELECT id, type, correlation_id, aggregate_id, aggregate_type, payload, created_at
+        FROM domain_events
+        WHERE type IN (${placeholders})
+          AND (metadata->>'processed_for_embedding')::boolean IS NOT TRUE
+        ORDER BY created_at ASC
+        LIMIT $${typesToProcess.length + 1}
+        `,
+        [...typesToProcess, limit]
+      );
+
+      const events = eventsResult.rows;
+
+      if (events.length === 0) {
+        logger.info('No pending events to process for embedding', { correlationId });
+        return {
+          success: true,
+          eventsProcessed: 0,
+          embeddingsGenerated: 0,
+          errors: 0,
+          processingTimeMs: Date.now() - startTime,
+          correlationId,
+        };
+      }
+
+      logger.info(`Found ${events.length} events to process`, { correlationId });
+
+      // Create embedding service
+      const embeddingService = createEmbeddingService({
+        apiKey: openaiKey,
+        model: EMBEDDING_MODEL,
+      });
+
+      // Process each event
+      for (const event of events) {
+        eventsProcessed++;
+
+        try {
+          const embeddable = extractEmbeddableContent(event);
+
+          if (!embeddable) {
+            logger.debug('Event does not contain embeddable content', {
+              eventId: event.id,
+              eventType: event.type,
+              correlationId,
+            });
+            // Mark as processed even if no embedding generated
+            await markEventProcessed(db, event.id);
+            continue;
+          }
+
+          // Generate embedding
+          const result = await embeddingService.embed(embeddable.content);
+
+          // Store based on target type
+          if (embeddable.targetType === 'knowledge_base') {
+            await storeKnowledgeBaseEmbedding(
+              db,
+              embeddable.contentId,
+              embeddable.content,
+              result.embedding,
+              result.model,
+              embeddable.metadata
+            );
+          } else if (embeddable.targetType === 'message') {
+            await storeMessageEmbedding(
+              db,
+              embeddable.contentId,
+              embeddable.content,
+              result.embedding,
+              result.model,
+              embeddable.metadata,
+              event.correlation_id
+            );
+          }
+
+          // Mark event as processed
+          await markEventProcessed(db, event.id);
+          embeddingsGenerated++;
+
+          logger.debug('Embedding generated for event', {
+            eventId: event.id,
+            eventType: event.type,
+            contentId: embeddable.contentId,
+            dimensions: result.dimensions,
+            correlationId,
+          });
+        } catch (error) {
+          errors++;
+          logger.error('Failed to process event for embedding', {
+            eventId: event.id,
+            eventType: event.type,
+            error,
+            correlationId,
+          });
+        }
+      }
+
+      // Emit completion event
+      await emitEmbeddingEvent(eventStore, 'embedding.events.processed', {
+        eventsProcessed,
+        embeddingsGenerated,
+        errors,
+        processingTimeMs: Date.now() - startTime,
+        correlationId,
+      });
+
+      logger.info('Domain event processing completed', {
+        eventsProcessed,
+        embeddingsGenerated,
+        errors,
+        processingTimeMs: Date.now() - startTime,
+        correlationId,
+      });
+
+      return {
+        success: errors === 0,
+        eventsProcessed,
+        embeddingsGenerated,
+        errors,
+        processingTimeMs: Date.now() - startTime,
+        correlationId,
+      };
+    } catch (error) {
+      logger.error('Domain event processing failed', { error, correlationId });
+
+      await emitEmbeddingEvent(eventStore, 'embedding.events.failed', {
+        error: error instanceof Error ? error.message : String(error),
+        eventsProcessed,
+        embeddingsGenerated,
+        errors,
+        correlationId,
+      });
+
+      throw error;
+    } finally {
+      try {
+        await db.end();
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+  },
+});
+
+/**
+ * Mark a domain event as processed for embedding
+ */
+async function markEventProcessed(db: DatabasePool, eventId: string): Promise<void> {
+  await db.query(
+    `
+    UPDATE domain_events
+    SET metadata = COALESCE(metadata, '{}'::jsonb) || '{"processed_for_embedding": true}'::jsonb
+    WHERE id = $1
+    `,
+    [eventId]
+  );
+}
+
+// ============================================================================
 // TASK: Re-embed Outdated Content
 // ============================================================================
 
@@ -619,9 +989,10 @@ export const reembedContent = task({
           clinic_id: string;
           language: string;
           tags: string[];
-        }>('SELECT content, title, source_type, clinic_id, language, tags FROM knowledge_base WHERE id = $1', [
-          contentId,
-        ]);
+        }>(
+          'SELECT content, title, source_type, clinic_id, language, tags FROM knowledge_base WHERE id = $1',
+          [contentId]
+        );
         const row = result.rows[0];
         if (row) {
           content = row.content;
@@ -639,9 +1010,10 @@ export const reembedContent = task({
           phone: string;
           direction: string;
           language: string;
-        }>('SELECT content_sanitized, phone, direction, language FROM message_embeddings WHERE id = $1', [
-          contentId,
-        ]);
+        }>(
+          'SELECT content_sanitized, phone, direction, language FROM message_embeddings WHERE id = $1',
+          [contentId]
+        );
         const row = result.rows[0];
         if (row) {
           content = row.content_sanitized;

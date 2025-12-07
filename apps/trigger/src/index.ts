@@ -74,6 +74,20 @@ export {
   type BulkImportWorkflowResult,
 } from './workflows/bulk-import.js';
 
+// Embedding Worker Tasks
+export {
+  embedContent,
+  embedBatch,
+  reembedContent,
+  processEmbeddingEvents,
+  type EmbedContentPayload,
+  type BatchEmbedPayload,
+  type ProcessEmbeddingEventsPayload,
+  EmbedContentPayloadSchema,
+  BatchEmbedPayloadSchema,
+  ProcessEmbeddingEventsPayloadSchema,
+} from './tasks/embedding-worker.js';
+
 // Scheduled Jobs
 export {
   dailyRecallCheck,
@@ -84,4 +98,9 @@ export {
   gdprConsentAudit,
   crmHealthMonitor,
 } from './jobs/cron-jobs.js';
-export { weeklyEmbeddingRefresh, dailyEmbeddingStats } from './jobs/embedding-refresh.js';
+export {
+  weeklyEmbeddingRefresh,
+  dailyEmbeddingStats,
+  scheduledEmbeddingEventProcessor,
+  dailyStaleEmbeddingCleanup,
+} from './jobs/embedding-refresh.js';
