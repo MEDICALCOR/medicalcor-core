@@ -117,6 +117,16 @@ export {
   type EntityCooccurrenceResult,
   type EntitySearchResult,
   type KnowledgeGraphConfig,
+
+  // Entity Deduplication Types (H8: Auto-merge similar entities)
+  DEFAULT_DEDUPLICATION_CONFIG,
+  type EntityDeduplicationConfig,
+  type DuplicateCandidate,
+  type DuplicateMatchReason,
+  type DuplicateDetectionResult,
+  type EntityMergeResult,
+  type MergeOptions,
+  type DeduplicationRunSummary,
 } from './types.js';
 
 // =============================================================================
@@ -152,6 +162,12 @@ export { PatternDetector, createPatternDetector } from './pattern-detector.js';
 // Knowledge Graph Service (H8: Knowledge Graph Integration)
 export { KnowledgeGraphService, createKnowledgeGraphService } from './knowledge-graph.js';
 
+// Entity Deduplication Service (H8: Auto-merge similar entities)
+export {
+  EntityDeduplicationService,
+  createEntityDeduplicationService,
+} from './entity-deduplication.js';
+
 // =============================================================================
 // Factory Function
 // =============================================================================
@@ -161,7 +177,12 @@ import { EpisodeBuilder, type IOpenAIClient, type IEmbeddingService } from './ep
 import { MemoryRetrievalService } from './memory-retrieval.js';
 import { PatternDetector } from './pattern-detector.js';
 import { KnowledgeGraphService } from './knowledge-graph.js';
-import type { CognitiveSystemConfig, KnowledgeGraphConfig } from './types.js';
+import { EntityDeduplicationService } from './entity-deduplication.js';
+import type {
+  CognitiveSystemConfig,
+  KnowledgeGraphConfig,
+  EntityDeduplicationConfig,
+} from './types.js';
 
 /**
  * Dependencies for creating the cognitive system
@@ -177,6 +198,8 @@ export interface CognitiveSystemDependencies {
   config?: Partial<CognitiveSystemConfig>;
   /** Optional knowledge graph configuration (H8) */
   knowledgeGraphConfig?: Partial<KnowledgeGraphConfig>;
+  /** Optional entity deduplication configuration (H8) */
+  deduplicationConfig?: Partial<EntityDeduplicationConfig>;
 }
 
 /**
@@ -191,6 +214,8 @@ export interface CognitiveSystem {
   patternDetector: PatternDetector;
   /** Knowledge graph service for entity relationships (H8) */
   knowledgeGraph: KnowledgeGraphService;
+  /** Entity deduplication service for auto-merging similar entities (H8) */
+  entityDeduplication: EntityDeduplicationService;
 }
 
 /**
@@ -231,6 +256,13 @@ export function createCognitiveSystem(deps: CognitiveSystemDependencies): Cognit
     deps.knowledgeGraphConfig
   );
 
+  // H8: Entity Deduplication Service for auto-merging similar entities
+  const entityDeduplication = new EntityDeduplicationService(
+    deps.pool,
+    deps.embeddings,
+    deps.deduplicationConfig
+  );
+
   // Wire knowledge graph to episode builder for automatic entity extraction
   episodeBuilder.setKnowledgeGraph(knowledgeGraph);
 
@@ -239,5 +271,6 @@ export function createCognitiveSystem(deps: CognitiveSystemDependencies): Cognit
     memoryRetrieval,
     patternDetector,
     knowledgeGraph,
+    entityDeduplication,
   };
 }

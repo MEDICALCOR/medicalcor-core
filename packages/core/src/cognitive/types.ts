@@ -506,3 +506,142 @@ export const DEFAULT_KNOWLEDGE_GRAPH_CONFIG: KnowledgeGraphConfig = {
   enableEntityEmbeddings: true,
   enableLLMRelations: false, // Expensive, opt-in
 };
+
+// =============================================================================
+// Entity Deduplication Types (H8: Auto-merge similar entities)
+// =============================================================================
+
+/**
+ * Configuration for entity deduplication service
+ */
+export interface EntityDeduplicationConfig {
+  /** Minimum similarity score (0-1) to consider entities as duplicates */
+  minSimilarityThreshold: number;
+
+  /** Maximum number of duplicate candidates to retrieve per entity */
+  maxCandidates: number;
+
+  /** Enable automatic merging of high-confidence duplicates */
+  autoMergeEnabled: boolean;
+
+  /** Minimum similarity for automatic merging (higher than detection threshold) */
+  autoMergeThreshold: number;
+
+  /** Batch size for processing entities */
+  batchSize: number;
+
+  /** Whether to use LLM for disambiguation */
+  useLLMDisambiguation: boolean;
+}
+
+export const DEFAULT_DEDUPLICATION_CONFIG: EntityDeduplicationConfig = {
+  minSimilarityThreshold: 0.85,
+  maxCandidates: 10,
+  autoMergeEnabled: true,
+  autoMergeThreshold: 0.95,
+  batchSize: 50,
+  useLLMDisambiguation: false, // Expensive, opt-in
+};
+
+/**
+ * A candidate duplicate entity with similarity score
+ */
+export interface DuplicateCandidate {
+  /** The entity that may be a duplicate */
+  entity: KnowledgeEntity;
+
+  /** Similarity score (0-1) */
+  similarity: number;
+
+  /** Reasons why this is considered a duplicate */
+  matchReasons: DuplicateMatchReason[];
+}
+
+/**
+ * Reasons for considering entities as duplicates
+ */
+export type DuplicateMatchReason =
+  | 'embedding_similarity'
+  | 'value_substring'
+  | 'value_edit_distance'
+  | 'llm_confirmed';
+
+/**
+ * Result of a duplicate detection operation
+ */
+export interface DuplicateDetectionResult {
+  /** The source entity being checked */
+  sourceEntity: KnowledgeEntity;
+
+  /** List of duplicate candidates ordered by similarity */
+  candidates: DuplicateCandidate[];
+
+  /** Whether auto-merge was performed */
+  autoMerged: boolean;
+
+  /** IDs of entities that were auto-merged into source */
+  mergedEntityIds: string[];
+}
+
+/**
+ * Result of merging two entities
+ */
+export interface EntityMergeResult {
+  /** The surviving (canonical) entity after merge */
+  survivingEntity: KnowledgeEntity;
+
+  /** The entity that was merged (soft deleted) */
+  mergedEntity: KnowledgeEntity;
+
+  /** Number of relations transferred */
+  relationsTransferred: number;
+
+  /** Number of event mappings transferred */
+  eventMappingsTransferred: number;
+
+  /** Whether the merge was successful */
+  success: boolean;
+
+  /** Error message if merge failed */
+  error?: string;
+}
+
+/**
+ * Options for the merge operation
+ */
+export interface MergeOptions {
+  /** Which entity should survive (by id). If not specified, entity with higher mention count survives */
+  survivorId?: string;
+
+  /** Set canonical form for the surviving entity */
+  canonicalForm?: string;
+
+  /** Reason for the merge (for audit) */
+  mergeReason?: string;
+}
+
+/**
+ * Summary of a deduplication run
+ */
+export interface DeduplicationRunSummary {
+  /** Total entities scanned */
+  totalEntitiesScanned: number;
+
+  /** Number of duplicate pairs detected */
+  duplicatePairsDetected: number;
+
+  /** Number of entities merged */
+  entitiesMerged: number;
+
+  /** Number of relations transferred */
+  totalRelationsTransferred: number;
+
+  /** Number of event mappings transferred */
+  totalEventMappingsTransferred: number;
+
+  /** Entities that had errors during processing */
+  errors: { entityId: string; error: string }[];
+
+  /** Duration of the run in milliseconds */
+  durationMs: number;
+}
