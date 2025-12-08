@@ -41,6 +41,10 @@ build/Release
 node_modules/
 jspm_packages/
 
+# Non-pnpm lockfiles (this is a pnpm monorepo)
+package-lock.json
+yarn.lock
+
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 
