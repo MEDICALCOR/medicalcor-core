@@ -448,7 +448,8 @@ export function createInMemoryLocationHistoryRepository(): LocationHistoryReposi
         if (l.userId === userId) indices.push(i);
       });
       for (let i = indices.length - 1; i >= 0; i--) {
-        locations.splice(indices[i], 1);
+        const idx = indices[i];
+        if (idx !== undefined) locations.splice(idx, 1);
       }
       return before - locations.length;
     },
@@ -460,7 +461,8 @@ export function createInMemoryLocationHistoryRepository(): LocationHistoryReposi
         if (l.createdAt < beforeDate) indices.push(i);
       });
       for (let i = indices.length - 1; i >= 0; i--) {
-        locations.splice(indices[i], 1);
+        const idx = indices[i];
+        if (idx !== undefined) locations.splice(idx, 1);
       }
       return before - locations.length;
     },

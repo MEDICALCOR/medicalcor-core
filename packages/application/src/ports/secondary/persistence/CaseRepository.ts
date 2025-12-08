@@ -61,9 +61,10 @@ export interface TrendDataPoint {
 }
 
 /**
- * Comprehensive trend analysis result
+ * Comprehensive trend analysis result for case repository
+ * (Named CaseTrendAnalysis to avoid conflict with RevenueForecastingUseCase.TrendAnalysis)
  */
-export interface TrendAnalysis {
+export interface CaseTrendAnalysis {
   /** Trend period type */
   periodType: TrendPeriod;
   /** Data points ordered chronologically */
@@ -87,15 +88,15 @@ export interface TrendAnalysis {
  */
 export interface CohortTrendDashboard {
   /** Revenue trend analysis */
-  revenueTrend: TrendAnalysis;
+  revenueTrend: CaseTrendAnalysis;
   /** Conversion rate trend */
-  conversionTrend: TrendAnalysis;
+  conversionTrend: CaseTrendAnalysis;
   /** Average LTV trend */
-  avgLtvTrend: TrendAnalysis;
+  avgLtvTrend: CaseTrendAnalysis;
   /** Case volume trend */
-  caseVolumeTrend: TrendAnalysis;
+  caseVolumeTrend: CaseTrendAnalysis;
   /** Collection rate trend */
-  collectionRateTrend: TrendAnalysis;
+  collectionRateTrend: CaseTrendAnalysis;
   /** Period range analyzed */
   periodRange: {
     start: Date;
@@ -259,7 +260,7 @@ export interface ICaseRepository {
    * @param params - Trend query parameters
    * @returns Revenue trend analysis
    */
-  getRevenueTrend(params: TrendQueryParams): Promise<TrendAnalysis>;
+  getRevenueTrend(params: TrendQueryParams): Promise<CaseTrendAnalysis>;
 
   /**
    * Get conversion rate trend analysis
@@ -269,7 +270,7 @@ export interface ICaseRepository {
    * @param params - Trend query parameters
    * @returns Conversion trend analysis
    */
-  getConversionTrend(params: TrendQueryParams): Promise<TrendAnalysis>;
+  getConversionTrend(params: TrendQueryParams): Promise<CaseTrendAnalysis>;
 
   /**
    * Get average LTV trend analysis
@@ -279,7 +280,7 @@ export interface ICaseRepository {
    * @param params - Trend query parameters
    * @returns LTV trend analysis
    */
-  getAvgLtvTrend(params: TrendQueryParams): Promise<TrendAnalysis>;
+  getAvgLtvTrend(params: TrendQueryParams): Promise<CaseTrendAnalysis>;
 
   /**
    * Get case volume trend analysis
@@ -289,7 +290,7 @@ export interface ICaseRepository {
    * @param params - Trend query parameters
    * @returns Case volume trend analysis
    */
-  getCaseVolumeTrend(params: TrendQueryParams): Promise<TrendAnalysis>;
+  getCaseVolumeTrend(params: TrendQueryParams): Promise<CaseTrendAnalysis>;
 
   // ===========================================================================
   // PERIOD STATISTICS
