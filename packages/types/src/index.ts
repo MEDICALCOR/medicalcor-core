@@ -1414,3 +1414,54 @@ export {
   type UnusedIndexesDetectedEvent,
   type CriticalIndexHealthEvent,
 } from './schemas/index-usage.js';
+
+// =============================================================================
+// Queue Event Validation Schemas
+// =============================================================================
+export {
+  // Enums
+  QueueBreachTypeSchema,
+  QueueBreachSeveritySchema,
+  QueueEventStatusSchema,
+  QueueActionTypeSchema,
+  QueueEventFailureReasonSchema,
+  // Event Payload
+  QueueEventPayloadSchema,
+  CreateQueueEventSchema,
+  UpdateQueueEventSchema,
+  // Action Request
+  QueueActionRequestSchema,
+  // Result Schemas
+  QueueEventSuccessResultSchema,
+  QueueEventFailureResultSchema,
+  QueueEventResultSchema,
+  // Batch Processing
+  BatchQueueEventRequestSchema,
+  BatchQueueEventItemResultSchema,
+  BatchQueueEventResultSchema,
+  // Statistics
+  QueueBreachStatsSchema,
+  // Helper Functions
+  parseQueueEventPayload,
+  createQueueEventSuccess,
+  createQueueEventFailure,
+  isBreachCritical,
+  calculateBreachDuration,
+  // Types
+  type QueueBreachType,
+  type QueueBreachSeverity,
+  type QueueEventStatus,
+  type QueueEventPayload,
+  type CreateQueueEvent,
+  type UpdateQueueEvent,
+  type QueueActionType,
+  type QueueActionRequest,
+  type QueueEventSuccessResult,
+  type QueueEventFailureReason,
+  type QueueEventFailureResult,
+  type QueueEventResult,
+  type BatchQueueEventRequest,
+  type BatchQueueEventItemResult,
+  type BatchQueueEventResult,
+  type QueueBreachStats,
+} from './schemas/queue.js';
