@@ -422,7 +422,7 @@ function testCognitiveMemoryRls() {
   const userId = randomChoice(TEST_USERS);
 
   // Test episodic events with clinic isolation
-  const result1 = executeRlsQuery(
+  executeRlsQuery(
     '/rls-test/episodic-events',
     { clinicId, userId, pattern: 'clinic_id' },
     episodicEventsDuration,
