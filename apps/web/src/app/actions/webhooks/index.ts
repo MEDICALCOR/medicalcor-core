@@ -16,7 +16,14 @@ import { requirePermission } from '@/lib/auth/server-action-auth';
 // TYPES
 // ============================================================================
 
-export type WebhookSource = 'whatsapp' | 'vapi' | 'stripe' | 'booking' | 'voice' | 'crm' | 'hubspot';
+export type WebhookSource =
+  | 'whatsapp'
+  | 'vapi'
+  | 'stripe'
+  | 'booking'
+  | 'voice'
+  | 'crm'
+  | 'hubspot';
 
 export type WebhookStatus = 'success' | 'failed' | 'pending' | 'replayed';
 
@@ -195,6 +202,7 @@ function generateMockPayload(source: WebhookSource, eventType: string): Record<s
     event_type: eventType,
   };
 
+  // eslint-disable-next-line default-case -- Switch is exhaustive on WebhookSource
   switch (source) {
     case 'whatsapp':
       return {
@@ -208,7 +216,9 @@ function generateMockPayload(source: WebhookSource, eventType: string): Record<s
                 value: {
                   messaging_product: 'whatsapp',
                   metadata: { phone_number_id: '987654321' },
-                  messages: [{ id: 'msg_123', from: '40712345678', type: 'text', text: { body: 'Hello' } }],
+                  messages: [
+                    { id: 'msg_123', from: '40712345678', type: 'text', text: { body: 'Hello' } },
+                  ],
                 },
                 field: 'messages',
               },
@@ -251,8 +261,33 @@ function generateMockPayload(source: WebhookSource, eventType: string): Record<s
         service: 'Consultație stomatologică',
       };
 
-    default:
-      return basePayload;
+    case 'voice':
+      return {
+        ...basePayload,
+        call_id: `voice_${Math.random().toString(36).substring(2, 12)}`,
+        direction: 'inbound',
+        from: '+40712345678',
+        to: '+40213456789',
+        duration: Math.floor(Math.random() * 300),
+      };
+
+    case 'crm':
+      return {
+        ...basePayload,
+        entity_type: 'contact',
+        entity_id: `crm_${Math.random().toString(36).substring(2, 10)}`,
+        action: 'updated',
+      };
+
+    case 'hubspot':
+      return {
+        ...basePayload,
+        portalId: 12345678,
+        objectType: 'contact',
+        objectId: Math.floor(Math.random() * 1000000),
+        propertyName: 'email',
+        propertyValue: 'test@example.com',
+      };
   }
 }
 
@@ -260,9 +295,7 @@ function generateMockPayload(source: WebhookSource, eventType: string): Record<s
 let mockWebhooksCache: WebhookEvent[] | null = null;
 
 function getMockWebhooks(): WebhookEvent[] {
-  if (!mockWebhooksCache) {
-    mockWebhooksCache = generateMockWebhooks(150);
-  }
+  mockWebhooksCache ??= generateMockWebhooks(150);
   return mockWebhooksCache;
 }
 
@@ -339,7 +372,7 @@ export async function getWebhookListAction(
           w.id.toLowerCase().includes(searchLower) ||
           w.correlationId.toLowerCase().includes(searchLower) ||
           w.eventType.toLowerCase().includes(searchLower) ||
-          (w.error && w.error.toLowerCase().includes(searchLower))
+          w.error?.toLowerCase().includes(searchLower)
       );
     }
     if (filters.correlationId) {
@@ -360,10 +393,12 @@ export async function getWebhookListAction(
       source,
       count: allWebhooks.filter((w) => w.source === source).length,
     }));
-    const statuses = (['success', 'failed', 'pending', 'replayed'] as WebhookStatus[]).map((status) => ({
-      status,
-      count: allWebhooks.filter((w) => w.status === status).length,
-    }));
+    const statuses = (['success', 'failed', 'pending', 'replayed'] as WebhookStatus[]).map(
+      (status) => ({
+        status,
+        count: allWebhooks.filter((w) => w.status === status).length,
+      })
+    );
 
     // Paginate
     const total = webhooks.length;
@@ -442,20 +477,23 @@ export async function getWebhookByIdAction(webhookId: string): Promise<WebhookEv
  */
 export async function replayWebhookAction(webhookId: string): Promise<WebhookReplayResult> {
   try {
-    await requirePermission('MANAGE_SYSTEM');
+    await requirePermission('MANAGE_INTEGRATIONS');
 
     const apiUrl = getApiBaseUrl();
     const apiKey = getApiSecretKey();
 
     if (apiKey) {
       try {
-        const response = await fetch(`${apiUrl}/admin/webhooks/${encodeURIComponent(webhookId)}/replay`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': apiKey,
-          },
-        });
+        const response = await fetch(
+          `${apiUrl}/admin/webhooks/${encodeURIComponent(webhookId)}/replay`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-API-Key': apiKey,
+            },
+          }
+        );
 
         if (response.ok) {
           return (await response.json()) as WebhookReplayResult;
@@ -518,7 +556,7 @@ export async function bulkReplayWebhooksAction(
   webhookIds: string[]
 ): Promise<{ results: WebhookReplayResult[]; successCount: number; failureCount: number }> {
   try {
-    await requirePermission('MANAGE_SYSTEM');
+    await requirePermission('MANAGE_INTEGRATIONS');
 
     const results: WebhookReplayResult[] = [];
     let successCount = 0;
@@ -570,7 +608,9 @@ export async function getWebhookStatsAction(): Promise<WebhookStats> {
 
     const durations = webhooks.filter((w) => w.duration > 0).map((w) => w.duration);
     const avgDuration =
-      durations.length > 0 ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0;
+      durations.length > 0
+        ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
+        : 0;
 
     const bySource = WEBHOOK_SOURCES.map((source) => {
       const sourceWebhooks = webhooks.filter((w) => w.source === source);
@@ -578,7 +618,8 @@ export async function getWebhookStatsAction(): Promise<WebhookStats> {
       return {
         source,
         count: sourceWebhooks.length,
-        failureRate: sourceWebhooks.length > 0 ? Math.round((sourceFailed / sourceWebhooks.length) * 100) : 0,
+        failureRate:
+          sourceWebhooks.length > 0 ? Math.round((sourceFailed / sourceWebhooks.length) * 100) : 0,
       };
     });
 
@@ -637,7 +678,7 @@ export async function getWebhookEventTypesAction(source?: WebhookSource): Promis
     await requirePermission('VIEW_ANALYTICS');
 
     if (source) {
-      return EVENT_TYPES[source] ?? [];
+      return EVENT_TYPES[source];
     }
 
     // Return all event types

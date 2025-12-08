@@ -19,14 +19,24 @@ import {
   type MockStripeClient,
   createMockStripeClient,
 } from '@medicalcor/integrations';
-import type {
-  ISchedulingRepository,
-  TimeSlot,
-  BookingRequest,
-  BookingResult,
-  AppointmentDetails,
-  GetAvailableSlotsOptions,
-} from '@medicalcor/domain';
+import type { TimeSlot, BookingRequest, AppointmentDetails } from '@medicalcor/domain';
+
+// Local types for the web scheduling client API contract
+// These may differ from domain types as this client wraps an HTTP API
+interface WebGetAvailableSlotsOptions {
+  clinicId: string;
+  providerId?: string;
+  serviceType?: string;
+  startDate?: Date;
+  endDate?: Date;
+}
+
+interface WebBookingResult {
+  success: boolean;
+  appointmentId?: string;
+  confirmationNumber?: string;
+  error?: string;
+}
 
 // ============================================================================
 // CONSTANTS
@@ -56,7 +66,7 @@ export const MAX_FETCH_RESULTS = 5000 as const;
 
 let hubspotClient: HubSpotClient | null = null;
 let stripeClient: StripeClient | MockStripeClient | null = null;
-let schedulingService: ISchedulingRepository | null = null;
+let schedulingService: APISchedulingRepository | null = null;
 
 // ============================================================================
 // CLIENT FACTORY FUNCTIONS
@@ -118,24 +128,25 @@ export function getStripeClient(): StripeClient | MockStripeClient {
  * Direct database access from Next.js server actions is not recommended
  * for scheduling operations which require transactional consistency.
  */
-class APISchedulingRepository implements ISchedulingRepository {
+class APISchedulingRepository {
   private readonly apiBaseUrl: string;
 
   constructor() {
     this.apiBaseUrl = process.env.API_BASE_URL ?? 'http://localhost:3000';
   }
 
-  async getAvailableSlots(options: string | GetAvailableSlotsOptions): Promise<TimeSlot[]> {
+  async getAvailableSlots(options: string | WebGetAvailableSlotsOptions): Promise<TimeSlot[]> {
     try {
-      const queryParams = typeof options === 'string'
-        ? `clinicId=${encodeURIComponent(options)}`
-        : new URLSearchParams({
-            clinicId: options.clinicId,
-            ...(options.providerId && { providerId: options.providerId }),
-            ...(options.serviceType && { serviceType: options.serviceType }),
-            ...(options.startDate && { startDate: options.startDate.toISOString() }),
-            ...(options.endDate && { endDate: options.endDate.toISOString() }),
-          }).toString();
+      const queryParams =
+        typeof options === 'string'
+          ? `clinicId=${encodeURIComponent(options)}`
+          : new URLSearchParams({
+              clinicId: options.clinicId,
+              ...(options.providerId && { providerId: options.providerId }),
+              ...(options.serviceType && { serviceType: options.serviceType }),
+              ...(options.startDate && { startDate: options.startDate.toISOString() }),
+              ...(options.endDate && { endDate: options.endDate.toISOString() }),
+            }).toString();
 
       const response = await fetch(`${this.apiBaseUrl}/api/scheduling/slots?${queryParams}`, {
         headers: { 'Content-Type': 'application/json' },
@@ -155,7 +166,7 @@ class APISchedulingRepository implements ISchedulingRepository {
     }
   }
 
-  async bookAppointment(request: BookingRequest): Promise<BookingResult> {
+  async bookAppointment(request: BookingRequest): Promise<WebBookingResult> {
     try {
       const response = await fetch(`${this.apiBaseUrl}/api/scheduling/book`, {
         method: 'POST',
@@ -180,9 +191,10 @@ class APISchedulingRepository implements ISchedulingRepository {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error
-          ? `Booking service unavailable: ${error.message}`
-          : 'Booking service unavailable. Please try again later.',
+        error:
+          error instanceof Error
+            ? `Booking service unavailable: ${error.message}`
+            : 'Booking service unavailable. Please try again later.',
       };
     }
   }
@@ -194,10 +206,13 @@ class APISchedulingRepository implements ISchedulingRepository {
         endDate: endDate.toISOString(),
       }).toString();
 
-      const response = await fetch(`${this.apiBaseUrl}/api/scheduling/appointments?${queryParams}`, {
-        headers: { 'Content-Type': 'application/json' },
-        cache: 'no-store',
-      });
+      const response = await fetch(
+        `${this.apiBaseUrl}/api/scheduling/appointments?${queryParams}`,
+        {
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+        }
+      );
 
       if (!response.ok) {
         return [];
@@ -222,7 +237,7 @@ class APISchedulingRepository implements ISchedulingRepository {
  * const slots = await scheduling.getAvailableSlots({ ... });
  * ```
  */
-export function getSchedulingService(): ISchedulingRepository {
+export function getSchedulingService(): APISchedulingRepository {
   schedulingService ??= new APISchedulingRepository();
   return schedulingService;
 }
