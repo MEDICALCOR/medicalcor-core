@@ -193,7 +193,7 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
     );
 
     if (result.rows.length === 0) return null;
-    return this.rowToAgent(result.rows[0]);
+    return this.rowToAgent(result.rows[0]!);
   }
 
   async getAgents(clinicId: string, options: GetAgentsOptions = {}): Promise<Agent[]> {
@@ -255,7 +255,8 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       ]
     );
 
-    return this.rowToAgent(result.rows[0]);
+    // INSERT RETURNING always returns the inserted row
+    return this.rowToAgent(result.rows[0]!);
   }
 
   async updateAgent(agentId: string, updates: Partial<Agent>): Promise<void> {
@@ -306,7 +307,7 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
     );
 
     if (result.rows.length === 0) return null;
-    return this.rowToAgentSession(result.rows[0]);
+    return this.rowToAgentSession(result.rows[0]!);
   }
 
   async startSession(session: Omit<AgentSession, 'id'>): Promise<AgentSession> {
@@ -317,7 +318,8 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       [session.agentId, session.clinicId, session.startedAt, session.status]
     );
 
-    return this.rowToAgentSession(result.rows[0]);
+    // INSERT RETURNING always returns the inserted row
+    return this.rowToAgentSession(result.rows[0]!);
   }
 
   async endSession(sessionId: string): Promise<void> {
@@ -364,7 +366,7 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
     );
 
     if (result.rows.length === 0) return null;
-    return this.rowToDailyMetrics(result.rows[0]);
+    return this.rowToDailyMetrics(result.rows[0]!);
   }
 
   async incrementMetric(
@@ -513,10 +515,16 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
     return result.rows.map((row) => ({
       id: row.id,
       name: row.name,
-      avatarUrl: row.avatar_url,
-      agentType: row.agent_type,
-      role: row.role,
-      status: row.current_status,
+      agentType: row.agent_type as 'human' | 'ai' | 'hybrid',
+      role: row.role as 'agent' | 'senior_agent' | 'team_lead' | 'supervisor' | 'manager',
+      status: row.current_status as
+        | 'available'
+        | 'busy'
+        | 'away'
+        | 'break'
+        | 'training'
+        | 'offline'
+        | undefined,
       leadsHandled: row.leads_handled,
       conversions: row.conversions,
       conversionRate: Number(row.conversion_rate),
@@ -632,8 +640,9 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       [clinicId, days]
     );
 
-    const current = currentResult.rows[0];
-    const previous = previousResult.rows[0];
+    // Aggregate queries always return exactly one row
+    const current = currentResult.rows[0]!;
+    const previous = previousResult.rows[0]!;
 
     const calcChange = (curr: number, prev: number): number => {
       if (prev === 0) return 0;
@@ -743,7 +752,7 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
     );
 
     if (result.rows.length === 0) return null;
-    return result.rows[0].status as AgentAvailability;
+    return result.rows[0]!.status as AgentAvailability;
   }
 
   async getActiveAgentCount(clinicId: string): Promise<number> {
@@ -754,7 +763,8 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       [clinicId]
     );
 
-    return Number(result.rows[0].count);
+    // COUNT aggregate always returns exactly one row
+    return Number(result.rows[0]!.count);
   }
 
   // ============================================================================

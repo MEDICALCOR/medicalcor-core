@@ -132,7 +132,7 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
       [request.agentId, request.clinicId, request.callSid, request.leadId ?? null]
     );
 
-    return this.rowToWrapUpEvent(result.rows[0]);
+    return this.rowToWrapUpEvent(result.rows[0]!);
   }
 
   async completeWrapUp(request: CompleteWrapUpRequest): Promise<WrapUpEvent | null> {
@@ -153,7 +153,7 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
       return null;
     }
 
-    const event = this.rowToWrapUpEvent(result.rows[0]);
+    const event = this.rowToWrapUpEvent(result.rows[0]!);
 
     // Update daily metrics
     await this.updateDailyMetrics(event.agentId, event.clinicId, event.durationSeconds ?? 0);
@@ -186,7 +186,7 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
       return null;
     }
 
-    return this.rowToWrapUpEvent(result.rows[0]);
+    return this.rowToWrapUpEvent(result.rows[0]!);
   }
 
   async getWrapUpByCallSid(callSid: string, agentId: string): Promise<WrapUpEvent | null> {
@@ -202,7 +202,7 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
       return null;
     }
 
-    return this.rowToWrapUpEvent(result.rows[0]);
+    return this.rowToWrapUpEvent(result.rows[0]!);
   }
 
   // ============================================================================
@@ -545,7 +545,7 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
       [maxAgeMinutes]
     );
 
-    return Number(result.rows[0].count);
+    return Number(result.rows[0]?.count ?? 0);
   }
 
   // ============================================================================
