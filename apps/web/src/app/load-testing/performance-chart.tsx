@@ -14,7 +14,13 @@ interface PerformanceChartProps {
  * Performance trend chart showing P95, P99, and success rate over time
  */
 export function PerformanceChart({ data, height = 300, className }: PerformanceChartProps) {
-  const { lines, points, maxLatency, minLatency, labels } = useMemo(() => {
+  const {
+    lines,
+    points,
+    maxLatency: _maxLatency,
+    minLatency: _minLatency,
+    labels,
+  } = useMemo(() => {
     if (data.length === 0) {
       return {
         lines: { p95: '', p99: '', avg: '' },
@@ -114,7 +120,7 @@ export function PerformanceChart({ data, height = 300, className }: PerformanceC
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
         {/* Grid lines */}
         <g className="text-muted-foreground/20">
-          {labels.y?.map((label) => (
+          {labels.y.map((label) => (
             <line
               key={label.value}
               x1="50"
@@ -184,14 +190,14 @@ export function PerformanceChart({ data, height = 300, className }: PerformanceC
 
       {/* Y-axis labels */}
       <div className="absolute left-0 inset-y-0 flex flex-col justify-between text-[10px] text-muted-foreground py-5">
-        {labels.y?.map((label) => (
+        {labels.y.map((label) => (
           <span key={label.value}>{label.value}ms</span>
         ))}
       </div>
 
       {/* X-axis labels */}
       <div className="absolute inset-x-0 bottom-0 flex justify-between text-[10px] text-muted-foreground px-12">
-        {labels.x?.map((label) => (
+        {labels.x.map((label) => (
           <span key={label.date}>
             {new Date(label.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
           </span>

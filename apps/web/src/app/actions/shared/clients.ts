@@ -229,7 +229,7 @@ class APISchedulingRepository implements ISchedulingRepository {
  */
 export function getSchedulingService(): ISchedulingRepository {
   schedulingService ??= new APISchedulingRepository() as unknown as ISchedulingRepository;
-  return schedulingService!;
+  return schedulingService;
 }
 
 // ============================================================================

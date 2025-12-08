@@ -26,6 +26,8 @@ function getActivityIcon(activity: FlexWorkerActivity) {
       return <Phone className="h-3 w-3 text-blue-500" />;
     case 'break':
       return <Coffee className="h-3 w-3 text-amber-500" />;
+    case 'wrap-up':
+      return <Phone className="h-3 w-3 text-orange-500" />;
     case 'offline':
     case 'unavailable':
       return <Moon className="h-3 w-3 text-muted-foreground" />;
@@ -42,6 +44,11 @@ function getActivityColor(activity: FlexWorkerActivity): string {
       return 'ring-2 ring-blue-500 ring-offset-2';
     case 'break':
       return 'ring-2 ring-amber-500 ring-offset-2';
+    case 'wrap-up':
+      return 'ring-2 ring-orange-500 ring-offset-2';
+    case 'offline':
+    case 'unavailable':
+      return 'opacity-50';
     default:
       return 'opacity-50';
   }

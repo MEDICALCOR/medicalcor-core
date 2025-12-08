@@ -12,8 +12,6 @@ import {
   Bot,
   AlertTriangle,
   Award,
-  Phone,
-  MessageSquare,
 } from 'lucide-react';
 import { PagePermissionGate } from '@/components/auth/require-permission';
 import { MetricCard, LineChart } from '@/components/analytics';

@@ -10,15 +10,7 @@
  * @security All actions require VIEW_ANALYTICS permission
  */
 
-import type {
-  LoadTestDashboardData,
-  LoadTestResult,
-  LoadTestTimeRange,
-  LoadTestSummaryStats,
-  LoadTestTrendPoint,
-  ScenarioBreakdown,
-  EnvironmentComparison,
-} from '@medicalcor/types';
+import type { LoadTestDashboardData, LoadTestResult, LoadTestTimeRange } from '@medicalcor/types';
 import { requirePermission } from '@/lib/auth/server-action-auth';
 
 // ============================================================================
@@ -28,8 +20,8 @@ import { requirePermission } from '@/lib/auth/server-action-auth';
 /**
  * API base URL for load testing endpoints
  */
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
-const API_SECRET_KEY = process.env.API_SECRET_KEY || '';
+const API_BASE_URL = process.env.API_BASE_URL ?? 'http://localhost:3000';
+const API_SECRET_KEY = process.env.API_SECRET_KEY ?? '';
 
 // ============================================================================
 // HELPER FUNCTIONS

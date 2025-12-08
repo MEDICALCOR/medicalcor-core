@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 // Zod schemas for validation
@@ -81,7 +82,7 @@ sampleFlags.forEach((flag) => flagsStore.set(flag.id, flag));
  * GET /api/feature-flags
  * List all feature flags with optional filtering
  */
-export async function GET(request: NextRequest) {
+export function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const environment = searchParams.get('environment');
@@ -160,17 +161,17 @@ export async function POST(request: NextRequest) {
       id: `ff-${Date.now()}`,
       key: data.key,
       name: data.name,
-      description: data.description || '',
+      description: data.description ?? '',
       enabled: data.enabled,
       rolloutPercentage: data.rolloutPercentage,
       environment: data.environment,
-      owner: data.owner || undefined,
+      owner: data.owner ?? undefined,
       tags: data.tags,
       targeting: data.targeting,
       variants: data.variants,
       createdAt: now,
       updatedAt: now,
-      expiresAt: data.expiresAt || undefined,
+      expiresAt: data.expiresAt ?? undefined,
     };
 
     flagsStore.set(newFlag.id, newFlag);
@@ -245,7 +246,7 @@ export async function PUT(request: NextRequest) {
  * DELETE /api/feature-flags
  * Delete a feature flag by ID
  */
-export async function DELETE(request: NextRequest) {
+export function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
