@@ -127,7 +127,6 @@ export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
             phone: {
               type: 'string',
               description: 'Phone number (will be normalized to E.164)',
-              example: '+40712345678',
             },
             hubspotContactId: {
               type: 'string',
@@ -136,7 +135,6 @@ export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
             message: {
               type: 'string',
               description: 'Message content to score',
-              example: 'I am interested in dental implants',
             },
             channel: {
               type: 'string',
@@ -166,73 +164,74 @@ export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-    const correlationId = getCorrelationId(request);
+      const correlationId = getCorrelationId(request);
 
-    try {
-      const parseResult = LeadScorePayloadSchema.safeParse(request.body);
+      try {
+        const parseResult = LeadScorePayloadSchema.safeParse(request.body);
 
-      if (!parseResult.success) {
-        const error = new ValidationError(
-          'Invalid lead score payload',
-          parseResult.error.flatten()
-        );
-        fastify.log.warn(
-          { correlationId, errors: parseResult.error.issues },
-          'Lead score validation failed'
-        );
-        return await reply.status(400).send(toSafeErrorResponse(error));
-      }
+        if (!parseResult.success) {
+          const error = new ValidationError(
+            'Invalid lead score payload',
+            parseResult.error.flatten()
+          );
+          fastify.log.warn(
+            { correlationId, errors: parseResult.error.issues },
+            'Lead score validation failed'
+          );
+          return await reply.status(400).send(toSafeErrorResponse(error));
+        }
 
-      const {
-        phone: rawPhone,
-        hubspotContactId,
-        message,
-        channel,
-        messageHistory,
-      } = parseResult.data;
-
-      // Normalize phone number to E.164 format
-      const phone = normalizePhoneInput(rawPhone);
-
-      fastify.log.info(
-        {
-          correlationId,
-          channel,
-          hasHubspotContact: !!hubspotContactId,
-          hasHistory: !!messageHistory?.length,
-        },
-        'Manual lead scoring triggered'
-      );
-
-      // Generate idempotency key based on phone, channel, and message content
-      // This prevents duplicate scoring for the same message
-      const messageHash = hashMessageContent(message);
-      const idempotencyKey = IdempotencyKeys.leadScoring(phone, channel, messageHash);
-
-      const handle = await tasks.trigger(
-        'lead-scoring-workflow',
-        {
-          phone,
+        const {
+          phone: rawPhone,
           hubspotContactId,
           message,
           channel,
           messageHistory,
-          correlationId,
-        },
-        { idempotencyKey }
-      );
+        } = parseResult.data;
 
-      return await reply.status(202).send({
-        status: 'triggered',
-        taskId: handle.id,
-        correlationId,
-        message: 'Lead scoring workflow has been triggered',
-      });
-    } catch (error) {
-      fastify.log.error({ correlationId, error }, 'Failed to trigger lead scoring workflow');
-      return await reply.status(500).send(toSafeErrorResponse(error));
+        // Normalize phone number to E.164 format
+        const phone = normalizePhoneInput(rawPhone);
+
+        fastify.log.info(
+          {
+            correlationId,
+            channel,
+            hasHubspotContact: !!hubspotContactId,
+            hasHistory: !!messageHistory?.length,
+          },
+          'Manual lead scoring triggered'
+        );
+
+        // Generate idempotency key based on phone, channel, and message content
+        // This prevents duplicate scoring for the same message
+        const messageHash = hashMessageContent(message);
+        const idempotencyKey = IdempotencyKeys.leadScoring(phone, channel, messageHash);
+
+        const handle = await tasks.trigger(
+          'lead-scoring-workflow',
+          {
+            phone,
+            hubspotContactId,
+            message,
+            channel,
+            messageHistory,
+            correlationId,
+          },
+          { idempotencyKey }
+        );
+
+        return await reply.status(202).send({
+          status: 'triggered',
+          taskId: handle.id,
+          correlationId,
+          message: 'Lead scoring workflow has been triggered',
+        });
+      } catch (error) {
+        fastify.log.error({ correlationId, error }, 'Failed to trigger lead scoring workflow');
+        return await reply.status(500).send(toSafeErrorResponse(error));
+      }
     }
-  });
+  );
 
   /**
    * Trigger patient journey workflow manually
@@ -243,8 +242,7 @@ export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
     '/workflows/patient-journey',
     {
       schema: {
-        description:
-          'Initiate patient journey workflow for automated follow-up and nurturing',
+        description: 'Initiate patient journey workflow for automated follow-up and nurturing',
         tags: ['Workflows'],
         security: [{ ApiKeyAuth: [] }],
         body: {
@@ -254,7 +252,6 @@ export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
             phone: {
               type: 'string',
               description: 'Phone number (will be normalized to E.164)',
-              example: '+40712345678',
             },
             hubspotContactId: {
               type: 'string',
@@ -382,7 +379,6 @@ export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
             phone: {
               type: 'string',
               description: 'Phone number (will be normalized to E.164)',
-              example: '+40712345678',
             },
             hubspotContactId: {
               type: 'string',
@@ -480,7 +476,6 @@ export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
             phone: {
               type: 'string',
               description: 'Phone number (will be normalized to E.164)',
-              example: '+40712345678',
             },
             hubspotContactId: {
               type: 'string',
@@ -489,7 +484,6 @@ export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
             procedureType: {
               type: 'string',
               description: 'Type of dental procedure',
-              example: 'dental-implant',
             },
             preferredDates: {
               type: 'array',
@@ -525,80 +519,81 @@ export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-    const correlationId = getCorrelationId(request);
+      const correlationId = getCorrelationId(request);
 
-    try {
-      const parseResult = BookingAgentPayloadSchema.safeParse(request.body);
+      try {
+        const parseResult = BookingAgentPayloadSchema.safeParse(request.body);
 
-      if (!parseResult.success) {
-        const error = new ValidationError(
-          'Invalid booking agent payload',
-          parseResult.error.flatten()
-        );
-        fastify.log.warn(
-          { correlationId, errors: parseResult.error.issues },
-          'Booking agent validation failed'
-        );
-        return await reply.status(400).send(toSafeErrorResponse(error));
-      }
+        if (!parseResult.success) {
+          const error = new ValidationError(
+            'Invalid booking agent payload',
+            parseResult.error.flatten()
+          );
+          fastify.log.warn(
+            { correlationId, errors: parseResult.error.issues },
+            'Booking agent validation failed'
+          );
+          return await reply.status(400).send(toSafeErrorResponse(error));
+        }
 
-      const {
-        phone: rawPhone,
-        hubspotContactId,
-        procedureType,
-        preferredDates,
-        patientName,
-        patientEmail,
-        language,
-        selectedSlotId,
-      } = parseResult.data;
-
-      // Normalize phone number to E.164 format
-      const phone = normalizePhoneInput(rawPhone);
-
-      fastify.log.info(
-        {
-          correlationId,
-          procedureType,
-          language,
-          hasPreselectedSlot: !!selectedSlotId,
-        },
-        'Manual booking agent triggered'
-      );
-
-      // Idempotency based on contact and slot (if selected) or correlationId
-      // Prevents duplicate booking attempts for the same slot
-      const bookingIdempotencyKey = selectedSlotId
-        ? IdempotencyKeys.bookingAgent(hubspotContactId, selectedSlotId)
-        : IdempotencyKeys.custom('booking-start', hubspotContactId, correlationId);
-
-      const handle = await tasks.trigger(
-        'booking-agent-workflow',
-        {
-          phone,
+        const {
+          phone: rawPhone,
           hubspotContactId,
           procedureType,
           preferredDates,
           patientName,
           patientEmail,
           language,
-          correlationId,
           selectedSlotId,
-        },
-        { idempotencyKey: bookingIdempotencyKey }
-      );
+        } = parseResult.data;
 
-      return await reply.status(202).send({
-        status: 'triggered',
-        taskId: handle.id,
-        correlationId,
-        message: 'Booking agent workflow has been triggered',
-      });
-    } catch (error) {
-      fastify.log.error({ correlationId, error }, 'Failed to trigger booking agent workflow');
-      return await reply.status(500).send(toSafeErrorResponse(error));
+        // Normalize phone number to E.164 format
+        const phone = normalizePhoneInput(rawPhone);
+
+        fastify.log.info(
+          {
+            correlationId,
+            procedureType,
+            language,
+            hasPreselectedSlot: !!selectedSlotId,
+          },
+          'Manual booking agent triggered'
+        );
+
+        // Idempotency based on contact and slot (if selected) or correlationId
+        // Prevents duplicate booking attempts for the same slot
+        const bookingIdempotencyKey = selectedSlotId
+          ? IdempotencyKeys.bookingAgent(hubspotContactId, selectedSlotId)
+          : IdempotencyKeys.custom('booking-start', hubspotContactId, correlationId);
+
+        const handle = await tasks.trigger(
+          'booking-agent-workflow',
+          {
+            phone,
+            hubspotContactId,
+            procedureType,
+            preferredDates,
+            patientName,
+            patientEmail,
+            language,
+            correlationId,
+            selectedSlotId,
+          },
+          { idempotencyKey: bookingIdempotencyKey }
+        );
+
+        return await reply.status(202).send({
+          status: 'triggered',
+          taskId: handle.id,
+          correlationId,
+          message: 'Booking agent workflow has been triggered',
+        });
+      } catch (error) {
+        fastify.log.error({ correlationId, error }, 'Failed to trigger booking agent workflow');
+        return await reply.status(500).send(toSafeErrorResponse(error));
+      }
     }
-  });
+  );
 
   /**
    * Get workflow status by task ID

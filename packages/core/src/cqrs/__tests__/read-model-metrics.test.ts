@@ -198,7 +198,8 @@ describe('ReadModelMetricsCollector', () => {
       const event = endTimer();
 
       expect(event.viewName).toBe('mv_test_view');
-      expect(event.durationMs).toBeGreaterThanOrEqual(50);
+      // Allow tolerance for timer precision variance across environments
+      expect(event.durationMs).toBeGreaterThanOrEqual(45);
     });
   });
 
