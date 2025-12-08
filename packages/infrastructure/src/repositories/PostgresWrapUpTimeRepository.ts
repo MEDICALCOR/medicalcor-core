@@ -132,6 +132,7 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
       [request.agentId, request.clinicId, request.callSid, request.leadId ?? null]
     );
 
+    return this.rowToWrapUpEvent(result.rows[0]!);
     const row = result.rows[0];
     if (!row) {
       throw new Error('Failed to create wrap-up event');
@@ -161,6 +162,7 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
       return null;
     }
 
+    const event = this.rowToWrapUpEvent(result.rows[0]!);
     const event = this.rowToWrapUpEvent(row);
 
     // Update daily metrics
@@ -195,6 +197,7 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
       return null;
     }
 
+    return this.rowToWrapUpEvent(result.rows[0]!);
     return this.rowToWrapUpEvent(row);
   }
 
@@ -212,6 +215,7 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
       return null;
     }
 
+    return this.rowToWrapUpEvent(result.rows[0]!);
     return this.rowToWrapUpEvent(row);
   }
 

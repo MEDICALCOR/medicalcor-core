@@ -27,6 +27,19 @@
 
 import { Pool } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  createLogger,
+  RecordNotFoundError,
+  type RecordUpdateError,
+  type RecordDeleteError,
+} from '@medicalcor/core';
+
+// ============================================================================
+// REPOSITORY ERROR TYPES
+// ============================================================================
+
+/** Error types that can be returned from PostgresCaseRepository operations */
+export type CaseRepositoryError = RecordNotFoundError | RecordUpdateError | RecordDeleteError;
 import { createLogger, RecordNotFoundError } from '@medicalcor/core';
 
 import type {
@@ -96,6 +109,7 @@ interface CaseRow {
   created_at: Date;
   updated_at: Date;
   deleted_at: Date | null;
+  version: number | null;
   version?: number;
 }
 
@@ -454,6 +468,7 @@ export class PostgresCaseRepository implements ICaseRepository {
 
   /**
    * Update a case
+   * @throws RecordNotFoundError if case not found
    * @throws RecordNotFoundError if case is not found
    */
   async update(id: string, updates: Partial<Omit<Case, 'id' | 'createdAt'>>): Promise<Case> {
@@ -511,6 +526,7 @@ export class PostgresCaseRepository implements ICaseRepository {
 
   /**
    * Soft delete a case
+   * @throws RecordNotFoundError if case not found
    * @throws RecordNotFoundError if case is not found
    */
   async softDelete(id: string, deletedBy?: string): Promise<void> {
@@ -600,6 +616,7 @@ export class PostgresCaseRepository implements ICaseRepository {
 
   /**
    * Update a payment
+   * @throws RecordNotFoundError if payment not found
    * @throws RecordNotFoundError if payment is not found
    */
   async updatePayment(
@@ -659,6 +676,7 @@ export class PostgresCaseRepository implements ICaseRepository {
 
   /**
    * Process a payment
+   * @throws RecordNotFoundError if payment not found
    * @throws RecordNotFoundError if payment is not found
    */
   async processPayment(
@@ -694,6 +712,7 @@ export class PostgresCaseRepository implements ICaseRepository {
 
   /**
    * Mark a payment as failed
+   * @throws RecordNotFoundError if payment not found
    * @throws RecordNotFoundError if payment is not found
    */
   async failPayment(paymentId: string, reason: string): Promise<Payment> {
@@ -1298,6 +1317,7 @@ export class PostgresCaseRepository implements ICaseRepository {
   private mapRowToCase(row: CaseRow): Case {
     return {
       id: row.id,
+      version: row.version ?? 1,
       version: row.version ?? 0,
       clinicId: row.clinic_id,
       leadId: row.lead_id,

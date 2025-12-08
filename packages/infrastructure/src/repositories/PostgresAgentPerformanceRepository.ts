@@ -192,6 +192,8 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       [agentId]
     );
 
+    if (result.rows.length === 0) return null;
+    return this.rowToAgent(result.rows[0]!);
     const row = result.rows[0];
     if (!row) return null;
     return this.rowToAgent(row);
@@ -256,6 +258,8 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       ]
     );
 
+    // INSERT RETURNING always returns the inserted row
+    return this.rowToAgent(result.rows[0]!);
     const row = result.rows[0];
     if (!row) {
       throw new Error('Failed to create agent');
@@ -311,6 +315,8 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       [agentId]
     );
 
+    if (result.rows.length === 0) return null;
+    return this.rowToAgentSession(result.rows[0]!);
     const row = result.rows[0];
     if (!row) return null;
     return this.rowToAgentSession(row);
@@ -324,6 +330,8 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       [session.agentId, session.clinicId, session.startedAt, session.status]
     );
 
+    // INSERT RETURNING always returns the inserted row
+    return this.rowToAgentSession(result.rows[0]!);
     const row = result.rows[0];
     if (!row) {
       throw new Error('Failed to create agent session');
@@ -375,6 +383,8 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       [agentId, dateStr]
     );
 
+    if (result.rows.length === 0) return null;
+    return this.rowToDailyMetrics(result.rows[0]!);
     const row = result.rows[0];
     if (!row) return null;
     return this.rowToDailyMetrics(row);
@@ -526,6 +536,16 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
     return result.rows.map((row) => ({
       id: row.id,
       name: row.name,
+      agentType: row.agent_type as 'human' | 'ai' | 'hybrid',
+      role: row.role as 'agent' | 'senior_agent' | 'team_lead' | 'supervisor' | 'manager',
+      status: row.current_status as
+        | 'available'
+        | 'busy'
+        | 'away'
+        | 'break'
+        | 'training'
+        | 'offline'
+        | undefined,
       avatarUrl: row.avatar_url,
       agentType: row.agent_type as AgentPerformanceSummary['agentType'],
       role: row.role as AgentPerformanceSummary['role'],
@@ -645,8 +665,9 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       [clinicId, days]
     );
 
-    const current = currentResult.rows[0];
-    const previous = previousResult.rows[0];
+    // Aggregate queries always return exactly one row
+    const current = currentResult.rows[0]!;
+    const previous = previousResult.rows[0]!;
 
     const calcChange = (curr: number, prev: number): number => {
       if (prev === 0) return 0;
@@ -804,6 +825,8 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       [agentId]
     );
 
+    if (result.rows.length === 0) return null;
+    return result.rows[0]!.status as AgentAvailability;
     const row = result.rows[0];
     if (!row) return null;
     return row.status as AgentAvailability;
@@ -817,6 +840,8 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       [clinicId]
     );
 
+    // COUNT aggregate always returns exactly one row
+    return Number(result.rows[0]!.count);
     return Number(result.rows[0]?.count ?? 0);
     const row = result.rows[0];
     return row ? Number(row.count) : 0;
