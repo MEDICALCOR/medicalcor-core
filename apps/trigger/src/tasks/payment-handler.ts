@@ -1,7 +1,8 @@
 import { task, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
-import { normalizeRomanianPhone } from '@medicalcor/core';
+import { normalizeRomanianPhone, IdempotencyKeys } from '@medicalcor/core';
 import { createIntegrationClients } from '@medicalcor/integrations';
+import { recordPaymentToCase } from '../workflows/ltv-orchestration.js';
 
 /**
  * Payment Handler Task
@@ -13,6 +14,7 @@ import { createIntegrationClients } from '@medicalcor/integrations';
  * 3. Update lifecycle stage to customer
  * 4. Send WhatsApp confirmation (if phone available)
  * 5. Emit domain event
+ * 6. Trigger LTV orchestration (if lead/clinic info available)
  */
 
 // Initialize clients lazily using shared factory
@@ -26,7 +28,11 @@ function getClients() {
 /**
  * Format currency amount for display
  */
-function formatCurrency(amountCents: number, currency: string, language: 'ro' | 'en' | 'de' = 'ro'): string {
+function formatCurrency(
+  amountCents: number,
+  currency: string,
+  language: 'ro' | 'en' | 'de' = 'ro'
+): string {
   const amount = amountCents / 100;
   const locales: Record<string, string> = {
     ro: 'ro-RO',
@@ -49,6 +55,11 @@ export const PaymentSucceededPayloadSchema = z.object({
   customerName: z.string().optional(),
   metadata: z.record(z.string()).optional(),
   correlationId: z.string(),
+  // LTV orchestration fields (optional - enables full LTV tracking)
+  leadId: z.string().uuid().optional().describe('Lead UUID for LTV orchestration'),
+  clinicId: z.string().uuid().optional().describe('Clinic UUID for LTV orchestration'),
+  caseId: z.string().uuid().optional().describe('Case UUID if known'),
+  treatmentPlanId: z.string().uuid().optional().describe('Treatment plan UUID if known'),
 });
 
 export type PaymentSucceededPayload = z.infer<typeof PaymentSucceededPayloadSchema>;
@@ -62,7 +73,20 @@ export const handlePaymentSucceeded = task({
     factor: 2,
   },
   run: async (payload: PaymentSucceededPayload) => {
-    const { paymentId, amount, currency, customerId, customerEmail, customerName, metadata, correlationId } = payload;
+    const {
+      paymentId,
+      amount,
+      currency,
+      customerId,
+      customerEmail,
+      customerName,
+      metadata,
+      correlationId,
+      leadId,
+      clinicId,
+      caseId,
+      treatmentPlanId,
+    } = payload;
     const { hubspot, whatsapp, templateCatalog, eventStore } = getClients();
 
     logger.info('Processing successful payment', {
@@ -138,7 +162,10 @@ export const handlePaymentSucceeded = task({
           last_payment_amount: formatCurrency(amount, currency),
           stripe_customer_id: customerId ?? undefined,
         });
-        logger.info('Contact updated to customer lifecycle', { contactId: hubspotContactId, correlationId });
+        logger.info('Contact updated to customer lifecycle', {
+          contactId: hubspotContactId,
+          correlationId,
+        });
       } catch (err) {
         logger.error('Failed to update HubSpot contact', { err, correlationId });
       }
@@ -191,6 +218,47 @@ export const handlePaymentSucceeded = task({
       logger.error('Failed to emit domain event', { err, correlationId });
     }
 
+    // Step 5: Trigger LTV orchestration (if lead/clinic info available)
+    let ltvOrchestrationTriggered = false;
+    if (leadId && clinicId) {
+      try {
+        await recordPaymentToCase.trigger(
+          {
+            paymentId,
+            leadId,
+            clinicId,
+            caseId,
+            treatmentPlanId,
+            amount,
+            currency,
+            method: 'card',
+            type: 'payment',
+            processorName: 'stripe',
+            processorTransactionId: paymentId,
+            correlationId,
+          },
+          {
+            idempotencyKey: IdempotencyKeys.custom('ltv-payment', paymentId, correlationId),
+          }
+        );
+        ltvOrchestrationTriggered = true;
+        logger.info('LTV orchestration triggered', { leadId, clinicId, correlationId });
+      } catch (err) {
+        logger.error('Failed to trigger LTV orchestration', {
+          err,
+          leadId,
+          clinicId,
+          correlationId,
+        });
+      }
+    } else {
+      logger.debug('LTV orchestration skipped - missing leadId or clinicId', {
+        hasLeadId: !!leadId,
+        hasClinicId: !!clinicId,
+        correlationId,
+      });
+    }
+
     return {
       success: true,
       paymentId,
@@ -200,6 +268,7 @@ export const handlePaymentSucceeded = task({
       currency,
       lifecycleUpdated: !!hubspotContactId,
       confirmationSent: !!(whatsapp && metadata?.phone),
+      ltvOrchestrationTriggered,
     };
   },
 });
@@ -231,7 +300,17 @@ export const handlePaymentFailed = task({
     factor: 2,
   },
   run: async (payload: PaymentFailedPayload) => {
-    const { paymentId, amount, currency, customerId, customerEmail, failureCode, failureReason, metadata, correlationId } = payload;
+    const {
+      paymentId,
+      amount,
+      currency,
+      customerId,
+      customerEmail,
+      failureCode,
+      failureReason,
+      metadata,
+      correlationId,
+    } = payload;
     const { hubspot, eventStore } = getClients();
 
     logger.warn('Processing failed payment', {
@@ -283,7 +362,10 @@ export const handlePaymentFailed = task({
             priority: 'HIGH',
             dueDate: new Date(Date.now() + 4 * 60 * 60 * 1000), // Due in 4 hours
           });
-          logger.info('Created follow-up task for failed payment', { contactId: hubspotContactId, correlationId });
+          logger.info('Created follow-up task for failed payment', {
+            contactId: hubspotContactId,
+            correlationId,
+          });
         }
       } catch (err) {
         logger.error('Failed to process failed payment in HubSpot', { err, correlationId });
@@ -347,7 +429,16 @@ export const handleRefund = task({
     maxAttempts: 3,
   },
   run: async (payload: RefundPayload) => {
-    const { refundId, paymentId, amount, currency, reason, customerEmail, metadata: _metadata, correlationId } = payload;
+    const {
+      refundId,
+      paymentId,
+      amount,
+      currency,
+      reason,
+      customerEmail,
+      metadata: _metadata,
+      correlationId,
+    } = payload;
     const { hubspot, eventStore } = getClients();
 
     logger.info('Processing refund', {
