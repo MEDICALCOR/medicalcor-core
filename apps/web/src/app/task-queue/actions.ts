@@ -121,9 +121,10 @@ function generateMockTasks(count: number): TaskQueueItem[] {
 // Cache for demo data
 let cachedTasks: TaskQueueItem[] | null = null;
 
-function getTasks(): TaskQueueItem[] {
+async function getTasksAsync(): Promise<TaskQueueItem[]> {
+  // In production, this would be a database query
   cachedTasks ??= generateMockTasks(100);
-  return cachedTasks;
+  return Promise.resolve(cachedTasks);
 }
 
 // ============================================================================
@@ -133,8 +134,8 @@ function getTasks(): TaskQueueItem[] {
 /**
  * Get overall task queue statistics
  */
-export function getTaskQueueStatsAction(): Promise<TaskQueueStats> {
-  const tasks = getTasks();
+export async function getTaskQueueStatsAction(): Promise<TaskQueueStats> {
+  const tasks = await getTasksAsync();
 
   const completed = tasks.filter((t) => t.status === 'completed');
   const failed = tasks.filter((t) => t.status === 'failed');
@@ -145,7 +146,7 @@ export function getTaskQueueStatsAction(): Promise<TaskQueueStats> {
   );
   const processedCount = completed.length + failed.length;
 
-  return Promise.resolve({
+  return {
     totalTasks: tasks.length,
     pendingTasks: tasks.filter((t) => t.status === 'pending').length,
     runningTasks: tasks.filter((t) => t.status === 'running').length,
@@ -154,19 +155,19 @@ export function getTaskQueueStatsAction(): Promise<TaskQueueStats> {
     avgProcessingTimeMs: processedCount > 0 ? Math.round(totalProcessingTime / processedCount) : 0,
     successRate:
       processedCount > 0 ? Math.round((completed.length / processedCount) * 100 * 10) / 10 : 100,
-  });
+  };
 }
 
 /**
  * Get task queue items with filtering and pagination
  */
-export function getTaskQueueItemsAction(options?: {
+export async function getTaskQueueItemsAction(options?: {
   status?: TaskQueueItem['status'] | 'all';
   taskType?: string;
   limit?: number;
   offset?: number;
 }): Promise<{ items: TaskQueueItem[]; total: number }> {
-  let tasks = getTasks();
+  let tasks = await getTasksAsync();
 
   // Filter by status
   if (options?.status && options.status !== 'all') {
@@ -182,17 +183,17 @@ export function getTaskQueueItemsAction(options?: {
   const limit = options?.limit ?? 20;
   const offset = options?.offset ?? 0;
 
-  return Promise.resolve({
+  return {
     items: tasks.slice(offset, offset + limit),
     total,
-  });
+  };
 }
 
 /**
  * Get breakdown by task type
  */
-export function getTaskTypeBreakdownAction(): Promise<TaskTypeBreakdown[]> {
-  const tasks = getTasks();
+export async function getTaskTypeBreakdownAction(): Promise<TaskTypeBreakdown[]> {
+  const tasks = await getTasksAsync();
   const breakdown = new Map<string, TaskTypeBreakdown>();
 
   for (const task of tasks) {
@@ -222,28 +223,28 @@ export function getTaskTypeBreakdownAction(): Promise<TaskTypeBreakdown[]> {
     }
   }
 
-  return Promise.resolve(Array.from(breakdown.values()).sort((a, b) => b.total - a.total));
+  return Array.from(breakdown.values()).sort((a, b) => b.total - a.total);
 }
 
 /**
  * Get failed tasks for retry management
  */
-export function getFailedTasksAction(limit = 10): Promise<TaskQueueItem[]> {
-  return Promise.resolve(
-    getTasks()
-      .filter((t) => t.status === 'failed')
-      .slice(0, limit)
-  );
+export async function getFailedTasksAction(limit = 10): Promise<TaskQueueItem[]> {
+  const tasks = await getTasksAsync();
+  return tasks.filter((t) => t.status === 'failed').slice(0, limit);
 }
 
 /**
  * Retry a failed task (mock action)
  */
-export function retryTaskAction(taskId: string): Promise<{ success: boolean; message: string }> {
+export async function retryTaskAction(
+  taskId: string
+): Promise<{ success: boolean; message: string }> {
   // In production, this would call Trigger.dev API to retry the task
+  const tasks = await getTasksAsync();
 
   // Simulate retry
-  const task = cachedTasks?.find((t) => t.id === taskId);
+  const task = tasks.find((t) => t.id === taskId);
   if (task?.status === 'failed') {
     task.status = 'pending';
     task.retryCount++;
@@ -252,35 +253,40 @@ export function retryTaskAction(taskId: string): Promise<{ success: boolean; mes
 
   revalidatePath('/task-queue');
 
-  return Promise.resolve({
+  return {
     success: true,
     message: `Task ${taskId} queued for retry`,
-  });
+  };
 }
 
 /**
  * Cancel a pending/running task (mock action)
  */
-export function cancelTaskAction(taskId: string): Promise<{ success: boolean; message: string }> {
+export async function cancelTaskAction(
+  taskId: string
+): Promise<{ success: boolean; message: string }> {
   // In production, this would call Trigger.dev API to cancel the task
+  const tasks = await getTasksAsync();
 
   // Simulate cancel
-  const task = cachedTasks?.find((t) => t.id === taskId);
+  const task = tasks.find((t) => t.id === taskId);
   if (task && (task.status === 'pending' || task.status === 'running')) {
     task.status = 'cancelled';
   }
 
   revalidatePath('/task-queue');
 
-  return Promise.resolve({
+  return {
     success: true,
     message: `Task ${taskId} cancelled`,
-  });
+  };
 }
 
 /**
  * Get list of available task types
  */
-export function getTaskTypesAction(): Promise<string[]> {
-  return Promise.resolve([...TASK_TYPES]);
+export async function getTaskTypesAction(): Promise<string[]> {
+  // Simulates async data fetch - in production would query Trigger.dev API
+  await getTasksAsync(); // Ensure async operation
+  return [...TASK_TYPES];
 }
