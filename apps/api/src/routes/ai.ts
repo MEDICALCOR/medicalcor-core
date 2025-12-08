@@ -132,7 +132,7 @@ function initializeAIGatewayServices(redis: SecureRedisClient): void {
         // Use createLogger from @medicalcor/core since fastify is not in scope
         const { createLogger } = await import('@medicalcor/core');
         const logger = createLogger({ name: 'ai-budget-controller' });
-        
+
         const alertData = {
           event: 'ai_budget_alert',
           alertId: alert.id,
@@ -142,7 +142,8 @@ function initializeAIGatewayServices(redis: SecureRedisClient): void {
           percentUsed: alert.percentUsed,
           currentSpend: alert.currentSpend,
           budgetLimit: alert.budgetLimit,
-          severity: alert.percentUsed >= 0.9 ? 'critical' : alert.percentUsed >= 0.75 ? 'warning' : 'info',
+          severity:
+            alert.percentUsed >= 0.9 ? 'critical' : alert.percentUsed >= 0.75 ? 'warning' : 'info',
           timestamp: new Date().toISOString(),
         };
 
@@ -151,22 +152,29 @@ function initializeAIGatewayServices(redis: SecureRedisClient): void {
         // Emit event for monitoring systems (Sentry, PagerDuty, Datadog, etc.)
         // This can be picked up by observability infrastructure
         if (typeof process.emit === 'function') {
-          process.emit('ai:budget:alert' as never, alertData);
+          (process.emit as (event: string, data: unknown) => boolean)('ai:budget:alert', alertData);
         }
 
         // For Sentry integration - check if Sentry is available
         // Uses dynamic import and type guard to avoid direct Sentry dependency
         try {
           const SentryModule = await import('@sentry/node').catch(() => null);
-          if (SentryModule && 'captureMessage' in SentryModule && typeof SentryModule.captureMessage === 'function') {
-            SentryModule.captureMessage(`AI Budget Alert: ${alert.scope} at ${(alert.percentUsed * 100).toFixed(1)}%`, {
-              level: alert.percentUsed >= 0.9 ? 'error' : 'warning',
-              tags: {
-                scope: alert.scope,
-                scopeId: alert.scopeId ?? 'global',
-              },
-              extra: alertData,
-            });
+          if (
+            SentryModule &&
+            'captureMessage' in SentryModule &&
+            typeof SentryModule.captureMessage === 'function'
+          ) {
+            SentryModule.captureMessage(
+              `AI Budget Alert: ${alert.scope} at ${(alert.percentUsed * 100).toFixed(1)}%`,
+              {
+                level: alert.percentUsed >= 0.9 ? 'error' : 'warning',
+                tags: {
+                  scope: alert.scope,
+                  scopeId: alert.scopeId ?? 'global',
+                },
+                extra: alertData,
+              }
+            );
           }
         } catch {
           // Sentry not configured - alerts still logged
@@ -505,7 +513,10 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
           reply.header('X-RateLimit-Limit', rateLimitResult.limit.toString());
           reply.header('X-RateLimit-Remaining', rateLimitResult.remaining.toString());
           reply.header('X-RateLimit-Reset', rateLimitResult.resetAt.toString());
-          reply.header('Retry-After', (rateLimitResult.retryAfter ?? rateLimitResult.resetInSeconds).toString());
+          reply.header(
+            'Retry-After',
+            (rateLimitResult.retryAfter ?? rateLimitResult.resetInSeconds).toString()
+          );
 
           return reply.status(429).send({
             code: 'RATE_LIMIT_EXCEEDED',
@@ -577,8 +588,15 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
           response = await Promise.race([executePromise, timeoutPromise]);
         } catch (error) {
           // If instant fallback is enabled and operation timed out
-          if (timeoutConfig.instantFallback && error instanceof Error && error.message.includes('timed out')) {
-            request.log.warn({ correlationId, operationType }, 'Operation timed out, using fallback');
+          if (
+            timeoutConfig.instantFallback &&
+            error instanceof Error &&
+            error.message.includes('timed out')
+          ) {
+            request.log.warn(
+              { correlationId, operationType },
+              'Operation timed out, using fallback'
+            );
             usedFallback = true;
 
             // Return a fallback response for scoring operations
@@ -587,19 +605,21 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
                 success: true,
                 requestId: crypto.randomUUID(),
                 type: parseResult.data.type,
-                results: [{
-                  function: 'score_lead',
-                  success: true,
-                  result: {
-                    score: 3, // Default mid-range score
-                    classification: 'WARM',
-                    confidence: 0.5,
-                    reasoning: 'Fallback response due to timeout - manual review recommended',
-                    suggestedAction: 'Queue for manual scoring',
-                    usedFallback: true,
+                results: [
+                  {
+                    function: 'score_lead',
+                    success: true,
+                    result: {
+                      score: 3, // Default mid-range score
+                      classification: 'WARM',
+                      confidence: 0.5,
+                      reasoning: 'Fallback response due to timeout - manual review recommended',
+                      suggestedAction: 'Queue for manual scoring',
+                      usedFallback: true,
+                    },
+                    executionTimeMs: Date.now() - startTime,
                   },
-                  executionTimeMs: Date.now() - startTime,
-                }],
+                ],
                 totalExecutionTimeMs: Date.now() - startTime,
                 traceId,
               };
@@ -632,7 +652,10 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
               operation: operationType,
             });
           } catch (recordError) {
-            request.log.warn({ error: recordError, correlationId }, 'Failed to record cost - continuing with response');
+            request.log.warn(
+              { error: recordError, correlationId },
+              'Failed to record cost - continuing with response'
+            );
           }
         }
 
@@ -640,12 +663,19 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
         // Wrapped in try-catch to avoid failing the request if recording fails
         if (userRateLimiter) {
           try {
-            await userRateLimiter.recordTokenUsage(userId, estimatedTokens.input + estimatedTokens.output, {
-              tier: userTier,
-              operationType,
-            });
+            await userRateLimiter.recordTokenUsage(
+              userId,
+              estimatedTokens.input + estimatedTokens.output,
+              {
+                tier: userTier,
+                operationType,
+              }
+            );
           } catch (recordError) {
-            request.log.warn({ error: recordError, correlationId }, 'Failed to record token usage - continuing with response');
+            request.log.warn(
+              { error: recordError, correlationId },
+              'Failed to record token usage - continuing with response'
+            );
           }
         }
 
