@@ -286,7 +286,7 @@ export const loadTestingRoutes: FastifyPluginAsync = async (fastify) => {
         };
 
         loadTestResults.push(result);
-        nextId++;
+        _nextId++;
 
         logger.info(
           { id: result.id, scenario: result.scenario, status: result.status },
