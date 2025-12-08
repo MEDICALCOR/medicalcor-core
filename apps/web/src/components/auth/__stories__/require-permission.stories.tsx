@@ -25,11 +25,7 @@ function AccessDeniedDemo({
       </div>
       <h2 className="text-2xl font-semibold mb-2">Acces Interzis</h2>
       <p className="text-muted-foreground max-w-md mb-6">{message}</p>
-      {showBackButton && (
-        <Button variant="default">
-          Înapoi
-        </Button>
-      )}
+      {showBackButton && <Button variant="default">Înapoi</Button>}
     </div>
   );
 }
@@ -46,7 +42,10 @@ function LockedFeatureDemo({
   }
 
   return (
-    <div className="relative opacity-50 cursor-not-allowed" title="Această funcție necesită permisiuni suplimentare">
+    <div
+      className="relative opacity-50 cursor-not-allowed"
+      title="Această funcție necesită permisiuni suplimentare"
+    >
       <div className="pointer-events-none">{children}</div>
       <div className="absolute inset-0 flex items-center justify-center bg-background/50">
         <Lock className="h-4 w-4 text-muted-foreground" />
@@ -145,10 +144,7 @@ export const AccessDeniedCustomMessage: Story = {
 
 export const AccessDeniedNoButton: Story = {
   render: () => (
-    <AccessDeniedDemo
-      message="Contactează administratorul pentru acces"
-      showBackButton={false}
-    />
+    <AccessDeniedDemo message="Contactează administratorul pentru acces" showBackButton={false} />
   ),
 };
 
@@ -184,10 +180,7 @@ export const RoleHierarchy: Story = {
       <CardContent>
         <div className="space-y-2">
           {(['staff', 'receptionist', 'doctor', 'admin'] as UserRole[]).map((role, index) => (
-            <div
-              key={role}
-              className="flex items-center justify-between p-3 border rounded-lg"
-            >
+            <div key={role} className="flex items-center justify-between p-3 border rounded-lg">
               <div className="flex items-center gap-2">
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium"
@@ -230,9 +223,7 @@ export const PermissionExamples: Story = {
               className="flex items-center justify-between p-2 border rounded"
             >
               <div>
-                <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                  {perm.permission}
-                </code>
+                <code className="text-xs bg-muted px-1 py-0.5 rounded">{perm.permission}</code>
                 <p className="text-sm text-muted-foreground mt-0.5">{perm.description}</p>
               </div>
             </div>

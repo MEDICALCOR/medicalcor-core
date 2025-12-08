@@ -51,9 +51,7 @@ describe('NotificationBridge', () => {
   it('should notify urgency when urgency event is received', () => {
     render(<NotificationBridge />);
 
-    const urgencyHandler = mockSubscribe.mock.calls.find(
-      (call) => call[0] === 'urgency.new'
-    )?.[1];
+    const urgencyHandler = mockSubscribe.mock.calls.find((call) => call[0] === 'urgency.new')?.[1];
 
     urgencyHandler?.({
       data: {
@@ -78,9 +76,7 @@ describe('NotificationBridge', () => {
   it('should track pending leads when created', () => {
     render(<NotificationBridge />);
 
-    const createdHandler = mockSubscribe.mock.calls.find(
-      (call) => call[0] === 'lead.created'
-    )?.[1];
+    const createdHandler = mockSubscribe.mock.calls.find((call) => call[0] === 'lead.created')?.[1];
 
     createdHandler?.({
       data: {
@@ -97,13 +93,9 @@ describe('NotificationBridge', () => {
   it('should notify for HOT leads when scored', () => {
     render(<NotificationBridge />);
 
-    const createdHandler = mockSubscribe.mock.calls.find(
-      (call) => call[0] === 'lead.created'
-    )?.[1];
+    const createdHandler = mockSubscribe.mock.calls.find((call) => call[0] === 'lead.created')?.[1];
 
-    const scoredHandler = mockSubscribe.mock.calls.find(
-      (call) => call[0] === 'lead.scored'
-    )?.[1];
+    const scoredHandler = mockSubscribe.mock.calls.find((call) => call[0] === 'lead.scored')?.[1];
 
     // First create a lead
     createdHandler?.({
@@ -134,13 +126,9 @@ describe('NotificationBridge', () => {
   it('should not notify for WARM leads', () => {
     render(<NotificationBridge />);
 
-    const createdHandler = mockSubscribe.mock.calls.find(
-      (call) => call[0] === 'lead.created'
-    )?.[1];
+    const createdHandler = mockSubscribe.mock.calls.find((call) => call[0] === 'lead.created')?.[1];
 
-    const scoredHandler = mockSubscribe.mock.calls.find(
-      (call) => call[0] === 'lead.scored'
-    )?.[1];
+    const scoredHandler = mockSubscribe.mock.calls.find((call) => call[0] === 'lead.scored')?.[1];
 
     createdHandler?.({
       data: {
@@ -163,13 +151,9 @@ describe('NotificationBridge', () => {
   it('should not notify for COLD leads', () => {
     render(<NotificationBridge />);
 
-    const createdHandler = mockSubscribe.mock.calls.find(
-      (call) => call[0] === 'lead.created'
-    )?.[1];
+    const createdHandler = mockSubscribe.mock.calls.find((call) => call[0] === 'lead.created')?.[1];
 
-    const scoredHandler = mockSubscribe.mock.calls.find(
-      (call) => call[0] === 'lead.scored'
-    )?.[1];
+    const scoredHandler = mockSubscribe.mock.calls.find((call) => call[0] === 'lead.scored')?.[1];
 
     createdHandler?.({
       data: {
@@ -211,9 +195,7 @@ describe('NotificationBridge', () => {
   it('should handle duplicate lead events', () => {
     render(<NotificationBridge />);
 
-    const createdHandler = mockSubscribe.mock.calls.find(
-      (call) => call[0] === 'lead.created'
-    )?.[1];
+    const createdHandler = mockSubscribe.mock.calls.find((call) => call[0] === 'lead.created')?.[1];
 
     // Create same lead twice
     createdHandler?.({
@@ -239,9 +221,7 @@ describe('NotificationBridge', () => {
   it('should ignore scored events for unknown leads', () => {
     render(<NotificationBridge />);
 
-    const scoredHandler = mockSubscribe.mock.calls.find(
-      (call) => call[0] === 'lead.scored'
-    )?.[1];
+    const scoredHandler = mockSubscribe.mock.calls.find((call) => call[0] === 'lead.scored')?.[1];
 
     // Score a lead that was never created
     scoredHandler?.({

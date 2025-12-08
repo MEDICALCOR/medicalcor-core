@@ -14,6 +14,7 @@ Provide expert guidance on integrating MCP (Model Context Protocol) servers with
 ## When to Use
 
 Auto-invoke when users mention:
+
 - **MCP** - "MCP", "Model Context Protocol", "MCP server"
 - **Installation** - "install MCP", "add MCP server", "connect MCP"
 - **Server types** - "HTTP server", "SSE server", "stdio server", "remote MCP"
@@ -31,6 +32,7 @@ Auto-invoke when users mention:
 ## What is MCP?
 
 **Model Context Protocol (MCP)** is an open-source standard that allows Claude Code to connect to:
+
 - External tools and services
 - Databases (PostgreSQL, MongoDB, etc.)
 - APIs (GitHub, Jira, Slack, etc.)
@@ -38,6 +40,7 @@ Auto-invoke when users mention:
 - Custom integrations
 
 **Benefits:**
+
 - Access hundreds of integrations
 - Standardized protocol
 - Community-built servers
@@ -68,23 +71,29 @@ Or describe what you want to do, and I'll recommend an MCP server.
 Explain the three types:
 
 **HTTP Server (recommended for remote services):**
+
 ```bash
 claude mcp add --transport http server-name https://mcp.service.com/mcp
 ```
+
 - Most common for cloud services
 - Example: Sentry, GitHub, Notion
 
 **SSE Server (Server-Sent Events):**
+
 ```bash
 claude mcp add --transport sse server-name https://mcp.service.com/sse
 ```
+
 - For streaming services
 - Example: Asana, Atlassian
 
 **stdio Server (local/npm packages):**
+
 ```bash
 claude mcp add --transport stdio server-name -- npx -y package-name
 ```
+
 - For local tools or npm packages
 - Example: Filesystem, custom scripts
 
@@ -105,16 +114,19 @@ claude mcp add --transport stdio server-name -- npx -y package-name
 #### Command Line Install
 
 **HTTP Server:**
+
 ```bash
 claude mcp add --transport http sentry https://mcp.sentry.dev/mcp
 ```
 
 **SSE Server:**
+
 ```bash
 claude mcp add --transport sse asana https://mcp.asana.com/sse
 ```
 
 **stdio Server with environment variables:**
+
 ```bash
 claude mcp add --transport stdio github \
   --env GITHUB_TOKEN=your_token \
@@ -126,40 +138,49 @@ claude mcp add --transport stdio github \
 Explain where MCP servers are stored:
 
 #### User Scope (Global)
+
 **Location:** `~/.claude/.mcp.json`
 
 **Use for:**
+
 - Personal integrations
 - Services you use across all projects
 - Personal API keys
 
 **Install:**
+
 ```bash
 claude mcp add --transport http sentry https://mcp.sentry.dev/mcp --user
 ```
 
 #### Project Scope (Team)
+
 **Location:** `.claude/.mcp.json`
 
 **Use for:**
+
 - Team-shared integrations
 - Project-specific services
 - Committed to git
 
 **Install:**
+
 ```bash
 claude mcp add --transport http linear https://mcp.linear.app/mcp --project
 ```
 
 #### Local Scope (Personal + Project)
+
 **Location:** `.claude/.mcp.local.json`
 
 **Use for:**
+
 - Personal overrides in project
 - Testing configurations
 - Not committed to git
 
 **Install:**
+
 ```bash
 claude mcp add --transport http notion https://mcp.notion.com/mcp --local
 ```
@@ -169,6 +190,7 @@ claude mcp add --transport http notion https://mcp.notion.com/mcp --local
 Most MCP servers require authentication:
 
 #### OAuth (Recommended)
+
 ```bash
 # Install server
 claude mcp add --transport http github https://mcp.github.com/mcp
@@ -180,6 +202,7 @@ claude mcp add --transport http github https://mcp.github.com/mcp
 ```
 
 #### API Key (via environment)
+
 ```bash
 claude mcp add --transport stdio server-name \
   --env API_KEY=your_api_key \
@@ -188,6 +211,7 @@ claude mcp add --transport stdio server-name \
 ```
 
 #### From settings.json
+
 ```json
 {
   "env": {
@@ -217,52 +241,67 @@ After installation:
 ### Development Tools
 
 **Sentry** (Error monitoring):
+
 ```bash
 claude mcp add --transport http sentry https://mcp.sentry.dev/mcp
 ```
+
 Use for: "Check Sentry for errors in the last 24 hours"
 
 **GitHub** (Code hosting):
+
 ```bash
 claude mcp add --transport http github https://api.github.com/mcp
 ```
+
 Use for: "Create a PR for this feature", "Review open issues"
 
 **Socket** (Security analysis):
+
 ```bash
 claude mcp add --transport http socket https://mcp.socket.dev/
 ```
+
 Use for: "Analyze dependencies for security vulnerabilities"
 
 ### Project Management
 
 **Jira** (via Atlassian):
+
 ```bash
 claude mcp add --transport sse atlassian https://mcp.atlassian.com/v1/sse
 ```
+
 Use for: "Implement feature from JIRA-123", "Update ticket status"
 
 **Linear**:
+
 ```bash
 claude mcp add --transport http linear https://mcp.linear.app/mcp
 ```
+
 Use for: "Create issue", "List my assigned tasks"
 
 **Notion**:
+
 ```bash
 claude mcp add --transport http notion https://mcp.notion.com/mcp
 ```
+
 Use for: "Read project docs", "Update status page"
 
 **Asana**:
+
 ```bash
 claude mcp add --transport sse asana https://mcp.asana.com/sse
 ```
+
 Use for: "Create task", "Check project timeline"
 
 ### Databases
 
 **PostgreSQL** (local):
+
 ```bash
 claude mcp add --transport stdio postgres \
   --env POSTGRES_CONNECTION_STRING="postgresql://user:pass@localhost:5432/db" \
@@ -270,6 +309,7 @@ claude mcp add --transport stdio postgres \
 ```
 
 **MongoDB** (local):
+
 ```bash
 claude mcp add --transport stdio mongodb \
   --env MONGODB_URI="mongodb://localhost:27017/mydb" \
@@ -279,6 +319,7 @@ claude mcp add --transport stdio mongodb \
 ### File Systems
 
 **Filesystem** (local files):
+
 ```bash
 claude mcp add --transport stdio filesystem \
   --env ALLOWED_DIRECTORIES=/path/to/dir1:/path/to/dir2 \
@@ -286,6 +327,7 @@ claude mcp add --transport stdio filesystem \
 ```
 
 **Google Drive**:
+
 ```bash
 claude mcp add --transport stdio google-drive \
   -- npx -y @modelcontextprotocol/server-gdrive
@@ -294,6 +336,7 @@ claude mcp add --transport stdio google-drive \
 ### Communication
 
 **Slack**:
+
 ```bash
 claude mcp add --transport stdio slack \
   --env SLACK_BOT_TOKEN=xoxb-your-token \
@@ -302,6 +345,7 @@ claude mcp add --transport stdio slack \
 ```
 
 **Gmail**:
+
 ```bash
 claude mcp add --transport stdio gmail \
   -- npx -y @modelcontextprotocol/server-gmail
@@ -373,6 +417,7 @@ Use environment variables in config:
 ```
 
 Then set in shell or settings.json:
+
 ```json
 {
   "env": {
@@ -411,11 +456,13 @@ Once server is connected, use tools:
 MCP resources are files/data the server provides:
 
 **Reference resources:**
+
 ```
 @mcp://server-name/resource-name
 ```
 
 **Example:**
+
 ```
 Review @mcp://github/README.md and suggest improvements
 ```
@@ -425,11 +472,13 @@ Review @mcp://github/README.md and suggest improvements
 MCP prompts become slash commands:
 
 **Format:**
+
 ```
 /mcp__<server-name>__<prompt-name> [args]
 ```
 
 **Example:**
+
 ```
 /mcp__github__create_issue "Bug in login" high
 /mcp__jira__update_status PROJ-123 "In Progress"
@@ -488,11 +537,13 @@ Edit `.mcp.json` directly:
 ### Managed MCP Servers
 
 **Location (enterprise-controlled):**
+
 - macOS: `/Library/Application Support/ClaudeCode/managed-mcp.json`
 - Linux/WSL: `/etc/claude-code/managed-mcp.json`
 - Windows: `C:\ProgramData\ClaudeCode\managed-mcp.json`
 
 **Features:**
+
 - Deployed by IT/DevOps
 - Always available to users
 - Users cannot remove
@@ -504,17 +555,13 @@ Edit `.mcp.json` directly:
 
 ```json
 {
-  "allowedMcpServers": [
-    {"serverName": "github"},
-    {"serverName": "sentry"}
-  ],
-  "deniedMcpServers": [
-    {"serverName": "filesystem"}
-  ]
+  "allowedMcpServers": [{ "serverName": "github" }, { "serverName": "sentry" }],
+  "deniedMcpServers": [{ "serverName": "filesystem" }]
 }
 ```
 
 **Behavior:**
+
 - `allowedMcpServers`: Only these servers can be installed
 - `deniedMcpServers`: These servers are blocked (takes precedence)
 - Undefined `allowedMcpServers`: No restrictions
@@ -525,11 +572,13 @@ Edit `.mcp.json` directly:
 Plugins can bundle MCP servers:
 
 **Automatic installation:**
+
 1. Install plugin
 2. MCP servers from plugin are available
 3. No manual configuration needed
 
 **Example:**
+
 ```bash
 # Install plugin that includes MCP servers
 /plugin install company-tools@internal
@@ -552,15 +601,18 @@ claude mcp import-from-desktop
 ## MCP Output Limits
 
 **Warning thresholds:**
+
 - 10,000 tokens: Warning shown
 - 25,000 tokens: Default maximum (configurable)
 
 **Configure limit:**
+
 ```bash
 export MAX_MCP_OUTPUT_TOKENS=50000
 ```
 
 Or in settings.json:
+
 ```json
 {
   "env": {
@@ -572,6 +624,7 @@ Or in settings.json:
 ## Security Considerations
 
 ⚠️ **Use MCP servers at your own risk:**
+
 - Anthropic has not verified all servers
 - Trust servers you install
 - Be careful with servers fetching untrusted content
@@ -579,6 +632,7 @@ Or in settings.json:
 - Servers have access to data you authorize
 
 **Best practices:**
+
 - Only install trusted servers
 - Review server permissions
 - Use OAuth when available
@@ -592,12 +646,14 @@ Or in settings.json:
 ### Server Not Connecting
 
 **Check:**
+
 1. Server URL is correct
 2. Authentication is complete
 3. Network connectivity
 4. Server is running (for stdio)
 
 **Debug:**
+
 ```bash
 # Run with debug mode
 claude --debug
@@ -609,6 +665,7 @@ claude --debug
 ### Authentication Failing
 
 **Solutions:**
+
 1. Re-authenticate: `/mcp` → Authenticate
 2. Check API key is valid
 3. Verify OAuth tokens not expired
@@ -617,12 +674,14 @@ claude --debug
 ### Tools Not Available
 
 **Check:**
+
 1. Server is connected: `/mcp`
 2. Authentication complete
 3. Restart Claude Code
 4. Server provides expected tools
 
 **Verify tools:**
+
 ```bash
 /mcp
 # Select server
@@ -632,12 +691,14 @@ claude --debug
 ### stdio Server Errors
 
 **Check:**
+
 1. Command is installed: `which npx`
 2. Package exists: `npx -y package-name --version`
 3. Environment variables set
 4. Permissions to execute
 
 **Test manually:**
+
 ```bash
 # Run stdio command directly
 npx -y @modelcontextprotocol/server-github
@@ -647,12 +708,14 @@ npx -y @modelcontextprotocol/server-github
 ### Configuration Not Loading
 
 **Check:**
+
 1. JSON syntax valid: `jq . < .mcp.json`
 2. File location correct
 3. Restart Claude Code
 4. Check scope (user/project/local)
 
 **Validate:**
+
 ```bash
 # Validate JSON
 cat .claude/.mcp.json | jq .
@@ -664,6 +727,7 @@ cat .claude/.mcp.json | jq .
 ### Permission Denied Errors
 
 **Check:**
+
 1. File permissions: `chmod 644 .mcp.json`
 2. Allowed in settings (enterprise)
 3. Not in denylist
@@ -672,6 +736,7 @@ cat .claude/.mcp.json | jq .
 ## Best Practices
 
 ### DO:
+
 ✅ Use project scope for team integrations
 ✅ Use user scope for personal tools
 ✅ Authenticate with OAuth when available
@@ -682,6 +747,7 @@ cat .claude/.mcp.json | jq .
 ✅ Review server permissions regularly
 
 ### DON'T:
+
 ❌ Commit API keys to git
 ❌ Install untrusted servers
 ❌ Share OAuth tokens
@@ -695,12 +761,14 @@ cat .claude/.mcp.json | jq .
 ### Workflow 1: Issue to PR
 
 **Setup:**
+
 ```bash
 claude mcp add --transport http github https://api.github.com/mcp --project
 claude mcp add --transport sse atlassian https://mcp.atlassian.com/v1/sse --project
 ```
 
 **Usage:**
+
 ```
 "Read JIRA ticket ENG-123, implement the feature, and create a PR on GitHub"
 ```
@@ -708,11 +776,13 @@ claude mcp add --transport sse atlassian https://mcp.atlassian.com/v1/sse --proj
 ### Workflow 2: Error Investigation
 
 **Setup:**
+
 ```bash
 claude mcp add --transport http sentry https://mcp.sentry.dev/mcp --user
 ```
 
 **Usage:**
+
 ```
 "Check Sentry for errors in the last hour and fix them"
 ```
@@ -720,12 +790,14 @@ claude mcp add --transport http sentry https://mcp.sentry.dev/mcp --user
 ### Workflow 3: Database Query to Email
 
 **Setup:**
+
 ```bash
 claude mcp add --transport stdio postgres --env POSTGRES_CONNECTION_STRING=... -- npx -y @modelcontextprotocol/server-postgres
 claude mcp add --transport stdio gmail -- npx -y @modelcontextprotocol/server-gmail
 ```
 
 **Usage:**
+
 ```
 "Find 10 beta users from database and draft Gmail invites to feedback session"
 ```
@@ -743,6 +815,7 @@ claude mcp serve --port 8080
 ```
 
 **Capabilities exposed:**
+
 - Claude Code tools (Read, Write, Edit, etc.)
 - Project skills
 - Slash commands (as MCP prompts)

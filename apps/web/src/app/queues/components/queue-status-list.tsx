@@ -89,7 +89,9 @@ function QueueDetailDialog({ queue }: { queue: QueueStatusWithAlerts }) {
             </div>
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">Avg Wait</p>
-              <p className="text-lg font-semibold">{formatWaitTime(Math.round(queue.averageWaitTime))}</p>
+              <p className="text-lg font-semibold">
+                {formatWaitTime(Math.round(queue.averageWaitTime))}
+              </p>
             </div>
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">Service Level</p>
@@ -118,7 +120,9 @@ function QueueDetailDialog({ queue }: { queue: QueueStatusWithAlerts }) {
                 </div>
                 <div className="flex items-center gap-2">
                   <Activity className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-sm">Utilization: {Math.round(queue.agentUtilization)}%</span>
+                  <span className="text-sm">
+                    Utilization: {Math.round(queue.agentUtilization)}%
+                  </span>
                 </div>
               </div>
             </CardContent>

@@ -58,6 +58,7 @@ Check if TOON is beneficial:
 ```
 
 **Output:**
+
 ```
 ✓ TOON format recommended
   Items: 150
@@ -113,11 +114,13 @@ The encoder automatically chooses the best format:
 ### Inline Arrays (primitives ≤10)
 
 **JSON:**
+
 ```json
-{"tags": ["js", "react", "web"]}
+{ "tags": ["js", "react", "web"] }
 ```
 
 **TOON:**
+
 ```
 tags[3]: js,react,web
 ```
@@ -125,14 +128,16 @@ tags[3]: js,react,web
 ### Tabular Arrays (uniform objects ≥5)
 
 **JSON:**
+
 ```json
 [
-  {"name": "Alice", "age": 30},
-  {"name": "Bob", "age": 25}
+  { "name": "Alice", "age": 30 },
+  { "name": "Bob", "age": 25 }
 ]
 ```
 
 **TOON:**
+
 ```
 [2]{name,age}:
   Alice,30
@@ -142,14 +147,16 @@ tags[3]: js,react,web
 ### Expanded Lists (fallback)
 
 **JSON:**
+
 ```json
 [
-  {"name": "Alice", "role": "admin"},
-  {"name": "Bob", "level": 5}
+  { "name": "Alice", "role": "admin" },
+  { "name": "Bob", "level": 5 }
 ]
 ```
 
 **TOON:**
+
 ```
 - name: Alice
   role: admin
@@ -171,6 +178,7 @@ else:
 ```
 
 **Example:**
+
 - 10 objects
 - 8 have fields: name, age, city
 - 2 have fields: name, role
@@ -185,6 +193,7 @@ uniformity = 1/4 = 0.25 < 0.6
 ## Key Folding Rules
 
 Folding happens when:
+
 1. ✅ Key is valid identifier (`^[A-Za-z_][A-Za-z0-9_]*$`)
 2. ✅ No collision with sibling keys
 3. ✅ Value is an object (not array/primitive)
@@ -192,14 +201,16 @@ Folding happens when:
 **Example:**
 
 **JSON:**
+
 ```json
 {
-  "server": {"host": "localhost"},  // Will fold
-  "server.port": 8080                // Collision, won't fold server
+  "server": { "host": "localhost" }, // Will fold
+  "server.port": 8080 // Collision, won't fold server
 }
 ```
 
 **TOON:**
+
 ```
 server:
   host: localhost
@@ -218,6 +229,7 @@ server.port: 8080
 - No unnecessary decimal (1.0 → 1)
 
 **Examples:**
+
 ```
 42 → 42
 3.14159 → 3.14159
@@ -230,22 +242,24 @@ server.port: 8080
 
 Only these five are escaped:
 
-| Character | Escape |
-|-----------|--------|
-| `\` | `\\` |
-| `"` | `\"` |
-| Newline | `\n` |
-| Carriage return | `\r` |
-| Tab | `\t` |
+| Character       | Escape |
+| --------------- | ------ |
+| `\`             | `\\`   |
+| `"`             | `\"`   |
+| Newline         | `\n`   |
+| Carriage return | `\r`   |
+| Tab             | `\t`   |
 
 **Example:**
 
 **JSON:**
+
 ```json
-{"path": "C:\\Users\\Alice\\file.txt"}
+{ "path": "C:\\Users\\Alice\\file.txt" }
 ```
 
 **TOON:**
+
 ```
 path: "C:\\Users\\Alice\\file.txt"
 ```
@@ -306,6 +320,7 @@ find data/ -name "*.json" | \
 **Cause:** Small arrays (<5 items) or low uniformity (<60%)
 
 **Solution:**
+
 ```bash
 # Check before encoding
 ./zig-out/bin/toon check data.json
@@ -318,6 +333,7 @@ find data/ -name "*.json" | \
 **Cause:** Using comma delimiter with comma-heavy data
 
 **Solution:**
+
 ```bash
 # Use tab or pipe delimiter
 ./zig-out/bin/toon encode data.json --delimiter tab
@@ -328,6 +344,7 @@ find data/ -name "*.json" | \
 **Cause:** Bug in encoder
 
 **Solution:**
+
 ```bash
 # Validate output
 ./zig-out/bin/toon validate output.toon --strict

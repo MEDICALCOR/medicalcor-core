@@ -372,10 +372,7 @@ export class ConsentService {
    * Check consent by phone number
    * Returns an object with granted status for compatibility with different callers
    */
-  async checkConsent(
-    phone: string,
-    consentType: ConsentType
-  ): Promise<{ granted: boolean }> {
+  async checkConsent(phone: string, consentType: ConsentType): Promise<{ granted: boolean }> {
     // Try to find the contact by phone and check consent
     // This is a best-effort lookup - if no contact is found, return false
     const consent = await this.repository.findByPhoneAndType?.(phone, consentType);

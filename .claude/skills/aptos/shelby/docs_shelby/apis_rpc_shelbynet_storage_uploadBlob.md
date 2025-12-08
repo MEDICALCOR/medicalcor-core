@@ -92,8 +92,7 @@ Python
 Java
 
 C#
-    
-    
+
     curl -X PUT "https://api.shelbynet.shelby.xyz/shelby/v1/blobs/string/path/to/myblob.txt" \  -H "Content-Length: 0"
 
 204400

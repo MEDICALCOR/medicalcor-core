@@ -145,7 +145,10 @@ export async function getRemindersAction(): Promise<{ reminders: Reminder[]; err
   }
 }
 
-export async function getReminderStatsAction(): Promise<{ stats: ReminderStats | null; error?: string }> {
+export async function getReminderStatsAction(): Promise<{
+  stats: ReminderStats | null;
+  error?: string;
+}> {
   try {
     await requirePermission('reminders:read');
     const user = await requireCurrentUser();
@@ -285,7 +288,9 @@ export async function updateReminderAction(
   }
 }
 
-export async function toggleReminderAction(id: string): Promise<{ reminder: Reminder | null; error?: string }> {
+export async function toggleReminderAction(
+  id: string
+): Promise<{ reminder: Reminder | null; error?: string }> {
   try {
     await requirePermission('reminders:write');
     const user = await requireCurrentUser();
@@ -310,7 +315,9 @@ export async function toggleReminderAction(id: string): Promise<{ reminder: Remi
   }
 }
 
-export async function deleteReminderAction(id: string): Promise<{ success: boolean; error?: string }> {
+export async function deleteReminderAction(
+  id: string
+): Promise<{ success: boolean; error?: string }> {
   try {
     await requirePermission('reminders:delete');
     const user = await requireCurrentUser();

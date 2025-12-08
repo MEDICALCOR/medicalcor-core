@@ -7,16 +7,19 @@ When values need quotes and when they can be bare.
 ### 1. Delimiter character
 
 **Comma delimiter:**
+
 ```
 location: "New York, NY"  # Contains comma
 ```
 
 **Tab delimiter:**
+
 ```
 [|\t] data: "Contains	tab"  # Contains tab
 ```
 
 **Pipe delimiter:**
+
 ```
 [||] note: "Status: active | ready"  # Contains pipe
 ```

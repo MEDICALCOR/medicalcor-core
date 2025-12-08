@@ -9,6 +9,7 @@ MedicalCor uses Fastify 5 for the API gateway (`apps/api`) and Next.js 15 for th
 ## Fastify 5 (apps/api)
 
 ### Project Structure
+
 ```
 apps/api/
 ├── src/
@@ -22,6 +23,7 @@ apps/api/
 ```
 
 ### Basic Route Pattern
+
 ```typescript
 import { FastifyPluginAsync } from 'fastify';
 
@@ -30,34 +32,43 @@ const routes: FastifyPluginAsync = async (fastify) => {
     return { status: 'ok', timestamp: new Date().toISOString() };
   });
 
-  fastify.post<{ Body: CreateLeadBody }>('/leads', {
-    schema: {
-      body: CreateLeadSchema,
-      response: {
-        201: LeadResponseSchema
-      }
+  fastify.post<{ Body: CreateLeadBody }>(
+    '/leads',
+    {
+      schema: {
+        body: CreateLeadSchema,
+        response: {
+          201: LeadResponseSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const lead = await leadService.create(request.body);
+      return reply.status(201).send(lead);
     }
-  }, async (request, reply) => {
-    const lead = await leadService.create(request.body);
-    return reply.status(201).send(lead);
-  });
+  );
 };
 
 export default routes;
 ```
 
 ### Webhook Handlers
+
 ```typescript
 // WhatsApp webhook
-fastify.post('/webhooks/whatsapp', {
-  schema: {
-    body: WhatsAppWebhookSchema
+fastify.post(
+  '/webhooks/whatsapp',
+  {
+    schema: {
+      body: WhatsAppWebhookSchema,
+    },
+  },
+  async (request, reply) => {
+    const { messages } = request.body;
+    await messageQueue.publish('whatsapp.incoming', messages);
+    return reply.status(200).send({ received: true });
   }
-}, async (request, reply) => {
-  const { messages } = request.body;
-  await messageQueue.publish('whatsapp.incoming', messages);
-  return reply.status(200).send({ received: true });
-});
+);
 
 // HubSpot webhook
 fastify.post('/webhooks/hubspot', async (request, reply) => {
@@ -70,6 +81,7 @@ fastify.post('/webhooks/hubspot', async (request, reply) => {
 ```
 
 ### Validation with Zod
+
 ```typescript
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
@@ -79,7 +91,7 @@ const CreateLeadSchema = z.object({
   lastName: z.string().min(1),
   email: z.string().email(),
   phone: z.string().regex(/^\+[1-9]\d{1,14}$/),
-  source: z.enum(['web', 'whatsapp', 'voice', 'referral'])
+  source: z.enum(['web', 'whatsapp', 'voice', 'referral']),
 });
 
 // Convert to JSON Schema for Fastify
@@ -87,6 +99,7 @@ const jsonSchema = zodToJsonSchema(CreateLeadSchema);
 ```
 
 ### Error Handling
+
 ```typescript
 import { logger } from '@medicalcor/core/logger';
 
@@ -95,24 +108,25 @@ fastify.setErrorHandler((error, request, reply) => {
     error: error.message,
     stack: error.stack,
     url: request.url,
-    method: request.method
+    method: request.method,
   });
 
   if (error.validation) {
     return reply.status(400).send({
       error: 'Validation Error',
-      details: error.validation
+      details: error.validation,
     });
   }
 
   return reply.status(500).send({
     error: 'Internal Server Error',
-    requestId: request.id
+    requestId: request.id,
   });
 });
 ```
 
 ### Authentication Plugin
+
 ```typescript
 import fp from 'fastify-plugin';
 
@@ -134,6 +148,7 @@ export default fp(async (fastify) => {
 ## Next.js 15 (apps/web)
 
 ### Project Structure
+
 ```
 apps/web/
 ├── app/                  # App Router
@@ -152,6 +167,7 @@ apps/web/
 ### App Router Patterns
 
 #### Server Components (default)
+
 ```typescript
 // app/leads/page.tsx
 import { getLeads } from '@/lib/api';
@@ -169,6 +185,7 @@ export default async function LeadsPage() {
 ```
 
 #### Client Components
+
 ```typescript
 // components/LeadForm.tsx
 'use client';
@@ -199,6 +216,7 @@ export function LeadForm() {
 ```
 
 #### Server Actions
+
 ```typescript
 // lib/actions.ts
 'use server';
@@ -210,13 +228,13 @@ export async function createLead(formData: FormData) {
   const data = {
     firstName: formData.get('firstName'),
     lastName: formData.get('lastName'),
-    email: formData.get('email')
+    email: formData.get('email'),
   };
 
   await fetch(`${process.env.API_URL}/leads`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
+    body: JSON.stringify(data),
   });
 
   revalidatePath('/leads');
@@ -225,6 +243,7 @@ export async function createLead(formData: FormData) {
 ```
 
 #### Route Handlers
+
 ```typescript
 // app/api/leads/route.ts
 import { NextRequest, NextResponse } from 'next/server';
@@ -247,6 +266,7 @@ export async function POST(request: NextRequest) {
 ### Data Fetching
 
 #### With React Query (Client)
+
 ```typescript
 'use client';
 
@@ -258,23 +278,25 @@ export function useLeads() {
     queryFn: async () => {
       const res = await fetch('/api/leads');
       return res.json();
-    }
+    },
   });
 }
 ```
 
 #### With Server Components
+
 ```typescript
 // Direct database/API access in Server Components
 async function getLeads() {
   const res = await fetch(`${process.env.API_URL}/leads`, {
-    next: { revalidate: 60 } // Cache for 60 seconds
+    next: { revalidate: 60 }, // Cache for 60 seconds
   });
   return res.json();
 }
 ```
 
 ### Authentication
+
 ```typescript
 // lib/auth.ts
 import { cookies } from 'next/headers';
@@ -303,6 +325,7 @@ export async function requireAuth() {
 - **Web (Next.js)**: Port 3001
 
 Run both in development:
+
 ```bash
 pnpm dev  # Starts all apps via Turborepo
 ```

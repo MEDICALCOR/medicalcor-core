@@ -155,12 +155,8 @@ describe('SecurityContext', () => {
       });
       const context = SecurityContext.create(principal, 'corr-123');
 
-      expect(
-        context.hasAnyPermission([Permission.CASE_READ, Permission.CASE_CREATE])
-      ).toBe(true);
-      expect(context.hasAnyPermission([Permission.CASE_DELETE, Permission.PHI_DELETE])).toBe(
-        false
-      );
+      expect(context.hasAnyPermission([Permission.CASE_READ, Permission.CASE_CREATE])).toBe(true);
+      expect(context.hasAnyPermission([Permission.CASE_DELETE, Permission.PHI_DELETE])).toBe(false);
     });
 
     it('should check hasAllPermissions correctly', () => {
@@ -169,12 +165,8 @@ describe('SecurityContext', () => {
       });
       const context = SecurityContext.create(principal, 'corr-123');
 
-      expect(
-        context.hasAllPermissions([Permission.CASE_READ, Permission.CASE_CREATE])
-      ).toBe(true);
-      expect(
-        context.hasAllPermissions([Permission.CASE_READ, Permission.CASE_DELETE])
-      ).toBe(false);
+      expect(context.hasAllPermissions([Permission.CASE_READ, Permission.CASE_CREATE])).toBe(true);
+      expect(context.hasAllPermissions([Permission.CASE_READ, Permission.CASE_DELETE])).toBe(false);
     });
   });
 

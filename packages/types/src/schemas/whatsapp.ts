@@ -1,27 +1,27 @@
 /**
  * WhatsApp webhook schemas (360dialog Cloud API format)
  */
-import { z } from "zod";
+import { z } from 'zod';
 
-import { TimestampSchema } from "./common.js";
+import { TimestampSchema } from './common.js';
 
 /**
  * WhatsApp message types
  */
 export const WhatsAppMessageTypeSchema = z.enum([
-  "text",
-  "image",
-  "audio",
-  "video",
-  "document",
-  "location",
-  "contacts",
-  "sticker",
-  "interactive",
-  "button",
-  "template",
-  "reaction",
-  "unknown",
+  'text',
+  'image',
+  'audio',
+  'video',
+  'document',
+  'location',
+  'contacts',
+  'sticker',
+  'interactive',
+  'button',
+  'template',
+  'reaction',
+  'unknown',
 ]);
 
 /**
@@ -71,14 +71,22 @@ export const WhatsAppContactInfoSchema = z.object({
     first_name: z.string().optional(),
     last_name: z.string().optional(),
   }),
-  phones: z.array(z.object({
-    phone: z.string(),
-    type: z.string().optional(),
-  })).optional(),
-  emails: z.array(z.object({
-    email: z.string(),
-    type: z.string().optional(),
-  })).optional(),
+  phones: z
+    .array(
+      z.object({
+        phone: z.string(),
+        type: z.string().optional(),
+      })
+    )
+    .optional(),
+  emails: z
+    .array(
+      z.object({
+        email: z.string(),
+        type: z.string().optional(),
+      })
+    )
+    .optional(),
 });
 
 /**
@@ -93,7 +101,7 @@ export const WhatsAppButtonSchema = z.object({
  * Interactive message reply (button/list)
  */
 export const WhatsAppInteractiveSchema = z.object({
-  type: z.enum(["button_reply", "list_reply"]),
+  type: z.enum(['button_reply', 'list_reply']),
   button_reply: z
     .object({
       id: z.string(),
@@ -150,7 +158,7 @@ export const WhatsAppMessageSchema = z.object({
  */
 export const WhatsAppStatusSchema = z.object({
   id: z.string(),
-  status: z.enum(["sent", "delivered", "read", "failed"]),
+  status: z.enum(['sent', 'delivered', 'read', 'failed']),
   timestamp: z.string(),
   recipient_id: z.string(),
   errors: z
@@ -181,7 +189,7 @@ export const WhatsAppMetadataSchema = z.object({
  * Webhook entry value
  */
 export const WhatsAppValueSchema = z.object({
-  messaging_product: z.literal("whatsapp"),
+  messaging_product: z.literal('whatsapp'),
   metadata: WhatsAppMetadataSchema,
   contacts: z.array(WhatsAppContactSchema).optional(),
   messages: z.array(WhatsAppMessageSchema).optional(),
@@ -192,7 +200,7 @@ export const WhatsAppValueSchema = z.object({
  * Webhook change entry
  */
 export const WhatsAppChangeSchema = z.object({
-  field: z.literal("messages"),
+  field: z.literal('messages'),
   value: WhatsAppValueSchema,
 });
 
@@ -208,7 +216,7 @@ export const WhatsAppEntrySchema = z.object({
  * Complete WhatsApp Webhook payload (360dialog format)
  */
 export const WhatsAppWebhookSchema = z.object({
-  object: z.literal("whatsapp_business_account"),
+  object: z.literal('whatsapp_business_account'),
   entry: z.array(WhatsAppEntrySchema),
 });
 
@@ -217,13 +225,13 @@ export const WhatsAppWebhookSchema = z.object({
  */
 export const WhatsAppSendMessageSchema = z.object({
   to: z.string(),
-  type: WhatsAppMessageTypeSchema.default("text"),
+  type: WhatsAppMessageTypeSchema.default('text'),
   text: WhatsAppTextSchema.optional(),
   template: z
     .object({
       name: z.string(),
       language: z.object({
-        code: z.string().default("ro"),
+        code: z.string().default('ro'),
       }),
       components: z.array(z.record(z.unknown())).optional(),
     })

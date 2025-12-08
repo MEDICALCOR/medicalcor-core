@@ -415,8 +415,15 @@ export const handleTrialEnding = task({
     factor: 2,
   },
   run: async (payload: TrialEndingPayload) => {
-    const { subscriptionId, customerId, customerEmail, trialEnd, daysRemaining, metadata, correlationId } =
-      payload;
+    const {
+      subscriptionId,
+      customerId,
+      customerEmail,
+      trialEnd,
+      daysRemaining,
+      metadata,
+      correlationId,
+    } = payload;
 
     const { hubspot, whatsapp, templateCatalog, eventStore } = getClients();
 

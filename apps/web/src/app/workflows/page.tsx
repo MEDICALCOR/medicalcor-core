@@ -322,11 +322,7 @@ export default function WorkflowsPage() {
                 <Zap className="h-12 w-12 mx-auto mb-4 text-destructive opacity-70" />
                 <p className="text-lg font-medium text-destructive">Eroare la încărcare</p>
                 <p className="text-sm mt-1 text-muted-foreground">{workflowsError}</p>
-                <Button
-                  className="mt-4"
-                  variant="outline"
-                  onClick={() => window.location.reload()}
-                >
+                <Button className="mt-4" variant="outline" onClick={() => window.location.reload()}>
                   Reîncearcă
                 </Button>
               </div>
@@ -359,11 +355,7 @@ export default function WorkflowsPage() {
                 <LayoutTemplate className="h-12 w-12 mx-auto mb-4 text-destructive opacity-70" />
                 <p className="text-lg font-medium text-destructive">Eroare la încărcare</p>
                 <p className="text-sm mt-1 text-muted-foreground">{templatesError}</p>
-                <Button
-                  className="mt-4"
-                  variant="outline"
-                  onClick={() => window.location.reload()}
-                >
+                <Button className="mt-4" variant="outline" onClick={() => window.location.reload()}>
                   Reîncearcă
                 </Button>
               </div>

@@ -424,7 +424,8 @@ export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
           const subscription = event.data.object;
           if ('status' in subscription) {
             const items = 'items' in subscription ? subscription.items : null;
-            const firstItem = items && 'data' in items && Array.isArray(items.data) ? items.data[0] : null;
+            const firstItem =
+              items && 'data' in items && Array.isArray(items.data) ? items.data[0] : null;
 
             fastify.log.info(
               {
@@ -445,7 +446,10 @@ export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
               currency: firstItem?.price?.currency,
               interval: firstItem?.price?.recurring?.interval,
               trialEnd: 'trial_end' in subscription ? subscription.trial_end : null,
-              currentPeriodEnd: 'current_period_end' in subscription ? subscription.current_period_end : Date.now() / 1000,
+              currentPeriodEnd:
+                'current_period_end' in subscription
+                  ? subscription.current_period_end
+                  : Date.now() / 1000,
               metadata: 'metadata' in subscription ? subscription.metadata : undefined,
               correlationId,
             };
@@ -490,7 +494,9 @@ export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
 
             tasks
               .trigger('subscription-updated-handler', updatePayload, {
-                idempotencyKey: IdempotencyKeys.paymentSucceeded(`sub_updated_${subscription.id}_${Date.now()}`),
+                idempotencyKey: IdempotencyKeys.paymentSucceeded(
+                  `sub_updated_${subscription.id}_${Date.now()}`
+                ),
               })
               .catch((err: unknown) => {
                 fastify.log.error(

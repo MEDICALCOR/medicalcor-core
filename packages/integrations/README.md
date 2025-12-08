@@ -5,6 +5,7 @@ Third-party service integrations for MedicalCor.
 ## Overview
 
 This package provides type-safe clients for external services:
+
 - **HubSpot**: CRM operations (contacts, tasks, timeline events)
 - **WhatsApp**: Messaging via 360dialog API
 - **OpenAI**: AI scoring and response generation
@@ -41,14 +42,14 @@ await clients.whatsapp.sendText({ to: phone, text: response });
 
 The factory reads from environment variables:
 
-| Variable | Client | Required |
-|----------|--------|----------|
-| `HUBSPOT_ACCESS_TOKEN` | HubSpot | For CRM ops |
-| `WHATSAPP_API_KEY` | WhatsApp | For messaging |
-| `WHATSAPP_PHONE_NUMBER_ID` | WhatsApp | For messaging |
-| `WHATSAPP_WEBHOOK_SECRET` | WhatsApp | Optional |
-| `OPENAI_API_KEY` | OpenAI | If `includeOpenAI` |
-| `SCHEDULING_SERVICE_URL` | Scheduling | If `includeScheduling` |
+| Variable                   | Client     | Required               |
+| -------------------------- | ---------- | ---------------------- |
+| `HUBSPOT_ACCESS_TOKEN`     | HubSpot    | For CRM ops            |
+| `WHATSAPP_API_KEY`         | WhatsApp   | For messaging          |
+| `WHATSAPP_PHONE_NUMBER_ID` | WhatsApp   | For messaging          |
+| `WHATSAPP_WEBHOOK_SECRET`  | WhatsApp   | Optional               |
+| `OPENAI_API_KEY`           | OpenAI     | If `includeOpenAI`     |
+| `SCHEDULING_SERVICE_URL`   | Scheduling | If `includeScheduling` |
 | `SCHEDULING_SERVICE_TOKEN` | Scheduling | If `includeScheduling` |
 
 ## Individual Clients
@@ -102,9 +103,7 @@ await whatsapp.sendTemplate({
   to: '+40712345678',
   templateName: 'appointment_reminder',
   language: 'ro',
-  components: [
-    { type: 'body', parameters: [{ type: 'text', text: 'Dr. Popescu' }] },
-  ],
+  components: [{ type: 'body', parameters: [{ type: 'text', text: 'Dr. Popescu' }] }],
 });
 ```
 
@@ -127,16 +126,21 @@ const scoring = await openai.scoreMessage({
 ## Security Features
 
 ### Input Validation
+
 All clients validate inputs using Zod schemas:
+
 - Phone numbers: E.164 format validation
 - Messages: Length limits (4096 chars for WhatsApp)
 - Configuration: Required fields checked at construction
 
 ### Request Timeouts
+
 All HTTP requests have a 30-second timeout via AbortController to prevent hanging connections.
 
 ### Error Handling
+
 Clients throw typed errors:
+
 - `RateLimitError`: 429 responses with retry-after
 - `ValidationError`: Invalid input data
 - Network errors with context

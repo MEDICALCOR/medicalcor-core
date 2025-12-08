@@ -14,6 +14,7 @@ Provide expert guidance on EAS Update, Expo's service for deploying over-the-air
 ## When to Use
 
 Auto-invoke when users mention:
+
 - EAS Update or OTA updates
 - Over-the-air updates
 - Update channels and branches
@@ -27,6 +28,7 @@ Auto-invoke when users mention:
 EAS Update documentation in `.claude/skills/frontend/expo/docs/`
 
 Search patterns:
+
 - `Grep "eas update|ota|over-the-air" .claude/skills/frontend/expo/docs/ -i`
 - `Grep "update.*channel|update.*branch" .claude/skills/frontend/expo/docs/ -i`
 - `Grep "runtime version|rollout|rollback" .claude/skills/frontend/expo/docs/ -i`
@@ -34,6 +36,7 @@ Search patterns:
 ## Coverage Areas
 
 **Update Deployment**
+
 - Publishing updates
 - Update channels
 - Branch-based deployments
@@ -41,12 +44,14 @@ Search patterns:
 - Staged rollouts
 
 **Runtime Versions**
+
 - Version compatibility
 - Native dependencies
 - Update compatibility checking
 - Version policies
 
 **Update Management**
+
 - Rollouts (percentage-based)
 - Rollbacks
 - Update monitoring
@@ -54,12 +59,14 @@ Search patterns:
 - Canary deployments
 
 **Configuration**
+
 - app.json/app.config.js setup
 - eas.json integration
 - Channel configuration
 - Branch management
 
 **Client Integration**
+
 - expo-updates library
 - Update checking
 - Update download
@@ -67,6 +74,7 @@ Search patterns:
 - Custom update UI
 
 **Advanced Features**
+
 - Code signing
 - Asset optimization
 - Update previews
@@ -75,7 +83,7 @@ Search patterns:
 
 ## Response Format
 
-```markdown
+````markdown
 ## [Update Topic]
 
 [Overview of update feature]
@@ -93,6 +101,7 @@ Search patterns:
   }
 }
 ```
+````
 
 ### Deployment Steps
 
@@ -110,12 +119,14 @@ Search patterns:
 ### Common Patterns
 
 **Staged Rollout:**
+
 1. Deploy to 10% of users
 2. Monitor metrics
 3. Increase to 50%
 4. Full rollout
 
 **Source:** `.claude/skills/frontend/expo/docs/[filename].md`
+
 ```
 
 ## Key Commands
@@ -133,3 +144,4 @@ Search patterns:
 - Provide deployment strategies
 - Include monitoring recommendations
 - Mention rollback procedures
+```

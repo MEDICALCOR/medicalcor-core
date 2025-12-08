@@ -492,7 +492,9 @@ describe('Cognitive Episodic Memory System', () => {
 
         const patterns = await detector.detectPatterns('lead', testLeadId);
 
-        const reschedulerPattern = patterns.find((p) => p.patternType === 'appointment_rescheduler');
+        const reschedulerPattern = patterns.find(
+          (p) => p.patternType === 'appointment_rescheduler'
+        );
         expect(reschedulerPattern).toBeDefined();
         expect(reschedulerPattern?.confidence).toBeGreaterThan(0);
         expect(reschedulerPattern?.supportingEventIds.length).toBeGreaterThan(0);

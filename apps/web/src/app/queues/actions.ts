@@ -1,6 +1,5 @@
 'use server';
 
-// @ts-expect-error - Supabase is optional dependency
 import { createClient } from '@supabase/supabase-js';
 import type { QueueSLAStatus } from '@medicalcor/types';
 
@@ -110,27 +109,29 @@ export async function getQueueDashboardStatsAction(): Promise<QueueDashboardStat
 
     // Calculate aggregate stats
     const totalQueues = statuses.length;
-    const activeQueues = statuses.filter(q => q.currentQueueSize > 0 || q.busyAgents > 0).length;
+    const activeQueues = statuses.filter((q) => q.currentQueueSize > 0 || q.busyAgents > 0).length;
     const totalAgents = statuses.reduce((sum, q) => sum + q.totalAgents, 0);
     const availableAgents = statuses.reduce((sum, q) => sum + q.availableAgents, 0);
     const busyAgents = statuses.reduce((sum, q) => sum + q.busyAgents, 0);
     const totalCallsToday = statuses.reduce((sum, q) => sum + q.callsHandledToday, 0);
 
-    const avgWaitTimes = statuses.filter(q => q.averageWaitTime > 0).map(q => q.averageWaitTime);
-    const averageWaitTime = avgWaitTimes.length > 0
-      ? avgWaitTimes.reduce((a, b) => a + b, 0) / avgWaitTimes.length
-      : 0;
+    const avgWaitTimes = statuses
+      .filter((q) => q.averageWaitTime > 0)
+      .map((q) => q.averageWaitTime);
+    const averageWaitTime =
+      avgWaitTimes.length > 0 ? avgWaitTimes.reduce((a, b) => a + b, 0) / avgWaitTimes.length : 0;
 
-    const serviceLevels = statuses.filter(q => q.serviceLevel > 0).map(q => q.serviceLevel);
-    const serviceLevel = serviceLevels.length > 0
-      ? serviceLevels.reduce((a, b) => a + b, 0) / serviceLevels.length
-      : 100;
+    const serviceLevels = statuses.filter((q) => q.serviceLevel > 0).map((q) => q.serviceLevel);
+    const serviceLevel =
+      serviceLevels.length > 0
+        ? serviceLevels.reduce((a, b) => a + b, 0) / serviceLevels.length
+        : 100;
 
-    const compliantQueues = statuses.filter(q => q.isCompliant).length;
+    const compliantQueues = statuses.filter((q) => q.isCompliant).length;
     const complianceRate = totalQueues > 0 ? (compliantQueues / totalQueues) * 100 : 100;
 
     const breachesLast24h = breaches.length;
-    const criticalBreaches = breaches.filter(b => b.severity === 'critical').length;
+    const criticalBreaches = breaches.filter((b) => b.severity === 'critical').length;
 
     return {
       totalQueues,
@@ -211,7 +212,7 @@ export async function getQueueStatusesAction(): Promise<QueueStatusWithAlerts[]>
       }
     }
 
-    return statuses.map(status => {
+    return statuses.map((status) => {
       const alertInfo = alertCountMap.get(status.queueSid);
       return {
         ...status,

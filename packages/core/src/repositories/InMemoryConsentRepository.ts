@@ -2,7 +2,7 @@
  * In-Memory Consent Repository
  *
  * Test/development adapter for consent persistence.
- * Implements the ConsentRepository port from the domain layer.
+ * Implements the IConsentRepository port from the domain layer.
  *
  * WARNING: Not suitable for production - data is lost on restart.
  * For production, use PostgresConsentRepository.
@@ -15,16 +15,19 @@ import type {
   ConsentAuditEntry,
   ConsentType,
   ConsentStatus,
+  IConsentRepository,
 } from './PostgresConsentRepository.js';
+import { Ok, type Result } from '../types/result.js';
+import type { RecordCreateError } from '../errors.js';
 
 /**
  * In-memory implementation for development/testing
  *
- * Note: Methods are async to match the ConsentRepository interface,
+ * Note: Methods are async to match the IConsentRepository interface,
  * but use synchronous operations internally for the in-memory store.
  *
- * This implementation matches the domain's ConsentRepository port interface
- * (without Result wrapper) for seamless testing.
+ * This implementation fully implements the IConsentRepository port interface
+ * with Result pattern for consistent error handling.
  *
  * @example
  * ```typescript
@@ -35,7 +38,7 @@ import type {
  * });
  * ```
  */
-export class InMemoryConsentRepository {
+export class InMemoryConsentRepository implements IConsentRepository {
   private consents = new Map<string, ConsentRecord>();
   private auditLog: ConsentAuditEntry[] = [];
 
@@ -43,13 +46,15 @@ export class InMemoryConsentRepository {
     return `${contactId}:${consentType}`;
   }
 
-  save(consent: ConsentRecord): Promise<ConsentRecord> {
+  save(consent: ConsentRecord): Promise<Result<ConsentRecord, RecordCreateError>> {
     const key = this.getKey(consent.contactId, consent.consentType);
     this.consents.set(key, consent);
-    return Promise.resolve(consent);
+    return Promise.resolve(Ok(consent));
   }
 
-  upsert(consent: ConsentRecord): Promise<{ record: ConsentRecord; wasCreated: boolean }> {
+  upsert(
+    consent: ConsentRecord
+  ): Promise<Result<{ record: ConsentRecord; wasCreated: boolean }, RecordCreateError>> {
     const key = this.getKey(consent.contactId, consent.consentType);
     const existing = this.consents.get(key);
     const wasCreated = !existing;
@@ -64,7 +69,7 @@ export class InMemoryConsentRepository {
         };
 
     this.consents.set(key, recordToSave);
-    return Promise.resolve({ record: recordToSave, wasCreated });
+    return Promise.resolve(Ok({ record: recordToSave, wasCreated }));
   }
 
   findByContactAndType(contactId: string, consentType: ConsentType): Promise<ConsentRecord | null> {

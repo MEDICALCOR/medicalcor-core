@@ -9,6 +9,7 @@
 ## Executive Summary
 
 The MedicalCor Core codebase is a well-architected enterprise medical CRM platform implementing:
+
 - **Hexagonal Architecture** (Ports & Adapters)
 - **Domain-Driven Design** (DDD) with multiple bounded contexts
 - **CQRS** (Command Query Responsibility Segregation)
@@ -16,14 +17,14 @@ The MedicalCor Core codebase is a well-architected enterprise medical CRM platfo
 
 ### Overall Assessment: **PRODUCTION-READY** with minor items to address
 
-| Category | Status | Score |
-|----------|--------|-------|
-| Architecture | ✅ Excellent | 9/10 |
-| Security | ✅ Strong | 8.5/10 |
-| Code Quality | ✅ Very Good | 8/10 |
-| Test Coverage | ⚠️ Needs Review | 7/10 |
-| Documentation | ✅ Good | 8/10 |
-| GDPR/HIPAA Compliance | ✅ Implemented | 9/10 |
+| Category              | Status          | Score  |
+| --------------------- | --------------- | ------ |
+| Architecture          | ✅ Excellent    | 9/10   |
+| Security              | ✅ Strong       | 8.5/10 |
+| Code Quality          | ✅ Very Good    | 8/10   |
+| Test Coverage         | ⚠️ Needs Review | 7/10   |
+| Documentation         | ✅ Good         | 8/10   |
+| GDPR/HIPAA Compliance | ✅ Implemented  | 9/10   |
 
 ---
 
@@ -48,21 +49,22 @@ apps/
 ```
 
 **Strengths:**
+
 - Clean dependency hierarchy (bottom-up)
 - Clear separation of concerns
 - Proper layering per hexagonal architecture
 
 ### 1.2 Bounded Contexts Identified
 
-| Context | Package Location | Status |
-|---------|-----------------|--------|
+| Context             | Package Location             | Status      |
+| ------------------- | ---------------------------- | ----------- |
 | Patient Acquisition | `domain/patient-acquisition` | ✅ Complete |
-| OSAX Clinical | `domain/osax` | ✅ Complete |
-| Consent Management | `domain/consent` | ✅ Complete |
-| Scheduling | `domain/scheduling` | ✅ Complete |
-| Scoring | `domain/scoring` | ✅ Complete |
-| Triage | `domain/triage` | ✅ Complete |
-| Language | `domain/language` | ✅ Complete |
+| OSAX Clinical       | `domain/osax`                | ✅ Complete |
+| Consent Management  | `domain/consent`             | ✅ Complete |
+| Scheduling          | `domain/scheduling`          | ✅ Complete |
+| Scoring             | `domain/scoring`             | ✅ Complete |
+| Triage              | `domain/triage`              | ✅ Complete |
+| Language            | `domain/language`            | ✅ Complete |
 
 ---
 
@@ -73,6 +75,7 @@ apps/
 **File:** `packages/domain/src/osax/value-objects/OsaxClinicalScore.ts` (1374 lines)
 
 ✅ **Strengths:**
+
 - Immutability enforced via `Object.freeze()`
 - Private constructor with factory methods
 - Comprehensive validation
@@ -81,6 +84,7 @@ apps/
 - Proper serialization support
 
 ✅ **Medical Domain Logic:**
+
 - AASM-compliant severity thresholds
 - Cardiovascular risk calculation
 - Evidence-based treatment recommendations
@@ -90,6 +94,7 @@ apps/
 **File:** `packages/domain/src/osax/entities/OsaxCase.ts` (599 lines)
 
 ✅ **Strengths:**
+
 - Complete state machine for case lifecycle
 - Valid status transitions defined
 - Comprehensive case metadata
@@ -97,6 +102,7 @@ apps/
 - Soft delete support
 
 ⚠️ **Minor Issue:**
+
 - Lines 452-458: Type assertion used to add optional properties - could use spread operator for cleaner code
 
 ### 2.3 Use Cases (Hexagonal Pattern Compliance)
@@ -104,6 +110,7 @@ apps/
 **File:** `packages/application/src/use-cases/osax/CreateOsaxCase/CreateOsaxCaseUseCase.ts` (293 lines)
 
 ✅ **Excellent Implementation:**
+
 - Permission checking via `context.requirePermission()`
 - Input validation with Result type
 - Duplicate detection
@@ -120,6 +127,7 @@ apps/
 **File:** `packages/core/src/encryption.ts` (937 lines)
 
 ✅ **Security Features:**
+
 - AES-256-GCM encryption
 - Key derivation with scrypt
 - AWS KMS integration for production
@@ -132,6 +140,7 @@ apps/
 **File:** `packages/integrations/src/hubspot.ts` (936 lines)
 
 ✅ **Security Fixes Implemented:**
+
 - Lines 585-599: SSRF prevention via hostname validation
 - Only `api.hubapi.com` requests allowed
 - Path traversal protection
@@ -142,6 +151,7 @@ apps/
 **File:** `packages/domain/src/consent/consent-service.ts` (545 lines)
 
 ✅ **GDPR Features:**
+
 - Fail-fast in production without persistent repository
 - Atomic upsert to prevent race conditions
 - Complete audit trail
@@ -154,6 +164,7 @@ apps/
 **File:** `packages/core/src/circuit-breaker.ts` (388 lines)
 
 ✅ **Resilience Features:**
+
 - Three-state circuit (CLOSED, OPEN, HALF_OPEN)
 - Failure window tracking
 - Memory leak prevention (MAX_FAILURE_TIMESTAMPS = 1000)
@@ -166,25 +177,25 @@ apps/
 
 ### 4.1 High Priority
 
-| # | File | Line | Issue | Recommendation |
-|---|------|------|-------|----------------|
-| 1 | `consent-service.ts` | 245-248 | Direct mutation of `existing` object | Create new object instead of mutating |
-| 2 | `consent-service.ts` | 442-446 | Direct mutation in `expireConsent` | Use immutable update pattern |
+| #   | File                 | Line    | Issue                                | Recommendation                        |
+| --- | -------------------- | ------- | ------------------------------------ | ------------------------------------- |
+| 1   | `consent-service.ts` | 245-248 | Direct mutation of `existing` object | Create new object instead of mutating |
+| 2   | `consent-service.ts` | 442-446 | Direct mutation in `expireConsent`   | Use immutable update pattern          |
 
 ### 4.2 Medium Priority
 
-| # | File | Line | Issue | Recommendation |
-|---|------|------|-------|----------------|
-| 3 | `OsaxCase.ts` | 452-458 | Type assertion for optional properties | Use object spread with conditional inclusion |
-| 4 | `CreateOsaxCaseUseCase.ts` | 289 | `console.error` used for audit failure | Use logger instead |
-| 5 | `scheduling-service.ts` | 78-79 | `void config.timezone` - unused parameter | Document why or remove |
+| #   | File                       | Line    | Issue                                     | Recommendation                               |
+| --- | -------------------------- | ------- | ----------------------------------------- | -------------------------------------------- |
+| 3   | `OsaxCase.ts`              | 452-458 | Type assertion for optional properties    | Use object spread with conditional inclusion |
+| 4   | `CreateOsaxCaseUseCase.ts` | 289     | `console.error` used for audit failure    | Use logger instead                           |
+| 5   | `scheduling-service.ts`    | 78-79   | `void config.timezone` - unused parameter | Document why or remove                       |
 
 ### 4.3 Low Priority (Code Style)
 
-| # | File | Issue |
-|---|------|-------|
-| 6 | Multiple | Some files exceed 500 lines - consider splitting |
-| 7 | `hubspot.ts` | Line 570 uses magic number 202 - should use constant |
+| #   | File         | Issue                                                |
+| --- | ------------ | ---------------------------------------------------- |
+| 6   | Multiple     | Some files exceed 500 lines - consider splitting     |
+| 7   | `hubspot.ts` | Line 570 uses magic number 202 - should use constant |
 
 ---
 
@@ -192,22 +203,22 @@ apps/
 
 ### 5.1 Handled Correctly ✅
 
-| Area | Edge Case | Handling |
-|------|-----------|----------|
-| OsaxClinicalScore | SpO2 nadir > average | Throws InvalidOsaxScoreError (line 690-698) |
-| OsaxClinicalScore | NaN values | Explicitly checked in validation |
-| CircuitBreaker | Sustained failures | Array limited to 1000 entries |
-| HubSpot | Rate limiting | Retry with Retry-After header |
-| Scheduling | Double booking | FOR UPDATE lock + double-check (defense in depth) |
-| Encryption | Weak keys | Pattern detection and rejection |
+| Area              | Edge Case            | Handling                                          |
+| ----------------- | -------------------- | ------------------------------------------------- |
+| OsaxClinicalScore | SpO2 nadir > average | Throws InvalidOsaxScoreError (line 690-698)       |
+| OsaxClinicalScore | NaN values           | Explicitly checked in validation                  |
+| CircuitBreaker    | Sustained failures   | Array limited to 1000 entries                     |
+| HubSpot           | Rate limiting        | Retry with Retry-After header                     |
+| Scheduling        | Double booking       | FOR UPDATE lock + double-check (defense in depth) |
+| Encryption        | Weak keys            | Pattern detection and rejection                   |
 
 ### 5.2 Potential Edge Cases to Consider
 
-| Area | Edge Case | Current Behavior | Risk |
-|------|-----------|------------------|------|
-| OsaxClinicalScore | Division by AHI=0 | Returns false in `hasPositionalOSA()` | ✅ Handled |
-| Projections | DailyMetrics Map serialization | Uses Map (not JSON-serializable) | ⚠️ May cause issues in persistence |
-| Scheduling | Timezone handling | Stored as `void` - unused | Low |
+| Area              | Edge Case                      | Current Behavior                      | Risk                               |
+| ----------------- | ------------------------------ | ------------------------------------- | ---------------------------------- |
+| OsaxClinicalScore | Division by AHI=0              | Returns false in `hasPositionalOSA()` | ✅ Handled                         |
+| Projections       | DailyMetrics Map serialization | Uses Map (not JSON-serializable)      | ⚠️ May cause issues in persistence |
+| Scheduling        | Timezone handling              | Stored as `void` - unused             | Low                                |
 
 ---
 
@@ -216,6 +227,7 @@ apps/
 ### 6.1 Files with `throw new Error` (Expected - Validation)
 
 Most `throw new Error` statements are **intentional validation**:
+
 - Encryption key validation
 - Configuration validation
 - Not-found scenarios
@@ -230,23 +242,23 @@ The codebase is clean of TODO markers in the main source files.
 
 ### 7.1 Naming Conventions ✅
 
-| Pattern | Convention | Adherence |
-|---------|------------|-----------|
-| Files | PascalCase for classes, kebab-case for others | ✅ |
-| Classes | PascalCase | ✅ |
-| Interfaces | PascalCase with descriptive names | ✅ |
-| Types | PascalCase | ✅ |
-| Constants | SCREAMING_SNAKE_CASE | ✅ |
-| Functions | camelCase | ✅ |
+| Pattern    | Convention                                    | Adherence |
+| ---------- | --------------------------------------------- | --------- |
+| Files      | PascalCase for classes, kebab-case for others | ✅        |
+| Classes    | PascalCase                                    | ✅        |
+| Interfaces | PascalCase with descriptive names             | ✅        |
+| Types      | PascalCase                                    | ✅        |
+| Constants  | SCREAMING_SNAKE_CASE                          | ✅        |
+| Functions  | camelCase                                     | ✅        |
 
 ### 7.2 Code Organization ✅
 
-| Pattern | Implementation |
-|---------|----------------|
-| Exports | Index files consolidate exports |
-| Documentation | JSDoc on public APIs |
+| Pattern        | Implementation                  |
+| -------------- | ------------------------------- |
+| Exports        | Index files consolidate exports |
+| Documentation  | JSDoc on public APIs            |
 | Error Handling | Custom error classes with codes |
-| Logging | Pino with PII redaction |
+| Logging        | Pino with PII redaction         |
 
 ---
 
@@ -274,12 +286,12 @@ apps/api/src/__tests__/                # 2 test files
 
 ### 8.3 Recommended Additional Tests
 
-| Area | Test Type | Priority |
-|------|-----------|----------|
-| OsaxClinicalScore | Edge case boundary values | High |
-| CreateOsaxCaseUseCase | Permission denial | High |
-| Projections | Serialization/hydration | Medium |
-| Scheduling | Concurrent booking race | Medium |
+| Area                  | Test Type                 | Priority |
+| --------------------- | ------------------------- | -------- |
+| OsaxClinicalScore     | Edge case boundary values | High     |
+| CreateOsaxCaseUseCase | Permission denial         | High     |
+| Projections           | Serialization/hydration   | Medium   |
+| Scheduling            | Concurrent booking race   | Medium   |
 
 ---
 
@@ -287,13 +299,13 @@ apps/api/src/__tests__/                # 2 test files
 
 ### 9.1 Security-Critical Dependencies
 
-| Dependency | Usage | Notes |
-|------------|-------|-------|
-| `openai` | AI gateway | API key required |
-| `@aws-sdk/client-kms` | Key management | Optional, for production |
-| `@supabase/supabase-js` | Database | Auth + RLS |
-| `pg` | PostgreSQL | Direct queries |
-| `zod` | Validation | Used throughout |
+| Dependency              | Usage          | Notes                    |
+| ----------------------- | -------------- | ------------------------ |
+| `openai`                | AI gateway     | API key required         |
+| `@aws-sdk/client-kms`   | Key management | Optional, for production |
+| `@supabase/supabase-js` | Database       | Auth + RLS               |
+| `pg`                    | PostgreSQL     | Direct queries           |
+| `zod`                   | Validation     | Used throughout          |
 
 ### 9.2 Monorepo Dependencies ✅
 
@@ -364,15 +376,15 @@ All internal packages use `workspace:*` for proper linking.
 
 ## 12. Files Reviewed
 
-| Package | Files | Key Observations |
-|---------|-------|-----------------|
-| `domain` | 25+ | Excellent DDD implementation |
-| `application` | 15+ | Clean hexagonal architecture |
-| `core` | 50+ | Comprehensive utilities |
-| `integrations` | 15+ | Well-isolated external services |
-| `infrastructure` | 10+ | Proper adapter pattern |
-| `types` | 15+ | Strong Zod schemas |
-| `apps/api` | 20+ | RESTful webhook gateway |
+| Package          | Files | Key Observations                |
+| ---------------- | ----- | ------------------------------- |
+| `domain`         | 25+   | Excellent DDD implementation    |
+| `application`    | 15+   | Clean hexagonal architecture    |
+| `core`           | 50+   | Comprehensive utilities         |
+| `integrations`   | 15+   | Well-isolated external services |
+| `infrastructure` | 10+   | Proper adapter pattern          |
+| `types`          | 15+   | Strong Zod schemas              |
+| `apps/api`       | 20+   | RESTful webhook gateway         |
 
 ---
 
@@ -389,4 +401,4 @@ The MedicalCor Core codebase demonstrates **enterprise-grade architecture and im
 
 ---
 
-*Report generated by Claude Code audit on 2025-11-30*
+_Report generated by Claude Code audit on 2025-11-30_

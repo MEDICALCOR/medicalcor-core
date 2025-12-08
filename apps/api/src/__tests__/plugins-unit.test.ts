@@ -265,8 +265,7 @@ describe('Webhook Type Detection', () => {
 });
 
 describe('UUID Validation', () => {
-  const UUID_REGEX =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
   function validateUserId(userId: string | undefined): boolean {
     if (typeof userId !== 'string') return false;
@@ -286,9 +285,7 @@ describe('UUID Validation', () => {
 
   it('should reject malicious input', () => {
     expect(validateUserId('<script>alert(1)</script>')).toBe(false);
-    expect(validateUserId('550e8400-e29b-41d4-a716-446655440000; DROP TABLE users;')).toBe(
-      false
-    );
+    expect(validateUserId('550e8400-e29b-41d4-a716-446655440000; DROP TABLE users;')).toBe(false);
   });
 
   it('should reject non-string values', () => {

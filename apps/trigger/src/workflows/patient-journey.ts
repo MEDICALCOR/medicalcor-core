@@ -683,7 +683,10 @@ export const bookingAgentWorkflow = task({
         const errorMessage = error instanceof Error ? error.message : String(error);
 
         // Check if this is a race condition error (slot already booked)
-        if (errorMessage.includes('Slot already booked') || errorMessage.includes('Slot not found')) {
+        if (
+          errorMessage.includes('Slot already booked') ||
+          errorMessage.includes('Slot not found')
+        ) {
           logger.warn('Slot no longer available due to race condition, fetching fresh slots', {
             slotId: selectedSlot.id,
             attempt: bookingAttempt,

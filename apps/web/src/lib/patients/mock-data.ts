@@ -24,7 +24,7 @@ import type {
 export function generateMockPatientDetail(id: string): PatientDetail {
   console.warn(
     '[DEPRECATED] generateMockPatientDetail() is deprecated. ' +
-    'Use getPatientByIdAction() from "@/app/actions/get-patients" instead.'
+      'Use getPatientByIdAction() from "@/app/actions/get-patients" instead.'
   );
   const appointments: PatientAppointment[] = [
     {

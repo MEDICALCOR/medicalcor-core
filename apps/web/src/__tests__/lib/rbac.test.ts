@@ -62,15 +62,15 @@ describe('RBAC', () => {
 
   describe('hasAllPermissions', () => {
     it('should return true when role has all specified permissions', () => {
-      expect(
-        hasAllPermissions('admin', ['dashboard:view', 'users:delete', 'clinics:manage'])
-      ).toBe(true);
+      expect(hasAllPermissions('admin', ['dashboard:view', 'users:delete', 'clinics:manage'])).toBe(
+        true
+      );
     });
 
     it('should return false when role is missing one permission', () => {
-      expect(
-        hasAllPermissions('doctor', ['dashboard:view', 'patients:view', 'users:delete'])
-      ).toBe(false);
+      expect(hasAllPermissions('doctor', ['dashboard:view', 'patients:view', 'users:delete'])).toBe(
+        false
+      );
     });
 
     it('should return true for empty permissions array', () => {
@@ -90,9 +90,9 @@ describe('RBAC', () => {
     });
 
     it('should return false when role has none of the permissions', () => {
-      expect(
-        hasAnyPermission('staff', ['patients:create', 'users:delete', 'clinics:manage'])
-      ).toBe(false);
+      expect(hasAnyPermission('staff', ['patients:create', 'users:delete', 'clinics:manage'])).toBe(
+        false
+      );
     });
 
     it('should return true when role has all permissions', () => {

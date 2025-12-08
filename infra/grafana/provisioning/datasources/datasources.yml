@@ -12,11 +12,11 @@ datasources:
     isDefault: true
     editable: false
     jsonData:
-      timeInterval: "15s"
+      timeInterval: '15s'
       httpMethod: POST
       manageAlerts: true
       prometheusType: Prometheus
-      prometheusVersion: "2.47.0"
+      prometheusVersion: '2.47.0'
 
   # Jaeger - Distributed tracing
   - name: Jaeger

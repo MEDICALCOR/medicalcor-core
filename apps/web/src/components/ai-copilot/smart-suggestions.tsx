@@ -1,7 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Lightbulb, Copy, Check, Zap, RefreshCw, Loader2, ThumbsUp, ThumbsDown } from 'lucide-react';
+import {
+  Lightbulb,
+  Copy,
+  Check,
+  Zap,
+  RefreshCw,
+  Loader2,
+  ThumbsUp,
+  ThumbsDown,
+} from 'lucide-react';
 import {
   type ChatContext,
   quickReplies,
@@ -76,7 +85,7 @@ export function SmartSuggestions({ context, onSelect }: SmartSuggestionsProps) {
 
   const handleFeedback = (suggestionId: string, type: 'positive' | 'negative') => {
     setFeedback((prev) => ({ ...prev, [suggestionId]: type }));
-    
+
     // In production, send feedback to API
     // await fetch('/api/ai/feedback', {
     //   method: 'POST',
@@ -156,7 +165,7 @@ export function SmartSuggestions({ context, onSelect }: SmartSuggestionsProps) {
                     </div>
                   </div>
                   <p className="text-sm mb-2">{suggestion.content}</p>
-                  
+
                   {/* Feedback Buttons */}
                   <div className="flex items-center gap-2 pt-2 border-t">
                     <button

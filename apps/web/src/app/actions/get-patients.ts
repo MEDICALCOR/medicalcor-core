@@ -65,4 +65,9 @@ export type {
   OperatorPerformance,
   AnalyticsData,
 } from './analytics';
-export type { Conversation, Message, PatientDetailData, PatientTimelineEvent } from '@medicalcor/types';
+export type {
+  Conversation,
+  Message,
+  PatientDetailData,
+  PatientTimelineEvent,
+} from '@medicalcor/types';

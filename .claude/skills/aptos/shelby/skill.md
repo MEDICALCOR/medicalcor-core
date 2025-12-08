@@ -14,6 +14,7 @@ Provide expert guidance on Shelby Protocol decentralized blob storage system on 
 ## When to Use
 
 Auto-invoke when users mention:
+
 - **Shelby** - media player, platform, integration
 - **Media** - video, audio, streaming, playback
 - **SDK** - integration, API, TypeScript, JavaScript
@@ -23,6 +24,7 @@ Auto-invoke when users mention:
 ## Knowledge Base
 
 Documentation is stored in TOON format (40-60% token savings):
+
 - **Location:** `docs/`
 - **Index:** `docs/INDEX.md`
 - **Format:** `.toon` or `.md` files
@@ -32,6 +34,7 @@ Documentation is stored in TOON format (40-60% token savings):
 When a user asks about Shelby:
 
 ### 1. Identify Topic
+
 ```
 Common topics:
 - Getting started / setup
@@ -47,6 +50,7 @@ Common topics:
 ### 2. Search Documentation
 
 Use Grep to find relevant docs:
+
 ```bash
 # Search for specific topics
 Grep "sdk|integration" docs/ --output-mode files_with_matches
@@ -54,6 +58,7 @@ Grep "streaming|playback" docs/ --output-mode content -C 3
 ```
 
 Check the INDEX.md for navigation:
+
 ```bash
 Read docs/INDEX.md
 ```
@@ -61,6 +66,7 @@ Read docs/INDEX.md
 ### 3. Read Relevant Files
 
 Read the most relevant documentation files:
+
 ```bash
 Read docs/path/to/relevant-doc.md
 # or .toon format if available
@@ -69,6 +75,7 @@ Read docs/path/to/relevant-doc.md
 ### 4. Provide Answer
 
 Structure your response:
+
 - **Direct answer** - solve the user's problem first
 - **Code examples** - show integration code when applicable
 - **Configuration** - provide setup instructions
@@ -78,6 +85,7 @@ Structure your response:
 ## Example Workflows
 
 ### Example 1: Basic Integration
+
 ```
 User: "How do I integrate Shelby into my React app?"
 
@@ -91,6 +99,7 @@ User: "How do I integrate Shelby into my React app?"
 ```
 
 ### Example 2: Custom Playlists
+
 ```
 User: "How do I create custom playlists with Shelby?"
 
@@ -104,6 +113,7 @@ User: "How do I create custom playlists with Shelby?"
 ```
 
 ### Example 3: Streaming Configuration
+
 ```
 User: "What streaming formats does Shelby support?"
 
@@ -119,6 +129,7 @@ User: "What streaming formats does Shelby support?"
 ## Key Concepts to Reference
 
 **Media Player:**
+
 - Player initialization
 - Configuration options
 - Event handling
@@ -126,6 +137,7 @@ User: "What streaming formats does Shelby support?"
 - Responsive design
 
 **Streaming:**
+
 - HLS (HTTP Live Streaming)
 - DASH (Dynamic Adaptive Streaming)
 - Progressive download
@@ -133,6 +145,7 @@ User: "What streaming formats does Shelby support?"
 - DRM support (if available)
 
 **SDK Features:**
+
 - TypeScript/JavaScript API
 - React/Vue components
 - Plugin system
@@ -140,6 +153,7 @@ User: "What streaming formats does Shelby support?"
 - Analytics integration
 
 **CLI Tools:**
+
 - Media processing
 - Transcoding
 - Playlist generation
@@ -148,6 +162,7 @@ User: "What streaming formats does Shelby support?"
 ## TOON Format Notes
 
 If documentation is in `.toon` format:
+
 - Most content is directly readable (tabular data)
 - Use TOON decoder for complex structures if needed:
   ```bash
@@ -171,6 +186,7 @@ If documentation is in `.toon` format:
 ## Follow-up Suggestions
 
 After answering, suggest:
+
 - Performance optimization
 - Error handling patterns
 - Testing strategies

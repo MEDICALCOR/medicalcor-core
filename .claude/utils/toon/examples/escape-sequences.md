@@ -4,13 +4,13 @@ TOON v2.0 supports exactly **five escape sequences** within quoted strings.
 
 ## The Five Escape Sequences
 
-| Sequence | Meaning | Unicode |
-|----------|---------|---------|
-| `\\` | Backslash | U+005C |
-| `\"` | Double quote | U+0022 |
-| `\n` | Newline | U+000A |
-| `\r` | Carriage return | U+000D |
-| `\t` | Tab | U+0009 |
+| Sequence | Meaning         | Unicode |
+| -------- | --------------- | ------- |
+| `\\`     | Backslash       | U+005C  |
+| `\"`     | Double quote    | U+0022  |
+| `\n`     | Newline         | U+000A  |
+| `\r`     | Carriage return | U+000D  |
+| `\t`     | Tab             | U+0009  |
 
 **IMPORTANT:** All other backslash combinations are **invalid** and will error in strict mode.
 
@@ -19,11 +19,13 @@ TOON v2.0 supports exactly **five escape sequences** within quoted strings.
 ### Backslash
 
 **JSON:**
+
 ```json
-{"path": "C:\\Users\\Alice"}
+{ "path": "C:\\Users\\Alice" }
 ```
 
 **TOON:**
+
 ```
 path: "C:\\Users\\Alice"
 ```
@@ -31,11 +33,13 @@ path: "C:\\Users\\Alice"
 ### Double Quote
 
 **JSON:**
+
 ```json
-{"quote": "She said \"hello\""}
+{ "quote": "She said \"hello\"" }
 ```
 
 **TOON:**
+
 ```
 quote: "She said \"hello\""
 ```
@@ -43,11 +47,13 @@ quote: "She said \"hello\""
 ### Newline
 
 **JSON:**
+
 ```json
-{"text": "Line 1\nLine 2"}
+{ "text": "Line 1\nLine 2" }
 ```
 
 **TOON:**
+
 ```
 text: "Line 1\nLine 2"
 ```
@@ -55,11 +61,13 @@ text: "Line 1\nLine 2"
 ### Carriage Return
 
 **JSON:**
+
 ```json
-{"text": "Windows line\r\nending"}
+{ "text": "Windows line\r\nending" }
 ```
 
 **TOON:**
+
 ```
 text: "Windows line\r\nending"
 ```
@@ -67,11 +75,13 @@ text: "Windows line\r\nending"
 ### Tab
 
 **JSON:**
+
 ```json
-{"data": "Column1\tColumn2"}
+{ "data": "Column1\tColumn2" }
 ```
 
 **TOON:**
+
 ```
 data: "Column1\tColumn2"
 ```
@@ -81,11 +91,13 @@ data: "Column1\tColumn2"
 Escape sequences **only work inside quoted strings**:
 
 ✅ **Correct:**
+
 ```
 path: "C:\\Users\\Alice"
 ```
 
 ❌ **Wrong (literal backslash, not escape):**
+
 ```
 path: C:\Users\Alice
 ```
@@ -113,11 +125,13 @@ For characters not in the five escapes, use the literal character:
 ### Unicode characters
 
 **JSON:**
+
 ```json
-{"emoji": "Hello 👋"}
+{ "emoji": "Hello 👋" }
 ```
 
 **TOON (literal UTF-8):**
+
 ```
 emoji: "Hello 👋"
 ```
@@ -125,16 +139,19 @@ emoji: "Hello 👋"
 ### Control characters
 
 For control chars not in the five (like `\b`, `\f`), use:
+
 1. Literal byte (if your editor supports it)
 2. Encode differently (e.g., Base64)
 3. Avoid if possible
 
 **Not recommended:**
+
 ```
 data: "\x08"  ❌ Invalid in TOON
 ```
 
 **Alternatives:**
+
 ```
 data: "<backspace>"      # Describe it
 data_base64: "CAg="      # Encode it
@@ -145,11 +162,13 @@ data_base64: "CAg="      # Encode it
 ### File Paths
 
 **Windows:**
+
 ```
 file: "C:\\Program Files\\MyApp\\config.json"
 ```
 
 **Unix:**
+
 ```
 file: "/usr/local/bin/myapp"  # No escapes needed
 ```
@@ -183,11 +202,13 @@ data: "col1\tcol2\tcol3"
 ### Inline arrays
 
 **JSON:**
+
 ```json
-{"paths": ["C:\\Users", "D:\\Data"]}
+{ "paths": ["C:\\Users", "D:\\Data"] }
 ```
 
 **TOON:**
+
 ```
 paths[2]: "C:\\Users","D:\\Data"
 ```
@@ -195,14 +216,16 @@ paths[2]: "C:\\Users","D:\\Data"
 ### Tabular arrays
 
 **JSON:**
+
 ```json
 [
-  {"name": "Alice", "quote": "She said \"hi\""},
-  {"name": "Bob", "quote": "He said \"bye\""}
+  { "name": "Alice", "quote": "She said \"hi\"" },
+  { "name": "Bob", "quote": "He said \"bye\"" }
 ]
 ```
 
 **TOON:**
+
 ```
 [2]{name,quote}:
   Alice,"She said \"hi\""
@@ -214,17 +237,20 @@ paths[2]: "C:\\Users","D:\\Data"
 In strict mode, invalid escape sequences cause errors:
 
 **Invalid TOON:**
+
 ```
 path: "C:\Users\alice"  ❌ \U and \a are invalid
 ```
 
 **Error message:**
+
 ```
 Invalid escape sequence '\U' at line 1, column 8
 Valid sequences: \\ \" \n \r \t
 ```
 
 **Valid TOON:**
+
 ```
 path: "C:\\Users\\alice"
 ```
@@ -234,6 +260,7 @@ path: "C:\\Users\\alice"
 When encoding JSON to TOON, only these five get escaped:
 
 **JSON:**
+
 ```json
 {
   "text": "Line 1\nLine 2\twith\ttabs\rand \"quotes\""
@@ -241,6 +268,7 @@ When encoding JSON to TOON, only these five get escaped:
 ```
 
 **TOON:**
+
 ```
 text: "Line 1\nLine 2\twith\ttabs\rand \"quotes\""
 ```
@@ -252,12 +280,14 @@ All other characters (including Unicode) pass through as-is.
 When decoding TOON to JSON, escapes are unescaped:
 
 **TOON:**
+
 ```
 path: "C:\\Users\\Alice"
 quote: "She said \"hello\""
 ```
 
 **JSON:**
+
 ```json
 {
   "path": "C:\\Users\\Alice",
@@ -269,17 +299,17 @@ quote: "She said \"hello\""
 
 TOON has **fewer** escape sequences than JSON:
 
-| Escape | JSON | TOON |
-|--------|------|------|
-| `\\` | ✅ | ✅ |
-| `\"` | ✅ | ✅ |
-| `\n` | ✅ | ✅ |
-| `\r` | ✅ | ✅ |
-| `\t` | ✅ | ✅ |
-| `\b` | ✅ | ❌ |
-| `\f` | ✅ | ❌ |
-| `\/` | ✅ | ❌ (literal `/` instead) |
-| `\uXXXX` | ✅ | ❌ (literal UTF-8 instead) |
+| Escape   | JSON | TOON                       |
+| -------- | ---- | -------------------------- |
+| `\\`     | ✅   | ✅                         |
+| `\"`     | ✅   | ✅                         |
+| `\n`     | ✅   | ✅                         |
+| `\r`     | ✅   | ✅                         |
+| `\t`     | ✅   | ✅                         |
+| `\b`     | ✅   | ❌                         |
+| `\f`     | ✅   | ❌                         |
+| `\/`     | ✅   | ❌ (literal `/` instead)   |
+| `\uXXXX` | ✅   | ❌ (literal UTF-8 instead) |
 
 **Rationale:** TOON uses UTF-8 natively, so `\u` escapes are unnecessary. Rare control chars (`\b`, `\f`) are omitted for simplicity.
 
@@ -288,11 +318,13 @@ TOON has **fewer** escape sequences than JSON:
 ### Literal backslash at end
 
 **JSON:**
+
 ```json
-{"path": "C:\\"}
+{ "path": "C:\\" }
 ```
 
 **TOON:**
+
 ```
 path: "C:\\"
 ```
@@ -300,37 +332,45 @@ path: "C:\\"
 ### Multiple consecutive escapes
 
 **JSON:**
+
 ```json
-{"text": "\\n means newline"}
+{ "text": "\\n means newline" }
 ```
 
 **TOON:**
+
 ```
 text: "\\n means newline"
 ```
+
 (First `\\` escapes to literal `\`, then `n` is literal)
 
 ### Empty string
 
 **JSON:**
+
 ```json
-{"empty": ""}
+{ "empty": "" }
 ```
 
 **TOON:**
+
 ```
 empty: ""
 ```
+
 (No escapes)
 
 ### Only escapes
 
 **JSON:**
+
 ```json
-{"escapes": "\n\r\t"}
+{ "escapes": "\n\r\t" }
 ```
 
 **TOON:**
+
 ```
 escapes: "\n\r\t"
 ```
@@ -344,6 +384,7 @@ text: "Alert: \a"  ❌ \a not supported
 ```
 
 **Correct:**
+
 ```
 text: "Alert: <bell>"
 ```
@@ -355,6 +396,7 @@ path: C:\Users\alice  ❌ Unquoted, treated as literal text
 ```
 
 **Correct:**
+
 ```
 path: "C:\\Users\\alice"
 ```
@@ -370,11 +412,13 @@ text: "\\\nLine 2"      ✅ Correct (backslash then newline)
 ### Wrong: Escaping delimiter unnecessarily
 
 **Comma delimiter:**
+
 ```
 value: "hello\,world"  ❌ \, not needed (comma doesn't need escape)
 ```
 
 **Correct:**
+
 ```
 value: "hello,world"   ✅ Quote the whole value instead
 ```
@@ -384,11 +428,13 @@ value: "hello,world"   ✅ Quote the whole value instead
 Escape processing is fast:
 
 **Encoding:**
+
 - Scan for 5 characters: `\ " \n \r \t`
 - O(n) single pass
 - ~5% overhead for strings with escapes
 
 **Decoding:**
+
 - State machine for `\X` sequences
 - O(n) single pass
 - ~5% overhead

@@ -27,34 +27,30 @@ Central registry for AI-callable functions:
 import { FunctionRegistry, functionRegistry } from '@medicalcor/core';
 
 // Register a custom function
-registry.register(
-  functionDefinition,
-  inputSchema,
-  async (args, context) => {
-    // Handle function call
-    return result;
-  }
-);
+registry.register(functionDefinition, inputSchema, async (args, context) => {
+  // Handle function call
+  return result;
+});
 ```
 
 #### Medical Functions (`packages/core/src/ai-gateway/medical-functions.ts`)
 
 Pre-defined functions for medical CRM operations:
 
-| Function | Category | Description |
-|----------|----------|-------------|
-| `score_lead` | leads | Analyze and score a lead |
-| `get_patient` | patients | Retrieve patient information |
-| `update_patient` | patients | Update patient data |
-| `schedule_appointment` | appointments | Schedule appointments |
-| `get_available_slots` | appointments | Find available slots |
-| `cancel_appointment` | appointments | Cancel appointments |
-| `send_whatsapp` | messaging | Send WhatsApp messages |
-| `record_consent` | consent | Record GDPR consent |
-| `check_consent` | consent | Check consent status |
-| `get_lead_analytics` | analytics | Get lead analytics |
-| `trigger_workflow` | workflows | Trigger background workflows |
-| `get_workflow_status` | workflows | Check workflow status |
+| Function               | Category     | Description                  |
+| ---------------------- | ------------ | ---------------------------- |
+| `score_lead`           | leads        | Analyze and score a lead     |
+| `get_patient`          | patients     | Retrieve patient information |
+| `update_patient`       | patients     | Update patient data          |
+| `schedule_appointment` | appointments | Schedule appointments        |
+| `get_available_slots`  | appointments | Find available slots         |
+| `cancel_appointment`   | appointments | Cancel appointments          |
+| `send_whatsapp`        | messaging    | Send WhatsApp messages       |
+| `record_consent`       | consent      | Record GDPR consent          |
+| `check_consent`        | consent      | Check consent status         |
+| `get_lead_analytics`   | analytics    | Get lead analytics           |
+| `trigger_workflow`     | workflows    | Trigger background workflows |
+| `get_workflow_status`  | workflows    | Check workflow status        |
 
 #### AI Router (`packages/core/src/ai-gateway/ai-router.ts`)
 
@@ -83,15 +79,15 @@ const response = await router.process({
 
 ### API Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/ai/functions` | GET | List available functions |
-| `/ai/functions/:name` | GET | Get function details |
-| `/ai/execute` | POST | Execute function calls |
-| `/ai/openai/tools` | GET | OpenAI-compatible tools |
-| `/ai/anthropic/tools` | GET | Anthropic-compatible tools |
-| `/ai/categories` | GET | Function categories |
-| `/ai/schema` | GET | OpenAPI schema |
+| Endpoint              | Method | Description                |
+| --------------------- | ------ | -------------------------- |
+| `/ai/functions`       | GET    | List available functions   |
+| `/ai/functions/:name` | GET    | Get function details       |
+| `/ai/execute`         | POST   | Execute function calls     |
+| `/ai/openai/tools`    | GET    | OpenAI-compatible tools    |
+| `/ai/anthropic/tools` | GET    | Anthropic-compatible tools |
+| `/ai/categories`      | GET    | Function categories        |
+| `/ai/schema`          | GET    | OpenAPI schema             |
 
 ---
 
@@ -118,10 +114,13 @@ import { createCommandBus, defineCommand } from '@medicalcor/core';
 const commandBus = createCommandBus(eventStore);
 
 // Define a command
-const CreateLead = defineCommand('CreateLead', z.object({
-  phone: z.string(),
-  channel: z.enum(['whatsapp', 'voice', 'web']),
-}));
+const CreateLead = defineCommand(
+  'CreateLead',
+  z.object({
+    phone: z.string(),
+    channel: z.enum(['whatsapp', 'voice', 'web']),
+  })
+);
 
 // Send a command
 const result = await commandBus.send('CreateLead', {
@@ -140,13 +139,17 @@ import { createQueryBus, defineQuery } from '@medicalcor/core';
 const queryBus = createQueryBus(60000); // 60s default cache TTL
 
 // Query with caching
-const result = await queryBus.query('GetLeadStats', {
-  startDate: '2024-01-01',
-  endDate: '2024-12-31',
-}, {
-  cacheKey: 'lead-stats-2024',
-  cacheTtlMs: 300000, // 5 minutes
-});
+const result = await queryBus.query(
+  'GetLeadStats',
+  {
+    startDate: '2024-01-01',
+    endDate: '2024-12-31',
+  },
+  {
+    cacheKey: 'lead-stats-2024',
+    cacheTtlMs: 300000, // 5 minutes
+  }
+);
 ```
 
 #### Aggregate Roots (`packages/core/src/cqrs/aggregate.ts`)
@@ -189,14 +192,14 @@ console.log(stats?.state.conversionRate);
 
 ### Event Types
 
-| Event | Aggregate | Description |
-|-------|-----------|-------------|
-| `LeadCreated` | Lead | New lead created |
-| `LeadScored` | Lead | Lead scored by AI |
-| `LeadQualified` | Lead | Lead qualification changed |
-| `LeadAssigned` | Lead | Lead assigned to user |
-| `LeadConverted` | Lead | Lead converted to patient |
-| `LeadLost` | Lead | Lead marked as lost |
+| Event           | Aggregate | Description                |
+| --------------- | --------- | -------------------------- |
+| `LeadCreated`   | Lead      | New lead created           |
+| `LeadScored`    | Lead      | Lead scored by AI          |
+| `LeadQualified` | Lead      | Lead qualification changed |
+| `LeadAssigned`  | Lead      | Lead assigned to user      |
+| `LeadConverted` | Lead      | Lead converted to patient  |
+| `LeadLost`      | Lead      | Lead marked as lost        |
 
 ---
 
@@ -253,10 +256,10 @@ instrumentFastify(fastify, {
 });
 
 // Wrap external service calls
-const tracedFetch = instrumentExternalCall(
-  fetch,
-  { service: 'hubspot', operation: 'createContact' }
-);
+const tracedFetch = instrumentExternalCall(fetch, {
+  service: 'hubspot',
+  operation: 'createContact',
+});
 ```
 
 #### Diagnostics (`packages/core/src/observability/diagnostics.ts`)
@@ -284,28 +287,28 @@ const slowTraces = searchTraces({
 
 ### Metrics Available
 
-| Metric | Type | Description |
-|--------|------|-------------|
-| `http_requests_total` | Counter | Total HTTP requests |
-| `http_request_duration_seconds` | Histogram | Request latency |
-| `medicalcor_leads_created_total` | Counter | Leads created |
-| `medicalcor_leads_converted_total` | Counter | Leads converted |
-| `medicalcor_appointments_scheduled_total` | Counter | Appointments scheduled |
-| `medicalcor_commands_executed_total` | Counter | Commands executed |
-| `medicalcor_queries_executed_total` | Counter | Queries executed |
-| `medicalcor_ai_function_calls_total` | Counter | AI function calls |
+| Metric                                    | Type      | Description            |
+| ----------------------------------------- | --------- | ---------------------- |
+| `http_requests_total`                     | Counter   | Total HTTP requests    |
+| `http_request_duration_seconds`           | Histogram | Request latency        |
+| `medicalcor_leads_created_total`          | Counter   | Leads created          |
+| `medicalcor_leads_converted_total`        | Counter   | Leads converted        |
+| `medicalcor_appointments_scheduled_total` | Counter   | Appointments scheduled |
+| `medicalcor_commands_executed_total`      | Counter   | Commands executed      |
+| `medicalcor_queries_executed_total`       | Counter   | Queries executed       |
+| `medicalcor_ai_function_calls_total`      | Counter   | AI function calls      |
 
 ### Diagnostics Endpoints
 
-| Endpoint | Description |
-|----------|-------------|
-| `/metrics` | Prometheus metrics |
-| `/metrics/json` | JSON metrics |
-| `/diagnostics` | Full diagnostic snapshot |
-| `/diagnostics/quick` | Quick health check |
-| `/diagnostics/health` | Detailed health checks |
-| `/diagnostics/traces/:id` | Lookup trace |
-| `/diagnostics/traces` | Search traces |
+| Endpoint                  | Description              |
+| ------------------------- | ------------------------ |
+| `/metrics`                | Prometheus metrics       |
+| `/metrics/json`           | JSON metrics             |
+| `/diagnostics`            | Full diagnostic snapshot |
+| `/diagnostics/quick`      | Quick health check       |
+| `/diagnostics/health`     | Detailed health checks   |
+| `/diagnostics/traces/:id` | Lookup trace             |
+| `/diagnostics/traces`     | Search traces            |
 
 ### Grafana Dashboard
 
@@ -439,13 +442,13 @@ curl http://localhost:3000/metrics
 
 ## Performance Targets
 
-| Metric | Target | Measurement |
-|--------|--------|-------------|
-| Diagnostic snapshot | < 100ms | `/diagnostics` endpoint |
-| Quick health check | < 10ms | `/diagnostics/quick` endpoint |
-| AI function call | < 500ms | p95 latency |
-| Command execution | < 100ms | p95 latency |
-| Query execution | < 50ms | p95 latency (cached) |
+| Metric              | Target  | Measurement                   |
+| ------------------- | ------- | ----------------------------- |
+| Diagnostic snapshot | < 100ms | `/diagnostics` endpoint       |
+| Quick health check  | < 10ms  | `/diagnostics/quick` endpoint |
+| AI function call    | < 500ms | p95 latency                   |
+| Command execution   | < 100ms | p95 latency                   |
+| Query execution     | < 50ms  | p95 latency (cached)          |
 
 ---
 

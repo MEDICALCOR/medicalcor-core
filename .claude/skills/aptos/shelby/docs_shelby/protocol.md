@@ -31,32 +31,26 @@ Shelby is a high-performance decentralized blob storage system designed for dema
 
 Workloads such as video streaming, AI training and inference, and large-scale data analytics require robust storage, significant capacity, and high read bandwidth at reasonable prices, all while maintaining control over their data. To deliver these capabilities to users, Shelby uses:
 
-  * **Paid reads and user-focused incentive model**. Paying for reads ensure that storage providers deliver good service.
-  * **The Aptos blockchain as a coordination and settlement layer**. Aptos provides a high-performance, reliable foundation for managing system state, economic logic, and enforcing BFT.
-  * **Dedicated private bandwidth**. Performance is limited and inconsistent over the public internet. Shelby uses a dedicated fiber network to ensure consistent high performance.
-  * **A novel auditing system**. Ensures data integrity and rewards honest participation in the network.
-  * **Efficient erasure coding**. Minimizes recovery bandwidth, reducing costs, while ensuring data is safely stored.
-  * **Built by experienced teams**. The Jump Trading Group and Aptos team both are rich with experience building high performance storage and globally distributed systems.
-
-
+- **Paid reads and user-focused incentive model**. Paying for reads ensure that storage providers deliver good service.
+- **The Aptos blockchain as a coordination and settlement layer**. Aptos provides a high-performance, reliable foundation for managing system state, economic logic, and enforcing BFT.
+- **Dedicated private bandwidth**. Performance is limited and inconsistent over the public internet. Shelby uses a dedicated fiber network to ensure consistent high performance.
+- **A novel auditing system**. Ensures data integrity and rewards honest participation in the network.
+- **Efficient erasure coding**. Minimizes recovery bandwidth, reducing costs, while ensuring data is safely stored.
+- **Built by experienced teams**. The Jump Trading Group and Aptos team both are rich with experience building high performance storage and globally distributed systems.
 
 ## Key Components
 
 Users interact primarily with the RPC servers through:
 
-  1. Shelby [Typescript SDK](/sdks/typescript)
-  2. Shelby [CLI](/tools/cli)
-  3. Shelby web applications, such as the [block explorer](https://explorer.shelby.xyz/shelbynet), streaming apps, etc.
-
-
+1. Shelby [Typescript SDK](/sdks/typescript)
+2. Shelby [CLI](/tools/cli)
+3. Shelby web applications, such as the [block explorer](https://explorer.shelby.xyz/shelbynet), streaming apps, etc.
 
 The Shelby system consists of the following major components:
 
-  1. **Aptos Smart Contract** \- manages the state of the system and manages correctness-critical operations, such as auditing for data correctness.
-  2. **Storage Provider (SP) servers** \- storage servers which store chunks of user data.
-  3. **Shelby RPC servers** \- used by end users to read and write blobs.
-
-
+1. **Aptos Smart Contract** \- manages the state of the system and manages correctness-critical operations, such as auditing for data correctness.
+2. **Storage Provider (SP) servers** \- storage servers which store chunks of user data.
+3. **Shelby RPC servers** \- used by end users to read and write blobs.
 
 ## Why Aptos?
 

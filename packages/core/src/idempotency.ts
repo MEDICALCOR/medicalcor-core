@@ -16,7 +16,9 @@ import crypto from 'crypto';
  * @param components - String components to include in the key
  * @returns SHA-256 hash of the components
  */
-export function createIdempotencyKey(...components: (string | number | undefined | null)[]): string {
+export function createIdempotencyKey(
+  ...components: (string | number | undefined | null)[]
+): string {
   const filtered = components
     .filter((c): c is string | number => c !== undefined && c !== null)
     .map((c) => String(c));

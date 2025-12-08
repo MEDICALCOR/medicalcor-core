@@ -114,12 +114,7 @@ describe('ExportButton', () => {
   it('should include sheet name when provided', async () => {
     const user = userEvent.setup();
     render(
-      <ExportButton
-        data={mockData}
-        columns={mockColumns}
-        filename="test"
-        sheetName="MySheet"
-      />
+      <ExportButton data={mockData} columns={mockColumns} filename="test" sheetName="MySheet" />
     );
 
     await user.click(screen.getByRole('button'));
@@ -197,32 +192,21 @@ describe('ExportButton', () => {
   });
 
   it('should apply custom variant', () => {
-    render(
-      <ExportButton
-        data={mockData}
-        columns={mockColumns}
-        filename="test"
-        variant="ghost"
-      />
-    );
+    render(<ExportButton data={mockData} columns={mockColumns} filename="test" variant="ghost" />);
 
     const button = screen.getByRole('button');
     expect(button).toBeInTheDocument();
   });
 
   it('should apply custom size', () => {
-    render(
-      <ExportButton data={mockData} columns={mockColumns} filename="test" size="sm" />
-    );
+    render(<ExportButton data={mockData} columns={mockColumns} filename="test" size="sm" />);
 
     const button = screen.getByRole('button');
     expect(button).toBeInTheDocument();
   });
 
   it('should not show Export text when size is icon', () => {
-    render(
-      <ExportButton data={mockData} columns={mockColumns} filename="test" size="icon" />
-    );
+    render(<ExportButton data={mockData} columns={mockColumns} filename="test" size="icon" />);
 
     expect(screen.queryByText('Export')).not.toBeInTheDocument();
   });

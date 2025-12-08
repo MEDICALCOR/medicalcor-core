@@ -599,12 +599,9 @@ export function handleSummary(data) {
   };
 
   // Calculate RLS overhead percentage
-  const avgRlsP95 =
-    (rlsMetrics.clinicIdP95 + rlsMetrics.userIdP95 + rlsMetrics.phoneP95) / 3;
+  const avgRlsP95 = (rlsMetrics.clinicIdP95 + rlsMetrics.userIdP95 + rlsMetrics.phoneP95) / 3;
   const overheadPercentage =
-    rlsMetrics.noRlsP95 > 0
-      ? ((avgRlsP95 - rlsMetrics.noRlsP95) / rlsMetrics.noRlsP95) * 100
-      : 0;
+    rlsMetrics.noRlsP95 > 0 ? ((avgRlsP95 - rlsMetrics.noRlsP95) / rlsMetrics.noRlsP95) * 100 : 0;
 
   // Build summary report
   const summary = {
@@ -693,7 +690,8 @@ export function handleSummary(data) {
 
     // Summary stats
     summary: {
-      totalQueries: (data.metrics.rls_successful_queries?.values?.count || 0) +
+      totalQueries:
+        (data.metrics.rls_successful_queries?.values?.count || 0) +
         (data.metrics.rls_failed_queries?.values?.count || 0),
       successfulQueries: data.metrics.rls_successful_queries?.values?.count || 0,
       failedQueries: data.metrics.rls_failed_queries?.values?.count || 0,
@@ -707,12 +705,10 @@ export function handleSummary(data) {
   // Add threshold results
   for (const [name, metric] of Object.entries(data.metrics)) {
     if (metric.thresholds) {
-      summary.thresholds[name] = Object.entries(metric.thresholds).map(
-        ([threshold, passed]) => ({
-          threshold,
-          passed: passed.ok ?? passed,
-        })
-      );
+      summary.thresholds[name] = Object.entries(metric.thresholds).map(([threshold, passed]) => ({
+        threshold,
+        passed: passed.ok ?? passed,
+      }));
     }
   }
 

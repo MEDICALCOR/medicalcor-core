@@ -133,9 +133,7 @@ describe('ProjectionHealthMonitor', () => {
     });
 
     it('should handle missing projection_checkpoints table', async () => {
-      const error = new Error(
-        'relation "projection_checkpoints" does not exist'
-      );
+      const error = new Error('relation "projection_checkpoints" does not exist');
 
       vi.mocked(mockPool.query).mockRejectedValue(error);
 
@@ -310,9 +308,7 @@ describe('ProjectionHealthMonitor', () => {
     });
 
     it('should handle missing table gracefully', async () => {
-      const error = new Error(
-        'relation "projection_checkpoints" does not exist'
-      );
+      const error = new Error('relation "projection_checkpoints" does not exist');
 
       vi.mocked(mockPool.query).mockRejectedValue(error);
 
@@ -351,11 +347,7 @@ describe('ProjectionHealthMonitor', () => {
     it('should use default value for eventsProcessed', async () => {
       vi.mocked(mockPool.query).mockResolvedValue({ rows: [] } as never);
 
-      await monitor.updateCheckpoint(
-        'lead-stats',
-        'event-123',
-        new Date('2024-01-01T10:00:00Z')
-      );
+      await monitor.updateCheckpoint('lead-stats', 'event-123', new Date('2024-01-01T10:00:00Z'));
 
       const call = vi.mocked(mockPool.query).mock.calls[0];
       expect(call?.[1]).toContain(1); // Default eventsProcessed is 1
@@ -405,8 +397,12 @@ describe('ProjectionHealthMonitor', () => {
     it('should return current configuration', () => {
       const config = monitor.getConfig();
 
-      expect(config.staleThresholdSeconds).toBe(DEFAULT_PROJECTION_HEALTH_CONFIG.staleThresholdSeconds);
-      expect(config.criticalEventsBehind).toBe(DEFAULT_PROJECTION_HEALTH_CONFIG.criticalEventsBehind);
+      expect(config.staleThresholdSeconds).toBe(
+        DEFAULT_PROJECTION_HEALTH_CONFIG.staleThresholdSeconds
+      );
+      expect(config.criticalEventsBehind).toBe(
+        DEFAULT_PROJECTION_HEALTH_CONFIG.criticalEventsBehind
+      );
     });
 
     it('should return custom configuration', () => {
@@ -427,7 +423,9 @@ describe('ProjectionHealthMonitor', () => {
       config.staleThresholdSeconds = 9999;
 
       const configAgain = monitor.getConfig();
-      expect(configAgain.staleThresholdSeconds).toBe(DEFAULT_PROJECTION_HEALTH_CONFIG.staleThresholdSeconds);
+      expect(configAgain.staleThresholdSeconds).toBe(
+        DEFAULT_PROJECTION_HEALTH_CONFIG.staleThresholdSeconds
+      );
     });
   });
 
@@ -561,9 +559,7 @@ describe('ProjectionHealthMonitor', () => {
 
       const summary = await monitor.checkAllProjections();
 
-      const needsAttention = summary.projections.filter(
-        (p) => p.isStale || p.status === 'error'
-      );
+      const needsAttention = summary.projections.filter((p) => p.isStale || p.status === 'error');
 
       expect(needsAttention).toHaveLength(2);
       expect(needsAttention.map((p) => p.name)).toContain('stale-projection');

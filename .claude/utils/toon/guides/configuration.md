@@ -30,21 +30,25 @@ OPTIONS:
 ### Examples
 
 **Default (comma, folding, 2-space indent):**
+
 ```bash
 ./zig-out/bin/toon encode data.json
 ```
 
 **Tab delimiter:**
+
 ```bash
 ./zig-out/bin/toon encode data.json --delimiter tab
 ```
 
 **Pipe delimiter with 4-space indent:**
+
 ```bash
 ./zig-out/bin/toon encode data.json --delimiter pipe --indent 4
 ```
 
 **Disable key folding:**
+
 ```bash
 ./zig-out/bin/toon encode data.json --no-key-folding
 ```
@@ -75,16 +79,19 @@ OPTIONS:
 ### Examples
 
 **Default (non-strict, expand paths):**
+
 ```bash
 ./zig-out/bin/toon decode data.toon
 ```
 
 **Strict mode:**
+
 ```bash
 ./zig-out/bin/toon decode data.toon --strict
 ```
 
 **Keep dotted keys flat:**
+
 ```bash
 ./zig-out/bin/toon decode data.toon --no-expand-paths
 ```
@@ -98,6 +105,7 @@ OPTIONS:
 **Declaration:** `[N]{fields}:` or `[N,]{fields}:`
 
 **Example:**
+
 ```
 [2]{name,age}:
   Alice,30
@@ -114,6 +122,7 @@ OPTIONS:
 **Declaration:** `[N\t]{fields}:`
 
 **Example:**
+
 ```
 [2\t]{name,location}:
   Alice	New York, NY
@@ -130,6 +139,7 @@ OPTIONS:
 **Declaration:** `[N|]{fields}:`
 
 **Example:**
+
 ```
 [2|]{method,path,description}:
   GET|/api/users|List all users
@@ -146,6 +156,7 @@ OPTIONS:
 Flattens nested objects:
 
 **Input JSON:**
+
 ```json
 {
   "server": {
@@ -156,6 +167,7 @@ Flattens nested objects:
 ```
 
 **Output TOON:**
+
 ```
 server.host: localhost
 server.port: 8080
@@ -168,6 +180,7 @@ server.port: 8080
 Preserves nesting:
 
 **Output TOON:**
+
 ```
 server:
   host: localhost
@@ -175,6 +188,7 @@ server:
 ```
 
 **When to disable:**
+
 - Deeply nested (>3 levels)
 - Field names have special characters
 - Collision risks
@@ -186,12 +200,14 @@ server:
 Expands dotted keys back to nested:
 
 **Input TOON:**
+
 ```
 server.host: localhost
 server.port: 8080
 ```
 
 **Output JSON:**
+
 ```json
 {
   "server": {
@@ -206,6 +222,7 @@ server.port: 8080
 Keeps dotted keys as literal:
 
 **Output JSON:**
+
 ```json
 {
   "server.host": "localhost",
@@ -226,6 +243,7 @@ Lenient parsing, warnings only:
 ```
 
 **Output:**
+
 ```
 ⚠ Warning: Line 3: Indentation not multiple of 2
 ⚠ Warning: Line 5: Array count mismatch
@@ -241,12 +259,14 @@ Strict validation, errors block decoding:
 ```
 
 **Output:**
+
 ```
 ❌ Error: Line 3: Indentation must be multiple of 2
 Decoding failed
 ```
 
 **When to enable:**
+
 - Production environments
 - CI/CD validation
 - Data integrity critical
@@ -316,6 +336,7 @@ export TOON_STRICT=1
 ```
 
 Load with:
+
 ```bash
 ./zig-out/bin/toon encode data.json --config .toonrc.json
 ```

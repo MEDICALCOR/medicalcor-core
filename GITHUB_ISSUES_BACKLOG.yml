@@ -3,10 +3,10 @@
 # Total Issues: 29
 
 metadata:
-  audit_date: "2025-12-06"
-  session_id: "claude/tech-audit-architecture-01SEK6QJHHUnYyWEDb4mJ7Ey"
+  audit_date: '2025-12-06'
+  session_id: 'claude/tech-audit-architecture-01SEK6QJHHUnYyWEDb4mJ7Ey'
   total_issues: 29
-  estimated_effort_days: "12-19"
+  estimated_effort_days: '12-19'
 
 issues:
   # ===========================================================================
@@ -14,15 +14,15 @@ issues:
   # ===========================================================================
 
   - id: H1
-    title: "Verify Lead → LTV Event Chain with Integration Test"
+    title: 'Verify Lead → LTV Event Chain with Integration Test'
     priority: critical
     type: testing
     area: domain
-    effort: "2-3 hours"
+    effort: '2-3 hours'
     labels:
-      - "priority: critical"
-      - "type: testing"
-      - "area: domain"
+      - 'priority: critical'
+      - 'type: testing'
+      - 'area: domain'
     description: |
       The Lead → LTV business flow lacks end-to-end verification. While individual
       components work, there's no integration test proving the complete event chain:
@@ -42,15 +42,15 @@ issues:
       - supabase/migrations/20251206000001_cases_payments.sql
 
   - id: H2
-    title: "Wire Cognitive Memory to Agent Guidance Flows"
+    title: 'Wire Cognitive Memory to Agent Guidance Flows'
     priority: critical
     type: feature
     area: cognitive-memory
-    effort: "3-4 hours"
+    effort: '3-4 hours'
     labels:
-      - "priority: critical"
-      - "type: feature"
-      - "area: cognitive-memory"
+      - 'priority: critical'
+      - 'type: feature'
+      - 'area: cognitive-memory'
     description: |
       The Cognitive Memory module (episode builder, memory retrieval) is fully
       implemented but not integrated into agent-facing flows. Agents don't benefit
@@ -60,7 +60,7 @@ issues:
       - Agent scripts receive relevant patient context from episodic memory
       - Recent interactions displayed in agent workspace (when built)
       - Semantic search used for "similar past interactions"
-      - "Performance: retrieval < 200ms p95"
+      - 'Performance: retrieval < 200ms p95'
     files:
       - packages/core/src/cognitive/memory-retrieval.ts
       - packages/core/src/cognitive/episode-builder.ts
@@ -69,24 +69,24 @@ issues:
       - apps/trigger/src/tasks/whatsapp-handler.ts
 
   - id: H3
-    title: "Add Critical E2E Tests for Core Flows"
+    title: 'Add Critical E2E Tests for Core Flows'
     priority: critical
     type: testing
     area: e2e
-    effort: "4-6 hours"
+    effort: '4-6 hours'
     labels:
-      - "priority: critical"
-      - "type: testing"
-      - "area: e2e"
+      - 'priority: critical'
+      - 'type: testing'
+      - 'area: e2e'
     description: |
       Currently only 4 E2E tests exist. Medical software requires comprehensive
       E2E coverage of critical flows.
     acceptance_criteria:
-      - "E2E test: Complete booking flow (search slot → book → confirm)"
-      - "E2E test: Payment flow (create invoice → process payment → receipt)"
-      - "E2E test: Lead scoring flow (receive message → score → triage)"
-      - "E2E test: Consent management (grant → verify → withdraw)"
-      - "E2E test: GDPR data export request"
+      - 'E2E test: Complete booking flow (search slot → book → confirm)'
+      - 'E2E test: Payment flow (create invoice → process payment → receipt)'
+      - 'E2E test: Lead scoring flow (receive message → score → triage)'
+      - 'E2E test: Consent management (grant → verify → withdraw)'
+      - 'E2E test: GDPR data export request'
       - All tests run in CI with Playwright
       - Test data isolated per run
     files:
@@ -95,15 +95,15 @@ issues:
       - .github/workflows/ci.yml
 
   - id: H4
-    title: "Load Test RLS Policies for Performance Validation"
+    title: 'Load Test RLS Policies for Performance Validation'
     priority: critical
     type: testing
     area: database
-    effort: "3-4 hours"
+    effort: '3-4 hours'
     labels:
-      - "priority: critical"
-      - "type: testing"
-      - "area: database"
+      - 'priority: critical'
+      - 'type: testing'
+      - 'area: database'
     description: |
       Row-Level Security policies are implemented but not validated under load.
       RLS can cause significant query slowdown with large datasets.
@@ -118,15 +118,15 @@ issues:
       - scripts/k6/
 
   - id: H5
-    title: "Implement Basic Agent Workspace UI"
+    title: 'Implement Basic Agent Workspace UI'
     priority: critical
     type: feature
     area: frontend
-    effort: "1-2 days"
+    effort: '1-2 days'
     labels:
-      - "priority: critical"
-      - "type: feature"
-      - "area: frontend"
+      - 'priority: critical'
+      - 'type: feature'
+      - 'area: frontend'
     description: |
       Backend routing, SLA monitoring, and disposition tracking exist, but agents
       have no native MedicalCor UI. They must use external tools.
@@ -144,15 +144,15 @@ issues:
       - apps/api/src/routes/supervisor-ws.ts
 
   - id: H6
-    title: "Add Database Partitioning for Event Tables"
+    title: 'Add Database Partitioning for Event Tables'
     priority: critical
     type: infrastructure
     area: database
-    effort: "4-6 hours"
+    effort: '4-6 hours'
     labels:
-      - "priority: critical"
-      - "type: infrastructure"
-      - "area: database"
+      - 'priority: critical'
+      - 'type: infrastructure'
+      - 'area: database'
     description: |
       domain_events and audit_log tables will grow unbounded. Without partitioning,
       query performance will degrade and maintenance will become problematic.
@@ -168,15 +168,15 @@ issues:
       - apps/trigger/src/jobs/cron-jobs.ts
 
   - id: H7
-    title: "Production Secrets Audit and Rotation Procedure"
+    title: 'Production Secrets Audit and Rotation Procedure'
     priority: critical
     type: security
     area: infrastructure
-    effort: "2-3 hours"
+    effort: '2-3 hours'
     labels:
-      - "priority: critical"
-      - "type: security"
-      - "area: infrastructure"
+      - 'priority: critical'
+      - 'type: security'
+      - 'area: infrastructure'
     description: |
       Ensure no secrets exist in codebase, all secrets are rotatable, and
       rotation procedures are documented.
@@ -195,15 +195,15 @@ issues:
       - docs/runbooks/secret-rotation.md
 
   - id: H8
-    title: "Complete Knowledge Graph Migration and Integration"
+    title: 'Complete Knowledge Graph Migration and Integration'
     priority: critical
     type: feature
     area: cognitive-memory
-    effort: "4-6 hours"
+    effort: '4-6 hours'
     labels:
-      - "priority: critical"
-      - "type: feature"
-      - "area: cognitive-memory"
+      - 'priority: critical'
+      - 'type: feature'
+      - 'area: cognitive-memory'
     description: |
       ADR-004 references knowledge_entities and knowledge_relations tables but
       these are not in migrations. Cognitive memory is incomplete without graph.
@@ -225,15 +225,15 @@ issues:
   # ===========================================================================
 
   - id: M1
-    title: "Consolidate Audit Tables into Unified Schema"
+    title: 'Consolidate Audit Tables into Unified Schema'
     priority: high
     type: refactor
     area: database
-    effort: "4-6 hours"
+    effort: '4-6 hours'
     labels:
-      - "priority: high"
-      - "type: refactor"
-      - "area: database"
+      - 'priority: high'
+      - 'type: refactor'
+      - 'area: database'
     acceptance_criteria:
       - Single unified_audit_log table with type discriminator
       - All existing audit data migrated
@@ -245,15 +245,15 @@ issues:
       - packages/core/src/observability/audit.ts
 
   - id: M2
-    title: "Implement Predicted LTV (pLTV) Model Infrastructure"
+    title: 'Implement Predicted LTV (pLTV) Model Infrastructure'
     priority: high
     type: feature
     area: analytics
-    effort: "2-3 days"
+    effort: '2-3 days'
     labels:
-      - "priority: high"
-      - "type: feature"
-      - "area: analytics"
+      - 'priority: high'
+      - 'type: feature'
+      - 'area: analytics'
     acceptance_criteria:
       - pLTV model interface defined
       - Feature extraction from lead attributes
@@ -268,18 +268,18 @@ issues:
       - apps/trigger/src/workflows/lead-scoring.ts
 
   - id: M3
-    title: "Implement Patient Aggregate with Full Lifecycle"
+    title: 'Implement Patient Aggregate with Full Lifecycle'
     priority: high
     type: feature
     area: domain
-    effort: "1-2 days"
+    effort: '1-2 days'
     labels:
-      - "priority: high"
-      - "type: feature"
-      - "area: domain"
+      - 'priority: high'
+      - 'type: feature'
+      - 'area: domain'
     acceptance_criteria:
       - PatientAggregateRoot with lifecycle states
-      - "Domain events: PatientOnboarded, PatientActivated, PatientChurned"
+      - 'Domain events: PatientOnboarded, PatientActivated, PatientChurned'
       - Conversion from Lead preserves history
       - Patient timeline view in UI
       - Retention scoring linked to patient aggregate
@@ -289,15 +289,15 @@ issues:
       - packages/domain/src/patients/events/
 
   - id: M4
-    title: "Wire Feature Flags to Runtime UI"
+    title: 'Wire Feature Flags to Runtime UI'
     priority: high
     type: feature
     area: infrastructure
-    effort: "3-4 hours"
+    effort: '3-4 hours'
     labels:
-      - "priority: high"
-      - "type: feature"
-      - "area: infrastructure"
+      - 'priority: high'
+      - 'type: feature'
+      - 'area: infrastructure'
     acceptance_criteria:
       - FeatureFlagProvider React context
       - useFeatureFlag(flagName) hook
@@ -311,18 +311,18 @@ issues:
       - supabase/migrations/20251206000007_feature_flags.sql
 
   - id: M5
-    title: "Add Real-Time Queue Visualization Dashboard"
+    title: 'Add Real-Time Queue Visualization Dashboard'
     priority: high
     type: feature
     area: frontend
-    effort: "4-6 hours"
+    effort: '4-6 hours'
     labels:
-      - "priority: high"
-      - "type: feature"
-      - "area: frontend"
+      - 'priority: high'
+      - 'type: feature'
+      - 'area: frontend'
     acceptance_criteria:
       - Dashboard showing all active queues
-      - "Real-time metrics: wait time, queue depth, SLA status"
+      - 'Real-time metrics: wait time, queue depth, SLA status'
       - Visual SLA breach alerts
       - Historical queue performance charts
       - Drill-down to individual agents in queue
@@ -333,15 +333,15 @@ issues:
       - apps/api/src/routes/supervisor-ws.ts
 
   - id: M6
-    title: "Complete Async Embedding Worker Pipeline"
+    title: 'Complete Async Embedding Worker Pipeline'
     priority: high
     type: feature
     area: cognitive-memory
-    effort: "3-4 hours"
+    effort: '3-4 hours'
     labels:
-      - "priority: high"
-      - "type: feature"
-      - "area: cognitive-memory"
+      - 'priority: high'
+      - 'type: feature'
+      - 'area: cognitive-memory'
     acceptance_criteria:
       - Domain events trigger embedding worker
       - Batch processing for efficiency
@@ -355,15 +355,15 @@ issues:
       - packages/core/src/cognitive/episode-builder.ts
 
   - id: M7
-    title: "Add Cohort LTV Analysis View"
+    title: 'Add Cohort LTV Analysis View'
     priority: high
     type: feature
     area: analytics
-    effort: "4-6 hours"
+    effort: '4-6 hours'
     labels:
-      - "priority: high"
-      - "type: feature"
-      - "area: analytics"
+      - 'priority: high'
+      - 'type: feature'
+      - 'area: analytics'
     acceptance_criteria:
       - Cohort definition by first contact month
       - LTV progression over time per cohort
@@ -376,15 +376,15 @@ issues:
       - supabase/migrations/
 
   - id: M8
-    title: "Create Operational Runbooks"
+    title: 'Create Operational Runbooks'
     priority: high
     type: documentation
     area: operations
-    effort: "4-6 hours"
+    effort: '4-6 hours'
     labels:
-      - "priority: high"
-      - "type: documentation"
-      - "area: operations"
+      - 'priority: high'
+      - 'type: documentation'
+      - 'area: operations'
     acceptance_criteria:
       - Incident response runbook (detection → triage → resolution)
       - Rollback procedure for each service
@@ -399,15 +399,15 @@ issues:
       - docs/runbooks/scaling.md
 
   - id: M9
-    title: "Enhance Circuit Breaker Dashboard"
+    title: 'Enhance Circuit Breaker Dashboard'
     priority: medium
     type: feature
     area: observability
-    effort: "2-3 hours"
+    effort: '2-3 hours'
     labels:
-      - "priority: medium"
-      - "type: feature"
-      - "area: observability"
+      - 'priority: medium'
+      - 'type: feature'
+      - 'area: observability'
     acceptance_criteria:
       - Real-time circuit state (open/closed/half-open)
       - Failure rate metrics per circuit
@@ -419,15 +419,15 @@ issues:
       - packages/core/src/circuit-breaker.ts
 
   - id: M10
-    title: "Implement Data Lineage Visualization"
+    title: 'Implement Data Lineage Visualization'
     priority: medium
     type: feature
     area: compliance
-    effort: "4-6 hours"
+    effort: '4-6 hours'
     labels:
-      - "priority: medium"
-      - "type: feature"
-      - "area: compliance"
+      - 'priority: medium'
+      - 'type: feature'
+      - 'area: compliance'
     acceptance_criteria:
       - Graph visualization of data flows
       - Filter by data subject or resource
@@ -441,15 +441,15 @@ issues:
       - packages/core/src/data-lineage/
 
   - id: M11
-    title: "Complete Supervisor Live Monitoring UI"
+    title: 'Complete Supervisor Live Monitoring UI'
     priority: medium
     type: feature
     area: frontend
-    effort: "4-6 hours"
+    effort: '4-6 hours'
     labels:
-      - "priority: medium"
-      - "type: feature"
-      - "area: frontend"
+      - 'priority: medium'
+      - 'type: feature'
+      - 'area: frontend'
     acceptance_criteria:
       - View all active calls with status
       - Listen mode (silent monitoring)
@@ -464,15 +464,15 @@ issues:
       - supabase/migrations/20251206000002_supervisor_state_persistence.sql
 
   - id: M12
-    title: "Add Contract Testing for External Integrations"
+    title: 'Add Contract Testing for External Integrations'
     priority: medium
     type: testing
     area: integrations
-    effort: "4-6 hours"
+    effort: '4-6 hours'
     labels:
-      - "priority: medium"
-      - "type: testing"
-      - "area: integrations"
+      - 'priority: medium'
+      - 'type: testing'
+      - 'area: integrations'
     acceptance_criteria:
       - Pact contract tests for HubSpot API
       - Pact contract tests for Stripe webhooks
@@ -485,15 +485,15 @@ issues:
       - packages/integrations/src/stripe.ts
 
   - id: M13
-    title: "Add Request Tracing Visualization"
+    title: 'Add Request Tracing Visualization'
     priority: medium
     type: feature
     area: observability
-    effort: "3-4 hours"
+    effort: '3-4 hours'
     labels:
-      - "priority: medium"
-      - "type: feature"
-      - "area: observability"
+      - 'priority: medium'
+      - 'type: feature'
+      - 'area: observability'
     acceptance_criteria:
       - Search traces by correlation ID
       - Waterfall view of request flow
@@ -510,15 +510,15 @@ issues:
   # ===========================================================================
 
   - id: L1
-    title: "Add Comprehensive Storybook Coverage"
+    title: 'Add Comprehensive Storybook Coverage'
     priority: low
     type: documentation
     area: frontend
-    effort: "4-6 hours"
+    effort: '4-6 hours'
     labels:
-      - "priority: low"
-      - "type: documentation"
-      - "area: frontend"
+      - 'priority: low'
+      - 'type: documentation'
+      - 'area: frontend'
     acceptance_criteria:
       - Stories for all components/ui/ primitives
       - Stories for key feature components
@@ -530,15 +530,15 @@ issues:
       - apps/web/src/components/ui/__stories__/
 
   - id: L2
-    title: "Implement Proper Dark Mode Toggle"
+    title: 'Implement Proper Dark Mode Toggle'
     priority: low
     type: feature
     area: frontend
-    effort: "2-3 hours"
+    effort: '2-3 hours'
     labels:
-      - "priority: low"
-      - "type: feature"
-      - "area: frontend"
+      - 'priority: low'
+      - 'type: feature'
+      - 'area: frontend'
     acceptance_criteria:
       - Dark mode toggle in header/settings
       - System preference detection
@@ -551,15 +551,15 @@ issues:
       - apps/web/src/globals.css
 
   - id: L3
-    title: "Create API Documentation Portal"
+    title: 'Create API Documentation Portal'
     priority: low
     type: documentation
     area: api
-    effort: "3-4 hours"
+    effort: '3-4 hours'
     labels:
-      - "priority: low"
-      - "type: documentation"
-      - "area: api"
+      - 'priority: low'
+      - 'type: documentation'
+      - 'area: api'
     acceptance_criteria:
       - OpenAPI spec generated from routes
       - Hosted docs (Redoc or Swagger UI)
@@ -572,15 +572,15 @@ issues:
       - docs/api/
 
   - id: L4
-    title: "Optimize Vector Search Performance"
+    title: 'Optimize Vector Search Performance'
     priority: low
     type: performance
     area: database
-    effort: "2-3 hours"
+    effort: '2-3 hours'
     labels:
-      - "priority: low"
-      - "type: performance"
-      - "area: database"
+      - 'priority: low'
+      - 'type: performance'
+      - 'area: database'
     acceptance_criteria:
       - Benchmark current query performance
       - Tune HNSW parameters (m, ef_construction, ef_search)
@@ -591,15 +591,15 @@ issues:
       - supabase/migrations/20240101000005_pgvector_rag.sql
 
   - id: L5
-    title: "Add Mobile-Responsive Agent UI"
+    title: 'Add Mobile-Responsive Agent UI'
     priority: low
     type: feature
     area: frontend
-    effort: "3-4 hours"
+    effort: '3-4 hours'
     labels:
-      - "priority: low"
-      - "type: feature"
-      - "area: frontend"
+      - 'priority: low'
+      - 'type: feature'
+      - 'area: frontend'
     depends_on: H5
     acceptance_criteria:
       - Responsive breakpoints for tablet (768px+)
@@ -610,15 +610,15 @@ issues:
       - apps/web/src/app/agent-workspace/
 
   - id: L6
-    title: "Implement Webhook Replay UI"
+    title: 'Implement Webhook Replay UI'
     priority: low
     type: feature
     area: debugging
-    effort: "3-4 hours"
+    effort: '3-4 hours'
     labels:
-      - "priority: low"
-      - "type: feature"
-      - "area: debugging"
+      - 'priority: low'
+      - 'type: feature'
+      - 'area: debugging'
     acceptance_criteria:
       - View recent webhook deliveries
       - Filter by source (WhatsApp, Stripe, etc.)
@@ -630,15 +630,15 @@ issues:
       - apps/api/src/routes/webhooks/
 
   - id: L7
-    title: "Add Performance Budgets and Lighthouse CI"
+    title: 'Add Performance Budgets and Lighthouse CI'
     priority: low
     type: infrastructure
     area: performance
-    effort: "2-3 hours"
+    effort: '2-3 hours'
     labels:
-      - "priority: low"
-      - "type: infrastructure"
-      - "area: performance"
+      - 'priority: low'
+      - 'type: infrastructure'
+      - 'area: performance'
     acceptance_criteria:
       - Lighthouse CI configured
       - Performance budgets defined
@@ -651,15 +651,15 @@ issues:
       - apps/web/
 
   - id: L8
-    title: "Complete Localization Coverage"
+    title: 'Complete Localization Coverage'
     priority: low
     type: feature
     area: i18n
-    effort: "3-4 hours"
+    effort: '3-4 hours'
     labels:
-      - "priority: low"
-      - "type: feature"
-      - "area: i18n"
+      - 'priority: low'
+      - 'type: feature'
+      - 'area: i18n'
     acceptance_criteria:
       - Audit all translation keys
       - Complete Romanian translations
@@ -677,13 +677,13 @@ issues:
 summary:
   high_priority:
     count: 8
-    effort: "3-5 days"
+    effort: '3-5 days'
   medium_priority:
     count: 13
-    effort: "6-10 days"
+    effort: '6-10 days'
   low_priority:
     count: 8
-    effort: "3-4 days"
+    effort: '3-4 days'
   total:
     count: 29
-    effort: "12-19 days"
+    effort: '12-19 days'

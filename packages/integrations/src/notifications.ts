@@ -172,7 +172,10 @@ export function createNotificationsService(
   /**
    * Send notification to specific supervisor
    */
-  async function notifySupervisor(supervisorId: string, payload: NotificationPayload): Promise<void> {
+  async function notifySupervisor(
+    supervisorId: string,
+    payload: NotificationPayload
+  ): Promise<void> {
     const correlationId = payload.correlationId || generateCorrelationId();
 
     if (!apiGatewayUrl || !internalApiKey) {
@@ -282,7 +285,7 @@ export function createNotificationsService(
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${emailApiKey}`,
+          Authorization: `Bearer ${emailApiKey}`,
           'X-Correlation-ID': correlationId,
         },
         body: JSON.stringify({
@@ -352,15 +355,17 @@ function sanitizePayload(payload: NotificationPayload): NotificationPayload {
  * Redact common PII patterns
  */
 function redactPII(text: string): string {
-  return text
-    // Email patterns
-    .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[EMAIL]')
-    // Romanian CNP (13 digits)
-    .replace(/\b[1-8]\d{12}\b/g, '[CNP]')
-    // Phone numbers (Romanian format)
-    .replace(/(?:\+40|0)\s*7\d{2}[\s.-]?\d{3}[\s.-]?\d{3}/g, '[PHONE]')
-    // Credit card numbers
-    .replace(/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g, '[CARD]');
+  return (
+    text
+      // Email patterns
+      .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[EMAIL]')
+      // Romanian CNP (13 digits)
+      .replace(/\b[1-8]\d{12}\b/g, '[CNP]')
+      // Phone numbers (Romanian format)
+      .replace(/(?:\+40|0)\s*7\d{2}[\s.-]?\d{3}[\s.-]?\d{3}/g, '[PHONE]')
+      // Credit card numbers
+      .replace(/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g, '[CARD]')
+  );
 }
 
 // ============================================

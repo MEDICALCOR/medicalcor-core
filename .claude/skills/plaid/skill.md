@@ -14,6 +14,7 @@ Provide comprehensive guidance for integrating Plaid's financial data APIs to co
 ## When to Use
 
 Invoke when user mentions:
+
 - "Plaid" or "banking API"
 - "Link" (Plaid Link flow)
 - "bank account connection" or "financial data"
@@ -24,51 +25,63 @@ Invoke when user mentions:
 ## Core Products
 
 ### 1. Auth
+
 **Purpose:** Retrieve bank account and routing numbers for ACH, wire transfers, and bank-to-bank payments.
 
 **Use cases:**
+
 - ACH payment processing
 - Wire transfers
 - Bank account verification
 
 ### 2. Transactions
+
 **Purpose:** Access transaction history for budgeting, expense tracking, and financial insights.
 
 **Features:**
+
 - Up to 24 months of history
 - Categorized transactions
 - Merchant information
 - Pending and posted transactions
 
 ### 3. Identity
+
 **Purpose:** Verify user identity through bank account ownership.
 
 **Data retrieved:**
+
 - Account holder names
 - Email addresses
 - Phone numbers
 - Physical addresses
 
 ### 4. Balance
+
 **Purpose:** Real-time account balance checking to prevent payment failures.
 
 **Use cases:**
+
 - Insufficient funds detection
 - Payment preflight checks
 - Account monitoring
 
 ### 5. Investments
+
 **Purpose:** Access holdings and transactions from investment accounts.
 
 **Coverage:**
+
 - Stocks, bonds, ETFs
 - 401(k), IRA, brokerage accounts
 - Real-time valuations
 
 ### 6. Liabilities
+
 **Purpose:** Loan and credit data access.
 
 **Coverage:**
+
 - Student loans
 - Mortgages
 - Credit cards
@@ -93,11 +106,13 @@ Plaid Link is the client-side component that users interact with to securely con
 ### Frontend Integration (React)
 
 **Install:**
+
 ```bash
 npm install react-plaid-link
 ```
 
 **Implementation:**
+
 ```tsx
 import { usePlaidLink } from 'react-plaid-link';
 
@@ -143,6 +158,7 @@ function PlaidLinkButton() {
 ### Backend: Create Link Token
 
 **Node.js example:**
+
 ```javascript
 const plaid = require('plaid');
 
@@ -182,6 +198,7 @@ app.post('/api/plaid/create-link-token', async (req, res) => {
 ### Backend: Exchange Public Token
 
 **Store access token securely in your database:**
+
 ```javascript
 app.post('/api/plaid/exchange-token', async (req, res) => {
   const { public_token } = req.body;
@@ -257,6 +274,7 @@ async function getTransactions(access_token) {
 ```
 
 **Transaction object structure:**
+
 ```javascript
 {
   transaction_id: 'abc123',
@@ -280,7 +298,7 @@ async function getBalance(access_token) {
   });
 
   const accounts = response.data.accounts;
-  accounts.forEach(account => {
+  accounts.forEach((account) => {
     console.log(`${account.name}: ${account.balances.current}`);
   });
 
@@ -310,6 +328,7 @@ async function getIdentity(access_token) {
 ### Setup Webhook URL
 
 Configure in Plaid Dashboard or via API when creating link token:
+
 ```javascript
 {
   webhook: 'https://your-domain.com/api/plaid/webhook',
@@ -319,6 +338,7 @@ Configure in Plaid Dashboard or via API when creating link token:
 ### Webhook Verification
 
 **Verify webhook authenticity:**
+
 ```javascript
 const crypto = require('crypto');
 
@@ -360,6 +380,7 @@ app.post('/api/plaid/webhook', express.json(), async (req, res) => {
 ```
 
 **Common webhook events:**
+
 - `TRANSACTIONS: INITIAL_UPDATE` - First batch ready
 - `TRANSACTIONS: DEFAULT_UPDATE` - New transactions available
 - `ITEM: ERROR` - Connection issue
@@ -369,24 +390,30 @@ app.post('/api/plaid/webhook', express.json(), async (req, res) => {
 ## Environments
 
 **Sandbox** (testing):
+
 ```javascript
-basePath: plaid.PlaidEnvironments.sandbox
+basePath: plaid.PlaidEnvironments.sandbox;
 ```
+
 - Test credentials: `user_good` / `pass_good`
 - No real bank connections
 - Simulate transactions
 
 **Development** (limited live connections):
+
 ```javascript
-basePath: plaid.PlaidEnvironments.development
+basePath: plaid.PlaidEnvironments.development;
 ```
+
 - Up to 100 live bank connections
 - Free for testing
 
 **Production** (live):
+
 ```javascript
-basePath: plaid.PlaidEnvironments.production
+basePath: plaid.PlaidEnvironments.production;
 ```
+
 - Real bank connections
 - Requires approval and billing
 
@@ -395,6 +422,7 @@ basePath: plaid.PlaidEnvironments.production
 ### Update Mode (Re-authentication)
 
 When credentials expire or change:
+
 ```javascript
 const { open } = usePlaidLink({
   token: linkToken,
@@ -413,14 +441,17 @@ const request = {
 ### Common Errors
 
 **ITEM_LOGIN_REQUIRED:**
+
 - User needs to re-authenticate
 - Solution: Trigger Link in update mode
 
 **RATE_LIMIT_EXCEEDED:**
+
 - Too many requests
 - Solution: Implement exponential backoff
 
 **PRODUCT_NOT_READY:**
+
 - Data still syncing
 - Solution: Wait for webhook or retry
 
@@ -449,6 +480,7 @@ const request = {
 ## Next.js API Route Example
 
 **Create link token:**
+
 ```typescript
 // app/api/plaid/create-link-token/route.ts
 import { NextResponse } from 'next/server';
@@ -484,11 +516,13 @@ export async function POST(req: Request) {
 ## Testing in Sandbox
 
 **Test credentials:**
+
 - Username: `user_good`
 - Password: `pass_good`
 - MFA: `1234`
 
 **Test institutions:**
+
 - "Platypus Bank" - Full feature support
 - "Tartan Bank" - OAuth flow
 - "Houndstooth Bank" - Error testing

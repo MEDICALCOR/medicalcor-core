@@ -20,23 +20,23 @@ Escalation paths, decision criteria, and contact information for MedicalCor Core
 
 ### By Severity
 
-| Severity | Initial Responder | 15 min | 30 min | 1 hour | 2 hours |
-|----------|------------------|--------|--------|--------|---------|
-| **P1** | On-Call | Eng Manager | VP Engineering | CTO | CEO |
-| **P2** | On-Call | Eng Manager | VP Engineering | - | - |
-| **P3** | On-Call | - | Eng Manager | - | - |
-| **P4** | On-Call | - | - | - | - |
+| Severity | Initial Responder | 15 min      | 30 min         | 1 hour | 2 hours |
+| -------- | ----------------- | ----------- | -------------- | ------ | ------- |
+| **P1**   | On-Call           | Eng Manager | VP Engineering | CTO    | CEO     |
+| **P2**   | On-Call           | Eng Manager | VP Engineering | -      | -       |
+| **P3**   | On-Call           | -           | Eng Manager    | -      | -       |
+| **P4**   | On-Call           | -           | -              | -      | -       |
 
 ### By Domain
 
-| Domain | Primary | Secondary | Tertiary |
-|--------|---------|-----------|----------|
-| **API/Backend** | Backend On-Call | Backend Lead | VP Engineering |
-| **Database** | DBA On-Call | Database Lead | VP Engineering |
-| **AI/Scoring** | ML On-Call | ML Lead | VP Engineering |
-| **Infrastructure** | Platform On-Call | Platform Lead | VP Engineering |
-| **Security** | Security On-Call | Security Lead | CISO |
-| **Integrations** | Integration On-Call | Integration Lead | VP Engineering |
+| Domain             | Primary             | Secondary        | Tertiary       |
+| ------------------ | ------------------- | ---------------- | -------------- |
+| **API/Backend**    | Backend On-Call     | Backend Lead     | VP Engineering |
+| **Database**       | DBA On-Call         | Database Lead    | VP Engineering |
+| **AI/Scoring**     | ML On-Call          | ML Lead          | VP Engineering |
+| **Infrastructure** | Platform On-Call    | Platform Lead    | VP Engineering |
+| **Security**       | Security On-Call    | Security Lead    | CISO           |
+| **Integrations**   | Integration On-Call | Integration Lead | VP Engineering |
 
 ---
 
@@ -44,28 +44,28 @@ Escalation paths, decision criteria, and contact information for MedicalCor Core
 
 ### Automatic Escalation Triggers
 
-| Condition | Escalation Level | Reason |
-|-----------|-----------------|--------|
-| Incident unacknowledged > 15 min | +1 level | Response SLA breach |
-| No progress in 30 min | +1 level | Stalled investigation |
-| Impact expanding | +1 level | Growing severity |
-| Customer-facing P1 > 30 min | VP Engineering | Business impact |
-| Security/data incident | Security Lead immediately | Compliance requirement |
-| Financial system affected | VP Engineering + Finance | Revenue impact |
+| Condition                        | Escalation Level          | Reason                 |
+| -------------------------------- | ------------------------- | ---------------------- |
+| Incident unacknowledged > 15 min | +1 level                  | Response SLA breach    |
+| No progress in 30 min            | +1 level                  | Stalled investigation  |
+| Impact expanding                 | +1 level                  | Growing severity       |
+| Customer-facing P1 > 30 min      | VP Engineering            | Business impact        |
+| Security/data incident           | Security Lead immediately | Compliance requirement |
+| Financial system affected        | VP Engineering + Finance  | Revenue impact         |
 
 ### Manual Escalation Triggers
 
 Escalate when you need:
 
-| Need | Escalate To |
-|------|-------------|
-| **Domain expertise** | Domain specialist |
-| **More hands** | Additional on-call |
-| **Decision authority** | Engineering Manager |
-| **Cross-team coordination** | VP Engineering |
-| **External vendor contact** | Integration Lead |
-| **Customer communication** | Customer Success + Eng Manager |
-| **Legal/compliance guidance** | Legal + CISO |
+| Need                          | Escalate To                    |
+| ----------------------------- | ------------------------------ |
+| **Domain expertise**          | Domain specialist              |
+| **More hands**                | Additional on-call             |
+| **Decision authority**        | Engineering Manager            |
+| **Cross-team coordination**   | VP Engineering                 |
+| **External vendor contact**   | Integration Lead               |
+| **Customer communication**    | Customer Success + Eng Manager |
+| **Legal/compliance guidance** | Legal + CISO                   |
 
 ### Do NOT Delay Escalation When:
 
@@ -175,44 +175,44 @@ For security incidents or potential data breaches.
 
 ### On-Call Rotations
 
-| Rotation | PagerDuty Service | Schedule |
-|----------|------------------|----------|
-| Primary On-Call | `medicalcor-primary` | 24/7, weekly rotation |
-| Backend On-Call | `medicalcor-backend` | Business hours |
-| Infrastructure On-Call | `medicalcor-infra` | 24/7, weekly rotation |
-| Security On-Call | `medicalcor-security` | 24/7, weekly rotation |
+| Rotation               | PagerDuty Service     | Schedule              |
+| ---------------------- | --------------------- | --------------------- |
+| Primary On-Call        | `medicalcor-primary`  | 24/7, weekly rotation |
+| Backend On-Call        | `medicalcor-backend`  | Business hours        |
+| Infrastructure On-Call | `medicalcor-infra`    | 24/7, weekly rotation |
+| Security On-Call       | `medicalcor-security` | 24/7, weekly rotation |
 
 ### Leadership Contacts
 
-| Role | Name | PagerDuty | Slack | Phone |
-|------|------|-----------|-------|-------|
+| Role                | Name   | PagerDuty    | Slack        | Phone    |
+| ------------------- | ------ | ------------ | ------------ | -------- |
 | Engineering Manager | [Name] | @eng-manager | @eng-manager | [Number] |
-| VP Engineering | [Name] | @vp-eng | @vp-eng | [Number] |
-| CTO | [Name] | @cto | @cto | [Number] |
-| CISO | [Name] | @ciso | @ciso | [Number] |
+| VP Engineering      | [Name] | @vp-eng      | @vp-eng      | [Number] |
+| CTO                 | [Name] | @cto         | @cto         | [Number] |
+| CISO                | [Name] | @ciso        | @ciso        | [Number] |
 
 ### Domain Experts
 
-| Domain | Primary | Backup | Slack Channel |
-|--------|---------|--------|---------------|
-| Database/PostgreSQL | [Name] | [Name] | #db-support |
-| AI/OpenAI | [Name] | [Name] | #ai-support |
-| HubSpot | [Name] | [Name] | #integrations |
-| WhatsApp/360dialog | [Name] | [Name] | #integrations |
-| Stripe | [Name] | [Name] | #payments |
-| Trigger.dev | [Name] | [Name] | #background-jobs |
-| Infrastructure/GCP | [Name] | [Name] | #infrastructure |
+| Domain              | Primary | Backup | Slack Channel    |
+| ------------------- | ------- | ------ | ---------------- |
+| Database/PostgreSQL | [Name]  | [Name] | #db-support      |
+| AI/OpenAI           | [Name]  | [Name] | #ai-support      |
+| HubSpot             | [Name]  | [Name] | #integrations    |
+| WhatsApp/360dialog  | [Name]  | [Name] | #integrations    |
+| Stripe              | [Name]  | [Name] | #payments        |
+| Trigger.dev         | [Name]  | [Name] | #background-jobs |
+| Infrastructure/GCP  | [Name]  | [Name] | #infrastructure  |
 
 ### External Contacts
 
-| Vendor | Support Portal | Priority Line | Account Manager |
-|--------|---------------|---------------|-----------------|
-| Google Cloud | console.cloud.google.com/support | [Number] | [Name] |
-| OpenAI | platform.openai.com/support | N/A | N/A |
-| HubSpot | help.hubspot.com | [Number] | [Name] |
-| 360dialog | support.360dialog.com | [Number] | [Name] |
-| Stripe | dashboard.stripe.com/support | [Number] | [Name] |
-| Trigger.dev | trigger.dev/support | N/A | N/A |
+| Vendor       | Support Portal                   | Priority Line | Account Manager |
+| ------------ | -------------------------------- | ------------- | --------------- |
+| Google Cloud | console.cloud.google.com/support | [Number]      | [Name]          |
+| OpenAI       | platform.openai.com/support      | N/A           | N/A             |
+| HubSpot      | help.hubspot.com                 | [Number]      | [Name]          |
+| 360dialog    | support.360dialog.com            | [Number]      | [Name]          |
+| Stripe       | dashboard.stripe.com/support     | [Number]      | [Name]          |
+| Trigger.dev  | trigger.dev/support              | N/A           | N/A             |
 
 ---
 
@@ -262,17 +262,21 @@ When escalating, include:
 **Current Severity:** P1/P2/P3
 **Duration:** X minutes/hours
 **Current Impact:**
+
 - [Specific impact 1]
 - [Specific impact 2]
 
 **What's been tried:**
+
 1. [Action 1 - Result]
 2. [Action 2 - Result]
 
 **Why escalating:**
+
 - [Reason: stuck, need expertise, need approval, etc.]
 
 **Specific ask:**
+
 - [What you need from the escalation target]
 
 **Incident Channel:** #inc-YYYYMMDD-description
@@ -292,6 +296,7 @@ When escalating, include:
 ### De-escalation Procedure
 
 1. **Announce in incident channel:**
+
    ```
    **De-escalation Notice**
    - Time: [HH:MM UTC]
@@ -322,6 +327,7 @@ For infrastructure issues:
    - P4: Low impact, question
 
 2. **Create support case:**
+
    ```
    # Via Console
    console.cloud.google.com > Support > Create Case
@@ -368,15 +374,15 @@ For infrastructure issues:
 
 ## Escalation Don'ts
 
-| Don't | Instead |
-|-------|---------|
-| Skip escalation levels | Follow the chain unless emergency |
-| Escalate without trying | Document what you've tried first |
-| Escalate without context | Use the escalation template |
-| Wait too long to escalate | When in doubt, escalate early |
-| Escalate via email for P1 | Use phone or PagerDuty |
-| Leave escalated person hanging | Provide regular updates |
-| Forget to de-escalate | Release people when no longer needed |
+| Don't                          | Instead                              |
+| ------------------------------ | ------------------------------------ |
+| Skip escalation levels         | Follow the chain unless emergency    |
+| Escalate without trying        | Document what you've tried first     |
+| Escalate without context       | Use the escalation template          |
+| Wait too long to escalate      | When in doubt, escalate early        |
+| Escalate via email for P1      | Use phone or PagerDuty               |
+| Leave escalated person hanging | Provide regular updates              |
+| Forget to de-escalate          | Release people when no longer needed |
 
 ---
 
@@ -384,18 +390,18 @@ For infrastructure issues:
 
 Track these to improve escalation effectiveness:
 
-| Metric | Target | Review Frequency |
-|--------|--------|-----------------|
-| Time to first escalation | < 30 min for P1 | Weekly |
-| Escalation acknowledgment time | < 10 min | Weekly |
-| Escalations per incident | < 3 levels | Monthly |
-| Unnecessary escalations | < 10% | Monthly |
-| Missed escalations | 0 | Weekly |
+| Metric                         | Target          | Review Frequency |
+| ------------------------------ | --------------- | ---------------- |
+| Time to first escalation       | < 30 min for P1 | Weekly           |
+| Escalation acknowledgment time | < 10 min        | Weekly           |
+| Escalations per incident       | < 3 levels      | Monthly          |
+| Unnecessary escalations        | < 10%           | Monthly          |
+| Missed escalations             | 0               | Weekly           |
 
 ---
 
 ## Revision History
 
-| Date | Version | Author | Changes |
-|------|---------|--------|---------|
-| 2024-12 | 1.0 | Platform Team | Initial runbook creation |
+| Date    | Version | Author        | Changes                  |
+| ------- | ------- | ------------- | ------------------------ |
+| 2024-12 | 1.0     | Platform Team | Initial runbook creation |

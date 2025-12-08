@@ -365,9 +365,7 @@ export class TokenEstimator {
     const { preserveSystem = true, preserveLastN = 2 } = options;
 
     // Separate system messages and others
-    const systemMessages = preserveSystem
-      ? messages.filter((m) => m.role === 'system')
-      : [];
+    const systemMessages = preserveSystem ? messages.filter((m) => m.role === 'system') : [];
     const otherMessages = preserveSystem
       ? messages.filter((m) => m.role !== 'system')
       : [...messages];
@@ -437,9 +435,7 @@ export class TokenEstimator {
 /**
  * Factory function
  */
-export function createTokenEstimator(
-  config?: Partial<TokenEstimatorConfig>
-): TokenEstimator {
+export function createTokenEstimator(config?: Partial<TokenEstimatorConfig>): TokenEstimator {
   return new TokenEstimator(config);
 }
 

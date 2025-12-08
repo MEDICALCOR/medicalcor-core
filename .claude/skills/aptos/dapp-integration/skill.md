@@ -14,6 +14,7 @@ Provide expert guidance on integrating Aptos blockchain with frontend applicatio
 ## When to Use
 
 Auto-invoke when users mention:
+
 - **Wallets** - Petra, Martian, Pontem, wallet connection, wallet adapter
 - **Frontend Integration** - React, Next.js, Vue, dApp UI
 - **TypeScript SDK** - @aptos-labs/ts-sdk, aptos client, API calls
@@ -70,17 +71,20 @@ Common scenarios:
 ### 2. Choose Integration Approach
 
 **Option A: Wallet Adapter (Recommended)**
+
 - Use @aptos-labs/wallet-adapter-react
 - Supports multiple wallets
 - Standard hooks and components
 - Best for production apps
 
 **Option B: Direct Wallet Integration**
+
 - Integrate with specific wallet (Petra, Martian)
 - More control, less abstraction
 - Good for custom requirements
 
 **Option C: SDK Only (Read-Only)**
+
 - Use TypeScript SDK
 - No wallet needed
 - Query blockchain data
@@ -89,6 +93,7 @@ Common scenarios:
 ### 3. Provide Integration Solution
 
 Structure your response:
+
 - **Setup** - installation and configuration
 - **Code example** - working integration code
 - **Wallet handling** - connection/disconnection logic
@@ -170,7 +175,7 @@ function WalletButton() {
 ### Initialize Client
 
 ```typescript
-import { Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
+import { Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk';
 
 // Mainnet
 const mainnetConfig = new AptosConfig({ network: Network.MAINNET });
@@ -182,8 +187,8 @@ const testnet = new Aptos(testnetConfig);
 
 // Custom node
 const customConfig = new AptosConfig({
-  fullnode: "https://custom-node.example.com",
-  indexer: "https://custom-indexer.example.com",
+  fullnode: 'https://custom-node.example.com',
+  indexer: 'https://custom-indexer.example.com',
 });
 const custom = new Aptos(customConfig);
 ```
@@ -193,29 +198,29 @@ const custom = new Aptos(customConfig);
 ```typescript
 // Get account info
 const accountInfo = await aptos.getAccountInfo({
-  accountAddress: "0x1234..."
+  accountAddress: '0x1234...',
 });
 
 // Get account resources
 const resources = await aptos.getAccountResources({
-  accountAddress: "0x1234..."
+  accountAddress: '0x1234...',
 });
 
 // Get specific resource
 const coinResource = await aptos.getAccountResource({
-  accountAddress: "0x1234...",
-  resourceType: "0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>"
+  accountAddress: '0x1234...',
+  resourceType: '0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>',
 });
 
 // Get account modules
 const modules = await aptos.getAccountModules({
-  accountAddress: "0x1234..."
+  accountAddress: '0x1234...',
 });
 
 // Get events
 const events = await aptos.getAccountEventsByEventType({
-  accountAddress: "0x1234...",
-  eventType: "0x1::coin::WithdrawEvent"
+  accountAddress: '0x1234...',
+  eventType: '0x1::coin::WithdrawEvent',
 });
 ```
 
@@ -225,13 +230,13 @@ const events = await aptos.getAccountEventsByEventType({
 // Call view function to read state
 const result = await aptos.view({
   payload: {
-    function: "0x1234::my_module::get_balance",
+    function: '0x1234::my_module::get_balance',
     typeArguments: [],
-    functionArguments: ["0xabcd..."],
+    functionArguments: ['0xabcd...'],
   },
 });
 
-console.log("Balance:", result[0]);
+console.log('Balance:', result[0]);
 ```
 
 ## Transaction Patterns
@@ -275,14 +280,14 @@ function TransferButton() {
 ### Transaction with SDK (More Control)
 
 ```typescript
-import { Account, Aptos } from "@aptos-labs/ts-sdk";
+import { Account, Aptos } from '@aptos-labs/ts-sdk';
 
 async function submitTransaction(aptos: Aptos, sender: Account) {
   // Build transaction
   const transaction = await aptos.transaction.build.simple({
     sender: sender.accountAddress,
     data: {
-      function: "0x1234::my_module::my_function",
+      function: '0x1234::my_module::my_function',
       typeArguments: [],
       functionArguments: [arg1, arg2],
     },
@@ -316,8 +321,10 @@ const transaction = await aptos.transaction.build.multiAgent({
   sender: sender.accountAddress,
   secondarySignerAddresses: [secondSigner.accountAddress],
   data: {
-    function: "0x1234::escrow::create_escrow",
-    functionArguments: [/* ... */],
+    function: '0x1234::escrow::create_escrow',
+    functionArguments: [
+      /* ... */
+    ],
   },
 });
 
@@ -340,12 +347,12 @@ async function getAptBalance(address: string): Promise<number> {
   try {
     const resource = await aptos.getAccountResource({
       accountAddress: address,
-      resourceType: "0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>",
+      resourceType: '0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>',
     });
 
     return Number(resource.coin.value);
   } catch (error) {
-    console.error("Error fetching balance:", error);
+    console.error('Error fetching balance:', error);
     return 0;
   }
 }
@@ -359,7 +366,7 @@ async function getUserNFTs(address: string) {
     accountAddress: address,
   });
 
-  return nfts.map(nft => ({
+  return nfts.map((nft) => ({
     name: nft.current_token_data?.token_name,
     description: nft.current_token_data?.description,
     uri: nft.current_token_data?.token_uri,
@@ -371,24 +378,24 @@ async function getUserNFTs(address: string) {
 ### Pattern 3: Transaction Status Tracking
 
 ```typescript
-import { useState } from "react";
+import { useState } from 'react';
 
 function useTransactionStatus() {
-  const [status, setStatus] = useState<"idle" | "pending" | "success" | "error">("idle");
+  const [status, setStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
   const [hash, setHash] = useState<string | null>(null);
 
   const submitTransaction = async (txn: any) => {
     try {
-      setStatus("pending");
+      setStatus('pending');
       const response = await signAndSubmitTransaction(txn);
       setHash(response.hash);
 
       await aptos.waitForTransaction({ transactionHash: response.hash });
-      setStatus("success");
+      setStatus('success');
 
       return response;
     } catch (error) {
-      setStatus("error");
+      setStatus('error');
       throw error;
     }
   };
@@ -436,7 +443,7 @@ declare global {
 
 async function connectPetra() {
   if (!window.aptos) {
-    throw new Error("Petra wallet not installed");
+    throw new Error('Petra wallet not installed');
   }
 
   try {
@@ -448,7 +455,7 @@ async function connectPetra() {
       publicKey: account.publicKey,
     };
   } catch (error) {
-    throw new Error("User rejected connection");
+    throw new Error('User rejected connection');
   }
 }
 ```
@@ -478,13 +485,13 @@ try {
   await signAndSubmitTransaction(txn);
 } catch (error: any) {
   if (error.code === 4001) {
-    console.error("User rejected transaction");
-  } else if (error.message.includes("INSUFFICIENT_BALANCE")) {
-    console.error("Insufficient balance for transaction");
-  } else if (error.message.includes("SEQUENCE_NUMBER_TOO_OLD")) {
-    console.error("Transaction nonce issue - retry");
+    console.error('User rejected transaction');
+  } else if (error.message.includes('INSUFFICIENT_BALANCE')) {
+    console.error('Insufficient balance for transaction');
+  } else if (error.message.includes('SEQUENCE_NUMBER_TOO_OLD')) {
+    console.error('Transaction nonce issue - retry');
   } else {
-    console.error("Transaction failed:", error);
+    console.error('Transaction failed:', error);
   }
 }
 ```
@@ -592,9 +599,9 @@ function AccountDisplay({ address }: { address: string }) {
 
 ```typescript
 const mockWallet = {
-  connect: jest.fn().mockResolvedValue({ address: "0x123..." }),
+  connect: jest.fn().mockResolvedValue({ address: '0x123...' }),
   disconnect: jest.fn(),
-  signAndSubmitTransaction: jest.fn().mockResolvedValue({ hash: "0xabc..." }),
+  signAndSubmitTransaction: jest.fn().mockResolvedValue({ hash: '0xabc...' }),
 };
 ```
 
@@ -633,11 +640,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
 ### React Query Integration
 
 ```typescript
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from '@tanstack/react-query';
 
 function useAccountBalance(address: string | undefined) {
   return useQuery({
-    queryKey: ["balance", address],
+    queryKey: ['balance', address],
     queryFn: () => getAptBalance(address!),
     enabled: !!address,
     refetchInterval: 10000, // Refetch every 10s
@@ -656,6 +663,7 @@ function useAccountBalance(address: string | undefined) {
 ## Follow-up Suggestions
 
 After helping with integration, suggest:
+
 - Error handling improvements
 - Loading and success states
 - Transaction simulation before submission

@@ -1,6 +1,6 @@
 /**
  * XRAY Audit Engine - Type Definitions
- * 
+ *
  * Defines all types used across the audit engine for analyzing repository architecture,
  * security, observability, and compliance against MedicalCor standards.
  */
@@ -129,10 +129,10 @@ export interface AuditReport {
   cqrs: CQRSAnalysis;
   testing: TestCoverageAnalysis;
   recommendations: {
-    phase0: AuditIssue[];  // Firefighting (HIGH)
-    phase1: AuditIssue[];  // Hardening (MEDIUM)
-    phase2: AuditIssue[];  // Scaling (MEDIUM/LOW)
-    phase3: AuditIssue[];  // Excellence (LOW)
+    phase0: AuditIssue[]; // Firefighting (HIGH)
+    phase1: AuditIssue[]; // Hardening (MEDIUM)
+    phase2: AuditIssue[]; // Scaling (MEDIUM/LOW)
+    phase3: AuditIssue[]; // Excellence (LOW)
   };
   strengths: string[];
   weaknesses: string[];

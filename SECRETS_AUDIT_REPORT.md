@@ -11,13 +11,13 @@
 
 This audit verifies that no secrets are committed in the codebase and all secrets are rotatable. The MedicalCor Core codebase demonstrates **strong secret management practices** with no critical issues found.
 
-| Category | Status | Notes |
-|----------|--------|-------|
-| Hardcoded Secrets | PASS | No production secrets in code |
-| Secret Rotatability | PASS | All secrets from environment variables |
-| .gitignore Coverage | PASS | .env files properly excluded |
-| Secrets Validation | PASS | Startup validation implemented |
-| Key Rotation Support | PASS | Encryption key rotation available |
+| Category             | Status | Notes                                  |
+| -------------------- | ------ | -------------------------------------- |
+| Hardcoded Secrets    | PASS   | No production secrets in code          |
+| Secret Rotatability  | PASS   | All secrets from environment variables |
+| .gitignore Coverage  | PASS   | .env files properly excluded           |
+| Secrets Validation   | PASS   | Startup validation implemented         |
+| Key Rotation Support | PASS   | Encryption key rotation available      |
 
 ---
 
@@ -34,16 +34,16 @@ This audit verifies that no secrets are committed in the codebase and all secret
 
 ### Patterns Searched
 
-| Pattern | Description | Matches |
-|---------|-------------|---------|
-| `sk[-_](live\|test\|prod)_` | Stripe keys | Only test/example values |
-| `pat-[a-z]{2,3}\d?-[a-f0-9-]+` | HubSpot tokens | Only test values |
-| `AKIA[0-9A-Z]{16}` | AWS access keys | Only AWS example key |
-| `eyJ...` (JWT pattern) | JWT tokens | Only jwt.io example tokens |
-| `postgresql://` non-localhost | Database URLs | None found |
-| `-----BEGIN (PRIVATE\|CERTIFICATE)` | Private keys/certs | Only test stub |
-| `password\s*[:=]` with values | Hardcoded passwords | None found |
-| `secret\s*[:=]` with values | Hardcoded secrets | None found |
+| Pattern                             | Description         | Matches                    |
+| ----------------------------------- | ------------------- | -------------------------- |
+| `sk[-_](live\|test\|prod)_`         | Stripe keys         | Only test/example values   |
+| `pat-[a-z]{2,3}\d?-[a-f0-9-]+`      | HubSpot tokens      | Only test values           |
+| `AKIA[0-9A-Z]{16}`                  | AWS access keys     | Only AWS example key       |
+| `eyJ...` (JWT pattern)              | JWT tokens          | Only jwt.io example tokens |
+| `postgresql://` non-localhost       | Database URLs       | None found                 |
+| `-----BEGIN (PRIVATE\|CERTIFICATE)` | Private keys/certs  | Only test stub             |
+| `password\s*[:=]` with values       | Hardcoded passwords | None found                 |
+| `secret\s*[:=]` with values         | Hardcoded secrets   | None found                 |
 
 ---
 
@@ -82,13 +82,13 @@ Properly excludes all `.env` files except templates.
 
 Test files appropriately use fake/example values:
 
-| File | Pattern Used | Assessment |
-|------|--------------|------------|
-| `stripe.test.ts` | `sk_test_123456789` | Fake test key - OK |
-| `secrets-validator.test.ts` | `pat-na1-12345678-...` | Fake HubSpot token - OK |
-| `backup-service.test.ts` | `AKIAIOSFODNN7EXAMPLE` | AWS documentation example - OK |
-| `logger.test.ts` | jwt.io example token | Public test token - OK |
-| `auth-service.test.ts` | Bcrypt hash of "password123" | Test hash - OK |
+| File                        | Pattern Used                 | Assessment                     |
+| --------------------------- | ---------------------------- | ------------------------------ |
+| `stripe.test.ts`            | `sk_test_123456789`          | Fake test key - OK             |
+| `secrets-validator.test.ts` | `pat-na1-12345678-...`       | Fake HubSpot token - OK        |
+| `backup-service.test.ts`    | `AKIAIOSFODNN7EXAMPLE`       | AWS documentation example - OK |
+| `logger.test.ts`            | jwt.io example token         | Public test token - OK         |
+| `auth-service.test.ts`      | Bcrypt hash of "password123" | Test hash - OK                 |
 
 **Assessment**: All test values are clearly fake/example values and pose no security risk.
 
@@ -109,23 +109,23 @@ Test files appropriately use fake/example values:
 
 #### Validated Secrets
 
-| Secret | Requirement | Validation |
-|--------|-------------|------------|
-| DATABASE_URL | Required | PostgreSQL URL pattern |
-| API_SECRET_KEY | Required | Min 32 chars |
-| HUBSPOT_ACCESS_TOKEN | Required | HubSpot PAT pattern |
-| WHATSAPP_API_KEY | Required | Min 20 chars |
-| WHATSAPP_PHONE_NUMBER_ID | Required | Numeric pattern |
-| OPENAI_API_KEY | Required | OpenAI key pattern |
-| MFA_ENCRYPTION_KEY | Recommended | 64 hex chars |
-| DATA_ENCRYPTION_KEY | Recommended | 64 hex chars |
-| WHATSAPP_WEBHOOK_SECRET | Recommended | Min 32 chars |
-| STRIPE_WEBHOOK_SECRET | Recommended | Stripe webhook pattern |
-| STRIPE_SECRET_KEY | Recommended | Stripe key pattern |
-| TRIGGER_API_KEY | Recommended | Trigger.dev pattern |
-| VAPI_API_KEY | Optional | Min 20 chars |
-| SENTRY_DSN | Optional | Sentry DSN pattern |
-| REDIS_URL | Optional | Redis URL pattern |
+| Secret                   | Requirement | Validation             |
+| ------------------------ | ----------- | ---------------------- |
+| DATABASE_URL             | Required    | PostgreSQL URL pattern |
+| API_SECRET_KEY           | Required    | Min 32 chars           |
+| HUBSPOT_ACCESS_TOKEN     | Required    | HubSpot PAT pattern    |
+| WHATSAPP_API_KEY         | Required    | Min 20 chars           |
+| WHATSAPP_PHONE_NUMBER_ID | Required    | Numeric pattern        |
+| OPENAI_API_KEY           | Required    | OpenAI key pattern     |
+| MFA_ENCRYPTION_KEY       | Recommended | 64 hex chars           |
+| DATA_ENCRYPTION_KEY      | Recommended | 64 hex chars           |
+| WHATSAPP_WEBHOOK_SECRET  | Recommended | Min 32 chars           |
+| STRIPE_WEBHOOK_SECRET    | Recommended | Stripe webhook pattern |
+| STRIPE_SECRET_KEY        | Recommended | Stripe key pattern     |
+| TRIGGER_API_KEY          | Recommended | Trigger.dev pattern    |
+| VAPI_API_KEY             | Optional    | Min 20 chars           |
+| SENTRY_DSN               | Optional    | Sentry DSN pattern     |
+| REDIS_URL                | Optional    | Redis URL pattern      |
 
 ---
 
@@ -177,20 +177,20 @@ CREATE TABLE encryption_keys (
 
 ### HIPAA Requirements
 
-| Requirement | Status | Evidence |
-|-------------|--------|----------|
-| Access control for encryption keys | PASS | Environment variables + Secret Manager |
-| Encryption key rotation capability | PASS | `rotateEncryptionKey()` implemented |
-| Audit trail for key usage | PASS | Logging with fingerprints |
-| No plaintext secrets in code | PASS | All secrets from env vars |
+| Requirement                        | Status | Evidence                               |
+| ---------------------------------- | ------ | -------------------------------------- |
+| Access control for encryption keys | PASS   | Environment variables + Secret Manager |
+| Encryption key rotation capability | PASS   | `rotateEncryptionKey()` implemented    |
+| Audit trail for key usage          | PASS   | Logging with fingerprints              |
+| No plaintext secrets in code       | PASS   | All secrets from env vars              |
 
 ### GDPR Requirements
 
-| Requirement | Status | Evidence |
-|-------------|--------|----------|
-| Encryption at rest | PASS | AES-256-GCM encryption |
-| Key management | PASS | Versioned keys with rotation |
-| Security by design | PASS | Fail-fast validation at startup |
+| Requirement        | Status | Evidence                        |
+| ------------------ | ------ | ------------------------------- |
+| Encryption at rest | PASS   | AES-256-GCM encryption          |
+| Key management     | PASS   | Versioned keys with rotation    |
+| Security by design | PASS   | Fail-fast validation at startup |
 
 ---
 
@@ -229,9 +229,9 @@ The MedicalCor Core codebase demonstrates **mature secret management practices**
 
 ## Audit Trail
 
-| Date | Auditor | Action |
-|------|---------|--------|
-| 2025-12-07 | Claude | Initial H7 audit completed |
+| Date       | Auditor | Action                     |
+| ---------- | ------- | -------------------------- |
+| 2025-12-07 | Claude  | Initial H7 audit completed |
 
 ---
 

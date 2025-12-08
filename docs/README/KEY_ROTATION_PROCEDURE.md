@@ -22,27 +22,27 @@ All secrets in MedicalCor Core are designed to be rotatable without code changes
 
 ### Rotation Principles
 
-| Principle | Description |
-|-----------|-------------|
-| **Zero Downtime** | All rotations support rolling updates |
-| **Dual-Key Period** | New key active before old key retired |
-| **Audit Trail** | All rotations logged with fingerprints |
-| **Rollback Ready** | Previous keys retained for emergency rollback |
+| Principle           | Description                                   |
+| ------------------- | --------------------------------------------- |
+| **Zero Downtime**   | All rotations support rolling updates         |
+| **Dual-Key Period** | New key active before old key retired         |
+| **Audit Trail**     | All rotations logged with fingerprints        |
+| **Rollback Ready**  | Previous keys retained for emergency rollback |
 
 ---
 
 ## Rotation Schedule
 
-| Secret Type | Recommended Interval | Mandatory After |
-|-------------|---------------------|-----------------|
-| DATA_ENCRYPTION_KEY | 90 days | Key compromise |
-| MFA_ENCRYPTION_KEY | 90 days | Key compromise |
-| API_SECRET_KEY | 90 days | Personnel change |
-| NEXTAUTH_SECRET | 90 days | Personnel change |
-| HUBSPOT_ACCESS_TOKEN | 1 year | Token expiry |
-| OPENAI_API_KEY | 1 year | Billing/access change |
-| STRIPE_SECRET_KEY | 1 year | As needed |
-| Webhook Secrets | 6 months | Integration change |
+| Secret Type          | Recommended Interval | Mandatory After       |
+| -------------------- | -------------------- | --------------------- |
+| DATA_ENCRYPTION_KEY  | 90 days              | Key compromise        |
+| MFA_ENCRYPTION_KEY   | 90 days              | Key compromise        |
+| API_SECRET_KEY       | 90 days              | Personnel change      |
+| NEXTAUTH_SECRET      | 90 days              | Personnel change      |
+| HUBSPOT_ACCESS_TOKEN | 1 year               | Token expiry          |
+| OPENAI_API_KEY       | 1 year               | Billing/access change |
+| STRIPE_SECRET_KEY    | 1 year               | As needed             |
+| Webhook Secrets      | 6 months             | Integration change    |
 
 ---
 
@@ -80,6 +80,7 @@ gcloud secrets versions list DATA_ENCRYPTION_KEY
 #### Step 3: Update Application Configuration
 
 For Cloud Run deployments:
+
 ```bash
 # Update the Cloud Run service with the new secret
 gcloud run services update medicalcor-api \
@@ -127,6 +128,7 @@ GROUP BY key_version;
 #### Step 6: Retire Old Key
 
 After verification (wait at least 24 hours):
+
 ```bash
 # Disable old secret version
 gcloud secrets versions disable DATA_ENCRYPTION_KEY --version=<old-version>
@@ -159,6 +161,7 @@ gcloud secrets versions add API_SECRET_KEY --data-file=- <<< "$NEW_API_KEY"
 #### Step 3: Update All API Clients
 
 Update all services that call the API:
+
 - Trigger.dev workers
 - Internal cron jobs
 - Admin scripts
@@ -166,6 +169,7 @@ Update all services that call the API:
 #### Step 4: Complete Rotation
 
 After all clients updated:
+
 ```bash
 # Disable old version
 gcloud secrets versions disable API_SECRET_KEY --version=<old-version>
@@ -280,6 +284,7 @@ gcloud run services update medicalcor-api \
 #### Step 4: Cleanup
 
 After verification:
+
 ```sql
 -- Revoke old user access
 REVOKE ALL PRIVILEGES ON DATABASE medicalcor FROM medicalcor;

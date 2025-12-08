@@ -14,6 +14,7 @@ Expert guidance on Shelby Protocol's network infrastructure, RPC server architec
 ## When to Use
 
 Auto-invoke when users ask about:
+
 - **RPC Servers** - RPC architecture, endpoints, HTTP APIs, performance
 - **Storage Providers** - Cavalier implementation, tile architecture, disk I/O
 - **Network** - DoubleZero fiber network, private network, connectivity
@@ -24,11 +25,13 @@ Auto-invoke when users ask about:
 ## Knowledge Base
 
 Network and infrastructure documentation:
+
 ```
 .claude/skills/blockchain/aptos/docs_shelby/
 ```
 
 Key files:
+
 - `protocol_architecture_rpcs.md` - RPC server architecture
 - `protocol_architecture_storage-providers.md` - Storage provider implementation
 - `protocol_architecture_overview.md` - System topology
@@ -74,11 +77,13 @@ Key files:
 ### DoubleZero Private Network
 
 **Purpose:**
+
 - Dedicated fiber network for internal communication
 - Connects RPC servers to storage providers
 - Avoids public internet limitations
 
 **Benefits:**
+
 - **Predictable Performance** - No public internet congestion
 - **Low Latency** - Direct fiber connections
 - **High Bandwidth** - Dedicated capacity
@@ -86,6 +91,7 @@ Key files:
 - **Reliability** - Controlled infrastructure
 
 **Use Cases:**
+
 - Chunk retrieval during reads
 - Chunk distribution during writes
 - Storage provider health checks
@@ -96,12 +102,14 @@ Key files:
 ### Core Responsibilities
 
 **User-Facing Layer:**
+
 1. **HTTP REST APIs** - Blob read/write operations
 2. **Session Management** - User sessions and authentication
 3. **Payment Handling** - Micropayment channels, cost calculation
 4. **Error Handling** - User-friendly error responses
 
 **Backend Coordination:**
+
 1. **Erasure Coding** - Encode/decode chunks during write/read
 2. **Commitment Calculations** - Verify chunk integrity
 3. **Blockchain Integration** - Query/update Aptos L1 state
@@ -110,6 +118,7 @@ Key files:
 ### HTTP Endpoints
 
 **Read Operations:**
+
 ```
 GET /v1/blobs/{account}/{blob_name}
   - Fetch entire blob
@@ -127,6 +136,7 @@ Response:
 ```
 
 **Write Operations:**
+
 ```
 PUT /v1/blobs/{account}/{blob_name}
   - Upload entire blob
@@ -139,6 +149,7 @@ Multipart Upload:
 ```
 
 **Session Management:**
+
 ```
 POST /v1/sessions/create
   - Create payment session
@@ -153,12 +164,14 @@ POST /v1/sessions/{id}/micropayment-channel
 **User Request → RPC Response:**
 
 1. **Receive Request**
+
 ```
 Client → GET /v1/blobs/0x123.../video.mp4
       → RPC validates session/payment
 ```
 
 2. **Cache Check** (Optional Fast Path)
+
 ```
 RPC → Check local cache
     → If hit: Return cached data (fast!)
@@ -166,6 +179,7 @@ RPC → Check local cache
 ```
 
 3. **Query Placement Group**
+
 ```
 RPC → Read smart contract or indexer
     → Identify blob's placement group
@@ -173,6 +187,7 @@ RPC → Read smart contract or indexer
 ```
 
 4. **Request Chunks** (Private Network)
+
 ```
 RPC → Request chunks from storage providers
     → Via DoubleZero private network
@@ -181,6 +196,7 @@ RPC → Request chunks from storage providers
 ```
 
 5. **Validate & Reconstruct**
+
 ```
 RPC → Validate chunks against commitments
     → Decode erasure coding
@@ -189,6 +205,7 @@ RPC → Validate chunks against commitments
 ```
 
 6. **Return to Client**
+
 ```
 RPC → Stream data to client
     → Charge micropayment
@@ -196,6 +213,7 @@ RPC → Stream data to client
 ```
 
 **Graceful Degradation:**
+
 - If some storage providers unavailable (up to 6)
 - Automatically use parity chunks
 - Reconstruct data from available chunks
@@ -206,6 +224,7 @@ RPC → Stream data to client
 **SDK Upload → RPC Coordination:**
 
 1. **Receive Upload**
+
 ```
 Client SDK → Sends non-erasure-coded data to RPC
            → Conserves client bandwidth
@@ -213,6 +232,7 @@ Client SDK → Sends non-erasure-coded data to RPC
 ```
 
 2. **Verify Commitments**
+
 ```
 RPC → Independently performs erasure coding
     → Recomputes chunk commitments
@@ -221,6 +241,7 @@ RPC → Independently performs erasure coding
 ```
 
 3. **Distribute Chunks** (Private Network)
+
 ```
 RPC → Get placement group from blockchain
     → Send each of 16 chunks to assigned storage providers
@@ -229,6 +250,7 @@ RPC → Get placement group from blockchain
 ```
 
 4. **Collect Acknowledgments**
+
 ```
 RPC → Storage providers validate chunks
     → Return signed acknowledgments
@@ -236,6 +258,7 @@ RPC → Storage providers validate chunks
 ```
 
 5. **Finalize on Blockchain**
+
 ```
 RPC → Submit aggregated acknowledgments to smart contract
     → Smart contract transitions blob to "written"
@@ -247,6 +270,7 @@ RPC → Submit aggregated acknowledgments to smart contract
 #### 1. Streaming Data Pipeline
 
 **Zero-Copy Architecture:**
+
 ```
 Client Upload → RPC receives stream
              → Erasure code on-the-fly
@@ -255,12 +279,14 @@ Client Upload → RPC receives stream
 ```
 
 **Benefits:**
+
 - Reduced time-to-first-byte
 - Constant memory usage per connection
 - Supports high concurrency
 - No latency bubbles
 
 **Implementation Pattern:**
+
 ```
 Data arrives → Process immediately (don't wait for complete upload)
             → Transform in small chunks
@@ -271,6 +297,7 @@ Data arrives → Process immediately (don't wait for complete upload)
 #### 2. Connection Pooling
 
 **Storage Provider Connections:**
+
 ```
 RPC maintains connection pool:
   - Pre-established TCP connections
@@ -280,6 +307,7 @@ RPC maintains connection pool:
 ```
 
 **Benefits:**
+
 - No connection establishment latency
 - No TCP slow-start penalty
 - Higher throughput
@@ -288,6 +316,7 @@ RPC maintains connection pool:
 #### 3. Request Hedging (Future)
 
 **Tail Latency Optimization:**
+
 ```
 Need 10 of 16 chunks:
   - Request 14 chunks (over-request)
@@ -297,6 +326,7 @@ Need 10 of 16 chunks:
 ```
 
 **Requirements:**
+
 - Careful network congestion management
 - Traffic prioritization
 - Cancellation support
@@ -304,12 +334,14 @@ Need 10 of 16 chunks:
 #### 4. Resource Management
 
 **Bounded Queues:**
+
 ```
 Connection pools: Fixed capacity → Prevent memory exhaustion
 Processing queues: Size limits → Protect during traffic spikes
 ```
 
 **Backpressure:**
+
 ```
 Storage provider congested → Apply backpressure up chain
 Network congested         → Slow down data ingestion
@@ -317,6 +349,7 @@ Network congested         → Slow down data ingestion
 ```
 
 **Automatic Cleanup:**
+
 ```
 Sessions: Expire after timeout
 Pending uploads: Clean up stale operations
@@ -328,12 +361,14 @@ Cached metadata: TTL-based eviction
 **Horizontal Scaling:**
 
 RPC servers are mostly stateless:
+
 - Session management requires some database state
 - All other operations are stateless
 - Easy to add more RPC instances
 - Load balance across instances
 
 **Session State Management:**
+
 ```
 Local persistent database (current implementation):
   - SQLite or similar
@@ -347,6 +382,7 @@ Can migrate to distributed database if needed:
 ```
 
 **Deployment Pattern:**
+
 ```
 Load Balancer
     ↓
@@ -360,6 +396,7 @@ Load Balancer
 ### Implementation Overview
 
 **Cavalier:** Jump Crypto's reference implementation
+
 - High-performance C codebase
 - Leverages [Firedancer](https://github.com/firedancer-io/firedancer) utilities
 - Tile-based architecture
@@ -369,18 +406,21 @@ Load Balancer
 
 **Philosophy:**
 Modern CPUs have many cores, but multi-threaded apps struggle with:
+
 - Cache coherency overhead
 - NUMA penalties
 - Unpredictable performance
 - Synchronization costs
 
 **Solution: Tiles**
+
 - Isolated processes on dedicated CPU cores
 - Communicate via shared memory
 - No locks, no cache contention
 - Explicit, predictable performance
 
 **Tile Model Principles:**
+
 ```
 Explicit Communication:
   - Moving data between cores is explicit
@@ -398,6 +438,7 @@ Isolation:
 ```
 
 **Similar To:**
+
 - Erlang actors
 - Go goroutines + channels
 - Seastar (shared-nothing with message passing)
@@ -405,6 +446,7 @@ Isolation:
 ### Workspaces
 
 **Shared Memory Management:**
+
 ```
 Workspace:
   - Section of shared memory
@@ -422,6 +464,7 @@ Benefits:
 ### Cavalier Tile Types
 
 **1. System Tile**
+
 ```
 Role: General orchestration
   - Metrics reporting
@@ -431,6 +474,7 @@ Role: General orchestration
 ```
 
 **2. Server Tile(s)**
+
 ```
 Role: Manage RPC communication
   - Single-threaded epoll event loop
@@ -445,6 +489,7 @@ Scalability:
 ```
 
 **3. Engine Tile**
+
 ```
 Role: Physical storage operations
   - Uses io_uring (async I/O)
@@ -465,6 +510,7 @@ Request Flow:
 ```
 
 **4. Aptos Client Tile**
+
 ```
 Role: Blockchain state access
   - HTTP requests to Aptos Indexer (libcurl)
@@ -502,6 +548,7 @@ Cleanup:
 ### Performance Characteristics
 
 **Why Tiles Are Fast:**
+
 - No locks, no cache bouncing
 - Explicit CPU affinity
 - Shared memory (no syscalls for communication)
@@ -509,6 +556,7 @@ Cleanup:
 - Dedicated cores (no context switching)
 
 **Scalability:**
+
 ```
 More RPC connections → Add server tiles
 Larger metadata → Shard across Aptos client tiles
@@ -520,6 +568,7 @@ More drives → Engine tile handles multiple drives efficiently
 ### Distributed Tracing
 
 **Correlation IDs:**
+
 ```
 Request arrives → Generate unique correlation ID
                 → Flows through all components:
@@ -530,6 +579,7 @@ Request arrives → Generate unique correlation ID
 ```
 
 **Use Cases:**
+
 - Debug performance issues
 - Understand system behavior under load
 - Track failed requests
@@ -538,6 +588,7 @@ Request arrives → Generate unique correlation ID
 ### Key Metrics
 
 **RPC Server Metrics:**
+
 ```
 Request Metrics:
   - Request latency (p50, p95, p99)
@@ -564,6 +615,7 @@ Cost Metrics:
 ```
 
 **Storage Provider Metrics:**
+
 ```
 Disk I/O:
   - IOPS (read/write)
@@ -585,6 +637,7 @@ Network:
 ### Monitoring Integration
 
 **Standard Interfaces:**
+
 ```
 Prometheus:
   - Metrics endpoint
@@ -607,6 +660,7 @@ Logging:
 ### RPC Server Operations
 
 **Deployment:**
+
 ```
 1. Configure network endpoints (public + private)
 2. Set up session database
@@ -617,6 +671,7 @@ Logging:
 ```
 
 **Monitoring:**
+
 ```
 - Watch request latency (alert on p99 spikes)
 - Monitor storage provider health
@@ -626,6 +681,7 @@ Logging:
 ```
 
 **Scaling:**
+
 ```
 Horizontal: Add more RPC instances
 Vertical: Increase resources per instance
@@ -636,6 +692,7 @@ Database: Shard session database if needed
 ### Storage Provider Operations
 
 **Deployment:**
+
 ```
 1. Provision hardware (NVMe drives, high CPU)
 2. Configure huge pages for workspaces
@@ -646,6 +703,7 @@ Database: Shard session database if needed
 ```
 
 **Monitoring:**
+
 ```
 - Disk health and SMART metrics
 - Tile queue depths
@@ -655,6 +713,7 @@ Database: Shard session database if needed
 ```
 
 **Maintenance:**
+
 ```
 - Regular disk health checks
 - Periodic integrity audits
@@ -668,11 +727,13 @@ Database: Shard session database if needed
 ### High Latency
 
 **Diagnose:**
+
 1. Check correlation IDs in traces
 2. Identify bottleneck component
 3. Analyze metrics for that component
 
 **Common Causes:**
+
 ```
 Storage Provider Issues:
   - Disk saturation (high queue depth)
@@ -693,6 +754,7 @@ Network Issues:
 ### Low Throughput
 
 **Diagnose:**
+
 ```
 Check:
   - RPC server CPU usage
@@ -702,6 +764,7 @@ Check:
 ```
 
 **Solutions:**
+
 ```
 Scale horizontally: Add more RPC instances
 Optimize caching: Increase cache size, tune eviction
@@ -714,16 +777,19 @@ Batch requests: Group operations where possible
 ### 1. Identify Topic
 
 **Architecture Questions:**
+
 - "How do RPC servers work?"
 - "What is the tile architecture?"
 - "How does the private network help?"
 
 **Performance Questions:**
+
 - "Why is my read slow?"
 - "How can I optimize throughput?"
 - "What is request hedging?"
 
 **Operational Questions:**
+
 - "How do I deploy an RPC server?"
 - "How to monitor storage providers?"
 - "How to scale the system?"
@@ -744,6 +810,7 @@ Read docs_shelby/protocol_architecture_overview.md
 ### 3. Provide Answer
 
 **Structure:**
+
 1. **Explain component** - Architecture and purpose
 2. **Show data flow** - How requests are processed
 3. **Performance aspects** - Optimizations and trade-offs
@@ -757,6 +824,7 @@ Show network topology, data flows, and component interactions.
 ## Key Concepts to Reference
 
 **Three-Tier Architecture:**
+
 ```
 Users ← Public Internet → RPC Servers ← Private Network → Storage Providers
                               ↓
@@ -764,11 +832,13 @@ Users ← Public Internet → RPC Servers ← Private Network → Storage Provid
 ```
 
 **Tile Model:**
+
 ```
 Isolated processes + Dedicated cores + Shared memory = Predictable performance
 ```
 
 **Performance Stack:**
+
 ```
 Streaming pipeline + Connection pooling + Zero-copy + Direct I/O = High throughput
 ```

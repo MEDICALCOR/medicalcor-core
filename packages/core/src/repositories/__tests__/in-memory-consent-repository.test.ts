@@ -82,9 +82,10 @@ describe('InMemoryConsentRepository', () => {
     it('should save a consent record', async () => {
       const consent = createTestConsent();
 
-      const saved = await repository.save(consent);
+      const result = await repository.save(consent);
 
-      expect(saved).toEqual(consent);
+      expect(result.isOk).toBe(true);
+      expect(result.value).toEqual(consent);
       expect(repository.size()).toBe(1);
     });
 
@@ -133,8 +134,9 @@ describe('InMemoryConsentRepository', () => {
 
       const result = await repository.upsert(consent);
 
-      expect(result.wasCreated).toBe(true);
-      expect(result.record).toEqual(consent);
+      expect(result.isOk).toBe(true);
+      expect(result.value.wasCreated).toBe(true);
+      expect(result.value.record).toEqual(consent);
     });
 
     it('should update existing consent preserving id and createdAt', async () => {
@@ -153,10 +155,11 @@ describe('InMemoryConsentRepository', () => {
 
       const result = await repository.upsert(updated);
 
-      expect(result.wasCreated).toBe(false);
-      expect(result.record.id).toBe('original-id');
-      expect(result.record.createdAt).toBe('2024-01-01T10:00:00Z');
-      expect(result.record.version).toBe(2);
+      expect(result.isOk).toBe(true);
+      expect(result.value.wasCreated).toBe(false);
+      expect(result.value.record.id).toBe('original-id');
+      expect(result.value.record.createdAt).toBe('2024-01-01T10:00:00Z');
+      expect(result.value.record.version).toBe(2);
     });
   });
 

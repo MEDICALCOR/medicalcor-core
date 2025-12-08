@@ -19,12 +19,14 @@ If no delimiter is specified, comma is assumed.
 **Best for:** General use, most compact
 
 **Syntax:**
+
 ```
 [N]{fields}:        # Comma is default
 [N,]{fields}:       # Explicit comma
 ```
 
 **Example:**
+
 ```
 [3]{name,age,city}:
   Alice,30,NYC
@@ -33,11 +35,13 @@ If no delimiter is specified, comma is assumed.
 ```
 
 **Pros:**
+
 - Most compact (no extra characters)
 - Default, no declaration needed
 - Familiar from CSV
 
 **Cons:**
+
 - Values with commas need quotes
 - Less visually aligned
 
@@ -46,11 +50,13 @@ If no delimiter is specified, comma is assumed.
 **Best for:** Data with many commas, columnar alignment
 
 **Syntax:**
+
 ```
 [N\t]{fields}:
 ```
 
 **Example:**
+
 ```
 [3\t]{name,age,location}:
   Alice	30	New York, NY
@@ -59,11 +65,13 @@ If no delimiter is specified, comma is assumed.
 ```
 
 **Pros:**
+
 - No quoting needed for commas in values
 - Visually aligned columns (in editors with tab stops)
 - Common in TSV files
 
 **Cons:**
+
 - Tabs may render differently in different tools
 - Slightly more verbose in declaration
 
@@ -72,11 +80,13 @@ If no delimiter is specified, comma is assumed.
 **Best for:** Markdown compatibility, visual clarity
 
 **Syntax:**
+
 ```
 [N|]{fields}:
 ```
 
 **Example:**
+
 ```
 [3|]{method,endpoint,description}:
   GET|/api/users|List all users
@@ -85,11 +95,13 @@ If no delimiter is specified, comma is assumed.
 ```
 
 **Pros:**
+
 - Markdown-compatible
 - Very visible separator
 - Rare in actual data (less quoting)
 
 **Cons:**
+
 - Most verbose (3 chars: `N|]`)
 - Pipes in values need quoting
 
@@ -204,6 +216,7 @@ Even with delimiter choice, some characters always need quotes:
 ### Examples:
 
 **Comma delimiter:**
+
 ```
 [2]{name,note}:
   Alice,"Contains, comma"
@@ -211,6 +224,7 @@ Even with delimiter choice, some characters always need quotes:
 ```
 
 **Tab delimiter:**
+
 ```
 [2\t]{name,note}:
   Alice	Contains, comma (no quotes needed!)
@@ -218,6 +232,7 @@ Even with delimiter choice, some characters always need quotes:
 ```
 
 **Pipe delimiter:**
+
 ```
 [2|]{name,note}:
   Alice|Contains, comma and: colon (no quotes!)
@@ -231,21 +246,27 @@ Delimiters affect token counts differently:
 **Same data, 3 delimiters:**
 
 Comma (most compact):
+
 ```
 [3]{a,b,c}: 1,2,3 4,5,6 7,8,9
 ```
+
 ≈ 28 tokens
 
 Tab (middle):
+
 ```
 [3\t]{a,b,c}: 1	2	3 4	5	6 7	8	9
 ```
+
 ≈ 30 tokens
 
 Pipe (most verbose):
+
 ```
 [3|]{a,b,c}: 1|2|3 4|5|6 7|8|9
 ```
+
 ≈ 32 tokens
 
 **Recommendation:** Use comma unless quoting overhead makes alternatives more efficient.
@@ -285,6 +306,7 @@ const result = try toon.encode(json_str, config);
 ```
 
 **Correct:**
+
 ```
 [2\t]{a,b}:
   1	2
@@ -300,6 +322,7 @@ const result = try toon.encode(json_str, config);
 ```
 
 **Correct:**
+
 ```
 [2]{a,b}:
   1,2
@@ -315,6 +338,7 @@ const result = try toon.encode(json_str, config);
 ```
 
 **Correct:**
+
 ```
 [2|]{a,b}:
   "1|2"|3
@@ -324,11 +348,13 @@ const result = try toon.encode(json_str, config);
 ## Performance Comparison
 
 **Encoding speed (Zig implementation):**
+
 - Comma: 1.0x baseline
 - Tab: 0.98x (2% slower, tab escaping)
 - Pipe: 0.99x (1% slower)
 
 **Decoding speed:**
+
 - Comma: 1.0x baseline
 - Tab: 1.05x (5% faster, simpler splitting)
 - Pipe: 1.02x (2% faster)

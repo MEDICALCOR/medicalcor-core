@@ -209,19 +209,21 @@ export const handleVoiceCall = task({
           ) {
             // Get notification contacts for priority cases
             const notificationContacts = triage.getNotificationContacts(triageResult.urgencyLevel);
-          const contactsInfo =
-            notificationContacts.length > 0 ? `\n\nNotify: ${notificationContacts.join(', ')}` : '';
+            const contactsInfo =
+              notificationContacts.length > 0
+                ? `\n\nNotify: ${notificationContacts.join(', ')}`
+                : '';
 
-          await hubspot.createTask({
-            contactId: hubspotContactId,
-            subject: `${triageResult.urgencyLevel === 'high_priority' ? 'PRIORITY REQUEST' : 'HIGH PRIORITY'} - Voice Lead: ${normalizedPhone}`,
-            body: `${triageResult.urgencyLevel === 'high_priority' ? 'Patient reported discomfort. Wants quick appointment.\n\n' : ''}${triageResult.notes}\n\nSuggested Action: ${scoreResult.suggestedAction}${contactsInfo}`,
-            priority: triageResult.urgencyLevel === 'high_priority' ? 'HIGH' : 'MEDIUM',
-            dueDate:
-              triageResult.routingRecommendation === 'next_available_slot'
-                ? new Date(Date.now() + 30 * 60 * 1000) // 30 minutes during business hours
-                : new Date(Date.now() + 60 * 60 * 1000), // 1 hour
-          });
+            await hubspot.createTask({
+              contactId: hubspotContactId,
+              subject: `${triageResult.urgencyLevel === 'high_priority' ? 'PRIORITY REQUEST' : 'HIGH PRIORITY'} - Voice Lead: ${normalizedPhone}`,
+              body: `${triageResult.urgencyLevel === 'high_priority' ? 'Patient reported discomfort. Wants quick appointment.\n\n' : ''}${triageResult.notes}\n\nSuggested Action: ${scoreResult.suggestedAction}${contactsInfo}`,
+              priority: triageResult.urgencyLevel === 'high_priority' ? 'HIGH' : 'MEDIUM',
+              dueDate:
+                triageResult.routingRecommendation === 'next_available_slot'
+                  ? new Date(Date.now() + 30 * 60 * 1000) // 30 minutes during business hours
+                  : new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+            });
             logger.info('Priority task created for voice lead', {
               notificationContacts,
               correlationId,

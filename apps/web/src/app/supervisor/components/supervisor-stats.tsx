@@ -37,17 +37,27 @@ interface StatCardProps {
 
 function StatCard({ label, value, icon: Icon, trend, alert, subtext }: StatCardProps) {
   return (
-    <Card className={cn('min-w-[140px] flex-shrink-0', alert && 'border-destructive/50 bg-destructive/5')}>
+    <Card
+      className={cn(
+        'min-w-[140px] flex-shrink-0',
+        alert && 'border-destructive/50 bg-destructive/5'
+      )}
+    >
       <CardContent className="p-3 sm:p-4">
         <div className="flex items-center justify-between">
           <Icon
-            className={cn('h-4 w-4 sm:h-5 sm:w-5', alert ? 'text-destructive' : 'text-muted-foreground')}
+            className={cn(
+              'h-4 w-4 sm:h-5 sm:w-5',
+              alert ? 'text-destructive' : 'text-muted-foreground'
+            )}
             aria-hidden="true"
           />
           {trend === 'up' && <TrendingUp className="h-3 w-3 text-emerald-500" aria-hidden="true" />}
         </div>
         <div className="mt-2">
-          <p className={cn('text-xl sm:text-2xl font-bold', alert && 'text-destructive')}>{value}</p>
+          <p className={cn('text-xl sm:text-2xl font-bold', alert && 'text-destructive')}>
+            {value}
+          </p>
           <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{label}</p>
           {subtext && <p className="text-[10px] text-muted-foreground/70 mt-0.5">{subtext}</p>}
         </div>
@@ -77,7 +87,9 @@ export function SupervisorStats({ stats }: SupervisorStatsProps) {
           value={stats.callsInQueue}
           icon={PhoneIncoming}
           alert={stats.callsInQueue > 5}
-          subtext={stats.callsInQueue > 0 ? `~${formatTime(stats.averageWaitTime)} așteptare` : undefined}
+          subtext={
+            stats.callsInQueue > 0 ? `~${formatTime(stats.averageWaitTime)} așteptare` : undefined
+          }
         />
         <StatCard
           label="Agenți Disponibili"
@@ -124,17 +136,27 @@ export function SupervisorStats({ stats }: SupervisorStatsProps) {
           </CardContent>
         </Card>
 
-        <Card className={cn('col-span-1', stats.activeAlerts > 0 && 'border-amber-500/50 bg-amber-500/5')}>
+        <Card
+          className={cn(
+            'col-span-1',
+            stats.activeAlerts > 0 && 'border-amber-500/50 bg-amber-500/5'
+          )}
+        >
           <CardContent className="p-3">
             <div className="flex items-center gap-2">
               <AlertTriangle
-                className={cn('h-4 w-4', stats.activeAlerts > 0 ? 'text-amber-500' : 'text-muted-foreground')}
+                className={cn(
+                  'h-4 w-4',
+                  stats.activeAlerts > 0 ? 'text-amber-500' : 'text-muted-foreground'
+                )}
                 aria-hidden="true"
               />
               <span className="text-xs text-muted-foreground">Alerte</span>
             </div>
             <div className="mt-1 flex items-baseline gap-2">
-              <span className={cn('text-lg font-semibold', stats.activeAlerts > 0 && 'text-amber-600')}>
+              <span
+                className={cn('text-lg font-semibold', stats.activeAlerts > 0 && 'text-amber-600')}
+              >
                 {stats.activeAlerts}
               </span>
               {stats.activeAlerts > 0 && (

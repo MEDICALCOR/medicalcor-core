@@ -201,6 +201,7 @@ field-count = count-fields-in-header
 ### Escape Sequences
 
 Only five escape sequences are valid:
+
 - `\\` → Backslash
 - `\"` → Double quote
 - `\n` → Newline (LF)
@@ -218,6 +219,7 @@ All text is UTF-8 encoded. No `\uXXXX` escapes needed.
 ### Reserved Words
 
 When used as string values, these must be quoted:
+
 - `true`
 - `false`
 - `null`
@@ -225,6 +227,7 @@ When used as string values, these must be quoted:
 ### Delimiter Declaration
 
 If delimiter is not comma (default), it must be declared in header:
+
 - Comma: `[N]{fields}:` or `[N,]{fields}:`
 - Tab: `[N\t]{fields}:`
 - Pipe: `[N|]{fields}:`

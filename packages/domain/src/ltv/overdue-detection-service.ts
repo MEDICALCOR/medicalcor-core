@@ -52,10 +52,7 @@ export interface OverdueInstallmentRepository {
    * @param clinicId - Optional clinic filter (null for all clinics)
    * @param limit - Maximum number of installments to return
    */
-  findOverdueInstallments(
-    clinicId: string | null,
-    limit?: number
-  ): Promise<OverdueInstallment[]>;
+  findOverdueInstallments(clinicId: string | null, limit?: number): Promise<OverdueInstallment[]>;
 
   /**
    * Update installment reminder tracking after sending
@@ -110,10 +107,7 @@ export class OverdueDetectionService {
   private config: Required<OverdueDetectionServiceConfig>;
   private deps: OverdueDetectionServiceDeps | undefined;
 
-  constructor(
-    config?: OverdueDetectionServiceConfig,
-    deps?: OverdueDetectionServiceDeps
-  ) {
+  constructor(config?: OverdueDetectionServiceConfig, deps?: OverdueDetectionServiceDeps) {
     this.config = {
       reminderConfig: config?.reminderConfig ?? DEFAULT_REMINDER_CONFIG,
       batchSize: config?.batchSize ?? 100,
@@ -292,9 +286,7 @@ export class OverdueDetectionService {
   /**
    * Group installments by lead for consolidated reminders
    */
-  groupByLead(
-    installments: OverdueInstallment[]
-  ): Map<string, OverdueInstallment[]> {
+  groupByLead(installments: OverdueInstallment[]): Map<string, OverdueInstallment[]> {
     const grouped = new Map<string, OverdueInstallment[]>();
 
     for (const inst of installments) {

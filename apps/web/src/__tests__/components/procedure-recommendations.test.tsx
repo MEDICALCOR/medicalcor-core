@@ -94,7 +94,9 @@ describe('ProcedureRecommendations', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Pacientul a menționat lipsa unui dinte')).toBeInTheDocument();
-      expect(screen.getByText('Recomandat pentru menținerea sănătății dentare')).toBeInTheDocument();
+      expect(
+        screen.getByText('Recomandat pentru menținerea sănătății dentare')
+      ).toBeInTheDocument();
     });
   });
 
@@ -269,7 +271,9 @@ describe('ProcedureRecommendations', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText('Recomandările sunt generate pe baza conversațiilor și intereselor exprimate.')
+        screen.getByText(
+          'Recomandările sunt generate pe baza conversațiilor și intereselor exprimate.'
+        )
       ).toBeInTheDocument();
     });
   });

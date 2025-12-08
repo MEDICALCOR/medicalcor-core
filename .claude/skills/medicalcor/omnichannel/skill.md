@@ -9,6 +9,7 @@ MedicalCor provides omnichannel patient communication through WhatsApp Business 
 ## Architecture
 
 ### Integration Locations
+
 ```
 packages/integrations/
 ├── whatsapp/        # WhatsApp Business API client
@@ -17,6 +18,7 @@ packages/integrations/
 ```
 
 ### Channel Abstraction
+
 ```typescript
 interface CommunicationChannel {
   sendMessage(to: string, message: MessagePayload): Promise<MessageResult>;
@@ -30,15 +32,17 @@ type ChannelType = 'whatsapp' | 'voice' | 'web' | 'sms';
 ## WhatsApp Business API
 
 ### Configuration
+
 ```typescript
 // Environment variables
-WHATSAPP_PHONE_NUMBER_ID=xxxxx
-WHATSAPP_ACCESS_TOKEN=xxxxx
-WHATSAPP_VERIFY_TOKEN=xxxxx
-WHATSAPP_WEBHOOK_SECRET=xxxxx
+WHATSAPP_PHONE_NUMBER_ID = xxxxx;
+WHATSAPP_ACCESS_TOKEN = xxxxx;
+WHATSAPP_VERIFY_TOKEN = xxxxx;
+WHATSAPP_WEBHOOK_SECRET = xxxxx;
 ```
 
 ### Webhook Handler
+
 Location: `apps/api/src/routes/webhooks/whatsapp.ts`
 
 ```typescript
@@ -84,28 +88,26 @@ const whatsappWebhook: FastifyPluginAsync = async (fastify) => {
 ```
 
 ### Sending Messages
+
 ```typescript
 import axios from 'axios';
 
 const WHATSAPP_API = 'https://graph.facebook.com/v18.0';
 
-export async function sendWhatsAppMessage(
-  to: string,
-  message: string
-): Promise<string> {
+export async function sendWhatsAppMessage(to: string, message: string): Promise<string> {
   const response = await axios.post(
     `${WHATSAPP_API}/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
     {
       messaging_product: 'whatsapp',
       to: to,
       type: 'text',
-      text: { body: message }
+      text: { body: message },
     },
     {
       headers: {
         Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/json',
+      },
     }
   );
 
@@ -114,6 +116,7 @@ export async function sendWhatsAppMessage(
 ```
 
 ### Message Templates
+
 ```typescript
 // Template messages require pre-approval
 export async function sendAppointmentReminder(
@@ -135,16 +138,16 @@ export async function sendAppointmentReminder(
             type: 'body',
             parameters: [
               { type: 'text', text: patientName },
-              { type: 'text', text: appointmentDate }
-            ]
-          }
-        ]
-      }
+              { type: 'text', text: appointmentDate },
+            ],
+          },
+        ],
+      },
     },
     {
       headers: {
-        Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`
-      }
+        Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
+      },
     }
   );
 
@@ -155,39 +158,38 @@ export async function sendAppointmentReminder(
 ## Voice (Vapi)
 
 ### Configuration
+
 ```typescript
 // Environment variables
-VAPI_API_KEY=xxxxx
-VAPI_ASSISTANT_ID=xxxxx
-VAPI_PHONE_NUMBER_ID=xxxxx
+VAPI_API_KEY = xxxxx;
+VAPI_ASSISTANT_ID = xxxxx;
+VAPI_PHONE_NUMBER_ID = xxxxx;
 ```
 
 ### Vapi Client
+
 ```typescript
 import Vapi from '@vapi-ai/server-sdk';
 
 const vapi = new Vapi({
-  token: process.env.VAPI_API_KEY
+  token: process.env.VAPI_API_KEY,
 });
 
 // Create outbound call
-export async function initiateCall(
-  phoneNumber: string,
-  context: CallContext
-): Promise<string> {
+export async function initiateCall(phoneNumber: string, context: CallContext): Promise<string> {
   const call = await vapi.calls.create({
     phoneNumberId: process.env.VAPI_PHONE_NUMBER_ID,
     customer: {
-      number: phoneNumber
+      number: phoneNumber,
     },
     assistantId: process.env.VAPI_ASSISTANT_ID,
     assistantOverrides: {
       variableValues: {
         patientName: context.patientName,
         appointmentDate: context.appointmentDate,
-        reason: context.reason
-      }
-    }
+        reason: context.reason,
+      },
+    },
   });
 
   return call.id;
@@ -195,6 +197,7 @@ export async function initiateCall(
 ```
 
 ### Webhook Handler
+
 Location: `apps/api/src/routes/webhooks/vapi.ts`
 
 ```typescript
@@ -224,6 +227,7 @@ fastify.post('/webhooks/vapi', async (request, reply) => {
 ```
 
 ### Voice Assistant Configuration
+
 ```typescript
 const assistantConfig = {
   name: 'MedicalCor Dental Assistant',
@@ -239,11 +243,11 @@ Your role is to:
 
 Always be professional, empathetic, and HIPAA-compliant.
 Never discuss specific medical conditions over the phone.
-Redirect complex medical questions to in-person consultations.`
+Redirect complex medical questions to in-person consultations.`,
   },
   voice: {
     provider: '11labs',
-    voiceId: 'professional-female'
+    voiceId: 'professional-female',
   },
   functions: [
     {
@@ -255,9 +259,9 @@ Redirect complex medical questions to in-person consultations.`
           date: { type: 'string', format: 'date' },
           time: { type: 'string' },
           treatment: { type: 'string' },
-          patientPhone: { type: 'string' }
-        }
-      }
+          patientPhone: { type: 'string' },
+        },
+      },
     },
     {
       name: 'transfer_to_human',
@@ -265,17 +269,18 @@ Redirect complex medical questions to in-person consultations.`
       parameters: {
         type: 'object',
         properties: {
-          reason: { type: 'string' }
-        }
-      }
-    }
-  ]
+          reason: { type: 'string' },
+        },
+      },
+    },
+  ],
 };
 ```
 
 ## Unified Communication Service
 
 ### Message Router
+
 ```typescript
 export class CommunicationService {
   private channels: Map<ChannelType, CommunicationChannel>;
@@ -293,7 +298,7 @@ export class CommunicationService {
       action: 'SEND_MESSAGE',
       patientId,
       channel,
-      timestamp: new Date()
+      timestamp: new Date(),
     });
 
     const channelClient = this.channels.get(channel);
@@ -304,20 +309,21 @@ export class CommunicationService {
     // Unified history across all channels
     return this.messageRepo.findByPatientId(patientId, {
       orderBy: 'timestamp',
-      include: ['channel', 'status', 'sender']
+      include: ['channel', 'status', 'sender'],
     });
   }
 }
 ```
 
 ### Channel Preference
+
 ```typescript
 interface PatientCommunicationPreferences {
   preferredChannel: ChannelType;
   allowedChannels: ChannelType[];
   quietHours?: {
     start: string; // "22:00"
-    end: string;   // "08:00"
+    end: string; // "08:00"
     timezone: string;
   };
   language: string;
@@ -328,6 +334,7 @@ interface PatientCommunicationPreferences {
 ## Message Queue Integration
 
 ### Trigger.dev Jobs
+
 Location: `apps/trigger/src/jobs/`
 
 ```typescript
@@ -338,14 +345,10 @@ export const sendMessageTask = task({
   run: async (payload: SendMessagePayload) => {
     const { patientId, message, channel } = payload;
 
-    const result = await communicationService.sendMessage(
-      patientId,
-      message,
-      channel
-    );
+    const result = await communicationService.sendMessage(patientId, message, channel);
 
     return { messageId: result.id, status: result.status };
-  }
+  },
 });
 
 export const appointmentReminderTask = task({
@@ -360,7 +363,7 @@ export const appointmentReminderTask = task({
       `Reminder: Your dental appointment is scheduled for ${appointmentDate}`,
       patient.preferredChannel
     );
-  }
+  },
 });
 ```
 

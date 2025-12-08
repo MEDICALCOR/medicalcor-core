@@ -12,14 +12,14 @@ This comprehensive code review analyzed every folder, file, and identified remai
 
 ### Repository Statistics
 
-| Component | Count |
-|-----------|-------|
-| **Packages** | 5 (`types`, `core`, `domain`, `integrations`, `infra`) |
-| **Apps** | 3 (`api`, `trigger`, `web`) |
-| **Source Files** | ~180+ TypeScript files |
-| **Test Files** | 37 test files |
-| **Total Lines of Code** | ~50,000+ |
-| **Database Migrations** | 10 SQL files |
+| Component               | Count                                                  |
+| ----------------------- | ------------------------------------------------------ |
+| **Packages**            | 5 (`types`, `core`, `domain`, `integrations`, `infra`) |
+| **Apps**                | 3 (`api`, `trigger`, `web`)                            |
+| **Source Files**        | ~180+ TypeScript files                                 |
+| **Test Files**          | 37 test files                                          |
+| **Total Lines of Code** | ~50,000+                                               |
+| **Database Migrations** | 10 SQL files                                           |
 
 ### Overall Score: **8.2/10**
 
@@ -43,12 +43,12 @@ CMD ["node", "apps/api/dist/index.js"]
 
 ### 2. Code Duplication (3 implementations of Result monad)
 
-| File | Lines | Location |
-|------|-------|----------|
-| `result.ts` | 1,006 | `packages/types/src/lib/result.ts` |
-| `result.ts` | 700 | `packages/core/src/types/result.ts` |
-| `result.ts` | 694 | `packages/integrations/src/lib/result.ts` |
-| **Total Duplicated** | **2,400 lines** | |
+| File                 | Lines           | Location                                  |
+| -------------------- | --------------- | ----------------------------------------- |
+| `result.ts`          | 1,006           | `packages/types/src/lib/result.ts`        |
+| `result.ts`          | 700             | `packages/core/src/types/result.ts`       |
+| `result.ts`          | 694             | `packages/integrations/src/lib/result.ts` |
+| **Total Duplicated** | **2,400 lines** |                                           |
 
 **Risk:** Version skew between implementations could cause inconsistent error handling.
 
@@ -60,22 +60,23 @@ CMD ["node", "apps/api/dist/index.js"]
 
 ```typescript
 // Placeholder - to be implemented
-export const VERSION = "0.0.1";
+export const VERSION = '0.0.1';
 ```
 
 **Impact:** Package exists but provides no functionality. Should contain:
+
 - Database migration utilities
 - Environment validation schemas
 - Deployment configuration helpers
 
 ### 4. TypeScript Compilation Errors (4 errors in @medicalcor/integrations)
 
-| File | Line | Error |
-|------|------|-------|
-| `clients-factory.enhanced.ts` | 232 | TS2375 - exactOptionalPropertyTypes |
-| `clients-factory.enhanced.ts` | 247 | TS2375 - exactOptionalPropertyTypes |
-| `resilience.ts` | 926 | TS6133 - Unused parameter |
-| `resilience.ts` | 1000 | TS2375 - exactOptionalPropertyTypes |
+| File                          | Line | Error                               |
+| ----------------------------- | ---- | ----------------------------------- |
+| `clients-factory.enhanced.ts` | 232  | TS2375 - exactOptionalPropertyTypes |
+| `clients-factory.enhanced.ts` | 247  | TS2375 - exactOptionalPropertyTypes |
+| `resilience.ts`               | 926  | TS6133 - Unused parameter           |
+| `resilience.ts`               | 1000 | TS2375 - exactOptionalPropertyTypes |
 
 ---
 
@@ -83,12 +84,12 @@ export const VERSION = "0.0.1";
 
 ### 5. Incomplete Feature Implementations
 
-| Feature | File | Status | Description |
-|---------|------|--------|-------------|
-| Workflow Editor | `apps/web/src/app/workflows/page.tsx:98` | TODO | `handleEdit()` is empty placeholder |
-| Booking Modal | `apps/web/src/app/calendar/page.tsx:99` | TODO | Uses `alert()` instead of modal |
-| Patient Timeline | `apps/web/src/app/actions/patients/index.ts:422` | STUB | Returns empty array |
-| AI Copilot | `apps/web/src/lib/ai/` | MOCK | Uses mock data instead of real API |
+| Feature          | File                                             | Status | Description                         |
+| ---------------- | ------------------------------------------------ | ------ | ----------------------------------- |
+| Workflow Editor  | `apps/web/src/app/workflows/page.tsx:98`         | TODO   | `handleEdit()` is empty placeholder |
+| Booking Modal    | `apps/web/src/app/calendar/page.tsx:99`          | TODO   | Uses `alert()` instead of modal     |
+| Patient Timeline | `apps/web/src/app/actions/patients/index.ts:422` | STUB   | Returns empty array                 |
+| AI Copilot       | `apps/web/src/lib/ai/`                           | MOCK   | Uses mock data instead of real API  |
 
 ### 6. Test Resolution Failures
 
@@ -100,17 +101,18 @@ Error: Failed to resolve entry for package "@medicalcor/types"
 ```
 
 **Affected packages:**
+
 - `@medicalcor/domain` (4 test files)
 - `@medicalcor/integrations` (4 test files)
 
 ### 7. `any` Type Usage (Production Code)
 
-| File | Count | Severity |
-|------|-------|----------|
-| `instrumentation.ts` | 5 | HIGH - Fastify integration |
-| `observability/instrumentation.ts` | 4 | MEDIUM |
-| `telemetry.ts` | 2 | LOW - OpenTelemetry SDK |
-| `memory-monitor.ts` | 2 | LOW - Browser debugging |
+| File                               | Count | Severity                   |
+| ---------------------------------- | ----- | -------------------------- |
+| `instrumentation.ts`               | 5     | HIGH - Fastify integration |
+| `observability/instrumentation.ts` | 4     | MEDIUM                     |
+| `telemetry.ts`                     | 2     | LOW - OpenTelemetry SDK    |
+| `memory-monitor.ts`                | 2     | LOW - Browser debugging    |
 
 ---
 
@@ -120,26 +122,27 @@ Error: Failed to resolve entry for package "@medicalcor/types"
 
 **30+ instances** of `console.log/error/warn` in production code:
 
-| Location | Count |
-|----------|-------|
-| `apps/web/src/` | 20+ |
-| `apps/api/src/` | 5+ |
-| `packages/` | 5+ |
+| Location        | Count |
+| --------------- | ----- |
+| `apps/web/src/` | 20+   |
+| `apps/api/src/` | 5+    |
+| `packages/`     | 5+    |
 
 ### 9. Missing AbortController in useEffect
 
 **Files affected:**
+
 - `apps/web/src/app/calendar/page.tsx:78-84`
 - `apps/web/src/app/workflows/page.tsx:58-66`
 - `apps/web/src/app/messages/page.tsx` (data fetching)
 
 ### 10. Deprecated Functions Still in Use
 
-| Deprecated | Replacement | Used In |
-|------------|-------------|---------|
-| `generateMockPatientDetail()` | Real API | Components still import |
-| `getPatientsAction()` | `getPatientsActionPaginated()` | Some pages |
-| `getConversationsAction()` | Paginated version | Messages page |
+| Deprecated                    | Replacement                    | Used In                 |
+| ----------------------------- | ------------------------------ | ----------------------- |
+| `generateMockPatientDetail()` | Real API                       | Components still import |
+| `getPatientsAction()`         | `getPatientsActionPaginated()` | Some pages              |
+| `getConversationsAction()`    | Paginated version              | Messages page           |
 
 ---
 
@@ -229,32 +232,32 @@ infra/migrations/            # 8 migration files
 
 ### Must Complete (Blocking)
 
-| Item | Location | Effort |
-|------|----------|--------|
-| Fix Dockerfile entry point | `apps/api/Dockerfile:62` | 5 min |
-| Fix 4 TypeScript errors | `packages/integrations/` | 30 min |
-| Fix test package resolution | `vitest.config.ts` | 1 hour |
-| Fix critical test failure | `core/critical-fixes.test.ts:447` | 1 hour |
+| Item                        | Location                          | Effort |
+| --------------------------- | --------------------------------- | ------ |
+| Fix Dockerfile entry point  | `apps/api/Dockerfile:62`          | 5 min  |
+| Fix 4 TypeScript errors     | `packages/integrations/`          | 30 min |
+| Fix test package resolution | `vitest.config.ts`                | 1 hour |
+| Fix critical test failure   | `core/critical-fixes.test.ts:447` | 1 hour |
 
 ### Should Complete (Important)
 
-| Item | Location | Effort |
-|------|----------|--------|
-| Implement workflow editor | `apps/web/src/app/workflows/page.tsx` | 2-3 days |
-| Implement booking modal | `apps/web/src/app/calendar/page.tsx` | 1 day |
-| Consolidate Result monad | 3 files across packages | 2 hours |
-| Implement infra package | `packages/infra/src/` | 2-3 days |
-| Add pagination to messages | `apps/web/src/app/messages/page.tsx` | 4 hours |
+| Item                       | Location                              | Effort   |
+| -------------------------- | ------------------------------------- | -------- |
+| Implement workflow editor  | `apps/web/src/app/workflows/page.tsx` | 2-3 days |
+| Implement booking modal    | `apps/web/src/app/calendar/page.tsx`  | 1 day    |
+| Consolidate Result monad   | 3 files across packages               | 2 hours  |
+| Implement infra package    | `packages/infra/src/`                 | 2-3 days |
+| Add pagination to messages | `apps/web/src/app/messages/page.tsx`  | 4 hours  |
 
 ### Nice to Have (Tech Debt)
 
-| Item | Count | Effort |
-|------|-------|--------|
-| Remove console statements | 30+ | 2 hours |
-| Add AbortController to effects | 5+ files | 1 hour |
-| Clean up deprecated code | 8 functions | 2 hours |
-| Reduce `any` types | 15+ instances | 3 hours |
-| Add missing tests for types package | 0 tests | 1 day |
+| Item                                | Count         | Effort  |
+| ----------------------------------- | ------------- | ------- |
+| Remove console statements           | 30+           | 2 hours |
+| Add AbortController to effects      | 5+ files      | 1 hour  |
+| Clean up deprecated code            | 8 functions   | 2 hours |
+| Reduce `any` types                  | 15+ instances | 3 hours |
+| Add missing tests for types package | 0 tests       | 1 day   |
 
 ---
 
@@ -326,4 +329,4 @@ None - this was a read-only analysis.
 
 ---
 
-*Report generated by Claude Code (Opus 4) - Complete Code Review Analysis*
+_Report generated by Claude Code (Opus 4) - Complete Code Review Analysis_

@@ -68,6 +68,7 @@ gcloud logging read 'resource.type="cloud_run_revision" AND severity>=ERROR' \
 ### Issue: High Error Rate (5xx)
 
 **Symptoms:**
+
 - Elevated error rate in metrics
 - Users reporting errors
 - Alert: `HighErrorRate`
@@ -87,19 +88,20 @@ curl -s https://api.medicalcor.com/health/circuit-breakers | jq .
 
 **Common Causes & Fixes:**
 
-| Cause | How to Verify | Fix |
-|-------|--------------|-----|
-| Bad deployment | Recent deploy matches error start | Rollback |
-| Database down | `/ready` shows database error | Check DB |
-| External service down | Circuit breaker open | Wait or disable feature |
-| Memory exhaustion | OOM in logs | Scale up or fix leak |
-| Unhandled exception | Stack trace in logs | Deploy fix |
+| Cause                 | How to Verify                     | Fix                     |
+| --------------------- | --------------------------------- | ----------------------- |
+| Bad deployment        | Recent deploy matches error start | Rollback                |
+| Database down         | `/ready` shows database error     | Check DB                |
+| External service down | Circuit breaker open              | Wait or disable feature |
+| Memory exhaustion     | OOM in logs                       | Scale up or fix leak    |
+| Unhandled exception   | Stack trace in logs               | Deploy fix              |
 
 ---
 
 ### Issue: Slow Response Times
 
 **Symptoms:**
+
 - High latency in metrics
 - Users reporting slowness
 - Alert: `SlowResponses`
@@ -119,19 +121,20 @@ psql $DATABASE_URL -c "SELECT query, mean_exec_time FROM pg_stat_statements ORDE
 
 **Common Causes & Fixes:**
 
-| Cause | How to Verify | Fix |
-|-------|--------------|-----|
-| Slow database queries | High mean_exec_time | Add indexes, optimize queries |
-| External API latency | External duration in logs | Check external service |
-| High traffic | Request count spike | Scale up |
-| Memory pressure | GC time in logs | Scale up or optimize |
-| Cold starts | Latency spikes at intervals | Increase min instances |
+| Cause                 | How to Verify               | Fix                           |
+| --------------------- | --------------------------- | ----------------------------- |
+| Slow database queries | High mean_exec_time         | Add indexes, optimize queries |
+| External API latency  | External duration in logs   | Check external service        |
+| High traffic          | Request count spike         | Scale up                      |
+| Memory pressure       | GC time in logs             | Scale up or optimize          |
+| Cold starts           | Latency spikes at intervals | Increase min instances        |
 
 ---
 
 ### Issue: API Not Responding
 
 **Symptoms:**
+
 - Health check failing
 - Connection timeouts
 - Alert: `ServiceDown`
@@ -151,13 +154,13 @@ gcloud logging read 'resource.type="cloud_run_revision"' --limit=50 --freshness=
 
 **Common Causes & Fixes:**
 
-| Cause | How to Verify | Fix |
-|-------|--------------|-----|
-| Container crash | Restart count high | Check logs, fix crash |
-| Failed deployment | Revision not serving | Rollback |
-| Resource exhaustion | OOM or CPU throttling | Scale up |
-| Network issue | GCP status | Check GCP status |
-| Secrets missing | "Secret not found" in logs | Fix secret reference |
+| Cause               | How to Verify              | Fix                   |
+| ------------------- | -------------------------- | --------------------- |
+| Container crash     | Restart count high         | Check logs, fix crash |
+| Failed deployment   | Revision not serving       | Rollback              |
+| Resource exhaustion | OOM or CPU throttling      | Scale up              |
+| Network issue       | GCP status                 | Check GCP status      |
+| Secrets missing     | "Secret not found" in logs | Fix secret reference  |
 
 ---
 
@@ -166,6 +169,7 @@ gcloud logging read 'resource.type="cloud_run_revision"' --limit=50 --freshness=
 ### Issue: Connection Pool Exhausted
 
 **Symptoms:**
+
 - "Connection pool exhausted" errors
 - Slow response times
 - `/ready` intermittently failing
@@ -205,6 +209,7 @@ AND pid <> pg_backend_pid();"
 ### Issue: Slow Queries
 
 **Symptoms:**
+
 - High latency on database operations
 - Specific endpoints slow
 - "statement timeout" errors
@@ -253,6 +258,7 @@ VACUUM ANALYZE leads;
 ### Issue: Database Disk Full
 
 **Symptoms:**
+
 - Write operations failing
 - "no space left on device" errors
 
@@ -283,6 +289,7 @@ psql $DATABASE_URL -c "VACUUM FULL domain_events;"
 ### Issue: Redis Connection Failed
 
 **Symptoms:**
+
 - Rate limiting not working
 - Session errors
 - `/ready` shows Redis error
@@ -299,18 +306,19 @@ gcloud redis instances describe medicalcor-cache --region=europe-west3 --format=
 
 **Fix:**
 
-| Cause | Fix |
-|-------|-----|
-| Network issue | Check VPC peering, firewall rules |
-| Auth failed | Verify REDIS_URL has correct password |
-| Instance down | Check GCP status, restart instance |
-| Max connections | Scale Redis or reduce pool size |
+| Cause           | Fix                                   |
+| --------------- | ------------------------------------- |
+| Network issue   | Check VPC peering, firewall rules     |
+| Auth failed     | Verify REDIS_URL has correct password |
+| Instance down   | Check GCP status, restart instance    |
+| Max connections | Scale Redis or reduce pool size       |
 
 ---
 
 ### Issue: Redis Memory Full
 
 **Symptoms:**
+
 - "OOM command not allowed" errors
 - Eviction happening
 
@@ -337,6 +345,7 @@ gcloud redis instances update medicalcor-cache --size=4 --region=europe-west3
 ### Issue: AI Scoring Failing
 
 **Symptoms:**
+
 - High fallback rate
 - Lead scoring timeouts
 - Circuit breaker open for OpenAI
@@ -356,14 +365,15 @@ curl -s https://status.openai.com/api/v2/status.json | jq '.status.description'
 
 **Fix:**
 
-| Cause | Fix |
-|-------|-----|
-| OpenAI outage | Wait, fallback is automatic |
-| Rate limited | Check usage, request increase |
-| API key invalid | Rotate key |
-| Timeout | Check if request is too large |
+| Cause           | Fix                           |
+| --------------- | ----------------------------- |
+| OpenAI outage   | Wait, fallback is automatic   |
+| Rate limited    | Check usage, request increase |
+| API key invalid | Rotate key                    |
+| Timeout         | Check if request is too large |
 
 **Fallback behavior:**
+
 - Rule-based scoring activates automatically
 - Confidence score is lower (0.7 vs 0.8-0.95)
 - No immediate action needed
@@ -373,6 +383,7 @@ curl -s https://status.openai.com/api/v2/status.json | jq '.status.description'
 ### Issue: High AI Costs
 
 **Symptoms:**
+
 - AI spend alerts firing
 - Unexpected usage spikes
 
@@ -400,6 +411,7 @@ curl -s https://api.medicalcor.com/metrics | grep "ai_daily_spend"
 ### Issue: HubSpot Sync Failing
 
 **Symptoms:**
+
 - Contacts not syncing
 - "HubSpot API error" in logs
 - Circuit breaker open
@@ -419,18 +431,19 @@ curl -s https://api.hubspot.com/status
 
 **Common Fixes:**
 
-| Error | Fix |
-|-------|-----|
-| 401 Unauthorized | Rotate access token |
+| Error            | Fix                                      |
+| ---------------- | ---------------------------------------- |
+| 401 Unauthorized | Rotate access token                      |
 | 429 Rate Limited | Implement backoff, reduce sync frequency |
-| 500 Server Error | Wait for HubSpot to recover |
-| Timeout | Check HubSpot status |
+| 500 Server Error | Wait for HubSpot to recover              |
+| Timeout          | Check HubSpot status                     |
 
 ---
 
 ### Issue: WhatsApp Messages Not Sending
 
 **Symptoms:**
+
 - Messages queued but not delivered
 - 360dialog errors in logs
 
@@ -446,12 +459,12 @@ curl -s https://api.medicalcor.com/metrics | grep "dlq_pending"
 
 **Common Fixes:**
 
-| Error | Fix |
-|-------|-----|
-| Invalid phone number | Check E.164 format |
+| Error                 | Fix                       |
+| --------------------- | ------------------------- |
+| Invalid phone number  | Check E.164 format        |
 | Template not approved | Check 360dialog dashboard |
-| Rate limited | Reduce send rate |
-| Auth failed | Rotate API key |
+| Rate limited          | Reduce send rate          |
+| Auth failed           | Rotate API key            |
 
 ---
 
@@ -460,6 +473,7 @@ curl -s https://api.medicalcor.com/metrics | grep "dlq_pending"
 ### Issue: Webhooks Not Processing
 
 **Symptoms:**
+
 - No activity from external services
 - DLQ growing
 - Signature validation errors
@@ -479,12 +493,12 @@ curl -s https://api.medicalcor.com/metrics | grep "dlq"
 
 **Common Fixes:**
 
-| Issue | Fix |
-|-------|-----|
+| Issue              | Fix                                           |
+| ------------------ | --------------------------------------------- |
 | Signature mismatch | Verify webhook secret matches external config |
-| Timeout | Increase webhook handler timeout |
-| 4xx errors | Check validation, fix request handling |
-| DLQ full | Process/clear DLQ |
+| Timeout            | Increase webhook handler timeout              |
+| 4xx errors         | Check validation, fix request handling        |
+| DLQ full           | Process/clear DLQ                             |
 
 ### Reprocess DLQ
 
@@ -504,6 +518,7 @@ curl -X POST https://api.medicalcor.com/admin/dlq/reprocess \
 ### Issue: Trigger.dev Jobs Failing
 
 **Symptoms:**
+
 - Jobs stuck or failing in dashboard
 - Alerts for job failures
 - DLQ growing
@@ -516,12 +531,12 @@ curl -X POST https://api.medicalcor.com/admin/dlq/reprocess \
 
 **Common Fixes:**
 
-| Issue | Fix |
-|-------|-----|
+| Issue                  | Fix                                  |
+| ---------------------- | ------------------------------------ |
 | External service error | Check service status, may auto-retry |
-| Code bug | Fix and redeploy |
-| Timeout | Increase timeout or optimize task |
-| Resource exhaustion | Scale workers |
+| Code bug               | Fix and redeploy                     |
+| Timeout                | Increase timeout or optimize task    |
+| Resource exhaustion    | Scale workers                        |
 
 ### Retry a Failed Job
 
@@ -534,6 +549,7 @@ curl -X POST https://api.medicalcor.com/admin/dlq/reprocess \
 ### Issue: Cron Jobs Not Running
 
 **Symptoms:**
+
 - Scheduled tasks not executing
 - Missing daily reports/reminders
 
@@ -556,6 +572,7 @@ curl -X POST https://api.medicalcor.com/admin/dlq/reprocess \
 ### Issue: Memory Leak
 
 **Symptoms:**
+
 - Increasing memory over time
 - OOM restarts
 - Performance degradation
@@ -582,6 +599,7 @@ gcloud logging read 'textPayload:"OOM"' --limit=10 --freshness=24h
 ### Issue: High CPU Usage
 
 **Symptoms:**
+
 - CPU throttling
 - Slow responses
 - Auto-scaling maxed out
@@ -607,6 +625,7 @@ curl -s https://api.medicalcor.com/metrics | grep "process_cpu"
 ### Issue: API Key Rejected
 
 **Symptoms:**
+
 - 401 Unauthorized errors
 - "Invalid API key" messages
 
@@ -633,6 +652,7 @@ curl -I https://api.medicalcor.com/api/v1/health \
 ### Issue: Session/JWT Expired
 
 **Symptoms:**
+
 - Users logged out unexpectedly
 - "Token expired" errors
 
@@ -682,6 +702,6 @@ gcloud run services update-traffic medicalcor-api --to-revisions=PREV_REVISION=1
 
 ## Revision History
 
-| Date | Version | Author | Changes |
-|------|---------|--------|---------|
-| 2024-12 | 1.0 | Platform Team | Initial runbook creation |
+| Date    | Version | Author        | Changes                  |
+| ------- | ------- | ------------- | ------------------------ |
+| 2024-12 | 1.0     | Platform Team | Initial runbook creation |

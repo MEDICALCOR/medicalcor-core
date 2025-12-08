@@ -253,9 +253,7 @@ describe('NotificationBell', () => {
     await user.click(screen.getByRole('button', { name: /notificări/i }));
 
     await waitFor(() => {
-      expect(
-        screen.queryByRole('button', { name: /marchează toate/i })
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /marchează toate/i })).not.toBeInTheDocument();
     });
   });
 

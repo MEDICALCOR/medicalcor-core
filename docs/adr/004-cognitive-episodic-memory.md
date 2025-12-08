@@ -19,11 +19,13 @@ MedicalCor requires an AI system that can "remember" patient interactions across
 ### Current Limitations
 
 The existing RAG system (`packages/core/src/rag/`) provides:
+
 - Knowledge base search (FAQs, protocols, pricing)
 - Message embedding storage
 - Hybrid semantic + keyword search
 
 However, it lacks:
+
 - **Temporal awareness**: Cannot query "what happened in the last 30 days"
 - **Subject-centric views**: Cannot retrieve all events for a specific patient/lead
 - **Event summarization**: No LLM-powered insights from historical events
@@ -32,6 +34,7 @@ However, it lacks:
 ## Decision
 
 Implement a **Cognitive Episodic Memory** system as an extension to the existing architecture, leveraging:
+
 - Existing Event Store for raw events
 - Existing pgvector for semantic search
 - New episodic memory layer for AI-powered retrieval and analysis
@@ -231,11 +234,13 @@ export const EpisodicEventSchema = z.object({
   sourceChannel: SourceChannelSchema,
   rawEventId: z.string().uuid().optional(),
   summary: z.string(),
-  keyEntities: z.array(z.object({
-    type: z.string(),
-    value: z.string(),
-    confidence: z.number().min(0).max(1).optional(),
-  })),
+  keyEntities: z.array(
+    z.object({
+      type: z.string(),
+      value: z.string(),
+      confidence: z.number().min(0).max(1).optional(),
+    })
+  ),
   sentiment: SentimentSchema.optional(),
   intent: z.string().max(100).optional(),
   occurredAt: z.date(),
@@ -288,7 +293,12 @@ export interface SubjectMemorySummary {
 }
 
 export interface CognitiveInsight {
-  type: 'churn_risk' | 'upsell_opportunity' | 'engagement_drop' | 'positive_momentum' | 'pattern_detected';
+  type:
+    | 'churn_risk'
+    | 'upsell_opportunity'
+    | 'engagement_drop'
+    | 'positive_momentum'
+    | 'pattern_detected';
   confidence: number;
   description: string;
   recommendedAction: string;
@@ -362,10 +372,7 @@ export class EpisodeBuilder {
     // 4. Persist
     await this.save(episode);
 
-    logger.info(
-      { subjectId, eventType: rawEvent.eventType },
-      'Episodic memory created'
-    );
+    logger.info({ subjectId, eventType: rawEvent.eventType }, 'Episodic memory created');
 
     return episode;
   }
@@ -409,7 +416,7 @@ Respond in JSON format:
     };
 
     for (const [category, types] of Object.entries(categories)) {
-      if (types.some(t => eventType.includes(t))) {
+      if (types.some((t) => eventType.includes(t))) {
         return category;
       }
     }
@@ -417,7 +424,8 @@ Respond in JSON format:
   }
 
   private async save(episode: EpisodicEventWithEmbedding): Promise<void> {
-    await this.pool.query(`
+    await this.pool.query(
+      `
       INSERT INTO episodic_events (
         id, subject_type, subject_id, event_type, event_category,
         source_channel, raw_event_id, summary, key_entities,
@@ -425,23 +433,25 @@ Respond in JSON format:
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
       )
-    `, [
-      episode.id,
-      episode.subjectType,
-      episode.subjectId,
-      episode.eventType,
-      episode.eventCategory,
-      episode.sourceChannel,
-      episode.rawEventId,
-      episode.summary,
-      JSON.stringify(episode.keyEntities),
-      episode.sentiment,
-      episode.intent,
-      JSON.stringify(episode.embedding),
-      episode.occurredAt,
-      JSON.stringify(episode.metadata),
-      episode.embeddingModel,
-    ]);
+    `,
+      [
+        episode.id,
+        episode.subjectType,
+        episode.subjectId,
+        episode.eventType,
+        episode.eventCategory,
+        episode.sourceChannel,
+        episode.rawEventId,
+        episode.summary,
+        JSON.stringify(episode.keyEntities),
+        episode.sentiment,
+        episode.intent,
+        JSON.stringify(episode.embedding),
+        episode.occurredAt,
+        JSON.stringify(episode.metadata),
+        episode.embeddingModel,
+      ]
+    );
   }
 }
 ```
@@ -533,7 +543,7 @@ export class MemoryRetrievalService {
 
     const result = await this.pool.query(sql, params);
 
-    return result.rows.map(row => ({
+    return result.rows.map((row) => ({
       id: row.id,
       subjectType: row.subject_type,
       subjectId: row.subject_id,
@@ -558,7 +568,8 @@ export class MemoryRetrievalService {
     subjectId: string
   ): Promise<SubjectMemorySummary> {
     // Get aggregate statistics
-    const statsResult = await this.pool.query(`
+    const statsResult = await this.pool.query(
+      `
       SELECT
         COUNT(*) as total_events,
         MIN(occurred_at) as first_interaction,
@@ -580,10 +591,13 @@ export class MemoryRetrievalService {
         FROM episodic_events
         WHERE subject_type = $1 AND subject_id = $2 AND deleted_at IS NULL
       ) overall_stats
-    `, [subjectType, subjectId]);
+    `,
+      [subjectType, subjectId]
+    );
 
     // Get sentiment trend
-    const sentimentResult = await this.pool.query(`
+    const sentimentResult = await this.pool.query(
+      `
       WITH recent_sentiment AS (
         SELECT sentiment, occurred_at
         FROM episodic_events
@@ -607,15 +621,20 @@ export class MemoryRetrievalService {
         AVG(CASE WHEN recency <= 3 THEN score END) as recent_avg,
         AVG(CASE WHEN recency > 3 THEN score END) as older_avg
       FROM sentiment_scores
-    `, [subjectType, subjectId]);
+    `,
+      [subjectType, subjectId]
+    );
 
     // Get behavioral patterns
-    const patternsResult = await this.pool.query(`
+    const patternsResult = await this.pool.query(
+      `
       SELECT * FROM behavioral_patterns
       WHERE subject_type = $1 AND subject_id = $2
       ORDER BY confidence DESC
       LIMIT 5
-    `, [subjectType, subjectId]);
+    `,
+      [subjectType, subjectId]
+    );
 
     // Get recent events for summary generation
     const recentEvents = await this.query({
@@ -640,9 +659,9 @@ export class MemoryRetrievalService {
       totalEvents: Number(stats.total_events),
       firstInteraction: stats.first_interaction,
       lastInteraction: stats.last_interaction,
-      channelBreakdown: stats.channel_breakdown || {} as Record<SourceChannel, number>,
+      channelBreakdown: stats.channel_breakdown || ({} as Record<SourceChannel, number>),
       sentimentTrend,
-      patterns: patternsResult.rows.map(row => ({
+      patterns: patternsResult.rows.map((row) => ({
         id: row.id,
         subjectType: row.subject_type,
         subjectId: row.subject_id,
@@ -655,7 +674,7 @@ export class MemoryRetrievalService {
         occurrenceCount: row.occurrence_count,
         metadata: row.metadata,
       })),
-      recentSummary: recentEvents.map(e => e.summary).join(' '),
+      recentSummary: recentEvents.map((e) => e.summary).join(' '),
     };
   }
 
@@ -687,17 +706,17 @@ export class MemoryRetrievalService {
 ```typescript
 import { type Pool } from 'pg';
 import { type OpenAIClient } from '@medicalcor/integrations';
-import {
-  type BehavioralPattern,
-  type EpisodicEvent,
-  type SubjectType,
-} from './types';
+import { type BehavioralPattern, type EpisodicEvent, type SubjectType } from './types';
 import { logger } from '../logger';
 
 interface PatternDefinition {
   type: string;
   description: string;
-  detector: (events: EpisodicEvent[]) => { detected: boolean; confidence: number; supportingEvents: string[] };
+  detector: (events: EpisodicEvent[]) => {
+    detected: boolean;
+    confidence: number;
+    supportingEvents: string[];
+  };
 }
 
 export class PatternDetector {
@@ -706,15 +725,16 @@ export class PatternDetector {
       type: 'appointment_rescheduler',
       description: 'Frequently reschedules appointments',
       detector: (events) => {
-        const reschedules = events.filter(e => e.eventType === 'appointment.rescheduled');
-        const appointments = events.filter(e => e.eventType.startsWith('appointment.'));
-        if (appointments.length < 3) return { detected: false, confidence: 0, supportingEvents: [] };
+        const reschedules = events.filter((e) => e.eventType === 'appointment.rescheduled');
+        const appointments = events.filter((e) => e.eventType.startsWith('appointment.'));
+        if (appointments.length < 3)
+          return { detected: false, confidence: 0, supportingEvents: [] };
 
         const ratio = reschedules.length / appointments.length;
         return {
           detected: ratio > 0.3,
           confidence: Math.min(ratio, 1),
-          supportingEvents: reschedules.map(e => e.id),
+          supportingEvents: reschedules.map((e) => e.id),
         };
       },
     },
@@ -722,13 +742,16 @@ export class PatternDetector {
       type: 'monday_avoider',
       description: 'Avoids Monday appointments',
       detector: (events) => {
-        const scheduledEvents = events.filter(e =>
-          e.eventType === 'appointment.scheduled' && e.keyEntities.some(ent => ent.type === 'date')
+        const scheduledEvents = events.filter(
+          (e) =>
+            e.eventType === 'appointment.scheduled' &&
+            e.keyEntities.some((ent) => ent.type === 'date')
         );
-        if (scheduledEvents.length < 5) return { detected: false, confidence: 0, supportingEvents: [] };
+        if (scheduledEvents.length < 5)
+          return { detected: false, confidence: 0, supportingEvents: [] };
 
-        const mondayCount = scheduledEvents.filter(e => {
-          const dateEntity = e.keyEntities.find(ent => ent.type === 'date');
+        const mondayCount = scheduledEvents.filter((e) => {
+          const dateEntity = e.keyEntities.find((ent) => ent.type === 'date');
           if (!dateEntity) return false;
           const date = new Date(dateEntity.value);
           return date.getDay() === 1;
@@ -738,7 +761,7 @@ export class PatternDetector {
         return {
           detected: ratio < 0.1,
           confidence: 1 - ratio,
-          supportingEvents: scheduledEvents.map(e => e.id),
+          supportingEvents: scheduledEvents.map((e) => e.id),
         };
       },
     },
@@ -746,16 +769,16 @@ export class PatternDetector {
       type: 'high_engagement',
       description: 'Highly engaged across multiple channels',
       detector: (events) => {
-        const last30Days = events.filter(e =>
-          e.occurredAt > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        const last30Days = events.filter(
+          (e) => e.occurredAt > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
         );
-        const channels = new Set(last30Days.map(e => e.sourceChannel));
+        const channels = new Set(last30Days.map((e) => e.sourceChannel));
 
         if (channels.size >= 2 && last30Days.length >= 5) {
           return {
             detected: true,
             confidence: Math.min(channels.size / 3, 1) * Math.min(last30Days.length / 10, 1),
-            supportingEvents: last30Days.slice(0, 10).map(e => e.id),
+            supportingEvents: last30Days.slice(0, 10).map((e) => e.id),
           };
         }
         return { detected: false, confidence: 0, supportingEvents: [] };
@@ -769,20 +792,18 @@ export class PatternDetector {
         const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
         const sixtyDaysAgo = now - 60 * 24 * 60 * 60 * 1000;
 
-        const recent = events.filter(e =>
-          e.occurredAt.getTime() > thirtyDaysAgo
-        ).length;
-        const previous = events.filter(e =>
-          e.occurredAt.getTime() > sixtyDaysAgo && e.occurredAt.getTime() <= thirtyDaysAgo
+        const recent = events.filter((e) => e.occurredAt.getTime() > thirtyDaysAgo).length;
+        const previous = events.filter(
+          (e) => e.occurredAt.getTime() > sixtyDaysAgo && e.occurredAt.getTime() <= thirtyDaysAgo
         ).length;
 
         if (previous === 0) return { detected: false, confidence: 0, supportingEvents: [] };
 
-        const declineRatio = 1 - (recent / previous);
+        const declineRatio = 1 - recent / previous;
         return {
           detected: declineRatio > 0.5,
           confidence: Math.min(declineRatio, 1),
-          supportingEvents: events.slice(0, 5).map(e => e.id),
+          supportingEvents: events.slice(0, 5).map((e) => e.id),
         };
       },
     },
@@ -838,7 +859,7 @@ export class PatternDetector {
 
     const eventSummaries = events
       .slice(0, 20)
-      .map(e => `[${e.occurredAt.toISOString()}] ${e.sourceChannel}: ${e.summary}`)
+      .map((e) => `[${e.occurredAt.toISOString()}] ${e.sourceChannel}: ${e.summary}`)
       .join('\n');
 
     const prompt = `Analyze these patient/lead interactions and identify any behavioral patterns not captured by standard rules.
@@ -886,7 +907,7 @@ Only include patterns with confidence > 0.6. Return empty array if no clear patt
           patternType: `llm_${p.type}`,
           patternDescription: p.description,
           confidence: p.confidence,
-          supportingEventIds: events.slice(0, 10).map(e => e.id),
+          supportingEventIds: events.slice(0, 10).map((e) => e.id),
           firstObservedAt: new Date(),
           lastObservedAt: new Date(),
           occurrenceCount: 1,
@@ -898,7 +919,8 @@ Only include patterns with confidence > 0.6. Return empty array if no clear patt
   }
 
   private async upsertPattern(pattern: BehavioralPattern): Promise<void> {
-    await this.pool.query(`
+    await this.pool.query(
+      `
       INSERT INTO behavioral_patterns (
         id, subject_type, subject_id, pattern_type, pattern_description,
         confidence, supporting_event_ids, first_observed_at, last_observed_at,
@@ -910,19 +932,21 @@ Only include patterns with confidence > 0.6. Return empty array if no clear patt
         last_observed_at = EXCLUDED.last_observed_at,
         occurrence_count = behavioral_patterns.occurrence_count + 1,
         updated_at = NOW()
-    `, [
-      pattern.id,
-      pattern.subjectType,
-      pattern.subjectId,
-      pattern.patternType,
-      pattern.patternDescription,
-      pattern.confidence,
-      pattern.supportingEventIds,
-      pattern.firstObservedAt,
-      pattern.lastObservedAt,
-      pattern.occurrenceCount,
-      JSON.stringify(pattern.metadata || {}),
-    ]);
+    `,
+      [
+        pattern.id,
+        pattern.subjectType,
+        pattern.subjectId,
+        pattern.patternType,
+        pattern.patternDescription,
+        pattern.confidence,
+        pattern.supportingEventIds,
+        pattern.firstObservedAt,
+        pattern.lastObservedAt,
+        pattern.occurrenceCount,
+        JSON.stringify(pattern.metadata || {}),
+      ]
+    );
   }
 }
 ```
@@ -936,11 +960,7 @@ import { type Pool } from 'pg';
 import { type OpenAIClient } from '@medicalcor/integrations';
 import { MemoryRetrievalService } from './memory-retrieval';
 import { PatternDetector } from './pattern-detector';
-import {
-  type CognitiveInsight,
-  type SubjectType,
-  type EpisodicEvent,
-} from './types';
+import { type CognitiveInsight, type SubjectType, type EpisodicEvent } from './types';
 import { logger } from '../logger';
 
 export class CognitiveAnalyzer {
@@ -954,10 +974,7 @@ export class CognitiveAnalyzer {
   /**
    * Generate insights for a subject based on their episodic memory
    */
-  async analyzeSubject(
-    subjectType: SubjectType,
-    subjectId: string
-  ): Promise<CognitiveInsight[]> {
+  async analyzeSubject(subjectType: SubjectType, subjectId: string): Promise<CognitiveInsight[]> {
     const insights: CognitiveInsight[] = [];
 
     // Get subject's memory summary
@@ -985,7 +1002,7 @@ export class CognitiveAnalyzer {
           confidence: pattern.confidence,
           description: `Engagement has declined significantly. ${pattern.patternDescription}`,
           recommendedAction: 'Schedule a proactive check-in call or send a re-engagement message',
-          supportingEvents: recentEvents.filter(e => pattern.supportingEventIds.includes(e.id)),
+          supportingEvents: recentEvents.filter((e) => pattern.supportingEventIds.includes(e.id)),
         });
       }
 
@@ -995,7 +1012,7 @@ export class CognitiveAnalyzer {
           confidence: pattern.confidence,
           description: `Highly engaged across ${summary.channelBreakdown ? Object.keys(summary.channelBreakdown).length : 0} channels`,
           recommendedAction: 'Consider presenting premium treatment options or referral program',
-          supportingEvents: recentEvents.filter(e => pattern.supportingEventIds.includes(e.id)),
+          supportingEvents: recentEvents.filter((e) => pattern.supportingEventIds.includes(e.id)),
         });
       }
     }
@@ -1018,10 +1035,13 @@ Subject Summary:
 - First contact: ${summary.firstInteraction?.toISOString() || 'N/A'}
 - Last contact: ${summary.lastInteraction?.toISOString() || 'N/A'}
 - Sentiment trend: ${summary.sentimentTrend}
-- Detected patterns: ${patterns.map(p => p.patternDescription).join(', ') || 'None'}
+- Detected patterns: ${patterns.map((p) => p.patternDescription).join(', ') || 'None'}
 
 Recent Events:
-${events.slice(0, 10).map(e => `- [${e.sourceChannel}] ${e.summary} (${e.sentiment || 'neutral'})`).join('\n')}
+${events
+  .slice(0, 10)
+  .map((e) => `- [${e.sourceChannel}] ${e.summary} (${e.sentiment || 'neutral'})`)
+  .join('\n')}
 `;
 
     const prompt = `As a medical CRM cognitive assistant, analyze this patient/lead profile and provide actionable insights.
@@ -1060,13 +1080,20 @@ Only include insights with confidence > 0.5. Be specific and actionable.`;
 
       return (result.insights || [])
         .filter((i: { confidence: number }) => i.confidence > 0.5)
-        .map((i: { type: string; confidence: number; description: string; recommendedAction: string }) => ({
-          type: i.type as CognitiveInsight['type'],
-          confidence: i.confidence,
-          description: i.description,
-          recommendedAction: i.recommendedAction,
-          supportingEvents: events.slice(0, 5),
-        }));
+        .map(
+          (i: {
+            type: string;
+            confidence: number;
+            description: string;
+            recommendedAction: string;
+          }) => ({
+            type: i.type as CognitiveInsight['type'],
+            confidence: i.confidence,
+            description: i.description,
+            recommendedAction: i.recommendedAction,
+            supportingEvents: events.slice(0, 5),
+          })
+        );
     } catch (error) {
       logger.warn({ error }, 'LLM insight generation failed');
       return [];
@@ -1082,10 +1109,11 @@ Only include insights with confidence > 0.5. Be specific and actionable.`;
     currentMessage: string
   ): Promise<string> {
     // Find similar past interactions
-    const similarEvents = await this.memoryService.findSimilarInteractions(
-      currentMessage,
-      { subjectId, limit: 3, minSimilarity: 0.6 }
-    );
+    const similarEvents = await this.memoryService.findSimilarInteractions(currentMessage, {
+      subjectId,
+      limit: 3,
+      minSimilarity: 0.6,
+    });
 
     // Get recent interactions
     const recentEvents = await this.memoryService.query({
@@ -1095,31 +1123,34 @@ Only include insights with confidence > 0.5. Be specific and actionable.`;
     });
 
     // Get patterns
-    const patterns = await this.pool.query(`
+    const patterns = await this.pool.query(
+      `
       SELECT pattern_type, pattern_description
       FROM behavioral_patterns
       WHERE subject_type = $1 AND subject_id = $2
       ORDER BY confidence DESC
       LIMIT 3
-    `, [subjectType, subjectId]);
+    `,
+      [subjectType, subjectId]
+    );
 
     const context = [
       '## Patient/Lead Context',
       '',
       '### Recent History:',
-      ...recentEvents.map(e => `- ${e.summary}`),
+      ...recentEvents.map((e) => `- ${e.summary}`),
       '',
     ];
 
     if (similarEvents.length > 0) {
       context.push('### Similar Past Interactions:');
-      context.push(...similarEvents.map(e => `- ${e.summary}`));
+      context.push(...similarEvents.map((e) => `- ${e.summary}`));
       context.push('');
     }
 
     if (patterns.rows.length > 0) {
       context.push('### Known Patterns:');
-      context.push(...patterns.rows.map(p => `- ${p.pattern_description}`));
+      context.push(...patterns.rows.map((p) => `- ${p.pattern_description}`));
       context.push('');
     }
 
@@ -1184,17 +1215,12 @@ export const whatsappHandler = task({
     const cognitive = createCognitiveSystem({ pool, openai, embeddings });
 
     // Create episodic memory for this interaction
-    await cognitive.episodeBuilder.processEvent(
-      'lead',
-      payload.leadId,
-      'whatsapp',
-      {
-        eventType: 'message.received',
-        payload: payload,
-        correlationId: payload.messageId,
-        occurredAt: new Date(payload.timestamp),
-      }
-    );
+    await cognitive.episodeBuilder.processEvent('lead', payload.leadId, 'whatsapp', {
+      eventType: 'message.received',
+      payload: payload,
+      correlationId: payload.messageId,
+      occurredAt: new Date(payload.timestamp),
+    });
 
     // Existing scoring and reply logic...
   },
@@ -1210,11 +1236,7 @@ async function generateContextualReply(leadId: string, message: string): Promise
   const cognitive = createCognitiveSystem({ pool, openai, embeddings });
 
   // Get episodic memory context
-  const memoryContext = await cognitive.analyzer.getContextForReply(
-    'lead',
-    leadId,
-    message
-  );
+  const memoryContext = await cognitive.analyzer.getContextForReply('lead', leadId, message);
 
   // Include in prompt for reply generation
   const reply = await openai.generateReply({
@@ -1237,7 +1259,7 @@ async function getLeadInsights(leadId: string): Promise<CognitiveInsight[]> {
 
   const insights = await cognitive.analyzer.analyzeSubject('lead', leadId);
 
-  return insights.filter(i => i.confidence > 0.7);
+  return insights.filter((i) => i.confidence > 0.7);
 }
 ```
 
@@ -1262,45 +1284,52 @@ async function getLeadInsights(leadId: string): Promise<CognitiveInsight[]> {
 
 ### Mitigation Strategies
 
-| Concern | Mitigation |
-|---------|------------|
-| Storage costs | Partition by time, archive old events |
-| API costs | Batch embeddings, cache summaries |
-| Latency | Process asynchronously via Trigger.dev |
-| Complexity | Clear module boundaries, comprehensive tests |
+| Concern       | Mitigation                                   |
+| ------------- | -------------------------------------------- |
+| Storage costs | Partition by time, archive old events        |
+| API costs     | Batch embeddings, cache summaries            |
+| Latency       | Process asynchronously via Trigger.dev       |
+| Complexity    | Clear module boundaries, comprehensive tests |
 
 ## Alternatives Considered
 
 ### 1. Third-party Memory Systems (Mem0, Zep)
+
 **Rejected**: Adds external dependency, data residency concerns for HIPAA.
 
 ### 2. Graph Database (Neo4j)
+
 **Deferred**: Adds operational complexity. pgvector sufficient for current scale. Revisit for complex relationship queries.
 
 ### 3. Simple RAG without Summarization
+
 **Rejected**: Raw events are verbose; summaries provide better retrieval quality.
 
 ## Implementation Plan
 
 ### Phase 1: Foundation ✅
+
 - [x] Create database migration for episodic_events
 - [x] Implement EpisodeBuilder
 - [x] Implement MemoryRetrievalService
 - [x] Unit tests for core components
 
 ### Phase 2: Integration ✅
+
 - [x] Integrate with WhatsApp handler
 - [x] Integrate with Voice handler
 - [x] Add memory context to reply generation
 - [x] Integration tests
 
 ### Phase 3: Intelligence ✅
+
 - [x] Implement PatternDetector
 - [x] Implement CognitiveAnalyzer (distributed across services)
 - [x] Add insights API endpoint
 - [x] Dashboard integration
 
 ### Phase 4: Optimization ✅
+
 - [x] Add embedding cache
 - [x] Batch processing for high-volume
 - [x] Performance testing
@@ -1319,6 +1348,7 @@ Beyond the original ADR proposal, the following features were added during imple
 The Knowledge Graph Service provides entity and relation management for semantic entity search and relationship discovery.
 
 **Capabilities:**
+
 - Entity extraction and normalization from episodic memories
 - Co-occurrence relation creation between entities
 - Graph traversal for finding related entities
@@ -1347,6 +1377,7 @@ const related = await knowledgeGraph.getRelatedEntities(entityId, {
 Auto-merge similar entities to maintain a clean knowledge graph.
 
 **Capabilities:**
+
 - Fuzzy matching for similar entity values
 - Embedding similarity for semantic deduplication
 - Configurable merge strategies
@@ -1359,6 +1390,7 @@ Auto-merge similar entities to maintain a clean knowledge graph.
 Role-based PII masking for HIPAA/GDPR compliance at query time.
 
 **Capabilities:**
+
 - Multiple masking levels: `none`, `partial`, `full`, `hash`
 - Role-based access control (admin, clinician, staff, analyst, viewer)
 - Emergency access (break-the-glass) with audit logging
@@ -1393,6 +1425,7 @@ Memory retrieval service with built-in PII masking, combining query functionalit
 Implements GDPR Article 17 (Right to Erasure) for the cognitive memory system.
 
 **Capabilities:**
+
 - Soft delete (anonymization) and hard delete options
 - Batch erasure for multiple subjects
 - Data export for GDPR portability (Article 20)
@@ -1400,11 +1433,10 @@ Implements GDPR Article 17 (Right to Erasure) for the cognitive memory system.
 - Comprehensive audit logging
 
 ```typescript
-const result = await erasureService.eraseSubjectMemory(
-  'lead',
-  'a1b2c3d4-...',
-  { reason: 'GDPR erasure request', requestedBy: 'user-123' }
-);
+const result = await erasureService.eraseSubjectMemory('lead', 'a1b2c3d4-...', {
+  reason: 'GDPR erasure request',
+  requestedBy: 'user-123',
+});
 
 // Export data for portability
 const exportData = await erasureService.exportSubjectData('lead', leadId);
@@ -1417,6 +1449,7 @@ const exportData = await erasureService.exportSubjectData('lead', leadId);
 Stream processing for automatic pattern detection and updates.
 
 **Capabilities:**
+
 - Event buffering per subject for efficient batch processing
 - Configurable detection intervals and batch sizes
 - Pattern delta tracking (new, updated, unchanged)

@@ -8,23 +8,23 @@ MedicalCor Core is an **AI-powered medical CRM platform** for dental clinics fea
 
 ## Tech Stack
 
-| Category | Technology | Version |
-|----------|------------|---------|
-| Runtime | Node.js | 20+ |
-| Language | TypeScript | 5.9 (strict mode) |
-| Package Manager | pnpm | 10+ |
-| Build System | Turborepo | 2.6.x |
-| API Framework | Fastify | 5.x |
-| Web Framework | Next.js | 15.x (App Router) |
-| Database | PostgreSQL + pgvector | 15+ |
-| Cache | Redis | 7+ |
-| Background Jobs | Trigger.dev | 3.x |
-| Testing | Vitest 4.x + Playwright 1.57 | - |
-| Property Testing | fast-check | 4.x |
-| UI Components | Radix UI + Tailwind CSS | - |
-| Observability | Sentry + Prometheus + Grafana | - |
-| AI/LLM | OpenAI GPT-4o | - |
-| Agent SDK | Claude Agent SDK | 0.1.x |
+| Category         | Technology                    | Version           |
+| ---------------- | ----------------------------- | ----------------- |
+| Runtime          | Node.js                       | 20+               |
+| Language         | TypeScript                    | 5.9 (strict mode) |
+| Package Manager  | pnpm                          | 10+               |
+| Build System     | Turborepo                     | 2.6.x             |
+| API Framework    | Fastify                       | 5.x               |
+| Web Framework    | Next.js                       | 15.x (App Router) |
+| Database         | PostgreSQL + pgvector         | 15+               |
+| Cache            | Redis                         | 7+                |
+| Background Jobs  | Trigger.dev                   | 3.x               |
+| Testing          | Vitest 4.x + Playwright 1.57  | -                 |
+| Property Testing | fast-check                    | 4.x               |
+| UI Components    | Radix UI + Tailwind CSS       | -                 |
+| Observability    | Sentry + Prometheus + Grafana | -                 |
+| AI/LLM           | OpenAI GPT-4o                 | -                 |
+| Agent SDK        | Claude Agent SDK              | 0.1.x             |
 
 ---
 
@@ -181,10 +181,14 @@ const value = obj?.property ?? defaultValue;
 
 // Exhaustive switch statements (enforced by ESLint)
 switch (classification) {
-  case 'HOT': return handleHot();
-  case 'WARM': return handleWarm();
-  case 'COLD': return handleCold();
-  case 'UNQUALIFIED': return handleUnqualified();
+  case 'HOT':
+    return handleHot();
+  case 'WARM':
+    return handleWarm();
+  case 'COLD':
+    return handleCold();
+  case 'UNQUALIFIED':
+    return handleUnqualified();
   // No default needed - TypeScript ensures exhaustiveness
 }
 ```
@@ -277,6 +281,7 @@ These are enforced by ESLint (`eslint.config.js`):
 ## Key Constraints
 
 ### Security
+
 - Never commit secrets or `.env` files
 - Never push directly to `main`, `master`, `production`, or `staging`
 - All webhooks require HMAC signature verification
@@ -285,6 +290,7 @@ These are enforced by ESLint (`eslint.config.js`):
 - Encryption at rest for PHI/PII (HIPAA requirement)
 
 ### Architecture
+
 - Domain layer has no infrastructure dependencies
 - External interactions go through ports (interfaces)
 - Adapters implement ports exactly
@@ -308,38 +314,38 @@ perf(rag): optimize embedding cache
 
 ## Domain Concepts
 
-| Term | Description |
-|------|-------------|
-| Lead | Potential patient with contact info and scoring |
-| LeadScore | HOT (4-5), WARM (3), COLD (2), UNQUALIFIED (1) |
-| Triage | Urgency assessment with routing recommendations |
-| Consent | GDPR consent tracking (2-year expiry) |
-| All-on-X | Full-arch dental implant procedure (premium) |
-| OSAX | MedicalCor's clinical workflow system |
-| LTV | Lifetime Value prediction and analysis |
-| Case | Treatment case management |
-| Disposition | Lead outcome tracking |
-| Episode | Cognitive memory unit for patient interactions |
+| Term        | Description                                     |
+| ----------- | ----------------------------------------------- |
+| Lead        | Potential patient with contact info and scoring |
+| LeadScore   | HOT (4-5), WARM (3), COLD (2), UNQUALIFIED (1)  |
+| Triage      | Urgency assessment with routing recommendations |
+| Consent     | GDPR consent tracking (2-year expiry)           |
+| All-on-X    | Full-arch dental implant procedure (premium)    |
+| OSAX        | MedicalCor's clinical workflow system           |
+| LTV         | Lifetime Value prediction and analysis          |
+| Case        | Treatment case management                       |
+| Disposition | Lead outcome tracking                           |
+| Episode     | Cognitive memory unit for patient interactions  |
 
 ### Domain Services (`packages/domain/src/`)
 
-| Service | Purpose |
-|---------|---------|
-| `scoring/` | AI-powered lead scoring |
-| `triage/` | Urgency assessment |
-| `consent/` | GDPR consent management |
-| `scheduling/` | Appointment scheduling |
-| `leads/` | Lead management |
-| `patients/` | Patient records |
-| `cases/` | Treatment case management |
-| `ltv/` | Lifetime value calculations |
-| `retention/` | Patient retention strategies |
-| `voice/` | Voice call processing |
-| `routing/` | Lead routing logic |
-| `breach-notification/` | HIPAA breach handling |
-| `data-classification/` | PHI/PII classification |
-| `behavioral-insights/` | Patient behavior analysis |
-| `capacity-planning/` | Clinic capacity management |
+| Service                | Purpose                      |
+| ---------------------- | ---------------------------- |
+| `scoring/`             | AI-powered lead scoring      |
+| `triage/`              | Urgency assessment           |
+| `consent/`             | GDPR consent management      |
+| `scheduling/`          | Appointment scheduling       |
+| `leads/`               | Lead management              |
+| `patients/`            | Patient records              |
+| `cases/`               | Treatment case management    |
+| `ltv/`                 | Lifetime value calculations  |
+| `retention/`           | Patient retention strategies |
+| `voice/`               | Voice call processing        |
+| `routing/`             | Lead routing logic           |
+| `breach-notification/` | HIPAA breach handling        |
+| `data-classification/` | PHI/PII classification       |
+| `behavioral-insights/` | Patient behavior analysis    |
+| `capacity-planning/`   | Clinic capacity management   |
 
 ---
 
@@ -429,22 +435,22 @@ See `.env.example` for full list with descriptions.
 
 ## GitHub Workflows
 
-| Workflow | Purpose |
-|----------|---------|
-| `ci.yml` | Main CI: lint, typecheck, test, build, E2E |
-| `deploy.yml` | Production deployment |
-| `release.yml` | Semantic release |
-| `rollback.yml` | Emergency rollback |
-| `security-ci.yml` | Security checks (pnpm audit, gitleaks) |
-| `security-monitoring.yml` | Continuous security monitoring |
-| `oss-security.yml` | OSS security (OSSF Scorecard) |
-| `smoke-tests.yml` | Production smoke tests |
-| `performance.yml` | Performance benchmarks |
-| `k6-load-tests.yml` | k6 load testing |
-| `lighthouse-ci.yml` | Web performance (Lighthouse) |
-| `codeql-analysis.yml` | CodeQL security scanning |
-| `dependabot-automerge.yml` | Auto-merge safe updates |
-| `trigger-deploy.yml` | Trigger.dev deployment |
+| Workflow                   | Purpose                                    |
+| -------------------------- | ------------------------------------------ |
+| `ci.yml`                   | Main CI: lint, typecheck, test, build, E2E |
+| `deploy.yml`               | Production deployment                      |
+| `release.yml`              | Semantic release                           |
+| `rollback.yml`             | Emergency rollback                         |
+| `security-ci.yml`          | Security checks (pnpm audit, gitleaks)     |
+| `security-monitoring.yml`  | Continuous security monitoring             |
+| `oss-security.yml`         | OSS security (OSSF Scorecard)              |
+| `smoke-tests.yml`          | Production smoke tests                     |
+| `performance.yml`          | Performance benchmarks                     |
+| `k6-load-tests.yml`        | k6 load testing                            |
+| `lighthouse-ci.yml`        | Web performance (Lighthouse)               |
+| `codeql-analysis.yml`      | CodeQL security scanning                   |
+| `dependabot-automerge.yml` | Auto-merge safe updates                    |
+| `trigger-deploy.yml`       | Trigger.dev deployment                     |
 
 ---
 
@@ -453,78 +459,81 @@ See `.env.example` for full list with descriptions.
 This project includes Claude Code configuration in `.claude/`:
 
 ### Commands (`.claude/commands/`)
-| Command | Purpose |
-|---------|---------|
-| `/analyze-tokens` | Analyze token usage |
+
+| Command            | Purpose                |
+| ------------------ | ---------------------- |
+| `/analyze-tokens`  | Analyze token usage    |
 | `/convert-to-toon` | Convert to TOON format |
-| `/discover-skills` | Find available skills |
-| `/install-skill` | Install a skill |
-| `/toon-encode` | Encode to TOON |
-| `/toon-decode` | Decode from TOON |
-| `/toon-validate` | Validate TOON syntax |
+| `/discover-skills` | Find available skills  |
+| `/install-skill`   | Install a skill        |
+| `/toon-encode`     | Encode to TOON         |
+| `/toon-decode`     | Decode from TOON       |
+| `/toon-validate`   | Validate TOON syntax   |
 
 ### Hooks (`.claude/hooks/`)
-| Hook | Trigger | Purpose |
-|------|---------|---------|
-| `settings-backup.sh` | PreToolUse (Edit/Write) | Backup config files |
-| `secret-scanner.sh` | PreToolUse (Edit/Write) | Prevent secret commits |
-| `toon-validator.sh` | PostToolUse (Edit/Write) | Validate TOON syntax |
-| `markdown-formatter.sh` | PostToolUse (Edit/Write) | Auto-format markdown |
-| `file-size-monitor.sh` | PostToolUse (Edit/Write) | Warn about large files |
+
+| Hook                    | Trigger                  | Purpose                |
+| ----------------------- | ------------------------ | ---------------------- |
+| `settings-backup.sh`    | PreToolUse (Edit/Write)  | Backup config files    |
+| `secret-scanner.sh`     | PreToolUse (Edit/Write)  | Prevent secret commits |
+| `toon-validator.sh`     | PostToolUse (Edit/Write) | Validate TOON syntax   |
+| `markdown-formatter.sh` | PostToolUse (Edit/Write) | Auto-format markdown   |
+| `file-size-monitor.sh`  | PostToolUse (Edit/Write) | Warn about large files |
 
 ### Skills (`.claude/skills/`)
-| Skill | Purpose |
-|-------|---------|
+
+| Skill         | Purpose                                                   |
+| ------------- | --------------------------------------------------------- |
 | `medicalcor/` | Domain-specific skills (HIPAA, GDPR, GPT-4o, Omnichannel) |
-| `anthropic/` | Claude API integration |
-| `supabase/` | Supabase patterns |
-| `stripe/` | Stripe integration |
-| `expo/` | Mobile app development |
+| `anthropic/`  | Claude API integration                                    |
+| `supabase/`   | Supabase patterns                                         |
+| `stripe/`     | Stripe integration                                        |
+| `expo/`       | Mobile app development                                    |
 
 ---
 
 ## Documentation
 
-| Document | Path |
-|----------|------|
-| Architecture | `docs/ARCHITECTURE.md` |
-| Getting Started | `docs/README/GETTING_STARTED.md` |
-| API Reference | `docs/README/API_REFERENCE.md` |
-| Deployment | `docs/README/DEPLOYMENT.md` |
-| Testing | `docs/README/TESTING.md` |
-| E2E Setup | `docs/README/E2E_SETUP.md` |
-| Security | `docs/README/SECURITY.md` |
-| Monitoring | `docs/README/MONITORING.md` |
-| Workflows (Trigger.dev) | `docs/README/WORKFLOWS.md` |
-| Troubleshooting | `docs/README/TROUBLESHOOTING.md` |
-| FAQ | `docs/README/FAQ.md` |
-| Glossary | `docs/README/GLOSSARY.md` |
-| Key Rotation | `docs/README/KEY_ROTATION_PROCEDURE.md` |
-| Configuration | `docs/README/CONFIGURATION.md` |
-| Contributing | `docs/CONTRIBUTING.md` |
-| OSAX Specification | `docs/SPEC_OSAX_V3.2_MULTIMODAL.md` |
-| Claude Code Rules | `docs/PROJECT_RULES_CLAUDE.md` |
+| Document                | Path                                    |
+| ----------------------- | --------------------------------------- |
+| Architecture            | `docs/ARCHITECTURE.md`                  |
+| Getting Started         | `docs/README/GETTING_STARTED.md`        |
+| API Reference           | `docs/README/API_REFERENCE.md`          |
+| Deployment              | `docs/README/DEPLOYMENT.md`             |
+| Testing                 | `docs/README/TESTING.md`                |
+| E2E Setup               | `docs/README/E2E_SETUP.md`              |
+| Security                | `docs/README/SECURITY.md`               |
+| Monitoring              | `docs/README/MONITORING.md`             |
+| Workflows (Trigger.dev) | `docs/README/WORKFLOWS.md`              |
+| Troubleshooting         | `docs/README/TROUBLESHOOTING.md`        |
+| FAQ                     | `docs/README/FAQ.md`                    |
+| Glossary                | `docs/README/GLOSSARY.md`               |
+| Key Rotation            | `docs/README/KEY_ROTATION_PROCEDURE.md` |
+| Configuration           | `docs/README/CONFIGURATION.md`          |
+| Contributing            | `docs/CONTRIBUTING.md`                  |
+| OSAX Specification      | `docs/SPEC_OSAX_V3.2_MULTIMODAL.md`     |
+| Claude Code Rules       | `docs/PROJECT_RULES_CLAUDE.md`          |
 
 ### ADRs (`docs/adr/`)
 
-| ADR | Topic |
-|-----|-------|
-| 001 | Hexagonal Architecture |
-| 002 | Cloud-Agnostic Strategy |
-| 003 | Architecture Improvements |
-| 004 | Cognitive Episodic Memory |
+| ADR | Topic                          |
+| --- | ------------------------------ |
+| 001 | Hexagonal Architecture         |
+| 002 | Cloud-Agnostic Strategy        |
+| 003 | Architecture Improvements      |
+| 004 | Cognitive Episodic Memory      |
 | 005 | HNSW Vector Embedding Strategy |
 
 ### Runbooks (`docs/runbooks/`)
 
-| Runbook | Purpose |
-|---------|---------|
-| `COMMON_ISSUES.md` | Known issues and solutions |
-| `ESCALATION.md` | Escalation procedures |
-| `INCIDENT_RESPONSE.md` | Incident handling |
-| `ON_CALL.md` | On-call procedures |
+| Runbook                    | Purpose                       |
+| -------------------------- | ----------------------------- |
+| `COMMON_ISSUES.md`         | Known issues and solutions    |
+| `ESCALATION.md`            | Escalation procedures         |
+| `INCIDENT_RESPONSE.md`     | Incident handling             |
+| `ON_CALL.md`               | On-call procedures            |
 | `PARTITION_MAINTENANCE.md` | Database partition management |
-| `ROLLBACK.md` | Rollback procedures |
+| `ROLLBACK.md`              | Rollback procedures           |
 
 ---
 
@@ -532,13 +541,14 @@ This project includes Claude Code configuration in `.claude/`:
 
 Before making changes, classify them:
 
-| Type | Examples | Requirements |
-|------|----------|--------------|
-| **FAST** (safe) | Bug fixes, tests, docs, UI tweaks | Direct commit to feature branch |
-| **SLOW** (needs review) | New domain services, new integrations, schema changes | Requires ADR or RFC discussion |
+| Type                    | Examples                                               | Requirements                            |
+| ----------------------- | ------------------------------------------------------ | --------------------------------------- |
+| **FAST** (safe)         | Bug fixes, tests, docs, UI tweaks                      | Direct commit to feature branch         |
+| **SLOW** (needs review) | New domain services, new integrations, schema changes  | Requires ADR or RFC discussion          |
 | **BLOCKED** (forbidden) | Direct `main` push, migration drops, security bypasses | Never proceed without explicit approval |
 
 ### SLOW changes require ADR when:
+
 - Adding new bounded context or aggregate
 - Changing database schema (especially drops/renames)
 - Adding new external service integration
@@ -551,25 +561,29 @@ Before making changes, classify them:
 ## Layer Boundaries & Refactoring Rules
 
 ### Forbidden in Domain Layer (`packages/domain/`)
+
 ```typescript
 // NEVER import these in domain:
-import { Pool } from 'pg';           // Infrastructure
-import { OpenAI } from 'openai';     // External SDK
+import { Pool } from 'pg'; // Infrastructure
+import { OpenAI } from 'openai'; // External SDK
 import { FastifyRequest } from 'fastify'; // HTTP framework
 import { createClient } from '@supabase/supabase-js'; // Adapter
 ```
 
 ### Allowed Refactoring Zones
-| Zone | Refactoring Allowed | Notes |
-|------|---------------------|-------|
-| `apps/web/src/components/` | Yes | UI components, keep Storybook updated |
-| `packages/domain/src/` | Careful | Pure logic only, no infra leaks |
-| `packages/infrastructure/` | Yes | Adapter implementations |
-| `packages/core/src/cognitive/` | **ADR Required** | Critical AI memory system |
-| `db/migrations/` | **Never modify existing** | Only add new migrations |
+
+| Zone                           | Refactoring Allowed       | Notes                                 |
+| ------------------------------ | ------------------------- | ------------------------------------- |
+| `apps/web/src/components/`     | Yes                       | UI components, keep Storybook updated |
+| `packages/domain/src/`         | Careful                   | Pure logic only, no infra leaks       |
+| `packages/infrastructure/`     | Yes                       | Adapter implementations               |
+| `packages/core/src/cognitive/` | **ADR Required**          | Critical AI memory system             |
+| `db/migrations/`               | **Never modify existing** | Only add new migrations               |
 
 ### Detecting Layer Violations
+
 Before committing, verify:
+
 ```bash
 # Check domain doesn't import infrastructure
 pnpm --filter @medicalcor/domain build  # Should pass with no external deps
@@ -582,11 +596,13 @@ pnpm check:layer-boundaries              # Explicit boundary check
 ## Migration Safety Rules
 
 ### Never
+
 - Modify or delete existing migration files
 - Use `DROP COLUMN` or `DROP TABLE` without explicit approval
 - Add `NOT NULL` columns without defaults to existing tables
 
 ### Always
+
 - Name migrations: `YYYYMMDDHHMM_description.sql`
 - Make migrations idempotent (use `IF NOT EXISTS`, `IF EXISTS`)
 - Test rollback: `pnpm db:migrate` then `pnpm db:reset`
@@ -599,6 +615,7 @@ pnpm check:layer-boundaries              # Explicit boundary check
 When writing code that handles patient/lead data:
 
 ### PII Handling
+
 ```typescript
 // Correct - use structured logger with auto-redaction
 logger.info({ phone: patient.phone }, 'Processing patient');
@@ -608,12 +625,15 @@ console.log(`Processing patient ${patient.phone}`);
 ```
 
 ### PHI in Code
+
 - Never hardcode phone numbers, emails, or names in tests (use faker)
 - Never log message content without redaction
 - Never store raw PII in error messages or stack traces
 
 ### Consent Checks
+
 Before any outbound communication:
+
 ```typescript
 // Always verify consent before messaging
 const hasConsent = await consentService.hasValidConsent(leadId, 'marketing');
@@ -624,7 +644,9 @@ if (!hasConsent) {
 ```
 
 ### Breach Notification
+
 Use the breach notification service for security incidents:
+
 ```typescript
 import { BreachNotificationService } from '@medicalcor/domain/breach-notification';
 ```
@@ -638,15 +660,17 @@ The episodic memory system (`packages/core/src/cognitive/`) is critical infrastr
 **See**: `docs/adr/004-cognitive-episodic-memory.md` for full architecture.
 
 ### Key Components
-| Component | Purpose |
-|-----------|---------|
-| `episode-builder.ts` | Processes events into episodic memories |
-| `memory-retrieval.ts` | Semantic + temporal queries |
-| `pattern-detector.ts` | Behavioral pattern recognition |
-| `knowledge-graph.ts` | Entity relationships |
-| `gdpr-erasure.ts` | GDPR right-to-erasure implementation |
+
+| Component             | Purpose                                 |
+| --------------------- | --------------------------------------- |
+| `episode-builder.ts`  | Processes events into episodic memories |
+| `memory-retrieval.ts` | Semantic + temporal queries             |
+| `pattern-detector.ts` | Behavioral pattern recognition          |
+| `knowledge-graph.ts`  | Entity relationships                    |
+| `gdpr-erasure.ts`     | GDPR right-to-erasure implementation    |
 
 ### Rules for Cognitive System
+
 - Never modify embedding dimensions without migration plan
 - Never delete episodic events (use soft delete for GDPR)
 - Always include `correlationId` when creating episodes
@@ -671,6 +695,7 @@ const context = await ragService.retrieve(query);
 ```
 
 ### Ingesting Knowledge
+
 ```bash
 pnpm db:ingest  # Ingest knowledge base documents
 ```
@@ -682,6 +707,7 @@ pnpm db:ingest  # Ingest knowledge base documents
 **See**: `docs/README/WORKFLOWS.md` for Trigger.dev patterns.
 
 ### Adding a New Workflow
+
 1. Define task in `apps/trigger/src/tasks/`
 2. Create workflow in `apps/trigger/src/workflows/`
 3. Add Zod schema for payload validation
@@ -689,7 +715,9 @@ pnpm db:ingest  # Ingest knowledge base documents
 5. Add to cron schedule if recurring (`apps/trigger/src/jobs/`)
 
 ### Workflow Idempotency
+
 All workflows must be idempotent:
+
 ```typescript
 // Use idempotency key to prevent duplicate processing
 const idempotencyKey = `${taskName}:${payload.id}:${payload.timestamp}`;
@@ -702,6 +730,7 @@ if (existing) return { skipped: true };
 ## Infrastructure
 
 ### Local Development
+
 ```bash
 # Start full stack
 docker-compose up -d
@@ -711,29 +740,30 @@ docker-compose --profile monitoring up -d
 ```
 
 ### Production Infrastructure (`infra/`)
-| Component | Path |
-|-----------|------|
+
+| Component      | Path                            |
+| -------------- | ------------------------------- |
 | Docker Compose | `infra/docker-compose.prod.yml` |
-| Prometheus | `infra/prometheus/` |
-| Grafana | `infra/grafana/` |
-| Alertmanager | `infra/alertmanager/` |
-| Terraform | `infra/terraform/` |
+| Prometheus     | `infra/prometheus/`             |
+| Grafana        | `infra/grafana/`                |
+| Alertmanager   | `infra/alertmanager/`           |
+| Terraform      | `infra/terraform/`              |
 
 ---
 
 ## Integrations (`packages/integrations/src/`)
 
-| Integration | Purpose |
-|-------------|---------|
-| `hubspot.ts` | HubSpot CRM sync |
-| `whatsapp.ts` | WhatsApp messaging (360dialog) |
-| `vapi.ts` | Voice AI (Vapi) |
-| `flex.ts` | Twilio Flex (supervisor) |
-| `stripe.ts` | Payment processing |
-| `stripe-financing.ts` | Patient financing |
-| `openai.ts` | GPT-4o integration |
-| `embeddings.ts` | Vector embeddings |
-| `embedding-cache.ts` | Embedding cache layer |
-| `scheduling.ts` | Appointment scheduling |
-| `insurance.ts` | Insurance verification |
-| `notifications.ts` | Multi-channel notifications |
+| Integration           | Purpose                        |
+| --------------------- | ------------------------------ |
+| `hubspot.ts`          | HubSpot CRM sync               |
+| `whatsapp.ts`         | WhatsApp messaging (360dialog) |
+| `vapi.ts`             | Voice AI (Vapi)                |
+| `flex.ts`             | Twilio Flex (supervisor)       |
+| `stripe.ts`           | Payment processing             |
+| `stripe-financing.ts` | Patient financing              |
+| `openai.ts`           | GPT-4o integration             |
+| `embeddings.ts`       | Vector embeddings              |
+| `embedding-cache.ts`  | Embedding cache layer          |
+| `scheduling.ts`       | Appointment scheduling         |
+| `insurance.ts`        | Insurance verification         |
+| `notifications.ts`    | Multi-channel notifications    |

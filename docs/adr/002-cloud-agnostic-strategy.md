@@ -14,6 +14,7 @@ MedicalCor operates in the healthcare sector with strict data residency requirem
 4. **Cost Optimization**: Ability to leverage competitive pricing across providers
 
 Current challenges:
+
 - Lock-in to specific cloud services (e.g., AWS-specific APIs)
 - DR limited to single cloud provider regions
 - Difficult to negotiate pricing without alternatives
@@ -46,15 +47,15 @@ Adopt a **Cloud-Agnostic Multi-Cloud Strategy** using open standards and abstrac
 
 ### Technology Choices
 
-| Layer | Technology | Rationale |
-|-------|------------|-----------|
-| IaC | Terraform | Multi-cloud support, declarative |
-| Container Orchestration | Kubernetes | Universal across all clouds |
-| Database | PostgreSQL | Available everywhere, pgvector support |
-| Object Storage | S3-compatible | MinIO for on-prem, native for cloud |
-| Observability | OpenTelemetry | Vendor-neutral telemetry |
-| Secrets | External Secrets Operator | Works with any vault |
-| CI/CD | GitHub Actions | Cloud-agnostic, portable workflows |
+| Layer                   | Technology                | Rationale                              |
+| ----------------------- | ------------------------- | -------------------------------------- |
+| IaC                     | Terraform                 | Multi-cloud support, declarative       |
+| Container Orchestration | Kubernetes                | Universal across all clouds            |
+| Database                | PostgreSQL                | Available everywhere, pgvector support |
+| Object Storage          | S3-compatible             | MinIO for on-prem, native for cloud    |
+| Observability           | OpenTelemetry             | Vendor-neutral telemetry               |
+| Secrets                 | External Secrets Operator | Works with any vault                   |
+| CI/CD                   | GitHub Actions            | Cloud-agnostic, portable workflows     |
 
 ### Terraform Module Structure
 
@@ -101,13 +102,14 @@ module "database" {
 
 ## Cost Analysis
 
-| Scenario | Monthly Cost | Notes |
-|----------|--------------|-------|
-| Single Cloud (AWS) | €2,000 | Baseline |
-| Multi-Cloud Active-Passive | €2,600 | +30% for standby |
-| Multi-Cloud Active-Active | €3,200 | +60% for full redundancy |
+| Scenario                   | Monthly Cost | Notes                    |
+| -------------------------- | ------------ | ------------------------ |
+| Single Cloud (AWS)         | €2,000       | Baseline                 |
+| Multi-Cloud Active-Passive | €2,600       | +30% for standby         |
+| Multi-Cloud Active-Active  | €3,200       | +60% for full redundancy |
 
 **ROI Justification**:
+
 - Avoided vendor lock-in migration: €50,000+ (industry average)
 - Negotiation savings: 15-25% on committed spend
 - Compliance audit simplification: 40 hours/audit saved
@@ -115,12 +117,15 @@ module "database" {
 ## Alternatives Considered
 
 ### 1. Full AWS Native
+
 **Rejected**: Creates unacceptable vendor lock-in risk for healthcare platform with 10+ year horizon.
 
 ### 2. Hybrid with Some Cloud-Native Services
+
 **Partially Adopted**: Use managed Kubernetes (EKS/AKS/GKE) while keeping application portable.
 
 ### 3. On-Premise Only
+
 **Rejected**: Higher operational cost, no geographic distribution for DR.
 
 ## Implementation Guidelines

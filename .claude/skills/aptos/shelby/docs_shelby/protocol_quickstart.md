@@ -39,12 +39,10 @@ Follow the [SDK quickstart guide](/sdks/typescript).
 
 # Learn More
 
-  * Explore the [architecture overview](/protocol/architecture/overview) to learn more about how Shelby works.
-  * Explore the [CLI Commands](/tools/cli/commands/uploads-and-downloads)
-  * Explore the [Typescript SDK documentation](/sdks/typescript/core) and [file upload guide](/sdks/typescript/node/guides/uploading-file).
-  * Explore the [RPC Server APIs](/apis/rpc)
-
-
+- Explore the [architecture overview](/protocol/architecture/overview) to learn more about how Shelby works.
+- Explore the [CLI Commands](/tools/cli/commands/uploads-and-downloads)
+- Explore the [Typescript SDK documentation](/sdks/typescript/core) and [file upload guide](/sdks/typescript/node/guides/uploading-file).
+- Explore the [RPC Server APIs](/apis/rpc)
 
 [IntroductionWhat is the Shelby Protocol?](/protocol)[OverviewHow Shelby works](/protocol/architecture/overview)
 

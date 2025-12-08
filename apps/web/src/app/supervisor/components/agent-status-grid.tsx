@@ -10,13 +10,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import {
-  Users,
-  Phone,
-  Coffee,
-  Moon,
-  CheckCircle2,
-} from 'lucide-react';
+import { Users, Phone, Coffee, Moon, CheckCircle2 } from 'lucide-react';
 import type { FlexWorker, FlexWorkerActivity } from '@medicalcor/types';
 import { cn } from '@/lib/utils';
 
@@ -104,10 +98,7 @@ function AgentCard({ agent }: AgentCardProps) {
           {getActivityIcon(agent.activityName)}
         </div>
         <div className="flex items-center gap-2">
-          <Badge
-            variant={agent.available ? 'default' : 'secondary'}
-            className="text-[10px] h-5"
-          >
+          <Badge variant={agent.available ? 'default' : 'secondary'} className="text-[10px] h-5">
             {getActivityLabel(agent.activityName)}
           </Badge>
           {agent.skills.length > 0 && (

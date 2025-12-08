@@ -9,6 +9,7 @@ MedicalCor uses GPT-4o for AI-powered lead scoring and patient communication ana
 ## Architecture
 
 ### AI Gateway Pattern
+
 Location: `packages/domain/src/shared-kernel/repository-interfaces/ai-gateway.ts`
 
 ```typescript
@@ -20,13 +21,14 @@ interface AIGateway {
 ```
 
 ### Implementation
+
 Location: `packages/integrations/src/openai/`
 
 ```typescript
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 export class OpenAIGateway implements AIGateway {
@@ -35,10 +37,10 @@ export class OpenAIGateway implements AIGateway {
       model: 'gpt-4o',
       messages: [
         { role: 'system', content: LEAD_SCORING_PROMPT },
-        { role: 'user', content: this.formatLeadData(lead, context) }
+        { role: 'user', content: this.formatLeadData(lead, context) },
       ],
       response_format: { type: 'json_object' },
-      temperature: 0.3  // Lower for consistent scoring
+      temperature: 0.3, // Lower for consistent scoring
     });
 
     return this.parseScoreResponse(response);
@@ -49,12 +51,15 @@ export class OpenAIGateway implements AIGateway {
 ## Lead Scoring
 
 ### Scoring Service
+
 Location: `packages/domain/src/scoring/scoring-service.ts`
 
 ### Lead Score Value Object
+
 Location: `packages/domain/src/shared-kernel/value-objects/lead-score.ts`
 
 ### Scoring Prompt Template
+
 ```typescript
 const LEAD_SCORING_PROMPT = `You are a dental clinic lead scoring assistant.
 Analyze the lead data and provide a score from 0-100 based on:
@@ -128,6 +133,7 @@ function redactPHI(text: string): string {
 ## Embeddings & RAG
 
 ### pgvector Integration
+
 MedicalCor uses PostgreSQL with pgvector for vector similarity search:
 
 ```typescript
@@ -135,37 +141,44 @@ MedicalCor uses PostgreSQL with pgvector for vector similarity search:
 async function generateEmbedding(text: string): Promise<number[]> {
   const response = await openai.embeddings.create({
     model: 'text-embedding-3-small',
-    input: text
+    input: text,
   });
   return response.data[0].embedding;
 }
 
 // Store in PostgreSQL
-await db.query(`
+await db.query(
+  `
   INSERT INTO knowledge_base (content, embedding)
   VALUES ($1, $2::vector)
-`, [content, JSON.stringify(embedding)]);
+`,
+  [content, JSON.stringify(embedding)]
+);
 
 // Similarity search
 async function findSimilar(query: string, limit = 5) {
   const queryEmbedding = await generateEmbedding(query);
-  return db.query(`
+  return db.query(
+    `
     SELECT content, 1 - (embedding <=> $1::vector) as similarity
     FROM knowledge_base
     ORDER BY embedding <=> $1::vector
     LIMIT $2
-  `, [JSON.stringify(queryEmbedding), limit]);
+  `,
+    [JSON.stringify(queryEmbedding), limit]
+  );
 }
 ```
 
 ### RAG for Patient Q&A
+
 ```typescript
 async function answerPatientQuestion(question: string): Promise<string> {
   // 1. Find relevant knowledge
   const relevantDocs = await findSimilar(question, 3);
 
   // 2. Build context
-  const context = relevantDocs.map(d => d.content).join('\n\n');
+  const context = relevantDocs.map((d) => d.content).join('\n\n');
 
   // 3. Generate answer
   const response = await openai.chat.completions.create({
@@ -178,10 +191,10 @@ Answer patient questions based on the following knowledge base:
 
 ${context}
 
-Be helpful but remind patients to consult with their dentist for specific medical advice.`
+Be helpful but remind patients to consult with their dentist for specific medical advice.`,
       },
-      { role: 'user', content: question }
-    ]
+      { role: 'user', content: question },
+    ],
   });
 
   return response.choices[0].message.content;
@@ -191,6 +204,7 @@ Be helpful but remind patients to consult with their dentist for specific medica
 ## Structured Outputs
 
 ### JSON Mode
+
 ```typescript
 const response = await openai.chat.completions.create({
   model: 'gpt-4o',
@@ -202,6 +216,7 @@ const result = JSON.parse(response.choices[0].message.content);
 ```
 
 ### Function Calling
+
 ```typescript
 const response = await openai.chat.completions.create({
   model: 'gpt-4o',

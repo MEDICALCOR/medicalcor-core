@@ -63,7 +63,10 @@ export function WebhookFilters({ filter, onFilterChange, eventTypes }: WebhookFi
         <Select
           value={filter.source ?? 'all'}
           onValueChange={(value) =>
-            onFilterChange({ ...filter, source: value === 'all' ? undefined : (value as WebhookSource) })
+            onFilterChange({
+              ...filter,
+              source: value === 'all' ? undefined : (value as WebhookSource),
+            })
           }
         >
           <SelectTrigger className="w-full sm:w-[150px]">
@@ -83,7 +86,10 @@ export function WebhookFilters({ filter, onFilterChange, eventTypes }: WebhookFi
         <Select
           value={filter.status ?? 'all'}
           onValueChange={(value) =>
-            onFilterChange({ ...filter, status: value === 'all' ? undefined : (value as WebhookStatus) })
+            onFilterChange({
+              ...filter,
+              status: value === 'all' ? undefined : (value as WebhookStatus),
+            })
           }
         >
           <SelectTrigger className="w-full sm:w-[140px]">

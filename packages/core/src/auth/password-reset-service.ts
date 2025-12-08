@@ -79,7 +79,7 @@ export class PasswordResetService {
       const elapsed = Date.now() - startTime;
       const delay = Math.max(0, MIN_RESPONSE_TIME_MS - elapsed);
       if (delay > 0) {
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
       return result;
     };
@@ -302,10 +302,9 @@ export class PasswordResetService {
   private async performDummyWork(): Promise<void> {
     // Perform operations similar to successful path timing
     // Query that will find nothing but takes similar time
-    await this.db.query(
-      `SELECT id FROM password_reset_tokens WHERE token_hash = $1 LIMIT 1`,
-      ['dummy-token-hash-that-will-not-exist']
-    );
+    await this.db.query(`SELECT id FROM password_reset_tokens WHERE token_hash = $1 LIMIT 1`, [
+      'dummy-token-hash-that-will-not-exist',
+    ]);
   }
 }
 

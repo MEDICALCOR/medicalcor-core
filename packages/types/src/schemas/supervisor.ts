@@ -521,13 +521,17 @@ export const QueueSLAStatusSchema = z.object({
 
   // SLA compliance
   isCompliant: z.boolean(),
-  breaches: z.array(z.enum([
-    'wait_time_exceeded',
-    'queue_size_exceeded',
-    'abandon_rate_exceeded',
-    'agent_availability_low',
-    'service_level_missed',
-  ])).default([]),
+  breaches: z
+    .array(
+      z.enum([
+        'wait_time_exceeded',
+        'queue_size_exceeded',
+        'abandon_rate_exceeded',
+        'agent_availability_low',
+        'service_level_missed',
+      ])
+    )
+    .default([]),
 
   // Severity
   severity: z.enum(['ok', 'warning', 'critical']).default('ok'),

@@ -209,10 +209,7 @@ export function createDatabaseChecker(
  * @param pingFn - Function to ping Redis
  * @param name - Dependency name (default: 'redis')
  */
-export function createRedisChecker(
-  pingFn: () => Promise<string>,
-  name = 'redis'
-): HealthChecker {
+export function createRedisChecker(pingFn: () => Promise<string>, name = 'redis'): HealthChecker {
   return async () => {
     const start = Date.now();
     try {
@@ -252,11 +249,7 @@ export function createRedisChecker(
  * @param name - Dependency name
  * @param expectedStatus - Expected HTTP status code (default: 200)
  */
-export function createHttpChecker(
-  url: string,
-  name: string,
-  expectedStatus = 200
-): HealthChecker {
+export function createHttpChecker(url: string, name: string, expectedStatus = 200): HealthChecker {
   return async () => {
     const start = Date.now();
     try {

@@ -14,6 +14,7 @@ Provide expert guidance on Plaid Identity, the product for retrieving account ho
 ## When to Use
 
 Auto-invoke when users mention:
+
 - Plaid Identity product
 - Account holder information
 - KYC (Know Your Customer)
@@ -27,6 +28,7 @@ Auto-invoke when users mention:
 Plaid Identity documentation in `.claude/skills/api/plaid/docs/`
 
 Search patterns:
+
 - `Grep "identity|/identity/get|account.*holder" .claude/skills/api/plaid/docs/ -i`
 - `Grep "kyc|identity.*verification" .claude/skills/api/plaid/docs/ -i`
 - `Grep "name.*address|owner.*information" .claude/skills/api/plaid/docs/ -i`
@@ -34,6 +36,7 @@ Search patterns:
 ## Coverage Areas
 
 **Identity Data**
+
 - Account holder names
 - Email addresses
 - Phone numbers
@@ -41,6 +44,7 @@ Search patterns:
 - Multiple owners support
 
 **Verification Use Cases**
+
 - KYC compliance
 - Account ownership verification
 - User onboarding
@@ -49,6 +53,7 @@ Search patterns:
 - Identity matching
 
 **Data Quality**
+
 - Data availability by institution
 - Field completeness
 - Data accuracy
@@ -56,6 +61,7 @@ Search patterns:
 - Business vs personal accounts
 
 **Compliance**
+
 - FCRA compliance considerations
 - Data retention policies
 - Privacy regulations
@@ -64,7 +70,7 @@ Search patterns:
 
 ## Response Format
 
-```markdown
+````markdown
 ## [Identity Topic]
 
 [Overview of Identity feature]
@@ -78,37 +84,48 @@ const response = await client.identityGet({
 
 const { accounts, item } = response.data;
 ```
+````
 
 ### Response Structure
 
 ```json
 {
-  "accounts": [{
-    "account_id": "...",
-    "owners": [{
-      "names": ["John Doe"],
-      "emails": [{
-        "data": "john@example.com",
-        "primary": true,
-        "type": "primary"
-      }],
-      "phone_numbers": [{
-        "data": "5555551234",
-        "primary": true,
-        "type": "mobile"
-      }],
-      "addresses": [{
-        "data": {
-          "street": "123 Main St",
-          "city": "San Francisco",
-          "region": "CA",
-          "postal_code": "94105",
-          "country": "US"
-        },
-        "primary": true
-      }]
-    }]
-  }]
+  "accounts": [
+    {
+      "account_id": "...",
+      "owners": [
+        {
+          "names": ["John Doe"],
+          "emails": [
+            {
+              "data": "john@example.com",
+              "primary": true,
+              "type": "primary"
+            }
+          ],
+          "phone_numbers": [
+            {
+              "data": "5555551234",
+              "primary": true,
+              "type": "mobile"
+            }
+          ],
+          "addresses": [
+            {
+              "data": {
+                "street": "123 Main St",
+                "city": "San Francisco",
+                "region": "CA",
+                "postal_code": "94105",
+                "country": "US"
+              },
+              "primary": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }
 ```
 
@@ -133,6 +150,7 @@ const { accounts, item } = response.data;
 ### Common Use Cases
 
 **User Onboarding:**
+
 ```javascript
 const { owners } = accounts[0];
 const primaryOwner = owners[0];
@@ -144,20 +162,18 @@ const nameMatch = validateName(providedName, bankName);
 ```
 
 **Address Verification:**
+
 ```javascript
-const primaryAddress = owners[0].addresses
-  .find(addr => addr.primary);
+const primaryAddress = owners[0].addresses.find((addr) => addr.primary);
 
 if (primaryAddress) {
   // Use for address validation
-  const verified = matchAddress(
-    userAddress,
-    primaryAddress.data
-  );
+  const verified = matchAddress(userAddress, primaryAddress.data);
 }
 ```
 
 **Source:** `.claude/skills/api/plaid/docs/[filename].md`
+
 ```
 
 ## Key Endpoints
@@ -191,3 +207,4 @@ Not all institutions provide all fields:
 - Consider institution limitations
 - Explain permissible purposes
 - Show multiple owner handling
+```

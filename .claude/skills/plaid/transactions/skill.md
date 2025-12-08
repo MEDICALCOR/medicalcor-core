@@ -14,6 +14,7 @@ Provide expert guidance on Plaid Transactions, the product for retrieving and mo
 ## When to Use
 
 Auto-invoke when users mention:
+
 - Plaid Transactions product
 - Banking transaction history
 - Transaction sync or updates
@@ -27,6 +28,7 @@ Auto-invoke when users mention:
 Plaid Transactions documentation in `.claude/skills/api/plaid/docs/`
 
 Search patterns:
+
 - `Grep "transaction|/transactions/get|/transactions/sync" .claude/skills/api/plaid/docs/ -i`
 - `Grep "transaction.*category|recurring" .claude/skills/api/plaid/docs/ -i`
 - `Grep "transaction.*webhook|historical.*transaction" .claude/skills/api/plaid/docs/ -i`
@@ -34,6 +36,7 @@ Search patterns:
 ## Coverage Areas
 
 **Transaction Retrieval**
+
 - /transactions/sync (recommended)
 - /transactions/get (legacy)
 - Historical data (up to 24 months)
@@ -41,6 +44,7 @@ Search patterns:
 - Pagination
 
 **Transaction Data**
+
 - Transaction details
 - Merchant information
 - Category classification
@@ -48,6 +52,7 @@ Search patterns:
 - Payment channel
 
 **Categorization**
+
 - Automatic categorization
 - Category taxonomy
 - Personal finance categories
@@ -55,6 +60,7 @@ Search patterns:
 - Category confidence scores
 
 **Updates & Webhooks**
+
 - SYNC_UPDATES_AVAILABLE
 - DEFAULT_UPDATE
 - TRANSACTIONS_REMOVED
@@ -62,6 +68,7 @@ Search patterns:
 - Update polling strategies
 
 **Advanced Features**
+
 - Recurring transaction detection
 - Income insights
 - Transaction enrichment
@@ -70,7 +77,7 @@ Search patterns:
 
 ## Response Format
 
-```markdown
+````markdown
 ## [Transactions Topic]
 
 [Overview of feature]
@@ -86,21 +93,24 @@ const response = await client.transactionsSync({
 
 const { added, modified, removed, next_cursor } = response.data;
 ```
+````
 
 ### Response Structure
 
 ```json
 {
-  "added": [{
-    "transaction_id": "...",
-    "amount": 12.50,
-    "date": "2024-01-15",
-    "name": "Starbucks",
-    "merchant_name": "Starbucks",
-    "category": ["Food and Drink", "Restaurants"],
-    "category_id": "13005000",
-    "pending": false
-  }],
+  "added": [
+    {
+      "transaction_id": "...",
+      "amount": 12.5,
+      "date": "2024-01-15",
+      "name": "Starbucks",
+      "merchant_name": "Starbucks",
+      "category": ["Food and Drink", "Restaurants"],
+      "category_id": "13005000",
+      "pending": false
+    }
+  ],
   "modified": [],
   "removed": []
 }
@@ -109,12 +119,14 @@ const { added, modified, removed, next_cursor } = response.data;
 ### Integration Pattern
 
 **Initial Sync:**
+
 1. Call /transactions/sync without cursor
 2. Process added transactions
 3. Store next_cursor
 4. Repeat until has_more = false
 
 **Ongoing Sync:**
+
 1. Listen for SYNC_UPDATES_AVAILABLE webhook
 2. Call /transactions/sync with stored cursor
 3. Process added/modified/removed
@@ -132,13 +144,15 @@ const { added, modified, removed, next_cursor } = response.data;
 ### Common Patterns
 
 **Spending Analysis:**
+
 ```javascript
 const spending = transactions
-  .filter(t => t.amount > 0) // Positive = debit
+  .filter((t) => t.amount > 0) // Positive = debit
   .reduce((sum, t) => sum + t.amount, 0);
 ```
 
 **Source:** `.claude/skills/api/plaid/docs/[filename].md`
+
 ```
 
 ## Key Endpoints
@@ -163,3 +177,4 @@ const spending = transactions
 - Handle pending transactions
 - Show categorization usage
 - Consider rate limits
+```

@@ -78,13 +78,11 @@ Python
 Java
 
 C#
-    
-    
+
     curl -X POST "http://localhost:9090/v1/sessions" \  -H "Content-Type: application/json" \  -d '{}'
 
 201
-    
-    
+
     {
       "sessionId": "string"
     }

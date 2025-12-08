@@ -9,27 +9,33 @@ MedicalCor serves dental clinics in the EU and must comply with GDPR (General Da
 ## Key GDPR Principles
 
 ### 1. Lawfulness, Fairness, and Transparency
+
 - Process data lawfully with a valid legal basis
 - Be transparent about data processing
 - Provide clear privacy notices
 
 ### 2. Purpose Limitation
+
 - Collect data for specific, explicit purposes
 - Don't process data for incompatible purposes
 
 ### 3. Data Minimization
+
 - Collect only necessary data
 - Don't store more than needed
 
 ### 4. Accuracy
+
 - Keep data accurate and up-to-date
 - Provide mechanisms for correction
 
 ### 5. Storage Limitation
+
 - Don't keep data longer than necessary
 - Implement retention policies
 
 ### 6. Integrity and Confidentiality
+
 - Ensure appropriate security
 - Protect against unauthorized access
 
@@ -39,10 +45,10 @@ For MedicalCor, the primary legal bases are:
 
 ```typescript
 enum LegalBasis {
-  CONSENT = 'consent',                    // Patient explicitly agrees
-  CONTRACT = 'contract',                  // Necessary for service delivery
-  LEGAL_OBLIGATION = 'legal_obligation',  // Required by law
-  LEGITIMATE_INTEREST = 'legitimate_interest' // Business necessity
+  CONSENT = 'consent', // Patient explicitly agrees
+  CONTRACT = 'contract', // Necessary for service delivery
+  LEGAL_OBLIGATION = 'legal_obligation', // Required by law
+  LEGITIMATE_INTEREST = 'legitimate_interest', // Business necessity
 }
 
 interface ProcessingRecord {
@@ -59,6 +65,7 @@ interface ProcessingRecord {
 ### Implementation Patterns
 
 #### 1. Right of Access (Article 15)
+
 ```typescript
 // packages/domain/src/consent/gdpr-service.ts
 
@@ -74,14 +81,14 @@ export async function handleSubjectAccessRequest(
     communications: await messageRepo.findByPatientId(patientId),
     consents: await consentRepo.findByPatientId(patientId),
     leadScoring: await scoringRepo.findByPatientId(patientId),
-    processingActivities: getProcessingRecords()
+    processingActivities: getProcessingRecords(),
   };
 
   // Log the request (audit trail)
   await auditLog.record({
     type: 'SAR_FULFILLED',
     patientId,
-    timestamp: new Date()
+    timestamp: new Date(),
   });
 
   return data;
@@ -89,6 +96,7 @@ export async function handleSubjectAccessRequest(
 ```
 
 #### 2. Right to Rectification (Article 16)
+
 ```typescript
 export async function handleRectificationRequest(
   patientId: string,
@@ -100,16 +108,15 @@ export async function handleRectificationRequest(
     type: 'RECTIFICATION_REQUEST',
     patientId,
     corrections: Object.keys(corrections),
-    timestamp: new Date()
+    timestamp: new Date(),
   });
 }
 ```
 
 #### 3. Right to Erasure (Article 17)
+
 ```typescript
-export async function handleErasureRequest(
-  patientId: string
-): Promise<ErasureResult> {
+export async function handleErasureRequest(patientId: string): Promise<ErasureResult> {
   // Check for legal retention requirements
   const retentionCheck = await checkLegalRetention(patientId);
 
@@ -117,7 +124,7 @@ export async function handleErasureRequest(
     return {
       success: false,
       reason: 'Data subject to legal retention requirements',
-      retainedUntil: retentionCheck.retainUntil
+      retainedUntil: retentionCheck.retainUntil,
     };
   }
 
@@ -129,7 +136,7 @@ export async function handleErasureRequest(
   await auditLog.record({
     type: 'ERASURE_REQUEST',
     patientId: '[ANONYMIZED]', // Don't log the actual ID after erasure
-    timestamp: new Date()
+    timestamp: new Date(),
   });
 
   return { success: true };
@@ -137,6 +144,7 @@ export async function handleErasureRequest(
 ```
 
 #### 4. Right to Data Portability (Article 20)
+
 ```typescript
 export async function handlePortabilityRequest(
   patientId: string,
@@ -144,31 +152,27 @@ export async function handlePortabilityRequest(
 ): Promise<DataExport> {
   const data = await compilePatientData(patientId);
 
-  const export_ = format === 'json'
-    ? JSON.stringify(data, null, 2)
-    : convertToCSV(data);
+  const export_ = format === 'json' ? JSON.stringify(data, null, 2) : convertToCSV(data);
 
   await auditLog.record({
     type: 'PORTABILITY_REQUEST',
     patientId,
     format,
-    timestamp: new Date()
+    timestamp: new Date(),
   });
 
   return {
     data: export_,
     format,
-    generatedAt: new Date()
+    generatedAt: new Date(),
   };
 }
 ```
 
 #### 5. Right to Withdraw Consent (Article 7)
+
 ```typescript
-export async function withdrawConsent(
-  patientId: string,
-  consentType: ConsentType
-): Promise<void> {
+export async function withdrawConsent(patientId: string, consentType: ConsentType): Promise<void> {
   await consentRepo.revoke(patientId, consentType);
 
   // Stop all processing based on this consent
@@ -180,7 +184,7 @@ export async function withdrawConsent(
     type: 'CONSENT_WITHDRAWN',
     patientId,
     consentType,
-    timestamp: new Date()
+    timestamp: new Date(),
   });
 }
 ```
@@ -190,30 +194,32 @@ export async function withdrawConsent(
 Location: `packages/domain/src/consent/`
 
 ### Consent Record Structure
+
 ```typescript
 interface ConsentRecord {
   id: string;
   patientId: string;
   type: ConsentType;
-  version: string;         // Policy version consented to
+  version: string; // Policy version consented to
   grantedAt: Date;
   expiresAt?: Date;
   withdrawnAt?: Date;
   source: 'web' | 'whatsapp' | 'voice' | 'paper';
   ipAddress?: string;
-  evidenceUrl?: string;    // Link to signed form if applicable
+  evidenceUrl?: string; // Link to signed form if applicable
 }
 
 enum ConsentType {
-  DATA_PROCESSING = 'data_processing',    // Required for service
-  MARKETING = 'marketing',                 // Optional
-  THIRD_PARTY_SHARING = 'third_party',    // For integrations
-  AI_PROCESSING = 'ai_processing',         // For GPT-4o scoring
-  RESEARCH = 'research'                    // Optional
+  DATA_PROCESSING = 'data_processing', // Required for service
+  MARKETING = 'marketing', // Optional
+  THIRD_PARTY_SHARING = 'third_party', // For integrations
+  AI_PROCESSING = 'ai_processing', // For GPT-4o scoring
+  RESEARCH = 'research', // Optional
 }
 ```
 
 ### Collecting Valid Consent
+
 ```typescript
 // Consent must be:
 // - Freely given (not bundled with service)
@@ -228,21 +234,21 @@ const consentForm = {
       type: 'data_processing',
       required: true,
       description: 'We process your data to provide dental services...',
-      legalBasis: 'contract'
+      legalBasis: 'contract',
     },
     {
       type: 'marketing',
       required: false,
       description: 'Receive promotional offers and dental care tips...',
-      legalBasis: 'consent'
+      legalBasis: 'consent',
     },
     {
       type: 'ai_processing',
       required: false,
       description: 'Use AI to personalize your experience...',
-      legalBasis: 'consent'
-    }
-  ]
+      legalBasis: 'consent',
+    },
+  ],
 };
 ```
 
@@ -266,7 +272,7 @@ const RETENTION_POLICIES: Record<string, string> = {
   leads: '2 years from last activity',
 
   // Anonymized analytics
-  analytics: 'indefinite'
+  analytics: 'indefinite',
 };
 
 // Automated cleanup job
@@ -277,13 +283,14 @@ export const dataRetentionJob = task({
     for (const [dataType, policy] of Object.entries(RETENTION_POLICIES)) {
       await cleanupExpiredData(dataType, policy);
     }
-  }
+  },
 });
 ```
 
 ## Cross-Border Transfers
 
 ### Standard Contractual Clauses
+
 For transfers outside the EU (e.g., to US-based services):
 
 ```typescript
@@ -303,7 +310,7 @@ const THIRD_PARTY_TRANSFERS: DataTransferAgreement[] = [
     safeguard: 'scc',
     dataTypes: ['anonymized lead data'],
     purposes: ['AI-powered lead scoring'],
-    documentUrl: '/legal/openai-dpa.pdf'
+    documentUrl: '/legal/openai-dpa.pdf',
   },
   {
     recipient: 'HubSpot',
@@ -311,14 +318,15 @@ const THIRD_PARTY_TRANSFERS: DataTransferAgreement[] = [
     safeguard: 'scc',
     dataTypes: ['contact information', 'communication history'],
     purposes: ['CRM management'],
-    documentUrl: '/legal/hubspot-dpa.pdf'
-  }
+    documentUrl: '/legal/hubspot-dpa.pdf',
+  },
 ];
 ```
 
 ## Privacy by Design
 
 ### Data Flow Documentation
+
 ```
 Patient → Web Form → Fastify API → Database (EU)
                 ↓
@@ -330,6 +338,7 @@ Patient → Web Form → Fastify API → Database (EU)
 ```
 
 ### Technical Measures
+
 1. **Encryption**: AES-256 at rest, TLS 1.2+ in transit
 2. **Pseudonymization**: Use internal IDs, not names
 3. **Access Control**: Role-based, principle of least privilege
@@ -339,6 +348,7 @@ Patient → Web Form → Fastify API → Database (EU)
 ## Documentation Requirements
 
 ### Records of Processing Activities (Article 30)
+
 ```typescript
 const PROCESSING_ACTIVITIES = [
   {
@@ -347,7 +357,7 @@ const PROCESSING_ACTIVITIES = [
     categories: ['Identity', 'Contact', 'Health'],
     recipients: ['Clinic staff', 'Healthcare providers'],
     retention: '10 years after last treatment',
-    security: ['Encryption', 'Access control', 'Audit logs']
+    security: ['Encryption', 'Access control', 'Audit logs'],
   },
   {
     activity: 'Lead Scoring',
@@ -355,8 +365,8 @@ const PROCESSING_ACTIVITIES = [
     categories: ['Contact', 'Behavioral'],
     recipients: ['Sales team', 'OpenAI (anonymized)'],
     retention: '2 years',
-    security: ['Anonymization', 'Encryption']
-  }
+    security: ['Anonymization', 'Encryption'],
+  },
 ];
 ```
 
@@ -382,7 +392,7 @@ async function handleDataBreach(breach: DataBreach): Promise<void> {
   await auditLog.record({
     type: 'DATA_BREACH',
     details: breach,
-    timestamp: new Date()
+    timestamp: new Date(),
   });
 
   // Notify DPO
