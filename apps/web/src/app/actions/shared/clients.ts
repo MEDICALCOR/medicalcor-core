@@ -132,7 +132,6 @@ export function getStripeClient(): StripeClient | MockStripeClient {
  * Direct database access from Next.js server actions is not recommended
  * for scheduling operations which require transactional consistency.
  */
-// @ts-expect-error - Extended interface for web usage
 class APISchedulingRepository implements ISchedulingRepository {
   private readonly apiBaseUrl: string;
 
