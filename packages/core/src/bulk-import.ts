@@ -111,14 +111,14 @@ const DEFAULT_CSV_MAPPINGS: Record<string, ImportFieldName> = {
  */
 export function parseCSV(
   csvContent: string
-): { rows: BulkImportRow[]; errors: Array<{ line: number; error: string }> } {
+): { rows: BulkImportRow[]; errors: { line: number; error: string }[] } {
   const lines = csvContent.trim().split(/\r?\n/);
   if (lines.length < 2) {
     throw new ValidationError('CSV must have at least a header row and one data row');
   }
 
   const rows: BulkImportRow[] = [];
-  const errors: Array<{ line: number; error: string }> = [];
+  const errors: { line: number; error: string }[] = [];
 
   // Parse header
   const headerLine = lines[0];

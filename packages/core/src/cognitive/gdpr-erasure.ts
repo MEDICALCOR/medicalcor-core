@@ -261,7 +261,7 @@ export class CognitiveGDPRErasureService {
    * Useful for batch erasure operations.
    */
   async eraseMultipleSubjects(
-    subjects: Array<{ subjectType: SubjectType; subjectId: string }>,
+    subjects: { subjectType: SubjectType; subjectId: string }[],
     options: ErasureOptions
   ): Promise<CognitiveErasureResult[]> {
     const results: CognitiveErasureResult[] = [];
@@ -367,7 +367,7 @@ export class CognitiveGDPRErasureService {
    * Called by scheduled cleanup job to permanently remove
    * records that have been soft-deleted and exceeded retention.
    */
-  async purgeExpiredRecords(retentionDays: number = 30): Promise<number> {
+  async purgeExpiredRecords(retentionDays = 30): Promise<number> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
