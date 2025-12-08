@@ -2,9 +2,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import {
   CreateLoadTestResultSchema,
-  LoadTestQuerySchema,
   type CreateLoadTestResult,
-  type LoadTestQuery,
   type LoadTestResult,
   type LoadTestDashboardData,
   type LoadTestSummaryStats,
@@ -14,7 +12,7 @@ import {
 } from '@medicalcor/types';
 import { createLogger } from '@medicalcor/core';
 
-const logger = createLogger('load-testing-routes');
+const logger = createLogger({ name: 'load-testing-routes' });
 
 /**
  * Load Testing Routes
@@ -31,7 +29,7 @@ const logger = createLogger('load-testing-routes');
 
 // In-memory storage for demo/development (replace with database in production)
 const loadTestResults: LoadTestResult[] = [];
-let nextId = 1;
+let _nextId = 1;
 
 /**
  * Calculate status based on thresholds and metrics
@@ -90,7 +88,7 @@ function generateTrends(results: LoadTestResult[]): LoadTestTrendPoint[] {
   return results
     .sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime())
     .map((r) => ({
-      date: r.startedAt.split('T')[0],
+      date: r.startedAt.split('T')[0] ?? r.startedAt,
       p95Duration: r.p95Duration,
       p99Duration: r.p99Duration,
       avgDuration: r.avgDuration,

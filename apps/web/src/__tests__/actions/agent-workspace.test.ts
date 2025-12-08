@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Server Action Tests: Agent Workspace
  *

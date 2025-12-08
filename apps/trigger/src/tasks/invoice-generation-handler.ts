@@ -62,11 +62,12 @@ function getEmailClient(): ReturnType<typeof createEmailChannelAdapter> | null {
 // PDF Generation Utilities
 // ============================================
 
-function escapePdfText(text: string): string {
+function escapePdfText(text: string | undefined): string {
+  const safeText = text ?? '';
   let result = '';
-  for (let i = 0; i < text.length; i++) {
-    const charCode = text.charCodeAt(i);
-    const char = text[i] ?? '';
+  for (let i = 0; i < safeText.length; i++) {
+    const charCode = safeText.charCodeAt(i);
+    const char = safeText[i] ?? '';
     if (charCode >= 0x20 && charCode < 0x7f) {
       if (char === '\\') result += '\\\\';
       else if (char === '(') result += '\\(';
@@ -83,7 +84,7 @@ function buildPdfHeader(labels: Record<string, string>, invoice: InvoiceData): s
   let stream = 'BT\n';
   stream += `/F1 24 Tf\n`;
   stream += `${MARGIN} ${PAGE_HEIGHT - MARGIN} Td\n`;
-  stream += `(${escapePdfText(labels.invoice.toUpperCase())}) Tj\n`;
+  stream += `(${escapePdfText((labels.invoice ?? 'INVOICE').toUpperCase())}) Tj\n`;
 
   stream += `/F1 10 Tf\n`;
   stream += `0 -30 Td\n`;
@@ -383,7 +384,7 @@ export const generateInvoice = task({
   id: 'generate-invoice',
   retry: { maxAttempts: 3, minTimeoutInMs: 1000, maxTimeoutInMs: 10000, factor: 2 },
   run: async (payload: InvoiceGenerationPayload): Promise<InvoiceGenerationResult> => {
-    const { invoice, emailOptions = {}, correlationId, hubspotContactId } = payload;
+    const { invoice, emailOptions = { sendEmail: true, ccEmails: [], bccEmails: [] }, correlationId, hubspotContactId } = payload;
     const { hubspot, eventStore } = getClients();
     const emailClient = getEmailClient();
 
@@ -526,14 +527,21 @@ async function logToHubSpot(
   if (!hubspot || !hubspotContactId) return null;
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    const timelineEvent = (await hubspot.createTimelineEvent({
+    const message = `Invoice ${invoice.invoiceNumber} generated for ${invoice.customer.name}. Amount: ${formatInvoiceCurrency(invoice.total, invoice.currency, invoice.language)}. Status: ${invoice.status.toUpperCase()}`;
+    await hubspot.logMessageToTimeline({
       contactId: hubspotContactId,
-      eventType: 'invoice_generated',
-      headline: `Invoice ${invoice.invoiceNumber} - ${formatInvoiceCurrency(invoice.total, invoice.currency, invoice.language)}`,
-      body: `Invoice generated for ${invoice.customer.name}. Status: ${invoice.status.toUpperCase()}`,
-    })) as { id?: string } | null;
-    return timelineEvent?.id ?? null;
+      message,
+      direction: 'OUT',
+      channel: 'web',
+      metadata: {
+        invoiceId: invoice.invoiceId,
+        invoiceNumber: invoice.invoiceNumber,
+        total: invoice.total,
+        status: invoice.status,
+      },
+    });
+    // Return a generated ID since logMessageToTimeline doesn't return one
+    return `invoice-timeline-${invoice.invoiceId}`;
   } catch (err) {
     logger.error('Failed to create HubSpot timeline event', { err, correlationId });
     return null;
@@ -608,11 +616,20 @@ export const generateInvoicesBatch = task({
 
     for (const invoicePayload of invoices) {
       try {
-        const result = await generateInvoice.triggerAndWait({
+        const taskResult = await generateInvoice.triggerAndWait({
           ...invoicePayload,
           correlationId: `${correlationId}-${invoicePayload.invoice.invoiceId}`,
         });
-        results.push(result);
+        if (taskResult.ok) {
+          results.push(taskResult.output);
+        } else {
+          results.push(
+            createErrorResult(
+              invoicePayload.invoice,
+              `${correlationId}-${invoicePayload.invoice.invoiceId}`
+            )
+          );
+        }
       } catch {
         results.push(
           createErrorResult(

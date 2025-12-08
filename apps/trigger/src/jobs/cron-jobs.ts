@@ -57,7 +57,8 @@ function getClients() {
  * Supabase client configuration result
  */
 interface SupabaseClientResult {
-  client: ReturnType<typeof import('@supabase/supabase-js').createClient> | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  client: import('@supabase/supabase-js').SupabaseClient<any, any, any> | null;
   error: string | null;
 }
 
@@ -2190,13 +2191,13 @@ export const overduePaymentReminders = schedules.task({
             language: whatsappLang,
             components: [
               {
-                type: 'body',
+                type: 'body' as const,
                 parameters: [
-                  { type: 'text', text: inst.lead_full_name },
-                  { type: 'text', text: formattedAmount },
-                  { type: 'text', text: formattedDueDate },
+                  { type: 'text' as const, text: inst.lead_full_name },
+                  { type: 'text' as const, text: formattedAmount },
+                  { type: 'text' as const, text: formattedDueDate },
                   ...(reminderLevel !== 'first'
-                    ? [{ type: 'text', text: String(daysOverdue) }]
+                    ? [{ type: 'text' as const, text: String(daysOverdue) }]
                     : []),
                 ],
               },
@@ -2325,7 +2326,7 @@ Generated: ${new Date(metrics.generatedAt).toLocaleString('ro-RO')}
 }
 
 /**
- * Database Partition Maintenance - creates future partitions and cleans old ones
+ * Database Partition Maintenance (Daily) - creates future partitions and cleans old ones
  * Runs every day at 1:00 AM
  *
  * This job ensures partitions exist for future data insertion and optionally
@@ -2333,8 +2334,8 @@ Generated: ${new Date(metrics.generatedAt).toLocaleString('ro-RO')}
  *
  * H6: Database Partitioning for Event Tables
  */
-export const databasePartitionMaintenance = schedules.task({
-  id: 'database-partition-maintenance',
+export const databasePartitionMaintenanceDaily = schedules.task({
+  id: 'database-partition-maintenance-daily',
   cron: '0 1 * * *', // 1:00 AM every day
   run: async () => {
     const correlationId = generateCorrelationId();

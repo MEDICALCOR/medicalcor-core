@@ -151,12 +151,14 @@ function initializeAIGatewayServices(redis: SecureRedisClient): void {
         // Emit event for monitoring systems (Sentry, PagerDuty, Datadog, etc.)
         // This can be picked up by observability infrastructure
         if (typeof process.emit === 'function') {
-          process.emit('ai:budget:alert' as never, alertData);
+          // @ts-expect-error - Custom event for monitoring infrastructure
+          process.emit('ai:budget:alert', alertData);
         }
 
         // For Sentry integration - check if Sentry is available
         // Uses dynamic import and type guard to avoid direct Sentry dependency
         try {
+          // @ts-expect-error - Sentry is optional dependency
           const SentryModule = await import('@sentry/node').catch(() => null);
           if (SentryModule && 'captureMessage' in SentryModule && typeof SentryModule.captureMessage === 'function') {
             SentryModule.captureMessage(`AI Budget Alert: ${alert.scope} at ${(alert.percentUsed * 100).toFixed(1)}%`, {

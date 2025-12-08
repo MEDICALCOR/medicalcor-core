@@ -49,7 +49,7 @@ function buildReminderComponents(
   language: 'ro' | 'en' | 'de'
 ): {
   type: 'header' | 'body' | 'button';
-  parameters?: { type: string; text: string }[];
+  parameters?: { type: 'text' | 'image' | 'document' | 'video'; text?: string }[];
 }[] {
   const { installment, reminderLevel } = payload;
   const formattedAmount = formatCurrencyForReminder(
@@ -60,15 +60,15 @@ function buildReminderComponents(
   const formattedDueDate = formatDateForReminder(installment.dueDate, language);
 
   // Build parameters based on reminder level
-  const baseParams = [
-    { type: 'text', text: installment.fullName },
-    { type: 'text', text: formattedAmount },
-    { type: 'text', text: formattedDueDate },
+  const baseParams: { type: 'text'; text: string }[] = [
+    { type: 'text' as const, text: installment.fullName },
+    { type: 'text' as const, text: formattedAmount },
+    { type: 'text' as const, text: formattedDueDate },
   ];
 
   // Add days overdue for second/final reminders
   if (reminderLevel === 'second' || reminderLevel === 'final' || reminderLevel === 'escalated') {
-    baseParams.push({ type: 'text', text: String(installment.daysOverdue) });
+    baseParams.push({ type: 'text' as const, text: String(installment.daysOverdue) });
   }
 
   return [
@@ -192,21 +192,18 @@ export const handlePaymentReminder = task({
           payment_reminder_level: reminderLevel,
         });
 
-        // Log to timeline - createNote may not exist on all HubSpot client types
-        const createNoteMethod = hubspot.createNote as
-          | ((params: { contactId: string; content: string }) => Promise<void>)
-          | undefined;
-        if (createNoteMethod) {
-          await createNoteMethod({
-            contactId: installment.hubspotContactId,
-            content: `Payment Reminder Sent (${reminderLevel.toUpperCase()})\n\n` +
-              `Amount Due: ${formattedAmount}\n` +
-              `Days Overdue: ${installment.daysOverdue}\n` +
-              `Reminder #${installment.reminderCount + 1}\n` +
-              `Installment: ${installment.installmentNumber}/${installment.totalInstallments}\n` +
-              `Channel: WhatsApp`,
-          });
-        }
+        // Log to timeline using available method
+        await hubspot.logMessageToTimeline({
+          contactId: installment.hubspotContactId,
+          message: `Payment Reminder Sent (${reminderLevel.toUpperCase()})\n\n` +
+            `Amount Due: ${formattedAmount}\n` +
+            `Days Overdue: ${installment.daysOverdue}\n` +
+            `Reminder #${installment.reminderCount + 1}\n` +
+            `Installment: ${installment.installmentNumber}/${installment.totalInstallments}\n` +
+            `Channel: WhatsApp`,
+          direction: 'OUT',
+          channel: 'whatsapp',
+        });
 
         hubspotUpdated = true;
         logger.info('HubSpot contact updated with reminder info', {

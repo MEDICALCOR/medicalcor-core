@@ -206,6 +206,22 @@ export {
   PatientArchivedError,
   PatientNotActiveError,
   InvalidPatientStatusTransitionError,
+  // Insurance Verification
+  type InsuranceVerificationInput,
+  type ExternalVerificationResult,
+  type CoverageDetails,
+  type VerificationOutcome,
+  type PreVerificationCheck,
+  type PreVerificationErrorCode,
+  type InsuranceVerificationConfig,
+  DEFAULT_VERIFICATION_CONFIG,
+  performPreVerificationChecks,
+  processVerificationResult,
+  shouldReVerify,
+  calculateCoverageEstimate,
+  isValidPolicyNumber,
+  isValidGroupNumber,
+  normalizePolicyNumber,
 } from './patients/index.js';
 
 // AllOnX Context - ONE STEP ALL ON X dental implant case management

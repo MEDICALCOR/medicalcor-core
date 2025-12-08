@@ -437,7 +437,10 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     const openai = createOpenAIClient({ apiKey: process.env.OPENAI_API_KEY }) as unknown;
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    const embeddings = createEmbeddingService({ apiKey: process.env.OPENAI_API_KEY }) as unknown;
+    const embeddings = createEmbeddingService({
+      apiKey: process.env.OPENAI_API_KEY,
+      model: 'text-embedding-3-small',
+    }) as unknown;
 
     const cognitiveRoutes = createCognitiveRoutes({
       pool,

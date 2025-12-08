@@ -347,8 +347,7 @@ export const processNPSResponseWorkflow = task({
       if (whatsapp) {
         await whatsapp.sendText({
           to: phone,
-          content:
-            'Vă rugăm să răspundeți cu un număr de la 0 la 10 pentru a evalua experiența dumneavoastră.',
+          text: 'Vă rugăm să răspundeți cu un număr de la 0 la 10 pentru a evalua experiența dumneavoastră.',
         });
       }
 
@@ -439,7 +438,7 @@ export const processNPSResponseWorkflow = task({
 
       await whatsapp.sendText({
         to: phone,
-        content: thankYouMessages[classification],
+        text: thankYouMessages[classification],
       });
     }
 
@@ -522,11 +521,11 @@ export const processNPSResponseWorkflow = task({
       if (hubspotContactId && hubspot) {
         try {
           await hubspot.createTask({
+            contactId: hubspotContactId,
             subject: `[NPS Follow-up] Detractor - Score ${score}/10`,
             body: `Patient ${phone} gave an NPS score of ${score}/10.\n\nFeedback: ${feedback ?? 'No feedback provided'}\n\nPriority: ${priority}`,
-            dueDate: dueDate.toISOString(),
+            dueDate,
             priority: priority === 'critical' ? 'HIGH' : priority === 'high' ? 'MEDIUM' : 'LOW',
-            associations: [{ id: hubspotContactId, type: 'contact' }],
           });
 
           logger.info('Created HubSpot task for NPS follow-up', {
@@ -585,8 +584,8 @@ async function checkSurveyConsent(
   // Check consent service if available
   if (consent) {
     try {
-      const consentResult = await consent.checkConsent(phone, 'treatment_updates');
-      if (consentResult.granted) {
+      const hasConsent = await consent.hasValidConsent(phone, 'treatment_updates');
+      if (hasConsent) {
         return true;
       }
     } catch {
@@ -600,8 +599,8 @@ async function checkSurveyConsent(
       const contact = await hubspot.getContact(hubspotContactId);
       const props = contact.properties;
 
-      // Accept treatment_updates or marketing consent for NPS
-      if (props.consent_treatment_updates === 'true' || props.consent_marketing === 'true') {
+      // Accept marketing or medical_data consent for NPS
+      if (props.consent_marketing === 'true' || props.consent_medical_data === 'true') {
         return true;
       }
     } catch {
@@ -740,13 +739,13 @@ Respond in JSON format with:
 Example response: {"sentimentScore": 0.5, "themes": ["staff_friendly", "professional_care"]}`;
 
   try {
-    const response = await openai.chat({
+    const content = await openai.chatCompletion({
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
       maxTokens: 200,
+      jsonMode: true,
     });
 
-    const content = response.choices[0]?.message?.content ?? '{}';
     const parsed = JSON.parse(content) as { sentimentScore?: number; themes?: string[] };
 
     return {

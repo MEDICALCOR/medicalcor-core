@@ -223,11 +223,11 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    const updatedFlag: StoredFlag = {
+    const updatedFlag = {
       ...existingFlag,
       ...updateData,
       updatedAt: new Date().toISOString(),
-    };
+    } as StoredFlag;
 
     flagsStore.set(id, updatedFlag);
 

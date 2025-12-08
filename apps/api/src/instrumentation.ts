@@ -29,6 +29,7 @@ const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? 'http://localhos
 const isDisabled = process.env.OTEL_ENABLED === 'false';
 
 if (!isDisabled) {
+  // @ts-expect-error - OpenTelemetry type version mismatch
   const resource = new Resource({
     [SEMRESATTRS_SERVICE_NAME]: serviceName,
     [SEMRESATTRS_SERVICE_VERSION]: serviceVersion,
