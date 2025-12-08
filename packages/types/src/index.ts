@@ -1190,3 +1190,108 @@ export {
   type ClassificationComplianceReport,
   type DataClassificationRecord,
 } from './schemas/data-classification.js';
+// Breach Notification Schemas (L3 - GDPR Compliance)
+// =============================================================================
+export {
+  // Enums & Status Types
+  BreachSeveritySchema,
+  BreachDataCategorySchema,
+  BreachNatureSchema,
+  BreachStatusSchema,
+  BreachNotificationChannelSchema,
+  // Core Schemas
+  AffectedSubjectSchema,
+  BreachMeasureSchema,
+  AuthorityNotificationSchema,
+  DataBreachSchema,
+  // Workflow Payloads
+  ReportBreachPayloadSchema,
+  BreachNotificationWorkflowPayloadSchema,
+  NotifySubjectPayloadSchema,
+  NotifyAuthorityPayloadSchema,
+  // Events
+  BreachDetectedEventSchema,
+  BreachAssessedEventSchema,
+  BreachAuthorityNotifiedEventSchema,
+  BreachSubjectNotifiedEventSchema,
+  BreachResolvedEventSchema,
+  BreachEventSchema,
+  // Dashboard & Config
+  BreachSummarySchema,
+  BreachNotificationConfigSchema,
+  // Helper Functions
+  calculateHoursUntilDeadline,
+  requiresAuthorityNotification,
+  requiresSubjectNotification,
+  assessBreachSeverity,
+  // Types
+  type BreachSeverity,
+  type BreachDataCategory,
+  type BreachNature,
+  type BreachStatus,
+  type BreachNotificationChannel,
+  type AffectedSubject,
+  type BreachMeasure,
+  type AuthorityNotification,
+  type DataBreach,
+  type ReportBreachPayload,
+  type BreachNotificationWorkflowPayload,
+  type NotifySubjectPayload,
+  type NotifyAuthorityPayload,
+  type BreachDetectedEvent,
+  type BreachAssessedEvent,
+  type BreachAuthorityNotifiedEvent,
+  type BreachSubjectNotifiedEvent,
+  type BreachResolvedEvent,
+  type BreachEvent,
+  type BreachSummary,
+  type BreachNotificationConfig,
+} from './schemas/breach-notification.js';
+// Index Usage Monitoring Schemas (L1 Feature)
+// =============================================================================
+export {
+  // Status Enums
+  IndexHealthStatusSchema,
+  IndexTypeSchema,
+  IndexRecommendationActionSchema,
+  // Index Metrics
+  IndexUsageReportSchema,
+  IndexUsageSummarySchema,
+  IndexUsageMetricSchema,
+  // Recommendations
+  IndexRecommendationSchema,
+  IndexRecommendationBatchSchema,
+  // Monitoring Job
+  IndexMonitoringConfigSchema,
+  IndexMonitoringResultSchema,
+  // Query Schemas
+  IndexUsageQuerySchema,
+  IndexUsageTrendPointSchema,
+  IndexUsageDashboardSchema,
+  // Events
+  IndexMonitoringCompletedEventSchema,
+  UnusedIndexesDetectedEventSchema,
+  CriticalIndexHealthEventSchema,
+  // Helper Functions
+  determineIndexStatus,
+  formatBytes,
+  calculatePotentialSavings,
+  generateIndexRecommendations,
+  // Types
+  type IndexHealthStatus,
+  type IndexType,
+  type IndexRecommendationAction,
+  type IndexUsageReport,
+  type IndexUsageSummary,
+  type IndexUsageMetric,
+  type IndexRecommendation,
+  type IndexRecommendationBatch,
+  type IndexMonitoringConfig,
+  type IndexMonitoringResult,
+  type IndexUsageQuery,
+  type IndexUsageTrendPoint,
+  type IndexUsageDashboard,
+  type IndexMonitoringCompletedEvent,
+  type UnusedIndexesDetectedEvent,
+  type CriticalIndexHealthEvent,
+} from './schemas/index-usage.js';

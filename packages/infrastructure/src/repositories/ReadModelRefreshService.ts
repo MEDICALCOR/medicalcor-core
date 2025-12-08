@@ -37,7 +37,12 @@
  * ```
  */
 
-import { createLogger } from '@medicalcor/core';
+import {
+  createLogger,
+  type ReadModelMetricsCollector,
+  createReadModelMetricsCollector,
+  type ReadModelMetadataSnapshot,
+} from '@medicalcor/core';
 import type {
   IReadModelRepository,
   ReadModelRefreshResult,
@@ -64,6 +69,12 @@ export interface ReadModelRefreshServiceConfig {
   staleCheckIntervalMs?: number;
   /** Maximum concurrent refresh operations (default: 2) */
   maxConcurrentRefreshes?: number;
+  /** Optional metrics collector instance (default: creates new one) */
+  metricsCollector?: ReadModelMetricsCollector;
+  /** Enable Prometheus metrics collection (default: true) */
+  enableMetrics?: boolean;
+  /** Staleness metrics update interval in milliseconds (default: 30 seconds) */
+  stalenessMetricsIntervalMs?: number;
 }
 
 /**
@@ -105,10 +116,14 @@ export class ReadModelRefreshService {
   private enableAutoRefresh: boolean;
   private staleCheckIntervalMs: number;
   private maxConcurrentRefreshes: number;
+  private enableMetrics: boolean;
+  private stalenessMetricsIntervalMs: number;
 
   private refreshTimer: NodeJS.Timeout | null = null;
+  private stalenessTimer: NodeJS.Timeout | null = null;
   private isRunning = false;
   private activeRefreshes = new Set<string>();
+  private metricsCollector: ReadModelMetricsCollector;
   private stats: RefreshStats = {
     totalRefreshes: 0,
     successfulRefreshes: 0,
@@ -125,12 +140,18 @@ export class ReadModelRefreshService {
     this.enableAutoRefresh = config.enableAutoRefresh ?? false;
     this.staleCheckIntervalMs = config.staleCheckIntervalMs ?? 60 * 1000;
     this.maxConcurrentRefreshes = config.maxConcurrentRefreshes ?? 2;
+    this.enableMetrics = config.enableMetrics ?? true;
+    this.stalenessMetricsIntervalMs = config.stalenessMetricsIntervalMs ?? 30 * 1000;
+
+    // Initialize metrics collector
+    this.metricsCollector = config.metricsCollector ?? createReadModelMetricsCollector();
 
     logger.info(
       {
         defaultRefreshIntervalMs: this.defaultRefreshIntervalMs,
         enableAutoRefresh: this.enableAutoRefresh,
         staleCheckIntervalMs: this.staleCheckIntervalMs,
+        enableMetrics: this.enableMetrics,
       },
       'ReadModelRefreshService initialized'
     );
@@ -167,6 +188,24 @@ export class ReadModelRefreshService {
 
       logger.info({ intervalMs: this.staleCheckIntervalMs }, 'Automatic refresh enabled');
     }
+
+    // Start staleness metrics collection if metrics are enabled
+    if (this.enableMetrics) {
+      await this.updateStalenessMetrics();
+
+      this.stalenessTimer = setInterval(async () => {
+        try {
+          await this.updateStalenessMetrics();
+        } catch (error) {
+          logger.error({ error }, 'Error updating staleness metrics');
+        }
+      }, this.stalenessMetricsIntervalMs);
+
+      logger.info(
+        { intervalMs: this.stalenessMetricsIntervalMs },
+        'Staleness metrics collection enabled'
+      );
+    }
   }
 
   /**
@@ -182,6 +221,11 @@ export class ReadModelRefreshService {
     if (this.refreshTimer) {
       clearInterval(this.refreshTimer);
       this.refreshTimer = null;
+    }
+
+    if (this.stalenessTimer) {
+      clearInterval(this.stalenessTimer);
+      this.stalenessTimer = null;
     }
 
     // Wait for any active refreshes to complete
@@ -213,6 +257,12 @@ export class ReadModelRefreshService {
   async refresh(viewName: string): Promise<ReadModelRefreshResult> {
     if (this.activeRefreshes.has(viewName)) {
       logger.warn({ viewName }, 'Read model is already being refreshed');
+
+      // Record skipped refresh in metrics
+      if (this.enableMetrics) {
+        this.metricsCollector.recordSkippedRefresh(viewName);
+      }
+
       return {
         viewName,
         success: false,
@@ -224,12 +274,34 @@ export class ReadModelRefreshService {
 
     this.activeRefreshes.add(viewName);
 
+    // Update concurrent refresh count in metrics
+    if (this.enableMetrics) {
+      this.metricsCollector.setConcurrentRefreshes(this.activeRefreshes.size);
+    }
+
     try {
       const result = await this.repository.refreshReadModel(viewName);
       this.updateStats(result);
+
+      // Record refresh metrics
+      if (this.enableMetrics) {
+        this.metricsCollector.recordRefresh({
+          viewName: result.viewName,
+          success: result.success,
+          durationMs: result.durationMs,
+          rowCount: result.rowCount,
+          errorMessage: result.errorMessage,
+        });
+      }
+
       return result;
     } finally {
       this.activeRefreshes.delete(viewName);
+
+      // Update concurrent refresh count
+      if (this.enableMetrics) {
+        this.metricsCollector.setConcurrentRefreshes(this.activeRefreshes.size);
+      }
     }
   }
 
@@ -243,6 +315,17 @@ export class ReadModelRefreshService {
 
     for (const result of results) {
       this.updateStats(result);
+
+      // Record metrics for each refresh
+      if (this.enableMetrics) {
+        this.metricsCollector.recordRefresh({
+          viewName: result.viewName,
+          success: result.success,
+          durationMs: result.durationMs,
+          rowCount: result.rowCount,
+          errorMessage: result.errorMessage,
+        });
+      }
     }
 
     return results;
@@ -256,16 +339,30 @@ export class ReadModelRefreshService {
     const staleViews = await this.repository.getStaleReadModels();
 
     if (staleViews.length === 0) {
+      // Reset queue depth to 0
+      if (this.enableMetrics) {
+        this.metricsCollector.setQueueDepth(0);
+      }
       return [];
     }
 
     logger.info({ count: staleViews.length }, 'Found stale read models');
+
+    // Track queue depth
+    if (this.enableMetrics) {
+      this.metricsCollector.setQueueDepth(staleViews.length);
+    }
 
     // Limit concurrent refreshes
     const results: ReadModelRefreshResult[] = [];
     const pending = [...staleViews];
 
     while (pending.length > 0) {
+      // Update queue depth as we process
+      if (this.enableMetrics) {
+        this.metricsCollector.setQueueDepth(pending.length);
+      }
+
       // Wait if we're at max concurrent refreshes
       while (this.activeRefreshes.size >= this.maxConcurrentRefreshes) {
         await new Promise((resolve) => setTimeout(resolve, 100));
@@ -284,19 +381,36 @@ export class ReadModelRefreshService {
         .then((result) => results.push(result))
         .catch((error: unknown) => {
           logger.error({ viewName, error }, 'Error refreshing read model');
-          results.push({
+          const errorResult: ReadModelRefreshResult = {
             viewName,
             success: false,
             durationMs: 0,
             rowCount: 0,
             errorMessage: String(error),
-          });
+          };
+          results.push(errorResult);
+
+          // Record error in metrics
+          if (this.enableMetrics) {
+            this.metricsCollector.recordRefresh({
+              viewName,
+              success: false,
+              durationMs: 0,
+              rowCount: 0,
+              errorMessage: String(error),
+            });
+          }
         });
     }
 
     // Wait for all pending refreshes to complete
     while (this.activeRefreshes.size > 0) {
       await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    // Reset queue depth after all refreshes complete
+    if (this.enableMetrics) {
+      this.metricsCollector.setQueueDepth(0);
     }
 
     return results;
@@ -394,9 +508,42 @@ export class ReadModelRefreshService {
     };
   }
 
+  /**
+   * Get the metrics collector instance
+   * Useful for accessing metrics summary or for testing
+   */
+  getMetricsCollector(): ReadModelMetricsCollector {
+    return this.metricsCollector;
+  }
+
   // ==========================================================================
   // PRIVATE METHODS
   // ==========================================================================
+
+  /**
+   * Update staleness metrics from repository metadata
+   */
+  private async updateStalenessMetrics(): Promise<void> {
+    try {
+      const metadata = await this.repository.getReadModelMetadata();
+
+      // Convert to snapshot format for metrics collector
+      const snapshots: ReadModelMetadataSnapshot[] = metadata.map(
+        (m: ReadModelMetadata): ReadModelMetadataSnapshot => ({
+          viewName: m.viewName,
+          lastRefreshAt: m.lastRefreshAt,
+          refreshIntervalMinutes: m.refreshIntervalMinutes,
+          isRefreshing: m.isRefreshing,
+          lastError: m.lastError,
+          rowCount: m.rowCount,
+        })
+      );
+
+      this.metricsCollector.updateStalenessMetrics(snapshots);
+    } catch (error) {
+      logger.error({ error }, 'Failed to update staleness metrics');
+    }
+  }
 
   private updateStats(result: ReadModelRefreshResult): void {
     this.stats.totalRefreshes++;

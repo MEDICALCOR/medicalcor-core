@@ -185,12 +185,46 @@ SUMMARY:
 
 Note: Values shown are example output. Actual results will vary based on infrastructure and load.
 
-## Integration with CI/CD
+## CI/CD Integration
 
-Tests can be integrated into CI/CD pipelines:
+k6 load tests are **automatically run** via GitHub Actions (`.github/workflows/k6-load-tests.yml`):
+
+### Automatic Triggers
+
+| Event | Scenario | Tests |
+|-------|----------|-------|
+| Pull Request | `smoke` (1 min) | API + RLS |
+| Push to `main` | `load` (5 min) | API + RLS |
+| Weekly (Sunday 2AM UTC) | `load` | API + RLS |
+
+### Manual Trigger
+
+Run tests manually via **Actions → k6 Load Tests → Run workflow**:
+
+- **Scenario**: Choose `smoke`, `load`, or `stress`
+- **Test Suite**: Run `all`, `api` only, or `rls` only
+- **Base URL**: Optionally test against staging/production
+
+### PR Comments
+
+On pull requests, a bot comment is posted with:
+- Test status (pass/fail)
+- Key metrics (p95 latency, success rate)
+- RLS overhead percentage
+- Security validation results
+
+### Workflow Features
+
+- **Fast feedback**: Smoke tests on PRs (~1 minute)
+- **Thorough validation**: Load tests on main (~5 minutes)
+- **Artifact uploads**: JSON summaries retained for 30 days
+- **Status checks**: Failures block PR merges
+- **GitHub step summaries**: Visual results in workflow runs
+
+### Manual k6 Integration (for other pipelines)
 
 ```yaml
-# .github/workflows/performance.yml
+# Example for custom CI/CD
 - name: Run RLS Performance Tests
   run: |
     k6 run --env SCENARIO=smoke \

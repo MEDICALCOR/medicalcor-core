@@ -281,6 +281,8 @@ export * from './data-lineage/index.js';
 
 // Data Classification (L6 Feature)
 export * from './data-classification/index.js';
+// Breach Notification (L3 Milestone - GDPR Compliance)
+export * from './breach-notification/index.js';
 
 // ============================================================================
 // SHARED TYPES & UTILITIES
