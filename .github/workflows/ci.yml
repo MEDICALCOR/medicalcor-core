@@ -218,7 +218,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload duplication report
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: always()
         with:
           name: duplication-report
@@ -382,7 +382,7 @@ jobs:
           CI: 'true'
 
       - name: Upload Playwright report
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: always()
         with:
           name: playwright-report-${{ matrix.shard }}
@@ -421,7 +421,7 @@ jobs:
         run: pnpm build
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: build-artifacts
           path: |
@@ -477,7 +477,7 @@ jobs:
           output-file: sbom.spdx.json
 
       - name: Upload SBOM
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: sbom
           path: sbom.spdx.json
@@ -542,7 +542,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload audit results
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: always()
         with:
           name: security-audit-results
@@ -608,7 +608,7 @@ jobs:
           echo "**✅ No secrets detected**" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload gitleaks report
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: always()
         with:
           name: gitleaks-report
@@ -749,7 +749,7 @@ jobs:
           pg_dump -h localhost -U postgres -d medicalcor_test --schema-only > db/schema.sql
 
       - name: Upload schema artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: database-schema
           path: db/schema.sql
