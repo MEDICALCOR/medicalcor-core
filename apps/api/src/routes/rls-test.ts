@@ -383,6 +383,133 @@ function registerRlsTestRoutes(fastify: Parameters<FastifyPluginAsync>[0]): void
     }
   });
 
+  // ==========================================================================
+  // COGNITIVE MEMORY TABLES (ADR-004)
+  // ==========================================================================
+
+  // Episodic events - clinic_id + subject isolation
+  fastify.get('/rls-test/episodic-events', async (request: FastifyRequest, reply: FastifyReply) => {
+    const context = extractRlsContext(request);
+
+    try {
+      const result = await executeRlsQuery(
+        `SELECT id, subject_type, subject_id, event_type, event_category, source_channel,
+                summary, sentiment, occurred_at, clinic_id
+         FROM episodic_events WHERE deleted_at IS NULL LIMIT $1`,
+        [MAX_ROWS],
+        context
+      );
+      return await reply.send(result);
+    } catch (error) {
+      logger.error({ error, context }, 'RLS test query failed: episodic_events');
+      return await reply.status(500).send({
+        error: 'Query execution failed',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  });
+
+  // Episodic events by subject - subject_type + subject_id isolation
+  fastify.get(
+    '/rls-test/episodic-events/by-subject',
+    async (
+      request: FastifyRequest<{ Querystring: { subjectType?: string; subjectId?: string } }>,
+      reply: FastifyReply
+    ) => {
+      const context = extractRlsContext(request);
+      const { subjectType, subjectId } = request.query;
+
+      try {
+        let sql = `SELECT id, subject_type, subject_id, event_type, summary, occurred_at, clinic_id
+                   FROM episodic_events WHERE deleted_at IS NULL`;
+        const params: unknown[] = [];
+
+        if (subjectType && subjectId) {
+          sql += ` AND subject_type = $1 AND subject_id = $2`;
+          params.push(subjectType, subjectId);
+        }
+
+        sql += ` ORDER BY occurred_at DESC LIMIT ${MAX_ROWS}`;
+
+        const result = await executeRlsQuery(sql, params, context);
+        return await reply.send(result);
+      } catch (error) {
+        logger.error({ error, context }, 'RLS test query failed: episodic_events/by-subject');
+        return await reply.status(500).send({
+          error: 'Query execution failed',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+  );
+
+  // Behavioral patterns - clinic_id + subject isolation
+  fastify.get(
+    '/rls-test/behavioral-patterns',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const context = extractRlsContext(request);
+
+      try {
+        const result = await executeRlsQuery(
+          `SELECT id, subject_type, subject_id, pattern_type, pattern_description,
+                  confidence, first_observed_at, last_observed_at, clinic_id
+           FROM behavioral_patterns LIMIT $1`,
+          [MAX_ROWS],
+          context
+        );
+        return await reply.send(result);
+      } catch (error) {
+        logger.error({ error, context }, 'RLS test query failed: behavioral_patterns');
+        return await reply.status(500).send({
+          error: 'Query execution failed',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+  );
+
+  // Cross-clinic isolation test for cognitive memory
+  fastify.get(
+    '/rls-test/cognitive-memory/isolation-check',
+    async (
+      request: FastifyRequest<{ Querystring: { targetClinicId?: string } }>,
+      reply: FastifyReply
+    ) => {
+      const context = extractRlsContext(request);
+      const { targetClinicId } = request.query;
+
+      try {
+        // This query should return 0 rows if RLS is working correctly
+        // when clinicId in context doesn't match targetClinicId
+        const result = await executeRlsQuery(
+          `SELECT COUNT(*) as count FROM episodic_events
+           WHERE clinic_id = $1 AND deleted_at IS NULL`,
+          [targetClinicId ?? '00000000-0000-0000-0000-000000000000'],
+          context
+        );
+
+        const isolated = context.clinicId !== targetClinicId || context.isSystem || context.isAdmin;
+
+        const firstRow = result.rows[0] as { count?: number } | undefined;
+        return await reply.send({
+          ...result,
+          isolationCheck: {
+            requestedClinicId: context.clinicId,
+            targetClinicId,
+            expectedIsolation: isolated,
+            rowsFound: firstRow?.count ?? 0,
+          },
+        });
+      } catch (error) {
+        logger.error({ error, context }, 'RLS test query failed: cognitive-memory isolation check');
+        return await reply.status(500).send({
+          error: 'Query execution failed',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+  );
+
   // Baseline - no RLS overhead comparison
   fastify.get('/rls-test/baseline', async (request: FastifyRequest, reply: FastifyReply) => {
     const context = extractRlsContext(request);

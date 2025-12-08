@@ -53,6 +53,11 @@ const consentRecordsDuration = new Trend('rls_consent_records_duration', true);
 const messageLogDuration = new Trend('rls_message_log_duration', true);
 const leadScoringDuration = new Trend('rls_lead_scoring_duration', true);
 
+// Cognitive memory metrics (ADR-004)
+const episodicEventsDuration = new Trend('rls_episodic_events_duration', true);
+const behavioralPatternsDuration = new Trend('rls_behavioral_patterns_duration', true);
+const cognitiveMemoryIsolation = new Counter('rls_cognitive_memory_isolation_checks');
+
 // =============================================================================
 // CONFIGURATION
 // =============================================================================
@@ -162,6 +167,10 @@ export const options = {
     rls_consent_records_duration: ['p(95)<150'],
     rls_message_log_duration: ['p(95)<200'],
     rls_lead_scoring_duration: ['p(95)<150'],
+
+    // Cognitive memory table thresholds (ADR-004)
+    rls_episodic_events_duration: ['p(95)<150', 'p(99)<300'],
+    rls_behavioral_patterns_duration: ['p(95)<100', 'p(99)<200'],
 
     // RLS overhead should not exceed 50% compared to non-RLS queries
     rls_overhead_percentage: ['value<50'],
@@ -405,6 +414,67 @@ function testNoRlsBaseline() {
 }
 
 /**
+ * Test cognitive memory RLS (episodic events and behavioral patterns)
+ * ADR-004: Cognitive Episodic Memory
+ */
+function testCognitiveMemoryRls() {
+  const clinicId = randomChoice(TEST_CLINICS);
+  const userId = randomChoice(TEST_USERS);
+
+  // Test episodic events with clinic isolation
+  const result1 = executeRlsQuery(
+    '/rls-test/episodic-events',
+    { clinicId, userId, pattern: 'clinic_id' },
+    episodicEventsDuration,
+    'clinic_id_episodic_events'
+  );
+
+  // Test episodic events by subject
+  executeRlsQuery(
+    '/rls-test/episodic-events/by-subject?subjectType=lead&subjectId=' + userId,
+    { clinicId, pattern: 'subject_id' },
+    episodicEventsDuration,
+    'subject_id_episodic_events'
+  );
+
+  // Test behavioral patterns with clinic isolation
+  executeRlsQuery(
+    '/rls-test/behavioral-patterns',
+    { clinicId, userId, pattern: 'clinic_id' },
+    behavioralPatternsDuration,
+    'clinic_id_behavioral_patterns'
+  );
+
+  // Test cognitive memory cross-clinic isolation
+  const otherClinicId = TEST_CLINICS.find((id) => id !== clinicId) || clinicId;
+  const isolationResult = executeRlsQuery(
+    `/rls-test/cognitive-memory/isolation-check?targetClinicId=${otherClinicId}`,
+    { clinicId, pattern: 'cross_clinic' },
+    episodicEventsDuration,
+    'cognitive_memory_isolation'
+  );
+
+  cognitiveMemoryIsolation.add(1);
+
+  // Verify isolation
+  if (isolationResult.response.status === 200) {
+    try {
+      const body = JSON.parse(isolationResult.response.body);
+      if (body.isolationCheck && body.isolationCheck.rowsFound > 0) {
+        // If we're querying another clinic's data and get results, that's a violation
+        // (unless we have admin/system access)
+        if (clinicId !== otherClinicId) {
+          rlsViolations.add(1);
+          console.error('RLS VIOLATION: Cognitive memory cross-clinic data exposure!');
+        }
+      }
+    } catch {
+      // Ignore JSON parse errors
+    }
+  }
+}
+
+/**
  * Test cross-tenant isolation (should return 0 results or 403)
  */
 function testCrossTenantIsolation() {
@@ -458,6 +528,10 @@ export default function () {
 
   group('Baseline (No RLS)', function () {
     testNoRlsBaseline();
+  });
+
+  group('Cognitive Memory RLS', function () {
+    testCognitiveMemoryRls();
   });
 
   group('Cross-Tenant Isolation', function () {
@@ -587,6 +661,20 @@ export function handleSummary(data) {
       leadScoring: {
         p95: data.metrics.rls_lead_scoring_duration?.values?.['p(95)'] || 0,
       },
+      // Cognitive memory tables (ADR-004)
+      episodicEvents: {
+        p95: data.metrics.rls_episodic_events_duration?.values?.['p(95)'] || 0,
+        p99: data.metrics.rls_episodic_events_duration?.values?.['p(99)'] || 0,
+      },
+      behavioralPatterns: {
+        p95: data.metrics.rls_behavioral_patterns_duration?.values?.['p(95)'] || 0,
+        p99: data.metrics.rls_behavioral_patterns_duration?.values?.['p(99)'] || 0,
+      },
+    },
+
+    // Cognitive memory isolation checks
+    cognitiveMemory: {
+      isolationChecks: data.metrics.rls_cognitive_memory_isolation_checks?.values?.count || 0,
     },
 
     // Overhead analysis
@@ -650,6 +738,11 @@ QUERY LATENCY (p95 in ms):
   phone lookup:         ${rlsMetrics.phoneP95.toFixed(2)} ms
   admin bypass:         ${rlsMetrics.adminP95.toFixed(2)} ms
   no RLS baseline:      ${rlsMetrics.noRlsP95.toFixed(2)} ms
+
+COGNITIVE MEMORY (ADR-004):
+  episodic_events:      ${summary.tableMetrics.episodicEvents.p95.toFixed(2)} ms (p95)
+  behavioral_patterns:  ${summary.tableMetrics.behavioralPatterns.p95.toFixed(2)} ms (p95)
+  isolation checks:     ${summary.cognitiveMemory.isolationChecks}
 
 RLS OVERHEAD:
   Average overhead:     ${summary.overhead.percentage.toFixed(2)}%

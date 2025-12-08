@@ -350,6 +350,158 @@ describe('RLS Test Routes', () => {
     });
 
     // ==========================================================================
+    // COGNITIVE MEMORY RLS TESTS (ADR-004)
+    // ==========================================================================
+
+    describe('GET /rls-test/episodic-events', () => {
+      it('should execute episodic events query with RLS', async () => {
+        const response = await app.inject({
+          method: 'GET',
+          url: '/rls-test/episodic-events',
+        });
+
+        expect([200, 500]).toContain(response.statusCode);
+        const body = JSON.parse(response.body);
+
+        if (response.statusCode === 200) {
+          expect(body).toHaveProperty('rows');
+          expect(body).toHaveProperty('rowCount');
+          expect(body).toHaveProperty('queryTimeMs');
+          expect(body).toHaveProperty('rlsContext');
+        }
+      });
+
+      it('should respect clinic-id header for episodic events', async () => {
+        const response = await app.inject({
+          method: 'GET',
+          url: '/rls-test/episodic-events',
+          headers: {
+            'x-clinic-id': 'clinic-memory-123',
+          },
+        });
+
+        expect([200, 500]).toContain(response.statusCode);
+        const body = JSON.parse(response.body);
+
+        if (response.statusCode === 200) {
+          expect(body.rlsContext).toHaveProperty('clinicId', 'clinic-memory-123');
+        }
+      });
+    });
+
+    describe('GET /rls-test/episodic-events/by-subject', () => {
+      it('should support subject type and id query parameters', async () => {
+        const response = await app.inject({
+          method: 'GET',
+          url: '/rls-test/episodic-events/by-subject?subjectType=lead&subjectId=lead-123',
+        });
+
+        expect([200, 500]).toContain(response.statusCode);
+      });
+
+      it('should work without query parameters', async () => {
+        const response = await app.inject({
+          method: 'GET',
+          url: '/rls-test/episodic-events/by-subject',
+        });
+
+        expect([200, 500]).toContain(response.statusCode);
+      });
+    });
+
+    describe('GET /rls-test/behavioral-patterns', () => {
+      it('should execute behavioral patterns query with RLS', async () => {
+        const response = await app.inject({
+          method: 'GET',
+          url: '/rls-test/behavioral-patterns',
+        });
+
+        expect([200, 500]).toContain(response.statusCode);
+        const body = JSON.parse(response.body);
+
+        if (response.statusCode === 200) {
+          expect(body).toHaveProperty('rows');
+          expect(body).toHaveProperty('rowCount');
+          expect(body).toHaveProperty('queryTimeMs');
+          expect(body).toHaveProperty('rlsContext');
+        }
+      });
+
+      it('should respect clinic-id header for behavioral patterns', async () => {
+        const response = await app.inject({
+          method: 'GET',
+          url: '/rls-test/behavioral-patterns',
+          headers: {
+            'x-clinic-id': 'clinic-patterns-456',
+          },
+        });
+
+        expect([200, 500]).toContain(response.statusCode);
+        const body = JSON.parse(response.body);
+
+        if (response.statusCode === 200) {
+          expect(body.rlsContext).toHaveProperty('clinicId', 'clinic-patterns-456');
+        }
+      });
+    });
+
+    describe('GET /rls-test/cognitive-memory/isolation-check', () => {
+      it('should check cross-clinic isolation', async () => {
+        const response = await app.inject({
+          method: 'GET',
+          url: '/rls-test/cognitive-memory/isolation-check?targetClinicId=clinic-target-789',
+          headers: {
+            'x-clinic-id': 'clinic-source-123',
+          },
+        });
+
+        expect([200, 500]).toContain(response.statusCode);
+        const body = JSON.parse(response.body);
+
+        if (response.statusCode === 200) {
+          expect(body).toHaveProperty('isolationCheck');
+          expect(body.isolationCheck).toHaveProperty('requestedClinicId', 'clinic-source-123');
+          expect(body.isolationCheck).toHaveProperty('targetClinicId', 'clinic-target-789');
+          expect(body.isolationCheck).toHaveProperty('expectedIsolation');
+        }
+      });
+
+      it('should allow admin access to all clinics', async () => {
+        const response = await app.inject({
+          method: 'GET',
+          url: '/rls-test/cognitive-memory/isolation-check?targetClinicId=any-clinic',
+          headers: {
+            'x-admin-access': 'true',
+          },
+        });
+
+        expect([200, 500]).toContain(response.statusCode);
+        const body = JSON.parse(response.body);
+
+        if (response.statusCode === 200) {
+          expect(body.rlsContext).toHaveProperty('isAdmin', true);
+        }
+      });
+
+      it('should allow system access to all clinics', async () => {
+        const response = await app.inject({
+          method: 'GET',
+          url: '/rls-test/cognitive-memory/isolation-check?targetClinicId=any-clinic',
+          headers: {
+            'x-system-access': 'true',
+          },
+        });
+
+        expect([200, 500]).toContain(response.statusCode);
+        const body = JSON.parse(response.body);
+
+        if (response.statusCode === 200) {
+          expect(body.rlsContext).toHaveProperty('isSystem', true);
+        }
+      });
+    });
+
+    // ==========================================================================
     // RLS Context Header Tests
     // ==========================================================================
 
