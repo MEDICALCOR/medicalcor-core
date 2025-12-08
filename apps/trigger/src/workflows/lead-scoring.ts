@@ -2,7 +2,9 @@ import { task, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { createIntegrationClients } from '@medicalcor/integrations';
+import { IdempotencyKeys } from '@medicalcor/core';
 import type { AIScoringContext, ScoringOutput } from '@medicalcor/types';
+import { createCaseOnQualification } from './lead-to-case.js';
 
 /**
  * Lead Scoring Workflow
@@ -22,6 +24,8 @@ function getClients() {
 export const LeadScoringPayloadSchema = z.object({
   phone: z.string(),
   hubspotContactId: z.string().optional(),
+  leadId: z.string().uuid().optional().describe('Lead UUID if known'),
+  clinicId: z.string().uuid().optional().describe('Clinic UUID if known'),
   message: z.string(),
   channel: z.enum(['whatsapp', 'voice', 'web']),
   messageHistory: z
@@ -45,7 +49,16 @@ export const scoreLeadWorkflow = task({
     factor: 2,
   },
   run: async (payload: z.infer<typeof LeadScoringPayloadSchema>) => {
-    const { phone, hubspotContactId, message, channel, messageHistory, correlationId } = payload;
+    const {
+      phone,
+      hubspotContactId,
+      leadId,
+      clinicId,
+      message,
+      channel,
+      messageHistory,
+      correlationId,
+    } = payload;
     const { hubspot, openai, eventStore } = getClients();
 
     logger.info('Starting lead scoring workflow', {
@@ -140,6 +153,35 @@ export const scoreLeadWorkflow = task({
     });
 
     logger.info('Lead scoring workflow completed', { correlationId });
+
+    // Step 5: Trigger case creation for HOT leads (H3 fix)
+    if (scoringResult.classification === 'HOT' && leadId && clinicId) {
+      try {
+        await createCaseOnQualification.trigger(
+          {
+            leadId,
+            clinicId,
+            classification: scoringResult.classification,
+            score: scoringResult.score,
+            procedureInterest: scoringResult.procedureInterest,
+            urgencyIndicators: scoringResult.urgencyIndicators,
+            correlationId,
+          },
+          {
+            idempotencyKey: IdempotencyKeys.custom('case-qual', leadId, correlationId),
+          }
+        );
+        logger.info('Case creation triggered for HOT lead', { leadId, correlationId });
+      } catch (err) {
+        logger.warn('Failed to trigger case creation', { err, leadId, correlationId });
+      }
+    } else if (scoringResult.classification === 'HOT' && (!leadId || !clinicId)) {
+      logger.info('HOT lead scored but leadId/clinicId not provided - case creation skipped', {
+        correlationId,
+        hasLeadId: !!leadId,
+        hasClinicId: !!clinicId,
+      });
+    }
 
     return {
       success: true,

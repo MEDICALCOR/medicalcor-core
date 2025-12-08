@@ -2,6 +2,9 @@
  * Multi-Provider AI Gateway Tests
  *
  * Comprehensive tests for multi-provider failover and routing
+ *
+ * Note: This test file uses vi.stubGlobal to mock fetch directly,
+ * bypassing the global MSW handlers for fine-grained control over responses.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -312,10 +315,9 @@ describe('MultiProviderGateway', () => {
         try {
           await gateway.complete({
             messages: [{ role: 'user', content: 'Hi' }],
-            skipFallback: true,
           });
         } catch {
-          // Expected
+          // Expected - OpenAI fails
         }
       }
 

@@ -513,6 +513,10 @@ export class Article30ReportService {
       return [];
     }
 
+    if (!data) {
+      return [];
+    }
+
     const consentRows = data as ConsentRow[];
     const summaryMap = new Map<string, Article30ConsentSummary>();
     const now = new Date();
@@ -554,6 +558,10 @@ export class Article30ReportService {
 
     if (error) {
       this.logger.warn({ error }, 'Failed to fetch DSR summary, using default values');
+      return this.getEmptyDSRSummary();
+    }
+
+    if (!data) {
       return this.getEmptyDSRSummary();
     }
 
@@ -631,6 +639,10 @@ export class Article30ReportService {
 
     if (error) {
       this.logger.warn({ error }, 'Failed to fetch data breach summary, using default values');
+      return this.getEmptyBreachSummary();
+    }
+
+    if (!data) {
       return this.getEmptyBreachSummary();
     }
 

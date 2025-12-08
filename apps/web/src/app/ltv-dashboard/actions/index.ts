@@ -26,6 +26,24 @@ function getDatabase(): DatabasePool {
 // ============================================================================
 
 /**
+ * pLTV tier summary
+ */
+export interface PLTVTierSummary {
+  totalScoredLeads: number;
+  diamondLeads: number;
+  platinumLeads: number;
+  goldLeads: number;
+  silverLeads: number;
+  bronzeLeads: number;
+  avgPredictedLTV: number;
+  avgConfidence: number;
+  totalPredictedLTV: number;
+  highGrowthLeads: number;
+  priorityLeads: number;
+  lastCalculation: string | null;
+}
+
+/**
  * Lead Lifetime Value data
  */
 export interface LeadLTV {
@@ -414,23 +432,190 @@ export async function getLTVDashboardDataAction(): Promise<LTVDashboardData> {
 }
 
 /**
+ * Row type from clinic_pltv_summary view
+ */
+interface PLTVSummaryRow {
+  clinic_id: string;
+  total_scored_leads: string;
+  diamond_leads: string;
+  platinum_leads: string;
+  gold_leads: string;
+  silver_leads: string;
+  bronze_leads: string;
+  avg_predicted_ltv: string;
+  avg_confidence: string;
+  total_predicted_ltv: string;
+  high_growth_leads: string;
+  priority_leads: string;
+  last_calculation: Date | null;
+}
+
+/**
+ * Get pLTV tier summary for the clinic
+ *
+ * @requires VIEW_ANALYTICS permission
+ * @returns pLTV tier distribution and summary statistics
+ */
+export async function getPLTVSummaryAction(): Promise<PLTVTierSummary> {
+  await requirePermission('VIEW_ANALYTICS');
+  const user = await requireCurrentUser();
+  if (!user.clinicId) {
+    throw new Error('No clinic associated with user');
+  }
+
+  const database = getDatabase();
+
+  const result = await database.query<PLTVSummaryRow>(
+    `SELECT
+      clinic_id,
+      total_scored_leads,
+      diamond_leads,
+      platinum_leads,
+      gold_leads,
+      silver_leads,
+      bronze_leads,
+      avg_predicted_ltv,
+      avg_confidence,
+      total_predicted_ltv,
+      high_growth_leads,
+      priority_leads,
+      last_calculation
+    FROM clinic_pltv_summary
+    WHERE clinic_id = $1`,
+    [user.clinicId]
+  );
+
+  // Return empty summary if no data
+  if (result.rows.length === 0) {
+    return {
+      totalScoredLeads: 0,
+      diamondLeads: 0,
+      platinumLeads: 0,
+      goldLeads: 0,
+      silverLeads: 0,
+      bronzeLeads: 0,
+      avgPredictedLTV: 0,
+      avgConfidence: 0,
+      totalPredictedLTV: 0,
+      highGrowthLeads: 0,
+      priorityLeads: 0,
+      lastCalculation: null,
+    };
+  }
+
+  const row = result.rows[0];
+  return {
+    totalScoredLeads: parseInt(row.total_scored_leads, 10),
+    diamondLeads: parseInt(row.diamond_leads, 10),
+    platinumLeads: parseInt(row.platinum_leads, 10),
+    goldLeads: parseInt(row.gold_leads, 10),
+    silverLeads: parseInt(row.silver_leads, 10),
+    bronzeLeads: parseInt(row.bronze_leads, 10),
+    avgPredictedLTV: parseFloat(row.avg_predicted_ltv),
+    avgConfidence: parseFloat(row.avg_confidence),
+    totalPredictedLTV: parseFloat(row.total_predicted_ltv),
+    highGrowthLeads: parseInt(row.high_growth_leads, 10),
+    priorityLeads: parseInt(row.priority_leads, 10),
+    lastCalculation: row.last_calculation?.toISOString() ?? null,
+  };
+}
+
+/**
  * Export report action
  *
  * Generates an LTV report for export.
  *
  * @param format Export format ('csv' | 'xlsx' | 'pdf')
  * @requires VIEW_ANALYTICS permission
- * @returns Report data or download URL
+ * @returns Report data with CSV content for download
  */
 export async function exportLTVReportAction(
   format: 'csv' | 'xlsx' | 'pdf' = 'csv'
-): Promise<{ success: boolean; message: string; downloadUrl?: string }> {
+): Promise<{ success: boolean; message: string; data?: string; filename?: string }> {
   await requirePermission('VIEW_ANALYTICS');
 
-  // TODO: Implement actual report generation
-  // For now, return a placeholder response
-  return {
-    success: false,
-    message: `Export to ${format.toUpperCase()} is not yet implemented. This feature will be available soon.`,
-  };
+  if (format !== 'csv') {
+    return {
+      success: false,
+      message: `Export to ${format.toUpperCase()} is not yet implemented. CSV export is available.`,
+    };
+  }
+
+  try {
+    // Fetch all data needed for the report
+    const [stats, topCustomers, monthlyRevenue, casePipeline] = await Promise.all([
+      getLTVStatsAction(),
+      getTopCustomersAction(100), // Get more customers for export
+      getMonthlyRevenueAction(12), // Get 12 months for export
+      getCasePipelineAction(),
+    ]);
+
+    // Generate CSV content
+    const csvSections: string[] = [];
+
+    // Section 1: Summary Statistics
+    csvSections.push('LTV DASHBOARD REPORT');
+    csvSections.push(`Generated: ${new Date().toISOString()}`);
+    csvSections.push('');
+    csvSections.push('SUMMARY STATISTICS');
+    csvSections.push('Metric,Value');
+    csvSections.push(`Total Revenue,${stats.totalRevenue}`);
+    csvSections.push(`Total Outstanding,${stats.totalOutstanding}`);
+    csvSections.push(`Average Customer LTV,${stats.avgLTV}`);
+    csvSections.push(`Total Cases,${stats.totalCases}`);
+    csvSections.push(`Paid Cases,${stats.paidCases}`);
+    csvSections.push(`Partial Cases,${stats.partialCases}`);
+    csvSections.push(`Monthly Growth %,${stats.monthlyGrowth}`);
+
+    // Section 2: Monthly Revenue
+    csvSections.push('');
+    csvSections.push('MONTHLY REVENUE');
+    csvSections.push('Month,Gross Revenue,Net Revenue,Refunds,Payment Count,Cases With Payments');
+    for (const month of monthlyRevenue) {
+      csvSections.push(
+        `${month.month},${month.grossRevenue},${month.netRevenue},${month.refunds},${month.paymentCount},${month.casesWithPayments}`
+      );
+    }
+
+    // Section 3: Top Customers
+    csvSections.push('');
+    csvSections.push('TOP CUSTOMERS BY LTV');
+    csvSections.push(
+      'Name,Email,Phone,Total Cases,Completed Cases,Total Value,Total Paid,Outstanding,Avg Case Value,First Case,Last Case'
+    );
+    for (const customer of topCustomers) {
+      // Escape any commas in names
+      const safeName = customer.fullName.includes(',')
+        ? `"${customer.fullName}"`
+        : customer.fullName;
+      csvSections.push(
+        `${safeName},${customer.email ?? ''},${customer.phone ?? ''},${customer.totalCases},${customer.completedCases},${customer.totalCaseValue},${customer.totalPaid},${customer.totalOutstanding},${customer.avgCaseValue},${customer.firstCaseDate ?? ''},${customer.lastCaseDate ?? ''}`
+      );
+    }
+
+    // Section 4: Case Pipeline
+    csvSections.push('');
+    csvSections.push('CASE PIPELINE');
+    csvSections.push('Status,Payment Status,Case Count,Total Value,Paid Value,Outstanding Value');
+    for (const item of casePipeline) {
+      csvSections.push(
+        `${item.status},${item.paymentStatus},${item.caseCount},${item.totalValue},${item.paidValue},${item.outstandingValue}`
+      );
+    }
+
+    const csvContent = csvSections.join('\n');
+    const filename = `ltv-report-${new Date().toISOString().slice(0, 10)}.csv`;
+
+    return {
+      success: true,
+      message: 'Report generated successfully',
+      data: csvContent,
+      filename,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to generate report',
+    };
+  }
 }

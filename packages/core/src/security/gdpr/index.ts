@@ -55,3 +55,13 @@ export {
   type DisposalResult,
   type RetentionService,
 } from './retention-service.js';
+
+// Unified GDPR Erasure Service (H7 Fix - comprehensive erasure)
+export {
+  UnifiedGDPRErasureService,
+  createUnifiedGDPRErasureService,
+  type ErasureSubject,
+  type UnifiedErasureOptions,
+  type TableErasureResult,
+  type UnifiedErasureResult,
+} from './unified-erasure-service.js';

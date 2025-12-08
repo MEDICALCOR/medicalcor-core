@@ -29,6 +29,11 @@ export {
   handleRefund,
 } from './tasks/payment-handler.js';
 export {
+  attributePaymentToLead,
+  batchAttributeUnlinkedPayments,
+  type PaymentAttributionPayload,
+} from './tasks/payment-attribution.js';
+export {
   handleUrgentCase,
   detectUrgentKeywords,
   type UrgentCasePayload,
