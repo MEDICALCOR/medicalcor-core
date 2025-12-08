@@ -149,7 +149,7 @@ const environmentLabels = {
   production: 'Production',
 };
 
-type FormData = {
+interface FormData {
   key: string;
   name: string;
   description: string;
@@ -158,7 +158,7 @@ type FormData = {
   environment: 'development' | 'staging' | 'production';
   owner: string;
   tags: string;
-};
+}
 
 const defaultFormData: FormData = {
   key: '',
@@ -208,7 +208,7 @@ export default function FeatureFlagsPage() {
       enabled: flag.enabled,
       rolloutPercentage: flag.rolloutPercentage,
       environment: flag.environment,
-      owner: flag.owner || '',
+      owner: flag.owner ?? '',
       tags: flag.tags.join(', '),
     });
     setIsDialogOpen(true);

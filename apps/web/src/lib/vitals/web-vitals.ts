@@ -236,22 +236,20 @@ export function initWebVitalsReporting(): void {
       const entries = list.getEntries();
       const lastEntry = entries[entries.length - 1];
 
-      if (lastEntry) {
-        const lcpValue = lastEntry.startTime;
-        const lcpBudget = PERFORMANCE_BUDGETS.LCP;
+      const lcpValue = lastEntry.startTime;
+      const lcpBudget = PERFORMANCE_BUDGETS.LCP;
 
-        if (lcpValue > lcpBudget.good) {
-          Sentry.addBreadcrumb({
-            category: 'performance',
-            message: `LCP candidate: ${lcpValue.toFixed(0)}ms`,
-            level: lcpValue > lcpBudget.needsImprovement ? 'warning' : 'info',
-            data: {
-              value: lcpValue,
-              exceedsBudget: lcpValue > lcpBudget.good,
-              element: (lastEntry as PerformanceEntry & { element?: Element }).element?.tagName,
-            },
-          });
-        }
+      if (lcpValue > lcpBudget.good) {
+        Sentry.addBreadcrumb({
+          category: 'performance',
+          message: `LCP candidate: ${lcpValue.toFixed(0)}ms`,
+          level: lcpValue > lcpBudget.needsImprovement ? 'warning' : 'info',
+          data: {
+            value: lcpValue,
+            exceedsBudget: lcpValue > lcpBudget.good,
+            element: (lastEntry as PerformanceEntry & { element?: Element }).element?.tagName,
+          },
+        });
       }
     });
     lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
@@ -303,10 +301,6 @@ function getRating(
   value: number
 ): 'good' | 'needs-improvement' | 'poor' {
   const budget = PERFORMANCE_BUDGETS[name];
-
-  if (!budget) {
-    return 'good'; // Unknown metric, assume good
-  }
 
   if (value <= budget.good) return 'good';
   if (value <= budget.needsImprovement) return 'needs-improvement';

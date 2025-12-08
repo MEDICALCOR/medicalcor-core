@@ -1,7 +1,7 @@
 'use server';
 
 import { z } from 'zod';
-import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
+import { getDatabase } from '@/lib/db';
 import { requireCurrentUser } from '@/lib/auth/server-action-auth';
 
 /**
@@ -10,14 +10,6 @@ import { requireCurrentUser } from '@/lib/auth/server-action-auth';
  * Handles user-specific settings including theme preferences.
  * All actions require authentication.
  */
-
-// Lazy-initialized database connection
-let db: DatabasePool | null = null;
-
-function getDatabase(): DatabasePool {
-  db ??= createDatabaseClient();
-  return db;
-}
 
 // =============================================================================
 // Types

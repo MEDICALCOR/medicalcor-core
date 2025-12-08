@@ -45,7 +45,6 @@ import {
   getActionableInsightsAction,
   type InsightsDashboardData,
   type CognitiveInsight,
-  type BehavioralPattern,
 } from '@/app/actions';
 
 // ============================================================================

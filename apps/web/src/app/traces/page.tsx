@@ -55,7 +55,7 @@ function formatDuration(ms: number): string {
   return `${(ms / 1000).toFixed(2)}s`;
 }
 
-function formatTimestamp(dateStr: string): string {
+function _formatTimestamp(dateStr: string): string {
   const date = new Date(dateStr);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -367,10 +367,10 @@ export default function TracesPage() {
                   <div
                     key={trace.traceId}
                     className="flex items-center gap-4 p-4 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
-                    onClick={() => handleTraceClick(trace)}
+                    onClick={() => void handleTraceClick(trace)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
-                        handleTraceClick(trace);
+                        void handleTraceClick(trace);
                       }
                     }}
                     role="button"
