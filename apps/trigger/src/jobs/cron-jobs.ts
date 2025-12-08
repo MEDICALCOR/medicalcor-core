@@ -10,6 +10,7 @@ import { createIntegrationClients } from '@medicalcor/integrations';
 import { nurtureSequenceWorkflow } from '../workflows/patient-journey.js';
 import { scoreLeadWorkflow } from '../workflows/lead-scoring.js';
 import { npsCollectionWorkflow } from '../workflows/nps-collection.js';
+import { batchAttributeUnlinkedPayments } from '../tasks/payment-attribution.js';
 
 /**
  * HubSpot contact search result type
@@ -2720,6 +2721,61 @@ export const gdprArticle30QuarterlyReport = schedules.task({
       });
 
       await emitJobEvent(eventStore, 'cron.gdpr_article30_quarterly_report.failed', {
+        error: errorMessage,
+        correlationId,
+      });
+
+      return { success: false, error: errorMessage };
+    }
+  },
+});
+
+// ============================================
+// Payment Attribution Jobs
+// ============================================
+
+/**
+ * Hourly payment attribution check
+ *
+ * H8 Production Fix: Finds unlinked payments and attempts to attribute
+ * them to leads/cases for proper LTV tracking.
+ *
+ * Runs every hour to catch payments that couldn't be attributed
+ * during webhook processing (e.g., network issues, missing data).
+ */
+export const hourlyPaymentAttribution = schedules.task({
+  id: 'hourly-payment-attribution',
+  cron: '0 * * * *', // Every hour at minute 0
+  run: async () => {
+    const correlationId = generateCorrelationId();
+    const { eventStore } = getClients();
+
+    logger.info('Starting hourly payment attribution', { correlationId });
+
+    try {
+      await batchAttributeUnlinkedPayments.trigger(
+        { correlationId },
+        {
+          idempotencyKey: IdempotencyKeys.custom(
+            'payment-attr-hourly',
+            getTodayString(),
+            new Date().getHours().toString()
+          ),
+        }
+      );
+
+      logger.info('Hourly payment attribution triggered', { correlationId });
+
+      await emitJobEvent(eventStore, 'cron.hourly_payment_attribution.completed', {
+        correlationId,
+      });
+
+      return { success: true, correlationId };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Hourly payment attribution failed', { error: errorMessage, correlationId });
+
+      await emitJobEvent(eventStore, 'cron.hourly_payment_attribution.failed', {
         error: errorMessage,
         correlationId,
       });

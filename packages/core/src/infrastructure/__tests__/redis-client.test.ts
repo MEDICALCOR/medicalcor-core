@@ -961,6 +961,22 @@ describe('Factory Functions', () => {
       expect(() => createRedisClientFromEnv()).toThrow('REDIS_PASSWORD is required in production');
     });
 
+    it('should require password in staging (H6 fix)', () => {
+      process.env.REDIS_URL = 'redis://localhost:6379';
+      process.env.NODE_ENV = 'staging';
+      delete process.env.REDIS_PASSWORD;
+
+      expect(() => createRedisClientFromEnv()).toThrow('REDIS_PASSWORD is required in staging');
+    });
+
+    it('should allow embedded password in staging (H6 fix)', () => {
+      process.env.REDIS_URL = 'redis://:password123@localhost:6379';
+      process.env.NODE_ENV = 'staging';
+
+      const client = createRedisClientFromEnv();
+      expect(client).toBeInstanceOf(SecureRedisClient);
+    });
+
     it('should allow embedded password in production', () => {
       process.env.REDIS_URL = 'redis://:password123@localhost:6379';
       process.env.NODE_ENV = 'production';

@@ -870,22 +870,25 @@ export function createSecureRedisClient(config: RedisConfig): SecureRedisClient 
  * 1. REDIS_URL with embedded password (redis://:password@host:port)
  * 2. Separate REDIS_PASSWORD env var (combined with REDIS_URL)
  *
- * In production, REDIS_PASSWORD is REQUIRED for security.
+ * H6 Fix: Auth is required in BOTH production AND staging environments.
  */
 export function createRedisClientFromEnv(): SecureRedisClient | null {
   let redisUrl = process.env.REDIS_URL;
   if (!redisUrl) return null;
 
-  const isProduction = process.env.NODE_ENV === 'production';
+  const nodeEnv = process.env.NODE_ENV ?? 'development';
+  const isProduction = nodeEnv === 'production';
+  const isStaging = nodeEnv === 'staging';
+  const requiresAuth = isProduction || isStaging;
   const redisPassword = process.env.REDIS_PASSWORD;
 
-  // SECURITY: Validate password is provided in production
-  if (isProduction && !redisPassword && !redisUrl.includes(':@')) {
+  // SECURITY (H6 Fix): Validate password is provided in production AND staging
+  if (requiresAuth && !redisPassword && !redisUrl.includes(':@')) {
     // Check if password is embedded in URL (redis://:password@host format)
     const hasEmbeddedPassword = /redis[s]?:\/\/:[^@]+@/.test(redisUrl);
     if (!hasEmbeddedPassword) {
-      logger.error('CRITICAL: REDIS_PASSWORD is required in production for security');
-      throw new Error('REDIS_PASSWORD is required in production');
+      logger.error(`CRITICAL: REDIS_PASSWORD is required in ${nodeEnv} for security`);
+      throw new Error(`REDIS_PASSWORD is required in ${nodeEnv}`);
     }
   }
 
@@ -895,21 +898,22 @@ export function createRedisClientFromEnv(): SecureRedisClient | null {
     redisUrl = redisUrl.replace(/^(rediss?:\/\/)/, `$1:${redisPassword}@`);
   }
 
-  // In production, upgrade to TLS if not already using rediss://
+  // In production/staging, upgrade to TLS if not already using rediss://
   let url = redisUrl;
-  if (isProduction && !redisUrl.startsWith('rediss://')) {
+  if (requiresAuth && !redisUrl.startsWith('rediss://')) {
     // Check for REDIS_TLS env var to force TLS
     if (process.env.REDIS_TLS === 'true') {
       url = redisUrl.replace('redis://', 'rediss://');
-      logger.warn('Upgrading connection to TLS for production');
+      logger.warn(`Upgrading connection to TLS for ${nodeEnv}`);
     } else {
-      logger.warn('Using unencrypted Redis connection in production. Set REDIS_TLS=true for TLS.');
+      logger.warn(`Using unencrypted Redis connection in ${nodeEnv}. Set REDIS_TLS=true for TLS.`);
     }
   }
 
   // Build tlsOptions without undefined values for exactOptionalPropertyTypes
+  // H6 Fix: Enforce certificate validation in both production AND staging
   const tlsOptions: { rejectUnauthorized?: boolean; ca?: string } = {
-    rejectUnauthorized: isProduction,
+    rejectUnauthorized: requiresAuth,
   };
   if (process.env.REDIS_CA_CERT) {
     tlsOptions.ca = process.env.REDIS_CA_CERT;

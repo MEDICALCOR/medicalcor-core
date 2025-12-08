@@ -10,17 +10,14 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      // COVERAGE THRESHOLDS - Progressive ratcheting approach
-      // Medical/Banking "Platinum" standard requires 80%+ coverage
-      // Roadmap:
-      //   - Phase 1 (Dec 2025): 70% - Current target
-      //   - Phase 2 (Q1 2026):  80% - Medical compliance target
+      // COVERAGE THRESHOLDS - Medical/Banking "Platinum" standard
+      // Target: 85%+ coverage for HIPAA/GDPR compliance
       // See: https://owasp.org/www-project-web-security-testing-guide/
       thresholds: {
-        lines: 70,
-        functions: 70,
-        branches: 60,
-        statements: 70,
+        lines: 85,
+        functions: 85,
+        branches: 85,
+        statements: 85,
       },
       exclude: [
         'node_modules/',

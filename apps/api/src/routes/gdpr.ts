@@ -14,6 +14,7 @@ import {
   generateCorrelationId,
   maskPhone,
   maskEmail,
+  createUnifiedGDPRErasureService,
 } from '@medicalcor/core';
 
 /**
@@ -342,7 +343,6 @@ export const gdprRoutes: FastifyPluginAsync = async (fastify): Promise<void> => 
         },
       },
     },
-    // eslint-disable-next-line max-lines-per-function
     handler: async (
       request: FastifyRequest<{ Body: GdprDeletionRequest }>,
       reply: FastifyReply
@@ -367,120 +367,56 @@ export const gdprRoutes: FastifyPluginAsync = async (fastify): Promise<void> => 
       }
 
       try {
+        // Use unified GDPR erasure service (H7 fix - comprehensive erasure)
         const db = createDatabaseClient();
-        const RETENTION_PERIOD_DAYS = 30; // 30 days before permanent deletion
+        const erasureService = createUnifiedGDPRErasureService(db);
 
-        // Build query conditions
-        const conditions: string[] = [];
-        const params: (string | undefined)[] = [];
-        let paramIndex = 1;
+        // Determine identifier type and value (validated above - at least one exists)
+        const identifierType: 'phone' | 'email' | 'hubspot_id' = phone
+          ? 'phone'
+          : email
+            ? 'email'
+            : 'hubspot_id';
+        const identifier: string = phone ?? email ?? hubspotContactId ?? '';
 
-        if (phone) {
-          conditions.push(`phone = $${paramIndex++}`);
-          params.push(phone);
-        }
-        if (email) {
-          conditions.push(`email = $${paramIndex++}`);
-          params.push(email);
-        }
-        if (hubspotContactId) {
-          conditions.push(`hubspot_contact_id = $${paramIndex++}`);
-          params.push(hubspotContactId);
-        }
-
-        const whereClause = conditions.join(' OR ');
-        const now = new Date().toISOString();
-
-        // Soft delete leads
-        const leadsResult = await db.query(
-          `UPDATE leads
-           SET deleted_at = $1,
-               deletion_reason = $2,
-               deletion_request_id = $3
-           WHERE (${whereClause}) AND deleted_at IS NULL
-           RETURNING id`,
-          [now, reason, correlationId, ...params.filter(Boolean)]
+        // Execute unified erasure across all tables with PII
+        const result = await erasureService.eraseSubject(
+          { identifierType, identifier },
+          {
+            reason: `GDPR Article 17: ${reason}`,
+            requestedBy: 'api',
+            correlationId,
+            hardDelete: false, // Soft delete with retention period
+          }
         );
-
-        const deletedLeadIds = leadsResult.rows.map((r) => r.id as string);
-        let totalRecordsAffected = deletedLeadIds.length;
-
-        // Soft delete related records
-        if (deletedLeadIds.length > 0) {
-          // Soft delete interactions
-          const interactionsResult = await db.query(
-            `UPDATE interactions
-             SET deleted_at = $1
-             WHERE lead_id = ANY($2) AND deleted_at IS NULL
-             RETURNING id`,
-            [now, deletedLeadIds]
-          );
-          totalRecordsAffected += interactionsResult.rows.length;
-
-          // Soft delete appointments
-          const appointmentsResult = await db.query(
-            `UPDATE appointments
-             SET deleted_at = $1
-             WHERE lead_id = ANY($2) AND deleted_at IS NULL
-             RETURNING id`,
-            [now, deletedLeadIds]
-          );
-          totalRecordsAffected += appointmentsResult.rows.length;
-
-          // Soft delete communications
-          const communicationsResult = await db.query(
-            `UPDATE communications
-             SET deleted_at = $1
-             WHERE lead_id = ANY($2) AND deleted_at IS NULL
-             RETURNING id`,
-            [now, deletedLeadIds]
-          );
-          totalRecordsAffected += communicationsResult.rows.length;
-        }
-
-        // Soft delete consent records by phone
-        if (phone) {
-          const consentResult = await db.query(
-            `UPDATE consent_records
-             SET deleted_at = $1
-             WHERE phone = $2 AND deleted_at IS NULL
-             RETURNING id`,
-            [now, phone]
-          );
-          totalRecordsAffected += consentResult.rows.length;
-        }
-
-        // Log the deletion request for audit compliance
-        await db.query(
-          `INSERT INTO sensitive_data_access_log
-           (correlation_id, entity_type, entity_id, field_names, access_type, access_reason, accessed_by, ip_address)
-           VALUES ($1, 'gdpr_deletion', $2, ARRAY['all'], 'delete', $3, 'api', $4)`,
-          [correlationId, deletedLeadIds[0] ?? 'unknown', `GDPR Article 17: ${reason}`, request.ip]
-        );
-
-        // Calculate estimated permanent deletion date
-        const permanentDeletionDate = new Date();
-        permanentDeletionDate.setDate(permanentDeletionDate.getDate() + RETENTION_PERIOD_DAYS);
 
         fastify.log.info(
           {
             correlationId,
-            recordsAffected: totalRecordsAffected,
+            recordsAffected: result.totalRecordsAffected,
+            tableCount: result.tableResults.length,
             phone: phone ? maskPhone(phone) : undefined,
+            email: email ? maskEmail(email) : undefined,
           },
-          'GDPR deletion request processed'
+          'GDPR deletion request processed via unified erasure service'
         );
 
         return await reply.send({
-          success: true,
+          success: result.success,
           requestId: correlationId,
-          message:
-            'Deletion request processed. Data has been soft-deleted and will be permanently removed after the retention period.',
+          message: result.success
+            ? 'Deletion request processed. Data has been soft-deleted and will be permanently removed after the retention period.'
+            : `Deletion partially completed with ${result.errors.length} errors`,
           deletionType: 'SOFT',
-          recordsAffected: totalRecordsAffected,
+          recordsAffected: result.totalRecordsAffected,
           auditTrailPreserved: true,
-          retentionPeriodDays: RETENTION_PERIOD_DAYS,
-          estimatedPermanentDeletion: permanentDeletionDate.toISOString(),
+          retentionPeriodDays: result.retentionPeriodDays,
+          estimatedPermanentDeletion: result.estimatedPermanentDeletion?.toISOString(),
+          tableDetails: result.tableResults.map((t) => ({
+            table: t.tableName,
+            records: t.recordsAffected,
+            action: t.erasureType,
+          })),
         });
       } catch (error) {
         fastify.log.error({ error, correlationId }, 'GDPR deletion request failed');

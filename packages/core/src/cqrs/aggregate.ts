@@ -94,6 +94,8 @@ export abstract class AggregateRoot<TState extends AggregateState = AggregateSta
     }
     this.state.version = event.version;
     this.state.updatedAt = event.timestamp;
+    // Set createdAt from first event if not already set
+    this.state.createdAt ??= event.timestamp;
   }
 
   /**
@@ -295,7 +297,7 @@ export class LeadAggregate extends AggregateRoot<LeadState> {
       phone,
       channel,
       status: 'new',
-      createdAt: new Date(),
+      // createdAt will be set from the first event's timestamp in apply()
     });
 
     // Register event appliers
