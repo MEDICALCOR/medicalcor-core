@@ -256,6 +256,11 @@ export {
 // Example: import { createLabCase, validateDesign } from '@medicalcor/domain/dental-lab';
 export * from './dental-lab/index.js';
 
+// Treatment Journey Context - Patient journey orchestration
+// AI treatment planning, predictive outcomes, clinic-lab collaboration
+// Example: import { createTreatmentJourney, predictOutcome } from '@medicalcor/domain/treatment-journey';
+export * from './treatment-journey/index.js';
+
 // ============================================================================
 // LEGACY DOMAIN SERVICES (being migrated to use cases)
 // ============================================================================
