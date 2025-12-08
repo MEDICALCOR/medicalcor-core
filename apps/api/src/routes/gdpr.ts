@@ -121,7 +121,7 @@ export const gdprRoutes: FastifyPluginAsync = async (fastify): Promise<void> => 
         },
       },
     },
-     
+
     handler: async (request: FastifyRequest<{ Body: GdprExportRequest }>, reply: FastifyReply) => {
       const correlationId = generateCorrelationId();
       const { phone, email, hubspotContactId } = request.body;

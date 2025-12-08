@@ -360,7 +360,6 @@ function getSSEManager(): SupervisorSSEManager {
 // Route Definitions
 // =============================================================================
 
- 
 export const supervisorWSRoutes: FastifyPluginAsync = async (fastify) => {
   const manager = getSSEManager();
 

@@ -414,7 +414,6 @@ export function createGuidanceWSRoutes(repository: IGuidanceRepository): Fastify
   const manager = getGuidanceSSEManager();
   manager.initialize(service);
 
-   
   const guidanceWSRoutes: FastifyPluginAsync = async (fastify) => {
     /**
      * GET /guidance/events

@@ -66,7 +66,7 @@ function verifyPipedriveSignature(rawBody: string, signature: string, secret: st
  * await fastify.register(pipedriveSignaturePlugin);
  * ```
  */
- 
+
 const verifyPipedriveSignaturePlugin: FastifyPluginAsync = async (fastify) => {
   const secret = process.env.PIPEDRIVE_WEBHOOK_SECRET;
   const isProduction = process.env.NODE_ENV === 'production';

@@ -58,7 +58,6 @@ const ProcessMessageSchema = z.object({
 export function createGuidanceRoutes(repository: IGuidanceRepository): FastifyPluginAsync {
   const service = new GuidanceService(repository);
 
-   
   const guidanceRoutes: FastifyPluginAsync = async (fastify) => {
     // ========================================================================
     // CRUD Operations

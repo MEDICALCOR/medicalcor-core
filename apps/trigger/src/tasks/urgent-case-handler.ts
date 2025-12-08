@@ -142,7 +142,7 @@ export const handleUrgentCase = task({
             priority: 'HIGH',
             dueDate,
           });
-           
+
           taskId = task?.id;
           logger.info('Created urgent HubSpot task', { taskId, correlationId });
         } else {

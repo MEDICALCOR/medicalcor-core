@@ -226,7 +226,7 @@ export class KnowledgeBaseRepository implements IKnowledgeBaseRepository {
 
     for (const [key, value] of Object.entries(updates)) {
       const snakeKey = this.camelToSnake(key);
-       
+
       if (allowedFields.includes(snakeKey) && value !== undefined) {
         setClauses.push(`${snakeKey} = $${paramIndex}`);
         values.push(key === 'metadata' ? JSON.stringify(value) : value);

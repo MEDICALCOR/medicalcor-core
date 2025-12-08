@@ -149,7 +149,7 @@ export const aiTokensUsed = new Counter({
  * Metrics route plugin
  * Exposes Prometheus-compatible metrics on GET /metrics
  */
- 
+
 export const metricsRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * GET /metrics

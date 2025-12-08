@@ -73,7 +73,6 @@ export function createCognitiveRoutes(deps: CognitiveRouteDependencies): Fastify
   const patternDetector = createPatternDetector(deps.pool, deps.openai);
   const memoryRetrieval = createMemoryRetrievalService(deps.pool, deps.embeddings);
 
-   
   const cognitiveRoutes: FastifyPluginAsync = async (fastify) => {
     // ========================================================================
     // Behavioral Patterns Endpoints

@@ -60,7 +60,6 @@ const FlagCallBodySchema = z.object({
 // Route Definitions
 // =============================================================================
 
- 
 export const supervisorRoutes: FastifyPluginAsync = async (fastify) => {
   const agent = getSupervisorAgent();
 

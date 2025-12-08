@@ -285,7 +285,7 @@ export function exhaustiveMatch<
   /* eslint-enable @typescript-eslint/no-unnecessary-type-parameters */
   const tag = value._tag;
   const matcher = matchers[tag as keyof M];
-   
+
   if (!matcher) {
     throw new Error(`No matcher for tag: ${tag}`);
   }

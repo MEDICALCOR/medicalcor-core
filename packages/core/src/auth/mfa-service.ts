@@ -511,7 +511,7 @@ export class MfaService {
     }
 
     // Increment failed attempts
-     
+
     const failedAttempts = ((mfaRow.failed_attempts as number) ?? 0) + 1;
     let newLockedUntil: Date | undefined;
 

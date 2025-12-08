@@ -382,7 +382,6 @@ class TelemetryRegistry {
   }
 
   static getInstance(): TelemetryRegistry {
-     
     if (!TelemetryRegistry.instance) {
       TelemetryRegistry.instance = new TelemetryRegistry();
     }

@@ -444,7 +444,6 @@ export class FunctionExecutor {
         | undefined;
       let validatedArgs = args;
 
-       
       if (schema !== null && schema !== undefined) {
         const validation = schema.safeParse(args);
         if (!validation.success) {

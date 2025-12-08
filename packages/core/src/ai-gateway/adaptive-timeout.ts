@@ -203,7 +203,6 @@ export class AdaptiveTimeoutManager {
    * Get timeout configuration for an operation
    */
   getTimeoutConfig(operation: AIOperationType): TimeoutConfig {
-     
     const config = this.timeoutConfigs[operation] ?? this.timeoutConfigs.default;
 
     // Apply global multiplier
@@ -287,7 +286,6 @@ export class AdaptiveTimeoutManager {
     const metrics = this.performanceMetrics.get(operation);
     if (!metrics || metrics.sampleCount < 10) return;
 
-     
     const baseConfig = this.timeoutConfigs[operation] ?? this.timeoutConfigs.default;
 
     // Use p95 as base, add 50% buffer for safety

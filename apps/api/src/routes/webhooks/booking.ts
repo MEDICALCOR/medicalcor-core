@@ -69,7 +69,6 @@ function getCorrelationId(request: FastifyRequest): string {
   return typeof header === 'string' ? header : generateCorrelationId();
 }
 
- 
 export const bookingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * Handle WhatsApp interactive callback (button/list selection)

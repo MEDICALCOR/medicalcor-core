@@ -1,4 +1,3 @@
- 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import {
   diagnostics,

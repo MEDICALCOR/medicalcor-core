@@ -1,8 +1,6 @@
- 
- 
 /* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
- 
+
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import crypto from 'crypto';
 import { createBackupServiceFromEnv, type BackupMetadata, type BackupType } from '@medicalcor/core';

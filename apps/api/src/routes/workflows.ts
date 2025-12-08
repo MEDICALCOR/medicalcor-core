@@ -105,7 +105,6 @@ const ErrorResponseSchema = {
   required: ['code', 'message'],
 } as const;
 
- 
 export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * Trigger lead scoring workflow manually

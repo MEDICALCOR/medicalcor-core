@@ -37,19 +37,17 @@ function createReportService(): ReturnType<typeof createArticle30ReportService> 
     return null;
   }
 
-   
   const supabase = createClient(supabaseUrl, supabaseKey);
   return createArticle30ReportService({
     supabase,
     controller: getControllerInfo(),
   });
-   
 }
 
 /**
  * GDPR Article 30 Compliance Reporting Routes
  */
- 
+
 export const gdprArticle30Routes: FastifyPluginAsync = async (fastify): Promise<void> => {
   /**
    * GET /gdpr/article30/reports

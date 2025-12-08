@@ -178,7 +178,7 @@ export const npsCollectionWorkflow = task({
     }
 
     // Step 5: Send the survey
-     
+
     const templateName = NPS_SURVEY_TEMPLATES[language][triggerType] || 'nps_general_ro';
 
     let messageId: string | undefined;
@@ -208,7 +208,6 @@ export const npsCollectionWorkflow = task({
           ],
         });
 
-         
         messageId = response.messages?.[0]?.id;
 
         logger.info('NPS survey sent via WhatsApp', {

@@ -1,6 +1,5 @@
- 
 /* eslint-disable max-lines-per-function */
- 
+
 import type { FastifyPluginAsync, FastifyInstance } from 'fastify';
 
 /**
@@ -479,7 +478,6 @@ function toPostmanCollection(spec: OpenAPISpec, baseUrl: string): object {
   };
 }
 
- 
 export const apiDocsRoutes: FastifyPluginAsync = async (fastify) => {
   const baseUrl = process.env.API_BASE_URL ?? 'http://localhost:3000';
 

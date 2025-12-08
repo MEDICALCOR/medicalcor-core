@@ -1874,11 +1874,10 @@ export const npsSurveyExpiryCheck = schedules.task({
         throw new Error(`Failed to update expired surveys: ${error.message}`);
       }
 
-       
       const expiredCount = expiredSurveys?.length ?? 0;
 
       // Emit expiry events
-       
+
       for (const survey of expiredSurveys ?? []) {
         await emitJobEvent(eventStore, 'nps.survey_expired', {
           surveyId: survey.id,
@@ -2128,7 +2127,7 @@ export const overduePaymentReminders = schedules.task({
         }
 
         // Process direct query results (simplified - real implementation would flatten)
-         
+
         if (!directData || directData.length === 0) {
           logger.info('No overdue installments found', { correlationId });
           return { success: true, remindersTriggered: 0, message: 'No overdue installments' };
