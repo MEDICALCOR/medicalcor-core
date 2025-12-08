@@ -1,49 +1,25 @@
 {
+  "defaultModel": "claude-2.1-sonnet",
+  "maxTokens": 2000,
+  "temperature": 0.0,
+  "skills": {
+    "medicalcor": true,
+    "anthropic": true,
+    "supabase": true,
+    "stripe": false
+  },
   "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/settings-backup.sh",
-            "description": "Backup critical config files before editing"
-          },
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/secret-scanner.sh",
-            "description": "Prevent accidentally writing sensitive data"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/toon-validator.sh",
-            "description": "Validate TOON format syntax"
-          },
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/markdown-formatter.sh",
-            "description": "Auto-format markdown files"
-          },
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/file-size-monitor.sh",
-            "description": "Warn about files exceeding size limits"
-          }
-        ]
-      }
-    ]
+    "preToolUse": ["secret-scanner.sh", "settings-backup.sh"],
+    "postToolUse": ["markdown-formatter.sh", "toon-validator.sh"]
   },
-  "permissions": {
-    "allow": ["Read(*)", "Write(*)", "Edit(*)", "Grep(*)", "Glob(*)"],
-    "ask": ["Bash(*)"],
-    "deny": []
-  },
-  "model": "claude-sonnet-4-5"
+  "commands": {
+    "analyze-repo": {
+      "description": "Full repo analysis for security, quality and docs gaps",
+      "cmd": "claude-code analyze --repo . --config .claude/settings.json --output claude-report.json"
+    },
+    "convert-to-toon": {
+      "description": "Convert JSON dataset to TOON format",
+      "cmd": "claude-code convert-to-toon --input {input} --output {output}"
+    }
+  }
 }
