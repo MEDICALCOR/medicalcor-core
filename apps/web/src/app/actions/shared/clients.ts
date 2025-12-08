@@ -24,15 +24,21 @@ import type { TimeSlot, BookingRequest, AppointmentDetails } from '@medicalcor/d
 // Local types for the web scheduling client API contract
 // These may differ from domain types as this client wraps an HTTP API
 interface WebGetAvailableSlotsOptions {
-  clinicId: string;
+  // Standard scheduling API options
+  clinicId?: string;
   providerId?: string;
   serviceType?: string;
   startDate?: Date;
   endDate?: Date;
+  // Calendar-style options (used by calendar actions)
+  procedureType?: string;
+  preferredDates?: string[];
+  limit?: number;
 }
 
 interface WebBookingResult {
   success: boolean;
+  id?: string; // Alias for appointmentId (used by calendar actions)
   appointmentId?: string;
   confirmationNumber?: string;
   error?: string;
@@ -137,16 +143,22 @@ class APISchedulingRepository {
 
   async getAvailableSlots(options: string | WebGetAvailableSlotsOptions): Promise<TimeSlot[]> {
     try {
-      const queryParams =
-        typeof options === 'string'
-          ? `clinicId=${encodeURIComponent(options)}`
-          : new URLSearchParams({
-              clinicId: options.clinicId,
-              ...(options.providerId && { providerId: options.providerId }),
-              ...(options.serviceType && { serviceType: options.serviceType }),
-              ...(options.startDate && { startDate: options.startDate.toISOString() }),
-              ...(options.endDate && { endDate: options.endDate.toISOString() }),
-            }).toString();
+      let queryParams: string;
+      if (typeof options === 'string') {
+        queryParams = `clinicId=${encodeURIComponent(options)}`;
+      } else {
+        const params: Record<string, string> = {};
+        if (options.clinicId) params.clinicId = options.clinicId;
+        if (options.providerId) params.providerId = options.providerId;
+        if (options.serviceType) params.serviceType = options.serviceType;
+        if (options.startDate) params.startDate = options.startDate.toISOString();
+        if (options.endDate) params.endDate = options.endDate.toISOString();
+        // Calendar-style options
+        if (options.procedureType) params.procedureType = options.procedureType;
+        if (options.preferredDates) params.preferredDates = options.preferredDates.join(',');
+        if (options.limit) params.limit = String(options.limit);
+        queryParams = new URLSearchParams(params).toString();
+      }
 
       const response = await fetch(`${this.apiBaseUrl}/api/scheduling/slots?${queryParams}`, {
         headers: { 'Content-Type': 'application/json' },
@@ -185,6 +197,7 @@ class APISchedulingRepository {
       const data = (await response.json()) as { appointmentId: string; confirmationNumber: string };
       return {
         success: true,
+        id: data.appointmentId, // Alias for calendar actions
         appointmentId: data.appointmentId,
         confirmationNumber: data.confirmationNumber,
       };

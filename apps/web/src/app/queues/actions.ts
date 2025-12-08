@@ -1,7 +1,15 @@
 'use server';
 
+/* eslint-disable @typescript-eslint/no-unnecessary-condition -- Supabase data can be null */
+/* eslint-disable @typescript-eslint/no-unsafe-argument -- Supabase returns loosely typed data */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment -- Supabase returns loosely typed data */
+/* eslint-disable @typescript-eslint/no-unsafe-return -- Supabase returns loosely typed data */
+
 import { createClient } from '@supabase/supabase-js';
 import type { QueueSLAStatus, SLABreachEvent } from '@medicalcor/types';
+
+// Re-export types for components
+export type { SLABreachEvent } from '@medicalcor/types';
 
 /**
  * Server actions for the Queue SLA Dashboard
@@ -92,27 +100,31 @@ export async function getQueueDashboardStatsAction(): Promise<QueueDashboardStat
 
     // Calculate aggregate stats
     const totalQueues = statuses.length;
-    const activeQueues = statuses.filter(q => q.currentQueueSize > 0 || q.busyAgents > 0).length;
+    const activeQueues = statuses.filter((q) => q.currentQueueSize > 0 || q.busyAgents > 0).length;
     const totalAgents = statuses.reduce((sum, q) => sum + q.totalAgents, 0);
     const availableAgents = statuses.reduce((sum, q) => sum + q.availableAgents, 0);
     const busyAgents = statuses.reduce((sum, q) => sum + q.busyAgents, 0);
     const totalCallsToday = statuses.reduce((sum, q) => sum + q.callsHandledToday, 0);
 
-    const avgWaitTimes = statuses.filter(q => q.averageWaitTime > 0).map(q => q.averageWaitTime);
-    const averageWaitTime = avgWaitTimes.length > 0
-      ? avgWaitTimes.reduce((a, b) => a + b, 0) / avgWaitTimes.length
-      : 0;
+    const avgWaitTimes = statuses
+      .filter((q) => q.averageWaitTime > 0)
+      .map((q) => q.averageWaitTime);
+    const averageWaitTime =
+      avgWaitTimes.length > 0 ? avgWaitTimes.reduce((a, b) => a + b, 0) / avgWaitTimes.length : 0;
 
-    const serviceLevels = statuses.filter(q => q.serviceLevel > 0).map(q => q.serviceLevel);
-    const serviceLevel = serviceLevels.length > 0
-      ? serviceLevels.reduce((a, b) => a + b, 0) / serviceLevels.length
-      : 100;
+    const serviceLevels = statuses.filter((q) => q.serviceLevel > 0).map((q) => q.serviceLevel);
+    const serviceLevel =
+      serviceLevels.length > 0
+        ? serviceLevels.reduce((a, b) => a + b, 0) / serviceLevels.length
+        : 100;
 
-    const compliantQueues = statuses.filter(q => q.isCompliant).length;
+    const compliantQueues = statuses.filter((q) => q.isCompliant).length;
     const complianceRate = totalQueues > 0 ? (compliantQueues / totalQueues) * 100 : 100;
 
     const breachesLast24h = breaches.length;
-    const criticalBreaches = breaches.filter(b => b.severity === 'critical').length;
+    const criticalBreaches = breaches.filter(
+      (b: { severity: string }) => b.severity === 'critical'
+    ).length;
 
     return {
       totalQueues,
@@ -193,7 +205,7 @@ export async function getQueueStatusesAction(): Promise<QueueStatusWithAlerts[]>
       }
     }
 
-    return statuses.map(status => {
+    return statuses.map((status) => {
       const alertInfo = alertCountMap.get(status.queueSid);
       return {
         ...status,
@@ -225,7 +237,29 @@ export async function getRecentBreachesAction(limit = 50): Promise<SLABreachEven
     }
 
     // Transform to match SLABreachEvent type
-    return (data ?? []).map(row => ({
+    type BreachType =
+      | 'wait_time_exceeded'
+      | 'queue_size_exceeded'
+      | 'abandon_rate_exceeded'
+      | 'agent_availability_low'
+      | 'service_level_missed';
+    type Severity = 'warning' | 'critical';
+    interface BreachRow {
+      id: string;
+      queue_sid: string;
+      queue_name: string;
+      breach_type: BreachType;
+      severity: Severity;
+      threshold_value: number;
+      current_value: number;
+      affected_calls: number;
+      detected_at: string;
+      resolved_at: string | null;
+      duration_seconds: number;
+      alert_sent: boolean;
+      escalated: boolean;
+    }
+    return (data ?? []).map((row: BreachRow) => ({
       eventId: row.id,
       queueSid: row.queue_sid,
       queueName: row.queue_name,
@@ -325,7 +359,7 @@ export async function getDailyBreachStatsAction(days = 7): Promise<DailyBreachSt
     for (let i = 0; i < days; i++) {
       const date = new Date();
       date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0]!;
+      const dateStr = date.toISOString().split('T')[0];
       statsMap.set(dateStr, {
         date: dateStr,
         totalBreaches: 0,
@@ -337,7 +371,7 @@ export async function getDailyBreachStatsAction(days = 7): Promise<DailyBreachSt
 
     // Count breaches per day
     for (const breach of breaches) {
-      const dateStr = new Date(breach.detected_at).toISOString().split('T')[0]!;
+      const dateStr = new Date(breach.detected_at).toISOString().split('T')[0];
       const stats = statsMap.get(dateStr);
       if (stats) {
         stats.totalBreaches++;

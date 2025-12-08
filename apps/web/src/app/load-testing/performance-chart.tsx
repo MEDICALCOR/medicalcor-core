@@ -13,10 +13,22 @@ interface PerformanceChartProps {
 /**
  * Performance trend chart showing P95, P99, and success rate over time
  */
+// eslint-disable-next-line max-lines-per-function -- Chart component with SVG rendering
 export function PerformanceChart({ data, height = 300, className }: PerformanceChartProps) {
-  const { lines, points, maxLatency, minLatency, labels } = useMemo(() => {
+  const { lines, points, _maxLatency, _minLatency, labels } = useMemo(() => {
     if (data.length === 0) {
-      return { lines: { p95: '', p99: '', avg: '' }, points: [], maxLatency: 0, minLatency: 0, labels: [] };
+      return {
+        lines: { p95: '', p99: '', avg: '' },
+        points: [] as ({
+          x: number;
+          yP95: number;
+          yP99: number;
+          yAvg: number;
+        } & LoadTestTrendPoint)[],
+        _maxLatency: 0,
+        _minLatency: 0,
+        labels: { y: [] as { value: number; y: number }[], x: [] as { date: string; x: number }[] },
+      };
     }
 
     const latencyValues = data.flatMap((d) => [d.p95Duration, d.p99Duration, d.avgDuration]);
@@ -70,15 +82,18 @@ export function PerformanceChart({ data, height = 300, className }: PerformanceC
         avg: createPath((p) => p.yAvg),
       },
       points: pts,
-      maxLatency: max,
-      minLatency: min,
+      _maxLatency: max,
+      _minLatency: min,
       labels: { y: yLabels, x: xLabels },
     };
   }, [data]);
 
   if (data.length === 0) {
     return (
-      <div className={cn('flex items-center justify-center text-muted-foreground', className)} style={{ height }}>
+      <div
+        className={cn('flex items-center justify-center text-muted-foreground', className)}
+        style={{ height }}
+      >
         No data available
       </div>
     );
@@ -105,7 +120,7 @@ export function PerformanceChart({ data, height = 300, className }: PerformanceC
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
         {/* Grid lines */}
         <g className="text-muted-foreground/20">
-          {labels.y?.map((label) => (
+          {labels.y.map((label: { value: number; y: number }) => (
             <line
               key={label.value}
               x1="50"
@@ -132,8 +147,20 @@ export function PerformanceChart({ data, height = 300, className }: PerformanceC
         />
 
         {/* Lines */}
-        <path d={lines.p99} fill="none" stroke="rgb(239, 68, 68)" strokeWidth="0.5" strokeLinecap="round" />
-        <path d={lines.p95} fill="none" stroke="rgb(249, 115, 22)" strokeWidth="0.5" strokeLinecap="round" />
+        <path
+          d={lines.p99}
+          fill="none"
+          stroke="rgb(239, 68, 68)"
+          strokeWidth="0.5"
+          strokeLinecap="round"
+        />
+        <path
+          d={lines.p95}
+          fill="none"
+          stroke="rgb(249, 115, 22)"
+          strokeWidth="0.5"
+          strokeLinecap="round"
+        />
         <path
           d={lines.avg}
           fill="none"
@@ -150,21 +177,27 @@ export function PerformanceChart({ data, height = 300, className }: PerformanceC
             cx={point.x}
             cy={point.yP95}
             r="0.8"
-            fill={point.status === 'passed' ? '#22c55e' : point.status === 'failed' ? '#ef4444' : '#f59e0b'}
+            fill={
+              point.status === 'passed'
+                ? '#22c55e'
+                : point.status === 'failed'
+                  ? '#ef4444'
+                  : '#f59e0b'
+            }
           />
         ))}
       </svg>
 
       {/* Y-axis labels */}
       <div className="absolute left-0 inset-y-0 flex flex-col justify-between text-[10px] text-muted-foreground py-5">
-        {labels.y?.map((label) => (
+        {labels.y.map((label: { value: number; y: number }) => (
           <span key={label.value}>{label.value}ms</span>
         ))}
       </div>
 
       {/* X-axis labels */}
       <div className="absolute inset-x-0 bottom-0 flex justify-between text-[10px] text-muted-foreground px-12">
-        {labels.x?.map((label) => (
+        {labels.x.map((label: { date: string; x: number }) => (
           <span key={label.date}>
             {new Date(label.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
           </span>
