@@ -16,6 +16,7 @@ export {
   type BreachNotificationServiceOptions,
   type ReportBreachResult,
   type NotifySubjectResult,
+  type NotifyAuthorityResult,
 } from './breach-notification-service.js';
 
 export {

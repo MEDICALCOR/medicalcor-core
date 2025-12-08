@@ -156,12 +156,13 @@ describe('Client Factory Functions', () => {
       expect(slots).toEqual([]);
     });
 
-    it('should return error for booking requests when service unavailable', async () => {
+    it('should return error for booking requests when API unavailable', async () => {
       const { getSchedulingService, resetClients } = await import('../clients.js');
       resetClients();
 
       const service = getSchedulingService();
 
+      // @ts-expect-error - Web API interface differs from domain interface
       const result = await service.bookAppointment({
         patientId: 'p1',
         slotId: 's1',
@@ -169,8 +170,11 @@ describe('Client Factory Functions', () => {
         notes: '',
       });
 
-      expect(result.success).toBe(false);
-      expect('error' in result).toBe(true);
+      // The API-based repository returns error object instead of throwing
+      expect(result).toEqual({
+        success: false,
+        error: expect.stringContaining('Booking service unavailable'),
+      });
     });
 
     it('should return empty upcoming appointments', async () => {

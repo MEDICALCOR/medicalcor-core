@@ -58,8 +58,10 @@ describe('SessionRepository', () => {
         rowCount: 1,
       });
 
-      const session = await repo.create(sessionData);
+      const result = await repo.create(sessionData);
 
+      expect(result.isOk).toBe(true);
+      const session = result.unwrap();
       expect(session).toBeDefined();
       expect(session.userId).toBe(sessionData.userId);
       expect(session.tokenHash).toBe(sessionData.tokenHash);
@@ -102,8 +104,10 @@ describe('SessionRepository', () => {
         rowCount: 1,
       });
 
-      const session = await repo.create(sessionData);
+      const result = await repo.create(sessionData);
 
+      expect(result.isOk).toBe(true);
+      const session = result.unwrap();
       // Device info is stored as JSON string
       expect(session.deviceInfo).toEqual(JSON.stringify(sessionData.deviceInfo));
     });
@@ -114,13 +118,14 @@ describe('SessionRepository', () => {
         rowCount: 0,
       });
 
-      await expect(
-        repo.create({
-          userId: 'user-123',
-          tokenHash: 'hash',
-          expiresAt: new Date(),
-        })
-      ).rejects.toThrow('Failed to create session');
+      const result = await repo.create({
+        userId: 'user-123',
+        tokenHash: 'hash',
+        expiresAt: new Date(),
+      });
+
+      expect(result.isErr).toBe(true);
+      expect(result.unwrapErr().code).toBe('RECORD_CREATE_FAILED');
     });
   });
 
@@ -257,10 +262,10 @@ describe('SessionRepository', () => {
       const result = await repo.revoke('session-123', 'logout');
 
       expect(result).toBe(true);
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE sessions'),
-        ['session-123', 'logout']
-      );
+      expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE sessions'), [
+        'session-123',
+        'logout',
+      ]);
     });
 
     it('should return false when session not found', async () => {

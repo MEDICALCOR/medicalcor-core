@@ -53,6 +53,10 @@ export default defineConfig({
         __dirname,
         'packages/core/src/observability/diagnostics.ts'
       ),
+      '@medicalcor/core/observability/instrumentation': path.resolve(
+        __dirname,
+        'packages/core/src/observability/instrumentation.ts'
+      ),
       '@medicalcor/core': path.resolve(__dirname, 'packages/core/src/index.ts'),
       '@medicalcor/domain': path.resolve(__dirname, 'packages/domain/src/index.ts'),
       '@medicalcor/infra': path.resolve(__dirname, 'packages/infra/src/index.ts'),

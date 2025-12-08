@@ -8,11 +8,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   PostgresSchedulingRepository,
   createPostgresSchedulingRepository,
-  ConsentRequiredError,
   type ConsentService,
   type BookingRequest,
   type GetAvailableSlotsOptions,
 } from '../postgres-scheduling-repository.js';
+import { ConsentRequiredError } from '../../errors.js';
 
 // ============================================================================
 // MOCK SETUP
@@ -226,9 +226,8 @@ describe('PostgresSchedulingRepository', () => {
       const result = await repoNoConsent.bookAppointment(validBookingRequest);
 
       expect(result.isErr).toBe(true);
-      if (result.isErr) {
-        expect(result.error).toBeInstanceOf(ConsentRequiredError);
-      }
+      const error = result.unwrapErr();
+      expect(error).toBeInstanceOf(ConsentRequiredError);
     });
 
     it('should include missing consents in ConsentRequiredError', async () => {
@@ -238,11 +237,9 @@ describe('PostgresSchedulingRepository', () => {
       const result = await repoNoConsent.bookAppointment(validBookingRequest);
 
       expect(result.isErr).toBe(true);
-      if (result.isErr) {
-        expect(result.error).toBeInstanceOf(ConsentRequiredError);
-        expect((result.error as ConsentRequiredError).missingConsents).toContain('data_processing');
-        expect((result.error as ConsentRequiredError).contactId).toBe('hs-123');
-      }
+      const error = result.unwrapErr() as ConsentRequiredError;
+      expect(error.missingConsents).toContain('data_processing');
+      expect(error.contactId).toBe('hs-123');
     });
 
     it('should return error when pool not configured', async () => {
@@ -251,9 +248,7 @@ describe('PostgresSchedulingRepository', () => {
       const result = await repoNoPool.bookAppointment(validBookingRequest);
 
       expect(result.isErr).toBe(true);
-      if (result.isErr) {
-        expect(result.error.message).toContain('Database connection not configured');
-      }
+      expect(result.unwrapErr().message).toContain('Database connection not configured');
     });
 
     it('should successfully book an appointment', async () => {
@@ -269,10 +264,9 @@ describe('PostgresSchedulingRepository', () => {
       const result = await repository.bookAppointment(validBookingRequest);
 
       expect(result.isOk).toBe(true);
-      if (result.isOk) {
-        expect(result.value.id).toBeDefined();
-        expect(result.value.status).toBe('confirmed');
-      }
+      const booking = result.unwrap();
+      expect(booking.id).toBeDefined();
+      expect(booking.status).toBe('confirmed');
       expect(mockConsentService.hasRequiredConsents).toHaveBeenCalledWith('hs-123');
     });
 
@@ -285,9 +279,7 @@ describe('PostgresSchedulingRepository', () => {
       const result = await repository.bookAppointment(validBookingRequest);
 
       expect(result.isErr).toBe(true);
-      if (result.isErr) {
-        expect(result.error.message).toContain('TimeSlot');
-      }
+      expect(result.unwrapErr().code).toBe('RECORD_NOT_FOUND');
     });
 
     it('should return error when slot already booked', async () => {
@@ -299,9 +291,7 @@ describe('PostgresSchedulingRepository', () => {
       const result = await repository.bookAppointment(validBookingRequest);
 
       expect(result.isErr).toBe(true);
-      if (result.isErr) {
-        expect(result.error.message).toContain('already booked');
-      }
+      expect(result.unwrapErr().code).toBe('SLOT_ALREADY_BOOKED');
     });
 
     it('should return error when slot has existing active appointment', async () => {
@@ -314,9 +304,7 @@ describe('PostgresSchedulingRepository', () => {
       const result = await repository.bookAppointment(validBookingRequest);
 
       expect(result.isErr).toBe(true);
-      if (result.isErr) {
-        expect(result.error.message).toContain('already booked');
-      }
+      expect(result.unwrapErr().code).toBe('SLOT_ALREADY_BOOKED');
     });
 
     it('should return error on concurrent modification (optimistic lock failure)', async () => {
@@ -331,9 +319,7 @@ describe('PostgresSchedulingRepository', () => {
       const result = await repository.bookAppointment(validBookingRequest);
 
       expect(result.isErr).toBe(true);
-      if (result.isErr) {
-        expect(result.error.message.toLowerCase()).toContain('concurrent modification');
-      }
+      expect(result.unwrapErr().code).toBe('CONCURRENCY_ERROR');
     });
 
     it('should rollback transaction on error', async () => {
@@ -341,6 +327,7 @@ describe('PostgresSchedulingRepository', () => {
         .mockResolvedValueOnce(undefined) // BEGIN
         .mockRejectedValueOnce(new Error('Database error')); // Slot check fails
 
+      // Unexpected database errors are re-thrown, not wrapped in Result
       await expect(repository.bookAppointment(validBookingRequest)).rejects.toThrow(
         'Database error'
       );
@@ -368,9 +355,7 @@ describe('PostgresSchedulingRepository', () => {
       const result = await repository.bookAppointment(minimalRequest);
 
       expect(result.isOk).toBe(true);
-      if (result.isOk) {
-        expect(result.value.status).toBe('confirmed');
-      }
+      expect(result.unwrap().status).toBe('confirmed');
     });
   });
 
