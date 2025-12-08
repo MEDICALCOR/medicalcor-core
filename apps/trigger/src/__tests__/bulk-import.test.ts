@@ -51,10 +51,10 @@ describe('Bulk Import Feature', () => {
 
       expect(result.rows.length).toBe(2);
       expect(result.errors.length).toBe(0);
-      expect(result.rows[0].phone).toBe('+40721234567');
-      expect(result.rows[0].fullName).toBe('Ion Popescu');
-      expect(result.rows[0].email).toBe('ion@example.com');
-      expect(result.rows[0].source).toBe('facebook');
+      expect(result.rows[0]!.phone).toBe('+40721234567');
+      expect(result.rows[0]!.fullName).toBe('Ion Popescu');
+      expect(result.rows[0]!.email).toBe('ion@example.com');
+      expect(result.rows[0]!.source).toBe('facebook');
     });
 
     it('should parse CSV with Romanian column names', () => {
@@ -66,8 +66,8 @@ describe('Bulk Import Feature', () => {
       const result = parseCSV(csvContent);
 
       expect(result.rows.length).toBe(1);
-      expect(result.rows[0].phone).toBe('+40721234567');
-      expect(result.rows[0].fullName).toBe('Ion Popescu');
+      expect(result.rows[0]!.phone).toBe('+40721234567');
+      expect(result.rows[0]!.fullName).toBe('Ion Popescu');
     });
 
     it('should handle quoted values with commas', () => {
@@ -79,7 +79,7 @@ describe('Bulk Import Feature', () => {
       const result = parseCSV(csvContent);
 
       expect(result.rows.length).toBe(1);
-      expect(result.rows[0].fullName).toBe('Popescu, Ion');
+      expect(result.rows[0]!.fullName).toBe('Popescu, Ion');
     });
 
     it('should handle empty lines', () => {
@@ -138,7 +138,7 @@ describe('Bulk Import Feature', () => {
       const result = parseCSV(csvContent);
 
       expect(result.rows.length).toBe(1);
-      expect(result.rows[0].fullName).toBe('Ion Popescu');
+      expect(result.rows[0]!.fullName).toBe('Ion Popescu');
     });
 
     it('should handle escaped quotes in quoted fields', () => {
@@ -150,7 +150,7 @@ describe('Bulk Import Feature', () => {
       const result = parseCSV(csvContent);
 
       expect(result.rows.length).toBe(1);
-      expect(result.rows[0].notes).toBe('He said "I want implants" on the call');
+      expect(result.rows[0]!.notes).toBe('He said "I want implants" on the call');
     });
   });
 
@@ -366,9 +366,9 @@ describe('Bulk Import Feature', () => {
       }
 
       expect(batches.length).toBe(3);
-      expect(batches[0].length).toBe(100);
-      expect(batches[1].length).toBe(100);
-      expect(batches[2].length).toBe(50);
+      expect(batches[0]!.length).toBe(100);
+      expect(batches[1]!.length).toBe(100);
+      expect(batches[2]!.length).toBe(50);
     });
   });
 

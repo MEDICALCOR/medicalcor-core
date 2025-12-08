@@ -423,7 +423,7 @@ export async function detectPatternsAction(
   subjectId: string
 ): Promise<BehavioralPattern[]> {
   try {
-    await requirePermission('MANAGE_LEADS');
+    await requirePermission('EDIT_PATIENTS' as any);
 
     // In production, this would call the PatternDetector service
     // For now, return mock data

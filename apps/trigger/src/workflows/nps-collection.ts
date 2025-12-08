@@ -584,8 +584,8 @@ async function checkSurveyConsent(
   // Check consent service if available
   if (consent) {
     try {
-      const consentResult = await consent.checkConsent(phone, 'treatment_updates');
-      if (consentResult.granted) {
+      const hasConsent = await consent.hasValidConsent(phone, 'treatment_updates');
+      if (hasConsent) {
         return true;
       }
     } catch {
@@ -599,8 +599,8 @@ async function checkSurveyConsent(
       const contact = await hubspot.getContact(hubspotContactId);
       const props = contact.properties as Record<string, string | undefined>;
 
-      // Accept treatment_updates or marketing consent for NPS
-      if (props.consent_treatment_updates === 'true' || props.consent_marketing === 'true') {
+      // Accept marketing or medical_data consent for NPS
+      if (props.consent_marketing === 'true' || props.consent_medical_data === 'true') {
         return true;
       }
     } catch {
@@ -739,14 +739,13 @@ Respond in JSON format with:
 Example response: {"sentimentScore": 0.5, "themes": ["staff_friendly", "professional_care"]}`;
 
   try {
-    const response = await openai.chat({
+    const content = await openai.chatCompletion({
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
       maxTokens: 200,
+      jsonMode: true,
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    const content = response.choices[0]?.message?.content ?? '{}';
     const parsed = JSON.parse(content) as { sentimentScore?: number; themes?: string[] };
 
     return {

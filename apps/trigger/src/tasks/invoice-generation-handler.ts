@@ -532,14 +532,21 @@ async function logToHubSpot(
   if (!hubspot || !hubspotContactId) return null;
 
   try {
-     
-    const timelineEvent = (await hubspot.createTimelineEvent({
+    const message = `Invoice ${invoice.invoiceNumber} generated for ${invoice.customer.name}. Amount: ${formatInvoiceCurrency(invoice.total, invoice.currency, invoice.language)}. Status: ${invoice.status.toUpperCase()}`;
+    await hubspot.logMessageToTimeline({
       contactId: hubspotContactId,
-      eventType: 'invoice_generated',
-      headline: `Invoice ${invoice.invoiceNumber} - ${formatInvoiceCurrency(invoice.total, invoice.currency, invoice.language)}`,
-      body: `Invoice generated for ${invoice.customer.name}. Status: ${invoice.status.toUpperCase()}`,
-    })) as { id?: string } | null;
-    return timelineEvent?.id ?? null;
+      message,
+      direction: 'OUT',
+      channel: 'web',
+      metadata: {
+        invoiceId: invoice.invoiceId,
+        invoiceNumber: invoice.invoiceNumber,
+        total: invoice.total,
+        status: invoice.status,
+      },
+    });
+    // Return a generated ID since logMessageToTimeline doesn't return one
+    return `invoice-timeline-${invoice.invoiceId}`;
   } catch (err) {
     logger.error('Failed to create HubSpot timeline event', { err, correlationId });
     return null;

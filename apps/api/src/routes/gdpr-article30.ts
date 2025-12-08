@@ -8,6 +8,7 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+// @ts-expect-error - Supabase types may not be fully resolved
 import { createClient } from '@supabase/supabase-js';
 import { generateCorrelationId, createArticle30ReportService } from '@medicalcor/core';
 import type { Article30ControllerInfo, Article30ReportStatus } from '@medicalcor/types';

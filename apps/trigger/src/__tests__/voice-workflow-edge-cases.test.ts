@@ -682,7 +682,7 @@ describe('Voice Workflow - Webhook Edge Cases', () => {
 
   it('should handle missing customer phone', () => {
     const payload = createWebhookPayload();
-    const call = { ...payload.call, customer: undefined };
+    const call = { ...payload.call, customer: undefined } as { customer?: { number?: string } };
 
     if (!call.customer?.number) {
       const result = {

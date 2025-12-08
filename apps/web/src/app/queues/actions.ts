@@ -1,7 +1,25 @@
 'use server';
 
+// @ts-expect-error - Supabase is optional dependency
 import { createClient } from '@supabase/supabase-js';
-import type { QueueSLAStatus, SLABreachEvent } from '@medicalcor/types';
+import type { QueueSLAStatus } from '@medicalcor/types';
+
+// Re-export for components
+export type SLABreachEvent = {
+  eventId: string;
+  queueSid: string;
+  queueName: string;
+  breachType: 'wait_time' | 'service_level' | 'abandon_rate';
+  threshold: number;
+  currentValue: number;
+  detectedAt: Date;
+  severity: 'warning' | 'critical';
+  escalated: boolean;
+  resolvedAt?: Date;
+  affectedCalls?: number;
+  durationSeconds?: number;
+  alertSent?: boolean;
+};
 
 /**
  * Server actions for the Queue SLA Dashboard
@@ -88,7 +106,7 @@ export async function getQueueDashboardStatsAction(): Promise<QueueDashboardStat
     }
 
     const statuses = (queueStatuses ?? []) as QueueSLAStatus[];
-    const breaches = recentBreaches ?? [];
+    const breaches = (recentBreaches ?? []) as Array<{ severity: string }>;
 
     // Calculate aggregate stats
     const totalQueues = statuses.length;
@@ -225,7 +243,8 @@ export async function getRecentBreachesAction(limit = 50): Promise<SLABreachEven
     }
 
     // Transform to match SLABreachEvent type
-    return (data ?? []).map(row => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data ?? []).map((row: any) => ({
       eventId: row.id,
       queueSid: row.queue_sid,
       queueName: row.queue_name,

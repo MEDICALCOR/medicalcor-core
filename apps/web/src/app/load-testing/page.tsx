@@ -109,7 +109,7 @@ function StatusBadge({ status }: { status: 'passed' | 'failed' | 'degraded' }) {
   const variants = {
     passed: { variant: 'success' as const, icon: CheckCircle2, label: 'Passed' },
     failed: { variant: 'destructive' as const, icon: XCircle, label: 'Failed' },
-    degraded: { variant: 'warning' as const, icon: AlertTriangle, label: 'Degraded' },
+    degraded: { variant: 'secondary' as const, icon: AlertTriangle, label: 'Degraded' },
   };
 
   const { variant, icon: Icon, label } = variants[status];
