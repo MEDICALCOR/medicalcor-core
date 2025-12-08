@@ -57,10 +57,11 @@ function getClients() {
 /**
  * Supabase client configuration result
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-imports
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-imports */
 type SupabaseClientAny = ReturnType<
   typeof import('@supabase/supabase-js').createClient<any, any, any>
 >;
+/* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-imports */
 
 interface SupabaseClientResult {
   client: SupabaseClientAny | null;

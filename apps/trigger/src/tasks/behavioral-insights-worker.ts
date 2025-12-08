@@ -152,7 +152,8 @@ function getCognitiveServices(db: DatabasePool, enableLLMPatterns: boolean) {
   });
 
   const cognitiveSystem = createCognitiveSystem({
-    pool: db as any, // pg.Pool compatible
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- DatabasePool is pg.Pool compatible
+    pool: db as any,
     openai: openaiClient,
     embeddings: embeddingService,
     config: {
@@ -182,7 +183,8 @@ async function emitInsightsEvent(
   try {
     await eventStore.emit({
       type,
-      correlationId: (payload.correlationId as string) ?? crypto.randomUUID(),
+      correlationId:
+        typeof payload.correlationId === 'string' ? payload.correlationId : crypto.randomUUID(),
       payload,
       aggregateType: 'behavioral_insights',
     });
@@ -277,12 +279,10 @@ export const detectPatterns = task({
 
       throw error;
     } finally {
-      if (db) {
-        try {
-          await db.end();
-        } catch {
-          // Ignore cleanup errors
-        }
+      try {
+        await db.end();
+      } catch {
+        // Ignore cleanup errors
       }
     }
   },
@@ -416,12 +416,10 @@ export const detectPatternsBatch = task({
 
       throw error;
     } finally {
-      if (db) {
-        try {
-          await db.end();
-        } catch {
-          // Ignore cleanup errors
-        }
+      try {
+        await db.end();
+      } catch {
+        // Ignore cleanup errors
       }
     }
   },
@@ -512,12 +510,10 @@ export const generateInsights = task({
 
       throw error;
     } finally {
-      if (db) {
-        try {
-          await db.end();
-        } catch {
-          // Ignore cleanup errors
-        }
+      try {
+        await db.end();
+      } catch {
+        // Ignore cleanup errors
       }
     }
   },
@@ -634,12 +630,10 @@ export const dailyPatternRefresh = schedules.task({
 
       throw error;
     } finally {
-      if (db) {
-        try {
-          await db.end();
-        } catch {
-          // Ignore cleanup errors
-        }
+      try {
+        await db.end();
+      } catch {
+        // Ignore cleanup errors
       }
     }
   },

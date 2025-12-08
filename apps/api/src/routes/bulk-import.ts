@@ -21,7 +21,6 @@ import {
   BulkImportRowSchema,
   BulkImportOptionsSchema,
   type BulkImportRow,
-  type BulkImportOptions,
   type BulkImportSyncResponse,
   type BulkImportAsyncResponse,
   type BulkImportJobStatus,
@@ -70,6 +69,7 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;
 // Route Handlers
 // =============================================================================
 
+// eslint-disable-next-line @typescript-eslint/require-await
 export const bulkImportRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * POST /api/leads/bulk-import
@@ -92,7 +92,7 @@ export const bulkImportRoutes: FastifyPluginAsync = async (fastify) => {
         // Parse body
         const bodyParsed = BulkImportBodySchema.safeParse(request.body);
         if (!bodyParsed.success) {
-          return reply.status(400).send({
+          return await reply.status(400).send({
             success: false,
             error: 'Invalid request body',
             details: bodyParsed.error.issues,
@@ -107,14 +107,14 @@ export const bulkImportRoutes: FastifyPluginAsync = async (fastify) => {
 
         // Determine rows from input
         let rows: BulkImportRow[] = [];
-        let parseErrors: Array<{ line: number; error: string }> = [];
+        let parseErrors: { line: number; error: string }[] = [];
 
         if (providedRows && providedRows.length > 0) {
           rows = providedRows;
         } else if (csvContent) {
           // Check file size
           if (csvContent.length > MAX_FILE_SIZE) {
-            return reply.status(400).send({
+            return await reply.status(400).send({
               success: false,
               error: 'CSV content too large',
               maxSizeBytes: MAX_FILE_SIZE,
@@ -126,7 +126,7 @@ export const bulkImportRoutes: FastifyPluginAsync = async (fastify) => {
           parseErrors = parsed.errors;
 
           if (rows.length === 0) {
-            return reply.status(400).send({
+            return await reply.status(400).send({
               success: false,
               error: 'No valid rows found in CSV',
               parseErrors,
@@ -134,9 +134,9 @@ export const bulkImportRoutes: FastifyPluginAsync = async (fastify) => {
           }
         } else if (jsonContent) {
           try {
-            const parsed = JSON.parse(jsonContent);
+            const parsed = JSON.parse(jsonContent) as unknown;
             if (!Array.isArray(parsed)) {
-              return reply.status(400).send({
+              return await reply.status(400).send({
                 success: false,
                 error: 'JSON content must be an array of lead objects',
               });
@@ -155,13 +155,13 @@ export const bulkImportRoutes: FastifyPluginAsync = async (fastify) => {
               }
             }
           } catch {
-            return reply.status(400).send({
+            return await reply.status(400).send({
               success: false,
               error: 'Invalid JSON content',
             });
           }
         } else {
-          return reply.status(400).send({
+          return await reply.status(400).send({
             success: false,
             error: 'Must provide either rows, csvContent, or jsonContent',
           });
@@ -179,7 +179,7 @@ export const bulkImportRoutes: FastifyPluginAsync = async (fastify) => {
 
         // For large imports, require async mode
         if (rows.length > SYNC_IMPORT_LIMIT && !useAsync) {
-          return reply.status(400).send({
+          return await reply.status(400).send({
             success: false,
             error: `Import of ${rows.length} rows exceeds sync limit (${SYNC_IMPORT_LIMIT}). Use async=true query parameter.`,
             rowCount: rows.length,
@@ -209,7 +209,7 @@ export const bulkImportRoutes: FastifyPluginAsync = async (fastify) => {
 
           request.log.info({ correlationId, jobId: job.id }, 'Async bulk import job created');
 
-          return reply.status(202).send(response);
+          return await reply.status(202).send(response);
         }
 
         // Sync mode - process immediately
@@ -239,12 +239,12 @@ export const bulkImportRoutes: FastifyPluginAsync = async (fastify) => {
           'Bulk import completed'
         );
 
-        return reply.status(result.success ? 200 : 207).send(response);
+        return await reply.status(result.success ? 200 : 207).send(response);
       } catch (error) {
         request.log.error({ correlationId, error }, 'Bulk import failed');
 
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
+        return await reply.status(500).send({
           success: false,
           error: message,
         });
@@ -264,7 +264,7 @@ export const bulkImportRoutes: FastifyPluginAsync = async (fastify) => {
       try {
         const bodyParsed = BulkImportBodySchema.safeParse(request.body);
         if (!bodyParsed.success) {
-          return reply.status(400).send({
+          return await reply.status(400).send({
             success: false,
             error: 'Invalid request body',
             details: bodyParsed.error.issues,
@@ -275,7 +275,7 @@ export const bulkImportRoutes: FastifyPluginAsync = async (fastify) => {
 
         // Determine rows
         let rows: BulkImportRow[] = [];
-        let parseErrors: Array<{ line: number; error: string }> = [];
+        let parseErrors: { line: number; error: string }[] = [];
 
         if (providedRows && providedRows.length > 0) {
           rows = providedRows;
@@ -285,7 +285,7 @@ export const bulkImportRoutes: FastifyPluginAsync = async (fastify) => {
           parseErrors = parsed.errors;
         } else if (jsonContent) {
           try {
-            const parsed = JSON.parse(jsonContent);
+            const parsed = JSON.parse(jsonContent) as unknown;
             if (Array.isArray(parsed)) {
               for (let i = 0; i < parsed.length; i++) {
                 const rowParsed = BulkImportRowSchema.safeParse(parsed[i]);
@@ -300,7 +300,7 @@ export const bulkImportRoutes: FastifyPluginAsync = async (fastify) => {
               }
             }
           } catch {
-            return reply.status(400).send({
+            return await reply.status(400).send({
               success: false,
               error: 'Invalid JSON content',
             });
@@ -323,7 +323,7 @@ export const bulkImportRoutes: FastifyPluginAsync = async (fastify) => {
           'Bulk import validation completed'
         );
 
-        return reply.status(200).send({
+        return await reply.status(200).send({
           ...result,
           parseErrors: parseErrors.length > 0 ? parseErrors : undefined,
         });
@@ -331,7 +331,7 @@ export const bulkImportRoutes: FastifyPluginAsync = async (fastify) => {
         request.log.error({ correlationId, error }, 'Bulk import validation failed');
 
         const message = error instanceof Error ? error.message : 'Unknown error';
-        return reply.status(500).send({
+        return await reply.status(500).send({
           success: false,
           error: message,
         });
@@ -348,7 +348,7 @@ export const bulkImportRoutes: FastifyPluginAsync = async (fastify) => {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const paramsParsed = JobIdParamsSchema.safeParse(request.params);
       if (!paramsParsed.success) {
-        return reply.status(400).send({
+        return await reply.status(400).send({
           success: false,
           error: 'Invalid job ID',
         });
@@ -358,7 +358,7 @@ export const bulkImportRoutes: FastifyPluginAsync = async (fastify) => {
       const job = await getBulkImportJob(jobId);
 
       if (!job) {
-        return reply.status(404).send({
+        return await reply.status(404).send({
           success: false,
           error: 'Job not found',
         });
@@ -370,7 +370,7 @@ export const bulkImportRoutes: FastifyPluginAsync = async (fastify) => {
         isComplete: ['completed', 'partial', 'failed', 'cancelled'].includes(job.status),
       };
 
-      return reply.status(200).send(response);
+      return await reply.status(200).send(response);
     }
   );
 

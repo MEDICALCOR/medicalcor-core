@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/require-await */
+/* eslint-disable @typescript-eslint/require-await, @typescript-eslint/return-await */
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import {
   CreateLoadTestResultSchema,
@@ -237,7 +237,7 @@ export const loadTestingRoutes: FastifyPluginAsync = async (fastify) => {
         const data = validation.data;
         const now = new Date().toISOString();
 
-        const thresholdsPassed = data.thresholdsPassed ?? true;
+        const thresholdsPassed = data.thresholdsPassed !== false;
         const status = calculateStatus(
           thresholdsPassed,
           data.metrics.successRate,
@@ -248,6 +248,7 @@ export const loadTestingRoutes: FastifyPluginAsync = async (fastify) => {
           id: crypto.randomUUID(),
           runId: data.runId ?? crypto.randomUUID(),
           scenario: data.scenario,
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
           environment: data.environment ?? 'local',
           baseUrl: data.baseUrl,
 

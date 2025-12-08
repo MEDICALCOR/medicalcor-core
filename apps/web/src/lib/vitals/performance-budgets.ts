@@ -140,6 +140,7 @@ export function getMetricRating(
   value: number
 ): 'good' | 'needs-improvement' | 'poor' {
   const budget = CORE_WEB_VITALS[metricName];
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive check
   if (!budget) return 'poor';
 
   if (value <= budget.thresholds.good) return 'good';
@@ -151,7 +152,9 @@ export function getMetricRating(
  * Format metric value with appropriate unit
  */
 export function formatMetricValue(metricName: string, value: number): string {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- metricName is string, not keyof
   const budget = CORE_WEB_VITALS[metricName as keyof typeof CORE_WEB_VITALS];
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- metricName may not be a valid key
   if (!budget) return value.toFixed(2);
 
   if (budget.unit === 'ms') {

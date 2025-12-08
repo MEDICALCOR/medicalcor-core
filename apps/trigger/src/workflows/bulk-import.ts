@@ -11,12 +11,10 @@
 
 import { task, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
-import crypto from 'crypto';
-import { processBulkImport, updateJobProgress, getBulkImportJob } from '@medicalcor/core';
+import { processBulkImport, updateJobProgress } from '@medicalcor/core';
 import {
   BulkImportRowSchema,
   BulkImportOptionsSchema,
-  type BulkImportRow,
   type BulkImportStatus,
   type BulkImportErrorCode,
 } from '@medicalcor/types';
@@ -99,10 +97,7 @@ export const bulkImportWorkflow = task({
       });
 
       // Build error summary
-      const errorSummary: Record<BulkImportErrorCode, number> = {} as Record<
-        BulkImportErrorCode,
-        number
-      >;
+      const errorSummary: Partial<Record<BulkImportErrorCode, number>> = {};
       if (result.errors) {
         for (const error of result.errors) {
           if (error.errorCode) {
@@ -252,7 +247,7 @@ export const bulkImportBatchTask = task({
 
       await updateJobProgress(jobId, {
         status,
-        processedRows: (batchIndex + 1) * (options.batchSize ?? 100),
+        processedRows: (batchIndex + 1) * options.batchSize,
         successCount: cumulativeSuccess,
         errorCount: cumulativeError,
         skipCount: cumulativeSkip,
@@ -314,7 +309,7 @@ export const largeImportOrchestrator = task({
   },
   run: async (payload: z.infer<typeof LargeImportOrchestratorPayloadSchema>) => {
     const { jobId, rows, options, correlationId } = payload;
-    const batchSize = options.batchSize ?? 100;
+    const batchSize = options.batchSize;
     const totalBatches = Math.ceil(rows.length / batchSize);
 
     logger.info('Starting large import orchestration', {
@@ -366,7 +361,7 @@ export const largeImportOrchestrator = task({
         }
 
         // Check max errors limit
-        if (cumulativeError >= (options.maxErrors ?? 100)) {
+        if (cumulativeError >= options.maxErrors) {
           logger.info('Stopping orchestration due to maxErrors limit', {
             jobId,
             correlationId,

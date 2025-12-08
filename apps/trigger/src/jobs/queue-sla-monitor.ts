@@ -321,7 +321,8 @@ async function emitSLAEvent(
   try {
     await eventStore.emit({
       type,
-      correlationId: (payload.correlationId as string) ?? generateCorrelationId(),
+      correlationId:
+        typeof payload.correlationId === 'string' ? payload.correlationId : generateCorrelationId(),
       payload,
       aggregateType: 'queue_sla',
     });

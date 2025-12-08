@@ -236,6 +236,7 @@ export function initWebVitalsReporting(): void {
       const entries = list.getEntries();
       const lastEntry = entries[entries.length - 1];
 
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- entries could be empty
       if (lastEntry) {
         const lcpValue = lastEntry.startTime;
         const lcpBudget = PERFORMANCE_BUDGETS.LCP;
@@ -304,6 +305,7 @@ function getRating(
 ): 'good' | 'needs-improvement' | 'poor' {
   const budget = PERFORMANCE_BUDGETS[name];
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive check
   if (!budget) {
     return 'good'; // Unknown metric, assume good
   }

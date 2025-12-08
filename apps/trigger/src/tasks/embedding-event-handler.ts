@@ -226,7 +226,8 @@ async function emitProcessingEvent(
   try {
     await eventStore.emit({
       type,
-      correlationId: (payload.correlationId as string) ?? generateCorrelationId(),
+      correlationId:
+        typeof payload.correlationId === 'string' ? payload.correlationId : generateCorrelationId(),
       payload,
       aggregateType: 'embedding',
     });
@@ -261,7 +262,7 @@ export const processEmbeddingEvent = task({
     embeddingTaskId?: string;
     error?: string;
   }> => {
-    const correlationId = event.correlationId ?? generateCorrelationId();
+    const correlationId = event.correlationId;
 
     logger.info('Processing embedding event', {
       eventType: event.eventType,
@@ -590,7 +591,7 @@ function buildTriggerEvent(event: PendingEmbeddingEvent): EmbeddingTriggerEvent 
         eventId: event.id,
         correlationId: event.correlation_id,
         payload: {
-          entryId: (payload.entryId as string) ?? event.aggregate_id,
+          entryId: typeof payload.entryId === 'string' ? payload.entryId : event.aggregate_id,
           content: payload.content as string,
           title: payload.title as string | undefined,
           sourceType: payload.sourceType as string | undefined,
@@ -606,10 +607,11 @@ function buildTriggerEvent(event: PendingEmbeddingEvent): EmbeddingTriggerEvent 
         eventId: event.id,
         correlationId: event.correlation_id,
         payload: {
-          messageId: (payload.messageId as string) ?? event.aggregate_id,
+          messageId: typeof payload.messageId === 'string' ? payload.messageId : event.aggregate_id,
           content: payload.content as string,
           phone: payload.phone as string,
-          direction: (payload.direction as 'IN' | 'OUT') ?? 'IN',
+          direction:
+            payload.direction === 'IN' || payload.direction === 'OUT' ? payload.direction : 'IN',
           language: payload.language as 'ro' | 'en' | 'de' | undefined,
         },
       };
@@ -620,7 +622,7 @@ function buildTriggerEvent(event: PendingEmbeddingEvent): EmbeddingTriggerEvent 
         eventId: event.id,
         correlationId: event.correlation_id,
         payload: {
-          episodeId: (payload.episodeId as string) ?? event.aggregate_id,
+          episodeId: typeof payload.episodeId === 'string' ? payload.episodeId : event.aggregate_id,
           summary: payload.summary as string,
           entityType: payload.entityType as string | undefined,
           metadata: payload.metadata as Record<string, unknown> | undefined,
@@ -633,13 +635,18 @@ function buildTriggerEvent(event: PendingEmbeddingEvent): EmbeddingTriggerEvent 
         eventId: event.id,
         correlationId: event.correlation_id,
         payload: {
-          batchId: (payload.batchId as string) ?? event.aggregate_id,
+          batchId: typeof payload.batchId === 'string' ? payload.batchId : event.aggregate_id,
           items: payload.items as {
             contentId: string;
             content: string;
             metadata?: Record<string, unknown>;
           }[],
-          targetType: (payload.targetType as 'knowledge_base' | 'message' | 'custom') ?? 'custom',
+          targetType:
+            payload.targetType === 'knowledge_base' ||
+            payload.targetType === 'message' ||
+            payload.targetType === 'custom'
+              ? payload.targetType
+              : 'custom',
           clinicId: payload.clinicId as string | undefined,
         },
       };

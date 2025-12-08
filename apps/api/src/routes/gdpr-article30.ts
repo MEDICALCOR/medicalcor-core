@@ -37,13 +37,11 @@ function createReportService(): ReturnType<typeof createArticle30ReportService> 
     return null;
   }
 
-  /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment -- Supabase types resolve incorrectly */
   const supabase = createClient(supabaseUrl, supabaseKey);
   return createArticle30ReportService({
     supabase,
     controller: getControllerInfo(),
   });
-  /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment */
 }
 
 /**

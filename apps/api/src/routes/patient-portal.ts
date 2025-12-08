@@ -17,7 +17,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply, RouteHandlerMethod } from 'fastify';
 import { z } from 'zod';
 import { randomInt, createHash } from 'crypto';
-// eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const jsonwebtoken = require('jsonwebtoken') as {
   sign: (payload: object, secret: string, options?: { expiresIn?: string }) => string;
   verify: (token: string, secret: string) => object;
@@ -434,7 +434,7 @@ async function handleGetAppointments(
       hubspotContactId: session.hubspotContactId,
     });
 
-    return reply.status(200).send({
+    return await reply.status(200).send({
       success: true,
       appointments: appointments.map((apt) => ({
         id: apt.id,
@@ -896,6 +896,7 @@ async function handleRescheduleAppointment(
 // Route Definitions
 // ============================================
 
+// eslint-disable-next-line @typescript-eslint/require-await
 export const patientPortalRoutes: FastifyPluginAsync = async (fastify) => {
   // Auth routes
   fastify.post('/patient/auth/request-otp', handleRequestOTP);
@@ -941,6 +942,7 @@ export const patientPortalRoutes: FastifyPluginAsync = async (fastify) => {
 // Internal Notification Routes
 // ============================================
 
+// eslint-disable-next-line @typescript-eslint/require-await
 export const internalNotificationRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/internal/notifications/broadcast', async (request, reply) => {
     const correlationId = generateCorrelationId();

@@ -13,6 +13,7 @@ const logger = createLogger({ name: 'index-usage-routes' });
  * Use the IndexUsageMonitor class from @medicalcor/infrastructure
  * when database pool is available.
  */
+// eslint-disable-next-line @typescript-eslint/require-await
 export const indexUsageRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * GET /database/indexes/health-summary
@@ -32,7 +33,7 @@ export const indexUsageRoutes: FastifyPluginAsync = async (fastify) => {
     try {
       // Return placeholder - actual implementation uses IndexUsageMonitor
       // with direct pool access from the scheduled job
-      return reply.send({
+      return await reply.send({
         success: true,
         data: {
           message: 'Use scheduled monitoring job for full metrics',
