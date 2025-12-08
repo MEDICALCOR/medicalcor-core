@@ -1,12 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { fn } from '@storybook/test';
+import { fn } from 'storybook/test';
 import { PatientNotes } from '../patient-notes';
 import type { PatientNote } from '@/lib/patients';
 
 const sampleNotes: PatientNote[] = [
   {
     id: '1',
-    content: 'Pacientul este interesat de procedura All-on-X. A menționat că are probleme dentare de mult timp și caută o soluție permanentă.',
+    content:
+      'Pacientul este interesat de procedura All-on-X. A menționat că are probleme dentare de mult timp și caută o soluție permanentă.',
     createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
     createdBy: 'Ana Popa',
     isPinned: true,
@@ -14,7 +15,8 @@ const sampleNotes: PatientNote[] = [
   },
   {
     id: '2',
-    content: 'ATENȚIE: Pacientul are alergie la penicilină. Trebuie folosite antibiotice alternative.',
+    content:
+      'ATENȚIE: Pacientul are alergie la penicilină. Trebuie folosite antibiotice alternative.',
     createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
     createdBy: 'Dr. Maria Ionescu',
     isPinned: true,
@@ -22,7 +24,8 @@ const sampleNotes: PatientNote[] = [
   },
   {
     id: '3',
-    content: 'Pacientul a solicitat opțiune de plată în rate. S-a agreat plan de finanțare pe 12 luni.',
+    content:
+      'Pacientul a solicitat opțiune de plată în rate. S-a agreat plan de finanțare pe 12 luni.',
     createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
     createdBy: 'Ana Popa',
     isPinned: false,
@@ -103,7 +106,8 @@ export const MedicalNotes: Story = {
     notes: [
       {
         id: '1',
-        content: 'Pacientul prezintă sensibilitate la temperaturi extreme. Recomand evitarea băuturilor foarte reci sau foarte calde.',
+        content:
+          'Pacientul prezintă sensibilitate la temperaturi extreme. Recomand evitarea băuturilor foarte reci sau foarte calde.',
         createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
         createdBy: 'Dr. Maria Ionescu',
         isPinned: true,
@@ -111,7 +115,8 @@ export const MedicalNotes: Story = {
       },
       {
         id: '2',
-        content: 'Radiografia arată resorbție osoasă moderată în zona posterioară. Necesită evaluare suplimentară pentru implant.',
+        content:
+          'Radiografia arată resorbție osoasă moderată în zona posterioară. Necesită evaluare suplimentară pentru implant.',
         createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
         createdBy: 'Dr. Maria Ionescu',
         isPinned: false,
@@ -119,7 +124,8 @@ export const MedicalNotes: Story = {
       },
       {
         id: '3',
-        content: 'Istoric de diabet tip 2 controlat. HbA1c în parametri acceptabili pentru proceduri chirurgicale.',
+        content:
+          'Istoric de diabet tip 2 controlat. HbA1c în parametri acceptabili pentru proceduri chirurgicale.',
         createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000),
         createdBy: 'Dr. Maria Ionescu',
         isPinned: true,

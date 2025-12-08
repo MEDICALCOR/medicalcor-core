@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { fn } from '@storybook/test';
+import { fn } from 'storybook/test';
 import { useState } from 'react';
 import { Search, MessageSquare, Phone, Mail, Filter, CheckCheck, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { fn } from '@storybook/test';
+import { fn } from 'storybook/test';
 import { PatientAppointments } from '../patient-appointments';
 import type { PatientAppointment } from '@/lib/patients';
 
@@ -308,9 +308,10 @@ export const BusySchedule: Story = {
       type: ['Control', 'Consultație', 'Tratament', 'Procedură', 'Igienizare'][i % 5],
       doctor: ['Dr. Maria Ionescu', 'Dr. Ana Popa', 'Dr. Elena Gheorghe'][i % 3],
       location: ['Cabinet 1', 'Cabinet 2', 'Sala Operații'][i % 3],
-      status: i < 5
-        ? (['scheduled', 'confirmed'] as const)[i % 2]
-        : (['completed', 'completed', 'cancelled', 'no-show', 'completed'] as const)[i % 5],
+      status:
+        i < 5
+          ? (['scheduled', 'confirmed'] as const)[i % 2]
+          : (['completed', 'completed', 'cancelled', 'no-show', 'completed'] as const)[i % 5],
     })),
   },
 };
