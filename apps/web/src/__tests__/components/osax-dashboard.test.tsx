@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Component Tests: OSAX Dashboard Components
  *

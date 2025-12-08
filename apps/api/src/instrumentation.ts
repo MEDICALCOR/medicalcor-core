@@ -13,10 +13,10 @@
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
-import { Resource } from '@opentelemetry/resources';
+import { resourceFromAttributes } from '@opentelemetry/resources';
 import {
-  SEMRESATTRS_SERVICE_NAME,
-  SEMRESATTRS_SERVICE_VERSION,
+  ATTR_SERVICE_NAME,
+  ATTR_SERVICE_VERSION,
   SEMRESATTRS_DEPLOYMENT_ENVIRONMENT,
 } from '@opentelemetry/semantic-conventions';
 import { W3CTraceContextPropagator } from '@opentelemetry/core';
@@ -29,9 +29,9 @@ const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? 'http://localhos
 const isDisabled = process.env.OTEL_ENABLED === 'false';
 
 if (!isDisabled) {
-  const resource = new Resource({
-    [SEMRESATTRS_SERVICE_NAME]: serviceName,
-    [SEMRESATTRS_SERVICE_VERSION]: serviceVersion,
+  const resource = resourceFromAttributes({
+    [ATTR_SERVICE_NAME]: serviceName,
+    [ATTR_SERVICE_VERSION]: serviceVersion,
     [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: environment,
   });
 
@@ -90,4 +90,5 @@ if (!isDisabled) {
 }
 
 // Re-export telemetry utilities for consumers
+// Note: Direct import from telemetry submodule to avoid Edge Runtime issues
 export { initTelemetry, shutdownTelemetry } from '@medicalcor/core/telemetry';

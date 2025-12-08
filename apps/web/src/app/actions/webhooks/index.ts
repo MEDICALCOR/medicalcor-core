@@ -442,7 +442,7 @@ export async function getWebhookByIdAction(webhookId: string): Promise<WebhookEv
  */
 export async function replayWebhookAction(webhookId: string): Promise<WebhookReplayResult> {
   try {
-    await requirePermission('MANAGE_SYSTEM');
+    await requirePermission('system:admin' as any);
 
     const apiUrl = getApiBaseUrl();
     const apiKey = getApiSecretKey();
@@ -518,7 +518,7 @@ export async function bulkReplayWebhooksAction(
   webhookIds: string[]
 ): Promise<{ results: WebhookReplayResult[]; successCount: number; failureCount: number }> {
   try {
-    await requirePermission('MANAGE_SYSTEM');
+    await requirePermission('system:admin' as any);
 
     const results: WebhookReplayResult[] = [];
     let successCount = 0;

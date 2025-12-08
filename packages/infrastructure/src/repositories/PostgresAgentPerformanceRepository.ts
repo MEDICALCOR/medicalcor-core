@@ -654,33 +654,47 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       return Math.round(((curr - prev) / prev) * 1000) / 10;
     };
 
+    // Default values when no data is returned
+    const defaultMetrics: DashboardMetricsRow = {
+      total_agents: '0',
+      active_agents: '0',
+      total_leads: '0',
+      avg_conversion_rate: '0',
+      avg_response_time: '0',
+      avg_satisfaction: '0',
+      total_revenue: '0',
+    };
+
+    const currentMetrics = current ?? defaultMetrics;
+    const previousMetrics = previous ?? defaultMetrics;
+
     return {
-      totalAgents: Number(current.total_agents),
-      activeAgents: Number(current.active_agents),
-      avgConversionRate: Number(current.avg_conversion_rate),
+      totalAgents: Number(currentMetrics.total_agents),
+      activeAgents: Number(currentMetrics.active_agents),
+      avgConversionRate: Number(currentMetrics.avg_conversion_rate),
       avgConversionRateChange: calcChange(
-        Number(current.avg_conversion_rate),
-        Number(previous.avg_conversion_rate)
+        Number(currentMetrics.avg_conversion_rate),
+        Number(previousMetrics.avg_conversion_rate)
       ),
-      totalLeadsHandled: Number(current.total_leads),
+      totalLeadsHandled: Number(currentMetrics.total_leads),
       totalLeadsHandledChange: calcChange(
-        Number(current.total_leads),
-        Number(previous.total_leads)
+        Number(currentMetrics.total_leads),
+        Number(previousMetrics.total_leads)
       ),
-      avgResponseTime: Number(current.avg_response_time),
+      avgResponseTime: Number(currentMetrics.avg_response_time),
       avgResponseTimeChange: calcChange(
-        Number(current.avg_response_time),
-        Number(previous.avg_response_time)
+        Number(currentMetrics.avg_response_time),
+        Number(previousMetrics.avg_response_time)
       ),
-      avgSatisfaction: Number(current.avg_satisfaction),
+      avgSatisfaction: Number(currentMetrics.avg_satisfaction),
       avgSatisfactionChange: calcChange(
-        Number(current.avg_satisfaction),
-        Number(previous.avg_satisfaction)
+        Number(currentMetrics.avg_satisfaction),
+        Number(previousMetrics.avg_satisfaction)
       ),
-      totalRevenue: Number(current.total_revenue),
+      totalRevenue: Number(currentMetrics.total_revenue),
       totalRevenueChange: calcChange(
-        Number(current.total_revenue),
-        Number(previous.total_revenue)
+        Number(currentMetrics.total_revenue),
+        Number(previousMetrics.total_revenue)
       ),
     };
   }

@@ -2,9 +2,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import {
   CreateLoadTestResultSchema,
-  LoadTestQuerySchema,
   type CreateLoadTestResult,
-  type LoadTestQuery,
   type LoadTestResult,
   type LoadTestDashboardData,
   type LoadTestSummaryStats,
@@ -31,7 +29,7 @@ const logger = createLogger({ name: 'load-testing-routes' });
 
 // In-memory storage for demo/development (replace with database in production)
 const loadTestResults: LoadTestResult[] = [];
-let nextId = 1;
+let _nextId = 1;
 
 /**
  * Calculate status based on thresholds and metrics
