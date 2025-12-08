@@ -56,10 +56,18 @@ function getClients() {
 
 /**
  * Supabase client configuration result
+ * Uses any types intentionally because we don't have a generated schema for cron jobs
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-imports
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 type SupabaseClientAny = ReturnType<
-  typeof import('@supabase/supabase-js').createClient<any, any, any>
+  typeof import('@supabase/supabase-js').createClient<
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    any
+  >
 >;
 
 interface SupabaseClientResult {
