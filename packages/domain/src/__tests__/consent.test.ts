@@ -38,7 +38,8 @@ function adaptRepositoryForTests(repo: InMemoryConsentRepository): ConsentReposi
       if (result._tag !== 'Ok') throw new Error('Failed to upsert consent record');
       return result.value;
     },
-    findByContactAndType: (contactId, consentType) => repo.findByContactAndType(contactId, consentType),
+    findByContactAndType: (contactId, consentType) =>
+      repo.findByContactAndType(contactId, consentType),
     findByContact: (contactId) => repo.findByContact(contactId),
     delete: (consentId) => repo.delete(consentId),
     deleteByContact: (contactId) => repo.deleteByContact(contactId),
@@ -461,10 +462,12 @@ describe('ConsentService', () => {
 
 describe('Atomic Upsert', () => {
   let service: ConsentService;
-  let repository: InMemoryConsentRepository;
+  let inMemoryRepo: InMemoryConsentRepository;
+  let repository: ConsentRepository;
 
   beforeEach(() => {
-    repository = new InMemoryConsentRepository();
+    inMemoryRepo = new InMemoryConsentRepository();
+    repository = adaptRepositoryForTests(inMemoryRepo);
     service = createConsentService({ repository });
   });
 
@@ -513,10 +516,12 @@ describe('Atomic Upsert', () => {
 
 describe('Consent Expiration', () => {
   let service: ConsentService;
-  let repository: InMemoryConsentRepository;
+  let inMemoryRepo: InMemoryConsentRepository;
+  let repository: ConsentRepository;
 
   beforeEach(() => {
-    repository = new InMemoryConsentRepository();
+    inMemoryRepo = new InMemoryConsentRepository();
+    repository = adaptRepositoryForTests(inMemoryRepo);
     service = createConsentService({ repository });
   });
 
@@ -581,10 +586,12 @@ describe('Consent Expiration', () => {
 // ============================================================================
 
 describe('Policy Version Management', () => {
-  let repository: InMemoryConsentRepository;
+  let inMemoryRepo: InMemoryConsentRepository;
+  let repository: ConsentRepository;
 
   beforeEach(() => {
-    repository = new InMemoryConsentRepository();
+    inMemoryRepo = new InMemoryConsentRepository();
+    repository = adaptRepositoryForTests(inMemoryRepo);
   });
 
   it('should invalidate consent with old policy version', async () => {
@@ -637,10 +644,12 @@ describe('Policy Version Management', () => {
 // ============================================================================
 
 describe('Required Consents Validation', () => {
-  let repository: InMemoryConsentRepository;
+  let inMemoryRepo: InMemoryConsentRepository;
+  let repository: ConsentRepository;
 
   beforeEach(() => {
-    repository = new InMemoryConsentRepository();
+    inMemoryRepo = new InMemoryConsentRepository();
+    repository = adaptRepositoryForTests(inMemoryRepo);
   });
 
   it('should validate multiple required consent types', async () => {
@@ -708,10 +717,12 @@ describe('Required Consents Validation', () => {
 
 describe('Comprehensive Audit Trail', () => {
   let service: ConsentService;
-  let repository: InMemoryConsentRepository;
+  let inMemoryRepo: InMemoryConsentRepository;
+  let repository: ConsentRepository;
 
   beforeEach(() => {
-    repository = new InMemoryConsentRepository();
+    inMemoryRepo = new InMemoryConsentRepository();
+    repository = adaptRepositoryForTests(inMemoryRepo);
     service = createConsentService({ repository });
   });
 
@@ -786,10 +797,12 @@ describe('Comprehensive Audit Trail', () => {
 
 describe('GDPR Data Erasure', () => {
   let service: ConsentService;
-  let repository: InMemoryConsentRepository;
+  let inMemoryRepo: InMemoryConsentRepository;
+  let repository: ConsentRepository;
 
   beforeEach(() => {
-    repository = new InMemoryConsentRepository();
+    inMemoryRepo = new InMemoryConsentRepository();
+    repository = adaptRepositoryForTests(inMemoryRepo);
     service = createConsentService({ repository });
   });
 
@@ -842,9 +855,11 @@ describe('GDPR Data Erasure', () => {
 
 describe('WhatsApp Message Parsing - Extended', () => {
   let service: ConsentService;
+  let inMemoryRepo: InMemoryConsentRepository;
 
   beforeEach(() => {
-    service = createConsentService({ repository: new InMemoryConsentRepository() });
+    inMemoryRepo = new InMemoryConsentRepository();
+    service = createConsentService({ repository: adaptRepositoryForTests(inMemoryRepo) });
   });
 
   it('should detect "accept" variations', () => {
@@ -927,10 +942,12 @@ describe('WhatsApp Message Parsing - Extended', () => {
 
 describe('All Consent Types', () => {
   let service: ConsentService;
-  let repository: InMemoryConsentRepository;
+  let inMemoryRepo: InMemoryConsentRepository;
+  let repository: ConsentRepository;
 
   beforeEach(() => {
-    repository = new InMemoryConsentRepository();
+    inMemoryRepo = new InMemoryConsentRepository();
+    repository = adaptRepositoryForTests(inMemoryRepo);
     service = createConsentService({ repository });
   });
 
@@ -973,10 +990,12 @@ describe('All Consent Types', () => {
 
 describe('Consent Source Channels and Methods', () => {
   let service: ConsentService;
-  let repository: InMemoryConsentRepository;
+  let inMemoryRepo: InMemoryConsentRepository;
+  let repository: ConsentRepository;
 
   beforeEach(() => {
-    repository = new InMemoryConsentRepository();
+    inMemoryRepo = new InMemoryConsentRepository();
+    repository = adaptRepositoryForTests(inMemoryRepo);
     service = createConsentService({ repository });
   });
 
@@ -1049,10 +1068,12 @@ describe('Consent Source Channels and Methods', () => {
 
 describe('Edge Cases', () => {
   let service: ConsentService;
-  let repository: InMemoryConsentRepository;
+  let inMemoryRepo: InMemoryConsentRepository;
+  let repository: ConsentRepository;
 
   beforeEach(() => {
-    repository = new InMemoryConsentRepository();
+    inMemoryRepo = new InMemoryConsentRepository();
+    repository = adaptRepositoryForTests(inMemoryRepo);
     service = createConsentService({ repository });
   });
 
@@ -1165,10 +1186,12 @@ describe('Edge Cases', () => {
 // ============================================================================
 
 describe('Custom Configuration', () => {
-  let repository: InMemoryConsentRepository;
+  let inMemoryRepo: InMemoryConsentRepository;
+  let repository: ConsentRepository;
 
   beforeEach(() => {
-    repository = new InMemoryConsentRepository();
+    inMemoryRepo = new InMemoryConsentRepository();
+    repository = adaptRepositoryForTests(inMemoryRepo);
   });
 
   it('should use custom default expiration days', async () => {

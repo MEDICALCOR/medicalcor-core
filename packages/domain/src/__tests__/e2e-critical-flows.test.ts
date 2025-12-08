@@ -42,7 +42,8 @@ function adaptRepositoryForTests(repo: InMemoryConsentRepository): ConsentReposi
       if (result._tag !== 'Ok') throw new Error('Failed to upsert consent record');
       return result.value;
     },
-    findByContactAndType: (contactId, consentType) => repo.findByContactAndType(contactId, consentType),
+    findByContactAndType: (contactId, consentType) =>
+      repo.findByContactAndType(contactId, consentType),
     findByContact: (contactId) => repo.findByContact(contactId),
     delete: (consentId) => repo.delete(consentId),
     deleteByContact: (contactId) => repo.deleteByContact(contactId),
@@ -357,7 +358,8 @@ describe('E2E: Consent Immutability Pattern', () => {
   let consentService: ConsentService;
 
   beforeEach(() => {
-    const repository = new InMemoryConsentRepository();
+    const inMemoryRepo = new InMemoryConsentRepository();
+    const repository = adaptRepositoryForTests(inMemoryRepo);
     consentService = createConsentService({ repository });
   });
 
@@ -420,7 +422,8 @@ describe('E2E: Concurrent Consent Operations', () => {
   let consentService: ConsentService;
 
   beforeEach(() => {
-    const repository = new InMemoryConsentRepository();
+    const inMemoryRepo = new InMemoryConsentRepository();
+    const repository = adaptRepositoryForTests(inMemoryRepo);
     consentService = createConsentService({ repository });
   });
 
