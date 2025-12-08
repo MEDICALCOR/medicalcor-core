@@ -21,6 +21,7 @@ LeadCreated → LeadScored → LeadQualified → CaseCreated → PaymentReceived
 ```
 
 **Acceptance Criteria:**
+
 - [ ] Integration test traces a lead from creation to LTV calculation
 - [ ] All domain events are emitted in correct order
 - [ ] Event store contains complete audit trail
@@ -28,6 +29,7 @@ LeadCreated → LeadScored → LeadQualified → CaseCreated → PaymentReceived
 - [ ] Test runs in CI pipeline
 
 **Files Involved:**
+
 - `packages/domain/src/leads/entities/Lead.ts`
 - `packages/domain/src/ltv/ltv-service.ts`
 - `packages/domain/src/cases/repositories/CaseRepository.ts`
@@ -36,6 +38,7 @@ LeadCreated → LeadScored → LeadQualified → CaseCreated → PaymentReceived
 - `supabase/migrations/20251206000001_cases_payments.sql`
 
 **Suggested Approach:**
+
 1. Create `apps/api/src/__tests__/integration/lead-to-ltv.integration.test.ts`
 2. Use test database with seeded data
 3. Trigger lead creation, simulate scoring, case creation, payment
@@ -53,6 +56,7 @@ LeadCreated → LeadScored → LeadQualified → CaseCreated → PaymentReceived
 The Cognitive Memory module (episode builder, memory retrieval) is fully implemented but not integrated into agent-facing flows. Agents don't benefit from patient history during calls.
 
 **Acceptance Criteria:**
+
 - [ ] `MemoryRetrievalService` injected into guidance service
 - [ ] Agent scripts receive relevant patient context from episodic memory
 - [ ] Recent interactions displayed in agent workspace (when built)
@@ -60,6 +64,7 @@ The Cognitive Memory module (episode builder, memory retrieval) is fully impleme
 - [ ] Performance: retrieval < 200ms p95
 
 **Files Involved:**
+
 - `packages/core/src/cognitive/memory-retrieval.ts`
 - `packages/core/src/cognitive/episode-builder.ts`
 - `packages/domain/src/guidance/` (guidance service)
@@ -67,6 +72,7 @@ The Cognitive Memory module (episode builder, memory retrieval) is fully impleme
 - `apps/trigger/src/tasks/whatsapp-handler.ts`
 
 **Suggested Approach:**
+
 1. Create `CognitiveContextProvider` that wraps memory retrieval
 2. Inject into guidance service constructor
 3. Call `getSubjectSummary()` when preparing agent scripts
@@ -84,6 +90,7 @@ The Cognitive Memory module (episode builder, memory retrieval) is fully impleme
 Currently only 4 E2E tests exist (`workflows.spec.ts`, `dashboard.spec.ts`, `patients.spec.ts`, `accessibility.spec.ts`). Medical software requires comprehensive E2E coverage of critical flows.
 
 **Acceptance Criteria:**
+
 - [ ] E2E test: Complete booking flow (search slot → book → confirm)
 - [ ] E2E test: Payment flow (create invoice → process payment → receipt)
 - [ ] E2E test: Lead scoring flow (receive message → score → triage)
@@ -93,11 +100,13 @@ Currently only 4 E2E tests exist (`workflows.spec.ts`, `dashboard.spec.ts`, `pat
 - [ ] Test data isolated per run
 
 **Files Involved:**
+
 - `apps/web/e2e/` (new test files)
 - `apps/web/playwright.config.ts`
 - `.github/workflows/ci.yml`
 
 **Suggested Approach:**
+
 1. Create `apps/web/e2e/booking.spec.ts`
 2. Create `apps/web/e2e/payments.spec.ts`
 3. Create `apps/web/e2e/lead-scoring.spec.ts`
@@ -117,6 +126,7 @@ Currently only 4 E2E tests exist (`workflows.spec.ts`, `dashboard.spec.ts`, `pat
 Row-Level Security policies are implemented but not validated under load. RLS can cause significant query slowdown with large datasets, especially with complex policies.
 
 **Acceptance Criteria:**
+
 - [ ] k6 load test with 10K+ records per table
 - [ ] Query latency < 100ms p95 with RLS enabled
 - [ ] Compare RLS-on vs RLS-off performance
@@ -124,11 +134,13 @@ Row-Level Security policies are implemented but not validated under load. RLS ca
 - [ ] Test multi-tenant isolation under concurrent load
 
 **Files Involved:**
+
 - `supabase/migrations/20240101000017_rls_policies.sql`
 - `scripts/k6/` (load test scripts)
 - `infra/` (test database provisioning)
 
 **Suggested Approach:**
+
 1. Create `scripts/k6/rls-load-test.js`
 2. Seed test database with 10K leads, 50K interactions
 3. Run concurrent queries from multiple "tenants"
@@ -147,6 +159,7 @@ Row-Level Security policies are implemented but not validated under load. RLS ca
 Backend routing, SLA monitoring, and disposition tracking exist, but agents have no native MedicalCor UI. They must use external tools (HubSpot, Twilio Flex) which fragments the experience.
 
 **Acceptance Criteria:**
+
 - [ ] Agent can view assigned queue with priority sorting
 - [ ] Agent can accept/reject incoming tasks
 - [ ] Agent can see lead context (name, score, history) on accept
@@ -156,6 +169,7 @@ Backend routing, SLA monitoring, and disposition tracking exist, but agents have
 - [ ] Mobile-responsive layout
 
 **Files Involved:**
+
 - `apps/web/src/app/agent-workspace/` (new directory)
 - `apps/web/src/app/agent-workspace/page.tsx`
 - `apps/web/src/app/agent-workspace/components/`
@@ -163,6 +177,7 @@ Backend routing, SLA monitoring, and disposition tracking exist, but agents have
 - `apps/api/src/routes/supervisor-ws.ts` (extend for agent events)
 
 **Suggested Approach:**
+
 1. Create page layout with queue sidebar + main call panel
 2. Add server action for fetching agent queue
 3. Implement WebSocket subscription for real-time updates
@@ -181,6 +196,7 @@ Backend routing, SLA monitoring, and disposition tracking exist, but agents have
 `domain_events` and `audit_log` tables will grow unbounded. Without partitioning, query performance will degrade and maintenance (vacuum, backup) will become problematic.
 
 **Acceptance Criteria:**
+
 - [ ] `domain_events` partitioned by month (range on `created_at`)
 - [ ] `audit_log` partitioned by month
 - [ ] Automated partition creation (1 month ahead)
@@ -189,10 +205,12 @@ Backend routing, SLA monitoring, and disposition tracking exist, but agents have
 - [ ] Documented retention policy per partition
 
 **Files Involved:**
+
 - `supabase/migrations/` (new migration)
 - `apps/trigger/src/jobs/cron-jobs.ts` (partition maintenance job)
 
 **Suggested Approach:**
+
 1. Create migration with declarative partitioning
 2. Use `pg_partman` extension for automated management
 3. Migrate existing data to partitioned table
@@ -211,6 +229,7 @@ Backend routing, SLA monitoring, and disposition tracking exist, but agents have
 Ensure no secrets exist in codebase, all secrets are rotatable, and rotation procedures are documented. Critical for medical/HIPAA compliance.
 
 **Acceptance Criteria:**
+
 - [ ] Gitleaks scan passes with zero findings
 - [ ] All secrets documented in `.env.example` with descriptions
 - [ ] Each secret has documented rotation procedure
@@ -219,6 +238,7 @@ Ensure no secrets exist in codebase, all secrets are rotatable, and rotation pro
 - [ ] Emergency rotation runbook exists
 
 **Files Involved:**
+
 - `.env.example`
 - `.env.production.template`
 - `.gitleaks.toml`
@@ -226,6 +246,7 @@ Ensure no secrets exist in codebase, all secrets are rotatable, and rotation pro
 - `docs/runbooks/secret-rotation.md` (new)
 
 **Suggested Approach:**
+
 1. Run `gitleaks detect` on full history
 2. Audit `.env.example` for completeness
 3. Document rotation for each secret type (DB, API keys, encryption keys)
@@ -244,6 +265,7 @@ Ensure no secrets exist in codebase, all secrets are rotatable, and rotation pro
 ADR-004 references `knowledge_entities` and `knowledge_relations` tables for the knowledge graph, but these are not present in migrations. The cognitive memory system is incomplete without graph-based knowledge.
 
 **Acceptance Criteria:**
+
 - [ ] Migration adds `knowledge_entities` table with embeddings
 - [ ] Migration adds `knowledge_relations` table with typed edges
 - [ ] Entity extraction integrated into episode builder
@@ -252,12 +274,14 @@ ADR-004 references `knowledge_entities` and `knowledge_relations` tables for the
 - [ ] Basic visualization available for debugging
 
 **Files Involved:**
+
 - `supabase/migrations/` (new migration)
 - `packages/core/src/cognitive/episode-builder.ts`
 - `packages/core/src/cognitive/memory-retrieval.ts`
 - `packages/core/src/cognitive/knowledge-graph.ts` (new)
 
 **Suggested Approach:**
+
 1. Create migration: `20251207000001_knowledge_graph.sql`
 2. Add entity extraction to episode builder (extract entities already exists)
 3. Create `KnowledgeGraphService` for graph queries
@@ -278,6 +302,7 @@ ADR-004 references `knowledge_entities` and `knowledge_relations` tables for the
 Multiple audit tables exist with similar structures: `auth_events`, `audit_logs`, `pii_access_log`, `audit_log`. This creates confusion and maintenance burden.
 
 **Acceptance Criteria:**
+
 - [ ] Single `unified_audit_log` table with type discriminator
 - [ ] All existing audit data migrated
 - [ ] Audit insertion abstracted through single service
@@ -285,6 +310,7 @@ Multiple audit tables exist with similar structures: `auth_events`, `audit_logs`
 - [ ] Indexes optimized for common query patterns
 
 **Files Involved:**
+
 - `supabase/migrations/` (consolidation migration)
 - `packages/core/src/observability/audit.ts`
 - All files inserting into audit tables
@@ -301,6 +327,7 @@ Multiple audit tables exist with similar structures: `auth_events`, `audit_logs`
 Current LTV is historical only. Adding predicted LTV based on lead attributes enables proactive lead prioritization and marketing optimization.
 
 **Acceptance Criteria:**
+
 - [ ] pLTV model interface defined
 - [ ] Feature extraction from lead attributes
 - [ ] Model serving infrastructure (or API integration)
@@ -309,6 +336,7 @@ Current LTV is historical only. Adding predicted LTV based on lead attributes en
 - [ ] Model retraining pipeline defined
 
 **Files Involved:**
+
 - `packages/domain/src/ltv/pltv-service.ts` (new)
 - `packages/domain/src/ltv/pltv-model.ts` (new)
 - `apps/web/src/app/ltv-dashboard/`
@@ -326,6 +354,7 @@ Current LTV is historical only. Adding predicted LTV based on lead attributes en
 Lead → Patient transition is undermodeled. There's no `Patient` aggregate to track the full patient lifecycle after conversion.
 
 **Acceptance Criteria:**
+
 - [ ] `PatientAggregateRoot` with lifecycle states
 - [ ] Domain events: `PatientOnboarded`, `PatientActivated`, `PatientChurned`
 - [ ] Conversion from Lead preserves history
@@ -333,6 +362,7 @@ Lead → Patient transition is undermodeled. There's no `Patient` aggregate to t
 - [ ] Retention scoring linked to patient aggregate
 
 **Files Involved:**
+
 - `packages/domain/src/patients/` (new directory)
 - `packages/domain/src/patients/entities/Patient.ts`
 - `packages/domain/src/patients/events/`
@@ -350,6 +380,7 @@ Lead → Patient transition is undermodeled. There's no `Patient` aggregate to t
 Feature flag schema exists (`20251206000007_feature_flags.sql`) but lacks runtime integration and UI for toggling flags.
 
 **Acceptance Criteria:**
+
 - [ ] `FeatureFlagProvider` React context
 - [ ] `useFeatureFlag(flagName)` hook
 - [ ] Admin UI for viewing/toggling flags
@@ -358,6 +389,7 @@ Feature flag schema exists (`20251206000007_feature_flags.sql`) but lacks runtim
 - [ ] SSR-compatible flag evaluation
 
 **Files Involved:**
+
 - `apps/web/src/lib/feature-flags/` (new)
 - `apps/web/src/app/settings/feature-flags/page.tsx` (new)
 - `apps/web/src/app/actions/feature-flags.ts` (new)
@@ -375,6 +407,7 @@ Feature flag schema exists (`20251206000007_feature_flags.sql`) but lacks runtim
 Queue SLA monitoring backend exists but has no visualization. Supervisors can't see queue health in real-time.
 
 **Acceptance Criteria:**
+
 - [ ] Dashboard showing all active queues
 - [ ] Real-time metrics: wait time, queue depth, SLA status
 - [ ] Visual SLA breach alerts
@@ -383,6 +416,7 @@ Queue SLA monitoring backend exists but has no visualization. Supervisors can't 
 - [ ] WebSocket updates for live data
 
 **Files Involved:**
+
 - `apps/web/src/app/queues/page.tsx` (new)
 - `apps/web/src/app/queues/components/`
 - `supabase/migrations/20251206000002_queue_sla.sql`
@@ -400,6 +434,7 @@ Queue SLA monitoring backend exists but has no visualization. Supervisors can't 
 Episode builder works synchronously. The async embedding worker exists but isn't fully wired to domain events for background processing.
 
 **Acceptance Criteria:**
+
 - [ ] Domain events trigger embedding worker
 - [ ] Batch processing for efficiency
 - [ ] Retry logic for API failures
@@ -408,6 +443,7 @@ Episode builder works synchronously. The async embedding worker exists but isn't
 - [ ] Backfill command for historical data
 
 **Files Involved:**
+
 - `apps/trigger/src/tasks/embedding-worker.ts`
 - `apps/trigger/src/jobs/embedding-refresh.ts`
 - `packages/core/src/cognitive/episode-builder.ts`
@@ -425,6 +461,7 @@ Episode builder works synchronously. The async embedding worker exists but isn't
 No tracking of LTV by acquisition cohort. Can't answer "How does LTV change over time for leads acquired in January?"
 
 **Acceptance Criteria:**
+
 - [ ] Cohort definition by first contact month
 - [ ] LTV progression over time per cohort
 - [ ] Cohort comparison visualization
@@ -432,6 +469,7 @@ No tracking of LTV by acquisition cohort. Can't answer "How does LTV change over
 - [ ] Materialized view for performance
 
 **Files Involved:**
+
 - `packages/domain/src/ltv/cohort-analysis.ts` (new)
 - `apps/web/src/app/ltv-dashboard/cohorts/page.tsx` (new)
 - `supabase/migrations/` (materialized view)
@@ -448,6 +486,7 @@ No tracking of LTV by acquisition cohort. Can't answer "How does LTV change over
 Good architecture documentation exists but no operational runbooks for incident response, escalation, or rollback procedures.
 
 **Acceptance Criteria:**
+
 - [ ] Incident response runbook (detection → triage → resolution)
 - [ ] Rollback procedure for each service
 - [ ] Database recovery procedure
@@ -456,6 +495,7 @@ Good architecture documentation exists but no operational runbooks for incident 
 - [ ] Postmortem template
 
 **Files Involved:**
+
 - `docs/runbooks/incident-response.md` (new)
 - `docs/runbooks/rollback.md` (new)
 - `docs/runbooks/database-recovery.md` (new)
@@ -474,6 +514,7 @@ Good architecture documentation exists but no operational runbooks for incident 
 Circuit breaker page exists but may not show real-time status. Backend circuit breakers need visibility for operations.
 
 **Acceptance Criteria:**
+
 - [ ] Real-time circuit state (open/closed/half-open)
 - [ ] Failure rate metrics per circuit
 - [ ] Manual circuit trip/reset capability
@@ -481,6 +522,7 @@ Circuit breaker page exists but may not show real-time status. Backend circuit b
 - [ ] Alerts when circuits open
 
 **Files Involved:**
+
 - `apps/web/src/app/circuit-breaker/page.tsx`
 - `packages/core/src/circuit-breaker.ts`
 - `apps/api/src/routes/health.ts` (circuit breaker status)
@@ -497,6 +539,7 @@ Circuit breaker page exists but may not show real-time status. Backend circuit b
 Data lineage tables exist but no visualization. Compliance officers need to trace data flows for GDPR/HIPAA audits.
 
 **Acceptance Criteria:**
+
 - [ ] Graph visualization of data flows
 - [ ] Filter by data subject or resource
 - [ ] Trace upstream sources for any data point
@@ -505,6 +548,7 @@ Data lineage tables exist but no visualization. Compliance officers need to trac
 - [ ] HIPAA/GDPR compliance view
 
 **Files Involved:**
+
 - `apps/web/src/app/data-lineage/page.tsx` (new)
 - `supabase/migrations/20251206000006_data_lineage.sql`
 - `packages/core/src/data-lineage/`
@@ -521,6 +565,7 @@ Data lineage tables exist but no visualization. Compliance officers need to trac
 Supervisor state persistence exists but UI for live call monitoring is incomplete.
 
 **Acceptance Criteria:**
+
 - [ ] View all active calls with status
 - [ ] Listen mode (silent monitoring)
 - [ ] Whisper mode (speak to agent only)
@@ -530,6 +575,7 @@ Supervisor state persistence exists but UI for live call monitoring is incomplet
 - [ ] Quick escalation actions
 
 **Files Involved:**
+
 - `apps/web/src/app/supervisor/page.tsx`
 - `apps/web/src/app/supervisor/components/`
 - `packages/domain/src/voice/supervisor-agent.ts`
@@ -547,6 +593,7 @@ Supervisor state persistence exists but UI for live call monitoring is incomplet
 External adapters (HubSpot, Stripe, WhatsApp) lack contract tests. API changes could break integrations silently.
 
 **Acceptance Criteria:**
+
 - [ ] Pact contract tests for HubSpot API
 - [ ] Pact contract tests for Stripe webhooks
 - [ ] Pact contract tests for WhatsApp/360dialog
@@ -554,6 +601,7 @@ External adapters (HubSpot, Stripe, WhatsApp) lack contract tests. API changes c
 - [ ] Provider state management for test scenarios
 
 **Files Involved:**
+
 - `packages/integrations/src/__tests__/contracts/` (new)
 - `packages/integrations/src/hubspot.ts`
 - `packages/integrations/src/stripe.ts`
@@ -571,6 +619,7 @@ External adapters (HubSpot, Stripe, WhatsApp) lack contract tests. API changes c
 Correlation IDs flow through the system but there's no UI to visualize request traces.
 
 **Acceptance Criteria:**
+
 - [ ] Search traces by correlation ID
 - [ ] Waterfall view of request flow
 - [ ] Service-to-service hops visible
@@ -579,6 +628,7 @@ Correlation IDs flow through the system but there's no UI to visualize request t
 - [ ] Link to related logs
 
 **Files Involved:**
+
 - `apps/web/src/app/traces/page.tsx` (new)
 - `packages/core/src/observability/instrumentation.ts`
 - `apps/api/src/instrumentation.ts`
@@ -597,6 +647,7 @@ Correlation IDs flow through the system but there's no UI to visualize request t
 UI components lack Storybook documentation. New developers struggle to understand component APIs.
 
 **Acceptance Criteria:**
+
 - [ ] Stories for all `components/ui/` primitives
 - [ ] Stories for key feature components
 - [ ] Interactive controls for props
@@ -604,6 +655,7 @@ UI components lack Storybook documentation. New developers struggle to understan
 - [ ] Deployed Storybook for team reference
 
 **Files Involved:**
+
 - `apps/web/.storybook/`
 - `apps/web/src/components/ui/__stories__/`
 
@@ -619,6 +671,7 @@ UI components lack Storybook documentation. New developers struggle to understan
 CSS variables for dark mode exist but toggle functionality is incomplete.
 
 **Acceptance Criteria:**
+
 - [ ] Dark mode toggle in header/settings
 - [ ] System preference detection
 - [ ] Preference persisted in localStorage
@@ -626,6 +679,7 @@ CSS variables for dark mode exist but toggle functionality is incomplete.
 - [ ] All components properly themed
 
 **Files Involved:**
+
 - `apps/web/src/app/layout.tsx`
 - `apps/web/src/components/providers.tsx`
 - `apps/web/src/globals.css`
@@ -642,6 +696,7 @@ CSS variables for dark mode exist but toggle functionality is incomplete.
 Swagger/OpenAPI exists in code but no hosted documentation portal for API consumers.
 
 **Acceptance Criteria:**
+
 - [ ] OpenAPI spec generated from routes
 - [ ] Hosted docs (Redoc or Swagger UI)
 - [ ] Authentication examples
@@ -649,6 +704,7 @@ Swagger/OpenAPI exists in code but no hosted documentation portal for API consum
 - [ ] Webhook payload documentation
 
 **Files Involved:**
+
 - `apps/api/src/routes/`
 - `apps/api/openapi.json` (generated)
 - `docs/api/` (hosted docs)
@@ -665,12 +721,14 @@ Swagger/OpenAPI exists in code but no hosted documentation portal for API consum
 HNSW indexes exist but may not be optimally tuned for the workload.
 
 **Acceptance Criteria:**
+
 - [ ] Benchmark current query performance
 - [ ] Tune HNSW parameters (m, ef_construction, ef_search)
 - [ ] Document optimal settings
 - [ ] Add performance regression test
 
 **Files Involved:**
+
 - `packages/infrastructure/src/ai/vector-search/PgVectorService.ts`
 - `supabase/migrations/20240101000005_pgvector_rag.sql`
 
@@ -686,12 +744,14 @@ HNSW indexes exist but may not be optimally tuned for the workload.
 Agent workspace (when built) should support tablet use for mobile agents.
 
 **Acceptance Criteria:**
+
 - [ ] Responsive breakpoints for tablet (768px+)
 - [ ] Touch-friendly controls
 - [ ] Collapsible sidebar
 - [ ] Swipe gestures for common actions
 
 **Files Involved:**
+
 - `apps/web/src/app/agent-workspace/` (depends on H5)
 
 ---
@@ -706,6 +766,7 @@ Agent workspace (when built) should support tablet use for mobile agents.
 Debugging webhooks requires CLI access. Admin UI for replay would speed up troubleshooting.
 
 **Acceptance Criteria:**
+
 - [ ] View recent webhook deliveries
 - [ ] Filter by source (WhatsApp, Stripe, etc.)
 - [ ] Replay individual webhooks
@@ -713,6 +774,7 @@ Debugging webhooks requires CLI access. Admin UI for replay would speed up troub
 - [ ] Diff between original and replay
 
 **Files Involved:**
+
 - `apps/web/src/app/webhooks/page.tsx` (new)
 - `apps/api/src/routes/webhooks/`
 
@@ -728,6 +790,7 @@ Debugging webhooks requires CLI access. Admin UI for replay would speed up troub
 No explicit performance targets. Core Web Vitals should be tracked in CI.
 
 **Acceptance Criteria:**
+
 - [ ] Lighthouse CI configured
 - [ ] Performance budgets defined
 - [ ] CI fails on budget violations
@@ -735,6 +798,7 @@ No explicit performance targets. Core Web Vitals should be tracked in CI.
 - [ ] Bundle size tracking
 
 **Files Involved:**
+
 - `.github/workflows/ci.yml`
 - `lighthouserc.js` (new)
 - `apps/web/`
@@ -751,6 +815,7 @@ No explicit performance targets. Core Web Vitals should be tracked in CI.
 Romanian localization exists but coverage is incomplete. Missing translation keys cause fallback to English.
 
 **Acceptance Criteria:**
+
 - [ ] Audit all translation keys
 - [ ] Complete Romanian translations
 - [ ] Add language switcher UI
@@ -758,6 +823,7 @@ Romanian localization exists but coverage is incomplete. Missing translation key
 - [ ] Document translation workflow
 
 **Files Involved:**
+
 - `apps/web/src/lib/i18n/`
 - `apps/web/src/lib/i18n/locales/`
 
@@ -765,12 +831,12 @@ Romanian localization exists but coverage is incomplete. Missing translation key
 
 ## Summary Statistics
 
-| Priority | Count | Total Effort |
-|----------|-------|--------------|
-| HIGH (P0) | 8 | 3-5 days |
-| MEDIUM (P1) | 13 | 6-10 days |
-| LOW (P2) | 8 | 3-4 days |
-| **TOTAL** | **29** | **12-19 days** |
+| Priority    | Count  | Total Effort   |
+| ----------- | ------ | -------------- |
+| HIGH (P0)   | 8      | 3-5 days       |
+| MEDIUM (P1) | 13     | 6-10 days      |
+| LOW (P2)    | 8      | 3-4 days       |
+| **TOTAL**   | **29** | **12-19 days** |
 
 ---
 
@@ -799,5 +865,5 @@ Copy each issue section above into GitHub's "New Issue" form.
 
 ---
 
-*Generated: 2025-12-06*
-*Audit Session: claude/tech-audit-architecture-01SEK6QJHHUnYyWEDb4mJ7Ey*
+_Generated: 2025-12-06_
+_Audit Session: claude/tech-audit-architecture-01SEK6QJHHUnYyWEDb4mJ7Ey_

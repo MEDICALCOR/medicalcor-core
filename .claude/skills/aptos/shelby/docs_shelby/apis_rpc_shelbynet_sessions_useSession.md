@@ -76,8 +76,7 @@ Python
 Java
 
 C#
-    
-    
+
     curl -X POST "https://api.shelbynet.shelby.xyz/shelby/v1/sessions/string/use"
 
 200402404

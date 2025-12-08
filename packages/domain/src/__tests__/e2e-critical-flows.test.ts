@@ -13,6 +13,7 @@ import {
   ConsentService,
   createConsentService,
   type ConsentSource,
+  type ConsentRepository,
 } from '../consent/consent-service.js';
 import { InMemoryConsentRepository } from '@medicalcor/core/repositories';
 import {
@@ -24,6 +25,34 @@ import {
   type AppointmentDetails,
   type GetAvailableSlotsOptions,
 } from '../scheduling/scheduling-service.js';
+
+/**
+ * Adapts InMemoryConsentRepository (uses Result types) to ConsentRepository (uses plain types)
+ * for test usage. This bridges the architectural difference between the core and domain layers.
+ */
+function adaptRepositoryForTests(repo: InMemoryConsentRepository): ConsentRepository {
+  return {
+    async save(consent) {
+      const result = await repo.save(consent);
+      if (result._tag !== 'Ok') throw new Error('Failed to save consent record');
+      return result.value;
+    },
+    async upsert(consent) {
+      const result = await repo.upsert(consent);
+      if (result._tag !== 'Ok') throw new Error('Failed to upsert consent record');
+      return result.value;
+    },
+    findByContactAndType: (contactId, consentType) => repo.findByContactAndType(contactId, consentType),
+    findByContact: (contactId) => repo.findByContact(contactId),
+    delete: (consentId) => repo.delete(consentId),
+    deleteByContact: (contactId) => repo.deleteByContact(contactId),
+    findExpiringSoon: (withinDays) => repo.findExpiringSoon(withinDays),
+    findByStatus: (status) => repo.findByStatus(status),
+    appendAuditEntry: (entry) => repo.appendAuditEntry(entry),
+    getAuditTrail: (consentId) => repo.getAuditTrail(consentId),
+    getContactAuditTrail: (contactId) => repo.getContactAuditTrail(contactId),
+  };
+}
 
 // ============================================================================
 // IN-MEMORY SCHEDULING REPOSITORY (Test Double)
@@ -100,8 +129,9 @@ describe('E2E: Consent Collection Flow', () => {
   let consentService: ConsentService;
 
   beforeEach(() => {
-    // Use in-memory repository for testing
-    const repository = new InMemoryConsentRepository();
+    // Use in-memory repository for testing (with adapter for Result type conversion)
+    const inMemoryRepo = new InMemoryConsentRepository();
+    const repository = adaptRepositoryForTests(inMemoryRepo);
     consentService = createConsentService({ repository });
   });
 
@@ -251,7 +281,8 @@ describe('E2E: Appointment Booking with Consent Verification', () => {
   let schedulingRepository: ISchedulingRepository;
 
   beforeEach(() => {
-    const repository = new InMemoryConsentRepository();
+    const inMemoryRepo = new InMemoryConsentRepository();
+    const repository = adaptRepositoryForTests(inMemoryRepo);
     consentService = createConsentService({ repository });
 
     // Create in-memory scheduling repository with consent verification
@@ -294,7 +325,8 @@ describe('E2E: Appointment Booking with Consent Verification', () => {
 
   it('should handle consent expiration during booking flow', async () => {
     // Grant consent with very short expiration (0 days = immediate expiration)
-    const repository = new InMemoryConsentRepository();
+    const inMemoryRepo = new InMemoryConsentRepository();
+    const repository = adaptRepositoryForTests(inMemoryRepo);
     const shortExpiryService = createConsentService({
       repository,
       config: { defaultExpirationDays: 0 },

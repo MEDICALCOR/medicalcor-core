@@ -388,7 +388,7 @@ export const generateInvoice = task({
       invoice,
       emailOptions = { sendEmail: false, ccEmails: [], bccEmails: [] },
       correlationId,
-      hubspotContactId
+      hubspotContactId,
     } = payload;
     const { hubspot, eventStore } = getClients();
     const emailClient = getEmailClient();

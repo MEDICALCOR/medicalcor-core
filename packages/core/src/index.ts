@@ -642,6 +642,9 @@ export {
   // Retention Service
   PostgresRetentionService,
   createRetentionService,
+  // Unified GDPR Erasure Service (H7 fix - comprehensive erasure)
+  UnifiedGDPRErasureService,
+  createUnifiedGDPRErasureService,
   // Types
   type DSRServiceDeps,
   type DataInventoryServiceDeps,
@@ -665,6 +668,10 @@ export {
   type DisposalError,
   type DisposalResult,
   type RetentionService,
+  type ErasureSubject,
+  type UnifiedErasureOptions,
+  type TableErasureResult,
+  type UnifiedErasureResult,
 } from './security/gdpr/index.js';
 
 // ============================================================================

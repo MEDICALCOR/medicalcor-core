@@ -77,7 +77,8 @@ async function getIndexUsage(db: DatabasePool) {
     last_vacuum: Date | null;
     is_unique: boolean;
     is_primary: boolean;
-  }>(`
+  }>(
+    `
     SELECT
       sui.schemaname,
       sui.relname as tablename,
@@ -96,7 +97,9 @@ async function getIndexUsage(db: DatabasePool) {
     LEFT JOIN pg_index i ON i.indexrelid = sui.indexrelid
     WHERE sui.schemaname = ANY($1)
     ORDER BY pg_relation_size(sui.indexrelid) DESC
-  `, [DEFAULT_SCHEMAS]);
+  `,
+    [DEFAULT_SCHEMAS]
+  );
   return result.rows;
 }
 
@@ -122,19 +125,32 @@ async function storeMetrics(
   let storedCount = 0;
   for (const index of indexes) {
     try {
-      await db.query(`
+      await db.query(
+        `
         INSERT INTO index_usage_metrics (
           index_name, table_name, schema_name, index_type,
           index_scans, tuples_read, tuples_fetched, efficiency,
           status, size_bytes, last_analyze, last_vacuum,
           recommendations, checked_at
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-      `, [
-        index.indexName, index.tableName, index.schemaName, index.indexType,
-        index.indexScans, index.tuplesRead, index.tuplesFetched, index.efficiency,
-        index.status, index.sizeBytes, index.lastAnalyze, index.lastVacuum,
-        JSON.stringify(index.recommendations), checkedAt,
-      ]);
+      `,
+        [
+          index.indexName,
+          index.tableName,
+          index.schemaName,
+          index.indexType,
+          index.indexScans,
+          index.tuplesRead,
+          index.tuplesFetched,
+          index.efficiency,
+          index.status,
+          index.sizeBytes,
+          index.lastAnalyze,
+          index.lastVacuum,
+          JSON.stringify(index.recommendations),
+          checkedAt,
+        ]
+      );
       storedCount++;
     } catch {
       // Ignore individual insert failures
@@ -145,20 +161,29 @@ async function storeMetrics(
 
 async function storeMonitoringRun(db: DatabasePool, result: IndexMonitoringResult): Promise<void> {
   try {
-    await db.query(`
+    await db.query(
+      `
       INSERT INTO index_monitoring_runs (
         success, indexes_monitored, unused_indexes_found,
         degraded_indexes_found, critical_indexes_found,
         potential_savings_bytes, processing_time_ms,
         error_message, correlation_id, started_at, completed_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-    `, [
-      result.success, result.indexesMonitored, result.unusedIndexesFound,
-      result.degradedIndexesFound, result.criticalIndexesFound,
-      result.potentialSavingsBytes, result.processingTimeMs,
-      result.error ?? null, result.correlationId,
-      new Date(Date.now() - result.processingTimeMs), new Date(),
-    ]);
+    `,
+      [
+        result.success,
+        result.indexesMonitored,
+        result.unusedIndexesFound,
+        result.degradedIndexesFound,
+        result.criticalIndexesFound,
+        result.potentialSavingsBytes,
+        result.processingTimeMs,
+        result.error ?? null,
+        result.correlationId,
+        new Date(Date.now() - result.processingTimeMs),
+        new Date(),
+      ]
+    );
   } catch (error) {
     logger.warn('Failed to store monitoring run result', { error });
   }
@@ -256,7 +281,7 @@ export const indexUsageMonitor = schedules.task({
       const rows = await getIndexUsage(db);
       indexesMonitored = rows.length;
 
-      const processedIndexes = rows.map(row => {
+      const processedIndexes = rows.map((row) => {
         const processed = processIndexRow(row);
         switch (processed.status) {
           case 'unused':
@@ -367,7 +392,8 @@ export const cleanupOldMetrics = schedules.task({
       const recommendationsResult = await db.query<{ cleanup_expired_recommendations: number }>(
         'SELECT cleanup_expired_recommendations()'
       );
-      const expiredRecommendations = recommendationsResult.rows[0]?.cleanup_expired_recommendations ?? 0;
+      const expiredRecommendations =
+        recommendationsResult.rows[0]?.cleanup_expired_recommendations ?? 0;
 
       logger.info('Cleanup completed', { deletedMetrics, expiredRecommendations, correlationId });
       return { success: true, deletedMetrics, expiredRecommendations };

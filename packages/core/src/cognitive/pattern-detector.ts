@@ -39,9 +39,7 @@ function isDayOfWeek(date: Date, day: number): boolean {
 // Helper: Calculate average response time between events
 function calculateAverageResponseTime(events: EpisodicEvent[]): number | null {
   const responseTimes: number[] = [];
-  const sortedEvents = [...events].sort(
-    (a, b) => a.occurredAt.getTime() - b.occurredAt.getTime()
-  );
+  const sortedEvents = [...events].sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime());
 
   for (let i = 1; i < sortedEvents.length; i++) {
     const prevEvent = sortedEvents[i - 1];
@@ -202,8 +200,7 @@ const PATTERN_RULES: PatternRule[] = [
 
       // Also check sentiment trend
       const recentNegative = secondHalf.filter((e) => e.sentiment === 'negative').length;
-      const recentSentimentRatio =
-        secondHalf.length > 0 ? recentNegative / secondHalf.length : 0;
+      const recentSentimentRatio = secondHalf.length > 0 ? recentNegative / secondHalf.length : 0;
 
       const frequencyDecline =
         firstFrequency > 0 ? Math.max(0, (firstFrequency - secondFrequency) / firstFrequency) : 0;
@@ -373,10 +370,7 @@ export class PatternDetector {
   /**
    * Detect all behavioral patterns for a subject
    */
-  async detectPatterns(
-    subjectType: SubjectType,
-    subjectId: string
-  ): Promise<BehavioralPattern[]> {
+  async detectPatterns(subjectType: SubjectType, subjectId: string): Promise<BehavioralPattern[]> {
     const startTime = Date.now();
 
     try {
@@ -425,10 +419,7 @@ export class PatternDetector {
   /**
    * Generate cognitive insights based on detected patterns
    */
-  async generateInsights(
-    subjectType: SubjectType,
-    subjectId: string
-  ): Promise<CognitiveInsight[]> {
+  async generateInsights(subjectType: SubjectType, subjectId: string): Promise<CognitiveInsight[]> {
     const patterns = await this.getStoredPatterns(subjectType, subjectId);
     const insights: CognitiveInsight[] = [];
 

@@ -18,8 +18,37 @@ import {
   type ConsentRequest,
   type ConsentSource,
   type ConsentType,
+  type ConsentRepository,
 } from '../consent/consent-service.js';
 import { InMemoryConsentRepository } from '@medicalcor/core/repositories';
+
+/**
+ * Adapts InMemoryConsentRepository (uses Result types) to ConsentRepository (uses plain types)
+ * for test usage. This bridges the architectural difference between the core and domain layers.
+ */
+function adaptRepositoryForTests(repo: InMemoryConsentRepository): ConsentRepository {
+  return {
+    async save(consent) {
+      const result = await repo.save(consent);
+      if (result._tag !== 'Ok') throw new Error('Failed to save consent record');
+      return result.value;
+    },
+    async upsert(consent) {
+      const result = await repo.upsert(consent);
+      if (result._tag !== 'Ok') throw new Error('Failed to upsert consent record');
+      return result.value;
+    },
+    findByContactAndType: (contactId, consentType) => repo.findByContactAndType(contactId, consentType),
+    findByContact: (contactId) => repo.findByContact(contactId),
+    delete: (consentId) => repo.delete(consentId),
+    deleteByContact: (contactId) => repo.deleteByContact(contactId),
+    findExpiringSoon: (withinDays) => repo.findExpiringSoon(withinDays),
+    findByStatus: (status) => repo.findByStatus(status),
+    appendAuditEntry: (entry) => repo.appendAuditEntry(entry),
+    getAuditTrail: (consentId) => repo.getAuditTrail(consentId),
+    getContactAuditTrail: (contactId) => repo.getContactAuditTrail(contactId),
+  };
+}
 
 // ============================================================================
 // TEST FIXTURES
@@ -48,10 +77,12 @@ const createTestConsentRequest = (overrides?: Partial<ConsentRequest>): ConsentR
 
 describe('ConsentService', () => {
   let service: ConsentService;
-  let repository: InMemoryConsentRepository;
+  let inMemoryRepo: InMemoryConsentRepository;
+  let repository: ConsentRepository;
 
   beforeEach(() => {
-    repository = new InMemoryConsentRepository();
+    inMemoryRepo = new InMemoryConsentRepository();
+    repository = adaptRepositoryForTests(inMemoryRepo);
     service = createConsentService({ repository });
   });
 
@@ -448,7 +479,7 @@ describe('Atomic Upsert', () => {
 
     // Both should return the same consent ID (no duplicates)
     expect(result1.id).toBe(result2.id);
-    expect(repository.size()).toBe(1);
+    expect(inMemoryRepo.size()).toBe(1);
   });
 
   it('should track creation vs update correctly', async () => {
@@ -1184,10 +1215,12 @@ describe('Custom Configuration', () => {
 // ============================================================================
 
 describe('Logger Injection', () => {
-  let repository: InMemoryConsentRepository;
+  let inMemoryRepo: InMemoryConsentRepository;
+  let repository: ConsentRepository;
 
   beforeEach(() => {
-    repository = new InMemoryConsentRepository();
+    inMemoryRepo = new InMemoryConsentRepository();
+    repository = adaptRepositoryForTests(inMemoryRepo);
   });
 
   it('should work without logger', async () => {
@@ -1282,14 +1315,16 @@ describe('Logger Injection', () => {
 // ============================================================================
 
 describe('ConsentService Repository Injection', () => {
-  it('should accept InMemoryConsentRepository for testing', () => {
-    const repository = new InMemoryConsentRepository();
+  it('should accept InMemoryConsentRepository (via adapter) for testing', () => {
+    const inMemoryRepo = new InMemoryConsentRepository();
+    const repository = adaptRepositoryForTests(inMemoryRepo);
 
     expect(() => createConsentService({ repository })).not.toThrow();
   });
 
   it('should work with injected repository', async () => {
-    const repository = new InMemoryConsentRepository();
+    const inMemoryRepo = new InMemoryConsentRepository();
+    const repository = adaptRepositoryForTests(inMemoryRepo);
     const service = createConsentService({ repository });
 
     const result = await service.recordConsent({
@@ -1306,6 +1341,6 @@ describe('ConsentService Repository Injection', () => {
     });
 
     expect(result.contactId).toBe('test-123');
-    expect(repository.size()).toBe(1);
+    expect(inMemoryRepo.size()).toBe(1);
   });
 });

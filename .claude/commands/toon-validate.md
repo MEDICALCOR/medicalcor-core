@@ -5,6 +5,7 @@ Validate TOON v2.0 files for correctness.
 **Usage:** `/toon-validate <file> [--strict]`
 
 **Options:**
+
 - `--strict` - Enable strict mode validation (production)
 - Default - Lenient mode (warnings only)
 
@@ -97,16 +98,19 @@ fi
 ### Common Errors
 
 **Indentation Error:**
+
 ```
 ❌ Line 3: Indentation must be multiple of 2 (found 3)
 ```
 
 **Count Mismatch:**
+
 ```
 ❌ Array declared [5] but found 3 rows
 ```
 
 **Invalid Escape:**
+
 ```
 ❌ Line 1: Invalid escape sequence '\u'
 Valid: \\ \" \n \r \t

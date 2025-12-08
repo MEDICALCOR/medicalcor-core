@@ -16,14 +16,14 @@ OSAX v3.2 Multimodal extends the existing OSAX clinical case management system w
 
 ### 1.1 Architecture Principles
 
-| Principle | Implementation |
-|-----------|---------------|
-| **DDD** | Domain layer contains pure business logic, no infrastructure dependencies |
-| **Hexagonal** | Ports in Core, Adapters in Infrastructure |
-| **Event-Driven** | All state changes emit append-only domain events |
-| **Medical-Grade Security** | Zero PHI in logs, encrypted storage, HIPAA/GDPR compliant |
-| **AI Gateway** | No direct AI SDK calls - all through abstracted ports |
-| **Observability** | OpenTelemetry-ready spans for all operations |
+| Principle                  | Implementation                                                            |
+| -------------------------- | ------------------------------------------------------------------------- |
+| **DDD**                    | Domain layer contains pure business logic, no infrastructure dependencies |
+| **Hexagonal**              | Ports in Core, Adapters in Infrastructure                                 |
+| **Event-Driven**           | All state changes emit append-only domain events                          |
+| **Medical-Grade Security** | Zero PHI in logs, encrypted storage, HIPAA/GDPR compliant                 |
+| **AI Gateway**             | No direct AI SDK calls - all through abstracted ports                     |
+| **Observability**          | OpenTelemetry-ready spans for all operations                              |
 
 ### 1.2 Clinical Disclaimer
 
@@ -97,6 +97,7 @@ type RiskClass = 'GREEN' | 'YELLOW' | 'RED';
 ```
 
 **Business Rules:**
+
 - `isComplete()`: All mandatory regions analyzed
 - `aggregateConfidence()`: Weighted average of all findings
 - `hasHighRiskFindings()`: Any RED risk class present
@@ -139,6 +140,7 @@ interface PredictionFactor {
 ```
 
 **Business Rules:**
+
 - `isHighProbability()`: probability >= 0.65
 - `requiresFinancialConsultation()`: estimatedValue.max > threshold
 - `getRecommendedAction()`: Based on probability tier
@@ -185,6 +187,7 @@ type ResourceBlockStatus = 'SOFT_HELD' | 'CONFIRMED' | 'RELEASED' | 'EXPIRED';
 ```
 
 **Invariants:**
+
 - Soft-hold expires after configured TTL (default: 72 hours)
 - Confirmation requires case approval
 - Release is idempotent
@@ -217,10 +220,10 @@ interface ImagingModelPort {
 }
 
 interface ImagingAnalysisInput {
-  readonly imageRef: string;  // Signed URL or storage reference
+  readonly imageRef: string; // Signed URL or storage reference
   readonly modality: ImagingModality;
   readonly patientAgeGroup?: 'PEDIATRIC' | 'ADULT' | 'GERIATRIC';
-  readonly analysisScope?: string[];  // Specific regions to analyze
+  readonly analysisScope?: string[]; // Specific regions to analyze
 }
 ```
 
@@ -529,6 +532,7 @@ TODO: Implement actual Supabase Storage integration
 Production-ready rule-based implementation.
 
 **Rules:**
+
 - Base probability: 0.5
 - +0.15 if hasInsurance
 - +0.10 if insuranceTier == PREMIUM
@@ -575,21 +579,21 @@ TODO: Integrate with actual scheduling system
 
 ### 8.1 OpenTelemetry Spans (TODO)
 
-| Span Name | Attributes |
-|-----------|------------|
-| `osax.imaging.analyze` | modality, findingsCount, confidence |
-| `osax.financial.predict` | probability, tier |
-| `osax.concierge.orchestrate` | resourceCount, eligible |
-| `osax.storage.signUrl` | ttlSeconds |
+| Span Name                    | Attributes                          |
+| ---------------------------- | ----------------------------------- |
+| `osax.imaging.analyze`       | modality, findingsCount, confidence |
+| `osax.financial.predict`     | probability, tier                   |
+| `osax.concierge.orchestrate` | resourceCount, eligible             |
+| `osax.storage.signUrl`       | ttlSeconds                          |
 
 ### 8.2 Metrics
 
-| Metric | Type | Labels |
-|--------|------|--------|
-| `osax_imaging_analysis_total` | Counter | modality, riskClass |
-| `osax_imaging_analysis_duration_ms` | Histogram | modality |
-| `osax_financial_prediction_total` | Counter | tier |
-| `osax_resources_soft_held_total` | Counter | resourceType |
+| Metric                              | Type      | Labels              |
+| ----------------------------------- | --------- | ------------------- |
+| `osax_imaging_analysis_total`       | Counter   | modality, riskClass |
+| `osax_imaging_analysis_duration_ms` | Histogram | modality            |
+| `osax_financial_prediction_total`   | Counter   | tier                |
+| `osax_resources_soft_held_total`    | Counter   | resourceType        |
 
 ---
 
@@ -628,11 +632,13 @@ TODO: Integrate with actual scheduling system
 ## 10. Future Roadmap
 
 ### v3.3 (Planned)
+
 - Real-time imaging analysis streaming
 - Multi-image case analysis
 - Treatment plan generation
 
 ### v4.0 (Planned)
+
 - Full workflow integration with trigger.dev
 - Patient portal integration
 - Insurance pre-authorization automation

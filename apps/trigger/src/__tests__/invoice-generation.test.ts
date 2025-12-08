@@ -367,7 +367,8 @@ describe('Invoice Generation Handler', () => {
       await expect(
         hubspot.logMessageToTimeline({
           contactId: 'hs_contact_123',
-          message: 'Invoice INV-2024-00001 generated for Ion Popescu. Amount: 595,00 EUR. Status: PENDING',
+          message:
+            'Invoice INV-2024-00001 generated for Ion Popescu. Amount: 595,00 EUR. Status: PENDING',
           direction: 'OUT',
           channel: 'web',
         })

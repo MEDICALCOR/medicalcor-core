@@ -96,8 +96,7 @@ Python
 Java
 
 C#
-    
-    
+
     curl -X GET "http://localhost:9090/v1/blobs/string/path/to/myblob.txt" \  -H "range: bytes=0-1023"
 
 200206400404416

@@ -61,12 +61,24 @@ export function ScenarioDonut({ data, className }: ScenarioDonutProps) {
       };
     });
 
-    return { segments: segs, total: totalCount, centerX: cx, centerY: cy, radius: r, strokeWidth: sw };
+    return {
+      segments: segs,
+      total: totalCount,
+      centerX: cx,
+      centerY: cy,
+      radius: r,
+      strokeWidth: sw,
+    };
   }, [data]);
 
   if (data.length === 0) {
     return (
-      <div className={cn('flex items-center justify-center text-muted-foreground h-[300px]', className)}>
+      <div
+        className={cn(
+          'flex items-center justify-center text-muted-foreground h-[300px]',
+          className
+        )}
+      >
         No scenario data available
       </div>
     );
@@ -102,10 +114,20 @@ export function ScenarioDonut({ data, className }: ScenarioDonutProps) {
           ))}
 
           {/* Center text */}
-          <text x={centerX} y={centerY - 4} textAnchor="middle" className="text-[8px] fill-muted-foreground">
+          <text
+            x={centerX}
+            y={centerY - 4}
+            textAnchor="middle"
+            className="text-[8px] fill-muted-foreground"
+          >
             Total
           </text>
-          <text x={centerX} y={centerY + 6} textAnchor="middle" className="text-[12px] font-bold fill-foreground">
+          <text
+            x={centerX}
+            y={centerY + 6}
+            textAnchor="middle"
+            className="text-[12px] font-bold fill-foreground"
+          >
             {total}
           </text>
         </svg>
@@ -121,7 +143,12 @@ export function ScenarioDonut({ data, className }: ScenarioDonutProps) {
             </div>
             <div className="flex items-center gap-3 text-muted-foreground">
               <span>{segment.count} runs</span>
-              <span className={cn('font-medium', segment.passRate >= 90 ? 'text-green-600' : 'text-orange-500')}>
+              <span
+                className={cn(
+                  'font-medium',
+                  segment.passRate >= 90 ? 'text-green-600' : 'text-orange-500'
+                )}
+              >
                 {segment.passRate.toFixed(0)}% pass
               </span>
             </div>

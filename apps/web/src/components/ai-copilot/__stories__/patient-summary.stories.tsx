@@ -139,18 +139,12 @@ function PatientSummaryDemo({
           </div>
           <div className="bg-muted/50 rounded-lg p-2 text-center">
             <div className="flex items-center justify-center">
-              <SentimentIcon
-                className={cn('h-5 w-5', sentimentIcons[summary.sentiment].color)}
-              />
+              <SentimentIcon className={cn('h-5 w-5', sentimentIcons[summary.sentiment].color)} />
             </div>
-            <div className="text-[10px] text-muted-foreground capitalize">
-              {summary.sentiment}
-            </div>
+            <div className="text-[10px] text-muted-foreground capitalize">{summary.sentiment}</div>
           </div>
           <div className="bg-muted/50 rounded-lg p-2 text-center">
-            <div className="text-lg font-bold capitalize">
-              {summary.engagementLevel[0]}
-            </div>
+            <div className="text-lg font-bold capitalize">{summary.engagementLevel[0]}</div>
             <div className="text-[10px] text-muted-foreground">Engagement</div>
           </div>
         </div>
@@ -162,10 +156,7 @@ function PatientSummaryDemo({
           </h4>
           <ul className="space-y-1.5">
             {summary.keyInsights.map((insight, i) => (
-              <li
-                key={i}
-                className="flex items-start gap-2 text-sm bg-primary/5 rounded-lg p-2"
-              >
+              <li key={i} className="flex items-start gap-2 text-sm bg-primary/5 rounded-lg p-2">
                 <span className="text-primary mt-0.5">•</span>
                 <span>{insight}</span>
               </li>

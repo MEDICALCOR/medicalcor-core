@@ -113,10 +113,7 @@ describe('Bulk Import Feature', () => {
     });
 
     it('should throw error for CSV without phone column', () => {
-      const csvContent = [
-        'name,email',
-        'Ion Popescu,ion@example.com',
-      ].join('\n');
+      const csvContent = ['name,email', 'Ion Popescu,ion@example.com'].join('\n');
 
       expect(() => parseCSV(csvContent)).toThrow(/phone column/i);
     });
@@ -359,7 +356,7 @@ describe('Bulk Import Feature', () => {
       }));
 
       const batchSize = 100;
-      const batches: typeof rows[] = [];
+      const batches: (typeof rows)[] = [];
 
       for (let i = 0; i < rows.length; i += batchSize) {
         batches.push(rows.slice(i, Math.min(i + batchSize, rows.length)));
@@ -399,9 +396,7 @@ describe('Bulk Import Feature', () => {
     it('should validate workflow payload structure', () => {
       const payload = {
         jobId: '123e4567-e89b-12d3-a456-426614174000',
-        rows: [
-          { phone: '+40721234567', fullName: 'Test Lead' },
-        ],
+        rows: [{ phone: '+40721234567', fullName: 'Test Lead' }],
         options: {
           skipDuplicates: true,
           batchSize: 100,
@@ -434,7 +429,9 @@ describe('Integration Patterns', () => {
         durationMs: 1500,
       };
 
-      expect(mockResponse.successCount + mockResponse.errorCount + mockResponse.skipCount).toBe(100);
+      expect(mockResponse.successCount + mockResponse.errorCount + mockResponse.skipCount).toBe(
+        100
+      );
       expect(mockResponse.success).toBe(true);
     });
 

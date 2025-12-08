@@ -34,7 +34,9 @@ function loadBudget() {
   const budgetPath = path.join(rootDir, '.performance-budget.json');
 
   if (!fs.existsSync(budgetPath)) {
-    console.error(`${colors.red}Error: Performance budget file not found at ${budgetPath}${colors.reset}`);
+    console.error(
+      `${colors.red}Error: Performance budget file not found at ${budgetPath}${colors.reset}`
+    );
     process.exit(1);
   }
 
@@ -138,7 +140,9 @@ function validateBudgets() {
   const buildDir = path.join(rootDir, '.next');
 
   if (!fs.existsSync(buildDir)) {
-    console.error(`${colors.red}Error: Build directory not found. Run 'pnpm build' first.${colors.reset}`);
+    console.error(
+      `${colors.red}Error: Build directory not found. Run 'pnpm build' first.${colors.reset}`
+    );
     process.exit(1);
   }
 
@@ -167,10 +171,14 @@ function validateBudgets() {
   const totalJsCheck = checkBudget(totalJsSize, jsBudget.total.maxSize, jsBudget.total.unit);
   const totalJsStatus = totalJsCheck.passed ? colors.green + 'PASS' : colors.red + 'FAIL';
 
-  console.log(`Total JS: ${formatBytes(totalJsSize)} / ${jsBudget.total.maxSize}${jsBudget.total.unit} (${totalJsCheck.percentage}%) [${totalJsStatus}${colors.reset}]`);
+  console.log(
+    `Total JS: ${formatBytes(totalJsSize)} / ${jsBudget.total.maxSize}${jsBudget.total.unit} (${totalJsCheck.percentage}%) [${totalJsStatus}${colors.reset}]`
+  );
 
   if (!totalJsCheck.passed) {
-    results.failed.push(`Total JavaScript (${formatBytes(totalJsSize)}) exceeds budget (${jsBudget.total.maxSize}${jsBudget.total.unit})`);
+    results.failed.push(
+      `Total JavaScript (${formatBytes(totalJsSize)}) exceeds budget (${jsBudget.total.maxSize}${jsBudget.total.unit})`
+    );
   } else {
     results.passed.push('Total JavaScript within budget');
   }
@@ -179,7 +187,9 @@ function validateBudgets() {
   const largeChunks = jsFiles.filter((f) => f.size > jsBudget.perChunk.maxSize * 1024);
 
   if (largeChunks.length > 0) {
-    console.log(`\n${colors.yellow}Large chunks (> ${jsBudget.perChunk.maxSize}KB):${colors.reset}`);
+    console.log(
+      `\n${colors.yellow}Large chunks (> ${jsBudget.perChunk.maxSize}KB):${colors.reset}`
+    );
     largeChunks.forEach((chunk) => {
       console.log(`  - ${chunk.name}: ${formatBytes(chunk.size)}`);
     });
@@ -209,10 +219,14 @@ function validateBudgets() {
   const totalCssCheck = checkBudget(totalCssSize, cssBudget.total.maxSize, cssBudget.total.unit);
   const totalCssStatus = totalCssCheck.passed ? colors.green + 'PASS' : colors.red + 'FAIL';
 
-  console.log(`Total CSS: ${formatBytes(totalCssSize)} / ${cssBudget.total.maxSize}${cssBudget.total.unit} (${totalCssCheck.percentage}%) [${totalCssStatus}${colors.reset}]`);
+  console.log(
+    `Total CSS: ${formatBytes(totalCssSize)} / ${cssBudget.total.maxSize}${cssBudget.total.unit} (${totalCssCheck.percentage}%) [${totalCssStatus}${colors.reset}]`
+  );
 
   if (!totalCssCheck.passed) {
-    results.failed.push(`Total CSS (${formatBytes(totalCssSize)}) exceeds budget (${cssBudget.total.maxSize}${cssBudget.total.unit})`);
+    results.failed.push(
+      `Total CSS (${formatBytes(totalCssSize)}) exceeds budget (${cssBudget.total.maxSize}${cssBudget.total.unit})`
+    );
   } else {
     results.passed.push('Total CSS within budget');
   }
@@ -234,8 +248,12 @@ function validateBudgets() {
 
   const lhScores = budget.budgets.lighthouseScores;
   console.log(`Performance: ${lhScores.performance.min}+ (target: ${lhScores.performance.target})`);
-  console.log(`Accessibility: ${lhScores.accessibility.min}+ (target: ${lhScores.accessibility.target})`);
-  console.log(`Best Practices: ${lhScores.bestPractices.min}+ (target: ${lhScores.bestPractices.target})`);
+  console.log(
+    `Accessibility: ${lhScores.accessibility.min}+ (target: ${lhScores.accessibility.target})`
+  );
+  console.log(
+    `Best Practices: ${lhScores.bestPractices.min}+ (target: ${lhScores.bestPractices.target})`
+  );
   console.log(`SEO: ${lhScores.seo.min}+ (target: ${lhScores.seo.target})`);
 
   // ==========================================================================
@@ -278,7 +296,9 @@ function validateBudgets() {
   }
 
   if (isStrict && results.warnings.length > 0) {
-    console.log(`${colors.yellow}${colors.bold}Budget validation has warnings (strict mode)!${colors.reset}\n`);
+    console.log(
+      `${colors.yellow}${colors.bold}Budget validation has warnings (strict mode)!${colors.reset}\n`
+    );
     process.exit(1);
   }
 

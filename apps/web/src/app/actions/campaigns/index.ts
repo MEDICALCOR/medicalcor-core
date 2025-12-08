@@ -134,7 +134,10 @@ export async function getCampaignsAction(): Promise<{ campaigns: Campaign[]; err
   }
 }
 
-export async function getCampaignStatsAction(): Promise<{ stats: CampaignStats | null; error?: string }> {
+export async function getCampaignStatsAction(): Promise<{
+  stats: CampaignStats | null;
+  error?: string;
+}> {
   try {
     await requirePermission('campaigns:read');
     const user = await requireCurrentUser();
@@ -270,16 +273,18 @@ export async function updateCampaignAction(
   }
 }
 
-export async function deleteCampaignAction(id: string): Promise<{ success: boolean; error?: string }> {
+export async function deleteCampaignAction(
+  id: string
+): Promise<{ success: boolean; error?: string }> {
   try {
     await requirePermission('campaigns:delete');
     const user = await requireCurrentUser();
     const database = getDatabase();
 
-    const result = await database.query(
-      `DELETE FROM campaigns WHERE id = $1 AND clinic_id = $2`,
-      [id, user.clinicId]
-    );
+    const result = await database.query(`DELETE FROM campaigns WHERE id = $1 AND clinic_id = $2`, [
+      id,
+      user.clinicId,
+    ]);
 
     if (result.rowCount === 0) {
       return { success: false, error: 'Campaign not found' };
@@ -292,7 +297,9 @@ export async function deleteCampaignAction(id: string): Promise<{ success: boole
   }
 }
 
-export async function duplicateCampaignAction(id: string): Promise<{ campaign: Campaign | null; error?: string }> {
+export async function duplicateCampaignAction(
+  id: string
+): Promise<{ campaign: Campaign | null; error?: string }> {
   try {
     await requirePermission('campaigns:write');
     const user = await requireCurrentUser();

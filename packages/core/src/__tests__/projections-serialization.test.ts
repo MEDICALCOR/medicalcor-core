@@ -238,7 +238,7 @@ describe('ProjectionManager Serialization', () => {
     manager.apply(event);
 
     const serialized = manager.toJSON();
-    const leadStatsSerialized = serialized.find(p => p.name === 'lead-stats');
+    const leadStatsSerialized = serialized.find((p) => p.name === 'lead-stats');
 
     expect(leadStatsSerialized?.lastEventId).toBe(event.id);
     expect(leadStatsSerialized?.lastEventTimestamp).toBeDefined();

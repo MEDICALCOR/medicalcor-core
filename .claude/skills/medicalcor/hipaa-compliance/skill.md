@@ -11,6 +11,7 @@ This skill provides guidance on HIPAA compliance for the MedicalCor medical CRM 
 ### Protected Health Information (PHI)
 
 PHI includes any individually identifiable health information:
+
 - Patient names, addresses, dates (birth, admission, discharge, death)
 - Phone numbers, fax numbers, email addresses
 - Social Security numbers, medical record numbers
@@ -24,6 +25,7 @@ PHI includes any individually identifiable health information:
 ### Technical Safeguards
 
 #### 1. Access Control (§164.312(a))
+
 ```typescript
 // Example: Role-based access control
 interface AccessControl {
@@ -35,12 +37,12 @@ interface AccessControl {
 
 // Implement minimum necessary access
 const canAccessPatientData = (user: User, patient: Patient): boolean => {
-  return user.hasActiveRelationship(patient) &&
-         user.hasPermission('read:patient-records');
+  return user.hasActiveRelationship(patient) && user.hasPermission('read:patient-records');
 };
 ```
 
 #### 2. Encryption (§164.312(a)(2)(iv))
+
 ```typescript
 // Data at rest - use AES-256
 import { encrypt, decrypt } from '@medicalcor/core/encryption';
@@ -51,12 +53,13 @@ const fastify = Fastify({
   https: {
     minVersion: 'TLSv1.2',
     key: fs.readFileSync('key.pem'),
-    cert: fs.readFileSync('cert.pem')
-  }
+    cert: fs.readFileSync('cert.pem'),
+  },
 });
 ```
 
 #### 3. Audit Controls (§164.312(b))
+
 ```typescript
 // Log all PHI access
 import { logger } from '@medicalcor/core/logger';
@@ -68,11 +71,12 @@ logger.audit({
   resourceType: 'medical_record',
   resourceId: record.id,
   timestamp: new Date().toISOString(),
-  ipAddress: request.ip
+  ipAddress: request.ip,
 });
 ```
 
 #### 4. Integrity Controls (§164.312(c)(1))
+
 ```typescript
 // Implement data integrity verification
 interface AuditableRecord {
@@ -85,6 +89,7 @@ interface AuditableRecord {
 ```
 
 #### 5. Transmission Security (§164.312(e)(1))
+
 - Always use HTTPS/TLS for API communications
 - Encrypt email containing PHI
 - Secure WebSocket connections for real-time features
@@ -92,7 +97,9 @@ interface AuditableRecord {
 ### MedicalCor Compliance Implementation
 
 #### Consent Management
+
 Location: `packages/domain/src/consent/`
+
 ```typescript
 // Always obtain and verify consent before processing PHI
 const consent = await consentService.getPatientConsent(patientId);
@@ -102,6 +109,7 @@ if (!consent.isValid() || !consent.covers('data-processing')) {
 ```
 
 #### Data Minimization
+
 ```typescript
 // Return only necessary fields
 const patientSummary = await patientRepo.findById(id, {
@@ -111,6 +119,7 @@ const patientSummary = await patientRepo.findById(id, {
 ```
 
 #### Secure Logging
+
 ```typescript
 // Never log PHI directly
 import { logger } from '@medicalcor/core/logger';
@@ -125,6 +134,7 @@ logger.info('Processing patient', { patientId: patient.id });
 ### Business Associate Agreements (BAA)
 
 Required for all third-party services that may access PHI:
+
 - **OpenAI** - BAA required for GPT-4o lead scoring
 - **HubSpot** - BAA required for CRM integration
 - **WhatsApp Business** - BAA required for patient communication
@@ -134,6 +144,7 @@ Required for all third-party services that may access PHI:
 ### Breach Notification
 
 Implement breach detection and notification:
+
 ```typescript
 interface BreachReport {
   detectedAt: Date;

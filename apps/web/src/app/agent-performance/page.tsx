@@ -186,7 +186,13 @@ function AgentRow({ agent, showDetails = true }: AgentRowProps) {
           </div>
           <div className="text-center min-w-[60px]">
             <Badge
-              variant={agent.satisfaction >= 4.5 ? 'success' : agent.satisfaction >= 3.5 ? 'secondary' : 'destructive'}
+              variant={
+                agent.satisfaction >= 4.5
+                  ? 'success'
+                  : agent.satisfaction >= 3.5
+                    ? 'secondary'
+                    : 'destructive'
+              }
               className="font-semibold"
             >
               {agent.satisfaction > 0 ? `★ ${agent.satisfaction.toFixed(1)}` : 'N/A'}
@@ -289,7 +295,9 @@ export default function AgentPerformancePage() {
               Performanță Agenți
               {isPending && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
             </h1>
-            <p className="text-muted-foreground">Monitorizează performanța individuală a agenților</p>
+            <p className="text-muted-foreground">
+              Monitorizează performanța individuală a agenților
+            </p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -311,7 +319,11 @@ export default function AgentPerformancePage() {
               ))}
             </div>
 
-            <ExportButton data={exportData} columns={exportColumns} filename={`agent-performance-${timeRange}`} />
+            <ExportButton
+              data={exportData}
+              columns={exportColumns}
+              filename={`agent-performance-${timeRange}`}
+            />
           </div>
         </div>
 

@@ -28,11 +28,13 @@
 > **Production Readiness Notice**
 >
 > This project is under active development. Before deploying to production, please review:
+>
 > - [Security Guide](./docs/README/SECURITY.md) - Authentication, webhook security, data protection
 > - [Deployment Guide](./docs/README/DEPLOYMENT.md) - Production deployment checklist
 > - [Audit Reports](./COMPREHENSIVE_AUDIT_REPORT.md) - Known issues and remediation status
 >
 > Key requirements before production:
+>
 > - Configure all webhook secrets (WhatsApp, Twilio, Stripe, Vapi)
 > - Set up proper authentication for web dashboard
 > - Enable TLS/SSL for all connections
@@ -47,66 +49,66 @@ AI-powered lead management system for dental clinics with omnichannel communicat
 
 ### AI-First Architecture
 
-| Feature | Description |
-|---------|-------------|
-| **GPT-4o Lead Scoring** | AI-powered lead scoring (1-5) with automatic HOT/WARM/COLD classification, procedure interest detection, and urgency analysis |
-| **AI Gateway** | OpenAI & Anthropic compatible function calling with natural language intent detection and multi-step workflow execution |
-| **RAG Pipeline** | Retrieval-Augmented Generation with pgvector, hybrid semantic + keyword search, and HubSpot patient context integration |
-| **AI Copilot** | Smart response suggestions, patient history summaries, and procedure recommendations for clinic operators |
-| **Voice AI Integration** | Vapi-powered voice calls with real-time transcription, lead qualification extraction, and CRM sync |
+| Feature                  | Description                                                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| **GPT-4o Lead Scoring**  | AI-powered lead scoring (1-5) with automatic HOT/WARM/COLD classification, procedure interest detection, and urgency analysis |
+| **AI Gateway**           | OpenAI & Anthropic compatible function calling with natural language intent detection and multi-step workflow execution       |
+| **RAG Pipeline**         | Retrieval-Augmented Generation with pgvector, hybrid semantic + keyword search, and HubSpot patient context integration       |
+| **AI Copilot**           | Smart response suggestions, patient history summaries, and procedure recommendations for clinic operators                     |
+| **Voice AI Integration** | Vapi-powered voice calls with real-time transcription, lead qualification extraction, and CRM sync                            |
 
 ### Omnichannel Communication
 
-| Channel | Capabilities |
-|---------|--------------|
+| Channel               | Capabilities                                                                        |
+| --------------------- | ----------------------------------------------------------------------------------- |
 | **WhatsApp Business** | Template messaging, rich media, consent tracking, multi-language support (RO/EN/DE) |
-| **Voice (Vapi)** | Outbound calls, transcript analysis, keyword extraction, automated summaries |
-| **Web Forms** | Lead capture with UTM tracking, GDPR consent collection |
-| **Email** | Integration-ready with HubSpot workflows |
+| **Voice (Vapi)**      | Outbound calls, transcript analysis, keyword extraction, automated summaries        |
+| **Web Forms**         | Lead capture with UTM tracking, GDPR consent collection                             |
+| **Email**             | Integration-ready with HubSpot workflows                                            |
 
 ### Enterprise Infrastructure
 
-| Component | Description |
-|-----------|-------------|
-| **CQRS + Event Sourcing** | Command/Query separation with aggregate roots, projections, and complete audit trails |
-| **Circuit Breaker** | Resilient external service calls with automatic fallback and registry management |
-| **Durable Workflows** | Trigger.dev-powered background processing with automatic retries and idempotency |
-| **Observability** | OpenTelemetry instrumentation, Prometheus metrics, structured logging with correlation IDs |
-| **HIPAA-Compliant Logging** | Medical-grade PII redaction with pattern-based detection and explicit field enumeration |
+| Component                   | Description                                                                                |
+| --------------------------- | ------------------------------------------------------------------------------------------ |
+| **CQRS + Event Sourcing**   | Command/Query separation with aggregate roots, projections, and complete audit trails      |
+| **Circuit Breaker**         | Resilient external service calls with automatic fallback and registry management           |
+| **Durable Workflows**       | Trigger.dev-powered background processing with automatic retries and idempotency           |
+| **Observability**           | OpenTelemetry instrumentation, Prometheus metrics, structured logging with correlation IDs |
+| **HIPAA-Compliant Logging** | Medical-grade PII redaction with pattern-based detection and explicit field enumeration    |
 
 ### Security & Compliance
 
-| Feature | Implementation |
-|---------|----------------|
-| **GDPR Consent Management** | Explicit consent tracking, automatic renewal reminders, audit trails |
-| **PII Redaction** | Automatic redaction of 50+ PII fields including Romanian CNP, phone, email, medical history |
-| **Authentication** | Session management, password policies, rate limiting, login attempt tracking |
-| **Webhook Security** | HMAC signature verification for WhatsApp, Stripe, Vapi webhooks |
-| **TLS/SSL** | Redis TLS support, secure database connections |
+| Feature                     | Implementation                                                                              |
+| --------------------------- | ------------------------------------------------------------------------------------------- |
+| **GDPR Consent Management** | Explicit consent tracking, automatic renewal reminders, audit trails                        |
+| **PII Redaction**           | Automatic redaction of 50+ PII fields including Romanian CNP, phone, email, medical history |
+| **Authentication**          | Session management, password policies, rate limiting, login attempt tracking                |
+| **Webhook Security**        | HMAC signature verification for WhatsApp, Stripe, Vapi webhooks                             |
+| **TLS/SSL**                 | Redis TLS support, secure database connections                                              |
 
 ### Intelligent Automation
 
-| Workflow | Description |
-|----------|-------------|
-| **Patient Journey** | Automated nurture sequences based on lead score and engagement |
+| Workflow                  | Description                                                       |
+| ------------------------- | ----------------------------------------------------------------- |
+| **Patient Journey**       | Automated nurture sequences based on lead score and engagement    |
 | **Appointment Reminders** | 24h and 2h automated WhatsApp reminders with consent verification |
-| **Daily Recall** | Automatic follow-up for patients due for 6-month checkups |
-| **Lead Scoring Refresh** | Nightly re-scoring of inactive leads |
-| **GDPR Consent Audit** | Daily check for expiring consent with automatic renewal requests |
-| **Stale Lead Cleanup** | Weekly archival of leads with 90+ days inactivity |
-| **Weekly Analytics** | Automated performance reports with conversion metrics |
+| **Daily Recall**          | Automatic follow-up for patients due for 6-month checkups         |
+| **Lead Scoring Refresh**  | Nightly re-scoring of inactive leads                              |
+| **GDPR Consent Audit**    | Daily check for expiring consent with automatic renewal requests  |
+| **Stale Lead Cleanup**    | Weekly archival of leads with 90+ days inactivity                 |
+| **Weekly Analytics**      | Automated performance reports with conversion metrics             |
 
 ### Web Dashboard
 
-| Feature | Description |
-|---------|-------------|
-| **Real-time Inbox** | Unified view of WhatsApp, voice, and web conversations |
-| **AI Copilot Panel** | Context-aware chat, smart suggestions, patient summaries |
+| Feature                     | Description                                                     |
+| --------------------------- | --------------------------------------------------------------- |
+| **Real-time Inbox**         | Unified view of WhatsApp, voice, and web conversations          |
+| **AI Copilot Panel**        | Context-aware chat, smart suggestions, patient summaries        |
 | **Visual Workflow Builder** | Drag-and-drop automation with triggers, conditions, and actions |
-| **Analytics Dashboard** | Conversion funnels, operator performance, lead source analysis |
-| **Push Notifications** | Browser notifications for urgencies, new leads, appointments |
-| **Quick Search** | Keyboard-driven command palette (Cmd+K) |
-| **Data Export** | CSV and XLSX export for leads, appointments, reports |
+| **Analytics Dashboard**     | Conversion funnels, operator performance, lead source analysis  |
+| **Push Notifications**      | Browser notifications for urgencies, new leads, appointments    |
+| **Quick Search**            | Keyboard-driven command palette (Cmd+K)                         |
+| **Data Export**             | CSV and XLSX export for leads, appointments, reports            |
 
 ## Architecture
 
@@ -166,6 +168,7 @@ pnpm dev
 ```
 
 Verify installation:
+
 ```bash
 curl http://localhost:3000/health
 # {"status":"healthy","timestamp":"..."}
@@ -173,25 +176,27 @@ curl http://localhost:3000/health
 
 ## Packages
 
-| Package | Description |
-|---------|-------------|
-| `@medicalcor/api` | Fastify webhook gateway with AI routes |
-| `@medicalcor/trigger` | Trigger.dev workflows, tasks, and cron jobs |
-| `@medicalcor/web` | Next.js admin dashboard with AI copilot |
-| `@medicalcor/core` | CQRS, event sourcing, AI gateway, RAG, auth, observability |
-| `@medicalcor/types` | Zod schemas for all domains |
-| `@medicalcor/domain` | Scoring, triage, consent, language services |
-| `@medicalcor/integrations` | HubSpot, WhatsApp, OpenAI, Vapi, Stripe clients |
+| Package                    | Description                                                |
+| -------------------------- | ---------------------------------------------------------- |
+| `@medicalcor/api`          | Fastify webhook gateway with AI routes                     |
+| `@medicalcor/trigger`      | Trigger.dev workflows, tasks, and cron jobs                |
+| `@medicalcor/web`          | Next.js admin dashboard with AI copilot                    |
+| `@medicalcor/core`         | CQRS, event sourcing, AI gateway, RAG, auth, observability |
+| `@medicalcor/types`        | Zod schemas for all domains                                |
+| `@medicalcor/domain`       | Scoring, triage, consent, language services                |
+| `@medicalcor/integrations` | HubSpot, WhatsApp, OpenAI, Vapi, Stripe clients            |
 
 ## Tech Stack
 
 ### Runtime & Build
+
 - **Runtime**: Node.js 20+
 - **Package Manager**: pnpm 9+
 - **Build System**: Turborepo
 - **Language**: TypeScript 5.6 (strict mode)
 
 ### Backend
+
 - **API Framework**: Fastify 5
 - **Background Jobs**: Trigger.dev v3
 - **Database**: PostgreSQL 15 + pgvector
@@ -199,23 +204,27 @@ curl http://localhost:3000/health
 - **Validation**: Zod
 
 ### Frontend
+
 - **Framework**: Next.js 15
 - **Styling**: Tailwind CSS
 - **State**: React hooks
 
 ### AI & ML
+
 - **LLM**: OpenAI GPT-4o
 - **Voice**: Vapi
 - **Embeddings**: text-embedding-3-small
 - **Vector Search**: pgvector
 
 ### Observability
+
 - **Tracing**: OpenTelemetry
 - **Metrics**: Prometheus-compatible
 - **Logging**: Pino with PII redaction
 - **Error Tracking**: Sentry
 
 ### Testing
+
 - **Unit/Integration**: Vitest
 - **Mocking**: MSW (Mock Service Worker)
 - **E2E**: Playwright
@@ -247,44 +256,45 @@ pnpm typecheck        # Run TypeScript checks
 
 ### Essential Guides
 
-| Document | Description |
-|----------|-------------|
-| [Getting Started](./docs/README/GETTING_STARTED.md) | Complete setup guide |
-| [Architecture](./docs/README/ARCHITECTURE.md) | System design and data flow |
-| [API Reference](./docs/README/API_REFERENCE.md) | Endpoint documentation |
-| [Configuration](./docs/README/CONFIGURATION.md) | Environment variables |
+| Document                                            | Description                 |
+| --------------------------------------------------- | --------------------------- |
+| [Getting Started](./docs/README/GETTING_STARTED.md) | Complete setup guide        |
+| [Architecture](./docs/README/ARCHITECTURE.md)       | System design and data flow |
+| [API Reference](./docs/README/API_REFERENCE.md)     | Endpoint documentation      |
+| [Configuration](./docs/README/CONFIGURATION.md)     | Environment variables       |
 
 ### Development
 
-| Document | Description |
-|----------|-------------|
-| [Development Guide](./docs/README/DEVELOPMENT.md) | Contributing guidelines |
-| [Testing Guide](./docs/README/TESTING.md) | Test patterns and coverage |
-| [E2E Setup Guide](./docs/README/E2E_SETUP.md) | End-to-end test configuration |
-| [Troubleshooting](./docs/README/TROUBLESHOOTING.md) | Common issues |
+| Document                                            | Description                   |
+| --------------------------------------------------- | ----------------------------- |
+| [Development Guide](./docs/README/DEVELOPMENT.md)   | Contributing guidelines       |
+| [Testing Guide](./docs/README/TESTING.md)           | Test patterns and coverage    |
+| [E2E Setup Guide](./docs/README/E2E_SETUP.md)       | End-to-end test configuration |
+| [Troubleshooting](./docs/README/TROUBLESHOOTING.md) | Common issues                 |
 
 ### Operations
 
-| Document | Description |
-|----------|-------------|
+| Document                                  | Description           |
+| ----------------------------------------- | --------------------- |
 | [Deployment](./docs/README/DEPLOYMENT.md) | Production deployment |
-| [Security](./docs/README/SECURITY.md) | Security architecture |
-| [Monitoring](./docs/README/MONITORING.md) | Observability setup |
-| [Workflows](./docs/README/WORKFLOWS.md) | Trigger.dev workflows |
+| [Security](./docs/README/SECURITY.md)     | Security architecture |
+| [Monitoring](./docs/README/MONITORING.md) | Observability setup   |
+| [Workflows](./docs/README/WORKFLOWS.md)   | Trigger.dev workflows |
 
 ### Reference
 
-| Document | Description |
-|----------|-------------|
-| [FAQ](./docs/README/FAQ.md) | Frequently asked questions |
-| [Glossary](./docs/README/GLOSSARY.md) | Domain terminology |
-| [Changelog](./docs/README/CHANGELOG.md) | Version history |
+| Document                                | Description                |
+| --------------------------------------- | -------------------------- |
+| [FAQ](./docs/README/FAQ.md)             | Frequently asked questions |
+| [Glossary](./docs/README/GLOSSARY.md)   | Domain terminology         |
+| [Changelog](./docs/README/CHANGELOG.md) | Version history            |
 
 ## Environment Setup
 
 Copy `.env.example` to `.env` and configure your credentials. See [Configuration Guide](./docs/README/CONFIGURATION.md) for details.
 
 Required integrations:
+
 - **HubSpot** - CRM integration
 - **WhatsApp Business API** - Messaging
 - **OpenAI** - AI scoring and embeddings

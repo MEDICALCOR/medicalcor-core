@@ -49,11 +49,9 @@ Learn how to upload a file to the Shelby network from a Browser environment
 
 This guide demonstrates how to upload files to the Shelby network from a browser environment. Before proceeding, ensure you have:
 
-  * A basic understanding of React and TypeScript
-  * An Aptos wallet configured for the Shelby network
-  * ShelbyUSD tokens for file uploads (1 ShelbyUSD per upload)
-
-
+- A basic understanding of React and TypeScript
+- An Aptos wallet configured for the Shelby network
+- ShelbyUSD tokens for file uploads (1 ShelbyUSD per upload)
 
 ## Environment Setup
 
@@ -62,19 +60,17 @@ To integrate with Aptos wallets, this guide uses the [Aptos Wallet Adapter packa
 ### Install the Wallet Adapter Package
 
 Install the required wallet adapter dependency:
-    
-    
+
     npm install @aptos-labs/wallet-adapter-react
 
 ### Configure the Wallet Provider
 
 Initialize the `AptosWalletAdapterProvider` in your application:
-    
-    
+
     import { AptosWalletAdapterProvider } from "@aptos-labs/wallet-adapter-react";
     import { PropsWithChildren } from "react";
     import { Network } from "@aptos-labs/ts-sdk";
-    
+
     export const WalletProvider = ({ children }: PropsWithChildren) => {
     return (
       <AptosWalletAdapterProvider
@@ -98,35 +94,32 @@ Initialize the `AptosWalletAdapterProvider` in your application:
 
 Uploading a file to the Shelby network involves three sequential steps:
 
-  1. **File Encoding** : Split the file into chunks and generate commitment hashes
-  2. **On-Chain Registration** : Submit a transaction to register the file metadata
-  3. **RPC Upload** : Upload the actual file data to Shelby storage providers
-
-
+1. **File Encoding** : Split the file into chunks and generate commitment hashes
+2. **On-Chain Registration** : Submit a transaction to register the file metadata
+3. **RPC Upload** : Upload the actual file data to Shelby storage providers
 
 ### Step 1: File Encoding
 
 File encoding involves splitting the file into chunks, generating commitment hashes for each chunk, and creating a blob merkle root hash. These hashes are used for verification with storage providers.
-    
-    
+
     import {
       type BlobCommitments,
       createDefaultErasureCodingProvider,
       generateCommitments,
     } from "@shelby-protocol/sdk/browser";
-    
+
     export const encodeFile = async (file: File): Promise<BlobCommitments> => {
       // Convert file to Buffer format
       const data = Buffer.isBuffer(file)
         ? file
         : Buffer.from(await file.arrayBuffer());
-    
+
       // Create the erasure coding provider
       const provider = await createDefaultErasureCodingProvider();
-    
+
       // Generate commitment hashes for the file
       const commitments = await generateCommitments(provider, data);
-    
+
       return commitments;
     };
 
@@ -135,13 +128,12 @@ File encoding involves splitting the file into chunks, generating commitment has
 Before uploading, ensure your account has sufficient ShelbyUSD tokens. Visit the [Shelby faucet](../../../../apis/faucet/shelbyusd) to fund your account if needed.
 
 Register the file metadata on the Aptos blockchain by creating and submitting a transaction:
-    
-    
+
     import {
       expectedTotalChunksets,
       ShelbyBlobClient,
     } from "@shelby-protocol/sdk/browser";
-    
+
     // Create the registration transaction payload
     const payload = ShelbyBlobClient.createRegisterBlobPayload({
       account: account.address,
@@ -156,41 +148,36 @@ Submit the transaction using the wallet adapter:
 
 Ensure your wallet is configured for the Shelby network. Petra (and some other wallets) wallet lets you define a custom network, create one called `shelbynet` and use these settings:
 
-  * **Node URL** : <https://api.shelbynet.shelby.xyz/v1>
-  * **Faucet URL** : <https://faucet.shelbynet.shelby.xyz>
-  * **Indexer URL** : <https://api.shelbynet.shelby.xyz/v1/graphql>
-
-
+- **Node URL** : <https://api.shelbynet.shelby.xyz/v1>
+- **Faucet URL** : <https://faucet.shelbynet.shelby.xyz>
+- **Indexer URL** : <https://api.shelbynet.shelby.xyz/v1/graphql>
 
 In addition, to upload a file, you will need your account to have two assets:
 
-  * **APT tokens** : Used to pay for gas fees when sending transactions
-  * **ShelbyUSD tokens** : Used to pay for the upload the file to the Shelby network
-
-
+- **APT tokens** : Used to pay for gas fees when sending transactions
+- **ShelbyUSD tokens** : Used to pay for the upload the file to the Shelby network
 
 To fund your account with ShelbyUSD tokens, you can provide your account address to the **Shelby Faucet** found below.
 
 ### Faucet
 
 Submit the previously created register blob payload with the wallet
-    
-    
+
     import { Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
     import {
       type InputTransactionData,
       useWallet,
     } from "@aptos-labs/wallet-adapter-react";
-    
+
     const { signAndSubmitTransaction } = useWallet();
-    
+
     // Submit the registration transaction
     const transaction: InputTransactionData = {
       data: payload,
     };
-    
+
     const transactionSubmitted = await signAndSubmitTransaction(transaction);
-    
+
     // Initialize Aptos client
     export const aptosClient = new Aptos(
       new AptosConfig({
@@ -200,7 +187,7 @@ Submit the previously created register blob payload with the wallet
         },
       })
     );
-    
+
     // Wait for transaction confirmation
     await aptosClient.waitForTransaction({
       transactionHash: transactionSubmitted.hash,
@@ -211,20 +198,19 @@ Submit the previously created register blob payload with the wallet
 After successful on-chain registration, upload the file data to the Shelby RPC. The RPC validates the file against the registered commitment hashes before accepting the upload.
 
 **Important** : The RPC upload must occur after on-chain registration, as the RPC verifies the file's registration status before processing the upload.
-    
-    
+
     import { ShelbyClient } from "@shelby-protocol/sdk/browser";
     import { Network } from "@aptos-labs/ts-sdk";
     import { useWallet } from "@aptos-labs/wallet-adapter-react";
-    
+
     const { account } = useWallet();
-    
+
     // Initialize Shelby client
     const shelbyClient = new ShelbyClient({
       network: Network.SHELBYNET,
       apiKey: process.env.SHELBY_API_KEY,
     });
-    
+
     // Upload file data to Shelby RPC
     await shelbyClient.rpc.putBlob({
       account: account.address,

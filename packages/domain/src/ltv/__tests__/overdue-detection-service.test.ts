@@ -135,13 +135,18 @@ describe('OverdueDetectionService', () => {
     it('should throw error when repository not configured', async () => {
       const svcWithoutDeps = createOverdueDetectionService();
 
-      await expect(svcWithoutDeps.detectOverdueInstallments(null, 'test'))
-        .rejects.toThrow('OverdueDetectionService dependencies not configured');
+      await expect(svcWithoutDeps.detectOverdueInstallments(null, 'test')).rejects.toThrow(
+        'OverdueDetectionService dependencies not configured'
+      );
     });
   });
 
   describe('determineReminderLevel', () => {
-    const testCases: Array<{ daysOverdue: number; reminderCount: number; expected: ReminderLevel }> = [
+    const testCases: Array<{
+      daysOverdue: number;
+      reminderCount: number;
+      expected: ReminderLevel;
+    }> = [
       { daysOverdue: 1, reminderCount: 0, expected: 'first' },
       { daysOverdue: 5, reminderCount: 0, expected: 'first' },
       { daysOverdue: 7, reminderCount: 1, expected: 'second' },

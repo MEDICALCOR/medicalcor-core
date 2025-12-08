@@ -13,20 +13,11 @@
  * @todo Implement message storage database
  */
 
-import type {
-  Conversation,
-  Message,
-  HubSpotContact,
-  PaginatedResponse,
-} from '@medicalcor/types';
+import type { Conversation, Message, HubSpotContact, PaginatedResponse } from '@medicalcor/types';
 import { requirePermission } from '@/lib/auth/server-action-auth';
 import { getHubSpotClient } from '../shared/clients';
 import { validatePageSize, emptyPaginatedResponse } from '../shared/pagination';
-import {
-  maskPhone,
-  detectChannel,
-  mapConversationStatus,
-} from '../shared/mappers';
+import { maskPhone, detectChannel, mapConversationStatus } from '../shared/mappers';
 
 // ============================================================================
 // CONSTANTS
@@ -62,9 +53,8 @@ const DEFAULT_PHONE = '+40700000000';
  */
 function mapContactToConversation(contact: HubSpotContact): Conversation {
   const name =
-    [contact.properties.firstname, contact.properties.lastname]
-      .filter(Boolean)
-      .join(' ') || 'Unknown';
+    [contact.properties.firstname, contact.properties.lastname].filter(Boolean).join(' ') ||
+    'Unknown';
 
   const channel = detectChannel(contact.properties.lead_source);
   const status = mapConversationStatus(contact.properties.lead_status);

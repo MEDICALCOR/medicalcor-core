@@ -8,12 +8,12 @@ An Architecture Decision Record (ADR) captures an important architectural decisi
 
 ## ADR Index
 
-| ADR | Title | Status | Date |
-|-----|-------|--------|------|
-| [001](./001-hexagonal-architecture.md) | Hexagonal Architecture (Ports & Adapters) | ACCEPTED | 2024-11-30 |
-| [002](./002-cloud-agnostic-strategy.md) | Cloud-Agnostic Multi-Cloud Strategy | ACCEPTED | 2024-11-30 |
-| [003](./003-architecture-improvements.md) | Architecture Improvements Roadmap | PROPOSED | 2024-12-02 |
-| [004](./004-cognitive-episodic-memory.md) | Cognitive Episodic Memory System | PROPOSED | 2024-12-02 |
+| ADR                                       | Title                                     | Status   | Date       |
+| ----------------------------------------- | ----------------------------------------- | -------- | ---------- |
+| [001](./001-hexagonal-architecture.md)    | Hexagonal Architecture (Ports & Adapters) | ACCEPTED | 2024-11-30 |
+| [002](./002-cloud-agnostic-strategy.md)   | Cloud-Agnostic Multi-Cloud Strategy       | ACCEPTED | 2024-11-30 |
+| [003](./003-architecture-improvements.md) | Architecture Improvements Roadmap         | PROPOSED | 2024-12-02 |
+| [004](./004-cognitive-episodic-memory.md) | Cognitive Episodic Memory System          | PROPOSED | 2024-12-02 |
 
 ## ADR Status Lifecycle
 
@@ -42,18 +42,23 @@ PROPOSED → ACCEPTED → DEPRECATED
 # ADR-XXX: Title
 
 ## Status
+
 PROPOSED | ACCEPTED | DEPRECATED | SUPERSEDED by [ADR-YYY](./YYY-title.md)
 
 ## Context
+
 What is the issue that we're seeing that motivates this decision?
 
 ## Decision
+
 What is the change that we're proposing?
 
 ## Consequences
+
 What becomes easier or more difficult because of this change?
 
 ## Alternatives Considered
+
 What other options were evaluated?
 ```
 

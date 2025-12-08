@@ -27,6 +27,7 @@ zig build -Doptimize=ReleaseFast
 ### TOON Enforcement Rules
 
 The Zig implementation enforces TOON format when:
+
 - ✅ Arrays with ≥5 items
 - ✅ ≥60% field uniformity across objects
 - ✅ Flat object structure (not deeply nested)
@@ -35,6 +36,7 @@ The Zig implementation enforces TOON format when:
 ### Commands
 
 #### `check <file>`
+
 Determines if JSON file should use TOON format.
 
 ```bash
@@ -43,10 +45,12 @@ $ ./zig-out/bin/toon check api-endpoints.json
 ```
 
 Exit codes:
+
 - `0`: TOON recommended
 - `1`: JSON recommended (keep as-is)
 
 #### `encode <file>`
+
 Converts JSON to TOON format.
 
 ```bash
@@ -63,6 +67,7 @@ $ ./zig-out/bin/toon encode endpoints.json
 ```
 
 #### `decode <file>`
+
 Converts TOON format back to JSON.
 
 ```bash
@@ -127,11 +132,11 @@ jobs:
 
 The Zig implementation is **significantly faster** than TypeScript/Node.js:
 
-| Operation | TypeScript | Zig | Speedup |
-|-----------|-----------|-----|---------|
-| Encode 1K items | ~45ms | ~2ms | **22.5x** |
-| Decode 1K items | ~38ms | ~1.8ms | **21.1x** |
-| Check 1K items | ~12ms | ~0.8ms | **15x** |
+| Operation       | TypeScript | Zig    | Speedup   |
+| --------------- | ---------- | ------ | --------- |
+| Encode 1K items | ~45ms      | ~2ms   | **22.5x** |
+| Decode 1K items | ~38ms      | ~1.8ms | **21.1x** |
+| Check 1K items  | ~12ms      | ~0.8ms | **15x**   |
 
 Benchmarks run on M1 MacBook Pro.
 
@@ -202,7 +207,8 @@ export async function validate(context: any) {
   } catch (error) {
     return {
       level: 'warning',
-      message: 'Some JSON arrays in TOON docs should use TOON format.\nRun: .claude/utils/toon/enforce-toon.sh --fix'
+      message:
+        'Some JSON arrays in TOON docs should use TOON format.\nRun: .claude/utils/toon/enforce-toon.sh --fix',
     };
   }
 }
@@ -210,7 +216,7 @@ export async function validate(context: any) {
 
 ### Command Integration
 
-```markdown
+````markdown
 # .claude/commands/enforce-toon.md
 
 # Enforce TOON Format
@@ -225,6 +231,8 @@ Execute the following workflow:
    ```bash
    .claude/utils/toon/enforce-toon.sh "$@"
    ```
+````
+
 ```
 
 ## Format Specification
@@ -234,3 +242,4 @@ See [README.md](./README.md) for complete TOON format specification and encoding
 ## License
 
 MIT - Same as claude-starter repository.
+```

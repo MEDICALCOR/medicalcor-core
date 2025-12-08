@@ -24,12 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { WebhookEvent, WebhookStatus, WebhookSource } from '../actions';
 
@@ -215,7 +210,12 @@ export function WebhookTable({
                       </Button>
                     </TableCell>
                     <TableCell>
-                      <div className={cn('inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium', status.bgColor)}>
+                      <div
+                        className={cn(
+                          'inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium',
+                          status.bgColor
+                        )}
+                      >
                         <StatusIcon className={cn('h-3.5 w-3.5', status.color)} />
                         <span className={status.color}>{status.label}</span>
                         {webhook.retryCount > 0 && (

@@ -391,17 +391,22 @@ export const queueSLAMonitor = schedules.task({
         };
 
         // Evaluate SLA status
-        const status = evaluateSLAStatus(queue.queueSid, queue.friendlyName, {
-          currentQueueSize: queueStats.currentSize,
-          longestWaitTime: queueStats.longestWaitTime,
-          averageWaitTime: queueStats.averageWaitTime,
-          availableAgents: workerStats.available,
-          busyAgents: workerStats.busy,
-          totalAgents: workerStats.totalWorkers,
-          callsHandledToday: queueStats.tasksToday,
-          callsAbandonedToday: 0, // Would need separate tracking
-          serviceLevel: 85, // Would need historical calculation
-        }, config);
+        const status = evaluateSLAStatus(
+          queue.queueSid,
+          queue.friendlyName,
+          {
+            currentQueueSize: queueStats.currentSize,
+            longestWaitTime: queueStats.longestWaitTime,
+            averageWaitTime: queueStats.averageWaitTime,
+            availableAgents: workerStats.available,
+            busyAgents: workerStats.busy,
+            totalAgents: workerStats.totalWorkers,
+            callsHandledToday: queueStats.tasksToday,
+            callsAbandonedToday: 0, // Would need separate tracking
+            serviceLevel: 85, // Would need historical calculation
+          },
+          config
+        );
 
         // Store status
         if (db) {
@@ -419,11 +424,13 @@ export const queueSLAMonitor = schedules.task({
 
             switch (breachType) {
               case 'wait_time_exceeded':
-                threshold = status.severity === 'critical' ? config.criticalWaitTime : config.maxWaitTime;
+                threshold =
+                  status.severity === 'critical' ? config.criticalWaitTime : config.maxWaitTime;
                 currentValue = status.longestWaitTime;
                 break;
               case 'queue_size_exceeded':
-                threshold = status.severity === 'critical' ? config.criticalQueueSize : config.maxQueueSize;
+                threshold =
+                  status.severity === 'critical' ? config.criticalQueueSize : config.maxQueueSize;
                 currentValue = status.currentQueueSize;
                 break;
               case 'abandon_rate_exceeded':
@@ -579,7 +586,8 @@ export const dailySLAReport = schedules.task({
         queue_name: string;
         breach_count: string;
         critical_count: string;
-      }>(`
+      }>(
+        `
         SELECT
           queue_sid,
           queue_name,
@@ -588,9 +596,11 @@ export const dailySLAReport = schedules.task({
         FROM queue_sla_breaches
         WHERE detected_at >= $1 AND detected_at < $2
         GROUP BY queue_sid, queue_name
-      `, [periodStart, periodEnd]);
+      `,
+        [periodStart, periodEnd]
+      );
 
-      const queueBreaches = breachResult.rows.map(row => ({
+      const queueBreaches = breachResult.rows.map((row) => ({
         queueSid: row.queue_sid,
         queueName: row.queue_name,
         totalBreaches: parseInt(row.breach_count, 10),

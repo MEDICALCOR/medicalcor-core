@@ -74,13 +74,11 @@ Python
 Java
 
 C#
-    
-    
+
     curl -X POST "https://api.shelbynet.shelby.xyz/shelby/v1/multipart-uploads/string/complete"
 
 200
-    
-    
+
     {
       "success": true
     }

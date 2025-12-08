@@ -17,58 +17,64 @@ This comprehensive code review analyzed the MedicalCor Core enterprise medical C
 
 ### Overall Assessment
 
-| Component | Score | Status |
-|-----------|-------|--------|
-| API App | 6.5/10 | Needs attention |
-| Web App | 7.8/10 | Good |
-| Trigger Workflows | 7.0/10 | Needs attention |
-| Shared Packages | 7.5/10 | Good |
-| **Overall** | **7.2/10** | **Good with critical fixes needed** |
+| Component         | Score      | Status                              |
+| ----------------- | ---------- | ----------------------------------- |
+| API App           | 6.5/10     | Needs attention                     |
+| Web App           | 7.8/10     | Good                                |
+| Trigger Workflows | 7.0/10     | Needs attention                     |
+| Shared Packages   | 7.5/10     | Good                                |
+| **Overall**       | **7.2/10** | **Good with critical fixes needed** |
 
 ### Issue Summary
 
 | Severity | Count | Action Required |
-|----------|-------|-----------------|
-| Critical | 6 | Immediate |
-| High | 12 | Within 1 week |
-| Medium | 28 | Within 2 weeks |
-| Low | 19 | Backlog |
+| -------- | ----- | --------------- |
+| Critical | 6     | Immediate       |
+| High     | 12    | Within 1 week   |
+| Medium   | 28    | Within 2 weeks  |
+| Low      | 19    | Backlog         |
 
 ---
 
 ## Critical Issues (Immediate Action Required)
 
 ### 1. Missing `crypto` Import - Runtime Crash
+
 - **File:** `apps/api/src/routes/ai.ts:294`
 - **Problem:** `crypto.randomUUID()` called without importing `crypto` module
 - **Impact:** Runtime error crashes the AI endpoint
 - **Fix:** Add `import { randomUUID } from 'crypto';` or use `import crypto from 'crypto';`
 
 ### 2. Backup Config Endpoint Exposes Infrastructure Details
+
 - **File:** `apps/api/src/routes/backup.ts:400-428`
 - **Problem:** `/backup/config` returns storage provider, bucket, encryption status without authentication
 - **Impact:** Information disclosure to attackers
 - **Fix:** Add API key authentication requirement
 
 ### 3. ChatGPT Plugin Placeholder Verification Token
+
 - **File:** `apps/api/src/routes/chatgpt-plugin.ts:40`
 - **Problem:** Falls back to `'REPLACE_WITH_OPENAI_TOKEN'` if env var not set
 - **Impact:** Any ChatGPT instance can access the plugin in production
 - **Fix:** Throw error if token not configured in production
 
 ### 4. Race Condition in Rate Limiter Counter
+
 - **File:** `packages/core/src/ai-gateway/user-rate-limiter.ts:533-539`
 - **Problem:** Non-atomic get/set pattern for counter increment
 - **Impact:** Rate limits can be bypassed under concurrent load
 - **Fix:** Use Redis `INCR` command for atomic operations
 
 ### 5. Missing Consent Check in Voice Handler
+
 - **File:** `apps/trigger/src/tasks/voice-handler.ts:89-193`
 - **Problem:** Voice call transcripts processed without GDPR consent validation
 - **Impact:** Potential GDPR violation
 - **Fix:** Add consent check matching `whatsapp-handler.ts` pattern
 
 ### 6. Non-Idempotent HubSpot Task Creation
+
 - **File:** `apps/trigger/src/workflows/patient-journey.ts:70-83`
 - **Problem:** Task creation retries can create duplicate tasks
 - **Impact:** Duplicate CRM records, data integrity issues
@@ -80,30 +86,30 @@ This comprehensive code review analyzed the MedicalCor Core enterprise medical C
 
 ### API App
 
-| Issue | Location | Description |
-|-------|----------|-------------|
-| WhatsApp Signature Verification | `routes/webhooks/whatsapp.ts:93` | `JSON.stringify(request.body)` may differ from raw body, causing valid webhooks to fail |
-| Circuit Breaker Reset Unauthenticated | `routes/health.ts:492-511` | `POST /health/circuit-breakers/:service/reset` has no auth - DoS vector |
-| Vapi Future Timestamps Allowed | `routes/webhooks/vapi.ts:46` | Allows timestamps 5 min in future, enabling replay attacks |
-| Duplicate Signal Handlers | `app.ts:393-394` + `index.ts:18-22` | Both register SIGTERM/SIGINT, causing race condition on shutdown |
-| Unsafe Date Parsing | `routes/webhooks/vapi.ts:220-222` | `new Date()` parsing can throw without try-catch |
+| Issue                                 | Location                            | Description                                                                             |
+| ------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------- |
+| WhatsApp Signature Verification       | `routes/webhooks/whatsapp.ts:93`    | `JSON.stringify(request.body)` may differ from raw body, causing valid webhooks to fail |
+| Circuit Breaker Reset Unauthenticated | `routes/health.ts:492-511`          | `POST /health/circuit-breakers/:service/reset` has no auth - DoS vector                 |
+| Vapi Future Timestamps Allowed        | `routes/webhooks/vapi.ts:46`        | Allows timestamps 5 min in future, enabling replay attacks                              |
+| Duplicate Signal Handlers             | `app.ts:393-394` + `index.ts:18-22` | Both register SIGTERM/SIGINT, causing race condition on shutdown                        |
+| Unsafe Date Parsing                   | `routes/webhooks/vapi.ts:220-222`   | `new Date()` parsing can throw without try-catch                                        |
 
 ### Trigger Workflows
 
-| Issue | Location | Description |
-|-------|----------|-------------|
+| Issue                          | Location                               | Description                                                             |
+| ------------------------------ | -------------------------------------- | ----------------------------------------------------------------------- |
 | Booking Transaction Not Atomic | `workflows/patient-journey.ts:627-727` | Appointment booked but HubSpot update failure leaves inconsistent state |
-| Race Condition in Slot Booking | `workflows/patient-journey.ts:482-515` | TOCTOU vulnerability between slot check and booking |
-| Concurrent Contact Updates | `tasks/whatsapp-handler.ts:104-111` | Simultaneous messages can create duplicate contacts |
-| Payment Race Condition | `tasks/payment-handler.ts:95-112` | Concurrent payments can overwrite each other |
+| Race Condition in Slot Booking | `workflows/patient-journey.ts:482-515` | TOCTOU vulnerability between slot check and booking                     |
+| Concurrent Contact Updates     | `tasks/whatsapp-handler.ts:104-111`    | Simultaneous messages can create duplicate contacts                     |
+| Payment Race Condition         | `tasks/payment-handler.ts:95-112`      | Concurrent payments can overwrite each other                            |
 
 ### Shared Packages
 
-| Issue | Location | Description |
-|-------|----------|-------------|
-| Phone Validation Inconsistency | Multiple files | Different regex patterns across `common.ts`, `whatsapp.ts`, `hubspot.ts` |
-| Retry Logic Missing Timeout Errors | `integrations/whatsapp.ts:457-466` | Network timeouts won't trigger retries |
-| Concurrent Slot Tracking Race | `core/ai-gateway/user-rate-limiter.ts:289-305` | Check-then-increment pattern has race condition |
+| Issue                              | Location                                       | Description                                                              |
+| ---------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------ |
+| Phone Validation Inconsistency     | Multiple files                                 | Different regex patterns across `common.ts`, `whatsapp.ts`, `hubspot.ts` |
+| Retry Logic Missing Timeout Errors | `integrations/whatsapp.ts:457-466`             | Network timeouts won't trigger retries                                   |
+| Concurrent Slot Tracking Race      | `core/ai-gateway/user-rate-limiter.ts:289-305` | Check-then-increment pattern has race condition                          |
 
 ---
 
@@ -182,6 +188,7 @@ This comprehensive code review analyzed the MedicalCor Core enterprise medical C
 ## Positive Findings
 
 ### Security Strengths
+
 - No `dangerouslySetInnerHTML` usage (XSS protected)
 - WebSocket auth token sent via message, not query params
 - Phone number masking for GDPR compliance
@@ -189,6 +196,7 @@ This comprehensive code review analyzed the MedicalCor Core enterprise medical C
 - Server actions require `requirePermission()` checks
 
 ### Architecture Strengths
+
 - Well-structured monorepo with clear separation
 - TypeScript strict mode throughout
 - Comprehensive Zod validation schemas
@@ -196,6 +204,7 @@ This comprehensive code review analyzed the MedicalCor Core enterprise medical C
 - Good error boundary implementation with Sentry
 
 ### Code Quality Strengths
+
 - Consistent use of Pino logger with redaction
 - Proper circuit breaker patterns (mostly)
 - Good use of `useMemo` in chart components
@@ -244,18 +253,18 @@ This comprehensive code review analyzed the MedicalCor Core enterprise medical C
 
 ## Files Requiring Immediate Attention
 
-| Priority | File | Line(s) | Issue |
-|----------|------|---------|-------|
-| P0 | `apps/api/src/routes/ai.ts` | 294 | Missing crypto import |
-| P0 | `apps/api/src/routes/backup.ts` | 400-428 | Unauth config endpoint |
-| P0 | `apps/api/src/routes/chatgpt-plugin.ts` | 40 | Placeholder token |
-| P0 | `packages/core/src/ai-gateway/user-rate-limiter.ts` | 533-539 | Race condition |
-| P0 | `apps/trigger/src/tasks/voice-handler.ts` | 89-193 | Missing consent |
-| P0 | `apps/trigger/src/workflows/patient-journey.ts` | 70-83 | Non-idempotent |
-| P1 | `apps/api/src/routes/webhooks/whatsapp.ts` | 93 | Signature verification |
-| P1 | `apps/api/src/routes/health.ts` | 492-511 | Unauth reset endpoint |
-| P1 | `apps/trigger/src/workflows/patient-journey.ts` | 627-727 | Non-atomic booking |
-| P1 | `apps/web/src/lib/realtime/use-websocket.ts` | 201-211 | Stale closure |
+| Priority | File                                                | Line(s) | Issue                  |
+| -------- | --------------------------------------------------- | ------- | ---------------------- |
+| P0       | `apps/api/src/routes/ai.ts`                         | 294     | Missing crypto import  |
+| P0       | `apps/api/src/routes/backup.ts`                     | 400-428 | Unauth config endpoint |
+| P0       | `apps/api/src/routes/chatgpt-plugin.ts`             | 40      | Placeholder token      |
+| P0       | `packages/core/src/ai-gateway/user-rate-limiter.ts` | 533-539 | Race condition         |
+| P0       | `apps/trigger/src/tasks/voice-handler.ts`           | 89-193  | Missing consent        |
+| P0       | `apps/trigger/src/workflows/patient-journey.ts`     | 70-83   | Non-idempotent         |
+| P1       | `apps/api/src/routes/webhooks/whatsapp.ts`          | 93      | Signature verification |
+| P1       | `apps/api/src/routes/health.ts`                     | 492-511 | Unauth reset endpoint  |
+| P1       | `apps/trigger/src/workflows/patient-journey.ts`     | 627-727 | Non-atomic booking     |
+| P1       | `apps/web/src/lib/realtime/use-websocket.ts`        | 201-211 | Stale closure          |
 
 ---
 
@@ -272,4 +281,4 @@ Addressing the P0 issues should be the immediate priority before any production 
 
 ---
 
-*Report generated by Claude Code Review*
+_Report generated by Claude Code Review_

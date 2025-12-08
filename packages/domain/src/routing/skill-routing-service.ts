@@ -204,7 +204,11 @@ export class SkillRoutingService {
       }
 
       // Step 5: Apply routing strategy to select best agent
-      const selectedAgent = this.selectAgent(qualifiedCandidates, strategy, effectiveRequirements.teamId);
+      const selectedAgent = this.selectAgent(
+        qualifiedCandidates,
+        strategy,
+        effectiveRequirements.teamId
+      );
 
       logger.info(
         {
@@ -486,8 +490,7 @@ export class SkillRoutingService {
     // Calculate language bonus
     if (requirements.preferredLanguages.length > 0) {
       const hasPreferred = requirements.preferredLanguages.some(
-        (lang) =>
-          agent.primaryLanguages.includes(lang) || agent.secondaryLanguages.includes(lang)
+        (lang) => agent.primaryLanguages.includes(lang) || agent.secondaryLanguages.includes(lang)
       );
       if (hasPreferred) {
         preferenceScore += 10;
@@ -697,7 +700,11 @@ export class SkillRoutingService {
               (c) => c.totalScore >= this.config.thresholds.minimumMatchScore
             );
             if (qualified.length > 0) {
-              const selected = this.selectAgent(qualified, this.config.defaultStrategy, expandedRequirements.teamId);
+              const selected = this.selectAgent(
+                qualified,
+                this.config.defaultStrategy,
+                expandedRequirements.teamId
+              );
               return {
                 decisionId,
                 timestamp: new Date(),
@@ -805,7 +812,10 @@ export class SkillRoutingService {
         if (!skill) {
           missingSkills.push(req.skillId);
         } else {
-          const profMatch = this.calculateProficiencyMatch(skill.proficiency, req.minimumProficiency);
+          const profMatch = this.calculateProficiencyMatch(
+            skill.proficiency,
+            req.minimumProficiency
+          );
           if (profMatch < 0.5) {
             missingSkills.push(`${req.skillId} (proficiency too low)`);
           }
@@ -856,7 +866,8 @@ export class SkillRoutingService {
     }
 
     // Check if agent has capacity
-    const capacityThreshold = agent.maxConcurrentTasks * this.config.thresholds.maxConcurrentTaskRatio;
+    const capacityThreshold =
+      agent.maxConcurrentTasks * this.config.thresholds.maxConcurrentTaskRatio;
     if (agent.currentTaskCount >= capacityThreshold) {
       logger.debug({ agentId, currentTasks: agent.currentTaskCount }, 'Agent at capacity');
       return [];
@@ -962,7 +973,8 @@ export class SkillRoutingService {
 
       for (const agent of agents) {
         // Check capacity
-        const capacityThreshold = agent.maxConcurrentTasks * this.config.thresholds.maxConcurrentTaskRatio;
+        const capacityThreshold =
+          agent.maxConcurrentTasks * this.config.thresholds.maxConcurrentTaskRatio;
         if (agent.currentTaskCount >= capacityThreshold) {
           continue;
         }

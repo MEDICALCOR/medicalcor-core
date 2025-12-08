@@ -5,6 +5,7 @@ Compare token usage between JSON and TOON formats without converting files.
 **Usage:** `/analyze-tokens <file-path>`
 
 **Examples:**
+
 - `/analyze-tokens data/users.json`
 - `/analyze-tokens api-response.json`
 
@@ -15,6 +16,7 @@ Compare token usage between JSON and TOON formats without converting files.
 Read the JSON file and parse the data.
 
 Validate:
+
 - File exists and is readable
 - Valid JSON syntax
 - Contains array data
@@ -24,19 +26,23 @@ Validate:
 Calculate key metrics:
 
 **Item Count:**
+
 - Total number of objects in array
 
 **Field Analysis:**
+
 - Extract all unique field names
 - Count how many objects have each field
 - Calculate field coverage percentages
 
 **Uniformity:**
+
 1. Find most common set of fields
 2. Count objects with that set
 3. Calculate: `(matching objects / total) × 100`
 
 **Show analysis:**
+
 ```
 Data Analysis:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -53,18 +59,22 @@ Field Coverage:
 ### 3. Estimate Token Usage
 
 **JSON tokens:**
+
 - Approximate: `(items × fields × 4) + overhead`
 - Overhead includes: brackets, braces, quotes, commas, colons
 
 **TOON tokens:**
+
 - Approximate: `20 (header) + (items × fields × 2)`
 - Savings from: no repeated field names, no JSON syntax
 
 **Calculate savings:**
+
 - Token difference: `JSON tokens - TOON tokens`
 - Percentage: `(difference / JSON tokens) × 100`
 
 **Show comparison:**
+
 ```
 Token Comparison:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -82,11 +92,13 @@ Reduction:     {percent}%
 ### 4. Per-Item Analysis
 
 Calculate token cost per item:
+
 - **JSON per item** = `total JSON tokens / item count`
 - **TOON per item** = `total TOON tokens / item count`
 - **Saved per item** = difference
 
 **Show:**
+
 ```
 Per-Item Token Cost:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -101,6 +113,7 @@ Saved: {tokens} tokens/item
 Provide clear recommendation based on metrics:
 
 **STRONG RECOMMENDATION (≥30% savings, ≥70% uniformity):**
+
 ```
 ✅ STRONG RECOMMENDATION: Use TOON format
 
@@ -113,6 +126,7 @@ Convert with: /convert-to-toon {filename}
 ```
 
 **RECOMMENDED (≥20% savings, ≥60% uniformity):**
+
 ```
 ✅ RECOMMENDED: TOON format offers benefits
 
@@ -123,6 +137,7 @@ Convert with: /convert-to-toon {filename}
 ```
 
 **MARGINAL (<30% savings or <60% uniformity):**
+
 ```
 ⚠️ MARGINAL: Limited TOON benefits
 
@@ -133,6 +148,7 @@ You can convert if needed, or keep as JSON for clarity.
 ```
 
 **NOT RECOMMENDED (<20% savings):**
+
 ```
 ❌ NOT RECOMMENDED: Keep as JSON
 

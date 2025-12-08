@@ -384,8 +384,7 @@ export class EventStore {
         causationId: input.causationId,
         // CRITICAL FIX: Use UUID instead of Date.now() to prevent idempotency key
         // collisions under high load (Date.now() only has millisecond precision)
-        idempotencyKey:
-          input.idempotencyKey ?? `${input.type}:${input.correlationId}:${uuidv4()}`,
+        idempotencyKey: input.idempotencyKey ?? `${input.type}:${input.correlationId}:${uuidv4()}`,
         timestamp: new Date().toISOString(),
         source: this.source,
       },

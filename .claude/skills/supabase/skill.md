@@ -14,17 +14,20 @@ Provide comprehensive, accurate guidance for building applications with Supabase
 ## Documentation Coverage
 
 **Full access to official Supabase documentation (when available):**
+
 - **Location:** `docs/supabase_com/`
 - **Files:** 2,616 markdown files
 - **Coverage:** Complete guides, API references, client libraries, and platform docs
 
 **Note:** Documentation must be pulled separately:
+
 ```bash
 pipx install docpull
 docpull https://supabase.com/docs -o .claude/skills/supabase/docs
 ```
 
 **Major Areas:**
+
 - **Database:** PostgreSQL, Row Level Security (RLS), migrations, functions, triggers
 - **Authentication:** Email/password, OAuth, magic links, SSO, MFA, phone auth
 - **Real-time:** Database changes, broadcast, presence, channels
@@ -38,6 +41,7 @@ docpull https://supabase.com/docs -o .claude/skills/supabase/docs
 ## When to Use
 
 Invoke when user mentions:
+
 - **Database:** PostgreSQL, Postgres, SQL, database, tables, queries, migrations
 - **Auth:** authentication, login, signup, OAuth, SSO, multi-factor, magic links
 - **Real-time:** real-time, subscriptions, websocket, live data, presence, broadcast
@@ -52,12 +56,14 @@ Invoke when user mentions:
 When answering questions:
 
 1. **Search for specific topics:**
+
    ```bash
    # Use Grep to find relevant docs
    grep -r "row level security" docs/supabase_com/ --include="*.md"
    ```
 
 2. **Find guides:**
+
    ```bash
    # Guides are organized by feature
    ls docs/supabase_com/guides_*
@@ -89,6 +95,7 @@ const supabase = createClient(
 ```
 
 **Environment Variables:**
+
 - `NEXT_PUBLIC_SUPABASE_URL` - Your project URL (safe for client)
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Anonymous/public key (safe for client)
 - `SUPABASE_SERVICE_ROLE_KEY` - Admin key (server-side only, bypasses RLS)
@@ -126,10 +133,7 @@ const { data, error } = await supabase
   .single();
 
 // Delete
-const { error } = await supabase
-  .from('posts')
-  .delete()
-  .eq('id', postId);
+const { error } = await supabase.from('posts').delete().eq('id', postId);
 
 // Upsert (insert or update)
 const { data, error } = await supabase
@@ -148,11 +152,13 @@ const { data, error } = await supabase
 // Joins
 const { data } = await supabase
   .from('posts')
-  .select(`
+  .select(
+    `
     *,
     author:profiles(name, avatar),
     comments(count)
-  `)
+  `
+  )
   .eq('published', true);
 
 // Full-text search
@@ -179,15 +185,12 @@ const { data } = await supabase
 
 ```typescript
 // Call stored procedure
-const { data, error } = await supabase
-  .rpc('get_user_stats', {
-    user_id: userId,
-  });
+const { data, error } = await supabase.rpc('get_user_stats', {
+  user_id: userId,
+});
 
 // Call with filters
-const { data } = await supabase
-  .rpc('search_posts', { search_term: 'supabase' })
-  .limit(10);
+const { data } = await supabase.rpc('search_posts', { search_term: 'supabase' }).limit(10);
 ```
 
 ## Authentication
@@ -241,6 +244,7 @@ const { data, error } = await supabase.auth.signInWithOAuth({
 ```
 
 **Supported providers:**
+
 - Google, GitHub, GitLab, Bitbucket
 - Azure, Apple, Discord, Facebook
 - Slack, Spotify, Twitch, Twitter/X
@@ -250,10 +254,14 @@ const { data, error } = await supabase.auth.signInWithOAuth({
 
 ```typescript
 // Get current user
-const { data: { user } } = await supabase.auth.getUser();
+const {
+  data: { user },
+} = await supabase.auth.getUser();
 
 // Get session
-const { data: { session } } = await supabase.auth.getSession();
+const {
+  data: { session },
+} = await supabase.auth.getSession();
 
 // Sign out
 const { error } = await supabase.auth.signOut();
@@ -467,9 +475,7 @@ const { data, error } = await supabase.storage
 
 ```typescript
 // Download as blob
-const { data, error } = await supabase.storage
-  .from('avatars')
-  .download('public/avatar.png');
+const { data, error } = await supabase.storage.from('avatars').download('public/avatar.png');
 
 const url = URL.createObjectURL(data);
 ```
@@ -478,9 +484,7 @@ const url = URL.createObjectURL(data);
 
 ```typescript
 // Get public URL (for public buckets)
-const { data } = supabase.storage
-  .from('avatars')
-  .getPublicUrl('public/avatar.png');
+const { data } = supabase.storage.from('avatars').getPublicUrl('public/avatar.png');
 
 console.log(data.publicUrl);
 ```
@@ -499,28 +503,24 @@ console.log(data.signedUrl);
 ### Image Transformations
 
 ```typescript
-const { data } = supabase.storage
-  .from('avatars')
-  .getPublicUrl('avatar.png', {
-    transform: {
-      width: 400,
-      height: 400,
-      resize: 'cover', // 'contain', 'cover', 'fill'
-      quality: 80,
-    },
-  });
+const { data } = supabase.storage.from('avatars').getPublicUrl('avatar.png', {
+  transform: {
+    width: 400,
+    height: 400,
+    resize: 'cover', // 'contain', 'cover', 'fill'
+    quality: 80,
+  },
+});
 ```
 
 ### List Files
 
 ```typescript
-const { data, error } = await supabase.storage
-  .from('avatars')
-  .list('public', {
-    limit: 100,
-    offset: 0,
-    sortBy: { column: 'created_at', order: 'desc' },
-  });
+const { data, error } = await supabase.storage.from('avatars').list('public', {
+  limit: 100,
+  offset: 0,
+  sortBy: { column: 'created_at', order: 'desc' },
+});
 ```
 
 ## Edge Functions
@@ -559,7 +559,10 @@ serve(async (req) => {
     );
 
     // Get authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
     if (authError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -569,10 +572,7 @@ serve(async (req) => {
     }
 
     // Query database
-    const { data: posts, error } = await supabase
-      .from('posts')
-      .select('*')
-      .eq('user_id', user.id);
+    const { data: posts, error } = await supabase.from('posts').select('*').eq('user_id', user.id);
 
     if (error) throw error;
 
@@ -643,12 +643,10 @@ const response = await openai.embeddings.create({
 const embedding = response.data[0].embedding;
 
 // Store in database
-const { data, error } = await supabase
-  .from('documents')
-  .insert({
-    content: 'Supabase is awesome',
-    embedding,
-  });
+const { data, error } = await supabase.from('documents').insert({
+  content: 'Supabase is awesome',
+  embedding,
+});
 ```
 
 ### Similarity Search
@@ -663,6 +661,7 @@ const { data, error } = await supabase.rpc('match_documents', {
 ```
 
 **Similarity search function:**
+
 ```sql
 CREATE FUNCTION match_documents (
   query_embedding VECTOR(1536),
@@ -756,7 +755,9 @@ export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   const supabase = createMiddlewareClient({ req, res });
 
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
   // Redirect to login if not authenticated
   if (!session && req.nextUrl.pathname.startsWith('/dashboard')) {
@@ -782,9 +783,7 @@ import { NextResponse } from 'next/server';
 export async function GET() {
   const supabase = createRouteHandlerClient({ cookies });
 
-  const { data: posts } = await supabase
-    .from('posts')
-    .select('*');
+  const { data: posts } = await supabase.from('posts').select('*');
 
   return NextResponse.json({ posts });
 }
@@ -793,11 +792,7 @@ export async function POST(request: Request) {
   const supabase = createRouteHandlerClient({ cookies });
   const body = await request.json();
 
-  const { data, error } = await supabase
-    .from('posts')
-    .insert(body)
-    .select()
-    .single();
+  const { data, error } = await supabase.from('posts').insert(body).select().single();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
@@ -897,90 +892,84 @@ supabase gen types typescript --local > types/supabase.ts
 
 ```typescript
 // lib/supabase/types.ts
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export interface Database {
   public: {
     Tables: {
       posts: {
         Row: {
-          id: string
-          created_at: string
-          title: string
-          content: string | null
-          user_id: string
-          published: boolean
-        }
+          id: string;
+          created_at: string;
+          title: string;
+          content: string | null;
+          user_id: string;
+          published: boolean;
+        };
         Insert: {
-          id?: string
-          created_at?: string
-          title: string
-          content?: string | null
-          user_id: string
-          published?: boolean
-        }
+          id?: string;
+          created_at?: string;
+          title: string;
+          content?: string | null;
+          user_id: string;
+          published?: boolean;
+        };
         Update: {
-          id?: string
-          created_at?: string
-          title?: string
-          content?: string | null
-          user_id?: string
-          published?: boolean
-        }
-      }
+          id?: string;
+          created_at?: string;
+          title?: string;
+          content?: string | null;
+          user_id?: string;
+          published?: boolean;
+        };
+      };
       profiles: {
         Row: {
-          id: string
-          name: string | null
-          avatar_url: string | null
-          created_at: string
-        }
+          id: string;
+          name: string | null;
+          avatar_url: string | null;
+          created_at: string;
+        };
         Insert: {
-          id: string
-          name?: string | null
-          avatar_url?: string | null
-          created_at?: string
-        }
+          id: string;
+          name?: string | null;
+          avatar_url?: string | null;
+          created_at?: string;
+        };
         Update: {
-          id?: string
-          name?: string | null
-          avatar_url?: string | null
-          created_at?: string
-        }
-      }
-    }
+          id?: string;
+          name?: string | null;
+          avatar_url?: string | null;
+          created_at?: string;
+        };
+      };
+    };
     Views: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     Functions: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     Enums: {
-      [_ in never]: never
-    }
-  }
+      [_ in never]: never;
+    };
+  };
 }
 
 // lib/supabase/client.ts
-import { createClient } from '@supabase/supabase-js'
-import { Database } from './types'
+import { createClient } from '@supabase/supabase-js';
+import { Database } from './types';
 
 export const supabase = createClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+);
 
 // Now you get full type safety!
 const { data } = await supabase
-  .from('posts')  // ✅ TypeScript knows this table exists
-  .select('title, content, profiles(name)')  // ✅ TypeScript validates columns
-  .eq('published', true)  // ✅ TypeScript validates types
+  .from('posts') // ✅ TypeScript knows this table exists
+  .select('title, content, profiles(name)') // ✅ TypeScript validates columns
+  .eq('published', true); // ✅ TypeScript validates types
 
 // data is typed as:
 // Array<{ title: string; content: string | null; profiles: { name: string | null } }>
@@ -990,23 +979,23 @@ const { data } = await supabase
 
 ```typescript
 // lib/supabase/client.ts - Client-side (respects RLS)
-import { createBrowserClient } from '@supabase/ssr'
-import { Database } from './types'
+import { createBrowserClient } from '@supabase/ssr';
+import { Database } from './types';
 
 export function createClient() {
   return createBrowserClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  );
 }
 
 // lib/supabase/server.ts - Server-side (Next.js App Router)
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { Database } from './types'
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+import { Database } from './types';
 
 export function createClient() {
-  const cookieStore = cookies()
+  const cookieStore = cookies();
 
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -1014,41 +1003,41 @@ export function createClient() {
     {
       cookies: {
         get(name: string) {
-          return cookieStore.get(name)?.value
+          return cookieStore.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions) {
           try {
-            cookieStore.set({ name, value, ...options })
+            cookieStore.set({ name, value, ...options });
           } catch (error) {
             // Called from Server Component - ignore
           }
         },
         remove(name: string, options: CookieOptions) {
           try {
-            cookieStore.set({ name, value: '', ...options })
+            cookieStore.set({ name, value: '', ...options });
           } catch (error) {
             // Called from Server Component - ignore
           }
         },
       },
     }
-  )
+  );
 }
 
 // lib/supabase/admin.ts - Admin client (bypasses RLS)
-import { createClient } from '@supabase/supabase-js'
-import { Database } from './types'
+import { createClient } from '@supabase/supabase-js';
+import { Database } from './types';
 
 export const supabaseAdmin = createClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,  // ⚠️ Server-side only!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!, // ⚠️ Server-side only!
   {
     auth: {
       autoRefreshToken: false,
-      persistSession: false
-    }
+      persistSession: false,
+    },
   }
-)
+);
 ```
 
 ## Next.js App Router Patterns
@@ -1087,44 +1076,46 @@ export default async function PostsPage() {
 
 ```typescript
 // app/actions/posts.ts
-'use server'
+'use server';
 
-import { createClient } from '@/lib/supabase/server'
-import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server';
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 
 export async function createPost(formData: FormData) {
-  const supabase = createClient()
+  const supabase = createClient();
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) {
-    redirect('/login')
+    redirect('/login');
   }
 
-  const title = formData.get('title') as string
-  const content = formData.get('content') as string
+  const title = formData.get('title') as string;
+  const content = formData.get('content') as string;
 
-  const { error } = await supabase
-    .from('posts')
-    .insert({
-      title,
-      content,
-      user_id: user.id,
-    })
+  const { error } = await supabase.from('posts').insert({
+    title,
+    content,
+    user_id: user.id,
+  });
 
   if (error) {
-    throw new Error(error.message)
+    throw new Error(error.message);
   }
 
-  revalidatePath('/posts')
-  redirect('/posts')
+  revalidatePath('/posts');
+  redirect('/posts');
 }
 
 export async function updatePost(id: string, formData: FormData) {
-  const supabase = createClient()
+  const supabase = createClient();
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Unauthorized')
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Unauthorized');
 
   const { error } = await supabase
     .from('posts')
@@ -1133,28 +1124,26 @@ export async function updatePost(id: string, formData: FormData) {
       content: formData.get('content') as string,
     })
     .eq('id', id)
-    .eq('user_id', user.id)  // Ensure user owns the post
+    .eq('user_id', user.id); // Ensure user owns the post
 
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(error.message);
 
-  revalidatePath('/posts')
+  revalidatePath('/posts');
 }
 
 export async function deletePost(id: string) {
-  const supabase = createClient()
+  const supabase = createClient();
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Unauthorized')
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Unauthorized');
 
-  const { error } = await supabase
-    .from('posts')
-    .delete()
-    .eq('id', id)
-    .eq('user_id', user.id)
+  const { error } = await supabase.from('posts').delete().eq('id', id).eq('user_id', user.id);
 
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(error.message);
 
-  revalidatePath('/posts')
+  revalidatePath('/posts');
 }
 ```
 
@@ -1223,38 +1212,40 @@ export function PostsList({ initialPosts }: { initialPosts: Post[] }) {
 
 ```typescript
 // app/api/posts/route.ts
-import { createClient } from '@/lib/supabase/server'
-import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
-  const supabase = createClient()
+  const supabase = createClient();
 
-  const { searchParams } = new URL(request.url)
-  const limit = parseInt(searchParams.get('limit') || '10')
+  const { searchParams } = new URL(request.url);
+  const limit = parseInt(searchParams.get('limit') || '10');
 
   const { data, error } = await supabase
     .from('posts')
     .select('*')
     .eq('published', true)
     .order('created_at', { ascending: false })
-    .limit(limit)
+    .limit(limit);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data)
+  return NextResponse.json(data);
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = createClient()
+  const supabase = createClient();
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const body = await request.json()
+  const body = await request.json();
 
   const { data, error } = await supabase
     .from('posts')
@@ -1263,13 +1254,13 @@ export async function POST(request: NextRequest) {
       user_id: user.id,
     })
     .select()
-    .single()
+    .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data)
+  return NextResponse.json(data);
 }
 ```
 
@@ -1279,58 +1270,58 @@ export async function POST(request: NextRequest) {
 
 ```typescript
 // app/actions/auth.ts
-'use server'
+'use server';
 
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
 
 export async function signUp(formData: FormData) {
-  const supabase = createClient()
+  const supabase = createClient();
 
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
-  const name = formData.get('name') as string
+  const email = formData.get('email') as string;
+  const password = formData.get('password') as string;
+  const name = formData.get('name') as string;
 
   const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: {
-        name,  // Stored in auth.users.raw_user_meta_data
+        name, // Stored in auth.users.raw_user_meta_data
       },
       emailRedirectTo: `${process.env.NEXT_PUBLIC_URL}/auth/callback`,
     },
-  })
+  });
 
   if (error) {
-    return { error: error.message }
+    return { error: error.message };
   }
 
-  return { success: true, message: 'Check your email to confirm your account' }
+  return { success: true, message: 'Check your email to confirm your account' };
 }
 
 export async function signIn(formData: FormData) {
-  const supabase = createClient()
+  const supabase = createClient();
 
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
+  const email = formData.get('email') as string;
+  const password = formData.get('password') as string;
 
   const { error } = await supabase.auth.signInWithPassword({
     email,
     password,
-  })
+  });
 
   if (error) {
-    return { error: error.message }
+    return { error: error.message };
   }
 
-  redirect('/dashboard')
+  redirect('/dashboard');
 }
 
 export async function signOut() {
-  const supabase = createClient()
-  await supabase.auth.signOut()
-  redirect('/')
+  const supabase = createClient();
+  await supabase.auth.signOut();
+  redirect('/');
 }
 ```
 
@@ -1339,7 +1330,7 @@ export async function signOut() {
 ```typescript
 // app/actions/auth.ts
 export async function signInWithGoogle() {
-  const supabase = createClient()
+  const supabase = createClient();
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
@@ -1350,15 +1341,15 @@ export async function signInWithGoogle() {
         prompt: 'consent',
       },
     },
-  })
+  });
 
   if (data?.url) {
-    redirect(data.url)
+    redirect(data.url);
   }
 }
 
 export async function signInWithGitHub() {
-  const supabase = createClient()
+  const supabase = createClient();
 
   const { data } = await supabase.auth.signInWithOAuth({
     provider: 'github',
@@ -1366,10 +1357,10 @@ export async function signInWithGitHub() {
       redirectTo: `${process.env.NEXT_PUBLIC_URL}/auth/callback`,
       scopes: 'read:user user:email',
     },
-  })
+  });
 
   if (data?.url) {
-    redirect(data.url)
+    redirect(data.url);
   }
 }
 ```
@@ -1378,20 +1369,20 @@ export async function signInWithGitHub() {
 
 ```typescript
 export async function sendMagicLink(email: string) {
-  const supabase = createClient()
+  const supabase = createClient();
 
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
       emailRedirectTo: `${process.env.NEXT_PUBLIC_URL}/auth/callback`,
     },
-  })
+  });
 
   if (error) {
-    return { error: error.message }
+    return { error: error.message };
   }
 
-  return { success: true, message: 'Check your email for the login link' }
+  return { success: true, message: 'Check your email for the login link' };
 }
 ```
 
@@ -1399,33 +1390,33 @@ export async function sendMagicLink(email: string) {
 
 ```typescript
 export async function sendPhoneOTP(phone: string) {
-  const supabase = createClient()
+  const supabase = createClient();
 
   const { error } = await supabase.auth.signInWithOtp({
     phone,
-  })
+  });
 
   if (error) {
-    return { error: error.message }
+    return { error: error.message };
   }
 
-  return { success: true }
+  return { success: true };
 }
 
 export async function verifyPhoneOTP(phone: string, token: string) {
-  const supabase = createClient()
+  const supabase = createClient();
 
   const { error } = await supabase.auth.verifyOtp({
     phone,
     token,
     type: 'sms',
-  })
+  });
 
   if (error) {
-    return { error: error.message }
+    return { error: error.message };
   }
 
-  redirect('/dashboard')
+  redirect('/dashboard');
 }
 ```
 
@@ -1434,31 +1425,31 @@ export async function verifyPhoneOTP(phone: string, token: string) {
 ```typescript
 // Enable MFA for user
 export async function enableMFA() {
-  const supabase = createClient()
+  const supabase = createClient();
 
   const { data, error } = await supabase.auth.mfa.enroll({
     factorType: 'totp',
     friendlyName: 'Authenticator App',
-  })
+  });
 
-  if (error) throw error
+  if (error) throw error;
 
   // data.totp.qr_code - QR code to scan
   // data.totp.secret - Secret to enter manually
-  return data
+  return data;
 }
 
 // Verify MFA
 export async function verifyMFA(factorId: string, code: string) {
-  const supabase = createClient()
+  const supabase = createClient();
 
   const { data, error } = await supabase.auth.mfa.challengeAndVerify({
     factorId,
     code,
-  })
+  });
 
-  if (error) throw error
-  return data
+  if (error) throw error;
+  return data;
 }
 ```
 
@@ -1466,20 +1457,20 @@ export async function verifyMFA(factorId: string, code: string) {
 
 ```typescript
 // app/auth/callback/route.ts
-import { createClient } from '@/lib/supabase/server'
-import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
-  const requestUrl = new URL(request.url)
-  const code = requestUrl.searchParams.get('code')
+  const requestUrl = new URL(request.url);
+  const code = requestUrl.searchParams.get('code');
 
   if (code) {
-    const supabase = createClient()
-    await supabase.auth.exchangeCodeForSession(code)
+    const supabase = createClient();
+    await supabase.auth.exchangeCodeForSession(code);
   }
 
   // Redirect to dashboard or wherever
-  return NextResponse.redirect(new URL('/dashboard', request.url))
+  return NextResponse.redirect(new URL('/dashboard', request.url));
 }
 ```
 
@@ -1487,15 +1478,15 @@ export async function GET(request: NextRequest) {
 
 ```typescript
 // middleware.ts
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { NextResponse, type NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
-  })
+  });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -1503,64 +1494,66 @@ export async function middleware(request: NextRequest) {
     {
       cookies: {
         get(name: string) {
-          return request.cookies.get(name)?.value
+          return request.cookies.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions) {
           request.cookies.set({
             name,
             value,
             ...options,
-          })
+          });
           response = NextResponse.next({
             request: {
               headers: request.headers,
             },
-          })
+          });
           response.cookies.set({
             name,
             value,
             ...options,
-          })
+          });
         },
         remove(name: string, options: CookieOptions) {
           request.cookies.set({
             name,
             value: '',
             ...options,
-          })
+          });
           response = NextResponse.next({
             request: {
               headers: request.headers,
             },
-          })
+          });
           response.cookies.set({
             name,
             value: '',
             ...options,
-          })
+          });
         },
       },
     }
-  )
+  );
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   // Protect dashboard routes
   if (request.nextUrl.pathname.startsWith('/dashboard') && !user) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
   // Redirect authenticated users away from auth pages
   if (request.nextUrl.pathname.startsWith('/login') && user) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  return response
+  return response;
 }
 
 export const config = {
   matcher: ['/dashboard/:path*', '/login', '/signup'],
-}
+};
 ```
 
 ## Advanced Row Level Security
@@ -1780,28 +1773,20 @@ const channel = supabase
       event: 'UPDATE',
       schema: 'public',
       table: 'posts',
-      filter: 'id=eq.123',  // Specific row
+      filter: 'id=eq.123', // Specific row
     },
     (payload) => {
-      console.log('Post updated:', payload)
+      console.log('Post updated:', payload);
     }
   )
-  .subscribe()
+  .subscribe();
 
 // Listen to multiple tables
 const channel = supabase
   .channel('changes')
-  .on(
-    'postgres_changes',
-    { event: '*', schema: 'public', table: 'posts' },
-    handlePostChange
-  )
-  .on(
-    'postgres_changes',
-    { event: '*', schema: 'public', table: 'comments' },
-    handleCommentChange
-  )
-  .subscribe()
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, handlePostChange)
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, handleCommentChange)
+  .subscribe();
 ```
 
 ## Advanced Storage
@@ -1811,34 +1796,30 @@ const channel = supabase
 ```typescript
 // Upload with transformation
 export async function uploadAvatar(file: File, userId: string) {
-  const supabase = createClient()
+  const supabase = createClient();
 
-  const fileExt = file.name.split('.').pop()
-  const fileName = `${userId}-${Date.now()}.${fileExt}`
-  const filePath = `avatars/${fileName}`
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${userId}-${Date.now()}.${fileExt}`;
+  const filePath = `avatars/${fileName}`;
 
-  const { error: uploadError } = await supabase.storage
-    .from('avatars')
-    .upload(filePath, file, {
-      cacheControl: '3600',
-      upsert: false,
-    })
+  const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file, {
+    cacheControl: '3600',
+    upsert: false,
+  });
 
-  if (uploadError) throw uploadError
+  if (uploadError) throw uploadError;
 
   // Get transformed image URL
-  const { data } = supabase.storage
-    .from('avatars')
-    .getPublicUrl(filePath, {
-      transform: {
-        width: 200,
-        height: 200,
-        resize: 'cover',
-        quality: 80,
-      },
-    })
+  const { data } = supabase.storage.from('avatars').getPublicUrl(filePath, {
+    transform: {
+      width: 200,
+      height: 200,
+      resize: 'cover',
+      quality: 80,
+    },
+  });
 
-  return data.publicUrl
+  return data.publicUrl;
 }
 ```
 
@@ -1847,30 +1828,26 @@ export async function uploadAvatar(file: File, userId: string) {
 ```typescript
 // Generate signed URL (expires after 1 hour)
 export async function getPrivateFileUrl(path: string) {
-  const supabase = createClient()
+  const supabase = createClient();
 
-  const { data, error } = await supabase.storage
-    .from('private-files')
-    .createSignedUrl(path, 3600)  // 1 hour
+  const { data, error } = await supabase.storage.from('private-files').createSignedUrl(path, 3600); // 1 hour
 
-  if (error) throw error
+  if (error) throw error;
 
-  return data.signedUrl
+  return data.signedUrl;
 }
 
 // Upload to private bucket
 export async function uploadPrivateFile(file: File, userId: string) {
-  const supabase = createClient()
+  const supabase = createClient();
 
-  const filePath = `${userId}/${file.name}`
+  const filePath = `${userId}/${file.name}`;
 
-  const { error } = await supabase.storage
-    .from('private-files')
-    .upload(filePath, file)
+  const { error } = await supabase.storage.from('private-files').upload(filePath, file);
 
-  if (error) throw error
+  if (error) throw error;
 
-  return filePath
+  return filePath;
 }
 ```
 
@@ -1913,26 +1890,23 @@ CREATE POLICY "Users can delete their own files"
 
 ```typescript
 // supabase/functions/hello/index.ts
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
 serve(async (req) => {
-  const { name } = await req.json()
+  const { name } = await req.json();
 
-  return new Response(
-    JSON.stringify({ message: `Hello ${name}!` }),
-    {
-      headers: { 'Content-Type': 'application/json' },
-    },
-  )
-})
+  return new Response(JSON.stringify({ message: `Hello ${name}!` }), {
+    headers: { 'Content-Type': 'application/json' },
+  });
+});
 ```
 
 ### Edge Function with Supabase Client
 
 ```typescript
 // supabase/functions/create-post/index.ts
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 serve(async (req) => {
   try {
@@ -1944,17 +1918,20 @@ serve(async (req) => {
           headers: { Authorization: req.headers.get('Authorization')! },
         },
       }
-    )
+    );
 
     // Get authenticated user
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseClient.auth.getUser();
     if (userError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
-      })
+      });
     }
 
-    const { title, content } = await req.json()
+    const { title, content } = await req.json();
 
     const { data, error } = await supabaseClient
       .from('posts')
@@ -1964,57 +1941,57 @@ serve(async (req) => {
         user_id: user.id,
       })
       .select()
-      .single()
+      .single();
 
-    if (error) throw error
+    if (error) throw error;
 
     return new Response(JSON.stringify(data), {
       headers: { 'Content-Type': 'application/json' },
-    })
+    });
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
-    })
+    });
   }
-})
+});
 ```
 
 ### Scheduled Edge Function (Cron)
 
 ```typescript
 // supabase/functions/cleanup-old-data/index.ts
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 serve(async (req) => {
   // Verify request is from Supabase Cron
-  const authHeader = req.headers.get('Authorization')
+  const authHeader = req.headers.get('Authorization');
   if (authHeader !== `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`) {
-    return new Response('Unauthorized', { status: 401 })
+    return new Response('Unauthorized', { status: 401 });
   }
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  )
+  );
 
   // Delete old data
-  const thirtyDaysAgo = new Date()
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   const { error } = await supabase
     .from('temporary_data')
     .delete()
-    .lt('created_at', thirtyDaysAgo.toISOString())
+    .lt('created_at', thirtyDaysAgo.toISOString());
 
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
-    })
+    });
   }
 
-  return new Response(JSON.stringify({ success: true }))
-})
+  return new Response(JSON.stringify({ success: true }));
+});
 
 // Configure in Dashboard: Database > Cron Jobs
 // Schedule: 0 2 * * * (2am daily)
@@ -2027,10 +2004,12 @@ serve(async (req) => {
 // Client-side
 const { data, error } = await supabase.functions.invoke('hello', {
   body: { name: 'World' },
-})
+});
 
 // With auth headers automatically included
-const { data: { session } } = await supabase.auth.getSession()
+const {
+  data: { session },
+} = await supabase.auth.getSession();
 
 const { data, error } = await supabase.functions.invoke('create-post', {
   body: {
@@ -2040,7 +2019,7 @@ const { data, error } = await supabase.functions.invoke('create-post', {
   headers: {
     Authorization: `Bearer ${session?.access_token}`,
   },
-})
+});
 ```
 
 ## Vector Search (AI/RAG)
@@ -2072,26 +2051,26 @@ CREATE INDEX ON documents USING hnsw (embedding vector_cosine_ops);
 
 ```typescript
 // lib/embeddings.ts
-import { OpenAI } from 'openai'
+import { OpenAI } from 'openai';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
-})
+});
 
 export async function generateEmbedding(text: string): Promise<number[]> {
   const response = await openai.embeddings.create({
     model: 'text-embedding-ada-002',
     input: text,
-  })
+  });
 
-  return response.data[0].embedding
+  return response.data[0].embedding;
 }
 
 // Store document with embedding
 export async function storeDocument(content: string, metadata: any) {
-  const supabase = createClient()
+  const supabase = createClient();
 
-  const embedding = await generateEmbedding(content)
+  const embedding = await generateEmbedding(content);
 
   const { data, error } = await supabase
     .from('documents')
@@ -2101,11 +2080,11 @@ export async function storeDocument(content: string, metadata: any) {
       embedding,
     })
     .select()
-    .single()
+    .single();
 
-  if (error) throw error
+  if (error) throw error;
 
-  return data
+  return data;
 }
 ```
 
@@ -2114,21 +2093,21 @@ export async function storeDocument(content: string, metadata: any) {
 ```typescript
 // Search similar documents
 export async function searchSimilarDocuments(query: string, limit = 5) {
-  const supabase = createClient()
+  const supabase = createClient();
 
   // Generate embedding for query
-  const queryEmbedding = await generateEmbedding(query)
+  const queryEmbedding = await generateEmbedding(query);
 
   // Search with RPC function
   const { data, error } = await supabase.rpc('match_documents', {
     query_embedding: queryEmbedding,
-    match_threshold: 0.78,  // Minimum similarity
+    match_threshold: 0.78, // Minimum similarity
     match_count: limit,
-  })
+  });
 
-  if (error) throw error
+  if (error) throw error;
 
-  return data
+  return data;
 }
 
 // Create the RPC function
@@ -2165,12 +2144,10 @@ $$;
 ```typescript
 export async function ragQuery(question: string) {
   // 1. Search for relevant documents
-  const relevantDocs = await searchSimilarDocuments(question, 5)
+  const relevantDocs = await searchSimilarDocuments(question, 5);
 
   // 2. Build context from relevant documents
-  const context = relevantDocs
-    .map(doc => doc.content)
-    .join('\n\n')
+  const context = relevantDocs.map((doc) => doc.content).join('\n\n');
 
   // 3. Generate answer with GPT
   const completion = await openai.chat.completions.create({
@@ -2185,12 +2162,12 @@ export async function ragQuery(question: string) {
         content: `Context:\n${context}\n\nQuestion: ${question}`,
       },
     ],
-  })
+  });
 
   return {
     answer: completion.choices[0].message.content,
     sources: relevantDocs,
-  }
+  };
 }
 ```
 
@@ -2260,34 +2237,32 @@ CREATE TRIGGER update_post_count_trigger
 
 ```typescript
 // Bad: N+1 query problem
-const { data: posts } = await supabase.from('posts').select('*')
+const { data: posts } = await supabase.from('posts').select('*');
 for (const post of posts) {
   const { data: author } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', post.user_id)
-    .single()
+    .single();
 }
 
 // Good: Join in single query
-const { data: posts } = await supabase
-  .from('posts')
-  .select(`
+const { data: posts } = await supabase.from('posts').select(`
     *,
     profiles (
       id,
       name,
       avatar_url
     )
-  `)
+  `);
 
 // Good: Use specific columns
 const { data: posts } = await supabase
   .from('posts')
-  .select('id, title, created_at, profiles(name)')  // Only what you need
+  .select('id, title, created_at, profiles(name)') // Only what you need
   .eq('published', true)
   .order('created_at', { ascending: false })
-  .limit(20)
+  .limit(20);
 ```
 
 ### Indexes
@@ -2315,52 +2290,45 @@ USING GIN (to_tsvector('english', content));
 // Use connection pooler for serverless (Supavisor)
 // Connection string: postgresql://postgres.[project-ref]:[password]@aws-0-us-east-1.pooler.supabase.com:6543/postgres
 
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_ANON_KEY!,
-  {
-    db: {
-      schema: 'public',
-    },
-    global: {
-      headers: { 'x-my-custom-header': 'my-app-name' },
-    },
-  }
-)
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, {
+  db: {
+    schema: 'public',
+  },
+  global: {
+    headers: { 'x-my-custom-header': 'my-app-name' },
+  },
+});
 ```
 
 ### Caching
 
 ```typescript
 // Next.js cache with revalidation
-import { unstable_cache } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { unstable_cache } from 'next/cache';
+import { createClient } from '@/lib/supabase/server';
 
 export const getCachedPosts = unstable_cache(
   async () => {
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('posts')
-      .select('*')
-      .eq('published', true)
-    return data
+    const supabase = createClient();
+    const { data } = await supabase.from('posts').select('*').eq('published', true);
+    return data;
   },
   ['posts'],
   {
-    revalidate: 300,  // 5 minutes
+    revalidate: 300, // 5 minutes
     tags: ['posts'],
   }
-)
+);
 
 // Revalidate on mutation
-import { revalidateTag } from 'next/cache'
+import { revalidateTag } from 'next/cache';
 
 export async function createPost(data: any) {
-  const supabase = createClient()
-  await supabase.from('posts').insert(data)
-  revalidateTag('posts')
+  const supabase = createClient();
+  await supabase.from('posts').insert(data);
+  revalidateTag('posts');
 }
 ```
 
@@ -2441,30 +2409,30 @@ RESET ROLE;
 
 ```typescript
 // tests/posts.test.ts
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!  // For testing
-)
+  process.env.SUPABASE_SERVICE_ROLE_KEY! // For testing
+);
 
 describe('Posts', () => {
   beforeEach(async () => {
     // Clean up
-    await supabase.from('posts').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-  })
+    await supabase.from('posts').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  });
 
   it('should create post', async () => {
     const { data, error } = await supabase
       .from('posts')
       .insert({ title: 'Test', content: 'Test' })
       .select()
-      .single()
+      .single();
 
-    expect(error).toBeNull()
-    expect(data.title).toBe('Test')
-  })
-})
+    expect(error).toBeNull();
+    expect(data.title).toBe('Test');
+  });
+});
 ```
 
 ## Error Handling
@@ -2472,39 +2440,39 @@ describe('Posts', () => {
 ### Comprehensive Error Handler
 
 ```typescript
-import { PostgrestError } from '@supabase/supabase-js'
+import { PostgrestError } from '@supabase/supabase-js';
 
 export function handleSupabaseError(error: PostgrestError | null) {
-  if (!error) return null
+  if (!error) return null;
 
   // Common error codes
   const errorMessages: Record<string, string> = {
-    '23505': 'This record already exists',  // Unique violation
-    '23503': 'Related record not found',    // Foreign key violation
+    '23505': 'This record already exists', // Unique violation
+    '23503': 'Related record not found', // Foreign key violation
     '42P01': 'Table does not exist',
     '42501': 'Permission denied',
-    'PGRST116': 'No rows found',
-  }
+    PGRST116: 'No rows found',
+  };
 
-  const userMessage = errorMessages[error.code] || error.message
+  const userMessage = errorMessages[error.code] || error.message;
 
   console.error('Supabase error:', {
     code: error.code,
     message: error.message,
     details: error.details,
     hint: error.hint,
-  })
+  });
 
-  return userMessage
+  return userMessage;
 }
 
 // Usage
-const { data, error } = await supabase.from('posts').insert(postData)
+const { data, error } = await supabase.from('posts').insert(postData);
 
 if (error) {
-  const message = handleSupabaseError(error)
-  toast.error(message)
-  return
+  const message = handleSupabaseError(error);
+  toast.error(message);
+  return;
 }
 ```
 
@@ -2597,6 +2565,7 @@ ls docs/supabase_com/reference_*
 ```
 
 **Common doc locations:**
+
 - Guides: `docs/supabase_com/guides_*`
 - JavaScript Reference: `docs/supabase_com/reference_javascript_*`
 - Database: `docs/supabase_com/guides_database_*`

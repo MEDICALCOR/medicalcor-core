@@ -1,24 +1,24 @@
 /**
  * Lead context schemas for the MedicalCor platform
  */
-import { z } from "zod";
+import { z } from 'zod';
 
-import { E164PhoneSchema, EmailSchema, TimestampSchema, UUIDSchema } from "./common.js";
+import { E164PhoneSchema, EmailSchema, TimestampSchema, UUIDSchema } from './common.js';
 
 /**
  * Lead source/channel - unified enum covering all acquisition channels
  * Consolidated from: schemas/lead.ts, patient.schema.ts, lead.schema.ts
  */
 export const LeadSourceSchema = z.enum([
-  "whatsapp",
-  "voice",
-  "web_form",
-  "web", // Alias for web_form (backward compatibility)
-  "hubspot",
-  "facebook",
-  "google",
-  "referral",
-  "manual",
+  'whatsapp',
+  'voice',
+  'web_form',
+  'web', // Alias for web_form (backward compatibility)
+  'hubspot',
+  'facebook',
+  'google',
+  'referral',
+  'manual',
 ]);
 
 /**
@@ -31,20 +31,20 @@ export const LeadChannelSchema = LeadSourceSchema;
  * Lead status in the pipeline
  */
 export const LeadStatusSchema = z.enum([
-  "new",
-  "contacted",
-  "qualified",
-  "nurturing",
-  "scheduled",
-  "converted",
-  "lost",
-  "invalid",
+  'new',
+  'contacted',
+  'qualified',
+  'nurturing',
+  'scheduled',
+  'converted',
+  'lost',
+  'invalid',
 ]);
 
 /**
  * Lead priority based on AI scoring
  */
-export const LeadPrioritySchema = z.enum(["critical", "high", "medium", "low"]);
+export const LeadPrioritySchema = z.enum(['critical', 'high', 'medium', 'low']);
 
 /**
  * Patient demographics (PII - handle with care)
@@ -53,7 +53,7 @@ export const PatientDemographicsSchema = z.object({
   firstName: z.string().min(1).max(100).optional(),
   lastName: z.string().min(1).max(100).optional(),
   dateOfBirth: z.coerce.date().optional(),
-  gender: z.enum(["male", "female", "other", "prefer_not_to_say"]).optional(),
+  gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
   city: z.string().max(100).optional(),
   county: z.string().max(100).optional(),
 });
@@ -64,7 +64,7 @@ export const PatientDemographicsSchema = z.object({
 export const MedicalContextSchema = z.object({
   primarySymptoms: z.array(z.string()).default([]),
   symptomDuration: z.string().optional(),
-  urgencyLevel: z.enum(["emergency", "urgent", "routine", "preventive"]).optional(),
+  urgencyLevel: z.enum(['emergency', 'urgent', 'routine', 'preventive']).optional(),
   preferredSpecialty: z.string().optional(),
   hasInsurance: z.boolean().optional(),
   insuranceProvider: z.string().optional(),
@@ -79,11 +79,13 @@ export const MedicalContextSchema = z.object({
 export const ConversationEntrySchema = z.object({
   id: UUIDSchema,
   timestamp: TimestampSchema,
-  role: z.enum(["patient", "assistant", "agent", "system"]),
-  channel: z.enum(["whatsapp", "voice", "sms", "email"]),
+  role: z.enum(['patient', 'assistant', 'agent', 'system']),
+  channel: z.enum(['whatsapp', 'voice', 'sms', 'email']),
   content: z.string(),
   // CRITICAL FIX: Properly validate metadata to prevent injection attacks
-  metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
+  metadata: z
+    .record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()]))
+    .optional(),
 });
 
 /**
@@ -122,7 +124,9 @@ export const LeadContextSchema = z.object({
   updatedAt: TimestampSchema,
 
   // CRITICAL FIX: Properly validate metadata to prevent injection attacks
-  metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).default({}),
+  metadata: z
+    .record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()]))
+    .default({}),
 });
 
 /**
@@ -152,7 +156,7 @@ export const UpdateLeadContextSchema = LeadContextSchema.partial().omit({
 /**
  * Lead score classification levels
  */
-export const LeadScoreSchema = z.enum(["HOT", "WARM", "COLD", "UNQUALIFIED"]);
+export const LeadScoreSchema = z.enum(['HOT', 'WARM', 'COLD', 'UNQUALIFIED']);
 
 /**
  * Lead classification (alias for LeadScoreSchema)
@@ -181,11 +185,11 @@ export const AIScoringContextSchema = z.object({
   name: z.string().optional(),
   channel: LeadSourceSchema,
   firstTouchTimestamp: z.string(),
-  language: z.enum(["ro", "en", "de"]).optional(),
+  language: z.enum(['ro', 'en', 'de']).optional(),
   messageHistory: z
     .array(
       z.object({
-        role: z.enum(["user", "assistant"]),
+        role: z.enum(['user', 'assistant']),
         content: z.string(),
         timestamp: z.string(),
       })

@@ -209,10 +209,7 @@ describe('Webhook Signature Verification', () => {
         if (v1Signature.length !== expectedSignature.length) {
           return false;
         }
-        return crypto.timingSafeEqual(
-          Buffer.from(v1Signature),
-          Buffer.from(expectedSignature)
-        );
+        return crypto.timingSafeEqual(Buffer.from(v1Signature), Buffer.from(expectedSignature));
       } catch {
         return false;
       }

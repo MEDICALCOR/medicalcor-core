@@ -25,9 +25,11 @@ packages/
 ```
 
 ### Dependency Order
+
 `types → core → domain → integrations → apps`
 
 ### Tech Stack
+
 - **Runtime**: Node.js 20+
 - **Language**: TypeScript 5.6 (strict mode)
 - **Package Manager**: pnpm 9+
@@ -40,33 +42,45 @@ packages/
 ## Domain Concepts
 
 ### Lead Scoring
+
 AI-powered scoring using GPT-4o to evaluate dental patient leads:
+
 - Location: `packages/domain/src/scoring/scoring-service.ts`
 - Use case: `packages/domain/src/patient-acquisition/use-cases/score-lead.ts`
 - Value object: `packages/domain/src/shared-kernel/value-objects/lead-score.ts`
 
 ### Patient Triage
+
 Automated patient prioritization:
+
 - Service: `packages/domain/src/triage/triage-service.ts`
 
 ### Consent Management
+
 HIPAA/GDPR compliant consent tracking:
+
 - Service: `packages/domain/src/consent/consent-service.ts`
 - Repository: `packages/domain/src/consent/consent-repository.ts`
 
 ### Scheduling
+
 Appointment management:
+
 - Service: `packages/domain/src/scheduling/scheduling-service.ts`
 
 ### OSAX Clinical Cases
+
 Clinical case management with scoring:
+
 - Entity: `packages/domain/src/osax/entities/OsaxCase.ts`
 - Scoring: `packages/domain/src/osax/services/OsaxScoringPolicy.ts`
 
 ## Key Patterns
 
 ### CQRS Pattern
+
 Command Query Responsibility Segregation for separating reads and writes:
+
 ```typescript
 // Commands mutate state
 class CreateLeadCommand { ... }
@@ -76,12 +90,16 @@ class GetLeadByIdQuery { ... }
 ```
 
 ### Domain Events
+
 Event-driven architecture for decoupled systems:
+
 - Lead events: `packages/domain/src/shared-kernel/domain-events/lead-events.ts`
 - OSAX events: `packages/domain/src/osax/events/osax-events.ts`
 
 ### Repository Pattern
+
 Abstracted data access:
+
 - Lead repository: `packages/domain/src/shared-kernel/repository-interfaces/lead-repository.ts`
 - CRM gateway: `packages/domain/src/shared-kernel/repository-interfaces/crm-gateway.ts`
 - AI gateway: `packages/domain/src/shared-kernel/repository-interfaces/ai-gateway.ts`
@@ -117,6 +135,7 @@ pnpm db:migrate       # Run database migrations
 ## Testing
 
 Tests use Vitest and are co-located with source code in `__tests__` directories:
+
 ```
 packages/domain/src/__tests__/
   scoring.test.ts
@@ -127,6 +146,7 @@ packages/domain/src/__tests__/
 ```
 
 Run tests:
+
 ```bash
 pnpm test                    # All tests
 pnpm test:watch             # Watch mode

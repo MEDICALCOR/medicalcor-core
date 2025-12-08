@@ -155,9 +155,7 @@ describe('Sidebar', () => {
       </SidebarProvider>
     );
 
-    expect(
-      screen.getByRole('button', { name: /restrânge bara laterală/i })
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /restrânge bara laterală/i })).toBeInTheDocument();
   });
 
   it('should toggle sidebar collapse state', async () => {

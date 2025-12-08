@@ -268,32 +268,35 @@ export default function WebhookDetailPage() {
   // DATA FETCHING
   // ============================================================================
 
-  const fetchData = useCallback(async (showRefreshIndicator = false) => {
-    if (showRefreshIndicator) setIsRefreshing(true);
-    else setIsLoading(true);
+  const fetchData = useCallback(
+    async (showRefreshIndicator = false) => {
+      if (showRefreshIndicator) setIsRefreshing(true);
+      else setIsLoading(true);
 
-    try {
-      const webhookData = await getWebhookByIdAction(webhookId);
-      setWebhook(webhookData);
+      try {
+        const webhookData = await getWebhookByIdAction(webhookId);
+        setWebhook(webhookData);
 
-      // Fetch related events by correlation ID
-      if (webhookData?.correlationId) {
-        const related = await getWebhookListAction(1, 10, {
-          correlationId: webhookData.correlationId,
+        // Fetch related events by correlation ID
+        if (webhookData?.correlationId) {
+          const related = await getWebhookListAction(1, 10, {
+            correlationId: webhookData.correlationId,
+          });
+          setRelatedEvents(related.webhooks.filter((w) => w.id !== webhookId));
+        }
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to load webhook details',
+          variant: 'destructive',
         });
-        setRelatedEvents(related.webhooks.filter((w) => w.id !== webhookId));
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
       }
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load webhook details',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [webhookId, toast]);
+    },
+    [webhookId, toast]
+  );
 
   useEffect(() => {
     fetchData();
@@ -385,7 +388,12 @@ export default function WebhookDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={() => fetchData(true)} disabled={isRefreshing} variant="outline" size="sm">
+          <Button
+            onClick={() => fetchData(true)}
+            disabled={isRefreshing}
+            variant="outline"
+            size="sm"
+          >
             <RefreshCw className={cn('h-4 w-4 mr-2', isRefreshing && 'animate-spin')} />
             Refresh
           </Button>
@@ -448,7 +456,12 @@ export default function WebhookDetailPage() {
             <CardContent className="space-y-1">
               <DetailRow icon={Hash} label="Webhook ID" value={webhook.id} copyable />
               <Separator />
-              <DetailRow icon={Hash} label="Correlation ID" value={webhook.correlationId} copyable />
+              <DetailRow
+                icon={Hash}
+                label="Correlation ID"
+                value={webhook.correlationId}
+                copyable
+              />
               <Separator />
               <DetailRow
                 icon={Server}
@@ -558,9 +571,7 @@ export default function WebhookDetailPage() {
                         className="flex items-center justify-between p-2 rounded-lg hover:bg-muted transition-colors"
                       >
                         <div className="flex items-center gap-2">
-                          <EventStatusIcon
-                            className={cn('h-4 w-4', eventStatusConfig.color)}
-                          />
+                          <EventStatusIcon className={cn('h-4 w-4', eventStatusConfig.color)} />
                           <code className="text-xs">{event.eventType}</code>
                         </div>
                         <ExternalLink className="h-3 w-3 text-muted-foreground" />

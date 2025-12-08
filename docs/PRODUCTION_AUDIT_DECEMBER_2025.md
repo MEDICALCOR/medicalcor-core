@@ -13,15 +13,15 @@ MedicalCor Core is a **production-ready AI-powered medical CRM platform** with m
 
 ### Overall Scores
 
-| Area | Score | Status |
-|------|-------|--------|
-| Domain & DDD | **93/100** | Excellent |
-| Security & Compliance | **95/100** | Excellent |
-| Cognitive Memory System | **92%** | Complete |
-| Lead → LTV Pipeline | **100%** | Fully Implemented |
-| Call Center / AgentOS | **85%** | Complete (minor gaps) |
-| Database Quality | **88/100** | High Quality |
-| Test Coverage | **167K LOC** | Comprehensive |
+| Area                    | Score        | Status                |
+| ----------------------- | ------------ | --------------------- |
+| Domain & DDD            | **93/100**   | Excellent             |
+| Security & Compliance   | **95/100**   | Excellent             |
+| Cognitive Memory System | **92%**      | Complete              |
+| Lead → LTV Pipeline     | **100%**     | Fully Implemented     |
+| Call Center / AgentOS   | **85%**      | Complete (minor gaps) |
+| Database Quality        | **88/100**   | High Quality          |
+| Test Coverage           | **167K LOC** | Comprehensive         |
 
 ### Production Readiness: **APPROVED** ✅
 
@@ -46,6 +46,7 @@ MedicalCor Core is a **production-ready AI-powered medical CRM platform** with m
 **Impact:** 🟡 Reliability - Migrations may execute in unpredictable order across environments.
 
 **Files:**
+
 - `supabase/migrations/20240101000007_*.sql` (2 files)
 - `supabase/migrations/20251206000002_*.sql` (3 files)
 - `supabase/migrations/20251206000006_*.sql` (4 files)
@@ -64,6 +65,7 @@ MedicalCor Core is a **production-ready AI-powered medical CRM platform** with m
 **Impact:** 🟡 Architecture - Domain layer should have no infrastructure dependencies.
 
 **Files:**
+
 - `packages/domain/src/agent-performance/agent-performance-repository.ts:10`
 
 **Fix:** Replace with abstract database interface from `@medicalcor/core`
@@ -79,6 +81,7 @@ MedicalCor Core is a **production-ready AI-powered medical CRM platform** with m
 **Impact:** 🟡 Documentation - Creates confusion about feature status.
 
 **Files:**
+
 - `docs/adr/004-cognitive-episodic-memory.md`
 
 **Fix:** Update status to IMPLEMENTED, document additional features (knowledge graph, PII masking)
@@ -94,6 +97,7 @@ MedicalCor Core is a **production-ready AI-powered medical CRM platform** with m
 **Impact:** 🟡 Quality - Risk of undetected regressions in critical paths.
 
 **Files:**
+
 - `vitest.config.ts` - Coverage thresholds
 
 **Fix:** Increase thresholds incrementally: 70% (immediate), 80% (Q1 2026)
@@ -109,6 +113,7 @@ MedicalCor Core is a **production-ready AI-powered medical CRM platform** with m
 **Impact:** 🟡 Quality - Critical endpoints may have untested edge cases.
 
 **Files:**
+
 - `apps/api/src/routes/guidance.ts`
 - `apps/api/src/routes/diagnostics.ts`
 - `apps/api/src/routes/load-testing.ts`
@@ -129,6 +134,7 @@ MedicalCor Core is a **production-ready AI-powered medical CRM platform** with m
 **Impact:** 🟠 Security - Multi-tenant data isolation not enforced at database level.
 
 **Files:**
+
 - `supabase/migrations/20251205000001_cognitive_episodic_memory.sql`
 
 **Fix:** Enable RLS policies before production deployment with PHI data
@@ -144,6 +150,7 @@ MedicalCor Core is a **production-ready AI-powered medical CRM platform** with m
 **Why:** Call queue system has SLA monitoring but no queue visualization for supervisors.
 
 **Files:**
+
 - `apps/web/src/app/supervisor/` - Exists but incomplete
 - `packages/domain/src/voice/queue-sla-service.ts` - Backend ready
 
@@ -158,6 +165,7 @@ MedicalCor Core is a **production-ready AI-powered medical CRM platform** with m
 **Why:** Real-time guidance and supervisor features lack end-to-end test coverage.
 
 **Files:**
+
 - `apps/api/src/routes/guidance-ws.ts`
 - `apps/api/src/routes/supervisor-ws.ts`
 
@@ -172,6 +180,7 @@ MedicalCor Core is a **production-ready AI-powered medical CRM platform** with m
 **Why:** Only 4 FK constraints found; may miss referential integrity issues.
 
 **Files:**
+
 - `supabase/migrations/20240101000003_clinics.sql`
 - `supabase/migrations/20240101000012_crm_hardening.sql`
 
@@ -186,6 +195,7 @@ MedicalCor Core is a **production-ready AI-powered medical CRM platform** with m
 **Why:** Business logic in module functions rather than entity methods (breaks Tell-Don't-Ask).
 
 **Files:**
+
 - `packages/domain/src/cases/entities/Case.ts`
 
 **Approach:** Refactor helper functions to instance methods OR document intentional design
@@ -199,6 +209,7 @@ MedicalCor Core is a **production-ready AI-powered medical CRM platform** with m
 **Why:** Voice transcription failure and timeout scenarios not fully tested.
 
 **Files:**
+
 - `apps/trigger/src/workflows/voice-*.ts`
 - `packages/integrations/src/vapi/`
 
@@ -213,6 +224,7 @@ MedicalCor Core is a **production-ready AI-powered medical CRM platform** with m
 **Why:** 35/69 web components missing Storybook stories.
 
 **Files:**
+
 - `apps/web/src/components/` - 69 components
 - `apps/web/src/components/**/*.stories.tsx` - 34 stories
 
@@ -227,6 +239,7 @@ MedicalCor Core is a **production-ready AI-powered medical CRM platform** with m
 **Why:** One `console.error` in API startup; should use structured logger.
 
 **Files:**
+
 - `apps/api/src/index.ts:77`
 
 **Approach:** Wrap with try/catch and conditional structured logging
@@ -240,6 +253,7 @@ MedicalCor Core is a **production-ready AI-powered medical CRM platform** with m
 **Why:** Database partitioning implemented but maintenance procedures not documented.
 
 **Files:**
+
 - `supabase/migrations/20251207000001_database_partitioning.sql`
 - `supabase/migrations/20251207200002_partition_episodic_events.sql`
 
@@ -254,6 +268,7 @@ MedicalCor Core is a **production-ready AI-powered medical CRM platform** with m
 **Why:** Basic saga tests present but complex multi-step scenarios incomplete.
 
 **Files:**
+
 - `packages/core/src/cqrs/` - Saga orchestration
 
 **Approach:** Add tests for payment + insurance verification failure compensation
@@ -267,6 +282,7 @@ MedicalCor Core is a **production-ready AI-powered medical CRM platform** with m
 **Why:** Domain-level wrap-up tracking exists but lacks supervisor UI.
 
 **Files:**
+
 - `supabase/migrations/20251207000001_agent_wrap_up_time_tracking.sql`
 - `packages/domain/src/voice/wrap-up-time-repository.ts`
 
@@ -423,6 +439,7 @@ MedicalCor Core is a **production-ready AI-powered medical CRM platform** with m
 **Score: 93/100 (A-)**
 
 #### Strengths
+
 - **Rich Aggregate Roots:** Lead (1,120 lines) and Patient (1,850 lines) demonstrate excellent DDD
 - **Immutable Value Objects:** LeadScore, PhoneNumber, AllOnXClinicalScore properly frozen
 - **Pure Domain Services:** AllOnXScoringPolicy (1,235 lines), CapacityPlanningPolicy (647 lines)
@@ -430,22 +447,25 @@ MedicalCor Core is a **production-ready AI-powered medical CRM platform** with m
 - **Clean Layer Boundaries:** 99%+ compliance (1 violation)
 
 #### Entities Inventory
-| Entity | Type | Assessment |
-|--------|------|------------|
-| LeadAggregateRoot | Aggregate Root | EXCELLENT |
-| PatientAggregateRoot | Aggregate Root | EXCELLENT |
-| Case | Entity | Anemic (functional style) |
-| AllOnXCase | Entity | Moderate |
-| CapacityPlan | Entity | Moderate |
-| DispositionCode | Value Object | Good |
+
+| Entity               | Type           | Assessment                |
+| -------------------- | -------------- | ------------------------- |
+| LeadAggregateRoot    | Aggregate Root | EXCELLENT                 |
+| PatientAggregateRoot | Aggregate Root | EXCELLENT                 |
+| Case                 | Entity         | Anemic (functional style) |
+| AllOnXCase           | Entity         | Moderate                  |
+| CapacityPlan         | Entity         | Moderate                  |
+| DispositionCode      | Value Object   | Good                      |
 
 #### Value Objects (All Immutable)
+
 - LeadScore (494 lines) - Gold standard
 - PhoneNumber (566 lines) - Gold standard
 - AllOnXClinicalScore - Medical-grade
 - CapacityScore, RetentionScore, PredictedLTV, RevenueProjection
 
 #### Bounded Contexts (12 identified)
+
 Leads, Patients, Cases, All-on-X, Capacity Planning, Disposition, Guidance, Agent Performance, Behavioral Insights, Consent, Data Lineage, Voice
 
 ---
@@ -455,6 +475,7 @@ Leads, Patients, Cases, All-on-X, Capacity Planning, Disposition, Guidance, Agen
 **Score: 95/100 (Excellent)**
 
 #### HIPAA Compliance ✅
+
 - PHI encrypted at rest (AES-256-GCM)
 - Encryption in transit (TLS 1.3)
 - Access controls (RBAC with 10 roles, 24 permissions)
@@ -463,6 +484,7 @@ Leads, Patients, Cases, All-on-X, Capacity Planning, Disposition, Guidance, Agen
 - Session timeout (15 min access token)
 
 #### GDPR Compliance ✅
+
 - DSR handling (all 7 request types)
 - Right to Erasure (soft delete + 30-day window)
 - Data Portability (JSON export)
@@ -471,6 +493,7 @@ Leads, Patients, Cases, All-on-X, Capacity Planning, Disposition, Guidance, Agen
 - Retention policies (automated disposal)
 
 #### Security Features
+
 - **Encryption:** Field-level AES-256-GCM with key versioning
 - **Redaction:** 139 paths + 12 regex patterns for PII
 - **RLS:** 45 policies across 13 migrations
@@ -485,6 +508,7 @@ Leads, Patients, Cases, All-on-X, Capacity Planning, Disposition, Guidance, Agen
 **Score: 92% Complete**
 
 #### Database Schema (100%)
+
 - `episodic_events` table with HNSW vector index
 - `behavioral_patterns` table
 - `knowledge_entities` table
@@ -492,18 +516,20 @@ Leads, Patients, Cases, All-on-X, Capacity Planning, Disposition, Guidance, Agen
 - `entity_event_mapping` junction table
 
 #### Core Services (100%)
-| Service | Lines | Status |
-|---------|-------|--------|
-| EpisodeBuilder | 510 | Complete |
-| MemoryRetrieval | 679 | Complete |
-| PatternDetector | 835 | Complete (11+ patterns) |
-| KnowledgeGraph | 673 | Complete |
-| EntityDeduplication | 690 | Complete |
-| GDPRErasure | 451 | Complete |
-| PiiMasking | 692 | Complete |
-| RealtimePatternStream | 466 | Complete |
+
+| Service               | Lines | Status                  |
+| --------------------- | ----- | ----------------------- |
+| EpisodeBuilder        | 510   | Complete                |
+| MemoryRetrieval       | 679   | Complete                |
+| PatternDetector       | 835   | Complete (11+ patterns) |
+| KnowledgeGraph        | 673   | Complete                |
+| EntityDeduplication   | 690   | Complete                |
+| GDPRErasure           | 451   | Complete                |
+| PiiMasking            | 692   | Complete                |
+| RealtimePatternStream | 466   | Complete                |
 
 #### Tests
+
 - 7 test files, 4,697 lines of test code
 - Comprehensive mocking of PostgreSQL and OpenAI
 
@@ -513,16 +539,17 @@ Leads, Patients, Cases, All-on-X, Capacity Planning, Disposition, Guidance, Agen
 
 **Score: 100% Implemented**
 
-| Stage | Status | Key Components |
-|-------|--------|----------------|
-| Lead Capture | ✅ | LeadAggregateRoot, ScoringService, GPT-4o |
-| Consult Booking | ✅ | Appointments, TimeSlots, Practitioners |
-| Case Acceptance | ✅ | Cases, TreatmentPlans, AllOnXCase |
-| Payment Tracking | ✅ | Payments, PaymentPlans, Stripe integration |
-| LTV Calculation | ✅ | LTVService, RevenueForecastingService, CohortAnalysis |
-| Dashboard | ✅ | LTV Dashboard, Billing Page, Analytics |
+| Stage            | Status | Key Components                                        |
+| ---------------- | ------ | ----------------------------------------------------- |
+| Lead Capture     | ✅     | LeadAggregateRoot, ScoringService, GPT-4o             |
+| Consult Booking  | ✅     | Appointments, TimeSlots, Practitioners                |
+| Case Acceptance  | ✅     | Cases, TreatmentPlans, AllOnXCase                     |
+| Payment Tracking | ✅     | Payments, PaymentPlans, Stripe integration            |
+| LTV Calculation  | ✅     | LTVService, RevenueForecastingService, CohortAnalysis |
+| Dashboard        | ✅     | LTV Dashboard, Billing Page, Analytics                |
 
 #### ML Features
+
 - Revenue forecasting with ensemble methods
 - Seasonal adjustments (Q1-Q4)
 - Cohort LTV evolution tracking
@@ -535,6 +562,7 @@ Leads, Patients, Cases, All-on-X, Capacity Planning, Disposition, Guidance, Agen
 **Score: 85% Complete**
 
 #### Implemented (100%)
+
 - Agent entity with performance metrics
 - Two routing strategies (round-robin + skill-based)
 - Script/guidance system with objection handling
@@ -542,11 +570,13 @@ Leads, Patients, Cases, All-on-X, Capacity Planning, Disposition, Guidance, Agen
 - SLA monitoring (5 breach types)
 
 #### Partial (70%)
+
 - Web dashboard (mobile-optimized)
 - Agent status grid
 - Supervisor views
 
 #### Missing
+
 - Queue management visualization
 - Wrap-up time UI
 - SLA breach alerts in UI
@@ -558,6 +588,7 @@ Leads, Patients, Cases, All-on-X, Capacity Planning, Disposition, Guidance, Agen
 **Score: 88/100**
 
 #### Strengths
+
 - 100% idempotent migrations (IF NOT EXISTS)
 - 119+ indexes (B-tree, GIN, HNSW)
 - Zero-downtime ops (CREATE INDEX CONCURRENTLY)
@@ -566,6 +597,7 @@ Leads, Patients, Cases, All-on-X, Capacity Planning, Disposition, Guidance, Agen
 - Table partitioning (domain_events, audit_log, episodic_events)
 
 #### Issues
+
 - Timestamp collisions (13 files affected)
 - Minimal FK constraints (4 total)
 
@@ -576,16 +608,18 @@ Leads, Patients, Cases, All-on-X, Capacity Planning, Disposition, Guidance, Agen
 **Score: 258 files, 167,866 LOC**
 
 #### By Layer
-| Layer | Test Files | LOC |
-|-------|------------|-----|
-| packages/domain | 44 | ~15,000 |
-| packages/core | 97 | ~85,000 |
-| packages/integrations | 26 | ~12,000 |
-| apps/api | 30 | ~18,000 |
-| apps/web | 50+ | ~25,000 |
-| E2E (Playwright) | 8 | ~3,500 |
+
+| Layer                 | Test Files | LOC     |
+| --------------------- | ---------- | ------- |
+| packages/domain       | 44         | ~15,000 |
+| packages/core         | 97         | ~85,000 |
+| packages/integrations | 26         | ~12,000 |
+| apps/api              | 30         | ~18,000 |
+| apps/web              | 50+        | ~25,000 |
+| E2E (Playwright)      | 8          | ~3,500  |
 
 #### Critical Flow Coverage
+
 - Lead Scoring: EXCELLENT (23 files)
 - Consent/GDPR: EXCELLENT (16 files)
 - Cognitive Memory: EXCELLENT (9 files)
@@ -593,6 +627,7 @@ Leads, Patients, Cases, All-on-X, Capacity Planning, Disposition, Guidance, Agen
 - Encryption: STRONG (5 files)
 
 #### Gaps
+
 - API routes: 11/26 untested
 - WebSocket E2E: Missing
 - UI Storybook: 35/69 missing
@@ -602,6 +637,7 @@ Leads, Patients, Cases, All-on-X, Capacity Planning, Disposition, Guidance, Agen
 ## Appendix: Files Inspected
 
 ### Domain Layer
+
 - `packages/domain/src/leads/entities/Lead.ts`
 - `packages/domain/src/patients/entities/Patient.ts`
 - `packages/domain/src/cases/entities/Case.ts`
@@ -610,6 +646,7 @@ Leads, Patients, Cases, All-on-X, Capacity Planning, Disposition, Guidance, Agen
 - `packages/domain/src/shared-kernel/value-objects/*.ts`
 
 ### Security
+
 - `packages/core/src/encryption.ts`
 - `packages/core/src/logger/redaction.ts`
 - `packages/core/src/auth/mfa-service.ts`
@@ -617,13 +654,16 @@ Leads, Patients, Cases, All-on-X, Capacity Planning, Disposition, Guidance, Agen
 - `packages/application/src/security/RBACPolicy.ts`
 
 ### Cognitive Memory
+
 - `supabase/migrations/20251205000001_cognitive_episodic_memory.sql`
 - `packages/core/src/cognitive/*.ts`
 
 ### Database
+
 - `supabase/migrations/*.sql` (46 files)
 
 ### Tests
+
 - `packages/*/src/__tests__/*.test.ts`
 - `apps/*/src/__tests__/*.test.ts`
 - `apps/web/e2e/*.spec.ts`

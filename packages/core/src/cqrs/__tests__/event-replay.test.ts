@@ -18,7 +18,11 @@ import {
   type ReplayConfig,
 } from '../event-replay.js';
 import { createInMemoryEventStore, type EventStore } from '../../event-store.js';
-import { createProjectionManager, defineProjection, type ProjectionManager } from '../projections.js';
+import {
+  createProjectionManager,
+  defineProjection,
+  type ProjectionManager,
+} from '../projections.js';
 import type { StoredEvent } from '../../event-store.js';
 
 describe('InMemoryCheckpointStore', () => {
@@ -487,7 +491,10 @@ describe('ProjectionMigrator', () => {
   });
 
   it('should migrate state from one version to another', () => {
-    migrator.registerMigration<{ totalLeads: number }, { totalLeads: number; leadsByChannel: Record<string, number> }>('lead-stats', {
+    migrator.registerMigration<
+      { totalLeads: number },
+      { totalLeads: number; leadsByChannel: Record<string, number> }
+    >('lead-stats', {
       fromVersion: 1,
       toVersion: 2,
       migrate: (oldState) => ({
@@ -497,12 +504,10 @@ describe('ProjectionMigrator', () => {
     });
 
     const oldState = { totalLeads: 100 };
-    const newState = migrator.migrateState<{ totalLeads: number; leadsByChannel: Record<string, number> }>(
-      'lead-stats',
-      oldState,
-      1,
-      2
-    );
+    const newState = migrator.migrateState<{
+      totalLeads: number;
+      leadsByChannel: Record<string, number>;
+    }>('lead-stats', oldState, 1, 2);
 
     expect(newState).toHaveProperty('leadsByChannel');
     expect(newState.totalLeads).toBe(100);

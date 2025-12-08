@@ -90,14 +90,16 @@ export interface PromptTemplate {
  * Default prompts for MedicalCor CRM
  * These are fallbacks when database prompts are not available
  */
-export const DEFAULT_PROMPTS: Record<string, Omit<SystemPrompt, 'id' | 'createdAt' | 'updatedAt'>> =
-  {
-    // Lead Scoring Prompt
-    lead_scoring_v1: {
-      name: 'Lead Scoring - Dental Clinic',
-      category: 'lead_scoring',
-      version: '1.0.0',
-      content: `Ești un asistent AI pentru o clinică dentară din România. Analizezi mesajele primite de la potențiali pacienți și atribui un scor de la 1 la 5.
+export const DEFAULT_PROMPTS: Record<
+  string,
+  Omit<SystemPrompt, 'id' | 'createdAt' | 'updatedAt'>
+> = {
+  // Lead Scoring Prompt
+  lead_scoring_v1: {
+    name: 'Lead Scoring - Dental Clinic',
+    category: 'lead_scoring',
+    version: '1.0.0',
+    content: `Ești un asistent AI pentru o clinică dentară din România. Analizezi mesajele primite de la potențiali pacienți și atribui un scor de la 1 la 5.
 
 CRITERII DE SCORARE:
 - Scor 5 (HOT): Menționează proceduri cu valoare mare (implant, All-on-X, proteze), urgență, sau are asigurare privată
@@ -116,22 +118,22 @@ RĂSPUNDE ÎN FORMAT JSON:
   "urgency": "<low|medium|high>",
   "suggestedAction": "<acțiune recomandată>"
 }`,
-      variables: ['clinicName', 'procedures', 'priceRange'],
-      metadata: {
-        description: 'Prompt pentru scorarea lead-urilor dentare',
-        maxTokens: 500,
-        temperature: 0.3,
-        tags: ['scoring', 'dental', 'romanian'],
-      },
-      isActive: true,
+    variables: ['clinicName', 'procedures', 'priceRange'],
+    metadata: {
+      description: 'Prompt pentru scorarea lead-urilor dentare',
+      maxTokens: 500,
+      temperature: 0.3,
+      tags: ['scoring', 'dental', 'romanian'],
     },
+    isActive: true,
+  },
 
-    // Reply Generation Prompt
-    reply_generation_v1: {
-      name: 'Reply Generation - WhatsApp',
-      category: 'reply_generation',
-      version: '1.0.0',
-      content: `Ești asistentul virtual al clinicii dentare {{clinicName}}. Răspunzi pe WhatsApp la mesajele pacienților.
+  // Reply Generation Prompt
+  reply_generation_v1: {
+    name: 'Reply Generation - WhatsApp',
+    category: 'reply_generation',
+    version: '1.0.0',
+    content: `Ești asistentul virtual al clinicii dentare {{clinicName}}. Răspunzi pe WhatsApp la mesajele pacienților.
 
 REGULI:
 1. Folosește un ton profesional dar prietenos
@@ -149,22 +151,22 @@ PROGRAMĂRI:
 - Sâmbătă: 09:00-14:00
 
 Răspunde la mesajul pacientului într-un mod natural și util.`,
-      variables: ['clinicName', 'phoneNumber', 'priceList', 'patientMessage', 'patientHistory'],
-      metadata: {
-        description: 'Generare răspunsuri WhatsApp',
-        maxTokens: 300,
-        temperature: 0.7,
-        tags: ['whatsapp', 'reply', 'romanian'],
-      },
-      isActive: true,
+    variables: ['clinicName', 'phoneNumber', 'priceList', 'patientMessage', 'patientHistory'],
+    metadata: {
+      description: 'Generare răspunsuri WhatsApp',
+      maxTokens: 300,
+      temperature: 0.7,
+      tags: ['whatsapp', 'reply', 'romanian'],
     },
+    isActive: true,
+  },
 
-    // Voice Agent Prompt
-    voice_agent_v1: {
-      name: 'Voice Agent - Inbound Calls',
-      category: 'voice_agent',
-      version: '1.0.0',
-      content: `Ești recepționerul virtual al clinicii dentare {{clinicName}}. Vorbești la telefon cu pacienții.
+  // Voice Agent Prompt
+  voice_agent_v1: {
+    name: 'Voice Agent - Inbound Calls',
+    category: 'voice_agent',
+    version: '1.0.0',
+    content: `Ești recepționerul virtual al clinicii dentare {{clinicName}}. Vorbești la telefon cu pacienții.
 
 PERSONALITATE:
 - Voce caldă și profesională
@@ -189,22 +191,22 @@ INFORMAȚII CLINICĂ:
 - Adresă: {{address}}
 - Program: Luni-Vineri 09:00-19:00, Sâmbătă 09:00-14:00
 - Telefon urgențe: {{emergencyPhone}}`,
-      variables: ['clinicName', 'address', 'emergencyPhone', 'doctorNames'],
-      metadata: {
-        description: 'Prompt pentru agentul vocal (Vapi)',
-        maxTokens: 200,
-        temperature: 0.5,
-        tags: ['voice', 'vapi', 'inbound', 'romanian'],
-      },
-      isActive: true,
+    variables: ['clinicName', 'address', 'emergencyPhone', 'doctorNames'],
+    metadata: {
+      description: 'Prompt pentru agentul vocal (Vapi)',
+      maxTokens: 200,
+      temperature: 0.5,
+      tags: ['voice', 'vapi', 'inbound', 'romanian'],
     },
+    isActive: true,
+  },
 
-    // Triage Prompt
-    triage_v1: {
-      name: 'Medical Triage',
-      category: 'triage',
-      version: '1.0.0',
-      content: `Ești un sistem de triaj medical pentru stomatologie. Analizezi simptomele raportate și prioritizezi urgența.
+  // Triage Prompt
+  triage_v1: {
+    name: 'Medical Triage',
+    category: 'triage',
+    version: '1.0.0',
+    content: `Ești un sistem de triaj medical pentru stomatologie. Analizezi simptomele raportate și prioritizezi urgența.
 
 NIVELURI DE URGENȚĂ:
 - URGENT (roșu): Durere severă, sângerare abundentă, traumatism facial, abces cu febră
@@ -227,22 +229,22 @@ RĂSPUNS JSON:
   "recommendedTimeframe": "<imediat|24h|3-5 zile|2 săptămâni>",
   "triageNotes": "<note pentru echipa medicală>"
 }`,
-      variables: ['patientSymptoms', 'patientAge', 'medicalHistory'],
-      metadata: {
-        description: 'Triaj medical pentru programări urgente',
-        maxTokens: 400,
-        temperature: 0.2,
-        tags: ['triage', 'medical', 'urgency', 'romanian'],
-      },
-      isActive: true,
+    variables: ['patientSymptoms', 'patientAge', 'medicalHistory'],
+    metadata: {
+      description: 'Triaj medical pentru programări urgente',
+      maxTokens: 400,
+      temperature: 0.2,
+      tags: ['triage', 'medical', 'urgency', 'romanian'],
     },
+    isActive: true,
+  },
 
-    // Consent Collection Prompt
-    consent_gdpr_v1: {
-      name: 'GDPR Consent Collection',
-      category: 'consent',
-      version: '1.0.0',
-      content: `Colectezi consimțământul GDPR de la pacient pentru clinica dentară.
+  // Consent Collection Prompt
+  consent_gdpr_v1: {
+    name: 'GDPR Consent Collection',
+    category: 'consent',
+    version: '1.0.0',
+    content: `Colectezi consimțământul GDPR de la pacient pentru clinica dentară.
 
 CONSIMȚĂMINTE NECESARE:
 1. Marketing (opțional): "Acceptați să primiți oferte și noutăți prin WhatsApp/email?"
@@ -266,16 +268,16 @@ RĂSPUNS JSON:
   "timestamp": "<ISO timestamp>",
   "requiresClarification": <true|false>
 }`,
-      variables: ['clinicName', 'email', 'patientName'],
-      metadata: {
-        description: 'Colectare consimțământ GDPR',
-        maxTokens: 200,
-        temperature: 0.1,
-        tags: ['gdpr', 'consent', 'legal', 'romanian'],
-      },
-      isActive: true,
+    variables: ['clinicName', 'email', 'patientName'],
+    metadata: {
+      description: 'Colectare consimțământ GDPR',
+      maxTokens: 200,
+      temperature: 0.1,
+      tags: ['gdpr', 'consent', 'legal', 'romanian'],
     },
-  };
+    isActive: true,
+  },
+};
 
 // =============================================================================
 // System Prompts Repository
@@ -465,10 +467,7 @@ export class SystemPromptsRepository {
   /**
    * Get prompts by category
    */
-  async getPromptsByCategory(
-    category: PromptCategory,
-    tenantId?: string
-  ): Promise<SystemPrompt[]> {
+  async getPromptsByCategory(category: PromptCategory, tenantId?: string): Promise<SystemPrompt[]> {
     const prompts: SystemPrompt[] = [];
 
     // Query database for prompts if enabled
@@ -549,9 +548,7 @@ export class SystemPromptsRepository {
   /**
    * Create or update a prompt
    */
-  async upsertPrompt(
-    prompt: Omit<SystemPrompt, 'createdAt' | 'updatedAt'>
-  ): Promise<SystemPrompt> {
+  async upsertPrompt(prompt: Omit<SystemPrompt, 'createdAt' | 'updatedAt'>): Promise<SystemPrompt> {
     const now = new Date();
     const existing = await this.getPrompt(prompt.id, prompt.tenantId);
 

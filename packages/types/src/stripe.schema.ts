@@ -38,7 +38,15 @@ export const PaymentIntentSchema = z.object({
   amount: z.number(),
   amount_received: z.number(),
   currency: z.string(),
-  status: z.enum(['requires_payment_method', 'requires_confirmation', 'requires_action', 'processing', 'requires_capture', 'canceled', 'succeeded']),
+  status: z.enum([
+    'requires_payment_method',
+    'requires_confirmation',
+    'requires_action',
+    'processing',
+    'requires_capture',
+    'canceled',
+    'succeeded',
+  ]),
   customer: z.string().nullable(),
   description: z.string().nullable(),
   metadata: z.record(z.string()).optional(),
@@ -130,22 +138,28 @@ export const SubscriptionSchema = z.object({
   canceled_at: z.number().nullable(),
   ended_at: z.number().nullable(),
   metadata: z.record(z.string()).optional(),
-  items: z.object({
-    data: z.array(z.object({
-      id: z.string(),
-      price: z.object({
-        id: z.string(),
-        product: z.string(),
-        unit_amount: z.number().nullable(),
-        currency: z.string(),
-        recurring: z.object({
-          interval: z.enum(['day', 'week', 'month', 'year']),
-          interval_count: z.number(),
-        }).nullable(),
-      }),
-      quantity: z.number().optional(),
-    })),
-  }).optional(),
+  items: z
+    .object({
+      data: z.array(
+        z.object({
+          id: z.string(),
+          price: z.object({
+            id: z.string(),
+            product: z.string(),
+            unit_amount: z.number().nullable(),
+            currency: z.string(),
+            recurring: z
+              .object({
+                interval: z.enum(['day', 'week', 'month', 'year']),
+                interval_count: z.number(),
+              })
+              .nullable(),
+          }),
+          quantity: z.number().optional(),
+        })
+      ),
+    })
+    .optional(),
   created: z.number(),
 });
 

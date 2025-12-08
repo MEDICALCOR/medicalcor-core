@@ -7,29 +7,25 @@ Maximizing token savings with TOON format.
 ### 1. Use TOON for Arrays ≥5 Items
 
 **Don't use TOON:**
+
 ```json
-[
-  {"name": "Alice"},
-  {"name": "Bob"}
-]
+[{ "name": "Alice" }, { "name": "Bob" }]
 ```
+
 Only 2 items → minimal savings (8%)
 
 **Use TOON:**
+
 ```json
-[
-  {"name": "Alice"},
-  {"name": "Bob"},
-  {"name": "Carol"},
-  {"name": "Dave"},
-  {"name": "Eve"}
-]
+[{ "name": "Alice" }, { "name": "Bob" }, { "name": "Carol" }, { "name": "Dave" }, { "name": "Eve" }]
 ```
+
 5+ items → good savings (35%)
 
 ### 2. Enable Key Folding for Nested Config
 
 **Without folding (28 tokens):**
+
 ```
 server:
   host: localhost
@@ -37,6 +33,7 @@ server:
 ```
 
 **With folding (18 tokens, 36% savings):**
+
 ```
 server.host: localhost
 server.port: 8080
@@ -45,6 +42,7 @@ server.port: 8080
 ### 3. Choose Right Delimiter
 
 **Comma with addresses (many quotes):**
+
 ```
 [2]{name,address}:
   Alice,"123 Main St, NYC"
@@ -52,6 +50,7 @@ server.port: 8080
 ```
 
 **Tab (no quotes needed):**
+
 ```
 [2\t]{name,address}:
   Alice	123 Main St, NYC
@@ -61,11 +60,13 @@ server.port: 8080
 ## Token Estimation
 
 **Formula:**
+
 ```
 tokens ≈ bytes / 4
 ```
 
 **Example:**
+
 ```bash
 JSON_SIZE=$(wc -c < data.json)
 TOON_SIZE=$(wc -c < data.toon)
@@ -87,15 +88,17 @@ echo "Saved: $PERCENT%"
 ### High Uniformity (85%) → Tabular
 
 **JSON (240 tokens):**
+
 ```json
 [
-  {"id": 1, "name": "Alice", "age": 30, "city": "NYC"},
-  {"id": 2, "name": "Bob", "age": 25, "city": "LA"},
-  {"id": 3, "name": "Carol", "age": 35, "city": "SF"}
+  { "id": 1, "name": "Alice", "age": 30, "city": "NYC" },
+  { "id": 2, "name": "Bob", "age": 25, "city": "LA" },
+  { "id": 3, "name": "Carol", "age": 35, "city": "SF" }
 ]
 ```
 
 **TOON (144 tokens, 40% savings):**
+
 ```
 [3]{id,name,age,city}:
   1,Alice,30,NYC
@@ -106,15 +109,17 @@ echo "Saved: $PERCENT%"
 ### Low Uniformity (30%) → Expanded
 
 **JSON:**
+
 ```json
 [
-  {"name": "Alice", "age": 30},
-  {"name": "Bob", "role": "admin"},
-  {"name": "Carol", "age": 25, "role": "user", "level": 5}
+  { "name": "Alice", "age": 30 },
+  { "name": "Bob", "role": "admin" },
+  { "name": "Carol", "age": 25, "role": "user", "level": 5 }
 ]
 ```
 
 **TOON (only 10% savings):**
+
 ```
 - name: Alice
   age: 30
@@ -133,31 +138,31 @@ echo "Saved: $PERCENT%"
 ### Bad: Mixed Types in Array
 
 **JSON:**
+
 ```json
 {
   "users": [
-    {"type": "user", "name": "Alice", "age": 30},
-    {"type": "admin", "name": "Bob", "permissions": ["read", "write"]}
+    { "type": "user", "name": "Alice", "age": 30 },
+    { "type": "admin", "name": "Bob", "permissions": ["read", "write"] }
   ]
 }
 ```
+
 Uniformity: 40% → Poor savings
 
 ### Good: Split by Type
 
 **JSON:**
+
 ```json
 {
-  "users": [
-    {"name": "Alice", "age": 30}
-  ],
-  "admins": [
-    {"name": "Bob", "permissions": ["read", "write"]}
-  ]
+  "users": [{ "name": "Alice", "age": 30 }],
+  "admins": [{ "name": "Bob", "permissions": ["read", "write"] }]
 }
 ```
 
 **TOON:**
+
 ```
 [1]{name,age}:
   Alice,30
@@ -165,6 +170,7 @@ Uniformity: 40% → Poor savings
 [1]{name,permissions}:
   Bob,"[read,write]"
 ```
+
 Each array 100% uniform → Better savings
 
 ## Field Ordering
@@ -172,6 +178,7 @@ Each array 100% uniform → Better savings
 Order fields by frequency to improve readability:
 
 **Less optimal:**
+
 ```
 [100]{optionalField,id,name,age}:
   null,1,Alice,30
@@ -180,6 +187,7 @@ Order fields by frequency to improve readability:
 ```
 
 **More optimal:**
+
 ```
 [100]{id,name,age,optionalField}:
   1,Alice,30,null
@@ -194,11 +202,13 @@ Common fields first → easier to scan.
 ### Use Inline for Primitives ≤10
 
 **Inline (14 tokens):**
+
 ```
 tags[5]: js,react,node,web,api
 ```
 
 **Tabular (28 tokens):**
+
 ```
 [5]{tag}:
   js
@@ -213,6 +223,7 @@ tags[5]: js,react,node,web,api
 ### Use Tabular for Objects ≥5
 
 **Tabular (42 tokens):**
+
 ```
 [5]{name,age}:
   Alice,30
@@ -223,6 +234,7 @@ tags[5]: js,react,node,web,api
 ```
 
 **Expanded (68 tokens):**
+
 ```
 - name: Alice
   age: 30
@@ -242,6 +254,7 @@ tags[5]: js,react,node,web,api
 **Savings: 42% (93k tokens)**
 
 Breakdown:
+
 - Endpoints array (400 items) → tabular
 - Pipe delimiter (descriptions have commas)
 - No key folding needed (flat objects)
@@ -253,6 +266,7 @@ Breakdown:
 **Savings: 40% (450k tokens)**
 
 Breakdown:
+
 - Transactions array (10,000 items) → tabular
 - Comma delimiter (numeric data)
 - Key folding for metadata (server.host, etc.)
@@ -264,6 +278,7 @@ Breakdown:
 **Savings: 39% (1.75k tokens)**
 
 Breakdown:
+
 - Small arrays → inline format
 - Nested config → key folding enabled
 - Tab delimiter (paths with commas)
@@ -273,11 +288,13 @@ Breakdown:
 ### ❌ Using TOON for Small Data
 
 **JSON (24 tokens):**
+
 ```json
-{"name": "Alice", "age": 30}
+{ "name": "Alice", "age": 30 }
 ```
 
 **TOON (22 tokens):**
+
 ```
 name: Alice
 age: 30
@@ -288,6 +305,7 @@ age: 30
 ### ❌ Forcing Tabular on Non-Uniform
 
 **Tabular (with many nulls):**
+
 ```
 [3]{name,age,role,level,dept}:
   Alice,30,null,null,null
@@ -296,6 +314,7 @@ age: 30
 ```
 
 **Better (expanded):**
+
 ```
 - name: Alice
   age: 30
@@ -310,11 +329,13 @@ age: 30
 ### ❌ Over-Nesting with Key Folding
 
 **Too deep (harder to read):**
+
 ```
 app.config.server.ssl.cert.path.filesystem.location: /etc/certs
 ```
 
 **Better (stop at 3 levels):**
+
 ```
 app.config.server:
   ssl.cert.path: /etc/certs/server.pem

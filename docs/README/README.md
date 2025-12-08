@@ -44,13 +44,13 @@
 
 ### Why MedicalCor?
 
-| Challenge | Our Solution |
-|-----------|--------------|
+| Challenge                                   | Our Solution                                                                        |
+| ------------------------------------------- | ----------------------------------------------------------------------------------- |
 | Manual lead qualification wastes staff time | AI-powered lead scoring with GPT-4o automatically classifies leads as HOT/WARM/COLD |
-| Missed follow-ups hurt conversion rates | Durable workflows with Trigger.dev ensure no lead falls through the cracks |
-| Fragmented communication across channels | Unified inbox for WhatsApp, Voice, Email, and Web leads |
-| Compliance complexity (GDPR, HIPAA) | Built-in consent management with audit trails |
-| Integration headaches | Pre-built integrations with HubSpot, Stripe, Twilio, and more |
+| Missed follow-ups hurt conversion rates     | Durable workflows with Trigger.dev ensure no lead falls through the cracks          |
+| Fragmented communication across channels    | Unified inbox for WhatsApp, Voice, Email, and Web leads                             |
+| Compliance complexity (GDPR, HIPAA)         | Built-in consent management with audit trails                                       |
+| Integration headaches                       | Pre-built integrations with HubSpot, Stripe, Twilio, and more                       |
 
 ---
 
@@ -59,6 +59,7 @@
 ### Core Capabilities
 
 #### AI-Powered Lead Intelligence
+
 - **Intelligent Scoring**: GPT-4o analyzes conversations to score leads (1-5) with confidence levels
 - **Automatic Classification**: HOT, WARM, COLD, or UNQUALIFIED based on intent signals
 - **Procedure Detection**: Identifies interest in implants, veneers, whitening, All-on-X, etc.
@@ -66,6 +67,7 @@
 - **Rule-Based Fallback**: Continues working even if AI is unavailable
 
 #### Omnichannel Communication
+
 - **WhatsApp Business API** (via 360dialog)
 - **Voice Calls** (Twilio + Vapi AI)
 - **Email Integration**
@@ -73,6 +75,7 @@
 - **SMS Notifications**
 
 #### Workflow Automation
+
 - **Durable Workflows**: Trigger.dev ensures reliability with automatic retries
 - **Appointment Reminders**: Automated 24h and 2h notifications
 - **Recall Management**: Never miss a patient follow-up
@@ -80,6 +83,7 @@
 - **Consent Renewal**: GDPR-compliant consent lifecycle management
 
 #### Enterprise Security
+
 - **Webhook Signature Verification**: HMAC-SHA256 for all incoming webhooks
 - **Rate Limiting**: Redis-backed, configurable per endpoint
 - **PII Protection**: Automatic redaction in logs
@@ -154,37 +158,37 @@ For detailed setup instructions, see [GETTING_STARTED.md](./GETTING_STARTED.md).
 
 ### Essential Guides
 
-| Document | Description |
-|----------|-------------|
-| [Getting Started](./GETTING_STARTED.md) | Complete setup guide with prerequisites |
-| [Architecture](./ARCHITECTURE.md) | System design, data flow, and component overview |
-| [API Reference](./API_REFERENCE.md) | Complete endpoint documentation |
-| [Configuration](./CONFIGURATION.md) | Environment variables reference |
+| Document                                | Description                                      |
+| --------------------------------------- | ------------------------------------------------ |
+| [Getting Started](./GETTING_STARTED.md) | Complete setup guide with prerequisites          |
+| [Architecture](./ARCHITECTURE.md)       | System design, data flow, and component overview |
+| [API Reference](./API_REFERENCE.md)     | Complete endpoint documentation                  |
+| [Configuration](./CONFIGURATION.md)     | Environment variables reference                  |
 
 ### Development
 
-| Document | Description |
-|----------|-------------|
-| [Development Guide](./DEVELOPMENT.md) | Contributing guidelines and code standards |
-| [Testing Guide](./TESTING.md) | Test setup, patterns, and coverage |
-| [Troubleshooting](./TROUBLESHOOTING.md) | Common issues and solutions |
+| Document                                | Description                                |
+| --------------------------------------- | ------------------------------------------ |
+| [Development Guide](./DEVELOPMENT.md)   | Contributing guidelines and code standards |
+| [Testing Guide](./TESTING.md)           | Test setup, patterns, and coverage         |
+| [Troubleshooting](./TROUBLESHOOTING.md) | Common issues and solutions                |
 
 ### Operations
 
-| Document | Description |
-|----------|-------------|
-| [Deployment](./DEPLOYMENT.md) | Production deployment instructions |
-| [Security](./SECURITY.md) | Security architecture and best practices |
-| [Monitoring](./MONITORING.md) | Observability and alerting setup |
-| [Workflows](./WORKFLOWS.md) | Trigger.dev workflows and scheduled jobs |
+| Document                      | Description                              |
+| ----------------------------- | ---------------------------------------- |
+| [Deployment](./DEPLOYMENT.md) | Production deployment instructions       |
+| [Security](./SECURITY.md)     | Security architecture and best practices |
+| [Monitoring](./MONITORING.md) | Observability and alerting setup         |
+| [Workflows](./WORKFLOWS.md)   | Trigger.dev workflows and scheduled jobs |
 
 ### Reference
 
-| Document | Description |
-|----------|-------------|
-| [Changelog](./CHANGELOG.md) | Version history and release notes |
-| [FAQ](./FAQ.md) | Frequently asked questions |
-| [Glossary](./GLOSSARY.md) | Domain terminology and definitions |
+| Document                    | Description                        |
+| --------------------------- | ---------------------------------- |
+| [Changelog](./CHANGELOG.md) | Version history and release notes  |
+| [FAQ](./FAQ.md)             | Frequently asked questions         |
+| [Glossary](./GLOSSARY.md)   | Domain terminology and definitions |
 
 ---
 
@@ -301,59 +305,59 @@ medicalcor-core/
 
 ### Runtime & Build
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| Node.js | 20+ | JavaScript runtime |
-| pnpm | 9+ | Package manager |
-| Turborepo | 2.3 | Monorepo build system |
-| TypeScript | 5.6 | Type safety |
+| Technology | Version | Purpose               |
+| ---------- | ------- | --------------------- |
+| Node.js    | 20+     | JavaScript runtime    |
+| pnpm       | 9+      | Package manager       |
+| Turborepo  | 2.3     | Monorepo build system |
+| TypeScript | 5.6     | Type safety           |
 
 ### Backend
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| Fastify | 5.1 | High-performance API framework |
-| Trigger.dev | 3.1 | Durable workflow orchestration |
-| Zod | 3.23 | Runtime validation |
-| Pino | 9.x | Structured logging |
+| Technology  | Version | Purpose                        |
+| ----------- | ------- | ------------------------------ |
+| Fastify     | 5.1     | High-performance API framework |
+| Trigger.dev | 3.1     | Durable workflow orchestration |
+| Zod         | 3.23    | Runtime validation             |
+| Pino        | 9.x     | Structured logging             |
 
 ### Frontend
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| Next.js | 15.5 | React framework |
-| React | 19 | UI library |
-| Tailwind CSS | 3.x | Styling |
-| Radix UI | Latest | Accessible components |
+| Technology   | Version | Purpose               |
+| ------------ | ------- | --------------------- |
+| Next.js      | 15.5    | React framework       |
+| React        | 19      | UI library            |
+| Tailwind CSS | 3.x     | Styling               |
+| Radix UI     | Latest  | Accessible components |
 
 ### Database & Cache
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| PostgreSQL | 15 | Primary database |
-| Redis | 7 | Caching & rate limiting |
+| Technology | Version | Purpose                 |
+| ---------- | ------- | ----------------------- |
+| PostgreSQL | 15      | Primary database        |
+| Redis      | 7       | Caching & rate limiting |
 
 ### Integrations
 
-| Service | Purpose |
-|---------|---------|
-| HubSpot | CRM data sync |
+| Service   | Purpose               |
+| --------- | --------------------- |
+| HubSpot   | CRM data sync         |
 | 360dialog | WhatsApp Business API |
-| Twilio | Voice calls & SMS |
-| Vapi | Voice AI |
-| OpenAI | Lead scoring AI |
-| Stripe | Payment processing |
+| Twilio    | Voice calls & SMS     |
+| Vapi      | Voice AI              |
+| OpenAI    | Lead scoring AI       |
+| Stripe    | Payment processing    |
 
 ### DevOps
 
-| Technology | Purpose |
-|------------|---------|
-| Docker | Containerization |
-| GitHub Actions | CI/CD |
-| Terraform | Infrastructure as Code |
-| OpenTelemetry | Distributed tracing |
-| Prometheus | Metrics collection |
-| Grafana | Dashboards |
+| Technology     | Purpose                |
+| -------------- | ---------------------- |
+| Docker         | Containerization       |
+| GitHub Actions | CI/CD                  |
+| Terraform      | Infrastructure as Code |
+| OpenTelemetry  | Distributed tracing    |
+| Prometheus     | Metrics collection     |
+| Grafana        | Dashboards             |
 
 ---
 

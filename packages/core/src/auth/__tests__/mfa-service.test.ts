@@ -265,9 +265,9 @@ describe('MFA Service', () => {
         vi.stubEnv('MFA_ENCRYPTION_KEY', '');
         const service = new MfaService(mockDb);
 
-        await expect(
-          service.beginSetup('user-123', 'test@example.com')
-        ).rejects.toThrow('encryption key not configured');
+        await expect(service.beginSetup('user-123', 'test@example.com')).rejects.toThrow(
+          'encryption key not configured'
+        );
       });
     });
 

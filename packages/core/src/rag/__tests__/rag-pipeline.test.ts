@@ -172,9 +172,7 @@ describe('RAGPipeline', () => {
     it('should inject RAG context into prompt', () => {
       const ragResult: RAGResult = {
         retrievedContext: 'All-on-4 is a dental implant procedure.',
-        sources: [
-          { id: '1', title: 'FAQ', sourceType: 'faq', similarity: 0.85 },
-        ],
+        sources: [{ id: '1', title: 'FAQ', sourceType: 'faq', similarity: 0.85 }],
         searchLatencyMs: 10,
         embeddingLatencyMs: 5,
         totalLatencyMs: 15,
@@ -241,9 +239,7 @@ describe('buildRAGEnhancedPrompt', () => {
       userPrompt: 'What is the cost?',
       ragResult: {
         retrievedContext: 'Pricing varies by case.',
-        sources: [
-          { id: '1', title: 'Pricing FAQ', sourceType: 'pricing_info', similarity: 0.9 },
-        ],
+        sources: [{ id: '1', title: 'Pricing FAQ', sourceType: 'pricing_info', similarity: 0.9 }],
         searchLatencyMs: 10,
         embeddingLatencyMs: 5,
         totalLatencyMs: 15,
@@ -282,9 +278,7 @@ describe('buildRAGEnhancedPrompt', () => {
       userPrompt: 'Query',
       ragResult: {
         retrievedContext: 'Context here',
-        sources: [
-          { id: '1', title: 'Source', sourceType: 'faq', similarity: 0.8 },
-        ],
+        sources: [{ id: '1', title: 'Source', sourceType: 'faq', similarity: 0.8 }],
         searchLatencyMs: 10,
         embeddingLatencyMs: 5,
         totalLatencyMs: 15,

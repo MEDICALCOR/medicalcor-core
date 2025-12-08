@@ -1,6 +1,6 @@
 /**
  * XRAY Audit Engine - Observability Analyzer
- * 
+ *
  * Analyzes logging, metrics, tracing, health checks, and error handling.
  */
 
@@ -41,12 +41,8 @@ export class ObservabilityAnalyzer {
   private async assessLogging(): Promise<number> {
     const rootPath = this.config.rootPath;
     let score = 10;
-    
-    const searchPaths = [
-      'packages/core/src',
-      'apps/api/src',
-      'apps/trigger/src',
-    ];
+
+    const searchPaths = ['packages/core/src', 'apps/api/src', 'apps/trigger/src'];
 
     let totalFiles = 0;
     let filesWithStructuredLogging = 0;
@@ -54,13 +50,13 @@ export class ObservabilityAnalyzer {
 
     for (const searchPath of searchPaths) {
       const fullPath = join(rootPath, searchPath);
-      
+
       try {
         const files = await this.getAllFiles(fullPath, ['.ts', '.tsx']);
 
         for (const file of files) {
           const content = await readFile(file, 'utf-8');
-          
+
           // Skip test files
           if (file.includes('__tests__') || file.includes('.test.')) {
             continue;
@@ -91,7 +87,7 @@ export class ObservabilityAnalyzer {
     if (totalFiles > 0) {
       const structuredRatio = filesWithStructuredLogging / totalFiles;
       const consoleLogPenalty = (filesWithConsoleLog / totalFiles) * 5;
-      
+
       score = Math.max(0, structuredRatio * 10 - consoleLogPenalty);
     }
 
@@ -100,7 +96,7 @@ export class ObservabilityAnalyzer {
 
   private async assessMetrics(): Promise<number> {
     const rootPath = this.config.rootPath;
-    
+
     // Check for metrics implementations
     const metricsPath = join(rootPath, 'packages/core/src/metrics');
     const observabilityPath = join(rootPath, 'packages/core/src/observability');
@@ -134,7 +130,7 @@ export class ObservabilityAnalyzer {
 
   private async checkTracing(): Promise<boolean> {
     const rootPath = this.config.rootPath;
-    
+
     const searchPaths = [
       'packages/core/src/observability',
       'packages/core/src/telemetry.ts',
@@ -144,13 +140,13 @@ export class ObservabilityAnalyzer {
 
     for (const searchPath of searchPaths) {
       const fullPath = join(rootPath, searchPath);
-      
+
       try {
         const files = await this.getAllFiles(fullPath, ['.ts']);
 
         for (const file of files) {
           const content = await readFile(file, 'utf-8');
-          
+
           if (
             content.includes('trace') ||
             content.includes('span') ||
@@ -169,12 +165,12 @@ export class ObservabilityAnalyzer {
 
   private async checkCorrelationIDs(): Promise<boolean> {
     const rootPath = this.config.rootPath;
-    
+
     const files = await this.getAllFiles(join(rootPath, 'packages/core/src'), ['.ts']);
 
     for (const file of files) {
       const content = await readFile(file, 'utf-8');
-      
+
       if (
         content.includes('correlationId') ||
         content.includes('correlation-id') ||
@@ -190,22 +186,19 @@ export class ObservabilityAnalyzer {
   private async findHealthChecks(): Promise<string[]> {
     const healthChecks: string[] = [];
     const rootPath = this.config.rootPath;
-    
-    const searchPaths = [
-      'apps/api/src/routes/health.ts',
-      'apps/api/src/routes/diagnostics.ts',
-    ];
+
+    const searchPaths = ['apps/api/src/routes/health.ts', 'apps/api/src/routes/diagnostics.ts'];
 
     for (const searchPath of searchPaths) {
       const fullPath = join(rootPath, searchPath);
-      
+
       try {
         const content = await readFile(fullPath, 'utf-8');
         const relativePath = relative(rootPath, fullPath);
 
         // Extract health check endpoints
         const endpointMatches = content.matchAll(/(?:get|post)\(['"]([^'"]+)['"]/g);
-        
+
         for (const match of endpointMatches) {
           healthChecks.push(`${relativePath}: ${match[1]}`);
         }
@@ -223,7 +216,7 @@ export class ObservabilityAnalyzer {
 
     // Check for console.log usage
     const files = await this.getAllFiles(join(rootPath, 'packages'), ['.ts', '.tsx']);
-    
+
     for (const file of files) {
       const content = await readFile(file, 'utf-8');
       const relativePath = relative(rootPath, file);
@@ -249,11 +242,11 @@ export class ObservabilityAnalyzer {
 
       // Check for missing error context
       const errorCatchMatches = content.matchAll(/catch\s*\(\s*(\w+)\s*\)/g);
-      
+
       for (const match of errorCatchMatches) {
         const errorVar = match[1];
         const catchBlock = content.slice(match.index);
-        
+
         // Check if error is logged or rethrown
         if (
           !catchBlock.includes(`logger.error`) &&
@@ -313,7 +306,7 @@ export class ObservabilityAnalyzer {
     currentDepth: number = 0
   ): Promise<string[]> {
     const maxDepth = 10;
-    
+
     if (currentDepth > maxDepth) {
       return [];
     }

@@ -105,8 +105,12 @@ test.describe('Booking Flow', () => {
         await expect(page.getByText(/selectează data/i)).toBeVisible({ timeout: 5000 });
 
         // Check month navigation buttons
-        const prevButton = page.locator('button').filter({ has: page.locator('[class*="lucide-chevron-left"]') });
-        const nextButton = page.locator('button').filter({ has: page.locator('[class*="lucide-chevron-right"]') });
+        const prevButton = page
+          .locator('button')
+          .filter({ has: page.locator('[class*="lucide-chevron-left"]') });
+        const nextButton = page
+          .locator('button')
+          .filter({ has: page.locator('[class*="lucide-chevron-right"]') });
 
         await expect(prevButton.or(nextButton)).toBeVisible({ timeout: 3000 });
 
@@ -146,7 +150,10 @@ test.describe('Booking Flow', () => {
           await calendarDay.click();
 
           // Select a time slot if visible
-          const timeSlot = page.locator('button').filter({ hasText: /^\d{2}:\d{2}$/ }).first();
+          const timeSlot = page
+            .locator('button')
+            .filter({ hasText: /^\d{2}:\d{2}$/ })
+            .first();
           if (await timeSlot.isVisible({ timeout: 3000 })) {
             await timeSlot.click();
             await page.getByRole('button', { name: /continuă/i }).click();

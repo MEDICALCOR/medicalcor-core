@@ -26,13 +26,13 @@ MedicalCor uses [Trigger.dev](https://trigger.dev) for durable workflow executio
 
 ### Why Trigger.dev?
 
-| Challenge | Solution |
-|-----------|----------|
+| Challenge                            | Solution                                                    |
+| ------------------------------------ | ----------------------------------------------------------- |
 | Webhook handlers must return quickly | Tasks process asynchronously after immediate acknowledgment |
-| External API failures | Automatic retries with configurable backoff |
-| Complex multi-step operations | Durable workflows maintain state across steps |
-| Scheduled operations | Built-in cron job support |
-| Debugging distributed systems | Full execution traces and logs |
+| External API failures                | Automatic retries with configurable backoff                 |
+| Complex multi-step operations        | Durable workflows maintain state across steps               |
+| Scheduled operations                 | Built-in cron job support                                   |
+| Debugging distributed systems        | Full execution traces and logs                              |
 
 ---
 
@@ -97,14 +97,14 @@ Tasks are the basic unit of work. Each task handles a specific operation.
 
 ### Available Tasks
 
-| Task | Description | Trigger |
-|------|-------------|---------|
-| `process-whatsapp-message` | Handle incoming WhatsApp messages | WhatsApp webhook |
-| `process-voice-call` | Process completed voice calls | Twilio/Vapi webhook |
-| `score-lead` | AI-powered lead scoring | Message processing |
-| `sync-hubspot-contact` | Create/update HubSpot contact | Lead scored |
-| `send-whatsapp-message` | Send outbound WhatsApp message | Various workflows |
-| `send-appointment-reminder` | Send appointment reminder | Cron job |
+| Task                        | Description                       | Trigger             |
+| --------------------------- | --------------------------------- | ------------------- |
+| `process-whatsapp-message`  | Handle incoming WhatsApp messages | WhatsApp webhook    |
+| `process-voice-call`        | Process completed voice calls     | Twilio/Vapi webhook |
+| `score-lead`                | AI-powered lead scoring           | Message processing  |
+| `sync-hubspot-contact`      | Create/update HubSpot contact     | Lead scored         |
+| `send-whatsapp-message`     | Send outbound WhatsApp message    | Various workflows   |
+| `send-appointment-reminder` | Send appointment reminder         | Cron job            |
 
 ### Task Structure
 
@@ -279,13 +279,13 @@ Scheduled jobs that run at specified intervals.
 
 ### Available Cron Jobs
 
-| Schedule | Job | Description |
-|----------|-----|-------------|
-| `0 9 * * *` | `daily-recall-check` | Find patients due for recall |
-| `0 * * * *` | `hourly-reminder-check` | Check for upcoming appointments |
-| `0 2 * * *` | `stale-lead-refresh` | Re-score leads not updated in 7 days |
-| `0 8 * * 1` | `weekly-report` | Generate weekly analytics report |
-| `0 3 * * *` | `consent-expiry-check` | Check for expiring consents |
+| Schedule    | Job                     | Description                          |
+| ----------- | ----------------------- | ------------------------------------ |
+| `0 9 * * *` | `daily-recall-check`    | Find patients due for recall         |
+| `0 * * * *` | `hourly-reminder-check` | Check for upcoming appointments      |
+| `0 2 * * *` | `stale-lead-refresh`    | Re-score leads not updated in 7 days |
+| `0 8 * * 1` | `weekly-report`         | Generate weekly analytics report     |
+| `0 3 * * *` | `consent-expiry-check`  | Check for expiring consents          |
 
 ### Cron Job Implementation
 
@@ -425,12 +425,12 @@ Access at [cloud.trigger.dev](https://cloud.trigger.dev):
 
 ### Key Metrics to Monitor
 
-| Metric | Alert Threshold | Description |
-|--------|-----------------|-------------|
-| Task failure rate | > 5% | Tasks failing after retries |
-| Queue depth | > 1000 | Backlog of pending tasks |
-| P95 latency | > 30s | Slow task execution |
-| Cron job missed | Any | Scheduled job didn't run |
+| Metric            | Alert Threshold | Description                 |
+| ----------------- | --------------- | --------------------------- |
+| Task failure rate | > 5%            | Tasks failing after retries |
+| Queue depth       | > 1000          | Backlog of pending tasks    |
+| P95 latency       | > 30s           | Slow task execution         |
+| Cron job missed   | Any             | Scheduled job didn't run    |
 
 ### Integration with Prometheus
 
@@ -452,10 +452,7 @@ export const scoreLeadTask = task({
         fallback: result.fallbackUsed ? 'true' : 'false',
       });
 
-      metrics.leadScoringDuration.observe(
-        { model: result.model },
-        (Date.now() - startTime) / 1000
-      );
+      metrics.leadScoringDuration.observe({ model: result.model }, (Date.now() - startTime) / 1000);
 
       return result;
     } catch (error) {

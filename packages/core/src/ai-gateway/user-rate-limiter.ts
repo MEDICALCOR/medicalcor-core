@@ -322,7 +322,10 @@ export class UserRateLimiter {
         tier,
       };
     } catch (error) {
-      logger.warn({ error, userId }, 'Redis rate limit check failed - allowing request (graceful degradation)');
+      logger.warn(
+        { error, userId },
+        'Redis rate limit check failed - allowing request (graceful degradation)'
+      );
       return this.allowedResult(userId, tier);
     }
   }

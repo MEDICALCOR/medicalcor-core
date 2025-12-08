@@ -36,12 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
 const statusColors = {
@@ -94,16 +89,16 @@ function SpanViewer({ spans, onClose }: SpanViewerProps) {
   );
 
   const minTime = sortedSpans.length > 0 ? new Date(sortedSpans[0].startTime).getTime() : 0;
-  const maxTime = sortedSpans.length > 0
-    ? Math.max(...sortedSpans.map((s) => new Date(s.endTime).getTime()))
-    : 0;
+  const maxTime =
+    sortedSpans.length > 0 ? Math.max(...sortedSpans.map((s) => new Date(s.endTime).getTime())) : 0;
   const totalDuration = maxTime - minTime;
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {spans.length} span{spans.length !== 1 ? 's' : ''} | Total: {formatDuration(totalDuration)}
+          {spans.length} span{spans.length !== 1 ? 's' : ''} | Total:{' '}
+          {formatDuration(totalDuration)}
         </p>
         <Button variant="ghost" size="icon" onClick={onClose}>
           <X className="h-4 w-4" />
@@ -153,11 +148,13 @@ function SpanViewer({ spans, onClose }: SpanViewerProps) {
               {/* Span attributes */}
               {Object.keys(span.attributes).length > 0 && (
                 <div className="flex flex-wrap gap-1 pt-1">
-                  {Object.entries(span.attributes).slice(0, 5).map(([key, value]) => (
-                    <Badge key={key} variant="secondary" className="text-xs font-normal">
-                      {key}: {String(value)}
-                    </Badge>
-                  ))}
+                  {Object.entries(span.attributes)
+                    .slice(0, 5)
+                    .map(([key, value]) => (
+                      <Badge key={key} variant="secondary" className="text-xs font-normal">
+                        {key}: {String(value)}
+                      </Badge>
+                    ))}
                   {Object.keys(span.attributes).length > 5 && (
                     <Badge variant="secondary" className="text-xs font-normal">
                       +{Object.keys(span.attributes).length - 5} more
@@ -184,29 +181,32 @@ export default function TracesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { toast } = useToast();
 
-  const loadData = useCallback(async (showRefreshState = false) => {
-    if (showRefreshState) setIsRefreshing(true);
-    else setIsLoading(true);
+  const loadData = useCallback(
+    async (showRefreshState = false) => {
+      if (showRefreshState) setIsRefreshing(true);
+      else setIsLoading(true);
 
-    try {
-      const [tracesResult, statsResult] = await Promise.all([
-        searchTracesAction({ limit: 100 }),
-        getTraceStatsAction(),
-      ]);
+      try {
+        const [tracesResult, statsResult] = await Promise.all([
+          searchTracesAction({ limit: 100 }),
+          getTraceStatsAction(),
+        ]);
 
-      setTraces(tracesResult.traces);
-      setStats(statsResult.stats);
-    } catch {
-      toast({
-        title: 'Error',
-        description: 'Failed to load trace data',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [toast]);
+        setTraces(tracesResult.traces);
+        setStats(statsResult.stats);
+      } catch {
+        toast({
+          title: 'Error',
+          description: 'Failed to load trace data',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    [toast]
+  );
 
   useEffect(() => {
     void loadData();
@@ -263,9 +263,7 @@ export default function TracesPage() {
             <Activity className="h-6 w-6 text-primary" />
             Request Traces
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Monitor request flow with correlation IDs
-          </p>
+          <p className="text-muted-foreground mt-1">Monitor request flow with correlation IDs</p>
         </div>
         <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing}>
           <RefreshCw className={cn('h-4 w-4 mr-2', isRefreshing && 'animate-spin')} />
@@ -340,9 +338,7 @@ export default function TracesPage() {
               </div>
               <Select
                 value={statusFilter}
-                onValueChange={(value: string) =>
-                  setStatusFilter(value as 'all' | 'ok' | 'error')
-                }
+                onValueChange={(value: string) => setStatusFilter(value as 'all' | 'ok' | 'error')}
               >
                 <SelectTrigger className="w-[130px]">
                   <SelectValue placeholder="Status" />
@@ -361,9 +357,7 @@ export default function TracesPage() {
             <div className="text-center py-12 text-muted-foreground">
               <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No traces found</p>
-              <p className="text-sm mt-1">
-                Traces will appear here as requests are processed
-              </p>
+              <p className="text-sm mt-1">Traces will appear here as requests are processed</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -383,10 +377,7 @@ export default function TracesPage() {
                     tabIndex={0}
                   >
                     {/* Status */}
-                    <Badge
-                      variant="outline"
-                      className={cn('shrink-0', statusColors[trace.status])}
-                    >
+                    <Badge variant="outline" className={cn('shrink-0', statusColors[trace.status])}>
                       <StatusIcon className="h-3 w-3 mr-1" />
                       {trace.status === 'ok' ? 'OK' : 'Error'}
                     </Badge>
@@ -395,9 +386,7 @@ export default function TracesPage() {
                     <div className="flex-1 min-w-0 space-y-1">
                       <div className="flex items-center gap-2">
                         <Fingerprint className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <code className="text-sm font-mono">
-                          {truncateId(trace.traceId)}
-                        </code>
+                        <code className="text-sm font-mono">{truncateId(trace.traceId)}</code>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -497,10 +486,7 @@ export default function TracesPage() {
                 )}
                 <div>
                   <p className="text-sm text-muted-foreground">Status</p>
-                  <Badge
-                    variant="outline"
-                    className={cn(statusColors[selectedTrace.status])}
-                  >
+                  <Badge variant="outline" className={cn(statusColors[selectedTrace.status])}>
                     {selectedTrace.status === 'ok' ? 'Success' : 'Error'}
                   </Badge>
                 </div>
@@ -513,10 +499,7 @@ export default function TracesPage() {
               {/* Spans */}
               <div className="border-t pt-4">
                 <h3 className="font-medium mb-3">Span Timeline</h3>
-                <SpanViewer
-                  spans={selectedTrace.spans}
-                  onClose={() => setDialogOpen(false)}
-                />
+                <SpanViewer spans={selectedTrace.spans} onClose={() => setDialogOpen(false)} />
               </div>
             </div>
           )}

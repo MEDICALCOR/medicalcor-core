@@ -14,6 +14,7 @@ Provide expert guidance on Aptos token standards, including fungible tokens (Coi
 ## When to Use
 
 Auto-invoke when users mention:
+
 - **Fungible Tokens** - coin, fungible asset, FA, token standard, currency
 - **NFTs** - non-fungible token, digital asset, collection, NFT standard
 - **Operations** - mint, burn, transfer, freeze, metadata
@@ -83,6 +84,7 @@ Common scenarios:
 ### 3. Provide Implementation Guidance
 
 Structure your response:
+
 - **Standard choice** - which framework to use and why
 - **Code example** - complete working implementation
 - **Key concepts** - important patterns and structures
@@ -556,27 +558,27 @@ public entry fun mint_limited(
 
 ### Coin vs Fungible Asset
 
-| Feature | Coin | Fungible Asset |
-|---------|------|----------------|
-| Ease of use | ✅ Simple | ⚠️ More complex |
-| Flexibility | ❌ Limited | ✅ Highly flexible |
-| Freeze/Pause | ✅ Yes | ✅ Yes (more control) |
-| Custom logic | ❌ Limited | ✅ Extensive |
-| Gas cost | ✅ Lower | ⚠️ Slightly higher |
-| Adoption | ✅ Wide | 🆕 Growing |
-| Recommendation | Legacy/Simple | New projects |
+| Feature        | Coin          | Fungible Asset        |
+| -------------- | ------------- | --------------------- |
+| Ease of use    | ✅ Simple     | ⚠️ More complex       |
+| Flexibility    | ❌ Limited    | ✅ Highly flexible    |
+| Freeze/Pause   | ✅ Yes        | ✅ Yes (more control) |
+| Custom logic   | ❌ Limited    | ✅ Extensive          |
+| Gas cost       | ✅ Lower      | ⚠️ Slightly higher    |
+| Adoption       | ✅ Wide       | 🆕 Growing            |
+| Recommendation | Legacy/Simple | New projects          |
 
 ### Token V1 vs Digital Asset (Token V2)
 
-| Feature | Token V1 | Digital Asset |
-|---------|----------|---------------|
-| Object model | ❌ No | ✅ Yes |
-| Composability | ❌ Limited | ✅ High |
-| Properties | ⚠️ Basic | ✅ Rich |
-| Soul-bound | ❌ No | ✅ Yes |
-| Royalties | ✅ Yes | ✅ Yes (better) |
-| Status | ⚠️ Deprecated | ✅ Current |
-| Recommendation | Legacy only | All new projects |
+| Feature        | Token V1      | Digital Asset    |
+| -------------- | ------------- | ---------------- |
+| Object model   | ❌ No         | ✅ Yes           |
+| Composability  | ❌ Limited    | ✅ High          |
+| Properties     | ⚠️ Basic      | ✅ Rich          |
+| Soul-bound     | ❌ No         | ✅ Yes           |
+| Royalties      | ✅ Yes        | ✅ Yes (better)  |
+| Status         | ⚠️ Deprecated | ✅ Current       |
+| Recommendation | Legacy only   | All new projects |
 
 ## Common Patterns Summary
 
@@ -644,22 +646,22 @@ Use Digital Asset (Token V2) for:
 ### Coin Operations
 
 ```typescript
-import { Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
+import { Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk';
 
 const aptos = new Aptos(new AptosConfig({ network: Network.TESTNET }));
 
 // Get coin balance
 const balance = await aptos.getAccountCoinAmount({
-  accountAddress: "0x123...",
-  coinType: "0x1::aptos_coin::AptosCoin"
+  accountAddress: '0x123...',
+  coinType: '0x1::aptos_coin::AptosCoin',
 });
 
 // Transfer coins
 const txn = await aptos.transaction.build.simple({
   sender: sender.accountAddress,
   data: {
-    function: "0x1::coin::transfer",
-    typeArguments: ["0x1::aptos_coin::AptosCoin"],
+    function: '0x1::coin::transfer',
+    typeArguments: ['0x1::aptos_coin::AptosCoin'],
     functionArguments: [recipient, amount],
   },
 });
@@ -670,12 +672,12 @@ const txn = await aptos.transaction.build.simple({
 ```typescript
 // Get owned tokens
 const tokens = await aptos.getAccountOwnedTokens({
-  accountAddress: "0x123..."
+  accountAddress: '0x123...',
 });
 
 // Get token data
 const tokenData = await aptos.getDigitalAssetData({
-  digitalAssetAddress: "0xabc..."
+  digitalAssetAddress: '0xabc...',
 });
 ```
 
@@ -716,6 +718,7 @@ fun test_mint_exceeds_supply(creator: &signer) {
 ## Follow-up Suggestions
 
 After helping with tokens, suggest:
+
 - Testing strategy for token operations
 - Frontend integration approach
 - Marketplace compatibility considerations

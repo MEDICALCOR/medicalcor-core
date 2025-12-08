@@ -19,13 +19,13 @@ export type BulkImportFormat = z.infer<typeof BulkImportFormatSchema>;
 // =============================================================================
 
 export const BulkImportStatusSchema = z.enum([
-  'pending',      // Import job created, not yet started
-  'validating',   // Validating input data
-  'processing',   // Actively importing leads
-  'completed',    // All leads processed successfully
-  'partial',      // Some leads failed, others succeeded
-  'failed',       // Import failed entirely
-  'cancelled',    // Import was cancelled by user
+  'pending', // Import job created, not yet started
+  'validating', // Validating input data
+  'processing', // Actively importing leads
+  'completed', // All leads processed successfully
+  'partial', // Some leads failed, others succeeded
+  'failed', // Import failed entirely
+  'cancelled', // Import was cancelled by user
 ]);
 export type BulkImportStatus = z.infer<typeof BulkImportStatusSchema>;
 
@@ -72,16 +72,25 @@ export const BulkImportRowSchema = z.object({
 
   // Language & Metadata
   language: z.string().max(5).default('ro'),
-  tags: z.union([
-    z.array(z.string()),
-    z.string().transform((s) => s.split(',').map((t) => t.trim()).filter(Boolean)),
-  ]).optional(),
+  tags: z
+    .union([
+      z.array(z.string()),
+      z.string().transform((s) =>
+        s
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean)
+      ),
+    ])
+    .optional(),
 
   // GDPR
-  gdprConsent: z.union([
-    z.boolean(),
-    z.string().transform((s) => s.toLowerCase() === 'true' || s === '1' || s === 'yes'),
-  ]).optional(),
+  gdprConsent: z
+    .union([
+      z.boolean(),
+      z.string().transform((s) => s.toLowerCase() === 'true' || s === '1' || s === 'yes'),
+    ])
+    .optional(),
 
   // Pipeline Status
   status: z.string().default('new'),

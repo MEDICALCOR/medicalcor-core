@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { normalizeRomanianPhone, IdempotencyKeys } from '@medicalcor/core';
 import { createIntegrationClients } from '@medicalcor/integrations';
 import { recordPaymentToCase } from '../workflows/ltv-orchestration.js';
+import { attributePaymentToLead } from './payment-attribution.js';
 
 /**
  * Payment Handler Task
@@ -218,9 +219,12 @@ export const handlePaymentSucceeded = task({
       logger.error('Failed to emit domain event', { err, correlationId });
     }
 
-    // Step 5: Trigger LTV orchestration (if lead/clinic info available)
+    // Step 5: Trigger LTV orchestration
+    // If we have explicit lead/clinic IDs, use direct recording
+    // Otherwise, use payment attribution to find the lead (H8 fix)
     let ltvOrchestrationTriggered = false;
     if (leadId && clinicId) {
+      // Direct path: explicit IDs provided
       try {
         await recordPaymentToCase.trigger(
           {
@@ -242,7 +246,7 @@ export const handlePaymentSucceeded = task({
           }
         );
         ltvOrchestrationTriggered = true;
-        logger.info('LTV orchestration triggered', { leadId, clinicId, correlationId });
+        logger.info('LTV orchestration triggered (direct)', { leadId, clinicId, correlationId });
       } catch (err) {
         logger.error('Failed to trigger LTV orchestration', {
           err,
@@ -251,10 +255,42 @@ export const handlePaymentSucceeded = task({
           correlationId,
         });
       }
+    } else if (customerEmail || normalizedPhone || customerId) {
+      // Attribution path: resolve lead from customer identifiers (H8 fix)
+      try {
+        await attributePaymentToLead.trigger(
+          {
+            paymentId,
+            amount,
+            currency,
+            stripeCustomerId: customerId,
+            customerEmail,
+            customerPhone: normalizedPhone ?? metadata?.phone,
+            customerName,
+            method: 'card',
+            type: 'payment',
+            correlationId,
+          },
+          {
+            idempotencyKey: IdempotencyKeys.custom('ltv-attr', paymentId, correlationId),
+          }
+        );
+        ltvOrchestrationTriggered = true;
+        logger.info('Payment attribution triggered', {
+          hasEmail: !!customerEmail,
+          hasPhone: !!normalizedPhone,
+          hasCustomerId: !!customerId,
+          correlationId,
+        });
+      } catch (err) {
+        logger.error('Failed to trigger payment attribution', { err, correlationId });
+      }
     } else {
-      logger.debug('LTV orchestration skipped - missing leadId or clinicId', {
+      logger.warn('LTV orchestration skipped - no identifiers available', {
         hasLeadId: !!leadId,
         hasClinicId: !!clinicId,
+        hasEmail: !!customerEmail,
+        hasPhone: !!normalizedPhone,
         correlationId,
       });
     }

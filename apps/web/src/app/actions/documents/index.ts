@@ -219,7 +219,10 @@ export async function getFoldersAction(): Promise<{ folders: DocumentFolder[]; e
   }
 }
 
-export async function getDocumentStatsAction(): Promise<{ stats: DocumentStats | null; error?: string }> {
+export async function getDocumentStatsAction(): Promise<{
+  stats: DocumentStats | null;
+  error?: string;
+}> {
   try {
     await requirePermission('documents:read');
     const user = await requireCurrentUser();
@@ -315,7 +318,13 @@ export async function createFolderAction(
       `INSERT INTO document_folders (clinic_id, name, parent_id, color, created_by)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id, name, parent_id, document_count, color, icon, is_system`,
-      [user.clinicId, validated.name, validated.parentId ?? null, validated.color ?? 'bg-blue-500', user.id]
+      [
+        user.clinicId,
+        validated.name,
+        validated.parentId ?? null,
+        validated.color ?? 'bg-blue-500',
+        user.id,
+      ]
     );
 
     return { folder: rowToFolder(result.rows[0]) };
@@ -382,7 +391,9 @@ export async function updateDocumentAction(
   }
 }
 
-export async function deleteDocumentAction(id: string): Promise<{ success: boolean; error?: string }> {
+export async function deleteDocumentAction(
+  id: string
+): Promise<{ success: boolean; error?: string }> {
   try {
     await requirePermission('documents:delete');
     const user = await requireCurrentUser();
@@ -405,7 +416,9 @@ export async function deleteDocumentAction(id: string): Promise<{ success: boole
   }
 }
 
-export async function deleteFolderAction(id: string): Promise<{ success: boolean; error?: string }> {
+export async function deleteFolderAction(
+  id: string
+): Promise<{ success: boolean; error?: string }> {
   try {
     await requirePermission('documents:delete');
     const user = await requireCurrentUser();
@@ -429,7 +442,10 @@ export async function deleteFolderAction(id: string): Promise<{ success: boolean
       return { success: false, error: 'Folder is not empty' };
     }
 
-    await database.query(`DELETE FROM document_folders WHERE id = $1 AND clinic_id = $2`, [id, user.clinicId]);
+    await database.query(`DELETE FROM document_folders WHERE id = $1 AND clinic_id = $2`, [
+      id,
+      user.clinicId,
+    ]);
 
     return { success: true };
   } catch (error) {

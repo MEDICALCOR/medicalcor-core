@@ -20,7 +20,11 @@ import {
   createOpenAIClient,
 } from '@medicalcor/integrations';
 import { createScoringService } from '@medicalcor/domain';
-import { createInMemoryEventStore, normalizeRomanianPhone, LeadContextBuilder } from '@medicalcor/core';
+import {
+  createInMemoryEventStore,
+  normalizeRomanianPhone,
+  LeadContextBuilder,
+} from '@medicalcor/core';
 
 describe('WhatsApp Handler Tasks', () => {
   const correlationId = 'whatsapp-test-123';
@@ -296,7 +300,8 @@ describe('WhatsApp Handler Tasks', () => {
 
       if (!hasValidConsent) {
         // Mock consent message generation
-        const consentMessage = 'Conform GDPR, avem nevoie de consimțământul dumneavoastră pentru procesarea datelor. Răspundeți cu DA pentru a accepta.';
+        const consentMessage =
+          'Conform GDPR, avem nevoie de consimțământul dumneavoastră pentru procesarea datelor. Răspundeți cu DA pentru a accepta.';
         expect(typeof consentMessage).toBe('string');
 
         await whatsapp.sendText({

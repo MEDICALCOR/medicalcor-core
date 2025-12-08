@@ -82,35 +82,19 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.REPORT_VIEW,
   ],
 
-  [Role.RECEPTIONIST]: [
-    Permission.CASE_CREATE,
-    Permission.CASE_READ,
-  ],
+  [Role.RECEPTIONIST]: [Permission.CASE_CREATE, Permission.CASE_READ],
 
   [Role.ADMIN]: Object.values(Permission),
 
   [Role.SYSTEM]: Object.values(Permission),
 
-  [Role.AUDITOR]: [
-    Permission.ADMIN_AUDIT_VIEW,
-    Permission.CASE_READ,
-    Permission.REPORT_VIEW,
-  ],
+  [Role.AUDITOR]: [Permission.ADMIN_AUDIT_VIEW, Permission.CASE_READ, Permission.REPORT_VIEW],
 
-  [Role.RESEARCHER]: [
-    Permission.CASE_READ,
-    Permission.REPORT_VIEW,
-  ],
+  [Role.RESEARCHER]: [Permission.CASE_READ, Permission.REPORT_VIEW],
 
-  [Role.CONSULTANT]: [
-    Permission.CASE_READ,
-  ],
+  [Role.CONSULTANT]: [Permission.CASE_READ],
 
-  [Role.BILLING]: [
-    Permission.CASE_READ,
-    Permission.REPORT_VIEW,
-    Permission.REPORT_EXPORT,
-  ],
+  [Role.BILLING]: [Permission.CASE_READ, Permission.REPORT_VIEW, Permission.REPORT_EXPORT],
 };
 
 /**
@@ -365,7 +349,7 @@ export class PolicyEnforcer {
     resource: ResourceContext,
     action: string
   ): PolicyResult[] {
-    return this.policies.map(policy => policy.check(principal, resource, action));
+    return this.policies.map((policy) => policy.check(principal, resource, action));
   }
 }
 

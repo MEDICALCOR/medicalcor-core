@@ -18,12 +18,14 @@ key:
 ## When to Use
 
 ✅ **Use expanded lists when:**
+
 - Array has <60% field uniformity
 - Items are complex nested objects
 - Items are mixed types (objects, arrays, primitives)
 - Readability is priority over compactness
 
 ❌ **Don't use expanded when:**
+
 - All primitives ≤10 items → use inline arrays
 - All objects ≥60% uniform → use tabular arrays
 - Token efficiency is critical → restructure data
@@ -31,17 +33,15 @@ key:
 ## Basic Example
 
 **JSON:**
+
 ```json
 {
-  "items": [
-    "apple",
-    "banana",
-    "cherry"
-  ]
+  "items": ["apple", "banana", "cherry"]
 }
 ```
 
 **TOON:**
+
 ```
 items:
   - apple
@@ -52,19 +52,15 @@ items:
 ## Mixed Types
 
 **JSON:**
+
 ```json
 {
-  "data": [
-    42,
-    "hello",
-    true,
-    null,
-    {"nested": "object"}
-  ]
+  "data": [42, "hello", true, null, { "nested": "object" }]
 }
 ```
 
 **TOON:**
+
 ```
 data:
   - 42
@@ -77,15 +73,17 @@ data:
 ## Non-Uniform Objects
 
 **JSON:**
+
 ```json
 [
-  {"name": "Alice", "age": 30},
-  {"name": "Bob", "role": "admin"},
-  {"name": "Carol", "age": 25, "role": "user", "active": true}
+  { "name": "Alice", "age": 30 },
+  { "name": "Bob", "role": "admin" },
+  { "name": "Carol", "age": 25, "role": "user", "active": true }
 ]
 ```
 
 **TOON (uniformity <60%, can't use tabular):**
+
 ```
 users:
   - name: Alice
@@ -101,6 +99,7 @@ users:
 ## Nested Arrays
 
 **JSON:**
+
 ```json
 {
   "matrix": [
@@ -112,6 +111,7 @@ users:
 ```
 
 **TOON:**
+
 ```
 matrix:
   - [3]: 1,2,3
@@ -124,6 +124,7 @@ matrix:
 ## Complex Nested Objects
 
 **JSON:**
+
 ```json
 {
   "configs": [
@@ -144,6 +145,7 @@ matrix:
 ```
 
 **TOON:**
+
 ```
 configs:
   - server:
@@ -159,18 +161,22 @@ configs:
 Expanded lists have **minimal savings** (5-15%) compared to JSON:
 
 **JSON:**
+
 ```json
-{"items": ["a", "b", "c"]}
+{ "items": ["a", "b", "c"] }
 ```
+
 ≈ 24 tokens
 
 **TOON:**
+
 ```
 items:
   - a
   - b
   - c
 ```
+
 ≈ 22 tokens
 
 **Savings: ~8%**
@@ -182,6 +188,7 @@ items:
 Default indentation: **2 spaces** per level
 
 **Correct:**
+
 ```
 items:
   - item1      # 2 spaces
@@ -190,6 +197,7 @@ items:
 ```
 
 **Wrong (inconsistent):**
+
 ```
 items:
  - item1       ❌ 1 space
@@ -197,6 +205,7 @@ items:
 ```
 
 **Wrong (tabs):**
+
 ```
 items:
 	- item1     ❌ Tab character (strict mode error)
@@ -205,11 +214,13 @@ items:
 ## Empty Arrays
 
 **JSON:**
+
 ```json
-{"items": []}
+{ "items": [] }
 ```
 
 **TOON:**
+
 ```
 items: []
 ```
@@ -217,11 +228,13 @@ items: []
 ## Single Item
 
 **JSON:**
+
 ```json
-{"items": ["only"]}
+{ "items": ["only"] }
 ```
 
 **TOON:**
+
 ```
 items:
   - only
@@ -231,25 +244,28 @@ items:
 
 ### When to use what:
 
-| Array Content | Best Format | Savings |
-|---------------|-------------|---------|
-| Primitives ≤10 | Inline | 20-40% |
-| Uniform objects ≥5 | Tabular | 30-60% |
-| Non-uniform | Expanded | 5-15% |
-| Nested complex | Expanded | 5-15% |
+| Array Content      | Best Format | Savings |
+| ------------------ | ----------- | ------- |
+| Primitives ≤10     | Inline      | 20-40%  |
+| Uniform objects ≥5 | Tabular     | 30-60%  |
+| Non-uniform        | Expanded    | 5-15%   |
+| Nested complex     | Expanded    | 5-15%   |
 
 ### Example: Same data, different formats
 
 **Tabular (uniform objects):**
+
 ```
 [3]{name,age}:
   Alice,30
   Bob,25
   Carol,35
 ```
+
 ≈ 42 tokens
 
 **Expanded (same data):**
+
 ```
 users:
   - name: Alice
@@ -259,6 +275,7 @@ users:
   - name: Carol
     age: 35
 ```
+
 ≈ 68 tokens
 
 **Verdict:** Tabular is 38% more efficient for uniform data.
@@ -266,6 +283,7 @@ users:
 ## Real-World Use Case: Mixed Config
 
 **JSON:**
+
 ```json
 {
   "tasks": [
@@ -292,6 +310,7 @@ users:
 ```
 
 **TOON (non-uniform, expanded is best):**
+
 ```
 tasks:
   - type: email
@@ -318,6 +337,7 @@ items:
 ```
 
 **Correct:**
+
 ```
 items:
   - item1
@@ -333,6 +353,7 @@ items:
 ```
 
 **Correct:**
+
 ```
 items:
   - item1
@@ -350,6 +371,7 @@ users:
 ```
 
 **Better (tabular):**
+
 ```
 [2]{name,age}:
   Alice,30
@@ -364,6 +386,7 @@ items:
 ```
 
 **Correct (choose one format):**
+
 ```
 items:
   - a
@@ -372,6 +395,7 @@ items:
 ```
 
 Or:
+
 ```
 items[3]: a,b,c
 ```
@@ -379,6 +403,7 @@ items[3]: a,b,c
 ## Performance
 
 Expanded lists are:
+
 - **Slowest to parse** (must track indentation)
 - **Largest output size** (minimal compression)
 - **Most flexible** (any content)

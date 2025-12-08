@@ -14,6 +14,7 @@ Provide expert guidance on configuring Claude Code through settings.json, includ
 ## When to Use
 
 Auto-invoke when users mention:
+
 - **Settings files** - "settings.json", "configure", "configuration"
 - **Permissions** - "allow", "deny", "ask", "permissions", "permission rules"
 - **Hooks** - "hooks configuration", "PreToolUse hooks", "PostToolUse hooks"
@@ -59,18 +60,21 @@ Auto-invoke when users mention:
 ### When to Use Each
 
 **User settings** (`~/.claude/settings.json`):
+
 - Personal preferences across all projects
 - Personal API keys
 - Personal slash commands
 - Personal output style
 
 **Project settings** (`.claude/settings.json`):
+
 - Team permissions
 - Project-specific hooks
 - Required plugins/marketplaces
 - Team workflow configuration
 
 **Local project** (`.claude/settings.local.json`):
+
 - Personal project overrides
 - Experimental settings
 - Local-only preferences
@@ -130,15 +134,11 @@ Based on needs, construct the appropriate JSON:
 ### Permission Rules
 
 **Tool-specific:**
+
 ```json
 {
   "permissions": {
-    "allow": [
-      "Read(~/.zshrc)",
-      "Bash(git diff:*)",
-      "Bash(npm run lint:*)",
-      "Bash(npm run test:*)"
-    ],
+    "allow": ["Read(~/.zshrc)", "Bash(git diff:*)", "Bash(npm run lint:*)", "Bash(npm run test:*)"],
     "deny": [
       "Read(./.env)",
       "Read(./.env.*)",
@@ -152,17 +152,20 @@ Based on needs, construct the appropriate JSON:
 ```
 
 **Bash permissions:**
+
 - Use prefix matching (not regex)
 - `Bash(git:*)` - All git commands
 - `Bash(git diff:*)` - Only git diff commands
 - Can be bypassed (not for security, use sandbox for that)
 
 **Read/Write permissions:**
+
 - `Read(./secrets/**)` - Recursive pattern
 - `Read(./.env)` - Specific file
 - `Write(./dist/**)` - Allow writes to dist
 
 **Permission modes:**
+
 - `default` - Ask for permission
 - `plan` - Plan mode (no execution without approval)
 - `acceptEdits` - Auto-approve edits only
@@ -301,16 +304,13 @@ Based on needs, construct the appropriate JSON:
     }
   },
   "permissions": {
-    "deny": [
-      "Read(.envrc)",
-      "Read(~/.aws/**)",
-      "Read(./secrets/**)"
-    ]
+    "deny": ["Read(.envrc)", "Read(~/.aws/**)", "Read(./secrets/**)"]
   }
 }
 ```
 
 **Notes:**
+
 - Filesystem access via Read/Write/Edit deny rules
 - Network access via WebFetch allow/deny rules
 - macOS/Linux only (not Windows)
@@ -483,11 +483,7 @@ Based on needs, construct the appropriate JSON:
       "WebFetch",
       "WebSearch"
     ],
-    "ask": [
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Write(./src/**)"
-    ],
+    "ask": ["Bash(git add:*)", "Bash(git commit:*)", "Write(./src/**)"],
     "defaultMode": "default",
     "disableBypassPermissionsMode": "disable"
   },
@@ -587,6 +583,7 @@ claude --debug
 ### Settings Not Applied
 
 **Check:**
+
 1. JSON syntax is valid (`jq` validation)
 2. File location is correct
 3. Restart Claude Code after changes
@@ -595,6 +592,7 @@ claude --debug
 ### Permission Rules Not Working
 
 **Check:**
+
 1. Rule syntax: `Tool(pattern)`
 2. Case-sensitive tool names
 3. Bash uses prefix matching (not regex)
@@ -603,6 +601,7 @@ claude --debug
 ### Hooks Not Running
 
 **Check:**
+
 1. `disableAllHooks` is not `true`
 2. Hook configuration is valid
 3. Script has execute permissions
@@ -612,6 +611,7 @@ claude --debug
 ### Sandbox Issues
 
 **Check:**
+
 1. macOS/Linux only (not Windows)
 2. Docker/Podman installed
 3. Permissions for Docker socket
@@ -620,6 +620,7 @@ claude --debug
 ## Best Practices
 
 ### DO:
+
 ✅ Use project settings for team configuration
 ✅ Use local settings for personal overrides
 ✅ Validate JSON syntax before committing
@@ -630,6 +631,7 @@ claude --debug
 ✅ Use `$CLAUDE_PROJECT_DIR` in hooks
 
 ### DON'T:
+
 ❌ Commit sensitive data to project settings
 ❌ Use `bypassPermissions` mode in shared config
 ❌ Make permission rules too broad
@@ -669,6 +671,7 @@ Settings from different levels are merged:
 **Example:**
 
 User settings:
+
 ```json
 {
   "permissions": {
@@ -678,6 +681,7 @@ User settings:
 ```
 
 Project settings:
+
 ```json
 {
   "permissions": {
@@ -687,6 +691,7 @@ Project settings:
 ```
 
 **Merged result:**
+
 ```json
 {
   "permissions": {

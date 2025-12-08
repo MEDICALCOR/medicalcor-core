@@ -5,11 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  LeadAggregate,
-  LeadRepository,
-  type LeadState,
-} from '../aggregate.js';
+import { LeadAggregate, LeadRepository, type LeadState } from '../aggregate.js';
 import { createInMemoryEventStore, type EventStore } from '../../event-store.js';
 
 describe('LeadAggregate', () => {
@@ -575,7 +571,16 @@ describe('AggregateRoot base class behaviors', () => {
     const lead = new LeadAggregate('lead-1', '+40721111111', 'whatsapp');
 
     // Access protected method through type casting for testing
-    const raiseFn = (lead as { raise: (type: string, payload: unknown, correlationId?: string, causationId?: string) => void }).raise.bind(lead);
+    const raiseFn = (
+      lead as {
+        raise: (
+          type: string,
+          payload: unknown,
+          correlationId?: string,
+          causationId?: string
+        ) => void;
+      }
+    ).raise.bind(lead);
     raiseFn('TestEvent', {}, 'corr-1', 'cause-1');
 
     const events = lead.getUncommittedEvents();

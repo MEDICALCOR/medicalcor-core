@@ -23,24 +23,10 @@ import type {
   ISchedulingRepository,
   TimeSlot,
   BookingRequest,
+  BookingResult,
   AppointmentDetails,
+  GetAvailableSlotsOptions,
 } from '@medicalcor/domain';
-
-// Extended types for web usage
-interface GetAvailableSlotsOptions {
-  clinicId: string;
-  providerId?: string;
-  serviceType?: string;
-  startDate?: Date;
-  endDate?: Date;
-}
-
-interface BookingResult {
-  success: boolean;
-  appointmentId?: string;
-  confirmationNumber?: string;
-  error?: string;
-}
 
 // ============================================================================
 // CONSTANTS
@@ -139,18 +125,18 @@ class APISchedulingRepository implements ISchedulingRepository {
     this.apiBaseUrl = process.env.API_BASE_URL ?? 'http://localhost:3000';
   }
 
-  // @ts-expect-error - Extended interface for web usage
   async getAvailableSlots(options: string | GetAvailableSlotsOptions): Promise<TimeSlot[]> {
     try {
-      const queryParams = typeof options === 'string'
-        ? `clinicId=${encodeURIComponent(options)}`
-        : new URLSearchParams({
-            clinicId: options.clinicId,
-            ...(options.providerId && { providerId: options.providerId }),
-            ...(options.serviceType && { serviceType: options.serviceType }),
-            ...(options.startDate && { startDate: options.startDate.toISOString() }),
-            ...(options.endDate && { endDate: options.endDate.toISOString() }),
-          }).toString();
+      const queryParams =
+        typeof options === 'string'
+          ? `clinicId=${encodeURIComponent(options)}`
+          : new URLSearchParams({
+              clinicId: options.clinicId,
+              ...(options.providerId && { providerId: options.providerId }),
+              ...(options.serviceType && { serviceType: options.serviceType }),
+              ...(options.startDate && { startDate: options.startDate.toISOString() }),
+              ...(options.endDate && { endDate: options.endDate.toISOString() }),
+            }).toString();
 
       const response = await fetch(`${this.apiBaseUrl}/api/scheduling/slots?${queryParams}`, {
         headers: { 'Content-Type': 'application/json' },
@@ -170,7 +156,6 @@ class APISchedulingRepository implements ISchedulingRepository {
     }
   }
 
-  // @ts-expect-error - Extended interface for web usage
   async bookAppointment(request: BookingRequest): Promise<BookingResult> {
     try {
       const response = await fetch(`${this.apiBaseUrl}/api/scheduling/book`, {
@@ -196,9 +181,10 @@ class APISchedulingRepository implements ISchedulingRepository {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error
-          ? `Booking service unavailable: ${error.message}`
-          : 'Booking service unavailable. Please try again later.',
+        error:
+          error instanceof Error
+            ? `Booking service unavailable: ${error.message}`
+            : 'Booking service unavailable. Please try again later.',
       };
     }
   }
@@ -210,10 +196,13 @@ class APISchedulingRepository implements ISchedulingRepository {
         endDate: endDate.toISOString(),
       }).toString();
 
-      const response = await fetch(`${this.apiBaseUrl}/api/scheduling/appointments?${queryParams}`, {
-        headers: { 'Content-Type': 'application/json' },
-        cache: 'no-store',
-      });
+      const response = await fetch(
+        `${this.apiBaseUrl}/api/scheduling/appointments?${queryParams}`,
+        {
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+        }
+      );
 
       if (!response.ok) {
         return [];

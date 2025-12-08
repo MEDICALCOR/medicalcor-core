@@ -9,19 +9,19 @@
 
 ## Executive Summary
 
-| Area | Critical | High | Medium | Low | Total | Score |
-|------|----------|------|--------|-----|-------|-------|
-| **Root Configuration** | 0 | 3 | 9 | 7 | 19 | 7.5/10 |
-| **Apps/API** | 4 | 7 | 10+ | 4 | 25+ | 4.5/10 |
-| **Apps/Web** | 1 | 5 | 11 | 6 | 23 | 6.0/10 |
-| **Apps/Trigger** | 6 | 13 | 11 | 0 | 30 | 3.5/10 |
-| **Packages/Core** | 4 | 8 | 12 | 6 | 30 | 5.5/10 |
-| **Packages/Integrations** | 7 | 13 | 11 | 8 | 39 | 4.0/10 |
-| **Packages/Types+Domain+Infra** | 2 | 8 | 16 | 12 | 38 | 5.5/10 |
-| **Infrastructure (Terraform/Docker)** | 19 | 35 | 26 | 11 | 91 | 3.0/10 |
-| **GitHub Workflows** | 4 | 7 | 9 | 14 | 34 | 5.5/10 |
-| **Documentation** | 5 | 12 | 18 | 8 | 43 | 5.0/10 |
-| **TOTAL** | **52** | **111** | **133** | **76** | **372** | **4.5/10** |
+| Area                                  | Critical | High    | Medium  | Low    | Total   | Score      |
+| ------------------------------------- | -------- | ------- | ------- | ------ | ------- | ---------- |
+| **Root Configuration**                | 0        | 3       | 9       | 7      | 19      | 7.5/10     |
+| **Apps/API**                          | 4        | 7       | 10+     | 4      | 25+     | 4.5/10     |
+| **Apps/Web**                          | 1        | 5       | 11      | 6      | 23      | 6.0/10     |
+| **Apps/Trigger**                      | 6        | 13      | 11      | 0      | 30      | 3.5/10     |
+| **Packages/Core**                     | 4        | 8       | 12      | 6      | 30      | 5.5/10     |
+| **Packages/Integrations**             | 7        | 13      | 11      | 8      | 39      | 4.0/10     |
+| **Packages/Types+Domain+Infra**       | 2        | 8       | 16      | 12     | 38      | 5.5/10     |
+| **Infrastructure (Terraform/Docker)** | 19       | 35      | 26      | 11     | 91      | 3.0/10     |
+| **GitHub Workflows**                  | 4        | 7       | 9       | 14     | 34      | 5.5/10     |
+| **Documentation**                     | 5        | 12      | 18      | 8      | 43      | 5.0/10     |
+| **TOTAL**                             | **52**   | **111** | **133** | **76** | **372** | **4.5/10** |
 
 ### Overall Status: **NOT PRODUCTION READY**
 
@@ -30,6 +30,7 @@
 ## Critical Issues Summary (52 Total)
 
 ### 1. Security Critical (19)
+
 1. **Terraform state not encrypted** - Database passwords exposed in state files
 2. **Cloud Run allows public ingress** - No authorization on admin endpoints
 3. **PII stored in plaintext** - Phone numbers, IPs unencrypted in database
@@ -51,6 +52,7 @@
 19. **Missing SAST scanning** - No static analysis for vulnerabilities
 
 ### 2. Data/Logic Critical (15)
+
 1. **GDPR consent bypass** - Processing continues without valid consent
 2. **Race condition in booking** - No distributed lock for appointments
 3. **Missing idempotency for cron jobs** - Duplicate message sends possible
@@ -68,6 +70,7 @@
 15. **Backup encryption key unused** - Defined but never applied
 
 ### 3. Documentation Critical (5)
+
 1. **Undocumented API endpoints** - Booking, ChatGPT plugin, backup
 2. **Missing workflow documentation** - Trigger.dev completely undocumented
 3. **No database migration docs** - Schema/migrations not explained
@@ -75,6 +78,7 @@
 5. **Feature inconsistency** - Code has features not in docs
 
 ### 4. Compliance Critical (13)
+
 1. **GDPR Article 6 violation** - No lawful basis enforcement
 2. **HIPAA PHI violation** - Unauthorized data processing
 3. **No encryption at column level** - PII stored plaintext
@@ -94,6 +98,7 @@
 ## High Priority Issues Summary (111 Total)
 
 ### Security High (35)
+
 - Missing authentication for diagnostic endpoints
 - Weak phone number validation (accepts any string)
 - Arbitrary database restore parameter
@@ -131,6 +136,7 @@
 - API metrics job assumes endpoint
 
 ### Logic High (45)
+
 - No retry logic in batch processing
 - Silent error continuation in critical paths
 - Missing idempotency keys for workflows
@@ -177,6 +183,7 @@
 - Vapi ID leakage in response
 
 ### Documentation High (12)
+
 - Incomplete Trigger.dev documentation
 - Missing event sourcing patterns
 - Incomplete deployment documentation
@@ -195,6 +202,7 @@
 ## Medium Priority Issues (133 Total)
 
 ### Configuration/Build Medium (20)
+
 - TypeScript configuration redundancy
 - Turbo cache lacks output hashing
 - Package manager version too loose
@@ -217,6 +225,7 @@
 - No canary deployment strategy
 
 ### Logic/Performance Medium (60)
+
 - Stripe double-processing edge cases
 - Backup config exposes sensitive info
 - Text selection bounds issue
@@ -280,6 +289,7 @@
 - Missing focus management in modal
 
 ### Documentation Medium (18)
+
 - Incomplete configuration docs
 - Incomplete FAQ coverage
 - Incomplete troubleshooting
@@ -304,6 +314,7 @@
 ## Recommendations by Priority
 
 ### Immediate (Before Any Deployment)
+
 1. **Fix Terraform state encryption** - Enable GCS backend with encryption
 2. **Remove hardcoded secret placeholders** - Use actual secrets management
 3. **Add Row-Level Security** - Implement tenant isolation
@@ -316,6 +327,7 @@
 10. **Fix WebSocket token** - Remove from query params
 
 ### High Priority (Week 1-2)
+
 11. Add SAST scanning (Semgrep)
 12. Add container image scanning
 13. Implement database migration verification
@@ -328,6 +340,7 @@
 20. Implement secrets rotation
 
 ### Medium Priority (Week 2-4)
+
 21. Complete documentation
 22. Add ARIA accessibility
 23. Implement proper rate limiting
@@ -343,18 +356,19 @@
 
 ## Compliance Status
 
-| Regulation | Status | Blocking Issues |
-|------------|--------|-----------------|
-| **GDPR** | **NOT COMPLIANT** | Consent bypass, PII exposure, no audit immutability |
-| **HIPAA** | **NOT COMPLIANT** | PHI processing without auth, no encryption, no access logs |
-| **SOC2** | **NOT COMPLIANT** | Missing security controls, no audit trail |
-| **WCAG 2.1** | **NOT COMPLIANT** | Zero accessibility documentation or implementation |
+| Regulation   | Status            | Blocking Issues                                            |
+| ------------ | ----------------- | ---------------------------------------------------------- |
+| **GDPR**     | **NOT COMPLIANT** | Consent bypass, PII exposure, no audit immutability        |
+| **HIPAA**    | **NOT COMPLIANT** | PHI processing without auth, no encryption, no access logs |
+| **SOC2**     | **NOT COMPLIANT** | Missing security controls, no audit trail                  |
+| **WCAG 2.1** | **NOT COMPLIANT** | Zero accessibility documentation or implementation         |
 
 ---
 
 ## Files Analyzed
 
 ### Root Configuration (12 files)
+
 - package.json, tsconfig.json, tsconfig.base.json
 - eslint.config.js, .eslintrc.cjs, turbo.json
 - vitest.config.ts, vitest.setup.ts
@@ -362,39 +376,45 @@
 - .env.example, .env.production.template
 
 ### Apps/API (20 files)
+
 - src/app.ts, src/index.ts, src/config.ts
-- src/routes/* (10 files)
-- src/plugins/* (3 files)
-- src/__tests__/* (1 file)
+- src/routes/\* (10 files)
+- src/plugins/\* (3 files)
+- src/**tests**/\* (1 file)
 - package.json
 
 ### Apps/Web (100+ files)
-- src/app/* (25+ pages)
-- src/components/* (50+ components)
-- src/lib/* (20+ utilities)
+
+- src/app/\* (25+ pages)
+- src/components/\* (50+ components)
+- src/lib/\* (20+ utilities)
 - Configuration files
 
 ### Apps/Trigger (12 files)
-- src/workflows/* (4 files)
-- src/tasks/* (3 files)
-- src/jobs/* (1 file)
+
+- src/workflows/\* (4 files)
+- src/tasks/\* (3 files)
+- src/jobs/\* (1 file)
 - Configuration files
 
 ### Packages (60+ files)
-- packages/core/src/* (30+ files)
-- packages/integrations/src/* (10 files)
-- packages/types/src/* (15 files)
-- packages/domain/src/* (10 files)
-- packages/infra/src/* (1 file)
+
+- packages/core/src/\* (30+ files)
+- packages/integrations/src/\* (10 files)
+- packages/types/src/\* (15 files)
+- packages/domain/src/\* (10 files)
+- packages/infra/src/\* (1 file)
 
 ### Infrastructure (15 files)
-- infra/terraform/* (2 files)
-- infra/docker-compose*.yml (2 files)
-- infra/init-db/* (3 files)
-- infra/prometheus/* (1 file)
-- infra/grafana/* (1 file)
+
+- infra/terraform/\* (2 files)
+- infra/docker-compose\*.yml (2 files)
+- infra/init-db/\* (3 files)
+- infra/prometheus/\* (1 file)
+- infra/grafana/\* (1 file)
 
 ### GitHub Workflows (6 files)
+
 - .github/workflows/ci.yml
 - .github/workflows/deploy.yml
 - .github/workflows/trigger-deploy.yml
@@ -403,8 +423,9 @@
 - .github/dependabot.yml
 
 ### Documentation (21 files)
-- docs/*.md (6 files)
-- docs/README/*.md (14 files)
+
+- docs/\*.md (6 files)
+- docs/README/\*.md (14 files)
 - README.md
 
 ---
@@ -416,6 +437,7 @@ MedicalCor-Core shows strong architectural patterns (CQRS, Event Sourcing, monor
 **Estimated remediation effort:** 8-12 weeks for full production readiness.
 
 **Immediate focus should be on:**
+
 1. Security infrastructure (encryption, access control)
 2. Compliance requirements (GDPR consent, HIPAA PHI)
 3. Testing and CI/CD gates
@@ -423,6 +445,6 @@ MedicalCor-Core shows strong architectural patterns (CQRS, Event Sourcing, monor
 
 ---
 
-*Report generated by Claude Code AI Audit System (Opus 4)*
-*Total files analyzed: 250+*
-*Total issues identified: 372*
+_Report generated by Claude Code AI Audit System (Opus 4)_
+_Total files analyzed: 250+_
+_Total issues identified: 372_

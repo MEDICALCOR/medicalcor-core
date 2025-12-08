@@ -16,11 +16,13 @@ key[N]: value1,value2,value3
 ## When to Use
 
 ✅ **Use inline arrays when:**
+
 - All values are primitives (string, number, bool, null)
 - Array has ≤10 items
 - Values are simple (no nested structures)
 
 ❌ **Don't use inline when:**
+
 - Array has >10 items (use tabular)
 - Values are objects (use tabular)
 - Array has mixed types (allowed, but consider readability)
@@ -30,6 +32,7 @@ key[N]: value1,value2,value3
 ### Strings
 
 **JSON:**
+
 ```json
 {
   "friends": ["Alice", "Bob", "Carol"]
@@ -37,6 +40,7 @@ key[N]: value1,value2,value3
 ```
 
 **TOON:**
+
 ```
 friends[3]: Alice,Bob,Carol
 ```
@@ -44,6 +48,7 @@ friends[3]: Alice,Bob,Carol
 ### Numbers
 
 **JSON:**
+
 ```json
 {
   "scores": [85, 92, 78, 95, 88]
@@ -51,6 +56,7 @@ friends[3]: Alice,Bob,Carol
 ```
 
 **TOON:**
+
 ```
 scores[5]: 85,92,78,95,88
 ```
@@ -58,6 +64,7 @@ scores[5]: 85,92,78,95,88
 ### Booleans
 
 **JSON:**
+
 ```json
 {
   "features": [true, false, true, true]
@@ -65,6 +72,7 @@ scores[5]: 85,92,78,95,88
 ```
 
 **TOON:**
+
 ```
 features[4]: true,false,true,true
 ```
@@ -72,6 +80,7 @@ features[4]: true,false,true,true
 ### Mixed Primitives
 
 **JSON:**
+
 ```json
 {
   "mixed": [42, "hello", true, null]
@@ -79,6 +88,7 @@ features[4]: true,false,true,true
 ```
 
 **TOON:**
+
 ```
 mixed[4]: 42,hello,true,null
 ```
@@ -88,6 +98,7 @@ mixed[4]: 42,hello,true,null
 ### Tags/Labels
 
 **JSON:**
+
 ```json
 {
   "tags": ["javascript", "react", "frontend", "web"]
@@ -95,6 +106,7 @@ mixed[4]: 42,hello,true,null
 ```
 
 **TOON:**
+
 ```
 tags[4]: javascript,react,frontend,web
 ```
@@ -102,6 +114,7 @@ tags[4]: javascript,react,frontend,web
 ### Numeric Measurements
 
 **JSON:**
+
 ```json
 {
   "temperatures": [72.5, 73.1, 71.8, 74.2, 73.5]
@@ -109,6 +122,7 @@ tags[4]: javascript,react,frontend,web
 ```
 
 **TOON:**
+
 ```
 temperatures[5]: 72.5,73.1,71.8,74.2,73.5
 ```
@@ -116,6 +130,7 @@ temperatures[5]: 72.5,73.1,71.8,74.2,73.5
 ### Status Flags
 
 **JSON:**
+
 ```json
 {
   "permissions": ["read", "write", "execute"],
@@ -124,6 +139,7 @@ temperatures[5]: 72.5,73.1,71.8,74.2,73.5
 ```
 
 **TOON:**
+
 ```
 permissions[3]: read,write,execute
 active[4]: true,true,false,true
@@ -134,6 +150,7 @@ active[4]: true,true,false,true
 Inline arrays work well within larger objects:
 
 **JSON:**
+
 ```json
 {
   "user": {
@@ -145,6 +162,7 @@ Inline arrays work well within larger objects:
 ```
 
 **TOON:**
+
 ```
 user:
   name: Alice
@@ -159,6 +177,7 @@ Values need quotes if they contain delimiters or special characters:
 ### Comma in value (default delimiter)
 
 **JSON:**
+
 ```json
 {
   "locations": ["New York, NY", "Los Angeles, CA"]
@@ -166,6 +185,7 @@ Values need quotes if they contain delimiters or special characters:
 ```
 
 **TOON:**
+
 ```
 locations[2]: "New York, NY","Los Angeles, CA"
 ```
@@ -173,6 +193,7 @@ locations[2]: "New York, NY","Los Angeles, CA"
 ### Colon in value
 
 **JSON:**
+
 ```json
 {
   "times": ["10:30 AM", "2:45 PM", "6:00 PM"]
@@ -180,6 +201,7 @@ locations[2]: "New York, NY","Los Angeles, CA"
 ```
 
 **TOON:**
+
 ```
 times[3]: "10:30 AM","2:45 PM","6:00 PM"
 ```
@@ -191,6 +213,7 @@ Use tab or pipe delimiter to avoid quoting:
 ### With tab delimiter
 
 **JSON:**
+
 ```json
 {
   "locations": ["New York, NY", "Los Angeles, CA"]
@@ -198,6 +221,7 @@ Use tab or pipe delimiter to avoid quoting:
 ```
 
 **TOON:**
+
 ```
 [|\t] locations[2]: New York, NY	Los Angeles, CA
 ```
@@ -205,6 +229,7 @@ Use tab or pipe delimiter to avoid quoting:
 ### With pipe delimiter
 
 **JSON:**
+
 ```json
 {
   "descriptions": ["Feature A: enabled", "Feature B: disabled"]
@@ -212,6 +237,7 @@ Use tab or pipe delimiter to avoid quoting:
 ```
 
 **TOON:**
+
 ```
 [||] descriptions[2]: Feature A: enabled|Feature B: disabled
 ```
@@ -221,11 +247,13 @@ Use tab or pipe delimiter to avoid quoting:
 Inline arrays provide **20-40% token savings** for primitive arrays:
 
 **Example: 5-item array**
+
 - JSON: `["a","b","c","d","e"]` = ~24 tokens
 - TOON: `items[5]: a,b,c,d,e` = ~14 tokens
 - **Savings: 42%**
 
 **Example: 10-item array**
+
 - JSON: Full brackets, quotes, commas = ~120 tokens
 - TOON: Inline format = ~70 tokens
 - **Savings: 42%**
@@ -245,11 +273,13 @@ For >10 items, use tabular format.
 ### Empty arrays
 
 **JSON:**
+
 ```json
-{"items": []}
+{ "items": [] }
 ```
 
 **TOON:**
+
 ```
 items[0]:
 ```
@@ -257,11 +287,13 @@ items[0]:
 ### Single item
 
 **JSON:**
+
 ```json
-{"item": ["single"]}
+{ "item": ["single"] }
 ```
 
 **TOON:**
+
 ```
 item[1]: single
 ```
@@ -275,6 +307,7 @@ friends: a,b,c  ❌ Missing [N]
 ```
 
 **Correct:**
+
 ```
 friends[3]: a,b,c
 ```
@@ -286,6 +319,7 @@ friends[5]: a,b,c  ❌ Says 5 but only 3 values
 ```
 
 **Correct:**
+
 ```
 friends[3]: a,b,c
 ```
@@ -297,6 +331,7 @@ locations[2]: New York, NY,Los Angeles, CA  ❌ Ambiguous commas
 ```
 
 **Correct:**
+
 ```
 locations[2]: "New York, NY","Los Angeles, CA"
 ```
@@ -308,6 +343,7 @@ users[2]: {name: alice},{name: bob}  ❌ Objects not allowed
 ```
 
 **Correct - use tabular:**
+
 ```
 [2]{name}:
   alice
@@ -318,13 +354,13 @@ users[2]: {name: alice},{name: bob}  ❌ Objects not allowed
 
 When to use inline vs tabular:
 
-| Criteria | Inline | Tabular |
-|----------|--------|---------|
-| **Value type** | Primitives only | Objects |
-| **Array size** | ≤10 items | ≥5 items |
-| **Structure** | Flat | Can have fields |
-| **Format** | `key[N]: v1,v2` | `[N]{f}: v1\n v2` |
-| **Savings** | 20-40% | 30-60% |
+| Criteria       | Inline          | Tabular           |
+| -------------- | --------------- | ----------------- |
+| **Value type** | Primitives only | Objects           |
+| **Array size** | ≤10 items       | ≥5 items          |
+| **Structure**  | Flat            | Can have fields   |
+| **Format**     | `key[N]: v1,v2` | `[N]{f}: v1\n v2` |
+| **Savings**    | 20-40%          | 30-60%            |
 
 ## See Also
 

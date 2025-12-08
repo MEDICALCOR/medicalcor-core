@@ -14,6 +14,7 @@ Guide users through creating well-structured Claude Code skills with proper fron
 ## When to Use
 
 Auto-invoke when users mention:
+
 - **Creating skills** - "create a skill", "make a skill", "new skill"
 - **Skill structure** - "skill template", "skill format", "skill frontmatter"
 - **Trigger keywords** - "skill description", "when to invoke", "trigger words"
@@ -63,12 +64,14 @@ Let me help you create a Claude Code skill! I need a few details:
 ### 2. Validate Input
 
 Check the skill name:
+
 - Must be lowercase
 - Use hyphens (not underscores or spaces)
 - Maximum 64 characters
 - Descriptive and clear
 
 Validate description:
+
 - Maximum 1024 characters
 - Must include trigger keywords
 - Should explain both WHAT and WHEN
@@ -78,12 +81,14 @@ Validate description:
 Determine file structure:
 
 **Single file skill (simple):**
+
 ```
 skill-name/
 └── SKILL.md
 ```
 
 **Multi-file skill (complex):**
+
 ```
 skill-name/
 ├── SKILL.md (overview and main instructions)
@@ -98,12 +103,14 @@ skill-name/
 ### 4. Generate SKILL.md
 
 Create frontmatter with:
+
 - `name`: Skill identifier (from user input)
 - `description`: Clear description with ALL trigger keywords
 - `allowed-tools`: Only tools actually needed
 - `model`: sonnet (default), opus (complex), or haiku (fast)
 
 Template structure:
+
 ```markdown
 ---
 name: skill-identifier
@@ -115,9 +122,11 @@ model: sonnet
 # Skill Name
 
 ## Purpose
+
 [Clear explanation of what this skill provides]
 
 ## When to Use
+
 - Trigger condition 1 (specific keywords)
 - Trigger condition 2 (user scenarios)
 - Trigger condition 3 (related topics)
@@ -125,38 +134,47 @@ model: sonnet
 ## Process
 
 ### 1. Analyze the Request
+
 [How to understand what the user wants]
 
 ### 2. Gather Context
+
 Use tools to collect information:
+
 - Read relevant files
 - Search for patterns
 - Find related code
 
 ### 3. Provide Solution
+
 [Step-by-step approach to solving the problem]
 
 ### 4. Verify Result
+
 [How to confirm the solution works]
 
 ## Examples
 
 ### Example 1: Basic Usage
+
 **User request:** [Example request]
 **Process:** [How skill handles it]
 **Output:** [What user sees]
 
 ### Example 2: Advanced Usage
+
 **User request:** [Complex scenario]
 **Process:** [Multi-step handling]
 **Output:** [Comprehensive result]
 
 ## Best Practices
+
 - Practice 1: [Specific guidance]
 - Practice 2: [Common pattern]
 - Practice 3: [Expert tip]
 
 ## Common Pitfalls
+
 - ❌ **Pitfall 1**: [What to avoid and why]
   ✅ **Instead**: [Better approach]
 
@@ -164,6 +182,7 @@ Use tools to collect information:
   ✅ **Instead**: [Correct way]
 
 ## Resources
+
 - [Official Documentation](url)
 - [Related Guide](path/to/guide.md)
 ```
@@ -173,27 +192,34 @@ Use tools to collect information:
 For complex skills, offer to create:
 
 **REFERENCE.md:**
+
 ```markdown
 # Detailed Reference
 
 ## API Documentation
+
 [Comprehensive API details]
 
 ## Configuration Options
+
 [All available settings]
 
 ## Advanced Features
+
 [Expert-level capabilities]
 ```
 
 **EXAMPLES.md:**
+
 ```markdown
 # Examples
 
 ## Example 1: [Scenario]
+
 [Detailed code example with explanation]
 
 ## Example 2: [Scenario]
+
 [Another complete example]
 ```
 
@@ -213,6 +239,7 @@ cat path/to/skill/SKILL.md | sed -n '1,/^---$/p'
 ```
 
 Provide testing instructions:
+
 ```
 To test your skill:
 1. Restart Claude Code or start a new session
@@ -224,6 +251,7 @@ To test your skill:
 ### 7. Provide Next Steps
 
 Give the user:
+
 - Path to the created skill file
 - How to test it
 - How to modify it
@@ -233,11 +261,13 @@ Give the user:
 ## Skill Size Guidelines
 
 Warn if skill is getting large:
+
 - ✅ **Good:** < 600 lines
 - ⚠️ **Warning:** 600-900 lines (consider splitting)
 - ❌ **Too large:** > 900 lines (must split or refactor)
 
 **If too large, suggest:**
+
 - Split into multiple focused skills
 - Move detailed docs to separate reference files
 - Extract examples to EXAMPLES.md
@@ -248,11 +278,13 @@ Warn if skill is getting large:
 ### Description Field
 
 ✅ **Good descriptions:**
+
 ```yaml
 description: Expert in Next.js App Router, server components, server actions, and React Server Components. Use when user mentions Next.js, RSC, App Router, or server-side React patterns.
 ```
 
 ❌ **Bad descriptions:**
+
 ```yaml
 description: Helps with Next.js
 ```
@@ -260,11 +292,13 @@ description: Helps with Next.js
 ### Allowed Tools
 
 Only request tools you actually use:
+
 - Don't request all tools "just in case"
 - Be specific about needs
 - Consider security implications
 
 **Examples:**
+
 ```yaml
 # Read-only skill
 allowed-tools: Read, Grep, Glob
@@ -279,6 +313,7 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash
 ### Model Selection
 
 Choose based on complexity:
+
 - `haiku`: Fast, simple tasks, quick responses
 - `sonnet`: Balanced, most skills (recommended)
 - `opus`: Complex reasoning, advanced tasks
@@ -286,6 +321,7 @@ Choose based on complexity:
 ## Example Skills to Reference
 
 Point users to examples in the repository:
+
 - `.claude/skills/data/toon-formatter/skill.md` - Data processing
 - `.claude/skills/ai/anthropic/skill.md` - API expertise
 - `.claude/skills/ai/claude-code/skill.md` - Tool knowledge
@@ -293,30 +329,35 @@ Point users to examples in the repository:
 ## Common Skill Types
 
 ### API/Framework Expert
+
 **Purpose:** Deep knowledge of a specific framework or API
 **Triggers:** Framework name, features, patterns
 **Tools:** Read, Grep, Glob
 **Example:** Next.js expert, FastAPI expert, React expert
 
 ### Code Generator
+
 **Purpose:** Create boilerplate or scaffolding
 **Triggers:** "generate", "create", "scaffold", "template"
 **Tools:** Write, Read, Grep, Glob
 **Example:** Component generator, test file creator
 
 ### Code Analyzer
+
 **Purpose:** Review and analyze existing code
 **Triggers:** "review", "analyze", "check", "audit"
 **Tools:** Read, Grep, Glob
 **Example:** Security auditor, performance analyzer
 
 ### Development Workflow
+
 **Purpose:** Automate common dev tasks
 **Triggers:** Workflow steps, automation keywords
 **Tools:** Read, Write, Edit, Bash
 **Example:** Deployment helper, commit message generator
 
 ### Data Processor
+
 **Purpose:** Transform or analyze data
 **Triggers:** Data formats, transformation keywords
 **Tools:** Read, Write, Edit, Grep
@@ -327,6 +368,7 @@ Point users to examples in the repository:
 ### Skill Not Activating
 
 **Check:**
+
 1. Description has specific trigger keywords
 2. File is named `SKILL.md` (case-sensitive)
 3. File is in correct location:
@@ -336,6 +378,7 @@ Point users to examples in the repository:
 5. Restart Claude Code to load new skills
 
 **Debug with:**
+
 ```bash
 # Verify location
 ls ~/.claude/skills/*/SKILL.md
@@ -351,6 +394,7 @@ claude --debug
 ### Skill Conflicts
 
 If multiple skills have similar triggers:
+
 - Make descriptions more specific
 - Use distinct keywords
 - Reference specific use cases
@@ -359,6 +403,7 @@ If multiple skills have similar triggers:
 ### File Not Found Errors
 
 Check that referenced files exist:
+
 ```bash
 # From SKILL.md, check references like [reference.md](reference.md)
 ls path/to/skill/reference.md
@@ -367,6 +412,7 @@ ls path/to/skill/reference.md
 ## Best Practices Summary
 
 ### DO:
+
 ✅ Include specific trigger keywords in description
 ✅ Keep skills focused on one capability
 ✅ Provide clear examples in the skill
@@ -375,6 +421,7 @@ ls path/to/skill/reference.md
 ✅ Document version changes
 
 ### DON'T:
+
 ❌ Make descriptions too vague
 ❌ Try to handle everything in one skill
 ❌ Request unnecessary tools

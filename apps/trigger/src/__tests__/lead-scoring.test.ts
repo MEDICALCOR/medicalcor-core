@@ -14,10 +14,7 @@ vi.stubEnv('OPENAI_API_KEY', 'test-openai-key');
 vi.stubEnv('DATABASE_URL', '');
 
 // Import after env setup
-import {
-  createHubSpotClient,
-  createOpenAIClient,
-} from '@medicalcor/integrations';
+import { createHubSpotClient, createOpenAIClient } from '@medicalcor/integrations';
 import { createScoringService } from '@medicalcor/domain';
 import { LeadContextBuilder, createInMemoryEventStore } from '@medicalcor/core';
 import type { AIScoringContext } from '@medicalcor/types';

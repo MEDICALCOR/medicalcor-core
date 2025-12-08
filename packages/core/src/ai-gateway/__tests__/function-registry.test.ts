@@ -109,7 +109,7 @@ describe('FunctionRegistry', () => {
       registry.register(definition, z.object({}), vi.fn());
 
       const categoryFunctions = registry.getFunctionsByCategory('appointments');
-      expect(categoryFunctions.some(f => f.name === 'categorized')).toBe(true);
+      expect(categoryFunctions.some((f) => f.name === 'categorized')).toBe(true);
     });
   });
 
@@ -301,7 +301,7 @@ describe('FunctionRegistry', () => {
       const results = await registry.executeMany(calls, context);
 
       expect(results).toHaveLength(3);
-      expect(results.every(r => r.success)).toBe(true);
+      expect(results.every((r) => r.success)).toBe(true);
     });
 
     it('should handle partial failures', async () => {
@@ -350,8 +350,8 @@ describe('FunctionRegistry', () => {
       const functions = registry.getAllFunctions();
 
       expect(functions).toHaveLength(2);
-      expect(functions.map(f => f.name)).toContain('func1');
-      expect(functions.map(f => f.name)).toContain('func2');
+      expect(functions.map((f) => f.name)).toContain('func1');
+      expect(functions.map((f) => f.name)).toContain('func2');
     });
 
     it('should return empty array when no functions registered', () => {
@@ -393,7 +393,7 @@ describe('FunctionRegistry', () => {
 
     it('should not include functions from other categories', () => {
       const leadFunctions = registry.getFunctionsByCategory('leads');
-      expect(leadFunctions.every(f => f.category === 'leads')).toBe(true);
+      expect(leadFunctions.every((f) => f.category === 'leads')).toBe(true);
     });
   });
 
@@ -540,8 +540,8 @@ describe('FunctionRegistry', () => {
       const summary = registry.getCategorySummary();
 
       expect(summary).toHaveLength(2);
-      expect(summary.some(s => s.category === 'leads' && s.count === 1)).toBe(true);
-      expect(summary.some(s => s.category === 'patients' && s.count === 1)).toBe(true);
+      expect(summary.some((s) => s.category === 'leads' && s.count === 1)).toBe(true);
+      expect(summary.some((s) => s.category === 'patients' && s.count === 1)).toBe(true);
     });
   });
 

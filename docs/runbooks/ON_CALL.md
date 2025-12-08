@@ -21,23 +21,23 @@ Comprehensive guide for on-call engineers at MedicalCor Core, including responsi
 
 ### Primary On-Call
 
-| Responsibility | Description |
-|----------------|-------------|
-| **Acknowledge alerts** | Within 5 min (P1), 15 min (P2), 30 min (P3) |
-| **Initial triage** | Assess severity and impact |
-| **Begin investigation** | Start diagnosis and mitigation |
-| **Escalate when needed** | Don't struggle alone |
-| **Communicate** | Keep stakeholders informed |
-| **Document** | Log actions in incident channel |
-| **Handoff** | Brief incoming on-call |
+| Responsibility           | Description                                 |
+| ------------------------ | ------------------------------------------- |
+| **Acknowledge alerts**   | Within 5 min (P1), 15 min (P2), 30 min (P3) |
+| **Initial triage**       | Assess severity and impact                  |
+| **Begin investigation**  | Start diagnosis and mitigation              |
+| **Escalate when needed** | Don't struggle alone                        |
+| **Communicate**          | Keep stakeholders informed                  |
+| **Document**             | Log actions in incident channel             |
+| **Handoff**              | Brief incoming on-call                      |
 
 ### Secondary On-Call (Backup)
 
-| Responsibility | Description |
-|----------------|-------------|
-| **Available for escalation** | Reachable within 15 min |
-| **Support primary** | Provide expertise when asked |
-| **Take over if needed** | If primary is unavailable |
+| Responsibility               | Description                  |
+| ---------------------------- | ---------------------------- |
+| **Available for escalation** | Reachable within 15 min      |
+| **Support primary**          | Provide expertise when asked |
+| **Take over if needed**      | If primary is unavailable    |
 
 ### What On-Call is NOT
 
@@ -99,20 +99,20 @@ curl -s https://api.medicalcor.com/health | jq .
 
 ### Daily Routine
 
-| Time | Action |
-|------|--------|
+| Time               | Action                           |
+| ------------------ | -------------------------------- |
 | **Start of shift** | Review handoff, check dashboards |
-| **Hourly** | Quick glance at key metrics |
-| **End of shift** | Write handoff notes |
+| **Hourly**         | Quick glance at key metrics      |
+| **End of shift**   | Write handoff notes              |
 
 ### Key Dashboards to Monitor
 
-| Dashboard | Purpose | Check Frequency |
-|-----------|---------|-----------------|
-| [MedicalCor Overview](https://grafana.medicalcor.com/d/overview) | System health summary | Every 2 hours |
-| [API Performance](https://grafana.medicalcor.com/d/api) | Request metrics, errors | On alert |
-| [AI Gateway](https://grafana.medicalcor.com/d/ai) | AI service health | Every 4 hours |
-| [Error Budget](https://grafana.medicalcor.com/d/slo) | SLO status | Start of shift |
+| Dashboard                                                        | Purpose                 | Check Frequency |
+| ---------------------------------------------------------------- | ----------------------- | --------------- |
+| [MedicalCor Overview](https://grafana.medicalcor.com/d/overview) | System health summary   | Every 2 hours   |
+| [API Performance](https://grafana.medicalcor.com/d/api)          | Request metrics, errors | On alert        |
+| [AI Gateway](https://grafana.medicalcor.com/d/ai)                | AI service health       | Every 4 hours   |
+| [Error Budget](https://grafana.medicalcor.com/d/slo)             | SLO status              | Start of shift  |
 
 ### Quick Health Check Script
 
@@ -180,25 +180,27 @@ gcloud logging read 'resource.type="cloud_run_revision" AND severity>=ERROR' \
 
 ### Common Alerts and Initial Actions
 
-| Alert | First Check | Common Fix |
-|-------|-------------|------------|
-| **HighErrorRate** | Recent deployments | Rollback or fix |
-| **ServiceDown** | Health endpoints | Check GCP status, restart |
-| **SlowResponses** | Database queries, external APIs | Scale up, optimize |
-| **CircuitBreakerOpen** | External service status | Wait or disable feature |
-| **AIServiceDegraded** | OpenAI status | Fallback is automatic |
-| **DatabaseConnections** | Pool utilization | Scale pool or kill idle |
-| **DLQBacklog** | Failed webhooks | Investigate, reprocess |
+| Alert                   | First Check                     | Common Fix                |
+| ----------------------- | ------------------------------- | ------------------------- |
+| **HighErrorRate**       | Recent deployments              | Rollback or fix           |
+| **ServiceDown**         | Health endpoints                | Check GCP status, restart |
+| **SlowResponses**       | Database queries, external APIs | Scale up, optimize        |
+| **CircuitBreakerOpen**  | External service status         | Wait or disable feature   |
+| **AIServiceDegraded**   | OpenAI status                   | Fallback is automatic     |
+| **DatabaseConnections** | Pool utilization                | Scale pool or kill idle   |
+| **DLQBacklog**          | Failed webhooks                 | Investigate, reprocess    |
 
 ### Noise vs. Signal
 
 Signs of a **real issue**:
+
 - Multiple related alerts
 - User reports matching alert
 - Metrics confirm the problem
 - Alert persists after initial check
 
 Signs of **noise**:
+
 - Single transient alert
 - Alert auto-resolves quickly
 - Metrics look normal
@@ -216,11 +218,13 @@ Write handoff notes 30 minutes before shift end:
 ## On-Call Handoff: [Date] [Your Name] → [Next On-Call]
 
 ### Shift Summary
+
 - Total alerts: X
 - Incidents declared: X
 - Notable events: [brief description]
 
 ### Active Issues
+
 [List any ongoing issues that need monitoring]
 
 1. **Issue:** [Description]
@@ -229,16 +233,19 @@ Write handoff notes 30 minutes before shift end:
    - Next steps: [What to watch for]
 
 ### Recent Changes
+
 [List any deployments or changes in the last 24 hours]
 
 - [Time]: [Change description] by [Person]
 
 ### Upcoming Concerns
+
 [List anything the next on-call should watch for]
 
 - [Scheduled maintenance, expected traffic spike, etc.]
 
 ### Notes
+
 [Any other relevant information]
 ```
 
@@ -263,20 +270,22 @@ For P1/P2 incidents or complex situations:
 
 ### Response Expectations
 
-| Time | P1 Response | P2 Response | P3 Response |
-|------|-------------|-------------|-------------|
-| Business hours (9-18) | 5 min | 15 min | 30 min |
-| After hours (18-22) | 10 min | 30 min | Next business day |
-| Night (22-9) | 15 min | 1 hour | Next business day |
-| Weekend | 15 min | 1 hour | Next business day |
+| Time                  | P1 Response | P2 Response | P3 Response       |
+| --------------------- | ----------- | ----------- | ----------------- |
+| Business hours (9-18) | 5 min       | 15 min      | 30 min            |
+| After hours (18-22)   | 10 min      | 30 min      | Next business day |
+| Night (22-9)          | 15 min      | 1 hour      | Next business day |
+| Weekend               | 15 min      | 1 hour      | Next business day |
 
 ### What Warrants Waking Up
 
 **Wake up for:**
+
 - P1: Complete outage, data breach, payment processing down
 - P2 persisting > 1 hour: Major feature broken affecting many users
 
 **Can wait until morning:**
+
 - P3: Single integration degraded with workaround
 - P4: Non-critical issues
 - Alerts that auto-resolve
@@ -314,6 +323,7 @@ For P1/P2 incidents or complex situations:
 ### Post-Incident Recovery
 
 After a stressful incident:
+
 - Take a short break
 - Debrief with someone
 - Don't immediately jump into regular work
@@ -321,12 +331,12 @@ After a stressful incident:
 
 ### Rotation Best Practices
 
-| Practice | Why |
-|----------|-----|
-| 1-week rotations | Sustainable, time to recover |
-| At least 2 weeks between shifts | Prevent burnout |
-| Volunteer swaps allowed | Flexibility |
-| Post-incident recovery time | Mental health |
+| Practice                        | Why                          |
+| ------------------------------- | ---------------------------- |
+| 1-week rotations                | Sustainable, time to recover |
+| At least 2 weeks between shifts | Prevent burnout              |
+| Volunteer swaps allowed         | Flexibility                  |
+| Post-incident recovery time     | Mental health                |
 
 ---
 
@@ -336,14 +346,14 @@ After a stressful incident:
 
 Before going on-call, verify access to:
 
-| System | Purpose | How to Request |
-|--------|---------|----------------|
-| PagerDuty | Alert management | IT ticket |
-| Grafana | Dashboards and metrics | IT ticket |
-| GCP Console | Cloud infrastructure | IT ticket + manager approval |
-| Slack #on-call | Communication | Self-join |
-| GitHub | Code and deployments | IT ticket |
-| Trigger.dev | Background jobs | Eng manager |
+| System         | Purpose                | How to Request               |
+| -------------- | ---------------------- | ---------------------------- |
+| PagerDuty      | Alert management       | IT ticket                    |
+| Grafana        | Dashboards and metrics | IT ticket                    |
+| GCP Console    | Cloud infrastructure   | IT ticket + manager approval |
+| Slack #on-call | Communication          | Self-join                    |
+| GitHub         | Code and deployments   | IT ticket                    |
+| Trigger.dev    | Background jobs        | Eng manager                  |
 
 ### Essential Bookmarks
 
@@ -386,12 +396,12 @@ alias prod-revisions='gcloud run revisions list --service=medicalcor-api --regio
 
 ## On-Call Compensation
 
-| Item | Policy |
-|------|--------|
-| Shift pay | Per company policy |
-| Incident response | Per company policy |
-| Comp time | After major incidents |
-| Weekend work | Per company policy |
+| Item              | Policy                |
+| ----------------- | --------------------- |
+| Shift pay         | Per company policy    |
+| Incident response | Per company policy    |
+| Comp time         | After major incidents |
+| Weekend work      | Per company policy    |
 
 ---
 
@@ -399,11 +409,11 @@ alias prod-revisions='gcloud run revisions list --service=medicalcor-api --regio
 
 For true emergencies where normal escalation fails:
 
-| Situation | Contact |
-|-----------|---------|
+| Situation                             | Contact               |
+| ------------------------------------- | --------------------- |
 | Can't reach anyone on escalation path | VP Engineering mobile |
-| Security emergency | CISO mobile |
-| Major outage > 2 hours | CTO mobile |
+| Security emergency                    | CISO mobile           |
+| Major outage > 2 hours                | CTO mobile            |
 
 ---
 
@@ -428,6 +438,6 @@ A: Yes, as long as you can respond within SLA. Stay near your laptop.
 
 ## Revision History
 
-| Date | Version | Author | Changes |
-|------|---------|--------|---------|
-| 2024-12 | 1.0 | Platform Team | Initial runbook creation |
+| Date    | Version | Author        | Changes                  |
+| ------- | ------- | ------------- | ------------------------ |
+| 2024-12 | 1.0     | Platform Team | Initial runbook creation |

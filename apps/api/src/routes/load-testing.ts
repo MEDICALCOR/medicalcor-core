@@ -219,7 +219,10 @@ export const loadTestingRoutes: FastifyPluginAsync = async (fastify) => {
         },
       },
     },
-    handler: async (request: FastifyRequest<{ Body: CreateLoadTestResult }>, reply: FastifyReply) => {
+    handler: async (
+      request: FastifyRequest<{ Body: CreateLoadTestResult }>,
+      reply: FastifyReply
+    ) => {
       try {
         const validation = CreateLoadTestResultSchema.safeParse(request.body);
         if (!validation.success) {
@@ -362,9 +365,7 @@ export const loadTestingRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       // Sort by date descending
-      results.sort(
-        (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
-      );
+      results.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
 
       // Apply pagination with NaN validation
       const parsedLimit = parseInt(limit ?? '20', 10);

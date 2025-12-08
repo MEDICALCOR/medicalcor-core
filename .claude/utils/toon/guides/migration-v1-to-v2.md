@@ -27,6 +27,7 @@ Upgrading from TOON v1.x to v2.0.
 ### v1: Basic Tabular
 
 **v1.x:**
+
 ```
 {name,age}:
   Alice,30
@@ -34,6 +35,7 @@ Upgrading from TOON v1.x to v2.0.
 ```
 
 **v2.0:**
+
 ```
 [2]{name,age}:
   Alice,30
@@ -47,6 +49,7 @@ Upgrading from TOON v1.x to v2.0.
 **v1.x:** Only comma supported
 
 **v2.0:**
+
 ```
 [2,]{name,age}:    # Comma (explicit)
 [2\t]{name,age}:   # Tab
@@ -68,6 +71,7 @@ Upgrading from TOON v1.x to v2.0.
 ### Step 1: Add Array Counts
 
 **Before (v1):**
+
 ```
 {id,name}:
   1,Alice
@@ -75,6 +79,7 @@ Upgrading from TOON v1.x to v2.0.
 ```
 
 **After (v2):**
+
 ```
 [2]{id,name}:
   1,Alice
@@ -82,6 +87,7 @@ Upgrading from TOON v1.x to v2.0.
 ```
 
 **Automated fix:**
+
 ```bash
 # Count rows and add [N]
 sed -i 's/^{/{COUNT}{/' file.toon
@@ -91,18 +97,21 @@ sed -i 's/^{/{COUNT}{/' file.toon
 ### Step 2: Update Escape Sequences
 
 **Before (v1):**
+
 ```
 text: "Unicode: \u0041"
 control: "Backspace: \b"
 ```
 
 **After (v2):**
+
 ```
 text: "Unicode: A"      # Use literal UTF-8
 control: "Backspace: "  # Use literal or remove
 ```
 
 **Automated check:**
+
 ```bash
 # Find invalid escapes
 grep -n '\\[^\\\"nrt]' file.toon
@@ -127,6 +136,7 @@ grep -n '\\[^\\\"nrt]' file.toon
 **v2:** Optional folding
 
 **Before:**
+
 ```
 server:
   host: localhost
@@ -134,6 +144,7 @@ server:
 ```
 
 **After (with folding):**
+
 ```
 server.host: localhost
 server.port: 8080
@@ -194,6 +205,7 @@ chmod +x migrate-v1-to-v2.sh
 ### v2 Decoder with v1 Files
 
 **Partially compatible:**
+
 - ✅ Tabular arrays work (if counts added)
 - ❌ Invalid escapes will error in strict mode
 - ⚠ Missing counts will error
@@ -201,6 +213,7 @@ chmod +x migrate-v1-to-v2.sh
 ### v1 Decoder with v2 Files
 
 **Not compatible:**
+
 - v1 decoders don't understand `[N,]`, `[N\t]`, `[N|]` syntax
 - v1 decoders don't support inline arrays
 - v1 decoders don't support key folding
@@ -209,17 +222,17 @@ chmod +x migrate-v1-to-v2.sh
 
 ## Feature Parity
 
-| Feature | v1.x | v2.0 |
-|---------|------|------|
-| Tabular arrays | ✅ | ✅ |
-| Inline arrays | ❌ | ✅ |
-| Expanded lists | ❌ | ✅ |
-| Delimiters | Comma only | Comma, tab, pipe |
-| Key folding | ❌ | ✅ |
-| Path expansion | ❌ | ✅ |
-| Strict mode | ❌ | ✅ |
-| Escape sequences | 8 | 5 (simplified) |
-| Array count required | ❌ | ✅ |
+| Feature              | v1.x       | v2.0             |
+| -------------------- | ---------- | ---------------- |
+| Tabular arrays       | ✅         | ✅               |
+| Inline arrays        | ❌         | ✅               |
+| Expanded lists       | ❌         | ✅               |
+| Delimiters           | Comma only | Comma, tab, pipe |
+| Key folding          | ❌         | ✅               |
+| Path expansion       | ❌         | ✅               |
+| Strict mode          | ❌         | ✅               |
+| Escape sequences     | 8          | 5 (simplified)   |
+| Array count required | ❌         | ✅               |
 
 ## Testing Migration
 
@@ -300,6 +313,7 @@ Migrate incrementally:
 ### Q: Do I have to use all v2 features?
 
 **A:** No. v2 is backwards-compatible if you:
+
 - Add array counts
 - Remove invalid escapes
 - Use comma delimiter (default)
@@ -307,6 +321,7 @@ Migrate incrementally:
 ### Q: What if I have thousands of v1 files?
 
 **A:** Write a migration script:
+
 1. Detect tabular arrays
 2. Count rows
 3. Add `[N]` prefix

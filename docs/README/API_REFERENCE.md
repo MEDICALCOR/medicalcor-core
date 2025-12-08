@@ -22,11 +22,11 @@ Complete documentation for the MedicalCor Core API endpoints.
 
 ### Base URL
 
-| Environment | URL |
-|-------------|-----|
-| Local Development | `http://localhost:3000` |
-| Staging | `https://api-staging.medicalcor.com` |
-| Production | `https://api.medicalcor.com` |
+| Environment       | URL                                  |
+| ----------------- | ------------------------------------ |
+| Local Development | `http://localhost:3000`              |
+| Staging           | `https://api-staging.medicalcor.com` |
+| Production        | `https://api.medicalcor.com`         |
 
 ### Content Type
 
@@ -38,11 +38,11 @@ Content-Type: application/json
 
 ### Request Headers
 
-| Header | Required | Description |
-|--------|----------|-------------|
-| `Content-Type` | Yes | Must be `application/json` |
-| `X-Correlation-ID` | No | Request tracking ID (auto-generated if not provided) |
-| `X-Api-Key` | Conditional | Required for workflow endpoints |
+| Header             | Required    | Description                                          |
+| ------------------ | ----------- | ---------------------------------------------------- |
+| `Content-Type`     | Yes         | Must be `application/json`                           |
+| `X-Correlation-ID` | No          | Request tracking ID (auto-generated if not provided) |
+| `X-Api-Key`        | Conditional | Required for workflow endpoints                      |
 
 ### Response Format
 
@@ -84,12 +84,12 @@ Error responses:
 
 Webhooks use signature verification instead of API keys:
 
-| Provider | Header | Algorithm |
-|----------|--------|-----------|
-| WhatsApp | `X-Hub-Signature-256` | HMAC-SHA256 |
-| Twilio | `X-Twilio-Signature` | Twilio SDK validation |
-| Stripe | `Stripe-Signature` | Stripe SDK validation |
-| Vapi | `X-Vapi-Signature` | HMAC-SHA256 |
+| Provider | Header                | Algorithm             |
+| -------- | --------------------- | --------------------- |
+| WhatsApp | `X-Hub-Signature-256` | HMAC-SHA256           |
+| Twilio   | `X-Twilio-Signature`  | Twilio SDK validation |
+| Stripe   | `Stripe-Signature`    | Stripe SDK validation |
+| Vapi     | `X-Vapi-Signature`    | HMAC-SHA256           |
 
 ### API Key Authentication
 
@@ -122,6 +122,7 @@ Basic health check endpoint.
 ```
 
 **Status Codes**:
+
 - `200` - Service is healthy
 - `503` - Service is unhealthy
 
@@ -147,6 +148,7 @@ Kubernetes readiness probe. Checks database and Redis connectivity.
 ```
 
 **Status Codes**:
+
 - `200` - Service is ready to accept traffic
 - `503` - Service is not ready (dependency failure)
 
@@ -168,6 +170,7 @@ Kubernetes liveness probe. Simple ping check.
 ```
 
 **Status Codes**:
+
 - `200` - Service is alive
 
 ---
@@ -184,15 +187,16 @@ Webhook subscription verification (challenge-response).
 
 **Query Parameters**:
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `hub.mode` | string | Must be `subscribe` |
+| Parameter          | Type   | Description             |
+| ------------------ | ------ | ----------------------- |
+| `hub.mode`         | string | Must be `subscribe`     |
 | `hub.verify_token` | string | Your verification token |
-| `hub.challenge` | string | Challenge to echo back |
+| `hub.challenge`    | string | Challenge to echo back  |
 
 **Response**: Plain text challenge value
 
 **Example**:
+
 ```bash
 curl "http://localhost:3000/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=your-token&hub.challenge=123456"
 # Response: 123456
@@ -266,6 +270,7 @@ Receive incoming WhatsApp messages.
 ```
 
 **Status Codes**:
+
 - `200` - Webhook processed successfully
 - `401` - Invalid signature
 - `400` - Invalid payload
@@ -349,14 +354,14 @@ Handle Stripe payment events.
 
 **Supported Events**:
 
-| Event | Description |
-|-------|-------------|
-| `payment_intent.succeeded` | Payment completed successfully |
-| `payment_intent.payment_failed` | Payment failed |
-| `invoice.paid` | Invoice was paid |
-| `invoice.payment_failed` | Invoice payment failed |
-| `customer.subscription.created` | New subscription created |
-| `customer.subscription.deleted` | Subscription cancelled |
+| Event                           | Description                    |
+| ------------------------------- | ------------------------------ |
+| `payment_intent.succeeded`      | Payment completed successfully |
+| `payment_intent.payment_failed` | Payment failed                 |
+| `invoice.paid`                  | Invoice was paid               |
+| `invoice.payment_failed`        | Invoice payment failed         |
+| `customer.subscription.created` | New subscription created       |
+| `customer.subscription.deleted` | Subscription cancelled         |
 
 **Request Body**:
 
@@ -594,6 +599,7 @@ Create a new appointment.
 ```
 
 **Status Codes**:
+
 - `200` - Appointment created successfully
 - `400` - Invalid request (missing consent, invalid date)
 - `409` - Slot no longer available
@@ -878,20 +884,21 @@ Service readiness with dependency checks.
 
 ### Error Codes
 
-| Code | HTTP Status | Description |
-|------|-------------|-------------|
-| `VALIDATION_ERROR` | 400 | Invalid request payload |
-| `SIGNATURE_INVALID` | 401 | Webhook signature verification failed |
-| `UNAUTHORIZED` | 401 | Missing or invalid API key |
-| `FORBIDDEN` | 403 | Insufficient permissions |
-| `NOT_FOUND` | 404 | Resource not found |
-| `RATE_LIMITED` | 429 | Too many requests |
-| `INTERNAL_ERROR` | 500 | Internal server error |
-| `SERVICE_UNAVAILABLE` | 503 | Dependency unavailable |
+| Code                  | HTTP Status | Description                           |
+| --------------------- | ----------- | ------------------------------------- |
+| `VALIDATION_ERROR`    | 400         | Invalid request payload               |
+| `SIGNATURE_INVALID`   | 401         | Webhook signature verification failed |
+| `UNAUTHORIZED`        | 401         | Missing or invalid API key            |
+| `FORBIDDEN`           | 403         | Insufficient permissions              |
+| `NOT_FOUND`           | 404         | Resource not found                    |
+| `RATE_LIMITED`        | 429         | Too many requests                     |
+| `INTERNAL_ERROR`      | 500         | Internal server error                 |
+| `SERVICE_UNAVAILABLE` | 503         | Dependency unavailable                |
 
 ### Error Response Examples
 
 **Validation Error**:
+
 ```json
 {
   "success": false,
@@ -907,6 +914,7 @@ Service readiness with dependency checks.
 ```
 
 **Rate Limited**:
+
 ```json
 {
   "success": false,
@@ -928,15 +936,15 @@ Service readiness with dependency checks.
 
 ### Limits by Endpoint
 
-| Endpoint | Limit | Window |
-|----------|-------|--------|
-| `/webhooks/whatsapp` | 200 | 1 minute |
-| `/webhooks/voice` | 100 | 1 minute |
-| `/webhooks/stripe` | 50 | 1 minute |
-| `/webhooks/vapi` | 100 | 1 minute |
-| `/workflows/*` | 50 | 1 minute |
-| `/ai/execute` | 30 | 1 minute |
-| Global fallback | 1000 | 1 minute |
+| Endpoint             | Limit | Window   |
+| -------------------- | ----- | -------- |
+| `/webhooks/whatsapp` | 200   | 1 minute |
+| `/webhooks/voice`    | 100   | 1 minute |
+| `/webhooks/stripe`   | 50    | 1 minute |
+| `/webhooks/vapi`     | 100   | 1 minute |
+| `/workflows/*`       | 50    | 1 minute |
+| `/ai/execute`        | 30    | 1 minute |
+| Global fallback      | 1000  | 1 minute |
 
 ### Rate Limit Headers
 
@@ -988,6 +996,7 @@ docker compose --profile tunnel up -d
 ### Webhook Testing Tools
 
 **WhatsApp Test**:
+
 ```bash
 curl -X POST http://localhost:3000/webhooks/whatsapp \
   -H "Content-Type: application/json" \
@@ -996,6 +1005,7 @@ curl -X POST http://localhost:3000/webhooks/whatsapp \
 ```
 
 **Stripe Test** (using Stripe CLI):
+
 ```bash
 stripe trigger payment_intent.succeeded --webhook-endpoint http://localhost:3000/webhooks/stripe
 ```
@@ -1011,18 +1021,18 @@ import { MedicalCorClient } from '@medicalcor/sdk';
 
 const client = new MedicalCorClient({
   apiKey: process.env.API_KEY,
-  baseUrl: 'https://api.medicalcor.com'
+  baseUrl: 'https://api.medicalcor.com',
 });
 
 // Trigger a workflow
 const result = await client.workflows.trigger('lead-scoring', {
   phone: '+15550001234',
-  message: 'Interested in implants'
+  message: 'Interested in implants',
 });
 
 // Execute AI function
 const score = await client.ai.execute('score_lead', {
-  message: 'I need urgent dental care'
+  message: 'I need urgent dental care',
 });
 ```
 

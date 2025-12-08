@@ -10,46 +10,12 @@
 import { CircuitBreakerRegistry, createEventStore } from '@medicalcor/core';
 import type { EventStore } from '@medicalcor/core';
 import { InMemoryConsentRepository } from '@medicalcor/core/repositories';
-import type { IConsentRepository } from '@medicalcor/core/repositories';
-import type {
-  ScoringService,
-  TriageService,
-  ConsentService,
-  ConsentRepository,
-} from '@medicalcor/domain';
+import type { ScoringService, TriageService, ConsentService } from '@medicalcor/domain';
 import {
   createScoringService,
   createTriageService,
   createConsentService,
 } from '@medicalcor/domain';
-
-/**
- * Adapts IConsentRepository (uses Result types) to ConsentRepository (uses plain types)
- */
-function adaptConsentRepository(repo: IConsentRepository): ConsentRepository {
-  return {
-    async save(consent) {
-      const result = await repo.save(consent);
-      if (result._tag !== 'Ok') throw new Error('Failed to save consent record');
-      return result.value;
-    },
-    async upsert(consent) {
-      const result = await repo.upsert(consent);
-      if (result._tag !== 'Ok') throw new Error('Failed to upsert consent record');
-      return result.value;
-    },
-    findByContactAndType: (contactId, consentType) =>
-      repo.findByContactAndType(contactId, consentType),
-    findByContact: (contactId) => repo.findByContact(contactId),
-    delete: (consentId) => repo.delete(consentId),
-    deleteByContact: (contactId) => repo.deleteByContact(contactId),
-    findExpiringSoon: (withinDays) => repo.findExpiringSoon(withinDays),
-    findByStatus: (status) => repo.findByStatus(status),
-    appendAuditEntry: (entry) => repo.appendAuditEntry(entry),
-    getAuditTrail: (consentId) => repo.getAuditTrail(consentId),
-    getContactAuditTrail: (contactId) => repo.getContactAuditTrail(contactId),
-  };
-}
 
 import { createHubSpotClient } from './hubspot.js';
 import type { HubSpotClient } from './hubspot.js';
@@ -540,7 +506,9 @@ export function createEnhancedIntegrationClients(
 
   if (config.includeConsent !== false) {
     // Use in-memory repository for development/testing
-    const inMemoryRepository = adaptConsentRepository(new InMemoryConsentRepository());
+    // InMemoryConsentRepository already returns plain types (not Result-wrapped),
+    // so it can be used directly without adaptConsentRepository
+    const inMemoryRepository = new InMemoryConsentRepository();
     consent = createConsentService({ repository: inMemoryRepository });
   }
 

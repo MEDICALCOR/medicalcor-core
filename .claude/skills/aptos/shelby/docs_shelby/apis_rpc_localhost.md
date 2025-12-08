@@ -47,11 +47,9 @@ This section contains all API endpoints for **Local Development** (`http://local
 
 Browse the endpoints by category:
 
-  * **Sessions** \- Manage user sessions and micropayment channels
-  * **Storage** \- Upload and retrieve video blobs
-  * **Multipart Uploads** \- Manage multipart upload sessions for large files
-
-
+- **Sessions** \- Manage user sessions and micropayment channels
+- **Storage** \- Upload and retrieve video blobs
+- **Multipart Uploads** \- Manage multipart upload sessions for large files
 
 [Complete a multipart upload POSTPrevious Page](/apis/rpc/shelbynet/multipart-uploads/completeMultipartUpload)[Use a session POSTNext Page](/apis/rpc/localhost/sessions/useSession)
 

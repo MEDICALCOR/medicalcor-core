@@ -86,13 +86,11 @@ Python
 Java
 
 C#
-    
-    
+
     curl -X POST "http://localhost:9090/v1/multipart-uploads" \  -H "Content-Type: application/json" \  -d '{}'
 
 200400
-    
-    
+
     {
       "uploadId": "string"
     }

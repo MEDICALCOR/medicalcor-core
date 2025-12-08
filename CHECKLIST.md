@@ -3,17 +3,20 @@
 ## Must Have Before Merge
 
 ### Code Quality
+
 - [ ] Formatting is correct (Prettier) - `pnpm format:check`
 - [ ] Lint is clean (ESLint) - `pnpm lint`
 - [ ] TypeScript type check passes - `pnpm typecheck`
 - [ ] Code duplication is within acceptable limits
 
 ### Testing
+
 - [ ] Unit tests pass with acceptable coverage - `pnpm test:coverage`
 - [ ] E2E tests pass (if applicable)
 - [ ] Build succeeds - `pnpm build`
 
 ### Security
+
 - [ ] CodeQL scan: zero high/critical findings (or findings triaged)
 - [ ] Trivy vulnerability scan passes
 - [ ] pnpm audit: no critical/high vulnerabilities
@@ -21,10 +24,12 @@
 - [ ] Dependency Review: no vulnerable dependencies added
 
 ### Compliance
+
 - [ ] License check passes (only approved licenses)
 - [ ] Dependabot alerts addressed
 
 ### Review
+
 - [ ] PR has at least 1 approval
 - [ ] All CI checks pass
 
@@ -37,6 +42,7 @@
 ## Branch Protection Requirements
 
 The following checks are required for merging to `main`:
+
 - `Lint`
 - `Type Check`
 - `Test`

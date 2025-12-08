@@ -153,7 +153,10 @@ const ENTITY_PATTERNS: EntityPattern[] = [
   },
   {
     type: 'appointment_id',
-    patterns: [/apt-[a-zA-Z0-9]+/i, /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i],
+    patterns: [
+      /apt-[a-zA-Z0-9]+/i,
+      /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i,
+    ],
   },
   {
     type: 'patient_id',
@@ -451,7 +454,9 @@ export class ConversationContextManager {
     // Session info
     const duration = Date.now() - session.startedAt.getTime();
     const durationMinutes = Math.floor(duration / 60000);
-    parts.push(`Session: ${durationMinutes}min, ${session.messages.length} messages via ${session.channel}`);
+    parts.push(
+      `Session: ${durationMinutes}min, ${session.messages.length} messages via ${session.channel}`
+    );
 
     // Key entities
     const keyEntities = session.entities.filter((e) =>
@@ -465,7 +470,9 @@ export class ConversationContextManager {
     // Intent chain
     const intents = session.intentChain.slice(-3);
     if (intents.length > 0) {
-      const intentStr = intents.map((i) => `${i.intent}(${i.resolved ? 'done' : 'pending'})`).join(' -> ');
+      const intentStr = intents
+        .map((i) => `${i.intent}(${i.resolved ? 'done' : 'pending'})`)
+        .join(' -> ');
       parts.push(`Intents: ${intentStr}`);
     }
 
@@ -548,14 +555,17 @@ export class ConversationContextManager {
    */
   private startCleanupTask(): void {
     // Run cleanup every 5 minutes
-    this.cleanupInterval = setInterval(() => {
-      const now = new Date();
-      for (const [sessionId, session] of this.sessions) {
-        if (now > session.expiresAt) {
-          this.sessions.delete(sessionId);
+    this.cleanupInterval = setInterval(
+      () => {
+        const now = new Date();
+        for (const [sessionId, session] of this.sessions) {
+          if (now > session.expiresAt) {
+            this.sessions.delete(sessionId);
+          }
         }
-      }
-    }, 5 * 60 * 1000);
+      },
+      5 * 60 * 1000
+    );
 
     // Don't keep process alive just for cleanup
     this.cleanupInterval.unref();

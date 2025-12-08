@@ -167,7 +167,13 @@ export function QueueStats({ stats }: QueueStatsProps) {
             label="Avg Wait Time"
             value={formatWaitTime(stats.averageWaitTime)}
             icon={<Clock className="h-4 w-4" />}
-            status={stats.averageWaitTime > 120 ? 'warning' : stats.averageWaitTime > 300 ? 'critical' : 'ok'}
+            status={
+              stats.averageWaitTime > 120
+                ? 'warning'
+                : stats.averageWaitTime > 300
+                  ? 'critical'
+                  : 'ok'
+            }
           />
 
           <StatCard

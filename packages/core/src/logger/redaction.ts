@@ -190,7 +190,8 @@ export const PII_PATTERNS = {
   ipv4Address: /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g,
 
   // IPv6 addresses (full and compressed formats)
-  ipv6Address: /\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b|\b(?:[0-9a-fA-F]{1,4}:){1,7}:\b|\b(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}\b/g,
+  ipv6Address:
+    /\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b|\b(?:[0-9a-fA-F]{1,4}:){1,7}:\b|\b(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}\b/g,
 
   // IBAN (European bank account numbers)
   iban: /\b[A-Z]{2}\d{2}[A-Z0-9]{4,30}\b/g,
@@ -199,7 +200,8 @@ export const PII_PATTERNS = {
   jwtToken: /\beyJ[A-Za-z0-9_-]*\.eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*/g,
 
   // Date of birth patterns (DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD)
-  dateOfBirth: /\b(?:0[1-9]|[12]\d|3[01])[/\-.](?:0[1-9]|1[0-2])[/\-.](?:19|20)\d{2}\b|\b(?:19|20)\d{2}[/\-.](?:0[1-9]|1[0-2])[/\-.](?:0[1-9]|[12]\d|3[01])\b/g,
+  dateOfBirth:
+    /\b(?:0[1-9]|[12]\d|3[01])[/\-.](?:0[1-9]|1[0-2])[/\-.](?:19|20)\d{2}\b|\b(?:19|20)\d{2}[/\-.](?:0[1-9]|1[0-2])[/\-.](?:0[1-9]|[12]\d|3[01])\b/g,
 
   // Social Security Number (US SSN format)
   ssn: /\b\d{3}[- ]?\d{2}[- ]?\d{4}\b/g,

@@ -17,7 +17,7 @@ import {
  */
 function verifySecretTimingSafe(
   providedSecret: string | undefined,
-  expectedSecret: string | undefined,
+  expectedSecret: string | undefined
 ): boolean {
   if (!providedSecret || !expectedSecret) {
     return false;
@@ -73,7 +73,7 @@ export const crmWebhookRoutes: FastifyPluginAsync = async (fastify) => {
       request.log.error({ correlationId }, 'CRM_WEBHOOK_SECRET not configured in production');
       return reply.status(503).send({
         status: 'error',
-        message: 'Webhook authentication not configured'
+        message: 'Webhook authentication not configured',
       });
     }
 
@@ -83,7 +83,7 @@ export const crmWebhookRoutes: FastifyPluginAsync = async (fastify) => {
       request.log.error({ correlationId }, 'CRM_WEBHOOK_SECRET not configured - rejecting request');
       return reply.status(503).send({
         status: 'error',
-        message: 'Webhook authentication not configured'
+        message: 'Webhook authentication not configured',
       });
     }
 
@@ -94,9 +94,10 @@ export const crmWebhookRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Extract event metadata
     const metaValue = payload.meta;
-    const meta = typeof metaValue === 'object' && metaValue !== null
-      ? (metaValue as Record<string, unknown>)
-      : undefined;
+    const meta =
+      typeof metaValue === 'object' && metaValue !== null
+        ? (metaValue as Record<string, unknown>)
+        : undefined;
 
     const eventType = getStringValue(payload, 'event');
     const objectType = meta ? getStringValue(meta, 'object') : undefined;
@@ -108,19 +109,17 @@ export const crmWebhookRoutes: FastifyPluginAsync = async (fastify) => {
         event: eventType,
         objectType,
       },
-      'CRM Webhook Received',
+      'CRM Webhook Received'
     );
 
     try {
       // Determine if this is a person/contact event
       const isPersonEvent =
-        objectType === 'person' ||
-        eventType?.toLowerCase().includes('person') === true;
+        objectType === 'person' || eventType?.toLowerCase().includes('person') === true;
 
       // Determine if this is a deal event
       const isDealEvent =
-        objectType === 'deal' ||
-        eventType?.toLowerCase().includes('deal') === true;
+        objectType === 'deal' || eventType?.toLowerCase().includes('deal') === true;
 
       // Process Person -> Lead
       if (isPersonEvent) {
@@ -131,12 +130,12 @@ export const crmWebhookRoutes: FastifyPluginAsync = async (fastify) => {
           });
           request.log.info(
             { correlationId, leadId, source: crm.sourceName },
-            'Lead synced successfully',
+            'Lead synced successfully'
           );
         } else {
           request.log.info(
             { correlationId },
-            'No lead DTO generated from webhook (missing required fields)',
+            'No lead DTO generated from webhook (missing required fields)'
           );
         }
       }
@@ -151,12 +150,11 @@ export const crmWebhookRoutes: FastifyPluginAsync = async (fastify) => {
             });
             request.log.info(
               { correlationId, planId, source: crm.sourceName },
-              'Treatment Plan synced successfully',
+              'Treatment Plan synced successfully'
             );
           } catch (error) {
             // Lead might not exist yet - log warning but don't fail
-            const errorMessage =
-              error instanceof Error ? error.message : 'Unknown error';
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             if (errorMessage.includes('Lead not found')) {
               request.log.warn(
                 {
@@ -164,17 +162,14 @@ export const crmWebhookRoutes: FastifyPluginAsync = async (fastify) => {
                   dealId: planDto.externalDealId,
                   leadExternalId: planDto.leadExternalId,
                 },
-                'Treatment plan skipped: associated lead not found',
+                'Treatment plan skipped: associated lead not found'
               );
             } else {
               throw error;
             }
           }
         } else {
-          request.log.info(
-            { correlationId },
-            'No treatment plan DTO generated from webhook',
-          );
+          request.log.info({ correlationId }, 'No treatment plan DTO generated from webhook');
         }
       }
 
@@ -182,7 +177,7 @@ export const crmWebhookRoutes: FastifyPluginAsync = async (fastify) => {
       if (!isPersonEvent && !isDealEvent) {
         request.log.debug(
           { correlationId, objectType, eventType },
-          'Unhandled CRM webhook event type',
+          'Unhandled CRM webhook event type'
         );
       }
 
@@ -198,7 +193,7 @@ export const crmWebhookRoutes: FastifyPluginAsync = async (fastify) => {
             object: objectType,
           },
         },
-        'CRM Sync Failed',
+        'CRM Sync Failed'
       );
 
       // Respond 200 to avoid blocking the webhook

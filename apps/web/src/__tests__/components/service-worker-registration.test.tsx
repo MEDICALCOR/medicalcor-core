@@ -131,9 +131,12 @@ describe('ServiceWorkerRegistration', () => {
 
     window.dispatchEvent(event);
 
-    await waitFor(() => {
-      expect(screen.queryByText('Instalează aplicația')).toBeInTheDocument();
-    }, { timeout: 31000 });
+    await waitFor(
+      () => {
+        expect(screen.queryByText('Instalează aplicația')).toBeInTheDocument();
+      },
+      { timeout: 31000 }
+    );
   });
 
   it('should call prompt when install button clicked', async () => {
@@ -148,9 +151,12 @@ describe('ServiceWorkerRegistration', () => {
     Object.assign(event, mockPrompt);
     window.dispatchEvent(event);
 
-    await waitFor(() => {
-      expect(screen.queryByText('Instalează aplicația')).toBeInTheDocument();
-    }, { timeout: 31000 });
+    await waitFor(
+      () => {
+        expect(screen.queryByText('Instalează aplicația')).toBeInTheDocument();
+      },
+      { timeout: 31000 }
+    );
 
     const user = userEvent.setup();
     const installButton = screen.getByRole('button', { name: /instalează/i });

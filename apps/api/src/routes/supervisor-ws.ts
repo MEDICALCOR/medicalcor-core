@@ -272,7 +272,10 @@ class SupervisorSSEManager {
       const data = `data: ${JSON.stringify(sanitizedEvent)}\n\n`;
       client.response.raw.write(data);
     } catch (error) {
-      logger.debug({ error, clientId: client.id }, 'Failed to send event to client - client disconnected');
+      logger.debug(
+        { error, clientId: client.id },
+        'Failed to send event to client - client disconnected'
+      );
       this.clients.delete(client.id);
     }
   }

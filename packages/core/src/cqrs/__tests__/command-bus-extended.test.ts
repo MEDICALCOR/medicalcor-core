@@ -63,13 +63,7 @@ describe('CommandBus - Extended', () => {
 
       await commandBus.send('TestCommand', {});
 
-      expect(executionLog).toEqual([
-        'm1-before',
-        'm2-before',
-        'handler',
-        'm2-after',
-        'm1-after',
-      ]);
+      expect(executionLog).toEqual(['m1-before', 'm2-before', 'handler', 'm2-after', 'm1-after']);
     });
 
     it('should allow middleware to modify context', async () => {
@@ -175,12 +169,16 @@ describe('CommandBus - Extended', () => {
 
       commandBus.register('TestCommand', handler);
 
-      await commandBus.send('TestCommand', {}, {
-        commandId: 'custom-id',
-        correlationId: 'custom-corr',
-        userId: 'user-123',
-        tenantId: 'tenant-456',
-      });
+      await commandBus.send(
+        'TestCommand',
+        {},
+        {
+          commandId: 'custom-id',
+          correlationId: 'custom-corr',
+          userId: 'user-123',
+          tenantId: 'tenant-456',
+        }
+      );
 
       expect(capturedMetadata).toMatchObject({
         commandId: 'custom-id',

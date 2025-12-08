@@ -4,6 +4,8 @@
 
 MedicalCor Core is an **AI-powered medical CRM platform** for dental clinics featuring GPT-4o lead scoring, omnichannel communication (WhatsApp, Voice, Web), and HIPAA/GDPR-compliant infrastructure. It follows hexagonal architecture (ports & adapters) for testability and technology flexibility.
 
+---
+
 ## Tech Stack
 
 | Category | Technology | Version |
@@ -52,6 +54,8 @@ docs/              → Architecture, ADRs, runbooks
 
 **Critical rule**: Lower packages must never import from higher packages.
 
+---
+
 ## Quick Commands
 
 ```bash
@@ -81,6 +85,8 @@ pnpm k6:smoke                     # API load test (1 min, 5 VUs)
 pnpm k6:load                      # Load test (5 min, 50 VUs)
 pnpm k6:stress                    # Stress test (10 min, 100 VUs)
 ```
+
+---
 
 ## Key Conventions
 
@@ -124,6 +130,16 @@ describe('ScoringService', () => {
       return result.score >= 1 && result.score <= 5;
     }));
   });
+
+  // Property-based test example
+  it('should always return valid score range', () => {
+    fc.assert(
+      fc.property(fc.string(), (message) => {
+        const result = service.scoreMessage({ message });
+        return result.score >= 1 && result.score <= 5;
+      })
+    );
+  });
 });
 ```
 
@@ -141,6 +157,8 @@ describe('ScoringService', () => {
 - Never push directly to `main`, `master`, `production`, `staging`
 - All webhooks require HMAC signature verification
 - PII auto-redacted from logs, encryption at rest for PHI
+
+---
 
 ## Domain Concepts
 
@@ -173,10 +191,20 @@ describe('ScoringService', () => {
 2. Implement retry logic with circuit breaker
 3. Add to `clients-factory.ts`
 
+### Adding a New Integration
+
+1. Create client in `packages/integrations/src/{service}.ts`
+2. Add types to `packages/types/src/`
+3. Implement retry logic with circuit breaker
+4. Add to `clients-factory.ts`
+5. Add tests with MSW mocks
+
+---
+
 ## Environment Variables
 
 ```bash
-# Required
+# Required - Core
 DATABASE_URL=postgresql://...
 OPENAI_API_KEY=sk-...
 DATA_ENCRYPTION_KEY=...      # 32-byte hex for PHI
@@ -215,6 +243,67 @@ See `.env.example` for full list.
 
 **Skills**: `medicalcor/` (HIPAA, GDPR, GPT-4o), `anthropic/`, `supabase/`, `stripe/`, `expo/`
 
+---
+
+## GitHub Workflows
+
+| Workflow                   | Purpose                                    |
+| -------------------------- | ------------------------------------------ |
+| `ci.yml`                   | Main CI: lint, typecheck, test, build, E2E |
+| `deploy.yml`               | Production deployment                      |
+| `release.yml`              | Semantic release                           |
+| `rollback.yml`             | Emergency rollback                         |
+| `security-ci.yml`          | Security checks (pnpm audit, gitleaks)     |
+| `security-monitoring.yml`  | Continuous security monitoring             |
+| `oss-security.yml`         | OSS security (OSSF Scorecard)              |
+| `smoke-tests.yml`          | Production smoke tests                     |
+| `performance.yml`          | Performance benchmarks                     |
+| `k6-load-tests.yml`        | k6 load testing                            |
+| `lighthouse-ci.yml`        | Web performance (Lighthouse)               |
+| `codeql-analysis.yml`      | CodeQL security scanning                   |
+| `dependabot-automerge.yml` | Auto-merge safe updates                    |
+| `trigger-deploy.yml`       | Trigger.dev deployment                     |
+
+---
+
+## Claude Code Integration
+
+This project includes Claude Code configuration in `.claude/`:
+
+### Commands (`.claude/commands/`)
+
+| Command            | Purpose                |
+| ------------------ | ---------------------- |
+| `/analyze-tokens`  | Analyze token usage    |
+| `/convert-to-toon` | Convert to TOON format |
+| `/discover-skills` | Find available skills  |
+| `/install-skill`   | Install a skill        |
+| `/toon-encode`     | Encode to TOON         |
+| `/toon-decode`     | Decode from TOON       |
+| `/toon-validate`   | Validate TOON syntax   |
+
+### Hooks (`.claude/hooks/`)
+
+| Hook                    | Trigger                  | Purpose                |
+| ----------------------- | ------------------------ | ---------------------- |
+| `settings-backup.sh`    | PreToolUse (Edit/Write)  | Backup config files    |
+| `secret-scanner.sh`     | PreToolUse (Edit/Write)  | Prevent secret commits |
+| `toon-validator.sh`     | PostToolUse (Edit/Write) | Validate TOON syntax   |
+| `markdown-formatter.sh` | PostToolUse (Edit/Write) | Auto-format markdown   |
+| `file-size-monitor.sh`  | PostToolUse (Edit/Write) | Warn about large files |
+
+### Skills (`.claude/skills/`)
+
+| Skill         | Purpose                                                   |
+| ------------- | --------------------------------------------------------- |
+| `medicalcor/` | Domain-specific skills (HIPAA, GDPR, GPT-4o, Omnichannel) |
+| `anthropic/`  | Claude API integration                                    |
+| `supabase/`   | Supabase patterns                                         |
+| `stripe/`     | Stripe integration                                        |
+| `expo/`       | Mobile app development                                    |
+
+---
+
 ## Documentation
 
 | Document | Path |
@@ -251,6 +340,16 @@ pnpm check:layer-boundaries  # Verify architecture
 
 - **Never** modify existing migrations or use DROP without approval
 - **Always** name as `YYYYMMDDHHMM_description.sql`, make idempotent
+
+### Breach Notification
+
+Use the breach notification service for security incidents:
+
+```typescript
+import { BreachNotificationService } from '@medicalcor/domain/breach-notification';
+```
+
+---
 
 ## Cognitive Memory System
 

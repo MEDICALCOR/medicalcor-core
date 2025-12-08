@@ -46,16 +46,17 @@ MedicalCor Core is licensed under the MIT License, making it free to use, modify
 ### What are the system requirements?
 
 | Component | Minimum | Recommended |
-|-----------|---------|-------------|
-| Node.js | 20.0.0 | Latest LTS |
-| pnpm | 9.0.0 | Latest |
-| RAM | 8 GB | 16 GB |
-| Disk | 10 GB | 20 GB |
-| Docker | 24.0 | Latest |
+| --------- | ------- | ----------- |
+| Node.js   | 20.0.0  | Latest LTS  |
+| pnpm      | 9.0.0   | Latest      |
+| RAM       | 8 GB    | 16 GB       |
+| Disk      | 10 GB   | 20 GB       |
+| Docker    | 24.0    | Latest      |
 
 ### How long does setup take?
 
 First-time setup typically takes 10-15 minutes:
+
 - Cloning and dependency installation: 3-5 minutes
 - Docker containers startup: 1-2 minutes
 - Initial build: 2-3 minutes
@@ -64,6 +65,7 @@ First-time setup typically takes 10-15 minutes:
 ### Can I run MedicalCor without Docker?
 
 Yes, but you'll need to:
+
 1. Install PostgreSQL 15 locally
 2. Install Redis 7 locally
 3. Configure connection strings in `.env`
@@ -73,6 +75,7 @@ Docker is recommended for consistency and ease of setup.
 ### Do I need all the integrations to get started?
 
 No. For basic development:
+
 - **Required**: PostgreSQL, Redis
 - **Optional**: HubSpot, WhatsApp, OpenAI, Stripe, Twilio
 
@@ -85,6 +88,7 @@ The system uses fallback behaviors when integrations are unavailable (e.g., rule
 ### Which IDE should I use?
 
 We recommend **VS Code** with these extensions:
+
 - ESLint
 - Prettier
 - Tailwind CSS IntelliSense
@@ -160,13 +164,13 @@ Don't forget to export from `packages/types/src/index.ts`.
 
 ### What scoring classifications are supported?
 
-| Score | Classification | Description |
-|-------|----------------|-------------|
-| 5 | HOT | Ready to book, high-value procedure interest |
-| 4 | HOT | Strong interest, needs follow-up within 24h |
-| 3 | WARM | Interested but not urgent |
-| 2 | COLD | Low interest, nurture campaign |
-| 1 | UNQUALIFIED | Not a good fit |
+| Score | Classification | Description                                  |
+| ----- | -------------- | -------------------------------------------- |
+| 5     | HOT            | Ready to book, high-value procedure interest |
+| 4     | HOT            | Strong interest, needs follow-up within 24h  |
+| 3     | WARM           | Interested but not urgent                    |
+| 2     | COLD           | Low interest, nurture campaign               |
+| 1     | UNQUALIFIED    | Not a good fit                               |
 
 ### How are appointments managed?
 
@@ -178,6 +182,7 @@ Don't forget to export from `packages/types/src/index.ts`.
 ### Can I customize the scoring model?
 
 Yes, you can:
+
 1. Modify the system prompt in `packages/domain/src/scoring/prompts.ts`
 2. Adjust rule-based scoring in `packages/domain/src/scoring/rules.ts`
 3. Add new procedure keywords
@@ -190,6 +195,7 @@ Yes, you can:
 ### Which CRMs are supported?
 
 Currently **HubSpot** is the primary CRM integration. The architecture supports adding:
+
 - Salesforce
 - Pipedrive
 - Zoho CRM
@@ -210,6 +216,7 @@ Currently **HubSpot** is the primary CRM integration. The architecture supports 
 ### Can I use a different AI provider?
 
 The architecture supports swapping OpenAI for:
+
 - Azure OpenAI
 - Anthropic Claude
 - Google Gemini
@@ -219,12 +226,12 @@ Modify `packages/integrations/src/openai.ts` to use a different provider.
 
 ### How does the HubSpot sync work?
 
-| Event | Action |
-|-------|--------|
-| New lead message | Create/update contact, log to timeline |
-| Lead scored | Update contact properties |
-| Appointment booked | Create engagement, set reminder task |
-| Lead marked HOT | Create high-priority task for sales |
+| Event              | Action                                 |
+| ------------------ | -------------------------------------- |
+| New lead message   | Create/update contact, log to timeline |
+| Lead scored        | Update contact properties              |
+| Appointment booked | Create engagement, set reminder task   |
+| Lead marked HOT    | Create high-priority task for sales    |
 
 ---
 
@@ -233,6 +240,7 @@ Modify `packages/integrations/src/openai.ts` to use a different provider.
 ### Is MedicalCor GDPR compliant?
 
 Yes, by design:
+
 - **Consent management**: Explicit consent tracking with audit logs
 - **Right to access**: Event store enables full data export
 - **Right to erasure**: Soft delete with anonymization
@@ -250,6 +258,7 @@ Yes, by design:
 ### Are webhooks secure?
 
 Yes, all webhooks require signature verification:
+
 - WhatsApp: HMAC-SHA256
 - Twilio: Official SDK validation
 - Stripe: Stripe signature verification
@@ -259,12 +268,12 @@ Signature verification cannot be bypassed in any environment.
 
 ### How should I handle API keys?
 
-| Environment | Storage |
-|-------------|---------|
+| Environment | Storage                    |
+| ----------- | -------------------------- |
 | Development | `.env` file (never commit) |
-| Staging | GCP Secret Manager |
-| Production | GCP Secret Manager |
-| CI/CD | GitHub Secrets |
+| Staging     | GCP Secret Manager         |
+| Production  | GCP Secret Manager         |
+| CI/CD       | GitHub Secrets             |
 
 ---
 
@@ -273,6 +282,7 @@ Signature verification cannot be bypassed in any environment.
 ### Where can I deploy MedicalCor?
 
 Tested and supported:
+
 - **Google Cloud Platform** (Cloud Run, Cloud SQL)
 - **AWS** (ECS, RDS)
 - **Fly.io**
@@ -284,23 +294,25 @@ Tested and supported:
 
 Estimated monthly costs (GCP):
 
-| Component | Dev | Production |
-|-----------|-----|------------|
-| Cloud Run | $0-10 | $50-200 |
-| Cloud SQL | $10-20 | $50-100 |
-| Memorystore | $20 | $50 |
-| **Total** | **$30-50** | **$150-350** |
+| Component   | Dev        | Production   |
+| ----------- | ---------- | ------------ |
+| Cloud Run   | $0-10      | $50-200      |
+| Cloud SQL   | $10-20     | $50-100      |
+| Memorystore | $20        | $50          |
+| **Total**   | **$30-50** | **$150-350** |
 
 Development can use the free tier with min 0 instances.
 
 ### How do I scale for high traffic?
 
 Cloud Run auto-scales based on request load:
+
 - **Min instances**: 1 (always warm)
 - **Max instances**: 10 (adjust as needed)
 - **Concurrent requests**: 80 per instance
 
 For very high traffic (>1000 req/min), consider:
+
 - Increase max instances
 - Use regional load balancing
 - Add caching layer
@@ -308,6 +320,7 @@ For very high traffic (>1000 req/min), consider:
 ### How do I do zero-downtime deployments?
 
 Cloud Run provides this automatically:
+
 1. New revision is deployed
 2. Traffic gradually shifts
 3. Old revision kept warm for rollback
@@ -320,6 +333,7 @@ Cloud Run provides this automatically:
 ### Why are my webhooks not working?
 
 Common causes:
+
 1. **URL not accessible**: Use ngrok or Cloudflare tunnel for local development
 2. **Signature mismatch**: Verify webhook secret matches provider configuration
 3. **Firewall blocking**: Ensure provider IPs can reach your endpoint
@@ -327,6 +341,7 @@ Common causes:
 ### Why is lead scoring slow?
 
 Possible causes:
+
 1. **OpenAI latency**: Normal response time is 2-5 seconds
 2. **Network issues**: Check OpenAI status page
 3. **Rate limiting**: You may be hitting API limits
@@ -337,13 +352,14 @@ The fallback to rule-based scoring is instant.
 
 Check the endpoint-specific limits:
 
-| Endpoint | Limit |
-|----------|-------|
+| Endpoint | Limit   |
+| -------- | ------- |
 | WhatsApp | 200/min |
-| Voice | 100/min |
-| Stripe | 50/min |
+| Voice    | 100/min |
+| Stripe   | 50/min  |
 
 If legitimate traffic, consider:
+
 1. Batching requests
 2. Adding caching
 3. Increasing limits in config
@@ -376,6 +392,7 @@ If legitimate traffic, consider:
 ### Can I request features?
 
 Yes! Open a [GitHub Discussion](https://github.com/casagest/medicalcor-core/discussions) with:
+
 - Use case description
 - Expected behavior
 - Why it would be valuable

@@ -30,12 +30,12 @@ pnpm build  # Will fail if required vars are missing
 
 ## Environment Files
 
-| File | Purpose | Git Tracked |
-|------|---------|-------------|
-| `.env.example` | Template with all variables | Yes |
-| `.env` | Local development values | No |
-| `.env.test` | Test environment values | No |
-| `.env.production.template` | Production template | Yes |
+| File                       | Purpose                     | Git Tracked |
+| -------------------------- | --------------------------- | ----------- |
+| `.env.example`             | Template with all variables | Yes         |
+| `.env`                     | Local development values    | No          |
+| `.env.test`                | Test environment values     | No          |
+| `.env.production.template` | Production template         | Yes         |
 
 ---
 
@@ -43,12 +43,12 @@ pnpm build  # Will fail if required vars are missing
 
 ### Application Configuration
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `NODE_ENV` | Yes | `development` | Environment: `development`, `staging`, `production` |
-| `LOG_LEVEL` | No | `info` | Log level: `debug`, `info`, `warn`, `error` |
-| `PORT` | No | `3000` | API server port |
-| `HOST` | No | `0.0.0.0` | API server host |
+| Variable    | Required | Default       | Description                                         |
+| ----------- | -------- | ------------- | --------------------------------------------------- |
+| `NODE_ENV`  | Yes      | `development` | Environment: `development`, `staging`, `production` |
+| `LOG_LEVEL` | No       | `info`        | Log level: `debug`, `info`, `warn`, `error`         |
+| `PORT`      | No       | `3000`        | API server port                                     |
+| `HOST`      | No       | `0.0.0.0`     | API server host                                     |
 
 ```bash
 NODE_ENV=development
@@ -61,12 +61,12 @@ HOST=0.0.0.0
 
 ### Database (PostgreSQL)
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `DATABASE_URL` | Yes | - | PostgreSQL connection string |
-| `POSTGRES_USER` | Docker | - | PostgreSQL username (docker-compose) |
-| `POSTGRES_PASSWORD` | Docker | - | PostgreSQL password (docker-compose) |
-| `POSTGRES_DB` | Docker | - | PostgreSQL database name (docker-compose) |
+| Variable            | Required | Default | Description                               |
+| ------------------- | -------- | ------- | ----------------------------------------- |
+| `DATABASE_URL`      | Yes      | -       | PostgreSQL connection string              |
+| `POSTGRES_USER`     | Docker   | -       | PostgreSQL username (docker-compose)      |
+| `POSTGRES_PASSWORD` | Docker   | -       | PostgreSQL password (docker-compose)      |
+| `POSTGRES_DB`       | Docker   | -       | PostgreSQL database name (docker-compose) |
 
 ```bash
 # Connection string format
@@ -96,9 +96,9 @@ DATABASE_URL=postgresql://user:pass@host:5432/db?pool_max=20&pool_min=5
 
 ### Redis
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `REDIS_URL` | No | - | Redis connection string |
+| Variable    | Required | Default | Description             |
+| ----------- | -------- | ------- | ----------------------- |
+| `REDIS_URL` | No       | -       | Redis connection string |
 
 ```bash
 # Local development
@@ -115,10 +115,10 @@ REDIS_URL=redis://10.0.0.1:6379
 
 ### HubSpot CRM
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `HUBSPOT_ACCESS_TOKEN` | Yes* | - | HubSpot Private App token |
-| `HUBSPOT_PORTAL_ID` | No | - | HubSpot portal ID |
+| Variable               | Required | Default | Description               |
+| ---------------------- | -------- | ------- | ------------------------- |
+| `HUBSPOT_ACCESS_TOKEN` | Yes\*    | -       | HubSpot Private App token |
+| `HUBSPOT_PORTAL_ID`    | No       | -       | HubSpot portal ID         |
 
 ```bash
 # Private App token (starts with pat-...)
@@ -127,6 +127,7 @@ HUBSPOT_PORTAL_ID=12345678
 ```
 
 **Getting HubSpot Token**:
+
 1. Go to HubSpot Settings > Integrations > Private Apps
 2. Create new private app
 3. Grant scopes: `crm.objects.contacts.read`, `crm.objects.contacts.write`, `timeline`
@@ -136,13 +137,13 @@ HUBSPOT_PORTAL_ID=12345678
 
 ### WhatsApp (360dialog)
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `WHATSAPP_API_KEY` | Yes* | - | 360dialog API key |
-| `WHATSAPP_VERIFY_TOKEN` | Yes* | - | Webhook verification token |
-| `WHATSAPP_PHONE_NUMBER_ID` | Yes* | - | WhatsApp phone number ID |
-| `WHATSAPP_BUSINESS_ACCOUNT_ID` | No | - | Business account ID |
-| `WHATSAPP_WEBHOOK_SECRET` | Yes* | - | Webhook signature secret |
+| Variable                       | Required | Default | Description                |
+| ------------------------------ | -------- | ------- | -------------------------- |
+| `WHATSAPP_API_KEY`             | Yes\*    | -       | 360dialog API key          |
+| `WHATSAPP_VERIFY_TOKEN`        | Yes\*    | -       | Webhook verification token |
+| `WHATSAPP_PHONE_NUMBER_ID`     | Yes\*    | -       | WhatsApp phone number ID   |
+| `WHATSAPP_BUSINESS_ACCOUNT_ID` | No       | -       | Business account ID        |
+| `WHATSAPP_WEBHOOK_SECRET`      | Yes\*    | -       | Webhook signature secret   |
 
 ```bash
 WHATSAPP_API_KEY=your-360dialog-api-key
@@ -153,6 +154,7 @@ WHATSAPP_WEBHOOK_SECRET=your-webhook-secret
 ```
 
 **Setting Up 360dialog**:
+
 1. Create account at [360dialog.com](https://www.360dialog.com/)
 2. Register WhatsApp Business phone number
 3. Get API key from dashboard
@@ -164,12 +166,12 @@ WHATSAPP_WEBHOOK_SECRET=your-webhook-secret
 
 ### Voice (Twilio)
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `TWILIO_ACCOUNT_SID` | Yes* | - | Twilio account SID |
-| `TWILIO_AUTH_TOKEN` | Yes* | - | Twilio auth token |
-| `TWILIO_PHONE_NUMBER` | Yes* | - | Twilio phone number (E.164) |
-| `TWILIO_WEBHOOK_URL` | No | - | Webhook URL for signature validation |
+| Variable              | Required | Default | Description                          |
+| --------------------- | -------- | ------- | ------------------------------------ |
+| `TWILIO_ACCOUNT_SID`  | Yes\*    | -       | Twilio account SID                   |
+| `TWILIO_AUTH_TOKEN`   | Yes\*    | -       | Twilio auth token                    |
+| `TWILIO_PHONE_NUMBER` | Yes\*    | -       | Twilio phone number (E.164)          |
+| `TWILIO_WEBHOOK_URL`  | No       | -       | Webhook URL for signature validation |
 
 ```bash
 TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -182,10 +184,10 @@ TWILIO_WEBHOOK_URL=https://your-api.com/webhooks/voice
 
 ### Vapi (Voice AI)
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `VAPI_API_KEY` | Yes* | - | Vapi API key |
-| `VAPI_WEBHOOK_SECRET` | Yes* | - | Webhook signature secret |
+| Variable              | Required | Default | Description              |
+| --------------------- | -------- | ------- | ------------------------ |
+| `VAPI_API_KEY`        | Yes\*    | -       | Vapi API key             |
+| `VAPI_WEBHOOK_SECRET` | Yes\*    | -       | Webhook signature secret |
 
 ```bash
 VAPI_API_KEY=your-vapi-api-key
@@ -196,10 +198,10 @@ VAPI_WEBHOOK_SECRET=your-webhook-secret
 
 ### OpenAI
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `OPENAI_API_KEY` | Yes* | - | OpenAI API key |
-| `OPENAI_MODEL` | No | `gpt-4o` | Model to use for scoring |
+| Variable         | Required | Default  | Description              |
+| ---------------- | -------- | -------- | ------------------------ |
+| `OPENAI_API_KEY` | Yes\*    | -        | OpenAI API key           |
+| `OPENAI_MODEL`   | No       | `gpt-4o` | Model to use for scoring |
 
 ```bash
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -207,6 +209,7 @@ OPENAI_MODEL=gpt-4o
 ```
 
 **Supported Models**:
+
 - `gpt-4o` (recommended)
 - `gpt-4-turbo`
 - `gpt-3.5-turbo` (faster, less accurate)
@@ -215,11 +218,11 @@ OPENAI_MODEL=gpt-4o
 
 ### Stripe
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `STRIPE_SECRET_KEY` | Yes* | - | Stripe secret key |
-| `STRIPE_WEBHOOK_SECRET` | Yes* | - | Webhook signing secret |
-| `STRIPE_PUBLISHABLE_KEY` | No | - | Publishable key (frontend) |
+| Variable                 | Required | Default | Description                |
+| ------------------------ | -------- | ------- | -------------------------- |
+| `STRIPE_SECRET_KEY`      | Yes\*    | -       | Stripe secret key          |
+| `STRIPE_WEBHOOK_SECRET`  | Yes\*    | -       | Webhook signing secret     |
+| `STRIPE_PUBLISHABLE_KEY` | No       | -       | Publishable key (frontend) |
 
 ```bash
 # Test mode
@@ -234,6 +237,7 @@ STRIPE_PUBLISHABLE_KEY=pk_live_xxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 **Setting Up Stripe Webhooks**:
+
 1. Go to Stripe Dashboard > Developers > Webhooks
 2. Add endpoint: `https://your-api.com/webhooks/stripe`
 3. Select events: `payment_intent.succeeded`, `invoice.paid`, etc.
@@ -243,11 +247,11 @@ STRIPE_PUBLISHABLE_KEY=pk_live_xxxxxxxxxxxxxxxxxxxxxxxx
 
 ### Trigger.dev
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `TRIGGER_API_KEY` | Yes* | - | Trigger.dev API key |
-| `TRIGGER_SECRET_KEY` | Yes* | - | Secret key for verification |
-| `TRIGGER_API_URL` | No | - | Custom API URL (self-hosted) |
+| Variable             | Required | Default | Description                  |
+| -------------------- | -------- | ------- | ---------------------------- |
+| `TRIGGER_API_KEY`    | Yes\*    | -       | Trigger.dev API key          |
+| `TRIGGER_SECRET_KEY` | Yes\*    | -       | Secret key for verification  |
+| `TRIGGER_API_URL`    | No       | -       | Custom API URL (self-hosted) |
 
 ```bash
 TRIGGER_API_KEY=tr_dev_xxxxxxxxxxxxxxxx
@@ -258,10 +262,10 @@ TRIGGER_SECRET_KEY=tr_sk_xxxxxxxxxxxxxxxx
 
 ### Authentication (NextAuth.js)
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `NEXTAUTH_SECRET` | Yes | - | JWT signing secret |
-| `NEXTAUTH_URL` | Yes | - | Application URL |
+| Variable          | Required | Default | Description        |
+| ----------------- | -------- | ------- | ------------------ |
+| `NEXTAUTH_SECRET` | Yes      | -       | JWT signing secret |
+| `NEXTAUTH_URL`    | Yes      | -       | Application URL    |
 
 ```bash
 # Generate secret: openssl rand -base64 32
@@ -271,16 +275,16 @@ NEXTAUTH_URL=http://localhost:3001
 
 ### User Configuration
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `AUTH_ADMIN_EMAIL` | Yes | Admin email address |
-| `AUTH_ADMIN_PASSWORD_HASH` | Yes | Bcrypt hash of admin password |
-| `AUTH_ADMIN_NAME` | No | Admin display name |
-| `AUTH_USER_N_EMAIL` | No | Additional user email |
-| `AUTH_USER_N_PASSWORD_HASH` | No | Additional user password hash |
-| `AUTH_USER_N_NAME` | No | Additional user name |
-| `AUTH_USER_N_ROLE` | No | User role: `admin`, `doctor`, `receptionist` |
-| `AUTH_USER_N_CLINIC_ID` | No | Associated clinic ID |
+| Variable                    | Required | Description                                  |
+| --------------------------- | -------- | -------------------------------------------- |
+| `AUTH_ADMIN_EMAIL`          | Yes      | Admin email address                          |
+| `AUTH_ADMIN_PASSWORD_HASH`  | Yes      | Bcrypt hash of admin password                |
+| `AUTH_ADMIN_NAME`           | No       | Admin display name                           |
+| `AUTH_USER_N_EMAIL`         | No       | Additional user email                        |
+| `AUTH_USER_N_PASSWORD_HASH` | No       | Additional user password hash                |
+| `AUTH_USER_N_NAME`          | No       | Additional user name                         |
+| `AUTH_USER_N_ROLE`          | No       | User role: `admin`, `doctor`, `receptionist` |
+| `AUTH_USER_N_CLINIC_ID`     | No       | Associated clinic ID                         |
 
 ```bash
 # Generate password hash: npx bcryptjs hash "your-password" 12
@@ -300,9 +304,9 @@ AUTH_USER_1_CLINIC_ID=clinic_001
 
 ### API Authentication
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `API_SECRET_KEY` | Yes* | - | API key for workflow endpoints |
+| Variable         | Required | Default | Description                    |
+| ---------------- | -------- | ------- | ------------------------------ |
+| `API_SECRET_KEY` | Yes\*    | -       | API key for workflow endpoints |
 
 ```bash
 # Generate: openssl rand -base64 32
@@ -313,9 +317,9 @@ API_SECRET_KEY=your-random-api-secret-key
 
 ### CORS Configuration
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `CORS_ORIGIN` | No | - | Allowed origins (comma-separated) |
+| Variable      | Required | Default | Description                       |
+| ------------- | -------- | ------- | --------------------------------- |
+| `CORS_ORIGIN` | No       | -       | Allowed origins (comma-separated) |
 
 ```bash
 # Development
@@ -329,12 +333,12 @@ CORS_ORIGIN=https://app.medicalcor.com,https://admin.medicalcor.com
 
 ### Observability
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `OTEL_ENABLED` | No | `false` | Enable OpenTelemetry |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | No | - | OTLP exporter endpoint |
-| `OTEL_SERVICE_NAME` | No | `medicalcor-api` | Service name for traces |
-| `SENTRY_DSN` | No | - | Sentry error tracking DSN |
+| Variable                      | Required | Default          | Description               |
+| ----------------------------- | -------- | ---------------- | ------------------------- |
+| `OTEL_ENABLED`                | No       | `false`          | Enable OpenTelemetry      |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | No       | -                | OTLP exporter endpoint    |
+| `OTEL_SERVICE_NAME`           | No       | `medicalcor-api` | Service name for traces   |
+| `SENTRY_DSN`                  | No       | -                | Sentry error tracking DSN |
 
 ```bash
 OTEL_ENABLED=true
@@ -347,10 +351,10 @@ SENTRY_DSN=https://xxx@sentry.io/xxx
 
 ### Docker Development
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `GF_ADMIN_USER` | Monitoring | `admin` | Grafana admin username |
-| `GF_ADMIN_PASSWORD` | Monitoring | - | Grafana admin password |
+| Variable            | Required   | Default | Description            |
+| ------------------- | ---------- | ------- | ---------------------- |
+| `GF_ADMIN_USER`     | Monitoring | `admin` | Grafana admin username |
+| `GF_ADMIN_PASSWORD` | Monitoring | -       | Grafana admin password |
 
 ```bash
 GF_ADMIN_USER=admin
@@ -363,16 +367,16 @@ GF_ADMIN_PASSWORD=your-grafana-password
 
 ### Required Variables by Environment
 
-| Variable | Development | Staging | Production |
-|----------|-------------|---------|------------|
-| `DATABASE_URL` | Required | Required | Required |
-| `REDIS_URL` | Optional | Required | Required |
-| `HUBSPOT_ACCESS_TOKEN` | Optional | Required | Required |
-| `WHATSAPP_*` | Optional | Required | Required |
-| `OPENAI_API_KEY` | Optional | Required | Required |
-| `STRIPE_*` | Optional | Required | Required |
-| `NEXTAUTH_SECRET` | Required | Required | Required |
-| `API_SECRET_KEY` | Optional | Required | Required |
+| Variable               | Development | Staging  | Production |
+| ---------------------- | ----------- | -------- | ---------- |
+| `DATABASE_URL`         | Required    | Required | Required   |
+| `REDIS_URL`            | Optional    | Required | Required   |
+| `HUBSPOT_ACCESS_TOKEN` | Optional    | Required | Required   |
+| `WHATSAPP_*`           | Optional    | Required | Required   |
+| `OPENAI_API_KEY`       | Optional    | Required | Required   |
+| `STRIPE_*`             | Optional    | Required | Required   |
+| `NEXTAUTH_SECRET`      | Required    | Required | Required   |
+| `API_SECRET_KEY`       | Optional    | Required | Required   |
 
 ### Minimum Development Configuration
 

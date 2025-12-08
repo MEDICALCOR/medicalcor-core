@@ -104,8 +104,7 @@ const PATTERN_DESCRIPTIONS: Record<string, string> = {
     'Patient engagement has declined. Consider proactive outreach with personalized offers.',
   quick_responder:
     'Patient typically responds quickly to messages. Real-time communication is effective.',
-  slow_responder:
-    'Patient takes longer to respond. Allow adequate time before follow-ups.',
+  slow_responder: 'Patient takes longer to respond. Allow adequate time before follow-ups.',
   price_sensitive:
     'Patient shows price sensitivity. Emphasize value propositions and payment plans.',
   quality_focused:
@@ -139,7 +138,10 @@ function generateMockPatterns(): BehavioralPattern[] {
   subjects.forEach((subject, subjectIndex) => {
     // Each subject gets 1-3 patterns
     const patternCount = 1 + Math.floor(Math.random() * 3);
-    const assignedPatterns = patternTypes.slice(subjectIndex % 4, subjectIndex % 4 + patternCount);
+    const assignedPatterns = patternTypes.slice(
+      subjectIndex % 4,
+      (subjectIndex % 4) + patternCount
+    );
 
     assignedPatterns.forEach((patternType, patternIndex) => {
       const daysAgo = Math.floor(Math.random() * 60) + 7;
@@ -155,8 +157,7 @@ function generateMockPatterns(): BehavioralPattern[] {
         subjectType: subject.type,
         subjectId: subject.id,
         patternType,
-        patternDescription:
-          PATTERN_DESCRIPTIONS[patternType] ?? `${patternType} pattern detected`,
+        patternDescription: PATTERN_DESCRIPTIONS[patternType] ?? `${patternType} pattern detected`,
         confidence: 0.5 + Math.random() * 0.5,
         supportingEventIds: Array.from(
           { length: 3 + Math.floor(Math.random() * 5) },
@@ -220,8 +221,7 @@ function generateMockInsights(patterns: BehavioralPattern[]): CognitiveInsight[]
   insights.push({
     type: 'reactivation_candidate',
     confidence: 0.78,
-    description:
-      "Patient was previously active (12 interactions) but hasn't engaged in 65 days.",
+    description: "Patient was previously active (12 interactions) but hasn't engaged in 65 days.",
     recommendedAction: 'Send personalized reactivation message with checkup reminder.',
     supportingEventIds: ['event-001', 'event-002'],
   });
@@ -285,9 +285,7 @@ export async function getBehavioralInsightsDashboardAction(): Promise<InsightsDa
         highConfidenceCount,
         recentlyDetected,
       },
-      topPatterns: patterns
-        .sort((a, b) => b.confidence - a.confidence)
-        .slice(0, 10),
+      topPatterns: patterns.sort((a, b) => b.confidence - a.confidence).slice(0, 10),
       recentInsights: insights.slice(0, 8),
       patternsByType: patternsByType.sort((a, b) => b.count - a.count),
       subjectsWithPatterns: uniqueSubjects.size,
@@ -428,9 +426,7 @@ export async function detectPatternsAction(
     // In production, this would call the PatternDetector service
     // For now, return mock data
     const allPatterns = generateMockPatterns();
-    return allPatterns.filter(
-      (p) => p.subjectType === subjectType && p.subjectId === subjectId
-    );
+    return allPatterns.filter((p) => p.subjectType === subjectType && p.subjectId === subjectId);
   } catch (error) {
     if (process.env.NODE_ENV !== 'production') {
       console.error('[detectPatternsAction] Failed:', error);
@@ -478,9 +474,7 @@ export async function getActionableInsightsAction(): Promise<CognitiveInsight[]>
     // Return high confidence insights that need action
     return insights
       .filter((i) => i.confidence >= 0.7)
-      .filter((i) =>
-        ['churn_risk', 'reactivation_candidate', 'engagement_drop'].includes(i.type)
-      )
+      .filter((i) => ['churn_risk', 'reactivation_candidate', 'engagement_drop'].includes(i.type))
       .slice(0, 10);
   } catch (error) {
     if (process.env.NODE_ENV !== 'production') {

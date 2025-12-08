@@ -16,7 +16,13 @@ interface PerformanceChartProps {
 export function PerformanceChart({ data, height = 300, className }: PerformanceChartProps) {
   const { lines, points, maxLatency, minLatency, labels } = useMemo(() => {
     if (data.length === 0) {
-      return { lines: { p95: '', p99: '', avg: '' }, points: [], maxLatency: 0, minLatency: 0, labels: { y: [], x: [] } };
+      return {
+        lines: { p95: '', p99: '', avg: '' },
+        points: [],
+        maxLatency: 0,
+        minLatency: 0,
+        labels: { y: [], x: [] },
+      };
     }
 
     const latencyValues = data.flatMap((d) => [d.p95Duration, d.p99Duration, d.avgDuration]);
@@ -78,7 +84,10 @@ export function PerformanceChart({ data, height = 300, className }: PerformanceC
 
   if (data.length === 0) {
     return (
-      <div className={cn('flex items-center justify-center text-muted-foreground', className)} style={{ height }}>
+      <div
+        className={cn('flex items-center justify-center text-muted-foreground', className)}
+        style={{ height }}
+      >
         No data available
       </div>
     );
@@ -132,8 +141,20 @@ export function PerformanceChart({ data, height = 300, className }: PerformanceC
         />
 
         {/* Lines */}
-        <path d={lines.p99} fill="none" stroke="rgb(239, 68, 68)" strokeWidth="0.5" strokeLinecap="round" />
-        <path d={lines.p95} fill="none" stroke="rgb(249, 115, 22)" strokeWidth="0.5" strokeLinecap="round" />
+        <path
+          d={lines.p99}
+          fill="none"
+          stroke="rgb(239, 68, 68)"
+          strokeWidth="0.5"
+          strokeLinecap="round"
+        />
+        <path
+          d={lines.p95}
+          fill="none"
+          stroke="rgb(249, 115, 22)"
+          strokeWidth="0.5"
+          strokeLinecap="round"
+        />
         <path
           d={lines.avg}
           fill="none"
@@ -150,7 +171,13 @@ export function PerformanceChart({ data, height = 300, className }: PerformanceC
             cx={point.x}
             cy={point.yP95}
             r="0.8"
-            fill={point.status === 'passed' ? '#22c55e' : point.status === 'failed' ? '#ef4444' : '#f59e0b'}
+            fill={
+              point.status === 'passed'
+                ? '#22c55e'
+                : point.status === 'failed'
+                  ? '#ef4444'
+                  : '#f59e0b'
+            }
           />
         ))}
       </svg>

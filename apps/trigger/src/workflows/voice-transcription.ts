@@ -277,7 +277,6 @@ export const processPostCall = task({
         } else {
           logger.warn('Triage service not available', { correlationId });
         }
-
       } catch (err) {
         logger.error('Failed to score lead', { err, callId, correlationId });
       }

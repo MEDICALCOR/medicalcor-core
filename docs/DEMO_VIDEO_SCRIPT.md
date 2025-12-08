@@ -51,6 +51,7 @@
 > „**Problema**: lead-urile WARM sunt ignorate pentru că echipa se concentrează pe urgențe.
 >
 > **Soluția**: sistemul trimite automat secvențe de nurturing personalizate:
+>
 > - Lead HOT → task prioritar în CRM, deadline 30 minute
 > - Lead WARM → secvență automată pe 14 zile
 > - Programări → remindere la 24h și 2h
@@ -326,6 +327,7 @@
 > „Copiază `.env.example` în `.env` pentru fiecare app: api, trigger, web.
 >
 > Variabile esențiale:
+>
 > - `DATABASE_URL` — PostgreSQL connection string
 > - `REDIS_URL` — pentru cache și rate limiting
 > - `OPENAI_API_KEY` — pentru lead scoring AI
@@ -402,6 +404,7 @@
 > **Fără MedicalCor**: mesajul e văzut luni dimineață, pacientul a sunat altă clinică.
 >
 > **Cu MedicalCor**:
+>
 > - AI-ul detectează urgența în 3 secunde → Scor HOT
 > - Task prioritar în CRM, deadline 30 minute
 > - Pacientul primește confirmare automată: 'Am primit mesajul, te contactăm în curând'
@@ -418,6 +421,7 @@
 > **Fără MedicalCor**: lead-ul e uitat, niciodată contactat din nou.
 >
 > **Cu MedicalCor**: nurture sequence automată pe 14 zile:
+>
 > - Ziua 1: beneficiile implanturilor
 > - Ziua 3: detalii procedură, prețuri orientative
 > - Ziua 7: testimoniale pacienți mulțumiți
@@ -434,6 +438,7 @@
 > „**Situația**: pacienți care uită de programare și nu se prezintă.
 >
 > **Cu MedicalCor**:
+>
 > - 24h înainte: reminder cu data, ora, adresa
 > - 2h înainte: reminder final
 > - Totul automat, doar pentru pacienți cu consimțământ
@@ -447,6 +452,7 @@
 > „**Situația**: pacient sună, recepția nu știe cine e și ce vrea.
 >
 > **Cu MedicalCor**:
+>
 > - Apelul e transcris automat
 > - Keywords extrase: proceduri menționate, urgență, date
 > - Rezumat în fișa pacientului
@@ -514,6 +520,7 @@
 > „**Problema cu CRM-urile generice**: trebuie luni de customizare. Nu știu ce e un implant, nu detectează urgența, nu înțeleg GDPR medical.
 >
 > **Avantajul MedicalCor**: construit pentru healthcare din prima zi:
+>
 > - Proceduri dentare predefinite
 > - Scoring adaptat pentru context medical
 > - Conformitate GDPR/HIPAA inclusă
@@ -525,6 +532,7 @@
 > „**Problema cu soluțiile existente**: monolitice, closed-source, greu de integrat cu ce ai deja.
 >
 > **Avantajul MedicalCor**: modular și flexibil:
+>
 > - Nu vrei AI? Dezactivezi
 > - Ai deja CRM? Integrezi doar inbox-ul
 > - API-first, webhook-uri standard, documentație completă
@@ -551,25 +559,26 @@
 
 ### Materiale necesare — Script Principal (3:25)
 
-| Material | Note |
-|----------|------|
-| Dashboard demo | Date fictive, mod sandbox |
-| Inbox conversații | Mesaje mock, fără PII |
-| Flux lead scoring | Animație sau screen recording |
-| Diagramă arhitectură | Simplificată, 3 layere |
+| Material             | Note                          |
+| -------------------- | ----------------------------- |
+| Dashboard demo       | Date fictive, mod sandbox     |
+| Inbox conversații    | Mesaje mock, fără PII         |
+| Flux lead scoring    | Animație sau screen recording |
+| Diagramă arhitectură | Simplificată, 3 layere        |
 
 ### Materiale necesare — Module Extinse
 
-| Modul | Materiale |
-|-------|-----------|
-| A: Demo Live | Screen recording navigare completă dashboard |
-| B: Securitate | Diagrame flux auth, snippet cod verificare semnătură |
-| C: Onboarding | Terminal recording: clone → install → run |
-| D: Cazuri utilizare | Animații flux pentru fiecare scenariu |
-| E: FAQ Tehnic | Slides sau text overlay pentru Q&A |
-| F: Comparație | Tabel comparativ, liste diferențiatori |
+| Modul               | Materiale                                            |
+| ------------------- | ---------------------------------------------------- |
+| A: Demo Live        | Screen recording navigare completă dashboard         |
+| B: Securitate       | Diagrame flux auth, snippet cod verificare semnătură |
+| C: Onboarding       | Terminal recording: clone → install → run            |
+| D: Cazuri utilizare | Animații flux pentru fiecare scenariu                |
+| E: FAQ Tehnic       | Slides sau text overlay pentru Q&A                   |
+| F: Comparație       | Tabel comparativ, liste diferențiatori               |
 
 ### De evitat:
+
 - Date reale de pacienți sau clinici
 - API keys, secrets, tokens vizibile
 - URL-uri interne sau adrese IP
@@ -577,6 +586,7 @@
 - Repository URLs reale în onboarding (folosește placeholder)
 
 ### Recomandări:
+
 - Blur automat pe orice arată ca date reale
 - Text overlay pentru termeni cheie
 - Muzică ambient discretă (fără voce)
@@ -587,43 +597,48 @@
 
 ## DURATE ESTIMATE
 
-| Conținut | Durată |
-|----------|--------|
-| **Script Principal** | 3:25 |
-| Modul A: Demo Live | 3:00 |
-| Modul B: Securitate | 2:30 |
-| Modul C: Onboarding | 2:30 |
-| Modul D: Cazuri Utilizare | 2:00 |
-| Modul E: FAQ Tehnic | 2:00 |
-| Modul F: Comparație | 1:30 |
-| **Total Extins** | ~17:00 |
+| Conținut                  | Durată |
+| ------------------------- | ------ |
+| **Script Principal**      | 3:25   |
+| Modul A: Demo Live        | 3:00   |
+| Modul B: Securitate       | 2:30   |
+| Modul C: Onboarding       | 2:30   |
+| Modul D: Cazuri Utilizare | 2:00   |
+| Modul E: FAQ Tehnic       | 2:00   |
+| Modul F: Comparație       | 1:30   |
+| **Total Extins**          | ~17:00 |
 
 ---
 
 ## VERSIUNI RECOMANDATE
 
 ### Versiune Scurtă (2 minute)
-| Timp | Conținut |
-|------|----------|
-| 0:00-0:15 | Intro: ce face aplicația |
+
+| Timp      | Conținut                              |
+| --------- | ------------------------------------- |
+| 0:00-0:15 | Intro: ce face aplicația              |
 | 0:15-0:50 | Features: lead scoring + inbox + GDPR |
-| 0:50-1:20 | Tech: backend/frontend/integrări |
-| 1:20-2:00 | Status + CTA |
+| 0:50-1:20 | Tech: backend/frontend/integrări      |
+| 1:20-2:00 | Status + CTA                          |
 
 ### Versiune Standard (3-4 minute)
+
 Script principal complet — ideal pentru prima expunere.
 
 ### Versiune Extinsă (~17 minute)
+
 Script principal + toate modulele — ideal pentru playlist sau documentație video completă.
 
 ### Module Individuale
+
 Fiecare modul poate fi publicat separat:
+
 - **Pentru developeri noi**: Modul C (Onboarding)
 - **Pentru decidenți tehnici**: Modul B (Securitate) + Modul F (Comparație)
 - **Pentru demo clienți**: Modul A (Demo Live) + Modul D (Cazuri Utilizare)
 
 ---
 
-*Versiune: 4.0*
-*Actualizat: Noiembrie 2024*
-*Ton: Orientat spre beneficii și valoare de business*
+_Versiune: 4.0_
+_Actualizat: Noiembrie 2024_
+_Ton: Orientat spre beneficii și valoare de business_

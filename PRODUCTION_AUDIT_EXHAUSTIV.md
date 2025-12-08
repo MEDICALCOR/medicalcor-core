@@ -16,27 +16,27 @@ Aplicația MedicalCor Core **NU este complet pregătită pentru producție** din
 
 ### Pagini care afișează DATE FICTIVE în loc de date reale:
 
-| Pagină | Fișier | Problemă | Severitate |
-|--------|--------|----------|------------|
-| **Workflows** | `apps/web/src/app/workflows/page.tsx` | `mockWorkflows` hardcodat | 🔴 CRITIC |
-| **Audit Log** | `apps/web/src/app/audit/page.tsx` | `auditLogs` hardcodat | 🔴 CRITIC |
-| **Billing** | `apps/web/src/app/billing/page.tsx` | `invoices` hardcodat | 🔴 CRITIC |
-| **Users** | `apps/web/src/app/users/page.tsx` | `initialUsers` hardcodat | 🔴 CRITIC |
-| **Prescriptions** | `apps/web/src/app/prescriptions/page.tsx` | `prescriptions` hardcodat | 🔴 CRITIC |
-| **Lab Results** | `apps/web/src/app/lab-results/page.tsx` | `labResults` hardcodat | 🔴 CRITIC |
-| **Medical Records** | `apps/web/src/app/medical-records/page.tsx` | `records`, `diagnoses` hardcodat | 🔴 CRITIC |
-| **Campaigns** | `apps/web/src/app/campaigns/page.tsx` | `campaigns` hardcodat | 🔴 CRITIC |
-| **Inventory** | `apps/web/src/app/inventory/page.tsx` | `inventory` hardcodat | 🔴 CRITIC |
-| **Insurance** | `apps/web/src/app/insurance/page.tsx` | `claims`, `providers` hardcodat | 🔴 CRITIC |
+| Pagină              | Fișier                                      | Problemă                         | Severitate |
+| ------------------- | ------------------------------------------- | -------------------------------- | ---------- |
+| **Workflows**       | `apps/web/src/app/workflows/page.tsx`       | `mockWorkflows` hardcodat        | 🔴 CRITIC  |
+| **Audit Log**       | `apps/web/src/app/audit/page.tsx`           | `auditLogs` hardcodat            | 🔴 CRITIC  |
+| **Billing**         | `apps/web/src/app/billing/page.tsx`         | `invoices` hardcodat             | 🔴 CRITIC  |
+| **Users**           | `apps/web/src/app/users/page.tsx`           | `initialUsers` hardcodat         | 🔴 CRITIC  |
+| **Prescriptions**   | `apps/web/src/app/prescriptions/page.tsx`   | `prescriptions` hardcodat        | 🔴 CRITIC  |
+| **Lab Results**     | `apps/web/src/app/lab-results/page.tsx`     | `labResults` hardcodat           | 🔴 CRITIC  |
+| **Medical Records** | `apps/web/src/app/medical-records/page.tsx` | `records`, `diagnoses` hardcodat | 🔴 CRITIC  |
+| **Campaigns**       | `apps/web/src/app/campaigns/page.tsx`       | `campaigns` hardcodat            | 🔴 CRITIC  |
+| **Inventory**       | `apps/web/src/app/inventory/page.tsx`       | `inventory` hardcodat            | 🔴 CRITIC  |
+| **Insurance**       | `apps/web/src/app/insurance/page.tsx`       | `claims`, `providers` hardcodat  | 🔴 CRITIC  |
 
 ### Fișiere Mock Data exportate în producție:
 
-| Fișier | Linii | Conținut |
-|--------|-------|----------|
-| `apps/web/src/lib/patients/mock-data.ts` | ~254 | Pacienți fictivi (Elena Popescu, etc.) |
-| `apps/web/src/lib/ai/mock-data.ts` | ~192 | Sugestii AI, recomandări mock |
-| `apps/web/src/lib/analytics/mock-data.ts` | ~152 | Metrici și statistici fictive |
-| `apps/web/src/lib/workflows/mock-data.ts` | ~285 | Workflow-uri și template-uri mock |
+| Fișier                                    | Linii | Conținut                               |
+| ----------------------------------------- | ----- | -------------------------------------- |
+| `apps/web/src/lib/patients/mock-data.ts`  | ~254  | Pacienți fictivi (Elena Popescu, etc.) |
+| `apps/web/src/lib/ai/mock-data.ts`        | ~192  | Sugestii AI, recomandări mock          |
+| `apps/web/src/lib/analytics/mock-data.ts` | ~152  | Metrici și statistici fictive          |
+| `apps/web/src/lib/workflows/mock-data.ts` | ~285  | Workflow-uri și template-uri mock      |
 
 **Impact:** Utilizatorii vor vedea date fictive (ex: "Elena Popescu", "Dr. Maria Ionescu") în loc de datele lor reale.
 
@@ -46,14 +46,14 @@ Aplicația MedicalCor Core **NU este complet pregătită pentru producție** din
 
 Aceste pagini folosesc Server Actions și obțin date reale din HubSpot/Stripe:
 
-| Pagină | Sursă Date | Status |
-|--------|-----------|--------|
-| **Dashboard** (`page.tsx`) | `getRecentLeadsAction`, `getDashboardStatsAction` | ✅ Date reale |
-| **Patients** (`patients/[id]/page.tsx`) | `getPatientByIdAction` | ✅ Date reale (HubSpot) |
-| **Triage** | `getTriageLeadsAction` | ✅ Date reale |
-| **Analytics** | `getAnalyticsDataAction` | ✅ Date reale |
-| **Messages** | `getConversationsAction`, `getMessagesAction` | ✅ Date reale |
-| **Calendar** | `getCalendarSlotsAction` | ✅ Date reale |
+| Pagină                                  | Sursă Date                                        | Status                  |
+| --------------------------------------- | ------------------------------------------------- | ----------------------- |
+| **Dashboard** (`page.tsx`)              | `getRecentLeadsAction`, `getDashboardStatsAction` | ✅ Date reale           |
+| **Patients** (`patients/[id]/page.tsx`) | `getPatientByIdAction`                            | ✅ Date reale (HubSpot) |
+| **Triage**                              | `getTriageLeadsAction`                            | ✅ Date reale           |
+| **Analytics**                           | `getAnalyticsDataAction`                          | ✅ Date reale           |
+| **Messages**                            | `getConversationsAction`, `getMessagesAction`     | ✅ Date reale           |
+| **Calendar**                            | `getCalendarSlotsAction`                          | ✅ Date reale           |
 
 ---
 
@@ -73,7 +73,7 @@ secret_data = "INITIAL_PLACEHOLDER_UPDATE_VIA_GCP_CONSOLE"
 ```typescript
 // packages/infra/src/index.ts
 // Placeholder - to be implemented
-export const VERSION = "0.0.1";
+export const VERSION = '0.0.1';
 ```
 
 **Impact:** Minor - pachetul nu este utilizat activ.
@@ -84,12 +84,12 @@ export const VERSION = "0.0.1";
 
 ### Log-uri care afișează informații în producție:
 
-| Fișier | Linie | Problemă |
-|--------|-------|----------|
-| `apps/web/src/lib/auth/config.ts:34` | `console.warn(\`[Auth] Authentication configured using ${authMode}\`)` | Info leak |
-| `apps/web/src/app/actions/get-patients.ts:76` | `console.warn('[getStripeClient] STRIPE_SECRET_KEY not set...')` | OK (dev only) |
-| `packages/integrations/src/hubspot.ts:230` | `console.warn('[HubSpot] Reached maxResults limit')` | OK (operational) |
-| `packages/integrations/src/vapi.ts:624-636` | `console.warn('[Vapi] Evicted/Trimmed transcript buffer')` | OK (operational) |
+| Fișier                                        | Linie                                                                  | Problemă         |
+| --------------------------------------------- | ---------------------------------------------------------------------- | ---------------- |
+| `apps/web/src/lib/auth/config.ts:34`          | `console.warn(\`[Auth] Authentication configured using ${authMode}\`)` | Info leak        |
+| `apps/web/src/app/actions/get-patients.ts:76` | `console.warn('[getStripeClient] STRIPE_SECRET_KEY not set...')`       | OK (dev only)    |
+| `packages/integrations/src/hubspot.ts:230`    | `console.warn('[HubSpot] Reached maxResults limit')`                   | OK (operational) |
+| `packages/integrations/src/vapi.ts:624-636`   | `console.warn('[Vapi] Evicted/Trimmed transcript buffer')`             | OK (operational) |
 
 **Impact:** Minor - nu expune date sensibile, doar informații operaționale.
 
@@ -115,14 +115,14 @@ function getStripeClient(): StripeClient | MockStripeClient {
 
 ### Stare Actuală:
 
-| Aspect | Status | Detalii |
-|--------|--------|---------|
-| NextAuth.js configurat | ✅ OK | Credentials provider cu database adapter |
-| Nu există useri hardcodați | ✅ OK | Autentificare prin baza de date |
-| Session JWT | ✅ OK | 8 ore expirare |
-| RBAC (Role-Based Access) | ✅ OK | admin, doctor, receptionist, staff |
-| Validare credențiale | ✅ OK | Zod schema, bcrypt compare |
-| Audit logging | ⚠️ Parțial | Logare evenimente, dar pagina audit folosește date mock |
+| Aspect                     | Status     | Detalii                                                 |
+| -------------------------- | ---------- | ------------------------------------------------------- |
+| NextAuth.js configurat     | ✅ OK      | Credentials provider cu database adapter                |
+| Nu există useri hardcodați | ✅ OK      | Autentificare prin baza de date                         |
+| Session JWT                | ✅ OK      | 8 ore expirare                                          |
+| RBAC (Role-Based Access)   | ✅ OK      | admin, doctor, receptionist, staff                      |
+| Validare credențiale       | ✅ OK      | Zod schema, bcrypt compare                              |
+| Audit logging              | ⚠️ Parțial | Logare evenimente, dar pagina audit folosește date mock |
 
 ---
 
@@ -183,14 +183,14 @@ REDIS_URL=redis://...
 
 ## 9. CONCLUZIE
 
-| Categorie | Status | Procent Completare |
-|-----------|--------|-------------------|
-| Backend/API | ✅ Pregătit | ~90% |
-| Integrări (HubSpot, Stripe, WhatsApp) | ✅ Pregătit | ~95% |
-| Frontend - Pagini principale | ✅ Pregătit | ~60% |
-| Frontend - Pagini secundare | 🔴 Date Mock | ~20% |
-| Securitate | ✅ Pregătit | ~85% |
-| Infrastructură | ⚠️ Necesită configurare | ~70% |
+| Categorie                             | Status                  | Procent Completare |
+| ------------------------------------- | ----------------------- | ------------------ |
+| Backend/API                           | ✅ Pregătit             | ~90%               |
+| Integrări (HubSpot, Stripe, WhatsApp) | ✅ Pregătit             | ~95%               |
+| Frontend - Pagini principale          | ✅ Pregătit             | ~60%               |
+| Frontend - Pagini secundare           | 🔴 Date Mock            | ~20%               |
+| Securitate                            | ✅ Pregătit             | ~85%               |
+| Infrastructură                        | ⚠️ Necesită configurare | ~70%               |
 
 ### Verdict Final:
 
@@ -199,6 +199,7 @@ REDIS_URL=redis://...
 Aproximativ **10+ pagini** afișează date fictive hardcodate în loc de date reale. Înainte de lansare în producție, toate aceste pagini trebuie refactorizate pentru a folosi Server Actions și surse reale de date.
 
 ### Paginile care FUNCȚIONEAZĂ cu date reale (pot fi lansate):
+
 - Dashboard
 - Patient Detail
 - Triage
@@ -207,8 +208,9 @@ Aproximativ **10+ pagini** afișează date fictive hardcodate în loc de date re
 - Calendar
 
 ### Paginile care NECESITĂ lucru suplimentar:
+
 - Workflows, Audit, Billing, Users, Prescriptions, Lab Results, Medical Records, Campaigns, Inventory, Insurance
 
 ---
 
-*Raport generat automat în data de 2025-11-26*
+_Raport generat automat în data de 2025-11-26_

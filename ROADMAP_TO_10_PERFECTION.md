@@ -9,18 +9,19 @@
 ## 📊 Current State Analysis
 
 ### Dimension Scores
-| Dimension | Current | Target | Gap | Priority |
-|-----------|---------|--------|-----|----------|
-| DDD Purity | 9.2/10 | 10.0 | -0.8 | HIGH |
-| Hexagonal Adherence | 6.0/10 | 10.0 | -4.0 | **CRITICAL** |
-| Event-Driven | 10.0/10 | 10.0 | ✅ | - |
-| Security | 7.5/10 | 10.0 | -2.5 | HIGH |
-| Privacy (GDPR) | 5.0/10 | 10.0 | -5.0 | **CRITICAL** |
-| Observability | 10.0/10 | 10.0 | ✅ | - |
-| Data Quality | 8.0/10 | 10.0 | -2.0 | MEDIUM |
-| AI-Readiness | 8.5/10 | 10.0 | -1.5 | MEDIUM |
-| DevEx | 8.0/10 | 10.0 | -2.0 | MEDIUM |
-| Scalability | 7.5/10 | 10.0 | -2.5 | HIGH |
+
+| Dimension           | Current | Target | Gap  | Priority     |
+| ------------------- | ------- | ------ | ---- | ------------ |
+| DDD Purity          | 9.2/10  | 10.0   | -0.8 | HIGH         |
+| Hexagonal Adherence | 6.0/10  | 10.0   | -4.0 | **CRITICAL** |
+| Event-Driven        | 10.0/10 | 10.0   | ✅   | -            |
+| Security            | 7.5/10  | 10.0   | -2.5 | HIGH         |
+| Privacy (GDPR)      | 5.0/10  | 10.0   | -5.0 | **CRITICAL** |
+| Observability       | 10.0/10 | 10.0   | ✅   | -            |
+| Data Quality        | 8.0/10  | 10.0   | -2.0 | MEDIUM       |
+| AI-Readiness        | 8.5/10  | 10.0   | -1.5 | MEDIUM       |
+| DevEx               | 8.0/10  | 10.0   | -2.0 | MEDIUM       |
+| Scalability         | 7.5/10  | 10.0   | -2.5 | HIGH         |
 
 **Total Gap:** 22.3 points across 8 dimensions
 
@@ -31,14 +32,16 @@
 ### Critical Blockers Preventing 10/10
 
 #### 1. **Framework Leakage in Domain Layer** (-0.8 DDD points)
+
 **Impact:** Violates hexagonal architecture, couples domain to infrastructure
 
 **Files to Fix:**
+
 - `packages/domain/src/scheduling/scheduling-service.ts`
   - **Issue:** Direct `pg` import in domain layer
   - **Fix:** Create `ISchedulingRepository` port in domain
   - **Action:** Extract DB operations to `packages/infrastructure/src/scheduling-repository.ts`
-  
+
 ```typescript
 // BEFORE (domain/scheduling-service.ts)
 import { Pool } from 'pg';
@@ -61,13 +64,15 @@ export class SchedulingRepository implements ISchedulingRepository {
 ---
 
 #### 2. **Hardcoded Credentials** (-2.5 Security points)
+
 **Impact:** Critical security vulnerability, immediate rotation needed
 
 **Files to Fix:**
+
 - `infra/alertmanager/alertmanager.yml`
   - **Issue:** Password in plaintext
   - **Fix:** Use environment variables + Vault/Secrets Manager
-  - **Action:** 
+  - **Action:**
     1. Rotate compromised password immediately
     2. Replace with `${ALERTMANAGER_PASSWORD}` placeholder
     3. Add to `.env.example` with placeholder
@@ -79,9 +84,11 @@ export class SchedulingRepository implements ISchedulingRepository {
 ---
 
 #### 3. **Silent Error Handling** (-8.0 Observability points)
+
 **Impact:** 35+ locations where errors disappear without logging
 
 **Pattern to Fix:**
+
 ```typescript
 // BEFORE - Silent failure
 try {
@@ -94,15 +101,19 @@ try {
 try {
   await operation();
 } catch (error) {
-  logger.error({ 
-    err: error, 
-    context: { operation: 'operation-name' } 
-  }, 'Operation failed');
+  logger.error(
+    {
+      err: error,
+      context: { operation: 'operation-name' },
+    },
+    'Operation failed'
+  );
   throw error; // or handle appropriately
 }
 ```
 
 **Files to Fix (Top 10):**
+
 1. `packages/application/src/shared/Result.ts` (3 instances)
 2. `packages/core/src/ai-gateway/function-registry.ts`
 3. `packages/core/src/architecture/application/application-service.ts`
@@ -115,6 +126,7 @@ try {
 10. `packages/core/src/event-store.ts`
 
 **Automated Fix Script:**
+
 ```bash
 # Create fix-silent-errors.sh
 #!/bin/bash
@@ -130,14 +142,17 @@ done
 ---
 
 #### 4. **PII in Logging/Code** (-5.0 Privacy points)
+
 **Impact:** GDPR violations, patient data exposure risk
 
 **Files to Fix:**
+
 - `packages/core/src/ai-gateway/medical-functions.ts` (4 hardcoded phones)
 - `packages/core/src/ai-gateway/user-rate-limiter.ts` (1 hardcoded phone)
 - 24 additional files with potential `console.log(user)` patterns
 
 **Action Plan:**
+
 1. **Immediate:** Remove all hardcoded PII (phones, emails, CNPs)
 2. **Short-term:** Implement PII scrubber for all logs
 3. **Long-term:** Add pre-commit hook to detect PII patterns
@@ -168,11 +183,13 @@ export function scrubbedLog(data: any) {
 ### Phase 0 Execution Plan
 
 **Week 1:**
+
 - Day 1-2: Fix framework leakage (#1) + setup PR template
 - Day 3: Remove hardcoded credentials (#2) + rotate secrets
 - Day 4-5: Implement error logging automation (#3)
 
 **Week 2:**
+
 - Day 6-8: PII removal + scrubber implementation (#4)
 - Day 9: Testing all fixes
 - Day 10: Code review + merge
@@ -184,6 +201,7 @@ export function scrubbedLog(data: any) {
 ## 🛡️ Phase 1: Hardening (Weeks 3-5) - Security & Privacy
 
 ### Goals
+
 - **Hexagonal Architecture:** 6.0 → 9.0 (+3.0)
 - **Privacy:** 5.0 → 9.0 (+4.0)
 - **Security:** 7.5 → 9.5 (+2.0)
@@ -193,19 +211,20 @@ export function scrubbedLog(data: any) {
 **Business Logic in Infrastructure** (7 files):
 
 **Action Items:**
+
 1. **Extract Domain Services from Infrastructure**
    - `packages/infrastructure/src/ai/vector-search/PgVectorService.ts`
      - Split into: `domain/vector-search/VectorSearchService.ts` (business logic)
      - Keep: `infrastructure/ai/PgVectorAdapter.ts` (DB operations)
-   
 2. **Create Repository Interfaces**
+
    ```
    domain/ports/
    ├── ILeadRepository.ts
    ├── ISchedulingRepository.ts
    ├── IVectorSearchRepository.ts
    └── IEmbeddingRepository.ts
-   
+
    infrastructure/adapters/
    ├── PgLeadRepository.ts
    ├── PgSchedulingRepository.ts
@@ -214,15 +233,15 @@ export function scrubbedLog(data: any) {
    ```
 
 3. **Dependency Injection Setup**
+
    ```typescript
    // packages/core/src/di/container.ts
    import { Container } from 'inversify';
-   
+
    export const container = new Container();
-   
+
    // Bind interfaces to implementations
-   container.bind<ISchedulingRepository>('ISchedulingRepository')
-     .to(PgSchedulingRepository);
+   container.bind<ISchedulingRepository>('ISchedulingRepository').to(PgSchedulingRepository);
    ```
 
 **Estimated Effort:** 40 hours (1 week)  
@@ -233,6 +252,7 @@ export function scrubbedLog(data: any) {
 ### 2. **Comprehensive GDPR Compliance**
 
 **Requirements for 10/10 Privacy:**
+
 - ✅ RLS policies (already have 4)
 - ❌ PII inventory
 - ❌ Data retention policies
@@ -248,16 +268,16 @@ export class GDPRService {
   async exportUserData(userId: string): Promise<UserDataExport> {
     // Collect all user data from all tables
   }
-  
+
   async anonymizeUser(userId: string): Promise<void> {
     // Replace PII with anonymized versions
     // Keep aggregate data for analytics
   }
-  
+
   async deleteUser(userId: string): Promise<void> {
     // Soft delete with audit trail
   }
-  
+
   async getConsentStatus(userId: string): Promise<ConsentStatus> {
     // Check all consent types
   }
@@ -265,6 +285,7 @@ export class GDPRService {
 ```
 
 **Database Schema:**
+
 ```sql
 CREATE TABLE gdpr_data_inventory (
   table_name TEXT,
@@ -304,11 +325,12 @@ CREATE TABLE gdpr_audit_trail (
 **Requirements for 9.5/10 Security:**
 
 **A. Implement Content Security Policy (CSP)**
+
 ```typescript
 // apps/web/middleware.ts
 export function middleware(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
-  
+
   const cspHeader = `
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic';
@@ -320,16 +342,19 @@ export function middleware(request: NextRequest) {
     form-action 'self';
     frame-ancestors 'none';
     upgrade-insecure-requests;
-  `.replace(/\s{2,}/g, ' ').trim();
-  
+  `
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('Content-Security-Policy', cspHeader);
-  
+
   return NextResponse.next({ headers: requestHeaders });
 }
 ```
 
 **B. Add API Rate Limiting Per Endpoint**
+
 ```typescript
 // apps/api/src/plugins/advanced-rate-limit.ts
 export const endpointRateLimits = {
@@ -341,6 +366,7 @@ export const endpointRateLimits = {
 ```
 
 **C. Implement Request Signing for Critical Operations**
+
 ```typescript
 // packages/core/src/security/request-signer.ts
 export class RequestSigner {
@@ -349,7 +375,7 @@ export class RequestSigner {
     hmac.update(JSON.stringify(payload));
     return hmac.digest('hex');
   }
-  
+
   verify(payload: any, signature: string, secret: string): boolean {
     return this.sign(payload, secret) === signature;
   }
@@ -357,6 +383,7 @@ export class RequestSigner {
 ```
 
 **D. Add Security Headers**
+
 ```typescript
 // apps/api/src/plugins/security-headers.ts
 fastify.addHook('onSend', (request, reply, payload, done) => {
@@ -384,45 +411,48 @@ fastify.addHook('onSend', (request, reply, payload, done) => {
 ## 📈 Phase 2: Scaling (Weeks 6-8) - Performance & Architecture
 
 ### Goals
+
 - **Scalability:** 7.5 → 9.5 (+2.0)
 - **Data Quality:** 8.0 → 9.5 (+1.5)
 
 ### 1. **Performance Optimization**
 
 **A. Implement Query Optimization**
+
 ```sql
 -- Add missing indexes
-CREATE INDEX CONCURRENTLY idx_leads_score_created 
+CREATE INDEX CONCURRENTLY idx_leads_score_created
   ON leads(score DESC, created_at DESC);
 
-CREATE INDEX CONCURRENTLY idx_patients_last_visit 
-  ON patients(last_visit_date) 
+CREATE INDEX CONCURRENTLY idx_patients_last_visit
+  ON patients(last_visit_date)
   WHERE deleted_at IS NULL;
 
-CREATE INDEX CONCURRENTLY idx_messages_user_timestamp 
+CREATE INDEX CONCURRENTLY idx_messages_user_timestamp
   ON messages(user_id, created_at DESC);
 
 -- Add partial indexes for common queries
-CREATE INDEX CONCURRENTLY idx_hot_leads 
-  ON leads(created_at DESC) 
+CREATE INDEX CONCURRENTLY idx_hot_leads
+  ON leads(created_at DESC)
   WHERE score >= 4 AND status = 'active';
 ```
 
 **B. Implement Caching Strategy**
+
 ```typescript
 // packages/infrastructure/src/cache/cache-strategy.ts
 export class CacheStrategy {
   // L1: In-memory cache (hot data)
   private l1Cache = new LRUCache({ max: 1000, ttl: 60000 });
-  
+
   // L2: Redis cache (warm data)
   private l2Cache: Redis;
-  
+
   async get<T>(key: string): Promise<T | null> {
     // Try L1 first
     let value = this.l1Cache.get(key);
     if (value) return value as T;
-    
+
     // Try L2
     const cached = await this.l2Cache.get(key);
     if (cached) {
@@ -430,26 +460,30 @@ export class CacheStrategy {
       this.l1Cache.set(key, value); // Promote to L1
       return value as T;
     }
-    
+
     return null;
   }
 }
 ```
 
 **C. Implement Database Connection Pooling**
+
 ```typescript
 // packages/infrastructure/src/db/pool-manager.ts
 export class PoolManager {
   private pools = new Map<string, Pool>();
-  
+
   getPool(type: 'read' | 'write'): Pool {
     if (!this.pools.has(type)) {
-      this.pools.set(type, new Pool({
-        host: type === 'read' ? READ_REPLICA_HOST : PRIMARY_HOST,
-        max: type === 'read' ? 20 : 10,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
-      }));
+      this.pools.set(
+        type,
+        new Pool({
+          host: type === 'read' ? READ_REPLICA_HOST : PRIMARY_HOST,
+          max: type === 'read' ? 20 : 10,
+          idleTimeoutMillis: 30000,
+          connectionTimeoutMillis: 2000,
+        })
+      );
     }
     return this.pools.get(type)!;
   }
@@ -464,14 +498,15 @@ export class PoolManager {
 ### 2. **Data Quality Improvements**
 
 **A. Add Database Constraints**
+
 ```sql
 -- Ensure data integrity
-ALTER TABLE patients 
-  ADD CONSTRAINT patients_email_format 
+ALTER TABLE patients
+  ADD CONSTRAINT patients_email_format
   CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$');
 
 ALTER TABLE leads
-  ADD CONSTRAINT leads_score_range 
+  ADD CONSTRAINT leads_score_range
   CHECK (score BETWEEN 1 AND 5);
 
 ALTER TABLE appointments
@@ -480,17 +515,22 @@ ALTER TABLE appointments
 ```
 
 **B. Implement Data Validation Layer**
+
 ```typescript
 // packages/domain/src/validation/validators.ts
 export const PatientValidator = z.object({
   email: z.string().email(),
   phone: z.string().regex(/^\+[1-9]\d{1,14}$/),
-  cnp: z.string().regex(/^[1-9]\d{12}$/).optional(),
+  cnp: z
+    .string()
+    .regex(/^[1-9]\d{12}$/)
+    .optional(),
   dateOfBirth: z.date().max(new Date()),
 });
 ```
 
 **C. Add Data Quality Monitoring**
+
 ```typescript
 // packages/infrastructure/src/monitoring/data-quality-monitor.ts
 export class DataQualityMonitor {
@@ -517,11 +557,13 @@ export class DataQualityMonitor {
 ## 🚀 Phase 3: Excellence (Weeks 9-10) - Final Polish
 
 ### Goals
+
 - **ALL Dimensions:** 9.7 → 10.0 (+0.3)
 
 ### 1. **Developer Experience Perfection**
 
 **A. Comprehensive Documentation**
+
 ```
 docs/
 ├── architecture/
@@ -542,15 +584,16 @@ docs/
 ```
 
 **B. Development Tools**
+
 ```typescript
 // scripts/dev-tools.ts
 export const devTools = {
   // Auto-generate TypeScript types from DB
   generateTypes: () => execSync('pg-to-ts'),
-  
+
   // Check architecture violations
   checkArchitecture: () => execSync('pnpm xray-audit'),
-  
+
   // Generate API docs
   generateDocs: () => execSync('typedoc'),
 };
@@ -564,27 +607,29 @@ export const devTools = {
 ### 2. **Monitoring & Observability Excellence**
 
 **A. SLO Definitions**
+
 ```yaml
 # infrastructure/monitoring/slos.yaml
 slos:
   api_availability:
     target: 99.9%
     window: 30d
-    
+
   api_latency_p95:
     target: 200ms
     window: 30d
-    
+
   api_error_rate:
     target: 0.1%
     window: 30d
-    
+
   data_freshness:
     target: 5min
     window: 24h
 ```
 
 **B. Alerting Rules**
+
 ```yaml
 # infrastructure/monitoring/alerts.yaml
 alerts:
@@ -592,7 +637,7 @@ alerts:
     condition: error_rate > 1%
     for: 5m
     severity: critical
-    
+
   - name: SlowResponse
     condition: p95_latency > 500ms
     for: 10m
@@ -607,12 +652,14 @@ alerts:
 ### 3. **Final Cleanup**
 
 **A. Remove Tech Debt**
+
 - Remove all TODOs and FIXMEs
 - Consolidate duplicate code
 - Remove unused dependencies
 - Update all dependencies to latest stable
 
 **B. Performance Benchmarking**
+
 ```typescript
 // Create performance baselines
 export const performanceBenchmarks = {
@@ -623,6 +670,7 @@ export const performanceBenchmarks = {
 ```
 
 **C. Security Audit**
+
 - Run automated security scan (Snyk, Trivy)
 - Perform manual penetration testing
 - Document security model
@@ -639,21 +687,24 @@ export const performanceBenchmarks = {
 ## 📋 Summary: Path to 10/10
 
 ### Effort Breakdown
-| Phase | Duration | Effort | Score Gain |
-|-------|----------|--------|------------|
-| Phase 0: Firefighting | 2 weeks | 26 hours | +0.8 (→ 8.8) |
-| Phase 1: Hardening | 3 weeks | 130 hours | +0.5 (→ 9.3) |
-| Phase 2: Scaling | 3 weeks | 65 hours | +0.4 (→ 9.7) |
-| Phase 3: Excellence | 2 weeks | 55 hours | +0.3 (→ 10.0) |
-| **TOTAL** | **10 weeks** | **276 hours** | **+2.0** |
+
+| Phase                 | Duration     | Effort        | Score Gain    |
+| --------------------- | ------------ | ------------- | ------------- |
+| Phase 0: Firefighting | 2 weeks      | 26 hours      | +0.8 (→ 8.8)  |
+| Phase 1: Hardening    | 3 weeks      | 130 hours     | +0.5 (→ 9.3)  |
+| Phase 2: Scaling      | 3 weeks      | 65 hours      | +0.4 (→ 9.7)  |
+| Phase 3: Excellence   | 2 weeks      | 55 hours      | +0.3 (→ 10.0) |
+| **TOTAL**             | **10 weeks** | **276 hours** | **+2.0**      |
 
 ### Team Allocation
+
 - **1 Senior Architect** (full-time) - Architecture & design
 - **2 Senior Developers** (full-time) - Implementation
 - **1 Security Engineer** (part-time) - Security hardening
 - **1 DevOps Engineer** (part-time) - Infrastructure & monitoring
 
 ### Cost Estimate
+
 - **Development:** 276 hours × $150/hr = **$41,400**
 - **Security Audit:** External pentesting = **$10,000**
 - **Infrastructure:** AWS/monitoring tools = **$2,000/month**
@@ -679,6 +730,7 @@ While planning the full roadmap, you can achieve immediate improvements:
 When you reach 10/10, your codebase will have:
 
 ### Architecture
+
 - ✅ Pure domain layer (no framework dependencies)
 - ✅ Complete port/adapter separation
 - ✅ All business logic in domain
@@ -686,6 +738,7 @@ When you reach 10/10, your codebase will have:
 - ✅ Clear bounded contexts
 
 ### Security
+
 - ✅ No secrets in code
 - ✅ No hardcoded PII
 - ✅ CSP headers configured
@@ -694,6 +747,7 @@ When you reach 10/10, your codebase will have:
 - ✅ Regular security audits
 
 ### Privacy (GDPR)
+
 - ✅ PII inventory maintained
 - ✅ Data retention policies
 - ✅ Right-to-be-forgotten implemented
@@ -702,6 +756,7 @@ When you reach 10/10, your codebase will have:
 - ✅ Audit trails for all operations
 
 ### Observability
+
 - ✅ No silent error handling
 - ✅ Structured logging everywhere
 - ✅ Distributed tracing
@@ -710,6 +765,7 @@ When you reach 10/10, your codebase will have:
 - ✅ Alerting configured
 
 ### Performance
+
 - ✅ All queries optimized
 - ✅ Proper indexing
 - ✅ Multi-layer caching
@@ -718,6 +774,7 @@ When you reach 10/10, your codebase will have:
 - ✅ Performance benchmarks established
 
 ### Developer Experience
+
 - ✅ Comprehensive documentation
 - ✅ Clear onboarding guide
 - ✅ Architecture diagrams
@@ -730,17 +787,20 @@ When you reach 10/10, your codebase will have:
 ## 🤝 Recommended Approach
 
 ### Option 1: Sprint-Based (Recommended)
+
 - 2-week sprints
 - 5 sprints total (10 weeks)
 - Regular architecture reviews
 - Continuous deployment of fixes
 
 ### Option 2: Waterfall
+
 - Complete Phase 0, then Phase 1, etc.
 - Less flexible but more predictable
 - Better for fixed scope projects
 
 ### Option 3: Continuous Improvement
+
 - Fix high-priority issues first
 - Gradually improve over 6 months
 - Lower immediate cost
@@ -760,5 +820,5 @@ When you reach 10/10, your codebase will have:
 
 ---
 
-*Generated by XRAY Audit Agent*  
-*Last Updated: December 3, 2025*
+_Generated by XRAY Audit Agent_  
+_Last Updated: December 3, 2025_

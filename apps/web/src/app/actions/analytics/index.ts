@@ -177,7 +177,11 @@ export async function getAnalyticsDataAction(
           {
             filters: [
               { propertyName: 'lifecyclestage', operator: 'EQ', value: 'lead' },
-              { propertyName: 'createdate', operator: 'GTE', value: startDate.getTime().toString() },
+              {
+                propertyName: 'createdate',
+                operator: 'GTE',
+                value: startDate.getTime().toString(),
+              },
             ],
           },
         ],
@@ -189,7 +193,11 @@ export async function getAnalyticsDataAction(
           {
             filters: [
               { propertyName: 'lifecyclestage', operator: 'EQ', value: 'lead' },
-              { propertyName: 'createdate', operator: 'GTE', value: previousPeriodStart.getTime().toString() },
+              {
+                propertyName: 'createdate',
+                operator: 'GTE',
+                value: previousPeriodStart.getTime().toString(),
+              },
               { propertyName: 'createdate', operator: 'LT', value: startDate.getTime().toString() },
             ],
           },
@@ -202,7 +210,11 @@ export async function getAnalyticsDataAction(
           {
             filters: [
               { propertyName: 'lead_score', operator: 'GTE', value: '4' },
-              { propertyName: 'createdate', operator: 'GTE', value: startDate.getTime().toString() },
+              {
+                propertyName: 'createdate',
+                operator: 'GTE',
+                value: startDate.getTime().toString(),
+              },
             ],
           },
         ],
@@ -214,7 +226,11 @@ export async function getAnalyticsDataAction(
           {
             filters: [
               { propertyName: 'lead_score', operator: 'GTE', value: '4' },
-              { propertyName: 'createdate', operator: 'GTE', value: previousPeriodStart.getTime().toString() },
+              {
+                propertyName: 'createdate',
+                operator: 'GTE',
+                value: previousPeriodStart.getTime().toString(),
+              },
               { propertyName: 'createdate', operator: 'LT', value: startDate.getTime().toString() },
             ],
           },
@@ -283,46 +299,59 @@ export async function getAnalyticsDataAction(
     };
 
     // Fetch time series and breakdown data
-    const [leadsWithDates, leadsWithSource, leadsWithProcedure, allAppointments] = await Promise.all([
-      // Leads with dates for time series
-      fetchAllContacts(hubspot, {
-        filterGroups: [
-          {
-            filters: [
-              { propertyName: 'lifecyclestage', operator: 'EQ', value: 'lead' },
-              { propertyName: 'createdate', operator: 'GTE', value: startDate.getTime().toString() },
-            ],
-          },
-        ],
-        properties: ['createdate'],
-      }),
-      // Leads with source for breakdown
-      fetchAllContacts(hubspot, {
-        filterGroups: [
-          {
-            filters: [
-              { propertyName: 'lifecyclestage', operator: 'EQ', value: 'lead' },
-              { propertyName: 'createdate', operator: 'GTE', value: startDate.getTime().toString() },
-            ],
-          },
-        ],
-        properties: ['lead_source'],
-      }),
-      // Leads with procedure interest
-      fetchAllContacts(hubspot, {
-        filterGroups: [
-          {
-            filters: [
-              { propertyName: 'procedure_interest', operator: 'NEQ', value: '' },
-              { propertyName: 'createdate', operator: 'GTE', value: startDate.getTime().toString() },
-            ],
-          },
-        ],
-        properties: ['procedure_interest'],
-      }),
-      // Appointments for time series
-      scheduling.getUpcomingAppointments(startDate, now),
-    ]);
+    const [leadsWithDates, leadsWithSource, leadsWithProcedure, allAppointments] =
+      await Promise.all([
+        // Leads with dates for time series
+        fetchAllContacts(hubspot, {
+          filterGroups: [
+            {
+              filters: [
+                { propertyName: 'lifecyclestage', operator: 'EQ', value: 'lead' },
+                {
+                  propertyName: 'createdate',
+                  operator: 'GTE',
+                  value: startDate.getTime().toString(),
+                },
+              ],
+            },
+          ],
+          properties: ['createdate'],
+        }),
+        // Leads with source for breakdown
+        fetchAllContacts(hubspot, {
+          filterGroups: [
+            {
+              filters: [
+                { propertyName: 'lifecyclestage', operator: 'EQ', value: 'lead' },
+                {
+                  propertyName: 'createdate',
+                  operator: 'GTE',
+                  value: startDate.getTime().toString(),
+                },
+              ],
+            },
+          ],
+          properties: ['lead_source'],
+        }),
+        // Leads with procedure interest
+        fetchAllContacts(hubspot, {
+          filterGroups: [
+            {
+              filters: [
+                { propertyName: 'procedure_interest', operator: 'NEQ', value: '' },
+                {
+                  propertyName: 'createdate',
+                  operator: 'GTE',
+                  value: startDate.getTime().toString(),
+                },
+              ],
+            },
+          ],
+          properties: ['procedure_interest'],
+        }),
+        // Appointments for time series
+        scheduling.getUpcomingAppointments(startDate, now),
+      ]);
 
     // Build leads over time
     const leadsByDay = new Map<string, number>();

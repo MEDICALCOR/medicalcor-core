@@ -94,6 +94,8 @@ export abstract class AggregateRoot<TState extends AggregateState = AggregateSta
     }
     this.state.version = event.version;
     this.state.updatedAt = event.timestamp;
+    // Set createdAt from first event if not already set
+    this.state.createdAt ??= event.timestamp;
   }
 
   /**
@@ -189,12 +191,11 @@ export interface AggregateRepository<T extends AggregateRoot> {
   exists(id: string): Promise<boolean>;
 }
 
-
 /* eslint-disable @typescript-eslint/no-explicit-any -- generic constraint requires any for ID type flexibility */
 export abstract class EventSourcedRepository<
   T extends AggregateRoot<any>,
 > implements AggregateRepository<T> {
-/* eslint-enable @typescript-eslint/no-explicit-any */
+  /* eslint-enable @typescript-eslint/no-explicit-any */
   constructor(
     protected readonly eventStore: EventStoreInterface,
     protected readonly aggregateType: string
@@ -296,7 +297,7 @@ export class LeadAggregate extends AggregateRoot<LeadState> {
       phone,
       channel,
       status: 'new',
-      createdAt: new Date(),
+      // createdAt will be set from the first event's timestamp in apply()
     });
 
     // Register event appliers

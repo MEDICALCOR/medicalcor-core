@@ -285,8 +285,7 @@ export default function ClinicsPage() {
             <div>
               <p className="text-sm text-muted-foreground">Conformitate</p>
               <p className="text-xl font-bold">
-                {clinics.filter((c) => c.hipaaCompliant && c.gdprCompliant).length}/
-                {clinics.length}
+                {clinics.filter((c) => c.hipaaCompliant && c.gdprCompliant).length}/{clinics.length}
               </p>
             </div>
           </CardContent>

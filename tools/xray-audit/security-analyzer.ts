@@ -1,6 +1,6 @@
 /**
  * XRAY Audit Engine - Security & Privacy Analyzer
- * 
+ *
  * Analyzes security posture including Zero-Trust principles, PII handling,
  * secrets management, RLS policies, and GDPR/HIPAA compliance.
  */
@@ -13,8 +13,8 @@ import type { SecurityAnalysis, AuditIssue, AnalyzerConfig } from './types.js';
 const PII_PATTERNS = {
   email: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
   phone: /\b\d{10,}\b|\+\d{1,3}\s?\d{9,}/g,
-  cnp: /\b[1-9]\d{12}\b/g,  // Romanian CNP
-  ssn: /\b\d{3}-\d{2}-\d{4}\b/g,  // US SSN
+  cnp: /\b[1-9]\d{12}\b/g, // Romanian CNP
+  ssn: /\b\d{3}-\d{2}-\d{4}\b/g, // US SSN
   creditCard: /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g,
   ipAddress: /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g,
 };
@@ -34,25 +34,18 @@ export class SecurityAnalyzer {
   constructor(private config: AnalyzerConfig) {}
 
   async analyze(): Promise<SecurityAnalysis> {
-    const [
-      authBoundary,
-      rlsPolicies,
-      piiExposures,
-      secretsFound,
-      missingEncryption,
-    ] = await Promise.all([
-      this.analyzeAuthBoundary(),
-      this.analyzeRLSPolicies(),
-      this.analyzePIIExposures(),
-      this.scanForSecrets(),
-      this.checkEncryption(),
-    ]);
+    const [authBoundary, rlsPolicies, piiExposures, secretsFound, missingEncryption] =
+      await Promise.all([
+        this.analyzeAuthBoundary(),
+        this.analyzeRLSPolicies(),
+        this.analyzePIIExposures(),
+        this.scanForSecrets(),
+        this.checkEncryption(),
+      ]);
 
     // Get top 5 security risks
     const allIssues = [...piiExposures, ...secretsFound];
-    const topRisks = allIssues
-      .filter((issue) => issue.priority === 'HIGH')
-      .slice(0, 5);
+    const topRisks = allIssues.filter((issue) => issue.priority === 'HIGH').slice(0, 5);
 
     return {
       authBoundary,
@@ -107,8 +100,8 @@ export class SecurityAnalyzer {
         // Check for RLS policies
         if (
           content.toUpperCase().includes('CREATE POLICY') ||
-          content.toUpperCase().includes('ALTER TABLE') &&
-          content.toUpperCase().includes('ENABLE ROW LEVEL SECURITY')
+          (content.toUpperCase().includes('ALTER TABLE') &&
+            content.toUpperCase().includes('ENABLE ROW LEVEL SECURITY'))
         ) {
           policies.push(relativePath);
         }
@@ -127,15 +120,11 @@ export class SecurityAnalyzer {
     const issues: AuditIssue[] = [];
     const rootPath = this.config.rootPath;
 
-    const searchPaths = [
-      'packages/core/src',
-      'apps/api/src',
-      'apps/trigger/src',
-    ];
+    const searchPaths = ['packages/core/src', 'apps/api/src', 'apps/trigger/src'];
 
     for (const searchPath of searchPaths) {
       const fullPath = join(rootPath, searchPath);
-      
+
       try {
         const files = await this.getAllFiles(fullPath, ['.ts', '.tsx']);
 
@@ -152,7 +141,7 @@ export class SecurityAnalyzer {
           const consoleLogMatches = content.matchAll(/console\.log\([^)]+\)/g);
           for (const match of consoleLogMatches) {
             const logStatement = match[0];
-            
+
             // Check if logging potentially contains PII
             if (
               logStatement.includes('user') ||
@@ -167,7 +156,8 @@ export class SecurityAnalyzer {
                 filePath: relativePath,
                 impact: 'GDPR/HIPAA violation, patient privacy risk',
                 priority: 'HIGH',
-                suggestedFix: 'Use structured logger with PII redaction from @medicalcor/core/logger',
+                suggestedFix:
+                  'Use structured logger with PII redaction from @medicalcor/core/logger',
                 suggestedPR: `fix(privacy): add PII redaction to logging in ${relativePath.split('/').pop()}`,
               });
             }
@@ -180,7 +170,11 @@ export class SecurityAnalyzer {
               const lines = content.split('\n');
               for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
-                if (pattern.test(line) && !line.trim().startsWith('//') && !line.includes('example')) {
+                if (
+                  pattern.test(line) &&
+                  !line.trim().startsWith('//') &&
+                  !line.includes('example')
+                ) {
                   issues.push({
                     category: 'PRIVACY',
                     title: `Hardcoded ${piiType} detected`,
@@ -189,7 +183,8 @@ export class SecurityAnalyzer {
                     lineNumber: i + 1,
                     impact: 'Potential privacy breach',
                     priority: 'MEDIUM',
-                    suggestedFix: 'Remove hardcoded PII and use configuration or environment variables',
+                    suggestedFix:
+                      'Remove hardcoded PII and use configuration or environment variables',
                     suggestedPR: `fix(security): remove hardcoded PII from ${relativePath.split('/').pop()}`,
                   });
                 }
@@ -212,7 +207,15 @@ export class SecurityAnalyzer {
     const rootPath = this.config.rootPath;
 
     // Scan all source files except .env files and node_modules
-    const files = await this.getAllFiles(rootPath, ['.ts', '.tsx', '.js', '.jsx', '.json', '.yaml', '.yml']);
+    const files = await this.getAllFiles(rootPath, [
+      '.ts',
+      '.tsx',
+      '.js',
+      '.jsx',
+      '.json',
+      '.yaml',
+      '.yml',
+    ]);
 
     for (const file of files) {
       const relativePath = relative(rootPath, file);
@@ -231,7 +234,7 @@ export class SecurityAnalyzer {
       // Check for secret patterns
       for (const [secretType, pattern] of Object.entries(SECRET_PATTERNS)) {
         const matches = content.matchAll(pattern);
-        
+
         for (const match of matches) {
           issues.push({
             category: 'SECURITY',
@@ -240,7 +243,8 @@ export class SecurityAnalyzer {
             filePath: relativePath,
             impact: 'Critical security vulnerability, credentials exposure',
             priority: 'HIGH',
-            suggestedFix: 'Remove secret and use environment variables. Rotate compromised credentials immediately.',
+            suggestedFix:
+              'Remove secret and use environment variables. Rotate compromised credentials immediately.',
             suggestedPR: `fix(security): remove hardcoded ${secretType} from ${relativePath.split('/').pop()}`,
           });
         }
@@ -263,7 +267,7 @@ export class SecurityAnalyzer {
 
       // Check for sensitive columns without encryption
       const sensitiveColumns = ['password', 'ssn', 'cnp', 'medical_history', 'diagnosis'];
-      
+
       for (const column of sensitiveColumns) {
         if (content.includes(column) && !content.includes('encrypt')) {
           missing.push(`${relativePath}: Column '${column}' may need encryption`);
@@ -280,7 +284,7 @@ export class SecurityAnalyzer {
     currentDepth: number = 0
   ): Promise<string[]> {
     const maxDepth = 10;
-    
+
     if (currentDepth > maxDepth) {
       return [];
     }

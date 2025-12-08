@@ -302,7 +302,10 @@ export async function getAgentPerformanceDashboardAction(
         avgSatisfaction * previousMultiplier
       ),
       totalRevenue,
-      totalRevenueChange: calculatePercentageChange(totalRevenue, totalRevenue * previousMultiplier),
+      totalRevenueChange: calculatePercentageChange(
+        totalRevenue,
+        totalRevenue * previousMultiplier
+      ),
     };
 
     // Top performers (sorted by conversion rate, min 5 leads)

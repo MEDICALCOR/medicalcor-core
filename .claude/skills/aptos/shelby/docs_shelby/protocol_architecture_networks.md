@@ -41,12 +41,12 @@ Storage Capacity: approximately 10 TiB.
 
 ## `shelbynet` component URLs and Addresses
 
-Component| URL  
----|---  
-Indexer| <https://api.shelbynet.shelby.xyz/v1/graphql>  
-Shelby RPC| <https://api.shelbynet.shelby.xyz/shelby>  
-Aptos Full Node| <https://api.shelbynet.shelby.xyz/v1>  
-  
+| Component       | URL                                           |
+| --------------- | --------------------------------------------- |
+| Indexer         | <https://api.shelbynet.shelby.xyz/v1/graphql> |
+| Shelby RPC      | <https://api.shelbynet.shelby.xyz/shelby>     |
+| Aptos Full Node | <https://api.shelbynet.shelby.xyz/v1>         |
+
 The [Shelby Smart Contract](/protocol/architecture/smart-contracts) is deployed by account `0xc63d6a5efb0080a6029403131715bd4971e1149f7cc099aac69bb0069b3ddbf5`. See [Aptos Explorer](https://explorer.aptoslabs.com/account/0xc63d6a5efb0080a6029403131715bd4971e1149f7cc099aac69bb0069b3ddbf5?network=shelbynet) to explore this account.
 
 ## API Keys

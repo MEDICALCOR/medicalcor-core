@@ -30,9 +30,7 @@ export const Default: Story = {
         The text below is visually hidden but accessible to screen readers:
       </p>
       <VisuallyHidden {...args} />
-      <p className="text-sm text-muted-foreground">
-        (Inspect the DOM to see the hidden text)
-      </p>
+      <p className="text-sm text-muted-foreground">(Inspect the DOM to see the hidden text)</p>
     </div>
   ),
 };
@@ -50,12 +48,7 @@ export const WithIconButton: Story = {
   render: () => (
     <div className="flex gap-4 items-center">
       <button className="p-2 border rounded-lg hover:bg-muted">
-        <svg
-          className="h-5 w-5"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -66,12 +59,7 @@ export const WithIconButton: Story = {
         <VisuallyHidden>Search</VisuallyHidden>
       </button>
       <button className="p-2 border rounded-lg hover:bg-muted">
-        <svg
-          className="h-5 w-5"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -127,9 +115,7 @@ export const AccessibilityExample: Story = {
           <div role="status" aria-live="polite">
             <VisuallyHidden>3 new notifications</VisuallyHidden>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Screen readers will announce this status
-          </p>
+          <p className="text-sm text-muted-foreground">Screen readers will announce this status</p>
         </div>
 
         <div className="p-4 border rounded-lg">

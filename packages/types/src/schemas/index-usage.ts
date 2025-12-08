@@ -17,10 +17,10 @@ import { z } from 'zod';
  * Index health status based on usage patterns
  */
 export const IndexHealthStatusSchema = z.enum([
-  'healthy',   // Index is actively used with good efficiency
-  'degraded',  // Index is used but has low efficiency or stale statistics
-  'critical',  // Index has very low efficiency, needs attention
-  'unused',    // Index has zero scans, candidate for removal
+  'healthy', // Index is actively used with good efficiency
+  'degraded', // Index is used but has low efficiency or stale statistics
+  'critical', // Index has very low efficiency, needs attention
+  'unused', // Index has zero scans, candidate for removal
 ]);
 export type IndexHealthStatus = z.infer<typeof IndexHealthStatusSchema>;
 
@@ -28,15 +28,15 @@ export type IndexHealthStatus = z.infer<typeof IndexHealthStatusSchema>;
  * Index type classification
  */
 export const IndexTypeSchema = z.enum([
-  'btree',     // Standard B-tree index
-  'hash',      // Hash index
-  'gin',       // GIN (Generalized Inverted Index)
-  'gist',      // GiST (Generalized Search Tree)
-  'spgist',    // SP-GiST (Space-Partitioned GiST)
-  'brin',      // BRIN (Block Range Index)
-  'hnsw',      // HNSW vector index (pgvector)
-  'ivfflat',   // IVFFlat vector index (pgvector)
-  'unknown',   // Unknown index type
+  'btree', // Standard B-tree index
+  'hash', // Hash index
+  'gin', // GIN (Generalized Inverted Index)
+  'gist', // GiST (Generalized Search Tree)
+  'spgist', // SP-GiST (Space-Partitioned GiST)
+  'brin', // BRIN (Block Range Index)
+  'hnsw', // HNSW vector index (pgvector)
+  'ivfflat', // IVFFlat vector index (pgvector)
+  'unknown', // Unknown index type
 ]);
 export type IndexType = z.infer<typeof IndexTypeSchema>;
 
@@ -44,12 +44,12 @@ export type IndexType = z.infer<typeof IndexTypeSchema>;
  * Recommendation action types
  */
 export const IndexRecommendationActionSchema = z.enum([
-  'keep',       // Index is healthy, keep it
-  'analyze',    // Run ANALYZE on the table
-  'vacuum',     // Run VACUUM on the table
-  'reindex',    // Rebuild the index
-  'drop',       // Consider dropping the index
-  'monitor',    // Continue monitoring before action
+  'keep', // Index is healthy, keep it
+  'analyze', // Run ANALYZE on the table
+  'vacuum', // Run VACUUM on the table
+  'reindex', // Rebuild the index
+  'drop', // Consider dropping the index
+  'monitor', // Continue monitoring before action
 ]);
 export type IndexRecommendationAction = z.infer<typeof IndexRecommendationActionSchema>;
 
@@ -261,12 +261,14 @@ export const UnusedIndexesDetectedEventSchema = z.object({
   timestamp: z.coerce.date(),
   payload: z.object({
     count: z.number().int().nonnegative(),
-    indexes: z.array(z.object({
-      indexName: z.string(),
-      tableName: z.string(),
-      sizeBytes: z.number().int().nonnegative(),
-      size: z.string(),
-    })),
+    indexes: z.array(
+      z.object({
+        indexName: z.string(),
+        tableName: z.string(),
+        sizeBytes: z.number().int().nonnegative(),
+        size: z.string(),
+      })
+    ),
     totalSavingsBytes: z.number().int().nonnegative(),
     totalSavings: z.string(),
   }),
@@ -352,7 +354,7 @@ export function calculatePotentialSavings(
   indexes: Pick<IndexUsageReport, 'status' | 'indexSizeBytes' | 'isPrimaryKey' | 'isUnique'>[]
 ): { bytes: number; formatted: string } {
   const savingsBytes = indexes
-    .filter(idx => idx.status === 'unused' && !idx.isPrimaryKey && !idx.isUnique)
+    .filter((idx) => idx.status === 'unused' && !idx.isPrimaryKey && !idx.isUnique)
     .reduce((sum, idx) => sum + idx.indexSizeBytes, 0);
 
   return {
@@ -365,7 +367,10 @@ export function calculatePotentialSavings(
  * Generate recommendations for an index based on its metrics
  */
 export function generateIndexRecommendations(
-  index: Pick<IndexUsageReport, 'status' | 'efficiency' | 'lastAnalyze' | 'lastVacuum' | 'isPrimaryKey' | 'isUnique'>,
+  index: Pick<
+    IndexUsageReport,
+    'status' | 'efficiency' | 'lastAnalyze' | 'lastVacuum' | 'isPrimaryKey' | 'isUnique'
+  >,
   config: IndexMonitoringConfig
 ): string[] {
   const recommendations: string[] = [];
@@ -377,11 +382,17 @@ export function generateIndexRecommendations(
       break;
     case 'unused':
       if (!index.isPrimaryKey && !index.isUnique) {
-        recommendations.push('This index is unused. Consider dropping it to save storage and improve write performance.');
+        recommendations.push(
+          'This index is unused. Consider dropping it to save storage and improve write performance.'
+        );
       } else if (index.isPrimaryKey) {
-        recommendations.push('Primary key index is unused - verify table is being accessed correctly.');
+        recommendations.push(
+          'Primary key index is unused - verify table is being accessed correctly.'
+        );
       } else {
-        recommendations.push('Unique constraint index is unused - verify constraint is still needed.');
+        recommendations.push(
+          'Unique constraint index is unused - verify constraint is still needed.'
+        );
       }
       break;
     case 'degraded':
