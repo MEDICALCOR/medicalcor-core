@@ -251,6 +251,11 @@ export {
   type IAllOnXCaseRepository,
 } from './allonx/index.js';
 
+// Dental Laboratory Context - CAD/CAM digital workflow
+// Lab case management, prosthetics, quality control
+// Example: import { createLabCase, validateDesign } from '@medicalcor/domain/dental-lab';
+export * from './dental-lab/index.js';
+
 // ============================================================================
 // LEGACY DOMAIN SERVICES (being migrated to use cases)
 // ============================================================================
