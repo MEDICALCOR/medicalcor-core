@@ -369,21 +369,21 @@ function redactPII(text: string): string {
 
 export interface MockNotificationsService extends NotificationsService {
   /** Get all notifications sent */
-  getSentNotifications: () => Array<{
+  getSentNotifications: () => {
     type: 'broadcast' | 'direct' | 'push' | 'email';
     payload: unknown;
     timestamp: Date;
-  }>;
+  }[];
   /** Clear sent notifications */
   clearNotifications: () => void;
 }
 
 export function createMockNotificationsService(): MockNotificationsService {
-  const sentNotifications: Array<{
+  const sentNotifications: {
     type: 'broadcast' | 'direct' | 'push' | 'email';
     payload: unknown;
     timestamp: Date;
-  }> = [];
+  }[] = [];
 
   return {
     broadcastToSupervisors(payload: NotificationPayload): Promise<void> {
