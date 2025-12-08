@@ -10,7 +10,7 @@ on:
 
 env:
   NODE_VERSION: '20'
-  PNPM_VERSION: '9.14.2'
+  PNPM_VERSION: '10.24.0'
 
 # Minimal permissions
 permissions:

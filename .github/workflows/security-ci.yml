@@ -14,7 +14,7 @@ concurrency:
 
 env:
   NODE_VERSION: '20'
-  PNPM_VERSION: '9.14.2'
+  PNPM_VERSION: '10.24.0'
 
 permissions:
   contents: read
@@ -55,7 +55,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: unit-test-logs
+          name: security-ci-unit-test-logs
           path: |
             test-output.log
             coverage/
@@ -93,7 +93,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: pnpm-audit
+          name: security-ci-pnpm-audit
           path: pnpm-audit.json
           retention-days: 30
 
@@ -125,7 +125,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: gitleaks-report
+          name: security-ci-gitleaks-report
           path: gitleaks-report.json
           retention-days: 30
 
@@ -162,7 +162,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: ossf-scorecard
+          name: security-ci-ossf-scorecard
           path: scorecard-results.sarif
           retention-days: 30
 
