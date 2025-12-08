@@ -39,7 +39,7 @@ interface StoredFlag {
   variants?: unknown;
   createdAt: string;
   updatedAt: string;
-  expiresAt?: string;
+  expiresAt?: string | null;
 }
 
 const flagsStore = new Map<string, StoredFlag>();

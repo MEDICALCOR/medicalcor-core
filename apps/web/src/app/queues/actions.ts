@@ -1,6 +1,5 @@
 'use server';
 
-// @ts-expect-error - Supabase is optional dependency
 import { createClient } from '@supabase/supabase-js';
 import type { QueueSLAStatus } from '@medicalcor/types';
 

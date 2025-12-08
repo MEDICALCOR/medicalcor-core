@@ -139,18 +139,20 @@ class APISchedulingRepository implements ISchedulingRepository {
     this.apiBaseUrl = process.env.API_BASE_URL ?? 'http://localhost:3000';
   }
 
-  // @ts-expect-error - Extended interface for web usage
   async getAvailableSlots(options: string | GetAvailableSlotsOptions): Promise<TimeSlot[]> {
     try {
-      const queryParams = typeof options === 'string'
-        ? `clinicId=${encodeURIComponent(options)}`
-        : new URLSearchParams({
-            clinicId: options.clinicId,
-            ...(options.providerId && { providerId: options.providerId }),
-            ...(options.serviceType && { serviceType: options.serviceType }),
-            ...(options.startDate && { startDate: options.startDate.toISOString() }),
-            ...(options.endDate && { endDate: options.endDate.toISOString() }),
-          }).toString();
+      let queryParams: string;
+      if (typeof options === 'string') {
+        queryParams = `clinicId=${encodeURIComponent(options)}`;
+      } else {
+        const params: Record<string, string> = {};
+        if (options.clinicId) params.clinicId = options.clinicId;
+        if (options.providerId) params.providerId = options.providerId;
+        if (options.serviceType) params.serviceType = options.serviceType;
+        if (options.startDate) params.startDate = options.startDate.toISOString();
+        if (options.endDate) params.endDate = options.endDate.toISOString();
+        queryParams = new URLSearchParams(params).toString();
+      }
 
       const response = await fetch(`${this.apiBaseUrl}/api/scheduling/slots?${queryParams}`, {
         headers: { 'Content-Type': 'application/json' },

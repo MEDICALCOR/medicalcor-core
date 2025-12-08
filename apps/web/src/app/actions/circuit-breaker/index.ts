@@ -466,14 +466,14 @@ export async function getCircuitStateHistoryAction(limit = 50): Promise<CircuitS
  * Reset a circuit breaker (admin action)
  *
  * @param serviceName - Name of the service to reset
- * @requires MANAGE_SYSTEM permission
+ * @requires MANAGE_SETTINGS permission
  * @returns Result of the reset operation
  */
 export async function resetCircuitBreakerAction(
   serviceName: string
 ): Promise<CircuitBreakerResetResult> {
   try {
-    await requirePermission('system:admin' as any);
+    await requirePermission('MANAGE_SETTINGS');
 
     const apiUrl = getApiBaseUrl();
     const apiKey = getApiSecretKey();

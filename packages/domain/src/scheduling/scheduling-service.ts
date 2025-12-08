@@ -104,7 +104,7 @@ export interface AppointmentDetails {
  * Options for fetching available slots
  */
 export interface GetAvailableSlotsOptions {
-  clinicId: string;
+  clinicId?: string;
   procedureType?: string;
   preferredDates?: string[];
   providerId?: string;

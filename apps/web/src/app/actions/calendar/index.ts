@@ -239,9 +239,16 @@ export async function bookAppointmentAction(
       notes: request.notes,
     });
 
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error,
+      };
+    }
+
     return {
       success: true,
-      appointmentId: result.id,
+      appointmentId: result.appointmentId,
     };
   } catch (error) {
     // SECURITY FIX: Only log in non-production to avoid console noise

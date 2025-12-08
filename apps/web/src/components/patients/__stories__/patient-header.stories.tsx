@@ -170,6 +170,9 @@ export const NoWhatsApp: Story = {
 };
 
 export const AllStatuses: Story = {
+  args: {
+    patient: samplePatient,
+  },
   render: () => (
     <div className="space-y-6">
       {(['lead', 'contacted', 'scheduled', 'patient', 'inactive'] as const).map((status) => (

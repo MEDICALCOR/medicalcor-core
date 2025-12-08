@@ -415,7 +415,7 @@ export async function getSubjectInsightsAction(
  *
  * @param subjectType - Type of subject
  * @param subjectId - Subject ID
- * @requires MANAGE_LEADS permission
+ * @requires EDIT_PATIENTS permission
  * @returns Detected patterns
  */
 export async function detectPatternsAction(
@@ -423,7 +423,7 @@ export async function detectPatternsAction(
   subjectId: string
 ): Promise<BehavioralPattern[]> {
   try {
-    await requirePermission('EDIT_PATIENTS' as any);
+    await requirePermission('EDIT_PATIENTS');
 
     // In production, this would call the PatternDetector service
     // For now, return mock data

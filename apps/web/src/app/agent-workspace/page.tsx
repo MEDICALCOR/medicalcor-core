@@ -226,9 +226,3 @@ export default function AgentWorkspacePage() {
     </PagePermissionGate>
   );
 }
-
-// Metadata for the page
-export const metadata = {
-  title: 'Agent Workspace | MedicalCor Cortex',
-  description: 'Unified workspace for agents to handle calls and leads',
-};
