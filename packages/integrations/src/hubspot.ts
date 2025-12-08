@@ -663,6 +663,71 @@ export class HubSpotClient {
   }
 
   /**
+   * Create a generic timeline event as a note
+   */
+  async createTimelineEvent(input: {
+    contactId: string;
+    eventType: string;
+    headline: string;
+    body: string;
+  }): Promise<{ id: string }> {
+    const { contactId, eventType, headline, body } = input;
+
+    const result = await this.request<{ id: string }>('/crm/v3/objects/notes', {
+      method: 'POST',
+      body: JSON.stringify({
+        properties: {
+          hs_timestamp: new Date().toISOString(),
+          hs_note_body: `[${eventType.toUpperCase()}] ${headline}\n\n${body}`,
+        },
+        associations: [
+          {
+            to: { id: contactId },
+            types: [
+              {
+                associationCategory: 'HUBSPOT_DEFINED',
+                associationTypeId: 202,
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    return { id: result.id };
+  }
+
+  /**
+   * Create a note on a contact
+   */
+  async createNote(input: { contactId: string; body: string }): Promise<{ id: string }> {
+    const { contactId, body } = input;
+
+    const result = await this.request<{ id: string }>('/crm/v3/objects/notes', {
+      method: 'POST',
+      body: JSON.stringify({
+        properties: {
+          hs_timestamp: new Date().toISOString(),
+          hs_note_body: body,
+        },
+        associations: [
+          {
+            to: { id: contactId },
+            types: [
+              {
+                associationCategory: 'HUBSPOT_DEFINED',
+                associationTypeId: 202,
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    return { id: result.id };
+  }
+
+  /**
    * Make HTTP request to HubSpot API
    * CRITICAL: Validate that path/baseUrl do not allow SSRF or unexpected host
    */

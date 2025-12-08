@@ -384,7 +384,12 @@ export const generateInvoice = task({
   id: 'generate-invoice',
   retry: { maxAttempts: 3, minTimeoutInMs: 1000, maxTimeoutInMs: 10000, factor: 2 },
   run: async (payload: InvoiceGenerationPayload): Promise<InvoiceGenerationResult> => {
-    const { invoice, emailOptions = { sendEmail: true, ccEmails: [], bccEmails: [] }, correlationId, hubspotContactId } = payload;
+    const {
+      invoice,
+      emailOptions = { sendEmail: false, ccEmails: [], bccEmails: [] },
+      correlationId,
+      hubspotContactId
+    } = payload;
     const { hubspot, eventStore } = getClients();
     const emailClient = getEmailClient();
 

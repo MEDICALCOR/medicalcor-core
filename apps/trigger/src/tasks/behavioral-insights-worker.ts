@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, max-lines-per-function */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { task, logger, schedules } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
 import {
@@ -98,12 +98,12 @@ interface BatchDetectionResult {
   successfulSubjects: number;
   failedSubjects: number;
   totalPatternsDetected: number;
-  results: Array<{
+  results: {
     subjectId: string;
     success: boolean;
     patternsDetected?: number;
     error?: string;
-  }>;
+  }[];
   processingTimeMs: number;
   correlationId: string;
 }

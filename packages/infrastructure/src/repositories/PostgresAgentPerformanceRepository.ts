@@ -256,6 +256,7 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       ]
     );
 
+    // INSERT RETURNING always returns the inserted row
     const row = result.rows[0];
     if (!row) {
       throw new Error('Failed to create agent: no row returned');
@@ -323,6 +324,7 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       [session.agentId, session.clinicId, session.startedAt, session.status]
     );
 
+    // INSERT RETURNING always returns the inserted row
     const row = result.rows[0];
     if (!row) {
       throw new Error('Failed to start session: no row returned');
@@ -784,8 +786,8 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       [clinicId]
     );
 
-    const row = result.rows[0];
-    return row ? Number(row.count) : 0;
+    // COUNT aggregate always returns exactly one row
+    return Number(result.rows[0]?.count ?? 0);
   }
 
   // ============================================================================

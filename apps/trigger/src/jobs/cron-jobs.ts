@@ -56,9 +56,11 @@ function getClients() {
 /**
  * Supabase client configuration result
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-imports
+type SupabaseClientAny = ReturnType<typeof import('@supabase/supabase-js').createClient<any, any, any>>;
+
 interface SupabaseClientResult {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  client: import('@supabase/supabase-js').SupabaseClient<any, any, any> | null;
+  client: SupabaseClientAny | null;
   error: string | null;
 }
 
@@ -2508,10 +2510,12 @@ export const gdprArticle30ReportGeneration = schedules.task({
       };
 
       // Create the report service
+      /* eslint-disable @typescript-eslint/no-unsafe-assignment */
       const reportService = createArticle30ReportService({
         supabase,
         controller: controllerInfo,
       });
+      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
 
       // Calculate report period (previous month)
       const now = new Date();
@@ -2655,10 +2659,12 @@ export const gdprArticle30QuarterlyReport = schedules.task({
         dpoEmail: process.env.DPO_EMAIL,
       };
 
+      /* eslint-disable @typescript-eslint/no-unsafe-assignment */
       const reportService = createArticle30ReportService({
         supabase,
         controller: controllerInfo,
       });
+      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
 
       // Calculate quarterly period (previous 3 months)
       const now = new Date();

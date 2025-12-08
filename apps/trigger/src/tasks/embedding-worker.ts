@@ -137,10 +137,9 @@ const MAX_BATCH_SIZE = 100;
 async function createRedisClient(url: string): Promise<RedisClient | null> {
   try {
     // Dynamic import for optional Redis dependency
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/ban-ts-comment
-    // @ts-ignore - ioredis types may not be installed
-    const ioredis: { default: new (url: string) => RedisClient } = await import('ioredis');
-    const client = new ioredis.default(url);
+    const ioredis = await import('ioredis');
+    // ioredis exports Redis as the main export
+    const client = new ioredis.Redis(url) as unknown as RedisClient;
     return client;
   } catch {
     logger.warn('Redis client not available, caching disabled');

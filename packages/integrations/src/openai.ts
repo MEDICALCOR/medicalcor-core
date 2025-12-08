@@ -208,6 +208,36 @@ export class OpenAIClient {
   }
 
   /**
+   * Create a chat completion and return the full response object
+   */
+  async chat(options: {
+    messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
+    temperature?: number;
+    maxTokens?: number;
+  }): Promise<{
+    choices: Array<{ message: { content: string | null } }>;
+  }> {
+    const {
+      messages,
+      temperature = this.config.temperature ?? 0.7,
+      maxTokens = this.config.maxTokens ?? 1000,
+    } = options;
+
+    const response = await this.client.chat.completions.create({
+      model: this.config.model ?? 'gpt-4o',
+      messages,
+      max_tokens: maxTokens,
+      temperature,
+    });
+
+    return {
+      choices: response.choices.map((c) => ({
+        message: { content: c.message.content },
+      })),
+    };
+  }
+
+  /**
    * Score a lead using AI
    */
   async scoreMessage(context: AIScoringContext): Promise<ScoringOutput> {

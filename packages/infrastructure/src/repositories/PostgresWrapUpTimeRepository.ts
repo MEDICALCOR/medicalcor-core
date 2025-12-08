@@ -552,8 +552,7 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
       [maxAgeMinutes]
     );
 
-    const row = result.rows[0];
-    return row ? Number(row.count) : 0;
+    return Number(result.rows[0]?.count ?? 0);
   }
 
   // ============================================================================

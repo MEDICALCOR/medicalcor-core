@@ -29,7 +29,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
-  ExternalLink,
   XCircle,
   Play,
   MessageSquare,
@@ -183,11 +182,14 @@ const PAGE_SIZES = [10, 20, 50, 100];
 
 function SourceBadge({ source }: { source: WebhookSource }) {
   const config = SOURCE_CONFIG[source];
-  if (!config) return <Badge variant="outline">{source}</Badge>;
-
   const Icon = config.icon;
   return (
-    <div className={cn('flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium', config.bgColor)}>
+    <div
+      className={cn(
+        'flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium',
+        config.bgColor
+      )}
+    >
       <Icon className={cn('h-3 w-3', config.color)} />
       <span className={config.color}>{config.label}</span>
     </div>
@@ -196,11 +198,14 @@ function SourceBadge({ source }: { source: WebhookSource }) {
 
 function StatusBadge({ status }: { status: WebhookStatus }) {
   const config = STATUS_CONFIG[status];
-  if (!config) return <Badge variant="outline">{status}</Badge>;
-
   const Icon = config.icon;
   return (
-    <div className={cn('flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium', config.bgColor)}>
+    <div
+      className={cn(
+        'flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium',
+        config.bgColor
+      )}
+    >
       <Icon className={cn('h-3 w-3', config.color)} />
       <span className={config.color}>{config.label}</span>
     </div>
@@ -248,10 +253,12 @@ export default function WebhooksPage() {
   const [searchInput, setSearchInput] = useState('');
 
   // Dialog state
-  const [replayDialog, setReplayDialog] = useState<{ open: boolean; webhook: WebhookEvent | null }>({
-    open: false,
-    webhook: null,
-  });
+  const [replayDialog, setReplayDialog] = useState<{ open: boolean; webhook: WebhookEvent | null }>(
+    {
+      open: false,
+      webhook: null,
+    }
+  );
   const [bulkReplayDialog, setBulkReplayDialog] = useState(false);
   const [isReplaying, setIsReplaying] = useState(false);
 
@@ -261,33 +268,36 @@ export default function WebhooksPage() {
   // DATA FETCHING
   // ============================================================================
 
-  const fetchData = useCallback(async (showRefreshIndicator = false) => {
-    if (showRefreshIndicator) setIsRefreshing(true);
-    else setIsLoading(true);
+  const fetchData = useCallback(
+    async (showRefreshIndicator = false) => {
+      if (showRefreshIndicator) setIsRefreshing(true);
+      else setIsLoading(true);
 
-    try {
-      const [listResult, statsResult] = await Promise.all([
-        getWebhookListAction(page, pageSize, filters),
-        getWebhookStatsAction(),
-      ]);
+      try {
+        const [listResult, statsResult] = await Promise.all([
+          getWebhookListAction(page, pageSize, filters),
+          getWebhookStatsAction(),
+        ]);
 
-      setWebhooks(listResult.webhooks);
-      setTotal(listResult.total);
-      setStats(statsResult);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load webhook data',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [page, pageSize, filters, toast]);
+        setWebhooks(listResult.webhooks);
+        setTotal(listResult.total);
+        setStats(statsResult);
+      } catch (_error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to load webhook data',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    [page, pageSize, filters, toast]
+  );
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
 
   // ============================================================================
@@ -420,7 +430,12 @@ export default function WebhooksPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={() => fetchData(true)} disabled={isRefreshing} variant="outline" size="sm">
+          <Button
+            onClick={() => fetchData(true)}
+            disabled={isRefreshing}
+            variant="outline"
+            size="sm"
+          >
             <RefreshCw className={cn('h-4 w-4 mr-2', isRefreshing && 'animate-spin')} />
             Refresh
           </Button>
@@ -442,7 +457,9 @@ export default function WebhooksPage() {
                 <CheckCircle2 className="h-3 w-3 text-green-600" />
                 Success
               </div>
-              <div className="text-2xl font-bold text-green-600">{stats.successful.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-green-600">
+                {stats.successful.toLocaleString()}
+              </div>
             </CardContent>
           </Card>
           <Card>
@@ -460,7 +477,9 @@ export default function WebhooksPage() {
                 <Clock className="h-3 w-3 text-yellow-600" />
                 Pending
               </div>
-              <div className="text-2xl font-bold text-yellow-600">{stats.pending.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-yellow-600">
+                {stats.pending.toLocaleString()}
+              </div>
             </CardContent>
           </Card>
           <Card>
@@ -469,7 +488,9 @@ export default function WebhooksPage() {
                 <RotateCcw className="h-3 w-3 text-blue-600" />
                 Replayed
               </div>
-              <div className="text-2xl font-bold text-blue-600">{stats.replayed.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-blue-600">
+                {stats.replayed.toLocaleString()}
+              </div>
             </CardContent>
           </Card>
           <Card>
@@ -562,9 +583,7 @@ export default function WebhooksPage() {
           <CardContent className="p-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Badge variant="secondary">{selectedWebhooks.size} selected</Badge>
-              <span className="text-sm text-muted-foreground">
-                webhooks ready for bulk action
-              </span>
+              <span className="text-sm text-muted-foreground">webhooks ready for bulk action</span>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => setSelectedWebhooks(new Set())}>
@@ -805,7 +824,9 @@ export default function WebhooksPage() {
       {/* Single Replay Dialog */}
       <Dialog
         open={replayDialog.open}
-        onOpenChange={(open) => setReplayDialog({ open, webhook: open ? replayDialog.webhook : null })}
+        onOpenChange={(open) =>
+          setReplayDialog({ open, webhook: open ? replayDialog.webhook : null })
+        }
       >
         <DialogContent>
           <DialogHeader>
@@ -880,12 +901,16 @@ export default function WebhooksPage() {
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
-              This will re-process all selected webhooks with their original payloads.
-              Events will be processed sequentially.
+              This will re-process all selected webhooks with their original payloads. Events will
+              be processed sequentially.
             </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setBulkReplayDialog(false)} disabled={isReplaying}>
+            <Button
+              variant="outline"
+              onClick={() => setBulkReplayDialog(false)}
+              disabled={isReplaying}
+            >
               Cancel
             </Button>
             <Button onClick={handleBulkReplay} disabled={isReplaying}>

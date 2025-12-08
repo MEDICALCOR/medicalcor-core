@@ -325,7 +325,7 @@ function runPreVerificationChecks(payload: InsuranceVerificationPayload): PreChe
     hasVerificationConsent: payload.hasVerificationConsent,
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- domain package type resolution issue
+   
   const result = performPreVerificationChecks(input) as LocalPreVerificationCheck;
 
   if (result.warnings.length > 0) {
@@ -457,7 +457,7 @@ function processApiResult(
         : undefined,
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- domain package type resolution issue
+   
   const outcome = processVerificationResult(
     input,
     externalResult,
@@ -538,17 +538,18 @@ export const batchVerifyInsuranceWorkflow = task({
         });
 
         if (taskResult.ok) {
+          const result = taskResult.output;
           results.push({
             patientId: patient.patientId,
-            success: taskResult.output.success,
-            status: taskResult.output.status,
+            success: result.success,
+            status: result.status,
           });
         } else {
           results.push({
             patientId: patient.patientId,
             success: false,
             status: 'api_error',
-            error: 'Task execution failed',
+            error: 'Task failed to complete',
           });
         }
       } catch (error) {

@@ -53,6 +53,11 @@ export interface ConsentRepository {
   findByContactAndType(contactId: string, consentType: ConsentType): Promise<ConsentRecord | null>;
 
   /**
+   * Find consent by phone number and type (optional - not all implementations support this)
+   */
+  findByPhoneAndType?(phone: string, consentType: ConsentType): Promise<ConsentRecord | null>;
+
+  /**
    * Find all consents for a contact
    */
   findByContact(contactId: string): Promise<ConsentRecord[]>;
