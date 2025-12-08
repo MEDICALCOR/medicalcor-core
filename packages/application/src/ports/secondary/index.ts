@@ -14,6 +14,7 @@ export * from './messaging/EventPublisher.js';
 export * from './external/AuditService.js';
 export * from './external/InsuranceVerificationGateway.js';
 export * from './external/FinancingService.js';
+export * from './external/GeoIPService.js';
 
 // Persistence ports
 export * from './persistence/index.js';

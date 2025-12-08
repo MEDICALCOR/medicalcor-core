@@ -279,6 +279,9 @@ export * from './capacity-planning/index.js';
 // Data Lineage (M15 Milestone)
 export * from './data-lineage/index.js';
 
+// Security (L5 Feature - IP Geolocation Alerts)
+export * from './security/index.js';
+
 // ============================================================================
 // SHARED TYPES & UTILITIES
 // ============================================================================

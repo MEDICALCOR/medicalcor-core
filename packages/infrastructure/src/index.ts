@@ -76,7 +76,7 @@ export * from './repositories/index.js';
 export * from './ai/index.js';
 
 // ============================================================================
-// REPOSITORIES
+// EXTERNAL SERVICES
 // ============================================================================
 
-export * from './repositories/index.js';
+export * from './services/index.js';

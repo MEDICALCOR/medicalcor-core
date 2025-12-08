@@ -9,3 +9,4 @@
 
 export * from './CaseRepository.js';
 export * from './ReadModelRepository.js';
+export * from './LocationHistoryRepository.js';
