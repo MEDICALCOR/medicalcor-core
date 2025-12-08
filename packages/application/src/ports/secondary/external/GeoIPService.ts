@@ -258,7 +258,11 @@ export function createMockGeoIPService(
     resolvedAt: new Date(),
   };
 
-  const cache = new Map<string, GeoLocation>(Object.entries(overrides ?? {}));
+  const cache = new Map<string, GeoLocation>(
+    Object.entries(overrides ?? {}).filter(
+      (entry): entry is [string, GeoLocation] => entry[1] !== undefined
+    )
+  );
 
   return {
     resolve(request): Promise<ResolveGeoLocationResponse> {
@@ -316,7 +320,7 @@ export function createMockGeoIPService(
       if (ip === '127.0.0.1' || ip === '::1') {
         return true;
       }
-      return trustedRanges.some((range) => ip.startsWith(range.split('/')[0]));
+      return trustedRanges.some((range) => ip.startsWith(range.split('/')[0] ?? ''));
     },
 
     isInAsn(ip, asns): Promise<boolean> {

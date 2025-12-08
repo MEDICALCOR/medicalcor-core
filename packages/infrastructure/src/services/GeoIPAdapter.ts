@@ -54,7 +54,7 @@ export class GeoIPAdapter implements GeoIPService {
       maxCacheSize: config.maxCacheSize ?? 10000,
       timeoutMs: config.timeoutMs ?? 5000,
       includeSecurityInfo: config.includeSecurityInfo ?? true,
-      fallbackProvider: config.fallbackProvider,
+      fallbackProvider: config.fallbackProvider ?? 'ip-api',
       highRiskCountries: config.highRiskCountries ?? [],
     };
     this.cache = new Map();
@@ -148,6 +148,7 @@ export class GeoIPAdapter implements GeoIPService {
 
       return {
         success: false,
+        cached: false,
         error: errorMessage,
         provider: this.config.provider,
       };
@@ -296,6 +297,7 @@ export class GeoIPAdapter implements GeoIPService {
 
     for (const range of trustedRanges) {
       const [rangeIp, prefixStr] = range.split('/');
+      if (!rangeIp) continue;
       const prefix = parseInt(prefixStr ?? '32', 10);
       const rangeNum = this.ipToNumber(rangeIp);
       if (rangeNum === null) continue;

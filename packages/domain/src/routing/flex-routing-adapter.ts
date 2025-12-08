@@ -7,8 +7,12 @@
  * skill-based matching.
  */
 import { createLogger } from '@medicalcor/core';
-import type { FlexWorker, AgentProfile, AgentSkill, TaskSkillRequirements } from '@medicalcor/types';
-import type { FlexClient, CreateTaskInput } from '@medicalcor/integrations';
+import type {
+  FlexWorker,
+  AgentProfile,
+  AgentSkill,
+  TaskSkillRequirements,
+} from '@medicalcor/types';
 import {
   SkillRoutingService,
   type AgentRepository,
@@ -16,6 +20,31 @@ import {
 } from './skill-routing-service.js';
 
 const logger = createLogger({ name: 'flex-routing-adapter' });
+
+// =============================================================================
+// Flex Client Interface (Port - to be implemented by infrastructure layer)
+// =============================================================================
+
+/**
+ * Flex client interface for routing operations
+ * This is a port interface - implementations live in @medicalcor/integrations
+ */
+export interface FlexClient {
+  listWorkers(options?: { available?: boolean }): Promise<FlexWorker[]>;
+  getWorker(workerSid: string): Promise<FlexWorker>;
+  createTask(input: CreateTaskInput): Promise<{ taskSid: string }>;
+}
+
+/**
+ * Input for creating a Flex task
+ */
+export interface CreateTaskInput {
+  workflowSid: string;
+  attributes: Record<string, unknown>;
+  priority?: number;
+  timeout?: number;
+  taskChannel?: string;
+}
 
 // =============================================================================
 // Interfaces
@@ -79,15 +108,17 @@ export interface FlexRoutingResult {
 export class FlexAgentRepositoryAdapter implements AgentRepository {
   private flexClient: FlexClient;
   private skillMapping: FlexSkillMapping;
-  private agentCache: Map<string, AgentProfile> = new Map();
-  private cacheExpiryMs: number = 60000; // 1 minute cache
-  private lastCacheRefresh: number = 0;
+  private agentCache = new Map<string, AgentProfile>();
+  private cacheExpiryMs = 60000; // 1 minute cache
+  private lastCacheRefresh = 0;
 
   constructor(flexClient: FlexClient, skillMapping?: Partial<FlexSkillMapping>) {
     this.flexClient = flexClient;
     this.skillMapping = {
-      attributeToSkill: skillMapping?.attributeToSkill ?? new Map(),
-      proficiencyMapping: skillMapping?.proficiencyMapping ?? new Map(),
+      attributeToSkill: skillMapping?.attributeToSkill ?? new Map<string, string>(),
+      proficiencyMapping:
+        skillMapping?.proficiencyMapping ??
+        new Map<string, 'basic' | 'intermediate' | 'advanced' | 'expert'>(),
       defaultProficiency: skillMapping?.defaultProficiency ?? 'intermediate',
     };
   }
@@ -166,6 +197,7 @@ export class FlexAgentRepositoryAdapter implements AgentRepository {
       skills,
       primaryLanguages: worker.languages,
       secondaryLanguages: [],
+      role: 'agent' as const,
       createdAt: now,
       updatedAt: now,
     };
@@ -201,13 +233,17 @@ export class FlexAgentRepositoryAdapter implements AgentRepository {
    * Get proficiency level for a skill
    */
   private getProficiency(skillName: string): 'basic' | 'intermediate' | 'advanced' | 'expert' {
-    return this.skillMapping.proficiencyMapping.get(skillName) ?? this.skillMapping.defaultProficiency;
+    return (
+      this.skillMapping.proficiencyMapping.get(skillName) ?? this.skillMapping.defaultProficiency
+    );
   }
 
   /**
    * Map Flex activity name to availability
    */
-  private mapActivityToAvailability(activityName: FlexWorker['activityName']): AgentProfile['availability'] {
+  private mapActivityToAvailability(
+    activityName: FlexWorker['activityName']
+  ): AgentProfile['availability'] {
     switch (activityName) {
       case 'available':
         return 'available';
@@ -219,7 +255,7 @@ export class FlexAgentRepositoryAdapter implements AgentRepository {
         return 'wrap-up';
       case 'offline':
         return 'offline';
-      default:
+      case 'unavailable':
         return 'away';
     }
   }
@@ -274,7 +310,7 @@ export class FlexAgentRepositoryAdapter implements AgentRepository {
     });
   }
 
-  async updateAgentAvailability(
+  updateAgentAvailability(
     agentId: string,
     availability: AgentProfile['availability']
   ): Promise<void> {
@@ -286,6 +322,7 @@ export class FlexAgentRepositoryAdapter implements AgentRepository {
 
     // Note: In production, this would also update Flex worker activity
     logger.info({ agentId, availability }, 'Agent availability updated in cache');
+    return Promise.resolve();
   }
 }
 
@@ -315,7 +352,6 @@ export class FlexRoutingAdapter {
    * Route a task using skill-based matching
    */
   async routeTask(task: FlexRoutingTask): Promise<FlexRoutingResult> {
-
     // Build routing context
     const context: RoutingContext = {
       taskId: task.callSid,
@@ -447,7 +483,7 @@ export class FlexRoutingAdapter {
         return 50;
       case 'low':
         return 25;
-      default:
+      case undefined:
         return 50;
     }
   }
@@ -459,14 +495,14 @@ export class FlexRoutingAdapter {
     const workers = await this.flexClient.listWorkers({ available: true });
     // This would normally use the FlexAgentRepositoryAdapter
     // Simplified implementation for direct use
-    return workers.map((w) => ({
+    return workers.map((w: FlexWorker) => ({
       agentId: w.workerSid,
       workerSid: w.workerSid,
       name: w.friendlyName,
-      availability: w.available ? 'available' as const : 'busy' as const,
+      availability: w.available ? ('available' as const) : ('busy' as const),
       maxConcurrentTasks: 1,
       currentTaskCount: w.tasksInProgress,
-      skills: w.skills.map((skillName) => ({
+      skills: w.skills.map((skillName: string) => ({
         agentId: w.workerSid,
         skillId: `skill:${skillName.toLowerCase()}`,
         proficiency: 'intermediate' as const,
@@ -477,6 +513,7 @@ export class FlexRoutingAdapter {
       })),
       primaryLanguages: w.languages,
       secondaryLanguages: [],
+      role: 'agent' as const,
       createdAt: new Date(),
       updatedAt: new Date(),
     }));

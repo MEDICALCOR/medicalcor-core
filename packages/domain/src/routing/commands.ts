@@ -374,7 +374,9 @@ export const routeTaskHandler: CommandHandler<
     ...command.payload.context,
   };
 
-  const decision = await routingService.route(command.payload.requirements, routingContext);
+  // Parse requirements to apply defaults (priority, requiredSkills, etc.)
+  const requirements = TaskSkillRequirementsSchema.parse(command.payload.requirements);
+  const decision = await routingService.route(requirements, routingContext);
 
   return {
     success: decision.outcome === 'routed' || decision.outcome === 'queued',

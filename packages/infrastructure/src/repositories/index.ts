@@ -41,14 +41,6 @@
 // CALENDAR SCHEDULING ADAPTER
 // =============================================================================
 
-// PostgreSQL Case Repository
-export {
-  PostgresCaseRepository,
-  createPostgresCaseRepository,
-  type PostgresCaseRepositoryConfig,
-  type CaseRepositoryError,
-} from './PostgresCaseRepository.js';
-
 // Calendar Scheduling Adapter (External Calendar Integration)
 export {
   // Class and factory
@@ -87,6 +79,8 @@ export {
   createPostgresCaseRepository,
   // Configuration types
   type PostgresCaseRepositoryConfig,
+  // Error types
+  type CaseRepositoryError,
 } from './PostgresCaseRepository.js';
 
 // =============================================================================

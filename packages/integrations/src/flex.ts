@@ -774,6 +774,9 @@ export class FlexClient {
       agentsBusy: workers.busy,
       agentsOnBreak: workers.onBreak,
       agentsOffline: workers.offline,
+      agentsInWrapUp: 0, // Wrap-up state tracking
+      wrapUpsToday: 0,
+      averageWrapUpTime: 0,
 
       aiHandledCalls: 0, // Would need Vapi integration
       aiHandoffRate: 0,

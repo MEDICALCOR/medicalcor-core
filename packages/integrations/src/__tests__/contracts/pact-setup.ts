@@ -74,8 +74,8 @@ export const HubSpotMatchers = {
         firstname: Matchers.string('Test'),
         lastname: Matchers.string('User'),
       }),
-      createdAt: Matchers.datetime(),
-      updatedAt: Matchers.datetime(),
+      createdAt: Matchers.datetime("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", '2024-01-15T10:30:00.000Z'),
+      updatedAt: Matchers.datetime("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", '2024-01-15T10:30:00.000Z'),
     }),
 
   /**
@@ -105,7 +105,7 @@ export const HubSpotMatchers = {
         hs_task_subject: Matchers.string('Follow up'),
         hs_task_priority: Matchers.string('MEDIUM'),
       }),
-      createdAt: Matchers.datetime(),
+      createdAt: Matchers.datetime("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", '2024-01-15T10:30:00.000Z'),
     }),
 
   /**
@@ -115,7 +115,7 @@ export const HubSpotMatchers = {
     Matchers.like({
       id: Matchers.string('note_123'),
       properties: Matchers.like({}),
-      createdAt: Matchers.datetime(),
+      createdAt: Matchers.datetime("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", '2024-01-15T10:30:00.000Z'),
     }),
 };
 

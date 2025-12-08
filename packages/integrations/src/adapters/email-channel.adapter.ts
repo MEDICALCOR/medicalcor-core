@@ -288,13 +288,13 @@ export class EmailChannelAdapter implements INotificationChannel {
       );
     }
 
-    const responseData = await response.json().catch(() => ({}));
+    const responseData = (await response.json().catch(() => ({}))) as Record<string, unknown>;
 
     return {
       success: true,
       messageId: this.extractMessageId(provider, responseData),
       acceptedAt: new Date(),
-      providerResponse: responseData as Record<string, unknown>,
+      providerResponse: responseData,
     };
   }
 
@@ -413,18 +413,18 @@ export class EmailChannelAdapter implements INotificationChannel {
       dynamic_template_data?: Record<string, string>;
     }
 
-    const personalizations: Personalization[] = [
-      {
-        to: [{ email: payload.to }],
-      },
-    ];
+    const firstPersonalization: Personalization = {
+      to: [{ email: payload.to }],
+    };
 
     if (payload.cc?.length) {
-      personalizations[0].cc = payload.cc.map((email) => ({ email }));
+      firstPersonalization.cc = payload.cc.map((email) => ({ email }));
     }
     if (payload.bcc?.length) {
-      personalizations[0].bcc = payload.bcc.map((email) => ({ email }));
+      firstPersonalization.bcc = payload.bcc.map((email) => ({ email }));
     }
+
+    const personalizations: Personalization[] = [firstPersonalization];
 
     const content = [];
     if (payload.text) {
@@ -451,7 +451,7 @@ export class EmailChannelAdapter implements INotificationChannel {
     if (payload.templateId) {
       result.template_id = payload.templateId;
       if (payload.templateVars) {
-        personalizations[0].dynamic_template_data = payload.templateVars;
+        firstPersonalization.dynamic_template_data = payload.templateVars;
       }
     }
 
@@ -639,7 +639,7 @@ export class EmailChannelAdapter implements INotificationChannel {
    */
   private maskEmail(email: string): string {
     const [local, domain] = email.split('@');
-    if (!domain) return '***@***';
+    if (!local || !domain) return '***@***';
 
     const maskedLocal =
       local.length > 2 ? `${local.slice(0, 2)}${'*'.repeat(local.length - 2)}` : '***';
