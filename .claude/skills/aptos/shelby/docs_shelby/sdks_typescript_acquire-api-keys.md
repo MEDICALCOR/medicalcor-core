@@ -51,12 +51,10 @@ API keys authenticate your app and manage rate limits when using Shelby services
 
 API keys provide several important benefits:
 
-  * **Authentication** : Securely identify your application to Shelby services.
-  * **Rate Limiting** : Access higher request limits for better application performance.
-  * **Usage Tracking** : Monitor your API consumption and optimize usage patterns.
-  * **Service Access** : Enable access to premium features and enhanced service tiers.
-
-
+- **Authentication** : Securely identify your application to Shelby services.
+- **Rate Limiting** : Access higher request limits for better application performance.
+- **Usage Tracking** : Monitor your API consumption and optimize usage patterns.
+- **Service Access** : Enable access to premium features and enhanced service tiers.
 
 ## Acquiring API Keys
 
@@ -80,11 +78,9 @@ On the overview page, click the "API Resource" card to begin creating a new reso
 
 Complete the configuration form with the following settings:
 
-  * **Network** : Select `Shelbynet` from the available network options.
-  * **Resource Name** : Provide a descriptive name for your API resource.
-  * **Usage Description** : Briefly describe your intended use case.
-
-
+- **Network** : Select `Shelbynet` from the available network options.
+- **Resource Name** : Provide a descriptive name for your API resource.
+- **Usage Description** : Briefly describe your intended use case.
 
 ### Generate Keys
 
@@ -99,21 +95,19 @@ Learn more about API keys at the Geomi [API keys](https://geomi.dev/docs/api-key
 ### Basic Configuration
 
 Integrate your API key into the Shelby client configuration as shown below:
-    
-    
+
     import { Network } from "@aptos-labs/ts-sdk";
     import { ShelbyNodeClient } from "@shelby/sdk";
-    
+
     const client = new ShelbyNodeClient({
       network: Network.SHELBYNET,
       apiKey: "aptoslabs_***", // Replace with your actual API key
     });
 
 Or into an Aptos client:
-    
-    
+
     import { Network, AptosConfig, Aptos } from "@aptos-labs/ts-sdk";
-    
+
     const aptosConfig = new AptosConfig({
      network: Network.SHELBYNET,
      clientConfig : {

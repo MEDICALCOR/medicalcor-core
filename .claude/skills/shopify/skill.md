@@ -14,17 +14,20 @@ Provide comprehensive, accurate guidance for building on Shopify's platform base
 ## Documentation Coverage
 
 **Full access to official Shopify documentation (when available):**
+
 - **Location:** `docs/shopify/`
 - **Files:** 25 markdown files
 - **Coverage:** Complete API reference, guides, best practices, and implementation patterns
 
 **Note:** Documentation must be pulled separately:
+
 ```bash
 pipx install docpull
 docpull https://shopify.dev/docs -o .claude/skills/shopify/docs
 ```
 
 **Major Areas:**
+
 - GraphQL Admin API (products, orders, customers, inventory)
 - Storefront API (cart, checkout, customer accounts)
 - REST Admin API (legacy support)
@@ -44,6 +47,7 @@ docpull https://shopify.dev/docs -o .claude/skills/shopify/docs
 ## When to Use
 
 Invoke when user mentions:
+
 - **Platform:** Shopify, e-commerce, online store, merchant
 - **APIs:** GraphQL, REST, Storefront API, Admin API
 - **Products:** product management, collections, variants, inventory
@@ -63,12 +67,14 @@ Invoke when user mentions:
 When answering questions:
 
 1. **Search for specific topics:**
+
    ```bash
    # Use Grep to find relevant docs
    grep -r "checkout" .claude/skills/shopify/docs/ --include="*.md"
    ```
 
 2. **Read specific documentation:**
+
    ```bash
    # API docs
    cat .claude/skills/shopify/docs/shopify/api-admin-graphql.md
@@ -87,25 +93,23 @@ When answering questions:
 
 ```javascript
 // Redirect to Shopify OAuth
-const authUrl = `https://${shop}/admin/oauth/authorize?` +
+const authUrl =
+  `https://${shop}/admin/oauth/authorize?` +
   `client_id=${process.env.SHOPIFY_API_KEY}&` +
   `scope=read_products,write_products&` +
   `redirect_uri=${redirectUri}&` +
   `state=${nonce}`;
 
 // Exchange code for access token
-const response = await fetch(
-  `https://${shop}/admin/oauth/access_token`,
-  {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      client_id: process.env.SHOPIFY_API_KEY,
-      client_secret: process.env.SHOPIFY_API_SECRET,
-      code
-    })
-  }
-);
+const response = await fetch(`https://${shop}/admin/oauth/access_token`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    client_id: process.env.SHOPIFY_API_KEY,
+    client_secret: process.env.SHOPIFY_API_SECRET,
+    code,
+  }),
+});
 
 const { access_token } = await response.json();
 ```
@@ -161,15 +165,14 @@ query {
 
 ```graphql
 mutation {
-  productCreate(input: {
-    title: "New Product"
-    vendor: "My Store"
-    productType: "Apparel"
-    variants: [{
-      price: "29.99"
-      sku: "PROD-001"
-    }]
-  }) {
+  productCreate(
+    input: {
+      title: "New Product"
+      vendor: "My Store"
+      productType: "Apparel"
+      variants: [{ price: "29.99", sku: "PROD-001" }]
+    }
+  ) {
     product {
       id
       title
@@ -221,12 +224,9 @@ query {
 
 ```graphql
 mutation {
-  cartCreate(input: {
-    lines: [{
-      merchandiseId: "gid://shopify/ProductVariant/123"
-      quantity: 1
-    }]
-  }) {
+  cartCreate(
+    input: { lines: [{ merchandiseId: "gid://shopify/ProductVariant/123", quantity: 1 }] }
+  ) {
     cart {
       id
       checkoutUrl
@@ -247,10 +247,7 @@ mutation {
 mutation {
   cartLinesUpdate(
     cartId: "gid://shopify/Cart/xyz"
-    lines: [{
-      id: "gid://shopify/CartLine/abc"
-      quantity: 2
-    }]
+    lines: [{ id: "gid://shopify/CartLine/abc", quantity: 2 }]
   ) {
     cart {
       id
@@ -275,7 +272,7 @@ mutation {
 const webhook = await shopify.webhooks.register({
   topic: 'ORDERS_CREATE',
   address: 'https://your-app.com/webhooks/orders-create',
-  format: 'json'
+  format: 'json',
 });
 ```
 
@@ -285,10 +282,7 @@ const webhook = await shopify.webhooks.register({
 import crypto from 'crypto';
 
 function verifyWebhook(body, hmacHeader, secret) {
-  const hash = crypto
-    .createHmac('sha256', secret)
-    .update(body, 'utf8')
-    .digest('base64');
+  const hash = crypto.createHmac('sha256', secret).update(body, 'utf8').digest('base64');
 
   return hash === hmacHeader;
 }
@@ -373,19 +367,23 @@ export default (input) => {
 
   if (discountPercentage > 0) {
     return {
-      discounts: [{
-        message: `${discountPercentage}% volume discount`,
-        targets: [{
-          orderSubtotal: {
-            excludedVariantIds: []
-          }
-        }],
-        value: {
-          percentage: {
-            value: discountPercentage.toString()
-          }
-        }
-      }]
+      discounts: [
+        {
+          message: `${discountPercentage}% volume discount`,
+          targets: [
+            {
+              orderSubtotal: {
+                excludedVariantIds: [],
+              },
+            },
+          ],
+          value: {
+            percentage: {
+              value: discountPercentage.toString(),
+            },
+          },
+        },
+      ],
     };
   }
 
@@ -404,14 +402,15 @@ export default (input) => {
   const cartTotal = parseFloat(input.cart.cost.subtotalAmount.amount);
 
   if (cartTotal < 100) {
-    const expressOptions = input.cart.deliveryGroups[0].deliveryOptions
-      .filter(option => option.title.toLowerCase().includes('express'));
+    const expressOptions = input.cart.deliveryGroups[0].deliveryOptions.filter((option) =>
+      option.title.toLowerCase().includes('express')
+    );
 
-    expressOptions.forEach(option => {
+    expressOptions.forEach((option) => {
       operations.push({
         hide: {
-          deliveryOptionHandle: option.handle
-        }
+          deliveryOptionHandle: option.handle,
+        },
       });
     });
   }
@@ -519,26 +518,30 @@ shopify theme pull
 // Create test product
 const product = await shopify.rest.Product.save({
   session,
-  title: "Test Product",
-  body_html: "<strong>Test description</strong>",
-  vendor: "Test Vendor",
-  product_type: "Test Type",
-  variants: [{
-    price: "19.99",
-    sku: "TEST-001"
-  }]
+  title: 'Test Product',
+  body_html: '<strong>Test description</strong>',
+  vendor: 'Test Vendor',
+  product_type: 'Test Type',
+  variants: [
+    {
+      price: '19.99',
+      sku: 'TEST-001',
+    },
+  ],
 });
 
 // Create test order
 const order = await shopify.rest.Order.save({
   session,
-  line_items: [{
-    variant_id: 123456789,
-    quantity: 1
-  }],
+  line_items: [
+    {
+      variant_id: 123456789,
+      quantity: 1,
+    },
+  ],
   customer: {
-    email: "test@example.com"
-  }
+    email: 'test@example.com',
+  },
 });
 ```
 
@@ -610,6 +613,7 @@ cat .claude/skills/shopify/docs/shopify/webhooks.md
 ```
 
 **Common doc files:**
+
 - `api-admin-graphql.md` - GraphQL Admin API
 - `api-storefront.md` - Storefront API
 - `authentication.md` - OAuth and auth flows

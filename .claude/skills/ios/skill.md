@@ -14,6 +14,7 @@ Provide expert guidance on iOS development covering Swift programming, UIKit, Sw
 ## When to Use
 
 Auto-invoke when users mention:
+
 - iOS development or iPhone/iPad apps
 - Swift programming language
 - SwiftUI or UIKit frameworks
@@ -29,6 +30,7 @@ Auto-invoke when users mention:
 iOS development documentation stored in `.claude/skills/frontend/ios/docs/`
 
 Coverage includes:
+
 - Swift language fundamentals
 - SwiftUI declarative UI framework
 - UIKit imperative UI framework
@@ -48,6 +50,7 @@ When a user asks about iOS development:
    - Examples: SwiftUI views, UIKit controllers, Swift syntax, Xcode configuration
 
 2. **Search Documentation**
+
    ```
    Use Grep to search: Grep "keyword" .claude/skills/frontend/ios/docs/
    ```
@@ -59,6 +62,7 @@ When a user asks about iOS development:
    - Xcode: `Grep "xcode" .claude/skills/frontend/ios/docs/ -i`
 
 3. **Read Relevant Documentation**
+
    ```
    Use Read to load specific files found in search
    Read .claude/skills/frontend/ios/docs/[filename].md
@@ -78,6 +82,7 @@ When a user asks about iOS development:
 ## Example Workflows
 
 ### SwiftUI Questions
+
 ```
 User: "How do I create a list view in SwiftUI?"
 
@@ -87,6 +92,7 @@ User: "How do I create a list view in SwiftUI?"
 ```
 
 ### UIKit Questions
+
 ```
 User: "How do I set up a UITableView?"
 
@@ -96,6 +102,7 @@ User: "How do I set up a UITableView?"
 ```
 
 ### Swift Language Questions
+
 ```
 User: "What are Swift optionals?"
 
@@ -105,6 +112,7 @@ User: "What are Swift optionals?"
 ```
 
 ### Xcode Questions
+
 ```
 User: "How do I configure build settings in Xcode?"
 
@@ -117,7 +125,7 @@ User: "How do I configure build settings in Xcode?"
 
 Always structure responses as:
 
-```markdown
+````markdown
 ## [Topic Name]
 
 [Brief overview paragraph]
@@ -138,6 +146,7 @@ struct ContentView: View {
     }
 }
 ```
+````
 
 ### Key Points
 
@@ -156,6 +165,7 @@ struct ContentView: View {
 - Link to additional documentation
 
 **Source:** `.claude/skills/frontend/ios/docs/[filename].md`
+
 ```
 
 ## Important Notes
@@ -247,3 +257,4 @@ struct ContentView: View {
 - Include error handling where appropriate
 - Mention App Store guidelines when relevant
 - Consider accessibility best practices
+```

@@ -242,7 +242,12 @@ describe('SmartSuggestions', () => {
     const { generateMockSuggestions } = require('@/lib/ai');
     const context = {
       currentConversation: [
-        { direction: 'IN' as const, content: 'Test message', timestamp: '2024-01-01', channel: 'whatsapp' as const },
+        {
+          direction: 'IN' as const,
+          content: 'Test message',
+          timestamp: '2024-01-01',
+          channel: 'whatsapp' as const,
+        },
       ],
     };
 
@@ -255,7 +260,12 @@ describe('SmartSuggestions', () => {
 
     const newContext = {
       currentConversation: [
-        { direction: 'IN' as const, content: 'New message', timestamp: '2024-01-02', channel: 'whatsapp' as const },
+        {
+          direction: 'IN' as const,
+          content: 'New message',
+          timestamp: '2024-01-02',
+          channel: 'whatsapp' as const,
+        },
       ],
     };
 
@@ -285,9 +295,9 @@ describe('SmartSuggestions', () => {
     vi.advanceTimersByTime(500);
 
     await waitFor(() => {
-      const quickReplyButtons = screen.getAllByRole('button').filter((btn) =>
-        btn.textContent?.includes('Ctrl+')
-      );
+      const quickReplyButtons = screen
+        .getAllByRole('button')
+        .filter((btn) => btn.textContent?.includes('Ctrl+'));
       expect(quickReplyButtons.length).toBeLessThanOrEqual(6);
     });
   });

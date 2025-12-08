@@ -211,7 +211,7 @@ export class AdaptiveTimeoutManager {
 
     // Apply adaptive adjustment if enabled
     const adaptedTimeout = this.config.enableAdaptive
-      ? this.adaptedTimeouts.get(operation) ?? adjustedTimeout
+      ? (this.adaptedTimeouts.get(operation) ?? adjustedTimeout)
       : adjustedTimeout;
 
     // Clamp to safety bounds
@@ -246,11 +246,7 @@ export class AdaptiveTimeoutManager {
   /**
    * Record operation performance for adaptive timeout
    */
-  recordPerformance(
-    operation: AIOperationType,
-    responseTimeMs: number,
-    success: boolean
-  ): void {
+  recordPerformance(operation: AIOperationType, responseTimeMs: number, success: boolean): void {
     if (!this.config.enableAdaptive) return;
 
     const existing = this.performanceMetrics.get(operation);
@@ -261,8 +257,7 @@ export class AdaptiveTimeoutManager {
       const alpha = 0.1; // Smoothing factor
       const newAvg = alpha * responseTimeMs + (1 - alpha) * existing.avgResponseTimeMs;
       const newP95 = Math.max(existing.p95ResponseTimeMs, responseTimeMs * 0.95);
-      const newSuccessRate =
-        alpha * (success ? 1 : 0) + (1 - alpha) * existing.successRate;
+      const newSuccessRate = alpha * (success ? 1 : 0) + (1 - alpha) * existing.successRate;
 
       this.performanceMetrics.set(operation, {
         avgResponseTimeMs: newAvg,
@@ -360,7 +355,14 @@ export class AdaptiveTimeoutManager {
               primaryError: error instanceof Error ? error : new Error(String(error)),
             };
           } catch (fallbackError) {
-            logger.warn({ err: fallbackError, operation, primaryError: error instanceof Error ? error.message : String(error) }, 'Both primary and fallback operations failed');
+            logger.warn(
+              {
+                err: fallbackError,
+                operation,
+                primaryError: error instanceof Error ? error.message : String(error),
+              },
+              'Both primary and fallback operations failed'
+            );
           }
         }
 

@@ -325,7 +325,6 @@ function runPreVerificationChecks(payload: InsuranceVerificationPayload): PreChe
     hasVerificationConsent: payload.hasVerificationConsent,
   };
 
-   
   const result = performPreVerificationChecks(input) as LocalPreVerificationCheck;
 
   if (result.warnings.length > 0) {
@@ -457,7 +456,6 @@ function processApiResult(
         : undefined,
   };
 
-   
   const outcome = processVerificationResult(
     input,
     externalResult,

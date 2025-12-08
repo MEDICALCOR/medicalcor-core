@@ -7,7 +7,12 @@ import {
   createDatabaseClient,
   type DatabasePool,
 } from '@medicalcor/core';
-import { embedContent, embedBatch, type EmbedContentPayload, type BatchEmbedPayload } from './embedding-worker.js';
+import {
+  embedContent,
+  embedBatch,
+  type EmbedContentPayload,
+  type BatchEmbedPayload,
+} from './embedding-worker.js';
 
 /**
  * Embedding Event Handler (M6)
@@ -91,11 +96,13 @@ export const EmbeddingTriggerEventSchema = z.discriminatedUnion('eventType', [
     correlationId: z.string(),
     payload: z.object({
       batchId: z.string(),
-      items: z.array(z.object({
-        contentId: z.string(),
-        content: z.string(),
-        metadata: z.record(z.unknown()).optional(),
-      })),
+      items: z.array(
+        z.object({
+          contentId: z.string(),
+          content: z.string(),
+          metadata: z.record(z.unknown()).optional(),
+        })
+      ),
       targetType: z.enum(['knowledge_base', 'message', 'custom']),
       clinicId: z.string().optional(),
     }),
@@ -246,7 +253,9 @@ export const processEmbeddingEvent = task({
     maxTimeoutInMs: 30000,
     factor: 2,
   },
-  run: async (event: EmbeddingTriggerEvent): Promise<{
+  run: async (
+    event: EmbeddingTriggerEvent
+  ): Promise<{
     success: boolean;
     eventType: string;
     embeddingTaskId?: string;
@@ -432,7 +441,9 @@ export const embeddingEventCron = schedules.task({
     const { db, eventStore } = getClients();
 
     if (!db) {
-      logger.warn('Database not configured, skipping embedding event processing', { correlationId });
+      logger.warn('Database not configured, skipping embedding event processing', {
+        correlationId,
+      });
       return {
         success: false,
         eventsProcessed: 0,

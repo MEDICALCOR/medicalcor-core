@@ -192,7 +192,10 @@ export class PostgresRetentionService implements RetentionService {
   /**
    * Get applicable policy for data
    */
-  async getPolicy(dataCategory: DataCategory, resourceType: string): Promise<RetentionPolicy | null> {
+  async getPolicy(
+    dataCategory: DataCategory,
+    resourceType: string
+  ): Promise<RetentionPolicy | null> {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select('*')
@@ -437,10 +440,7 @@ export class PostgresRetentionService implements RetentionService {
   private async hardDelete(candidate: RetentionCandidate): Promise<void> {
     const tableName = this.getTableName(candidate.resourceType);
 
-    const { error } = await this.supabase
-      .from(tableName)
-      .delete()
-      .eq('id', candidate.resourceId);
+    const { error } = await this.supabase.from(tableName).delete().eq('id', candidate.resourceId);
 
     if (error) {
       throw new Error(`Failed to hard delete: ${error.message}`);

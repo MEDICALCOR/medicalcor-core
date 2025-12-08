@@ -47,11 +47,9 @@ This section contains all API endpoints for **Shelbynet** (`https://api.shelbyne
 
 Browse the endpoints by category:
 
-  * **Sessions** \- Manage user sessions and micropayment channels
-  * **Storage** \- Upload and retrieve video blobs
-  * **Multipart Uploads** \- Manage multipart upload sessions for large files
-
-
+- **Sessions** \- Manage user sessions and micropayment channels
+- **Storage** \- Upload and retrieve video blobs
+- **Multipart Uploads** \- Manage multipart upload sessions for large files
 
 [Shelby RPC APIComplete API reference for interacting with Shelby](/apis/rpc)[Use a session POSTNext Page](/apis/rpc/shelbynet/sessions/useSession)
 

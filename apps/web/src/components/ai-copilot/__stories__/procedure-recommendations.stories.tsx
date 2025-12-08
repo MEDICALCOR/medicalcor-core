@@ -54,32 +54,22 @@ const sampleRecommendations: ProcedureRecommendation[] = [
     name: 'Implant dentar singular',
     category: 'Implantologie',
     relevanceScore: 0.75,
-    reasoning:
-      'Alternativă pentru pacienții care nu necesită înlocuirea completă a arcadei.',
+    reasoning: 'Alternativă pentru pacienții care nu necesită înlocuirea completă a arcadei.',
     priceRange: { min: 800, max: 1500, currency: 'EUR' },
     duration: '30-60 minute + 3-6 luni osteointegrare',
     relatedProcedures: ['Coroană ceramică', 'Lifting sinusal'],
-    commonQuestions: [
-      'Cât durează vindecarea?',
-      'Ce material este implantul?',
-      'Este vizibil?',
-    ],
+    commonQuestions: ['Cât durează vindecarea?', 'Ce material este implantul?', 'Este vizibil?'],
   },
   {
     id: '3',
     name: 'Fațete dentare',
     category: 'Estetică',
     relevanceScore: 0.55,
-    reasoning:
-      'Opțiune pentru îmbunătățirea aspectului estetic al dinților frontali existenți.',
+    reasoning: 'Opțiune pentru îmbunătățirea aspectului estetic al dinților frontali existenți.',
     priceRange: { min: 400, max: 800, currency: 'EUR' },
     duration: '2 ședințe',
     relatedProcedures: ['Albire dentară', 'Coroane ceramice'],
-    commonQuestions: [
-      'Cât rezistă fațetele?',
-      'Se văd ca fiind artificiale?',
-      'Pot mânca normal?',
-    ],
+    commonQuestions: ['Cât rezistă fațetele?', 'Se văd ca fiind artificiale?', 'Pot mânca normal?'],
   },
 ];
 

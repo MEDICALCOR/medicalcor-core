@@ -362,7 +362,10 @@ describe('PostgresDSRService', () => {
     });
 
     it('should throw error if statistics query fails', async () => {
-      mockSupabase.select.mockResolvedValue({ data: null, error: { message: 'Stats query failed' } });
+      mockSupabase.select.mockResolvedValue({
+        data: null,
+        error: { message: 'Stats query failed' },
+      });
 
       await expect(dsrService.getStatistics()).rejects.toThrow(
         'Failed to get DSR statistics: Stats query failed'

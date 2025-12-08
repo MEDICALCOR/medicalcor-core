@@ -329,13 +329,18 @@ export class SchedulingService {
   async getPatientAppointments(
     query:
       | string
-      | { patientPhone: string; hubspotContactId?: string; status?: Appointment['status']; limit?: number }
+      | {
+          patientPhone: string;
+          hubspotContactId?: string;
+          status?: Appointment['status'];
+          limit?: number;
+        }
   ): Promise<Appointment[]> {
     // Handle both call signatures for flexibility
     const patientPhone = typeof query === 'string' ? query : query.patientPhone;
     const hubspotContactId = typeof query === 'string' ? undefined : query.hubspotContactId;
     const status = typeof query === 'string' ? undefined : query.status;
-    const limit = typeof query === 'string' ? 10 : query.limit ?? 10;
+    const limit = typeof query === 'string' ? 10 : (query.limit ?? 10);
 
     const params = new URLSearchParams({
       patient_phone: patientPhone,
@@ -566,8 +571,7 @@ export class MockSchedulingService {
         // SECURITY: Use crypto-secure randomness for selection
         const practitionerBytes = new Uint32Array(1);
         crypto.getRandomValues(practitionerBytes);
-        const selectedPractitioner =
-          practitioners[practitionerBytes[0]! % practitioners.length];
+        const selectedPractitioner = practitioners[practitionerBytes[0]! % practitioners.length];
         const locationBytes = new Uint32Array(1);
         crypto.getRandomValues(locationBytes);
         const selectedLocation = locations[locationBytes[0]! % locations.length];
@@ -688,12 +692,17 @@ export class MockSchedulingService {
   getPatientAppointments(
     query:
       | string
-      | { patientPhone: string; hubspotContactId?: string; status?: Appointment['status']; limit?: number }
+      | {
+          patientPhone: string;
+          hubspotContactId?: string;
+          status?: Appointment['status'];
+          limit?: number;
+        }
   ): Promise<Appointment[]> {
     // Handle both call signatures for compatibility
     const patientPhone = typeof query === 'string' ? query : query.patientPhone;
     const status = typeof query === 'string' ? undefined : query.status;
-    const limit = typeof query === 'string' ? 10 : query.limit ?? 10;
+    const limit = typeof query === 'string' ? 10 : (query.limit ?? 10);
 
     const results: Appointment[] = [];
     for (const appointment of this.appointments.values()) {

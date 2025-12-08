@@ -19,14 +19,18 @@ pnpm smoke-test:budget
 ## Test Categories
 
 ### 1. Health Checks
+
 Validates basic API availability:
+
 - `/health` - Comprehensive health check
 - `/ready` - Kubernetes readiness probe
 - `/live` - Kubernetes liveness probe
 - Response time validation (< 500ms threshold)
 
 ### 2. Observability Stack
+
 Validates OpenTelemetry and metrics:
+
 - Prometheus metrics endpoint (`/metrics`)
 - MedicalCor custom metrics presence
 - HTTP request metrics
@@ -34,7 +38,9 @@ Validates OpenTelemetry and metrics:
 - Memory and system metrics
 
 ### 3. AI Budget Controller
+
 Validates AI spending controls:
+
 - Redis connectivity
 - Budget check functionality
 - Cost recording
@@ -42,7 +48,9 @@ Validates AI spending controls:
 - Budget limit enforcement
 
 ### 4. K6 Load Testing
+
 Generates artificial traffic for dashboard validation:
+
 - `smoke`: Quick 1-minute test with 5 VUs
 - `load`: 5-minute test ramping to 50 VUs
 - `stress`: 10-minute test ramping to 100 VUs
@@ -52,12 +60,12 @@ Generates artificial traffic for dashboard validation:
 
 Environment variables:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `BASE_URL` | `http://localhost:3000` | API base URL |
-| `REDIS_URL` | `redis://localhost:6379` | Redis URL for budget tests |
-| `GRAFANA_URL` | `http://localhost:3002` | Grafana URL |
-| `K6_SCENARIO` | `smoke` | K6 test scenario |
+| Variable      | Default                  | Description                |
+| ------------- | ------------------------ | -------------------------- |
+| `BASE_URL`    | `http://localhost:3000`  | API base URL               |
+| `REDIS_URL`   | `redis://localhost:6379` | Redis URL for budget tests |
+| `GRAFANA_URL` | `http://localhost:3002`  | Grafana URL                |
+| `K6_SCENARIO` | `smoke`                  | K6 test scenario           |
 
 ## Grafana Dashboard Validation
 
@@ -72,6 +80,7 @@ After running smoke tests:
 ### Expected Metrics
 
 The following metrics should be visible:
+
 - `http_requests_total` - Request count
 - `http_request_duration_seconds` - Latency histogram
 - `medicalcor_*` - Custom business metrics
@@ -93,22 +102,27 @@ After running budget tests:
 ## Troubleshooting
 
 ### API Not Reachable
+
 ```bash
 curl http://localhost:3000/health
 ```
 
 ### Metrics Not Available
+
 ```bash
 curl http://localhost:3000/metrics | head -20
 ```
 
 ### Redis Connection Failed
+
 ```bash
 redis-cli -u redis://localhost:6379 ping
 ```
 
 ### OpenTelemetry Not Sending Data
+
 Check these environment variables:
+
 - `OTEL_ENABLED=true`
 - `OTEL_SERVICE_NAME=medicalcor-api`
 - `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318`
@@ -116,6 +130,7 @@ Check these environment variables:
 ## CI/CD Integration
 
 These tests are automatically run in the GitHub Actions workflow:
+
 - `.github/workflows/smoke-tests.yml`
 
 The workflow runs after deployments to staging/production and sends Slack notifications on failure.

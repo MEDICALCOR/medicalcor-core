@@ -361,7 +361,8 @@ export class LeadContextBuilder {
    * Uses simple heuristics - for production, integrate with language service
    */
   withAutoDetectedLanguage(): this {
-    const lastMessage = this.context.messageHistory[this.context.messageHistory.length - 1]?.content ?? '';
+    const lastMessage =
+      this.context.messageHistory[this.context.messageHistory.length - 1]?.content ?? '';
     this.context.language = detectLanguage(lastMessage);
     return this;
   }
@@ -428,9 +429,7 @@ export class LeadContextBuilder {
   withMessageHistory(messages: MessageEntry[]): this {
     // Cap the array to prevent unbounded growth
     this.context.messageHistory =
-      messages.length > MAX_MESSAGE_HISTORY
-        ? messages.slice(-MAX_MESSAGE_HISTORY)
-        : messages;
+      messages.length > MAX_MESSAGE_HISTORY ? messages.slice(-MAX_MESSAGE_HISTORY) : messages;
     return this;
   }
 

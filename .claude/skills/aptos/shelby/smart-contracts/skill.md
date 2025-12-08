@@ -14,6 +14,7 @@ Expert guidance on Shelby Protocol's smart contract layer built on Aptos blockch
 ## When to Use
 
 Auto-invoke when users ask about:
+
 - **Smart Contracts** - Shelby contracts, Move modules, on-chain logic
 - **Blob Metadata** - Blob registration, commitments, state transitions
 - **Payments** - Micropayment channels, storage payments, settlements
@@ -24,11 +25,13 @@ Auto-invoke when users ask about:
 ## Knowledge Base
 
 Smart contract documentation:
+
 ```
 .claude/skills/blockchain/aptos/docs_shelby/
 ```
 
 Key files:
+
 - `protocol_architecture_smart-contracts.md` - Smart contract architecture
 - `protocol_architecture_overview.md` - System interactions
 - `protocol_architecture_token-economics.md` - Economic model
@@ -39,12 +42,14 @@ Key files:
 ### Role in System
 
 **Single Source of Truth:**
+
 - All critical state stored on-chain
 - Coordinates Storage Providers, RPCs, and SDKs
 - Enforces Byzantine Fault Tolerance
 - Manages economic logic and settlements
 
 **Key Functions:**
+
 1. **Blob Metadata Management** - Register, track, update blob state
 2. **Micropayment Channels** - Enable efficient off-chain payments
 3. **System Participation** - Manage storage provider enrollment
@@ -55,6 +60,7 @@ Key files:
 ### Data Structure
 
 **Core Fields:**
+
 - **Blob Name** - User-defined identifier (max 1024 chars)
 - **Owner Account** - Aptos address of blob owner
 - **Cryptographic Commitment** - Merkle root of chunk commitments
@@ -67,6 +73,7 @@ Key files:
 ### Write Path (Metadata Creation)
 
 **Step 1: SDK Prepares Transaction**
+
 ```
 User Data → SDK computes erasure coded chunks locally
          → SDK calculates cryptographic commitments for each chunk
@@ -77,6 +84,7 @@ User Data → SDK computes erasure coded chunks locally
 **Step 2: Blob Registration Transaction**
 
 Transaction submitted to smart contract includes:
+
 - Blob name and owner account
 - Cryptographic blob commitment (merkle root)
 - Payment for storage (based on size and expiration)
@@ -85,6 +93,7 @@ Transaction submitted to smart contract includes:
 **Step 3: Smart Contract Execution**
 
 Smart contract:
+
 1. **Validates transaction** - Checks signature, account balance
 2. **Takes payment** - Deducts storage fees in ShelbyUSD
 3. **Assigns placement group** - Randomly selects from available groups
@@ -92,6 +101,7 @@ Smart contract:
 5. **Sets state to "pending"** - Awaiting storage provider acknowledgments
 
 **Placement Group Assignment:**
+
 - Random selection for load balancing
 - Determines 16 storage providers for blob
 - All chunks of blob go to same placement group
@@ -99,6 +109,7 @@ Smart contract:
 **Step 4: Storage Provider Acknowledgments**
 
 After RPC distributes chunks:
+
 1. Each storage provider receives chunk
 2. Provider validates chunk against commitment
 3. Provider creates **signed acknowledgment**
@@ -111,6 +122,7 @@ After RPC distributes chunks:
 **Step 5: State Transition to "Written"**
 
 When sufficient acknowledgments received:
+
 - Smart contract transitions blob to **"written" state**
 - Blob now considered durably stored
 - Blob available for reads
@@ -119,12 +131,14 @@ When sufficient acknowledgments received:
 ### Read Path (Metadata Access)
 
 **No On-Chain Updates Required:**
+
 - SDK and RPC read smart contract state directly
 - Or use indexer for derived information
 - Enables low latency and high throughput
 - Read operations don't modify blockchain state
 
 **Information Retrieved:**
+
 - Blob existence and state
 - Placement group assignment
 - Storage provider locations
@@ -142,6 +156,7 @@ Enable efficient payments from RPC servers to storage providers during read oper
 **Channel Lifecycle:**
 
 1. **Creation (On-Chain)**
+
 ```
 RPC Server → Creates micropayment channel transaction
           → Deposits initial amount (e.g., 10000000 ShelbyUSD micro-units)
@@ -150,6 +165,7 @@ RPC Server → Creates micropayment channel transaction
 ```
 
 2. **Intermediate Payments (Off-Chain)**
+
 ```
 Read Request → RPC pays storage provider for chunk retrieval
             → Payment signed by RPC
@@ -159,6 +175,7 @@ Read Request → RPC pays storage provider for chunk retrieval
 ```
 
 3. **Settlement (On-Chain)**
+
 ```
 Storage Provider → Submits accumulated payments to smart contract
                 → Smart contract validates signatures
@@ -167,6 +184,7 @@ Storage Provider → Submits accumulated payments to smart contract
 ```
 
 4. **Closure (On-Chain)**
+
 ```
 Either Party → Submits closure transaction
             → Smart contract settles final balance
@@ -177,17 +195,20 @@ Either Party → Submits closure transaction
 ### Benefits
 
 **Performance:**
+
 - Fast read operations (no blockchain latency)
 - High throughput (unlimited off-chain payments)
 - Low cost (minimal on-chain transactions)
 
 **Security:**
+
 - Cryptographic signatures guarantee payment
 - Smart contract enforces settlements
 - Receiver can always claim valid payments
 - Sender's funds locked for guarantee
 
 **Flexibility:**
+
 - Bulk settlements reduce gas costs
 - Asynchronous payment processing
 - Channel reuse for multiple operations
@@ -202,7 +223,7 @@ class MicropaymentChannel {
     const tx = await contract.createChannel({
       recipient,
       amount,
-      sender: this.account.address()
+      sender: this.account.address(),
     });
     return new Channel(tx.channelId);
   }
@@ -212,7 +233,7 @@ class MicropaymentChannel {
     const payment = {
       channelId,
       amount,
-      nonce: this.getNonce()
+      nonce: this.getNonce(),
     };
     return this.account.sign(payment);
   }
@@ -220,7 +241,7 @@ class MicropaymentChannel {
   async settle(signedPayments: SignedPayment[]) {
     // Submit batch settlement (on-chain)
     await contract.settlePayments({
-      payments: signedPayments
+      payments: signedPayments,
     });
   }
 }
@@ -233,12 +254,14 @@ class MicropaymentChannel {
 **Joining the System:**
 
 Transaction to smart contract includes:
+
 - Provider identity (Aptos address)
 - Network endpoint information
 - Capacity commitment
 - Stake/bond (if required)
 
 **Smart Contract Actions:**
+
 1. Validates provider credentials
 2. Assigns provider to placement group slot(s)
 3. Updates placement group mappings
@@ -255,6 +278,7 @@ Transaction to smart contract includes:
 ### Placement Group Management
 
 **On-Chain Structure:**
+
 ```
 Placement Group {
   id: u64,
@@ -267,6 +291,7 @@ Mapping: PlacementGroupId → [StorageProviderAddress; 16]
 ```
 
 **Dynamic Updates:**
+
 - New providers assigned to available slots
 - Exiting providers removed from slots
 - System maintains minimum provider count
@@ -283,6 +308,7 @@ Ensure data integrity and honest storage provider behavior through cryptographic
 **Periodic Audits:**
 
 1. **Challenge Generation**
+
 ```
 Smart Contract → Selects random blob and chunk
               → Creates cryptographic challenge
@@ -290,6 +316,7 @@ Smart Contract → Selects random blob and chunk
 ```
 
 2. **Proof Generation**
+
 ```
 Storage Provider → Receives challenge
                 → Generates succinct proof of possession
@@ -298,6 +325,7 @@ Storage Provider → Receives challenge
 ```
 
 3. **Verification**
+
 ```
 Smart Contract → Validates proof against blob commitment
               → Checks proof correctness
@@ -305,6 +333,7 @@ Smart Contract → Validates proof against blob commitment
 ```
 
 4. **Rewards/Penalties**
+
 ```
 Success → Provider earns portion of storage payment
         → Reputation score increased
@@ -336,6 +365,7 @@ Failure → Provider penalized (stake reduction)
 ### Audit Formalization
 
 **Reference:** See [whitepaper](/protocol/architecture/white-paper) for:
+
 - Cryptographic commitment schemes
 - Proof generation algorithms
 - Challenge-response protocols
@@ -346,27 +376,32 @@ Failure → Provider penalized (stake reduction)
 ### State Categories
 
 **1. Blob Registry**
+
 - All blob metadata
 - Indexed by account + blob name
 - Stores commitments, state, expiration
 
 **2. Placement Groups**
+
 - Group assignments
 - Storage provider mappings
 - Availability status
 
 **3. Provider Registry**
+
 - Active storage providers
 - Network endpoints
 - Reputation scores
 - Stake balances
 
 **4. Payment Channels**
+
 - Channel metadata
 - Locked balances
 - Settlement history
 
 **5. System Parameters**
+
 - Pricing (storage cost per byte, per time)
 - Audit frequency
 - Minimum stake requirements
@@ -375,12 +410,14 @@ Failure → Provider penalized (stake reduction)
 ### Read vs Write Operations
 
 **Read Operations (Free, Fast):**
+
 - Query blob metadata
 - Check blob existence
 - Get placement group info
 - List account blobs (via indexer)
 
 **Write Operations (Paid, Slower):**
+
 - Register new blob
 - Submit acknowledgments
 - Create/settle payment channels
@@ -392,6 +429,7 @@ Failure → Provider penalized (stake reduction)
 ### Resource-Oriented Architecture
 
 **Move's Resource Model:**
+
 ```move
 // Conceptual structure (not actual Shelby code)
 module shelby::storage {
@@ -430,17 +468,18 @@ module shelby::storage {
 ### Transaction Patterns
 
 **1. Blob Registration**
+
 ```typescript
 // SDK submits transaction
 const txn = await aptosClient.generateTransaction(account.address(), {
-  function: "shelby::storage::register_blob",
+  function: 'shelby::storage::register_blob',
   type_arguments: [],
   arguments: [
-    blobName,           // string
-    commitment,         // vector<u8>
-    blobSize,          // u64
-    expirationTime     // u64
-  ]
+    blobName, // string
+    commitment, // vector<u8>
+    blobSize, // u64
+    expirationTime, // u64
+  ],
 });
 
 const signedTxn = await aptosClient.signTransaction(account, txn);
@@ -448,29 +487,31 @@ const result = await aptosClient.submitTransaction(signedTxn);
 ```
 
 **2. Acknowledgment Submission**
+
 ```typescript
 // RPC or storage provider submits
 const txn = await aptosClient.generateTransaction(provider.address(), {
-  function: "shelby::storage::acknowledge_write",
+  function: 'shelby::storage::acknowledge_write',
   type_arguments: [],
   arguments: [
-    blobOwner,         // address
-    blobName,          // string
-    chunkIndex,        // u64
-    signature          // vector<u8>
-  ]
+    blobOwner, // address
+    blobName, // string
+    chunkIndex, // u64
+    signature, // vector<u8>
+  ],
 });
 ```
 
 **3. Micropayment Channel Creation**
+
 ```typescript
 const txn = await aptosClient.generateTransaction(rpc.address(), {
-  function: "shelby::payments::create_channel",
+  function: 'shelby::payments::create_channel',
   type_arguments: [],
   arguments: [
-    recipient,         // address (storage provider)
-    depositAmount      // u64 (ShelbyUSD micro-units)
-  ]
+    recipient, // address (storage provider)
+    depositAmount, // u64 (ShelbyUSD micro-units)
+  ],
 });
 ```
 
@@ -479,6 +520,7 @@ const txn = await aptosClient.generateTransaction(rpc.address(), {
 ### SDK Responsibilities
 
 **Before On-Chain Transaction:**
+
 1. Compute erasure coded chunks locally
 2. Calculate cryptographic commitments
 3. Build merkle tree
@@ -486,6 +528,7 @@ const txn = await aptosClient.generateTransaction(rpc.address(), {
 5. Prepare transaction payload
 
 **After On-Chain Transaction:**
+
 1. Monitor transaction confirmation
 2. Retrieve placement group assignment
 3. Distribute chunks to storage providers
@@ -494,6 +537,7 @@ const txn = await aptosClient.generateTransaction(rpc.address(), {
 ### Transaction Sequencing
 
 **Upload Flow:**
+
 ```
 1. SDK: Compute commitments (off-chain)
 2. SDK: Submit registration transaction (on-chain)
@@ -510,11 +554,13 @@ const txn = await aptosClient.generateTransaction(rpc.address(), {
 ### 1. Gas Optimization
 
 **Batch Operations:**
+
 - Aggregate multiple acknowledgments in single transaction
 - Settle payment channels in bulk
 - Minimize on-chain updates
 
 **Efficient Data Structures:**
+
 - Use compact blob commitments
 - Store minimal metadata on-chain
 - Leverage indexers for queries
@@ -540,6 +586,7 @@ try {
 ### 3. State Monitoring
 
 **Track Blob State:**
+
 ```typescript
 async function waitForWritten(account: string, blobName: string) {
   while (true) {
@@ -559,6 +606,7 @@ async function waitForWritten(account: string, blobName: string) {
 ### 4. Payment Management
 
 **Monitor Channel Balance:**
+
 ```typescript
 async function ensureChannelFunded(channelId: string, requiredAmount: number) {
   const channel = await contract.getChannel(channelId);
@@ -575,16 +623,19 @@ async function ensureChannelFunded(channelId: string, requiredAmount: number) {
 ### 1. Identify Question Type
 
 **Architecture Questions:**
+
 - "How do smart contracts manage blob state?"
 - "What happens on-chain during upload?"
 - "How do micropayment channels work?"
 
 **Integration Questions:**
+
 - "How do I submit a blob registration transaction?"
 - "How do I query blob metadata?"
 - "How do I create a payment channel?"
 
 **Debugging Questions:**
+
 - "Why is my blob stuck in pending state?"
 - "Transaction failed with error X"
 - "How do I verify acknowledgments were submitted?"
@@ -605,6 +656,7 @@ Read docs_shelby/protocol_architecture_token-economics.md
 ### 3. Provide Answer
 
 **Structure:**
+
 1. **Concept** - Explain on-chain mechanism
 2. **Flow** - Show transaction sequence
 3. **Code** - Provide integration example
@@ -621,6 +673,7 @@ Read docs_shelby/protocol_architecture_token-economics.md
 ## Key Concepts to Reference
 
 **State Transitions:**
+
 ```
 Blob States:
   pending → written → expired
@@ -629,6 +682,7 @@ Blob States:
 ```
 
 **Payment Flow:**
+
 ```
 User → Storage Payment → Smart Contract (escrow)
                        → Audit-based distribution
@@ -636,6 +690,7 @@ User → Storage Payment → Smart Contract (escrow)
 ```
 
 **Audit Cycle:**
+
 ```
 Challenge → Proof → Verification → Reward/Penalty
   ↓                                      ↓
@@ -675,6 +730,7 @@ Response:
 ## Follow-up Suggestions
 
 After answering, suggest:
+
 - Related on-chain operations
 - SDK integration patterns
 - Transaction monitoring strategies

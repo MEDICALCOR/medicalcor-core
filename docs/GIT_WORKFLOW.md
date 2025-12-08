@@ -4,16 +4,16 @@ Standard git workflow for MedicalCor development.
 
 ## Branch Naming Convention
 
-| Prefix | Purpose | Example |
-|--------|---------|---------|
-| `feature/` | New features | `feature/patient-export` |
-| `fix/` | Bug fixes | `fix/login-timeout` |
-| `hotfix/` | Urgent production fixes | `hotfix/critical-auth-bug` |
-| `refactor/` | Code improvements | `refactor/api-structure` |
-| `docs/` | Documentation | `docs/api-endpoints` |
-| `test/` | Test additions | `test/e2e-coverage` |
-| `chore/` | Maintenance | `chore/update-deps` |
-| `claude/` | AI-assisted development | `claude/implement-feature-xxx` |
+| Prefix      | Purpose                 | Example                        |
+| ----------- | ----------------------- | ------------------------------ |
+| `feature/`  | New features            | `feature/patient-export`       |
+| `fix/`      | Bug fixes               | `fix/login-timeout`            |
+| `hotfix/`   | Urgent production fixes | `hotfix/critical-auth-bug`     |
+| `refactor/` | Code improvements       | `refactor/api-structure`       |
+| `docs/`     | Documentation           | `docs/api-endpoints`           |
+| `test/`     | Test additions          | `test/e2e-coverage`            |
+| `chore/`    | Maintenance             | `chore/update-deps`            |
+| `claude/`   | AI-assisted development | `claude/implement-feature-xxx` |
 
 ## Standard Development Flow
 
@@ -80,19 +80,19 @@ type(scope): description
 
 ### Types
 
-| Type | Description |
-|------|-------------|
-| `feat` | New feature |
-| `fix` | Bug fix |
-| `docs` | Documentation |
-| `style` | Formatting (no logic change) |
+| Type       | Description                           |
+| ---------- | ------------------------------------- |
+| `feat`     | New feature                           |
+| `fix`      | Bug fix                               |
+| `docs`     | Documentation                         |
+| `style`    | Formatting (no logic change)          |
 | `refactor` | Code restructure (no behavior change) |
-| `perf` | Performance improvement |
-| `test` | Tests |
-| `build` | Build system |
-| `ci` | CI configuration |
-| `chore` | Maintenance |
-| `revert` | Revert commit |
+| `perf`     | Performance improvement               |
+| `test`     | Tests                                 |
+| `build`    | Build system                          |
+| `ci`       | CI configuration                      |
+| `chore`    | Maintenance                           |
+| `revert`   | Revert commit                         |
 
 ### Examples
 

@@ -306,11 +306,7 @@ describe('AIResponseCache', () => {
 
   describe('invalidateClinic', () => {
     it('should invalidate all entries for clinic', async () => {
-      vi.mocked(mockRedis.smembers).mockResolvedValue([
-        'key1',
-        'key2',
-        'key3',
-      ]);
+      vi.mocked(mockRedis.smembers).mockResolvedValue(['key1', 'key2', 'key3']);
       vi.mocked(mockRedis.del).mockResolvedValue(3);
 
       const count = await cache.invalidateClinic('clinic-123');

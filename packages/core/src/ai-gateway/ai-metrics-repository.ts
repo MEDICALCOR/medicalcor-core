@@ -208,9 +208,7 @@ export class PostgresAIMetricsRepository implements AIMetricsRepository {
   async getLatencyStats(
     startDate: Date,
     endDate: Date
-  ): Promise<
-    Record<string, { avg: number; min: number; max: number; p95: number }>
-  > {
+  ): Promise<Record<string, { avg: number; min: number; max: number; p95: number }>> {
     const sql = `
       SELECT
         provider,

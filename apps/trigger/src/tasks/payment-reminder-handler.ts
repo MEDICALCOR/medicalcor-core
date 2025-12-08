@@ -195,7 +195,8 @@ export const handlePaymentReminder = task({
         // Log to timeline using available method
         await hubspot.logMessageToTimeline({
           contactId: installment.hubspotContactId,
-          message: `Payment Reminder Sent (${reminderLevel.toUpperCase()})\n\n` +
+          message:
+            `Payment Reminder Sent (${reminderLevel.toUpperCase()})\n\n` +
             `Amount Due: ${formattedAmount}\n` +
             `Days Overdue: ${installment.daysOverdue}\n` +
             `Reminder #${installment.reminderCount + 1}\n` +
@@ -234,7 +235,8 @@ export const handlePaymentReminder = task({
         await hubspot.createTask({
           contactId: installment.hubspotContactId,
           subject: `${urgencyPrefix}: Overdue Payment - ${formattedAmount}`,
-          body: `Patient ${installment.fullName} has an overdue payment.\n\n` +
+          body:
+            `Patient ${installment.fullName} has an overdue payment.\n\n` +
             `Amount Due: ${formattedAmount}\n` +
             `Days Overdue: ${installment.daysOverdue}\n` +
             `Reminders Sent: ${installment.reminderCount + 1}\n` +

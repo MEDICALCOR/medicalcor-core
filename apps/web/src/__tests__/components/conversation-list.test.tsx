@@ -99,11 +99,7 @@ describe('ConversationList', () => {
 
   it('should highlight selected conversation', () => {
     const { container } = render(
-      <ConversationList
-        conversations={mockConversations}
-        selectedId="1"
-        onSelect={mockOnSelect}
-      />
+      <ConversationList conversations={mockConversations} selectedId="1" onSelect={mockOnSelect} />
     );
 
     const selectedConv = container.querySelector('.bg-muted');

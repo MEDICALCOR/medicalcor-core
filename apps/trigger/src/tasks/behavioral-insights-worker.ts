@@ -10,7 +10,11 @@ import {
   type CognitiveInsight,
   type BehavioralPattern,
 } from '@medicalcor/core';
-import { createEmbeddingService, createOpenAIClient, getOpenAIApiKey } from '@medicalcor/integrations';
+import {
+  createEmbeddingService,
+  createOpenAIClient,
+  getOpenAIApiKey,
+} from '@medicalcor/integrations';
 
 /**
  * Behavioral Insights Worker (M5)

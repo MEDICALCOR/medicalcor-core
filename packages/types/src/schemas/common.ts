@@ -1,41 +1,41 @@
 /**
  * Common schemas shared across the platform
  */
-import { z } from "zod";
+import { z } from 'zod';
 
 /**
  * Romanian phone number format (+40 or 0 prefix)
  */
 export const PhoneNumberSchema = z
   .string()
-  .regex(/^(\+40|0)[0-9]{9}$/, "Invalid Romanian phone number format")
-  .describe("Romanian phone number in E.164 or local format");
+  .regex(/^(\+40|0)[0-9]{9}$/, 'Invalid Romanian phone number format')
+  .describe('Romanian phone number in E.164 or local format');
 
 /**
  * Normalized E.164 phone number
  */
 export const E164PhoneSchema = z
   .string()
-  .regex(/^\+40[0-9]{9}$/, "Must be E.164 format with +40 prefix")
-  .describe("Phone number in E.164 format");
+  .regex(/^\+40[0-9]{9}$/, 'Must be E.164 format with +40 prefix')
+  .describe('Phone number in E.164 format');
 
 /**
  * Email address validation
  */
 export const EmailSchema = z
   .string()
-  .email("Invalid email address")
-  .describe("Valid email address");
+  .email('Invalid email address')
+  .describe('Valid email address');
 
 /**
  * UUID v4 validation
  */
-export const UUIDSchema = z.string().uuid("Invalid UUID format").describe("UUID v4 identifier");
+export const UUIDSchema = z.string().uuid('Invalid UUID format').describe('UUID v4 identifier');
 
 /**
  * ISO 8601 timestamp
  */
-export const TimestampSchema = z.coerce.date().describe("ISO 8601 timestamp");
+export const TimestampSchema = z.coerce.date().describe('ISO 8601 timestamp');
 
 /**
  * Correlation ID for request tracing
@@ -44,7 +44,7 @@ export const CorrelationIdSchema = z
   .string()
   .min(1)
   .max(64)
-  .describe("Correlation ID for distributed tracing");
+  .describe('Correlation ID for distributed tracing');
 
 /**
  * Pagination parameters (offset-based)
@@ -59,7 +59,7 @@ export const PaginationSchema = z.object({
  * Used for efficient pagination through large datasets
  */
 export const CursorPaginationSchema = z.object({
-  cursor: z.string().optional().describe("Opaque cursor for next page"),
+  cursor: z.string().optional().describe('Opaque cursor for next page'),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 
@@ -70,9 +70,9 @@ export const CursorPaginationSchema = z.object({
 export const PaginatedResponseSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
   z.object({
     items: z.array(itemSchema),
-    nextCursor: z.string().nullable().describe("Cursor for next page, null if no more pages"),
-    hasMore: z.boolean().describe("Whether more items exist"),
-    total: z.number().optional().describe("Total count if available"),
+    nextCursor: z.string().nullable().describe('Cursor for next page, null if no more pages'),
+    hasMore: z.boolean().describe('Whether more items exist'),
+    total: z.number().optional().describe('Total count if available'),
   });
 
 /**

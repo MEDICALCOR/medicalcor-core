@@ -18,7 +18,9 @@ test.describe('Consent Management & GDPR Compliance', () => {
 
     test('settings page loads with user profile section', async ({ page }) => {
       // Check for profile section
-      await expect(page.getByText(/profil utilizator|user profile/i)).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText(/profil utilizator|user profile/i)).toBeVisible({
+        timeout: 5000,
+      });
 
       // Check for personal information fields
       await expect(page.getByLabel(/prenume|first name/i)).toBeVisible();
@@ -28,7 +30,9 @@ test.describe('Consent Management & GDPR Compliance', () => {
 
     test('password change section is available', async ({ page }) => {
       // Check for password change section
-      await expect(page.getByText(/schimbă parola|change password/i)).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText(/schimbă parola|change password/i)).toBeVisible({
+        timeout: 5000,
+      });
 
       // Check for password fields
       await expect(page.getByLabel(/parola curentă|current password/i)).toBeVisible();
@@ -105,7 +109,9 @@ test.describe('Consent Management & GDPR Compliance', () => {
       await page.goto('/audit/export');
 
       // Check if audit export page loads (may require permission)
-      const pageContent = page.getByRole('heading').or(page.getByText(/audit|export|acces denied/i));
+      const pageContent = page
+        .getByRole('heading')
+        .or(page.getByText(/audit|export|acces denied/i));
       await expect(pageContent).toBeVisible({ timeout: 10000 });
     });
   });
@@ -159,7 +165,9 @@ test.describe('Consent Management & GDPR Compliance', () => {
       if (await serviceCard.isVisible({ timeout: 5000 })) {
         // Consent is typically on forms
         // Check for common consent-related text
-        const consentText = page.getByText(/acord|consent|gdpr|date personale|personal data|termeni/i);
+        const consentText = page.getByText(
+          /acord|consent|gdpr|date personale|personal data|termeni/i
+        );
 
         // May appear later in the flow or on confirmation
         if (await consentText.isVisible({ timeout: 2000 }).catch(() => false)) {
@@ -217,7 +225,12 @@ test.describe('Consent Management & GDPR Compliance', () => {
           const consentLabel = page.getByText(/acord|consent|gdpr|marketing/i);
 
           // Either consent checkbox or label might be present
-          if (await consentCheckbox.first().isVisible({ timeout: 2000 }).catch(() => false)) {
+          if (
+            await consentCheckbox
+              .first()
+              .isVisible({ timeout: 2000 })
+              .catch(() => false)
+          ) {
             await expect(consentCheckbox.first()).toBeVisible();
           }
 
@@ -282,7 +295,9 @@ test.describe('Consent Management & GDPR Compliance', () => {
       await page.goto('/settings/backup');
 
       // Wait for page to load
-      const pageContent = page.getByRole('heading').or(page.getByText(/backup|recuperare|recovery/i));
+      const pageContent = page
+        .getByRole('heading')
+        .or(page.getByText(/backup|recuperare|recovery/i));
       await expect(pageContent).toBeVisible({ timeout: 10000 });
     });
   });

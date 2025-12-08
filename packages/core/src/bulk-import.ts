@@ -49,9 +49,20 @@ const logger = createLogger({ name: 'bulk-import' });
 /**
  * Field names used for row mapping
  */
-type ImportFieldName = 'phone' | 'fullName' | 'firstName' | 'lastName' | 'email' |
-  'source' | 'acquisitionChannel' | 'tags' | 'language' | 'gdprConsent' |
-  'status' | 'notes' | 'externalContactId';
+type ImportFieldName =
+  | 'phone'
+  | 'fullName'
+  | 'firstName'
+  | 'lastName'
+  | 'email'
+  | 'source'
+  | 'acquisitionChannel'
+  | 'tags'
+  | 'language'
+  | 'gdprConsent'
+  | 'status'
+  | 'notes'
+  | 'externalContactId';
 
 /**
  * Default CSV column mappings (case-insensitive)
@@ -101,7 +112,7 @@ const DEFAULT_CSV_MAPPINGS: Record<string, ImportFieldName> = {
   notes: 'notes',
   note: 'notes',
   observatii: 'notes',
-  'external_id': 'externalContactId',
+  external_id: 'externalContactId',
   'external id': 'externalContactId',
   id: 'externalContactId',
 };
@@ -109,9 +120,10 @@ const DEFAULT_CSV_MAPPINGS: Record<string, ImportFieldName> = {
 /**
  * Parse CSV content into rows
  */
-export function parseCSV(
-  csvContent: string
-): { rows: BulkImportRow[]; errors: Array<{ line: number; error: string }> } {
+export function parseCSV(csvContent: string): {
+  rows: BulkImportRow[];
+  errors: Array<{ line: number; error: string }>;
+} {
   const lines = csvContent.trim().split(/\r?\n/);
   if (lines.length < 2) {
     throw new ValidationError('CSV must have at least a header row and one data row');
@@ -171,9 +183,7 @@ export function parseCSV(
 
       // Construct full name from first/last if needed
       if (!rowData.fullName && (rowData.firstName ?? rowData.lastName)) {
-        rowData.fullName = [rowData.firstName, rowData.lastName]
-          .filter(Boolean)
-          .join(' ');
+        rowData.fullName = [rowData.firstName, rowData.lastName].filter(Boolean).join(' ');
       }
 
       // Validate row
@@ -450,11 +460,16 @@ export async function processBulkImport(
             if (!row) continue;
             const rowNumber = i + j + 1;
 
-            const result = await processRow(row, rowNumber, {
-              correlationId,
-              options: opts,
-              existingPhones,
-            }, tx);
+            const result = await processRow(
+              row,
+              rowNumber,
+              {
+                correlationId,
+                options: opts,
+                existingPhones,
+              },
+              tx
+            );
 
             results.push(result);
 
@@ -655,13 +670,13 @@ async function processRow(
     const existing = existingPhones.get(normalizedPhone) ?? existingPhones.get(row.phone);
 
     // Generate external contact ID if not provided
-    const externalContactId = row.externalContactId ??
-      `${options.defaultSource}-${normalizedPhone.replace(/\D/g, '')}`;
+    const externalContactId =
+      row.externalContactId ?? `${options.defaultSource}-${normalizedPhone.replace(/\D/g, '')}`;
     const externalSource = row.externalSource ?? options.defaultSource;
 
     // Build full name
-    const fullName = row.fullName ??
-      ([row.firstName, row.lastName].filter(Boolean).join(' ') || undefined);
+    const fullName =
+      row.fullName ?? ([row.firstName, row.lastName].filter(Boolean).join(' ') || undefined);
 
     // Process tags
     const tags = Array.isArray(row.tags) ? row.tags : undefined;
@@ -789,10 +804,7 @@ async function processRow(
       errorMessage: 'External ID already exists',
     };
   } catch (error) {
-    logger.error(
-      { correlationId, rowNumber, error },
-      'Failed to process row'
-    );
+    logger.error({ correlationId, rowNumber, error }, 'Failed to process row');
 
     return {
       rowNumber,

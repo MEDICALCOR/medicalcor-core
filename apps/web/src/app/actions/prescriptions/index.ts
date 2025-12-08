@@ -116,7 +116,9 @@ const CreatePrescriptionSchema = z.object({
 
 const UpdatePrescriptionSchema = z.object({
   id: z.string().uuid(),
-  status: z.enum(['draft', 'active', 'dispensed', 'partially_dispensed', 'expired', 'cancelled']).optional(),
+  status: z
+    .enum(['draft', 'active', 'dispensed', 'partially_dispensed', 'expired', 'cancelled'])
+    .optional(),
   diagnosis: z.string().optional(),
   dispensedBy: z.string().optional(),
   pharmacyName: z.string().optional(),
@@ -126,7 +128,10 @@ const UpdatePrescriptionSchema = z.object({
 // Helper Functions
 // =============================================================================
 
-function rowToPrescription(row: PrescriptionRow, medications: PrescriptionMedication[] = []): Prescription {
+function rowToPrescription(
+  row: PrescriptionRow,
+  medications: PrescriptionMedication[] = []
+): Prescription {
   return {
     id: row.id,
     prescriptionNumber: row.prescription_number,
@@ -247,7 +252,10 @@ export async function getPrescriptionByIdAction(
   }
 }
 
-export async function getPrescriptionStatsAction(): Promise<{ stats: PrescriptionStats | null; error?: string }> {
+export async function getPrescriptionStatsAction(): Promise<{
+  stats: PrescriptionStats | null;
+  error?: string;
+}> {
   try {
     await requirePermission('prescriptions:read');
     const user = await requireCurrentUser();
@@ -437,7 +445,9 @@ export async function updatePrescriptionAction(
   }
 }
 
-export async function cancelPrescriptionAction(id: string): Promise<{ success: boolean; error?: string }> {
+export async function cancelPrescriptionAction(
+  id: string
+): Promise<{ success: boolean; error?: string }> {
   try {
     await requirePermission('prescriptions:write');
     const user = await requireCurrentUser();
@@ -460,7 +470,9 @@ export async function cancelPrescriptionAction(id: string): Promise<{ success: b
   }
 }
 
-export async function deletePrescriptionAction(id: string): Promise<{ success: boolean; error?: string }> {
+export async function deletePrescriptionAction(
+  id: string
+): Promise<{ success: boolean; error?: string }> {
   try {
     await requirePermission('prescriptions:delete');
     const user = await requireCurrentUser();
@@ -471,10 +483,7 @@ export async function deletePrescriptionAction(id: string): Promise<{ success: b
       await client.query('BEGIN');
 
       // Delete medications first
-      await client.query(
-        `DELETE FROM prescription_medications WHERE prescription_id = $1`,
-        [id]
-      );
+      await client.query(`DELETE FROM prescription_medications WHERE prescription_id = $1`, [id]);
 
       // Delete prescription
       const result = await client.query(

@@ -332,9 +332,7 @@ export function handleSummary(data) {
   const dataSent = data.metrics.data_sent?.values ?? { count: 0 };
 
   // Calculate duration from state
-  const testDuration = data.state?.testRunDurationMs
-    ? data.state.testRunDurationMs / 1000
-    : 0;
+  const testDuration = data.state?.testRunDurationMs ? data.state.testRunDurationMs / 1000 : 0;
 
   // Build thresholds map
   const thresholds = {};
@@ -363,7 +361,8 @@ export function handleSummary(data) {
     durationSeconds: testDuration,
     metrics: {
       totalRequests: httpReqs.count ?? 0,
-      successfulRequests: (httpReqs.count ?? 0) - Math.round((httpReqs.count ?? 0) * (errorsMetric.rate ?? 0)),
+      successfulRequests:
+        (httpReqs.count ?? 0) - Math.round((httpReqs.count ?? 0) * (errorsMetric.rate ?? 0)),
       failedRequests: Math.round((httpReqs.count ?? 0) * (errorsMetric.rate ?? 0)),
       successRate: (1 - (errorsMetric.rate ?? 0)) * 100,
       errorRate: (errorsMetric.rate ?? 0) * 100,

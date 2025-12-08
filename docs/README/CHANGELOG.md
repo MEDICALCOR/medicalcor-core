@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - Comprehensive README documentation folder
 - State-of-the-art documentation structure
 
@@ -18,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 #### Core Platform
+
 - AI-powered lead scoring with GPT-4o integration
 - Rule-based scoring fallback when AI is unavailable
 - Multi-channel communication support (WhatsApp, Voice, Email, Web)
@@ -25,17 +27,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Event sourcing architecture for complete audit trails
 
 #### Applications
+
 - **apps/api**: Fastify webhook gateway with signature verification
 - **apps/trigger**: Trigger.dev durable workflows and cron jobs
 - **apps/web**: Next.js 15 admin dashboard with React 19
 
 #### Packages
+
 - **@medicalcor/core**: Logger, errors, auth, event store, circuit breaker
 - **@medicalcor/types**: Consolidated Zod schemas (single source of truth)
 - **@medicalcor/domain**: Scoring, triage, scheduling, consent services
 - **@medicalcor/integrations**: HubSpot, WhatsApp, OpenAI, Stripe, Vapi clients
 
 #### Security
+
 - HMAC-SHA256 webhook signature verification for all providers
 - Timing-safe comparison to prevent timing attacks
 - Rate limiting with Redis backend
@@ -45,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - No signature bypass in any environment
 
 #### GDPR Compliance
+
 - Consent management with multiple consent types
 - Consent audit logging
 - 2-year consent expiry with renewal flow
@@ -52,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Right to erasure support
 
 #### Infrastructure
+
 - Docker Compose for local development
 - PostgreSQL 15 for data persistence
 - Redis 7 for caching and rate limiting
@@ -60,6 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cloudflare tunnel for webhook testing (optional profile)
 
 #### CI/CD
+
 - GitHub Actions for continuous integration
 - Dependency vulnerability scanning
 - License compliance checking
@@ -68,6 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - E2E tests with Playwright
 
 #### Integrations
+
 - **HubSpot**: Contact sync, timeline events, task creation
 - **WhatsApp (360dialog)**: Message sending, template delivery
 - **Twilio**: Voice calls, SMS
@@ -76,12 +85,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Stripe**: Payment processing
 
 #### Workflows
+
 - `lead-scoring-workflow`: AI-powered lead scoring with enrichment
 - `patient-journey-workflow`: End-to-end patient lifecycle
 - `booking-agent-workflow`: Intelligent appointment booking
 - `voice-transcription-workflow`: Call transcription and analysis
 
 #### Cron Jobs
+
 - Daily recall check (09:00)
 - Hourly appointment reminders
 - Nightly lead scoring refresh (02:00)
@@ -93,9 +104,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
-| Version | Date | Highlights |
-|---------|------|------------|
-| 0.1.0 | TBD | Initial release with core CRM functionality |
+| Version | Date | Highlights                                  |
+| ------- | ---- | ------------------------------------------- |
+| 0.1.0   | TBD  | Initial release with core CRM functionality |
 
 ---
 
@@ -141,7 +152,9 @@ When making changes:
 4. Keep entries concise but informative
 
 Example entry:
+
 ```markdown
 ### Added
+
 - Lead scoring confidence threshold configuration (#123)
 ```

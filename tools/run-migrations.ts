@@ -60,10 +60,7 @@ async function main(): Promise<void> {
   }
 
   // Mask password in logs
-  const safeConnectionString = connectionString.replace(
-    /(:\/\/[^:]+:)[^@]+(@)/,
-    '$1****$2'
-  );
+  const safeConnectionString = connectionString.replace(/(:\/\/[^:]+:)[^@]+(@)/, '$1****$2');
   console.log(`Database: ${safeConnectionString}\n`);
 
   const pool = new Pool({

@@ -14,6 +14,7 @@ Guide users through creating effective Claude Code hooks for tool validation, au
 ## When to Use
 
 Auto-invoke when users mention:
+
 - **Creating hooks** - "create hook", "make hook", "new hook", "add hook"
 - **Hook events** - "PreToolUse", "PostToolUse", "UserPromptSubmit", "Stop", "SessionStart"
 - **Validation** - "validate", "check", "prevent", "block", "approve"
@@ -75,23 +76,27 @@ Let me help you create a Claude Code hook! I need some details:
 ### 2. Determine Hook Type
 
 **Bash Command Hook:**
+
 ```json
 {
   "type": "command",
   "command": "/path/to/script.sh"
 }
 ```
+
 - Runs a shell command
 - Fast, deterministic
 - Good for validation, formatting
 
 **Prompt-based Hook:**
+
 ```json
 {
   "type": "prompt",
   "prompt": "Evaluate if Claude should stop: $ARGUMENTS"
 }
 ```
+
 - Uses LLM for decision
 - Context-aware, intelligent
 - Good for complex decisions (Stop, SubagentStop)
@@ -99,15 +104,18 @@ Let me help you create a Claude Code hook! I need some details:
 ### 3. Choose Hook Event
 
 #### PreToolUse
+
 Runs before tool executes.
 
 **Use for:**
+
 - Validate inputs
 - Auto-approve safe operations
 - Block dangerous commands
 - Modify tool parameters
 
 **JSON Output:**
+
 ```json
 {
   "hookSpecificOutput": {
@@ -122,15 +130,18 @@ Runs before tool executes.
 ```
 
 #### PostToolUse
+
 Runs after tool completes.
 
 **Use for:**
+
 - Auto-format code
 - Run linters
 - Validate outputs
 - Log operations
 
 **JSON Output:**
+
 ```json
 {
   "decision": "block" | undefined,
@@ -143,15 +154,18 @@ Runs after tool completes.
 ```
 
 #### UserPromptSubmit
+
 Runs when user submits prompt.
 
 **Use for:**
+
 - Add context automatically
 - Validate prompts
 - Block sensitive prompts
 - Inject current time/date
 
 **JSON Output:**
+
 ```json
 {
   "decision": "block" | undefined,
@@ -164,14 +178,17 @@ Runs when user submits prompt.
 ```
 
 #### Stop / SubagentStop
+
 Runs when Claude/subagent finishes.
 
 **Use for:**
+
 - Verify tasks completed
 - Continue if work remains
 - Intelligent stoppage control
 
 **JSON Output:**
+
 ```json
 {
   "decision": "block" | undefined,
@@ -180,15 +197,18 @@ Runs when Claude/subagent finishes.
 ```
 
 #### SessionStart
+
 Runs when session starts.
 
 **Use for:**
+
 - Load environment variables
 - Set up development context
 - Install dependencies
 - Inject initial context
 
 **JSON Output:**
+
 ```json
 {
   "hookSpecificOutput": {
@@ -199,6 +219,7 @@ Runs when session starts.
 ```
 
 **Special:** Can persist environment variables:
+
 ```bash
 #!/bin/bash
 if [ -n "$CLAUDE_ENV_FILE" ]; then
@@ -207,9 +228,11 @@ fi
 ```
 
 #### SessionEnd
+
 Runs when session ends.
 
 **Use for:**
+
 - Cleanup tasks
 - Save session stats
 - Log session data
@@ -219,6 +242,7 @@ Runs when session ends.
 For bash command hooks, create a script:
 
 **Template:**
+
 ```bash
 #!/usr/bin/env bash
 
@@ -240,6 +264,7 @@ exit 0
 ```
 
 **Python Template:**
+
 ```python
 #!/usr/bin/env python3
 import json
@@ -275,6 +300,7 @@ sys.exit(0)
 Add hook configuration:
 
 **Basic Hook:**
+
 ```json
 {
   "hooks": {
@@ -294,6 +320,7 @@ Add hook configuration:
 ```
 
 **Multiple Hooks:**
+
 ```json
 {
   "hooks": {
@@ -330,6 +357,7 @@ Add hook configuration:
 ```
 
 **No Matcher (events without tools):**
+
 ```json
 {
   "hooks": {
@@ -352,6 +380,7 @@ Add hook configuration:
 Each event receives JSON on stdin:
 
 **Common fields:**
+
 ```json
 {
   "session_id": "abc123",
@@ -363,6 +392,7 @@ Each event receives JSON on stdin:
 ```
 
 **PreToolUse/PostToolUse:**
+
 ```json
 {
   "tool_name": "Write",
@@ -370,13 +400,14 @@ Each event receives JSON on stdin:
     "file_path": "/path/to/file.txt",
     "content": "file content"
   },
-  "tool_response": { /* PostToolUse only */
-    "success": true
+  "tool_response": {
+    /* PostToolUse only */ "success": true
   }
 }
 ```
 
 **UserPromptSubmit:**
+
 ```json
 {
   "prompt": "User's submitted message"
@@ -384,6 +415,7 @@ Each event receives JSON on stdin:
 ```
 
 **Stop/SubagentStop:**
+
 ```json
 {
   "stop_hook_active": false
@@ -409,6 +441,7 @@ Each event receives JSON on stdin:
 ### 8. Test the Hook
 
 **Test script directly:**
+
 ```bash
 # Create test input
 echo '{
@@ -424,6 +457,7 @@ echo $?
 ```
 
 **Test in Claude Code:**
+
 ```
 1. Add hook to settings.json
 2. Restart Claude Code
@@ -433,6 +467,7 @@ echo $?
 ```
 
 **Debug mode:**
+
 ```bash
 claude --debug
 # Shows hook execution details
@@ -466,6 +501,7 @@ Show the complete configuration:
 ### Example 1: Auto-Format Python Files
 
 **Hook script** (`.claude/hooks/format-python.sh`):
+
 ```bash
 #!/usr/bin/env bash
 INPUT=$(cat)
@@ -487,6 +523,7 @@ exit 0
 ```
 
 **Configuration:**
+
 ```json
 {
   "hooks": {
@@ -508,6 +545,7 @@ exit 0
 ### Example 2: Validate Bash Commands
 
 **Hook script** (`.claude/hooks/validate-bash.py`):
+
 ```python
 #!/usr/bin/env python3
 import json
@@ -542,6 +580,7 @@ sys.exit(0)  # Allow
 ```
 
 **Configuration:**
+
 ```json
 {
   "hooks": {
@@ -563,6 +602,7 @@ sys.exit(0)  # Allow
 ### Example 3: Add Timestamp to Prompts
 
 **Hook script** (`.claude/hooks/add-timestamp.sh`):
+
 ```bash
 #!/usr/bin/env bash
 
@@ -573,6 +613,7 @@ exit 0
 ```
 
 **Configuration:**
+
 ```json
 {
   "hooks": {
@@ -593,6 +634,7 @@ exit 0
 ### Example 4: Auto-Approve Documentation Reads
 
 **Hook script** (`.claude/hooks/auto-approve-docs.py`):
+
 ```python
 #!/usr/bin/env python3
 import json
@@ -622,6 +664,7 @@ sys.exit(0)
 ```
 
 **Configuration:**
+
 ```json
 {
   "hooks": {
@@ -643,6 +686,7 @@ sys.exit(0)
 ### Example 5: Prevent Sensitive File Access
 
 **Hook script** (`.claude/hooks/block-secrets.sh`):
+
 ```bash
 #!/usr/bin/env bash
 INPUT=$(cat)
@@ -661,6 +705,7 @@ exit 0
 ```
 
 **Configuration:**
+
 ```json
 {
   "hooks": {
@@ -682,6 +727,7 @@ exit 0
 ### Example 6: Intelligent Stop Hook (Prompt-based)
 
 **Configuration:**
+
 ```json
 {
   "hooks": {
@@ -703,6 +749,7 @@ exit 0
 ### Example 7: Session Setup Hook
 
 **Hook script** (`.claude/hooks/session-setup.sh`):
+
 ```bash
 #!/usr/bin/env bash
 
@@ -727,6 +774,7 @@ exit 0
 ```
 
 **Configuration:**
+
 ```json
 {
   "hooks": {
@@ -748,25 +796,31 @@ exit 0
 ## Matcher Patterns
 
 **Exact match:**
+
 ```json
 "matcher": "Write"
 ```
 
 **Multiple tools (regex):**
+
 ```json
 "matcher": "Write|Edit|NotebookEdit"
 ```
 
 **All tools:**
+
 ```json
 "matcher": "*"
 ```
+
 Or:
+
 ```json
 "matcher": ""
 ```
 
 **MCP tools:**
+
 ```json
 "matcher": "mcp__github__.*"
 "matcher": "mcp__.*__write.*"
@@ -775,18 +829,21 @@ Or:
 **Event-specific matchers:**
 
 Notification:
+
 ```json
 "matcher": "permission_prompt"
 "matcher": "idle_prompt"
 ```
 
 PreCompact:
+
 ```json
 "matcher": "manual"
 "matcher": "auto"
 ```
 
 SessionStart:
+
 ```json
 "matcher": "startup"
 "matcher": "resume"
@@ -805,6 +862,7 @@ Available in hook scripts:
 ## Best Practices
 
 ### DO:
+
 ✅ Keep hooks fast (<100ms recommended)
 ✅ Provide clear error messages
 ✅ Use appropriate exit codes
@@ -815,6 +873,7 @@ Available in hook scripts:
 ✅ Document what your hook does
 
 ### DON'T:
+
 ❌ Run slow operations (full test suites)
 ❌ Block legitimate operations unnecessarily
 ❌ Use hooks for everything (be selective)
@@ -828,12 +887,14 @@ Available in hook scripts:
 **⚠️ USE AT YOUR OWN RISK**
 
 Hooks execute arbitrary commands:
+
 - Can modify/delete any files
 - Can access sensitive data
 - Can cause data loss
 - Anthropic provides no warranty
 
 **Best practices:**
+
 - Validate and sanitize inputs
 - Quote all variables
 - Block path traversal (`..`)
@@ -846,6 +907,7 @@ Hooks execute arbitrary commands:
 ### Hook Not Running
 
 **Check:**
+
 1. Hook is in `settings.json` correctly
 2. Matcher pattern is correct (case-sensitive)
 3. Script has execute permissions: `chmod +x script.sh`
@@ -853,6 +915,7 @@ Hooks execute arbitrary commands:
 5. Restart Claude Code after config changes
 
 **Debug:**
+
 ```bash
 # Run with debug mode
 claude --debug
@@ -864,12 +927,14 @@ claude --debug
 ### Hook Errors
 
 **Check:**
+
 1. Script runs standalone: `echo '{}' | ./script.sh`
 2. Exit code is correct: `echo $?`
 3. JSON output is valid: `./script.sh | jq .`
 4. Timeout is sufficient (default: 60s)
 
 **View errors:**
+
 - Verbose mode: Ctrl+O
 - Debug mode: `claude --debug`
 - Check stderr output
@@ -877,6 +942,7 @@ claude --debug
 ### Permissions Issues
 
 **Check:**
+
 ```bash
 # Make script executable
 chmod +x .claude/hooks/script.sh
@@ -888,6 +954,7 @@ ls -la .claude/hooks/
 ### JSON Parse Errors
 
 **Validate JSON:**
+
 ```bash
 # Test JSON output
 echo '{}' | ./script.sh | jq .

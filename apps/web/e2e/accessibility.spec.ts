@@ -70,8 +70,7 @@ test.describe('Accessibility', () => {
       const styles = window.getComputedStyle(el);
       const hasOutline = styles.outline !== 'none' && styles.outlineWidth !== '0px';
       const hasBoxShadow = styles.boxShadow !== 'none';
-      const hasRingClass =
-        el.className.includes('ring') || el.className.includes('focus');
+      const hasRingClass = el.className.includes('ring') || el.className.includes('focus');
       return hasOutline || hasBoxShadow || hasRingClass;
     });
 

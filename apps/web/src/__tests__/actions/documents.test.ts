@@ -590,10 +590,10 @@ describe('Documents Server Actions', () => {
       const result = await deleteDocumentAction('550e8400-e29b-41d4-a716-446655440000');
 
       expect(result.success).toBe(true);
-      expect(mockQuery).toHaveBeenCalledWith(
-        expect.stringContaining('deleted_at = NOW()'),
-        ['550e8400-e29b-41d4-a716-446655440000', 'clinic-123']
-      );
+      expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining('deleted_at = NOW()'), [
+        '550e8400-e29b-41d4-a716-446655440000',
+        'clinic-123',
+      ]);
     });
 
     it('should return error when document not found', async () => {

@@ -1,7 +1,10 @@
 // @ts-nocheck
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { QuickSearchProvider, useQuickSearch } from '@/components/quick-search/quick-search-provider';
+import {
+  QuickSearchProvider,
+  useQuickSearch,
+} from '@/components/quick-search/quick-search-provider';
 
 function TestComponent() {
   const { open, setOpen, toggle } = useQuickSearch();

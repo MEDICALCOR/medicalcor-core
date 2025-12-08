@@ -1,6 +1,6 @@
 /**
  * XRAY Audit Engine - Report Generator
- * 
+ *
  * Generates formatted markdown reports from audit results.
  */
 
@@ -134,8 +134,22 @@ ${this.formatIssues(infrastructure.violations)}
 - **Queries Found:** ${report.cqrs.queries.length}
 - **Proper Separation:** ${report.cqrs.separation ? '✅ Yes' : '❌ No'}
 
-${report.cqrs.commands.length > 0 ? `\n### Commands\n${report.cqrs.commands.slice(0, 10).map((c) => `- ${c}`).join('\n')}` : ''}
-${report.cqrs.queries.length > 0 ? `\n### Queries\n${report.cqrs.queries.slice(0, 10).map((q) => `- ${q}`).join('\n')}` : ''}
+${
+  report.cqrs.commands.length > 0
+    ? `\n### Commands\n${report.cqrs.commands
+        .slice(0, 10)
+        .map((c) => `- ${c}`)
+        .join('\n')}`
+    : ''
+}
+${
+  report.cqrs.queries.length > 0
+    ? `\n### Queries\n${report.cqrs.queries
+        .slice(0, 10)
+        .map((q) => `- ${q}`)
+        .join('\n')}`
+    : ''
+}
 
 ## Actionable Fixes
 
@@ -200,7 +214,14 @@ ${report.security.authBoundary.length > 0 ? report.security.authBoundary.map((b)
 
 ## RLS (Row Level Security) Policies
 
-${report.security.rlsPolicies.length > 0 ? `Found ${report.security.rlsPolicies.length} RLS policies:\n${report.security.rlsPolicies.slice(0, 5).map((p) => `- ${p}`).join('\n')}` : '❌ No RLS policies found - critical for medical-grade security'}
+${
+  report.security.rlsPolicies.length > 0
+    ? `Found ${report.security.rlsPolicies.length} RLS policies:\n${report.security.rlsPolicies
+        .slice(0, 5)
+        .map((p) => `- ${p}`)
+        .join('\n')}`
+    : '❌ No RLS policies found - critical for medical-grade security'
+}
 
 ## PII Exposure Analysis
 
@@ -212,7 +233,14 @@ ${report.security.secretsFound.length > 0 ? `🚨 ${report.security.secretsFound
 
 ## Encryption at Rest
 
-${report.security.missingEncryption.length > 0 ? `⚠️ ${report.security.missingEncryption.length} columns may need encryption:\n${report.security.missingEncryption.slice(0, 5).map((m) => `- ${m}`).join('\n')}` : '✅ Sensitive columns appear to have encryption'}
+${
+  report.security.missingEncryption.length > 0
+    ? `⚠️ ${report.security.missingEncryption.length} columns may need encryption:\n${report.security.missingEncryption
+        .slice(0, 5)
+        .map((m) => `- ${m}`)
+        .join('\n')}`
+    : '✅ Sensitive columns appear to have encryption'
+}
 
 ## Top 5 Security Risks
 
@@ -267,7 +295,16 @@ ${this.formatActionableFixes(report.observability.issues)}`;
 **Total Events:** ${report.eventDriven.events.length}
 **Versioned Events:** ${report.eventDriven.events.filter((e) => e.versioned).length}
 
-${report.eventDriven.events.length > 0 ? `\n### Sample Events\n${report.eventDriven.events.slice(0, 10).map((e) => `- **${e.name}** (${e.filePath}) ${e.versioned ? '✅ versioned' : '⚠️ no version'}`).join('\n')}` : '⚠️ No event definitions found'}
+${
+  report.eventDriven.events.length > 0
+    ? `\n### Sample Events\n${report.eventDriven.events
+        .slice(0, 10)
+        .map(
+          (e) => `- **${e.name}** (${e.filePath}) ${e.versioned ? '✅ versioned' : '⚠️ no version'}`
+        )
+        .join('\n')}`
+    : '⚠️ No event definitions found'
+}
 
 ## Idempotency
 
@@ -436,9 +473,7 @@ ${report.deepAuditSuggestions.map((s, i) => `${i + 1}. ${s}`).join('\n')}
       { name: 'Observability', passed: report.scores.observabilityCompleteness >= 7 },
     ];
 
-    return checks
-      .map((c) => `- ${c.passed ? '✅' : '❌'} ${c.name}`)
-      .join('\n');
+    return checks.map((c) => `- ${c.passed ? '✅' : '❌'} ${c.name}`).join('\n');
   }
 
   private formatIssues(issues: any[]): string {

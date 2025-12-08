@@ -18,15 +18,17 @@ The most common TOON format for uniform arrays of objects.
 ## Simple Example
 
 **JSON (120 tokens):**
+
 ```json
 [
-  {"name": "Alice", "age": 30, "city": "NYC"},
-  {"name": "Bob", "age": 25, "city": "LA"},
-  {"name": "Carol", "age": 35, "city": "SF"}
+  { "name": "Alice", "age": 30, "city": "NYC" },
+  { "name": "Bob", "age": 25, "city": "LA" },
+  { "name": "Carol", "age": 35, "city": "SF" }
 ]
 ```
 
 **TOON (72 tokens, 40% savings):**
+
 ```
 [3]{name,age,city}:
   Alice,30,NYC
@@ -37,6 +39,7 @@ The most common TOON format for uniform arrays of objects.
 ## API Endpoints Example
 
 **JSON (240 tokens):**
+
 ```json
 [
   {
@@ -61,6 +64,7 @@ The most common TOON format for uniform arrays of objects.
 ```
 
 **TOON (144 tokens, 40% savings):**
+
 ```
 [3]{method,path,auth,rateLimit}:
   GET,/api/users,required,100/min
@@ -71,26 +75,27 @@ The most common TOON format for uniform arrays of objects.
 ## Transaction Logs Example
 
 **JSON (480 tokens):**
+
 ```json
 [
   {
     "id": "tx_001",
     "timestamp": "2025-01-15T10:30:00Z",
-    "amount": 150.50,
+    "amount": 150.5,
     "status": "completed",
     "user": "alice@example.com"
   },
   {
     "id": "tx_002",
     "timestamp": "2025-01-15T10:31:22Z",
-    "amount": 75.00,
+    "amount": 75.0,
     "status": "pending",
     "user": "bob@example.com"
   },
   {
     "id": "tx_003",
     "timestamp": "2025-01-15T10:32:45Z",
-    "amount": 200.00,
+    "amount": 200.0,
     "status": "completed",
     "user": "carol@example.com"
   }
@@ -98,6 +103,7 @@ The most common TOON format for uniform arrays of objects.
 ```
 
 **TOON (288 tokens, 40% savings):**
+
 ```
 [3]{id,timestamp,amount,status,user}:
   tx_001,2025-01-15T10:30:00Z,150.50,completed,alice@example.com
@@ -119,12 +125,14 @@ For readability with many fields, align values:
 ## When to Use Tabular Format
 
 ✅ **Use tabular when:**
+
 - Array has ≥5 items
 - Objects have ≥60% field uniformity
 - All fields are flat (not nested objects)
 - Data is record-like (logs, metrics, API docs)
 
 ❌ **Don't use tabular when:**
+
 - Array has <5 items (minimal savings)
 - Objects have <60% uniformity (field names repeat)
 - Objects have nested structures (use key folding instead)
@@ -141,6 +149,7 @@ For readability with many fields, align values:
 ```
 
 **Correct:**
+
 ```
 [2]{name,age}:
   Alice,30
@@ -156,6 +165,7 @@ For readability with many fields, align values:
 ```
 
 **Correct:**
+
 ```
 [2]{name,age}:
   Alice,30
@@ -171,6 +181,7 @@ For readability with many fields, align values:
 ```
 
 **Correct:**
+
 ```
 [2]{name,age,city}:
   Alice,30,NYC

@@ -166,7 +166,10 @@ export function instrumentFastify(
       'http.status_code': reply.statusCode,
       'http.response_time_ms': duration * 1000,
     }).catch((error: unknown) => {
-      logger.debug({ error }, 'Telemetry unavailable in Edge Runtime - response attributes not set');
+      logger.debug(
+        { error },
+        'Telemetry unavailable in Edge Runtime - response attributes not set'
+      );
     });
   });
 
@@ -180,7 +183,10 @@ export function instrumentFastify(
       'error.type': error.name,
       'error.message': error.message,
     }).catch((telemetryError: unknown) => {
-      logger.debug({ error: telemetryError }, 'Telemetry unavailable in Edge Runtime - error attributes not set');
+      logger.debug(
+        { error: telemetryError },
+        'Telemetry unavailable in Edge Runtime - error attributes not set'
+      );
     });
   });
 }

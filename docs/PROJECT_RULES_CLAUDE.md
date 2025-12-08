@@ -9,6 +9,7 @@ Rules and guidelines for AI-assisted development (Claude Code, GitHub Copilot, e
 **NEVER push directly to protected branches.**
 
 Protected branches:
+
 - `main`
 - `master`
 - `production`
@@ -61,11 +62,13 @@ git checkout -b feature/my-changes
 ### Starting a Session
 
 1. Check current branch:
+
    ```bash
    git branch --show-current
    ```
 
 2. If on main, create feature branch:
+
    ```bash
    git checkout -b feature/task-description
    ```
@@ -85,12 +88,14 @@ git checkout -b feature/my-changes
 ### Ending a Session
 
 1. Commit all changes:
+
    ```bash
    git add .
    git commit -m "type(scope): description"
    ```
 
 2. Push feature branch:
+
    ```bash
    git push -u origin feature-branch-name
    ```

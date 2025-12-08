@@ -57,9 +57,7 @@ describe('ConversationContextManager', () => {
       // Wait a bit
       const session2 = manager.getOrCreateSession('session-1');
 
-      expect(session2.lastActivityAt.getTime()).toBeGreaterThanOrEqual(
-        firstActivity.getTime()
-      );
+      expect(session2.lastActivityAt.getTime()).toBeGreaterThanOrEqual(firstActivity.getTime());
     });
 
     it('should track active session count', () => {
@@ -142,9 +140,7 @@ describe('ConversationContextManager', () => {
 
   describe('entity extraction', () => {
     it('should extract phone numbers', () => {
-      const entities = manager.extractEntities(
-        'My phone number is +40721234567'
-      );
+      const entities = manager.extractEntities('My phone number is +40721234567');
 
       expect(entities).toContainEqual(
         expect.objectContaining({
@@ -155,9 +151,7 @@ describe('ConversationContextManager', () => {
     });
 
     it('should extract email addresses', () => {
-      const entities = manager.extractEntities(
-        'Contact me at test@example.com'
-      );
+      const entities = manager.extractEntities('Contact me at test@example.com');
 
       expect(entities).toContainEqual(
         expect.objectContaining({
@@ -168,9 +162,7 @@ describe('ConversationContextManager', () => {
     });
 
     it('should extract dates', () => {
-      const entities = manager.extractEntities(
-        'I want to schedule for 2024-12-15'
-      );
+      const entities = manager.extractEntities('I want to schedule for 2024-12-15');
 
       expect(entities).toContainEqual(
         expect.objectContaining({
@@ -196,9 +188,7 @@ describe('ConversationContextManager', () => {
     });
 
     it('should extract service types', () => {
-      const entities = manager.extractEntities(
-        'I want information about all-on-4 implants'
-      );
+      const entities = manager.extractEntities('I want information about all-on-4 implants');
 
       expect(entities).toContainEqual(
         expect.objectContaining({
@@ -208,9 +198,7 @@ describe('ConversationContextManager', () => {
     });
 
     it('should extract amounts', () => {
-      const entities = manager.extractEntities(
-        'My budget is around 5000 euro'
-      );
+      const entities = manager.extractEntities('My budget is around 5000 euro');
 
       expect(entities).toContainEqual(
         expect.objectContaining({
@@ -404,10 +392,7 @@ describe('ConversationContextManager', () => {
     });
 
     it('should report all missing args when no session', () => {
-      const { args, missing } = manager.buildArgsFromContext('nonexistent', [
-        'phone',
-        'patientId',
-      ]);
+      const { args, missing } = manager.buildArgsFromContext('nonexistent', ['phone', 'patientId']);
 
       expect(args).toEqual({});
       expect(missing).toContain('phone');

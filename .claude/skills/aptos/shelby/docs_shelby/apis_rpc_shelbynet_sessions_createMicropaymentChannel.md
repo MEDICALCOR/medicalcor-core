@@ -64,8 +64,7 @@ Python
 Java
 
 C#
-    
-    
+
     curl -X POST "https://api.shelbynet.shelby.xyz/shelby/v1/sessions/micropaymentchannels"
 
 201

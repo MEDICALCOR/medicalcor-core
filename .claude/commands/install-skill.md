@@ -5,10 +5,12 @@ Install a Claude Code skill from a GitHub repository URL with guided setup and v
 **Usage:** `/install-skill <github-url> [--personal|--project]`
 
 **Options:**
+
 - `--personal` - Install to `~/.claude/skills/` (available in all projects)
 - `--project` - Install to `.claude/skills/` (project-specific, default)
 
 **Examples:**
+
 - `/install-skill https://github.com/user/repo/blob/main/skill.md`
 - `/install-skill https://raw.githubusercontent.com/user/repo/main/skill.md --personal`
 - `/install-skill https://github.com/user/skills/tree/main/api/stripe.md --project`
@@ -29,11 +31,13 @@ This command helps you safely install Claude Code skills from GitHub repositorie
 ### 1. Parse and Validate URL
 
 **Accept these GitHub URL formats:**
+
 - `https://github.com/user/repo/blob/branch/path/skill.md`
 - `https://raw.githubusercontent.com/user/repo/branch/path/skill.md`
 - `https://github.com/user/repo/tree/branch/path/skill.md`
 
 **Convert to raw URL:**
+
 ```
 github.com/user/repo/blob/main/skill.md
 ↓
@@ -41,6 +45,7 @@ raw.githubusercontent.com/user/repo/main/skill.md
 ```
 
 **Validate:**
+
 - ✅ Valid GitHub domain
 - ✅ Repository exists
 - ✅ File is `.md` format
@@ -53,11 +58,13 @@ If validation fails, show error and suggest corrections.
 Download the skill file from the raw GitHub URL.
 
 **Use WebFetch or curl to retrieve:**
+
 ```bash
 curl -sL <raw-github-url>
 ```
 
 **Check for errors:**
+
 - 404: File not found
 - 403: Access denied or rate limited
 - Invalid format: Not a markdown file
@@ -85,6 +92,7 @@ Keywords/Triggers:
 ```
 
 **Security Notice:**
+
 ```
 ⚠️  SECURITY REVIEW REQUIRED
 
@@ -106,15 +114,18 @@ Wait for user confirmation before proceeding.
 ### 4. Determine Installation Location
 
 **If user specified flag:**
+
 - `--personal` → Install to `~/.claude/skills/`
 - `--project` → Install to `.claude/skills/`
 
 **If no flag specified:**
+
 - Default to `.claude/skills/` (project-specific)
 - Show installation location
 - Ask user to confirm or change
 
 **Validate location:**
+
 ```bash
 # Check if directory exists
 ls ~/.claude/skills/ 2>/dev/null
@@ -128,17 +139,20 @@ mkdir -p .claude/skills/
 ### 5. Determine Filename
 
 **Extract skill title from content:**
+
 - Read first `# Heading` in markdown
 - Convert to kebab-case filename
 - Ensure `.md` extension
 
 **Examples:**
+
 - `# Stripe API` → `stripe-api.md`
 - `# Docker Compose Helper` → `docker-compose-helper.md`
 - `# SQL Query Optimizer` → `sql-query-optimizer.md`
 
 **Handle conflicts:**
 If file already exists:
+
 ```
 ⚠️  File already exists: {filename}
 
@@ -151,6 +165,7 @@ Options:
 ### 6. Install the Skill
 
 **Download and save:**
+
 ```bash
 # Using curl
 curl -o {install-path}/{filename} {raw-github-url}
@@ -160,6 +175,7 @@ ls -lh {install-path}/{filename}
 ```
 
 **Show progress:**
+
 ```
 Installing skill...
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -173,6 +189,7 @@ Saving... ✓
 ### 7. Verify Installation
 
 **Check installation:**
+
 ```bash
 # Confirm file exists and has content
 ls -lh {install-path}/{filename}
@@ -180,6 +197,7 @@ wc -l {install-path}/{filename}
 ```
 
 **Show success message:**
+
 ```
 ✅ Skill installed successfully!
 
@@ -221,11 +239,13 @@ Next Steps:
 ### Example 1: Install from GitHub URL
 
 **Command:**
+
 ```
 /install-skill https://github.com/anthropics/skills/blob/main/api/stripe.md
 ```
 
 **Output:**
+
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Skill Preview
@@ -258,11 +278,13 @@ The skill will auto-activate when you:
 ### Example 2: Install to Personal Directory
 
 **Command:**
+
 ```
 /install-skill https://raw.githubusercontent.com/user/repo/main/docker.md --personal
 ```
 
 **Output:**
+
 ```
 Installing to personal directory...
 This skill will be available in ALL your projects.
@@ -280,11 +302,13 @@ Next steps:
 ### Example 3: Handle Existing File
 
 **Command:**
+
 ```
 /install-skill https://github.com/user/repo/blob/main/sql.md
 ```
 
 **Output:**
+
 ```
 ⚠️  File already exists: .claude/skills/sql.md
 
@@ -307,6 +331,7 @@ Size: 14.3 KB (updated from 12.1 KB)
 ## Error Handling
 
 ### Invalid URL
+
 ```
 ❌ Error: Invalid GitHub URL
 
@@ -320,6 +345,7 @@ Tip: Get the URL from SkillsMP or directly from GitHub
 ```
 
 ### File Not Found (404)
+
 ```
 ❌ Error: Skill file not found
 
@@ -339,6 +365,7 @@ Try:
 ```
 
 ### Not a Markdown File
+
 ```
 ❌ Error: Invalid file format
 
@@ -349,6 +376,7 @@ Claude Code skills must be markdown files (.md)
 ```
 
 ### Permission Denied
+
 ```
 ❌ Error: Cannot write to {install-path}
 
@@ -384,6 +412,7 @@ done < skills-list.txt
 ### Update Existing Skills
 
 To update a skill to the latest version:
+
 ```
 /install-skill <original-url>
 # Choose [O] Overwrite when prompted

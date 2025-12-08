@@ -35,15 +35,8 @@ export { AuthEventRepository } from './auth-event-repository.js';
 export { LoginAttemptRepository, RATE_LIMIT_CONFIG } from './login-attempt-repository.js';
 
 // Services
-export {
-  AuthService,
-  PASSWORD_POLICY,
-  SESSION_CONFIG,
-} from './auth-service.js';
-export {
-  PasswordResetService,
-  PASSWORD_RESET_CONFIG,
-} from './password-reset-service.js';
+export { AuthService, PASSWORD_POLICY, SESSION_CONFIG } from './auth-service.js';
+export { PasswordResetService, PASSWORD_RESET_CONFIG } from './password-reset-service.js';
 export {
   MfaService,
   MFA_CONFIG,

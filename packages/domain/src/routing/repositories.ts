@@ -12,7 +12,12 @@ import type {
   TaskSkillRequirements,
   ProficiencyLevel,
 } from '@medicalcor/types';
-import type { AgentRepository, RoutingRuleRepository, RoutingQueue, QueuedTaskInfo } from './skill-routing-service.js';
+import type {
+  AgentRepository,
+  RoutingRuleRepository,
+  RoutingQueue,
+  QueuedTaskInfo,
+} from './skill-routing-service.js';
 import { PROFICIENCY_WEIGHTS } from '@medicalcor/types';
 
 // =============================================================================

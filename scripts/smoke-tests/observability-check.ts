@@ -154,12 +154,7 @@ async function runTests(): Promise<void> {
 
   // Test 3: MedicalCor Custom Metrics
   console.log('\n--- Test 3: MedicalCor Custom Metrics ---');
-  const expectedMetrics = [
-    'medicalcor_',
-    'http_request',
-    'process_',
-    'nodejs_',
-  ];
+  const expectedMetrics = ['medicalcor_', 'http_request', 'process_', 'nodejs_'];
 
   const foundMetrics: string[] = [];
   const missingMetrics: string[] = [];
@@ -207,7 +202,9 @@ async function runTests(): Promise<void> {
   console.log('\n--- Test 5: Traffic Generation & Metrics Update ---');
   try {
     // Make several requests to generate metrics
-    const requests = Array(5).fill(null).map(() => fetch(`${baseUrl}/health`));
+    const requests = Array(5)
+      .fill(null)
+      .map(() => fetch(`${baseUrl}/health`));
     await Promise.all(requests);
 
     // Wait a moment for metrics to update
@@ -219,7 +216,8 @@ async function runTests(): Promise<void> {
 
     // Check for HTTP request metrics
     const hasRequestMetrics =
-      updatedMetricsText.includes('http_request') || updatedMetricsText.includes('http_requests_total');
+      updatedMetricsText.includes('http_request') ||
+      updatedMetricsText.includes('http_requests_total');
 
     logResult({
       name: 'Traffic Metrics',
@@ -247,7 +245,9 @@ async function runTests(): Promise<void> {
       passed: jsonMetricsResponse.ok && typeof jsonMetrics === 'object',
       message: jsonMetricsResponse.ok ? 'JSON metrics endpoint available' : 'Failed to fetch',
       details: {
-        metricCount: Array.isArray(jsonMetrics) ? jsonMetrics.length : Object.keys(jsonMetrics).length,
+        metricCount: Array.isArray(jsonMetrics)
+          ? jsonMetrics.length
+          : Object.keys(jsonMetrics).length,
       },
     });
   } catch (error) {
@@ -292,7 +292,7 @@ async function runTests(): Promise<void> {
   console.log('\n--- Test 8: Grafana Connectivity (Optional) ---');
   try {
     const grafanaResponse = await fetch(`${grafanaUrl}/api/health`, {
-      headers: { 'Accept': 'application/json' },
+      headers: { Accept: 'application/json' },
     });
 
     if (grafanaResponse.ok) {
@@ -364,15 +364,19 @@ async function runTests(): Promise<void> {
     criticalFailures.forEach((r) => {
       console.log(`  - ${r.name}: ${r.message}`);
     });
-    console.log('\n\u274c Observability smoke test FAILED - OpenTelemetry may not be sending data\n');
+    console.log(
+      '\n\u274c Observability smoke test FAILED - OpenTelemetry may not be sending data\n'
+    );
     process.exit(1);
   }
 
   if (failed > 0) {
     console.log('\nNon-critical failures:');
-    results.filter((r) => !r.passed).forEach((r) => {
-      console.log(`  - ${r.name}: ${r.message}`);
-    });
+    results
+      .filter((r) => !r.passed)
+      .forEach((r) => {
+        console.log(`  - ${r.name}: ${r.message}`);
+      });
     console.log('\n\u26a0\ufe0f Observability smoke test passed with warnings\n');
   } else {
     console.log('\n\u2705 All observability tests passed!\n');

@@ -445,40 +445,51 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
       },
     },
     async (_request, reply) => {
-    // Run all health checks in parallel
-    const [databaseCheck, redisCheck, crmCheck] = await Promise.all([
-      checkDatabase(),
-      checkRedis(),
-      checkCRM(),
-    ]);
-    const triggerCheck = checkTrigger();
+      // Run all health checks in parallel
+      const [databaseCheck, redisCheck, crmCheck] = await Promise.all([
+        checkDatabase(),
+        checkRedis(),
+        checkCRM(),
+      ]);
+      const triggerCheck = checkTrigger();
 
-    const checks = {
-      database: databaseCheck,
-      redis: redisCheck,
-      trigger: triggerCheck,
-      crm: crmCheck,
-    };
+      const checks = {
+        database: databaseCheck,
+        redis: redisCheck,
+        trigger: triggerCheck,
+        crm: crmCheck,
+      };
 
-    // Determine overall health status
-    const criticalServicesHealthy = databaseCheck.status === 'ok';
-    const optionalServicesHealthy = redisCheck.status === 'ok' && triggerCheck.status === 'ok';
+      // Determine overall health status
+      const criticalServicesHealthy = databaseCheck.status === 'ok';
+      const optionalServicesHealthy = redisCheck.status === 'ok' && triggerCheck.status === 'ok';
 
-    // Get circuit breaker status
-    const circuitBreakers = getCircuitBreakerStatus();
-    const hasOpenCircuits = circuitBreakers.some((cb) => cb.state === 'OPEN');
+      // Get circuit breaker status
+      const circuitBreakers = getCircuitBreakerStatus();
+      const hasOpenCircuits = circuitBreakers.some((cb) => cb.state === 'OPEN');
 
-    // Determine overall status
-    let status: 'ok' | 'degraded' | 'unhealthy' = 'ok';
-    if (!criticalServicesHealthy) {
-      status = 'unhealthy';
-    } else if (!optionalServicesHealthy || hasOpenCircuits) {
-      status = 'degraded';
-    }
+      // Determine overall status
+      let status: 'ok' | 'degraded' | 'unhealthy' = 'ok';
+      if (!criticalServicesHealthy) {
+        status = 'unhealthy';
+      } else if (!optionalServicesHealthy || hasOpenCircuits) {
+        status = 'degraded';
+      }
 
-    // Set response code based on status
-    if (status === 'unhealthy') {
-      return reply.status(503).send({
+      // Set response code based on status
+      if (status === 'unhealthy') {
+        return reply.status(503).send({
+          status,
+          timestamp: new Date().toISOString(),
+          version: process.env.npm_package_version ?? '0.1.0',
+          uptime: process.uptime(),
+          checks,
+          circuitBreakers,
+          memory: getMemoryStats(),
+        });
+      }
+
+      return {
         status,
         timestamp: new Date().toISOString(),
         version: process.env.npm_package_version ?? '0.1.0',
@@ -486,19 +497,9 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
         checks,
         circuitBreakers,
         memory: getMemoryStats(),
-      });
+      };
     }
-
-    return {
-      status,
-      timestamp: new Date().toISOString(),
-      version: process.env.npm_package_version ?? '0.1.0',
-      uptime: process.uptime(),
-      checks,
-      circuitBreakers,
-      memory: getMemoryStats(),
-    };
-  });
+  );
 
   /**
    * GET /health/deep
@@ -520,84 +521,95 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
       },
     },
     async (_request, reply) => {
-    // Run all health checks in parallel
-    const [databaseCheck, redisCheck, crmCheck] = await Promise.all([
-      checkDatabase(),
-      checkRedis(),
-      checkCRM(),
-    ]);
-    const triggerCheck = checkTrigger();
+      // Run all health checks in parallel
+      const [databaseCheck, redisCheck, crmCheck] = await Promise.all([
+        checkDatabase(),
+        checkRedis(),
+        checkCRM(),
+      ]);
+      const triggerCheck = checkTrigger();
 
-    // Build dependency list - conditionally add optional properties for exactOptionalPropertyTypes
-    const postgresqlDep: DependencyHealth = {
-      name: 'postgresql',
-      status: databaseCheck.status === 'ok' ? 'healthy' : 'unhealthy',
-      critical: true,
-    };
-    if (databaseCheck.latencyMs !== undefined) postgresqlDep.latencyMs = databaseCheck.latencyMs;
-    if (databaseCheck.message) postgresqlDep.message = databaseCheck.message;
+      // Build dependency list - conditionally add optional properties for exactOptionalPropertyTypes
+      const postgresqlDep: DependencyHealth = {
+        name: 'postgresql',
+        status: databaseCheck.status === 'ok' ? 'healthy' : 'unhealthy',
+        critical: true,
+      };
+      if (databaseCheck.latencyMs !== undefined) postgresqlDep.latencyMs = databaseCheck.latencyMs;
+      if (databaseCheck.message) postgresqlDep.message = databaseCheck.message;
 
-    const redisDep: DependencyHealth = {
-      name: 'redis',
-      status:
-        redisCheck.status === 'ok'
-          ? 'healthy'
-          : redisCheck.message?.includes('not configured')
-            ? 'not_configured'
-            : 'unhealthy',
-      critical: false,
-    };
-    if (redisCheck.latencyMs !== undefined) redisDep.latencyMs = redisCheck.latencyMs;
-    if (redisCheck.message) redisDep.message = redisCheck.message;
-
-    const triggerDep: DependencyHealth = {
-      name: 'trigger.dev',
-      status:
-        triggerCheck.status === 'ok'
-          ? triggerCheck.message === 'configured'
+      const redisDep: DependencyHealth = {
+        name: 'redis',
+        status:
+          redisCheck.status === 'ok'
             ? 'healthy'
-            : 'not_configured'
-          : 'unhealthy',
-      critical: false,
-    };
-    if (triggerCheck.message) triggerDep.message = triggerCheck.message;
+            : redisCheck.message?.includes('not configured')
+              ? 'not_configured'
+              : 'unhealthy',
+        critical: false,
+      };
+      if (redisCheck.latencyMs !== undefined) redisDep.latencyMs = redisCheck.latencyMs;
+      if (redisCheck.message) redisDep.message = redisCheck.message;
 
-    const crmDep: DependencyHealth = {
-      name: 'crm',
-      status:
-        crmCheck.status === 'ok'
-          ? 'healthy'
-          : crmCheck.status === 'degraded'
-            ? 'degraded'
+      const triggerDep: DependencyHealth = {
+        name: 'trigger.dev',
+        status:
+          triggerCheck.status === 'ok'
+            ? triggerCheck.message === 'configured'
+              ? 'healthy'
+              : 'not_configured'
             : 'unhealthy',
-      critical: false, // CRM is optional for API to function
-    };
-    if (crmCheck.latencyMs !== undefined) crmDep.latencyMs = crmCheck.latencyMs;
-    if (crmCheck.message) crmDep.message = crmCheck.message;
+        critical: false,
+      };
+      if (triggerCheck.message) triggerDep.message = triggerCheck.message;
 
-    const dependencies: DependencyHealth[] = [postgresqlDep, redisDep, triggerDep, crmDep];
+      const crmDep: DependencyHealth = {
+        name: 'crm',
+        status:
+          crmCheck.status === 'ok'
+            ? 'healthy'
+            : crmCheck.status === 'degraded'
+              ? 'degraded'
+              : 'unhealthy',
+        critical: false, // CRM is optional for API to function
+      };
+      if (crmCheck.latencyMs !== undefined) crmDep.latencyMs = crmCheck.latencyMs;
+      if (crmCheck.message) crmDep.message = crmCheck.message;
 
-    // Check circuit breakers as pseudo-dependencies
-    const circuitBreakers = getCircuitBreakerStatus();
-    for (const cb of circuitBreakers) {
-      if (cb.state === 'OPEN') {
-        dependencies.push({
-          name: `circuit:${cb.name}`,
-          status: 'unhealthy',
-          message: `Circuit open after ${cb.failures} failures`,
-          critical: cb.name === 'stripe', // Stripe is critical for payments
+      const dependencies: DependencyHealth[] = [postgresqlDep, redisDep, triggerDep, crmDep];
+
+      // Check circuit breakers as pseudo-dependencies
+      const circuitBreakers = getCircuitBreakerStatus();
+      for (const cb of circuitBreakers) {
+        if (cb.state === 'OPEN') {
+          dependencies.push({
+            name: `circuit:${cb.name}`,
+            status: 'unhealthy',
+            message: `Circuit open after ${cb.failures} failures`,
+            critical: cb.name === 'stripe', // Stripe is critical for payments
+          });
+        }
+      }
+
+      // Calculate overall health
+      const criticalUnhealthy = dependencies.some((d) => d.critical && d.status === 'unhealthy');
+      const anyUnhealthy = dependencies.some((d) => d.status === 'unhealthy');
+
+      const status = criticalUnhealthy ? 'unhealthy' : anyUnhealthy ? 'degraded' : 'ok';
+
+      if (status === 'unhealthy') {
+        return reply.status(503).send({
+          status,
+          timestamp: new Date().toISOString(),
+          version: process.env.npm_package_version ?? '0.1.0',
+          uptime: process.uptime(),
+          dependencies,
+          circuitBreakers,
+          memory: getMemoryStats(),
         });
       }
-    }
 
-    // Calculate overall health
-    const criticalUnhealthy = dependencies.some((d) => d.critical && d.status === 'unhealthy');
-    const anyUnhealthy = dependencies.some((d) => d.status === 'unhealthy');
-
-    const status = criticalUnhealthy ? 'unhealthy' : anyUnhealthy ? 'degraded' : 'ok';
-
-    if (status === 'unhealthy') {
-      return reply.status(503).send({
+      return {
         status,
         timestamp: new Date().toISOString(),
         version: process.env.npm_package_version ?? '0.1.0',
@@ -605,19 +617,9 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
         dependencies,
         circuitBreakers,
         memory: getMemoryStats(),
-      });
+      };
     }
-
-    return {
-      status,
-      timestamp: new Date().toISOString(),
-      version: process.env.npm_package_version ?? '0.1.0',
-      uptime: process.uptime(),
-      dependencies,
-      circuitBreakers,
-      memory: getMemoryStats(),
-    };
-  });
+  );
 
   /**
    * GET /ready
@@ -640,40 +642,41 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
       },
     },
     async (_request, reply) => {
-    // Run health checks in parallel
-    const [databaseCheck, redisCheck] = await Promise.all([checkDatabase(), checkRedis()]);
-    const triggerCheck = checkTrigger();
+      // Run health checks in parallel
+      const [databaseCheck, redisCheck] = await Promise.all([checkDatabase(), checkRedis()]);
+      const triggerCheck = checkTrigger();
 
-    const checks = {
-      database: databaseCheck,
-      redis: redisCheck,
-      trigger: triggerCheck,
-    };
+      const checks = {
+        database: databaseCheck,
+        redis: redisCheck,
+        trigger: triggerCheck,
+      };
 
-    // Service is healthy if all required checks pass
-    // Redis and Trigger are optional (can run degraded without them)
-    const isHealthy = databaseCheck.status === 'ok';
-    const isDegraded =
-      isHealthy && (redisCheck.status === 'error' || triggerCheck.status === 'error');
+      // Service is healthy if all required checks pass
+      // Redis and Trigger are optional (can run degraded without them)
+      const isHealthy = databaseCheck.status === 'ok';
+      const isDegraded =
+        isHealthy && (redisCheck.status === 'error' || triggerCheck.status === 'error');
 
-    if (!isHealthy) {
-      return reply.status(503).send({
-        status: 'unhealthy',
+      if (!isHealthy) {
+        return reply.status(503).send({
+          status: 'unhealthy',
+          timestamp: new Date().toISOString(),
+          version: process.env.npm_package_version ?? '0.1.0',
+          uptime: process.uptime(),
+          checks,
+        });
+      }
+
+      return {
+        status: isDegraded ? 'degraded' : 'ready',
         timestamp: new Date().toISOString(),
         version: process.env.npm_package_version ?? '0.1.0',
         uptime: process.uptime(),
         checks,
-      });
+      };
     }
-
-    return {
-      status: isDegraded ? 'degraded' : 'ready',
-      timestamp: new Date().toISOString(),
-      version: process.env.npm_package_version ?? '0.1.0',
-      uptime: process.uptime(),
-      checks,
-    };
-  });
+  );
 
   /**
    * GET /live
@@ -757,47 +760,48 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
       },
     },
     async (_request, reply) => {
-    try {
-      const crmProvider = getCRMProvider();
-      const result = await crmHealthService.check(crmProvider);
+      try {
+        const crmProvider = getCRMProvider();
+        const result = await crmHealthService.check(crmProvider);
 
-      const response = {
-        status: result.status,
-        timestamp: result.timestamp.toISOString(),
-        provider: result.provider,
-        isMock: isMockCRMProvider(),
-        latencyMs: result.latencyMs,
-        message: result.message,
-        details: {
-          configured: result.details.configured,
-          apiConnected: result.details.apiConnected,
-          authenticated: result.details.authenticated,
-          apiVersion: result.details.apiVersion,
-          rateLimit: result.details.rateLimit,
-          lastSuccessfulCall: result.details.lastSuccessfulCall?.toISOString(),
-          error: result.details.error,
-        },
-        consecutiveFailures: crmHealthService.getConsecutiveFailures(),
-      };
+        const response = {
+          status: result.status,
+          timestamp: result.timestamp.toISOString(),
+          provider: result.provider,
+          isMock: isMockCRMProvider(),
+          latencyMs: result.latencyMs,
+          message: result.message,
+          details: {
+            configured: result.details.configured,
+            apiConnected: result.details.apiConnected,
+            authenticated: result.details.authenticated,
+            apiVersion: result.details.apiVersion,
+            rateLimit: result.details.rateLimit,
+            lastSuccessfulCall: result.details.lastSuccessfulCall?.toISOString(),
+            error: result.details.error,
+          },
+          consecutiveFailures: crmHealthService.getConsecutiveFailures(),
+        };
 
-      if (result.status === 'unhealthy') {
-        return await reply.status(503).send(response);
+        if (result.status === 'unhealthy') {
+          return await reply.status(503).send(response);
+        }
+
+        return response;
+      } catch (error) {
+        return await reply.status(503).send({
+          status: 'unhealthy',
+          timestamp: new Date().toISOString(),
+          provider: 'unknown',
+          isMock: false,
+          error: {
+            code: 'CRM_CHECK_FAILED',
+            message: error instanceof Error ? error.message : 'Unknown error',
+          },
+        });
       }
-
-      return response;
-    } catch (error) {
-      return await reply.status(503).send({
-        status: 'unhealthy',
-        timestamp: new Date().toISOString(),
-        provider: 'unknown',
-        isMock: false,
-        error: {
-          code: 'CRM_CHECK_FAILED',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        },
-      });
     }
-  });
+  );
 
   /**
    * GET /health/circuit-breakers
@@ -840,29 +844,30 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
       },
     },
     async () => {
-    const stats = globalCircuitBreakerRegistry.getAllStats();
-    const openCircuits = globalCircuitBreakerRegistry.getOpenCircuits();
+      const stats = globalCircuitBreakerRegistry.getAllStats();
+      const openCircuits = globalCircuitBreakerRegistry.getOpenCircuits();
 
-    return {
-      timestamp: new Date().toISOString(),
-      openCircuits,
-      services: stats.map((stat) => ({
-        name: stat.name,
-        state: stat.state,
-        failures: stat.failures,
-        successes: stat.successes,
-        totalRequests: stat.totalRequests,
-        totalFailures: stat.totalFailures,
-        totalSuccesses: stat.totalSuccesses,
-        successRate:
-          stat.totalRequests > 0
-            ? Math.round((stat.totalSuccesses / stat.totalRequests) * 1000) / 10
-            : 100,
-        lastFailure: stat.lastFailureTime ? new Date(stat.lastFailureTime).toISOString() : null,
-        lastSuccess: stat.lastSuccessTime ? new Date(stat.lastSuccessTime).toISOString() : null,
-      })),
-    };
-  });
+      return {
+        timestamp: new Date().toISOString(),
+        openCircuits,
+        services: stats.map((stat) => ({
+          name: stat.name,
+          state: stat.state,
+          failures: stat.failures,
+          successes: stat.successes,
+          totalRequests: stat.totalRequests,
+          totalFailures: stat.totalFailures,
+          totalSuccesses: stat.totalSuccesses,
+          successRate:
+            stat.totalRequests > 0
+              ? Math.round((stat.totalSuccesses / stat.totalRequests) * 1000) / 10
+              : 100,
+          lastFailure: stat.lastFailureTime ? new Date(stat.lastFailureTime).toISOString() : null,
+          lastSuccess: stat.lastSuccessTime ? new Date(stat.lastSuccessTime).toISOString() : null,
+        })),
+      };
+    }
+  );
 
   /**
    * POST /health/circuit-breakers/:service/reset
@@ -876,8 +881,7 @@ export const healthRoutes: FastifyPluginAsync = (fastify) => {
     '/health/circuit-breakers/:service/reset',
     {
       schema: {
-        description:
-          'Manually reset a circuit breaker. Requires API key authentication.',
+        description: 'Manually reset a circuit breaker. Requires API key authentication.',
         tags: ['Health'],
         security: [{ ApiKeyAuth: [] }],
         params: {

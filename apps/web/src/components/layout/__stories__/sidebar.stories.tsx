@@ -90,11 +90,7 @@ function SidebarDemo({ collapsed: initialCollapsed = false, activePath = '/' }: 
             className="w-full justify-center"
             onClick={() => setCollapsed(!collapsed)}
           >
-            {collapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </Button>
         </div>
       </div>
@@ -116,7 +112,16 @@ const meta = {
     },
     activePath: {
       control: 'select',
-      options: ['/', '/triage', '/patients', '/calendar', '/messages', '/analytics', '/workflows', '/settings'],
+      options: [
+        '/',
+        '/triage',
+        '/patients',
+        '/calendar',
+        '/messages',
+        '/analytics',
+        '/workflows',
+        '/settings',
+      ],
       description: 'The currently active path',
     },
   },
@@ -194,10 +199,7 @@ export const NavigationItems: Story = {
       <h3 className="text-lg font-semibold">Navigation Items</h3>
       <div className="grid grid-cols-2 gap-4 max-w-lg">
         {navigation.map((item) => (
-          <div
-            key={item.name}
-            className="flex items-center gap-3 p-3 border rounded-lg"
-          >
+          <div key={item.name} className="flex items-center gap-3 p-3 border rounded-lg">
             <item.icon className="h-5 w-5 text-muted-foreground" />
             <span className="text-sm font-medium">{item.name}</span>
           </div>

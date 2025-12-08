@@ -339,10 +339,7 @@ export function formatCurrencyForReminder(
 /**
  * Format date for reminder messages
  */
-export function formatDateForReminder(
-  date: Date,
-  language: 'ro' | 'en' | 'de' = 'ro'
-): string {
+export function formatDateForReminder(date: Date, language: 'ro' | 'en' | 'de' = 'ro'): string {
   const locales: Record<string, string> = {
     ro: 'ro-RO',
     en: 'en-US',

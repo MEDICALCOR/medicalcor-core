@@ -518,14 +518,20 @@ export class PostgresSupervisorStateRepository implements ISupervisorStateReposi
 
   private rowToMonitoredCall(row: Record<string, unknown>): MonitoredCall {
     const transcript = row.recent_transcript;
-    const parsedTranscript = typeof transcript === 'string'
-      ? JSON.parse(transcript)
-      : transcript ?? [];
+    const parsedTranscript =
+      typeof transcript === 'string' ? JSON.parse(transcript) : (transcript ?? []);
 
     // Get flags and ensure they match the expected enum values
     const rawFlags = (row.flags as string[]) ?? [];
     const validFlags = rawFlags.filter((f): f is MonitoredCall['flags'][number] =>
-      ['escalation-requested', 'high-value-lead', 'complaint', 'long-hold', 'silence-detected', 'ai-handoff-needed'].includes(f)
+      [
+        'escalation-requested',
+        'high-value-lead',
+        'complaint',
+        'long-hold',
+        'silence-detected',
+        'ai-handoff-needed',
+      ].includes(f)
     );
 
     return {

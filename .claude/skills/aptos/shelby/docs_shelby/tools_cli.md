@@ -52,8 +52,7 @@ pnpm
 yarn
 
 bun
-    
-    
+
     npm i -g @shelby-protocol/cli
 
 ## Quick Start
@@ -61,20 +60,17 @@ bun
 ### Initialize Shelby
 
 Start off by initializing the CLI with the `shelby init` command. This will create a shelby cli configuration file at `~/.shelby/config.yaml`.
-    
-    
+
     shelby init
 
 **Note** : The CLI will ask you to provide an API key. While optional, this step is highly recommended to avoid ratelimits. Learn more about getting an API key [here](/sdks/typescript/acquire-api-keys).
 
 If you accept the defaults, your config file (`~/.shelby/config.yaml`) will contain the following:
-    
-    
+
     cat ~/.shelby/config.yaml
 
 ~/.shelby/config.yaml
-    
-    
+
     contexts:
       local:
         aptos_network:
@@ -106,13 +102,11 @@ If you accept the defaults, your config file (`~/.shelby/config.yaml`) will cont
 ### List Contexts (Optional)
 
 Ensure that the context was created successfully by listing the available contexts (list of networks). The `(default)` network is the one that is currently selected.
-    
-    
+
     shelby context list
 
 Output
-    
-    
+
     Aptos Configurations:
     ┌─────────┬─────────┬───────────────────────┬──────────────────────┬──────────────────────┬────────┐
     │ Name    │ Network │ Fullnode              │ Indexer              │ Faucet               │ API    │
@@ -125,7 +119,7 @@ Output
     │ et (def │ et      │ .shelby.xyz/v1        │ t.shelby.xyz/v1/grap │ ynet.shelby.xyz      │        │
     │ ault)   │         │                       │ hql                  │                      │        │
     └─────────┴─────────┴───────────────────────┴──────────────────────┴──────────────────────┴────────┘
-    
+
     Shelby Configurations:
     ┌───────────┬───────────────────────────────┬──────────────────────────────┬───────────┬───────────┐
     │ Name      │ RPC                           │ Indexer                      │ RPC API   │ Indexer   │
@@ -140,13 +134,11 @@ Output
 ### List Accounts (optional)
 
 To retrieve the list of accounts, you can use the `shelby account list` command. The `(default)` account is the one that is currently selected.
-    
-    
+
     shelby account list
 
 Output
-    
-    
+
     ┌──────────────┬────────────────────────────────────────────────┬──────────────────┐
     │ Name         │ Address                                        │ Private Key      │
     ├──────────────┼────────────────────────────────────────────────┼──────────────────┤
@@ -160,10 +152,8 @@ You will use the value in the `Address` column as the recipient address for fund
 
 To upload and download files to Shelby, you'll need both
 
-  1. **Aptos tokens** (for gas fees) and
-  2. **ShelbyUSD tokens** (for Shelby operations like upload)
-
-
+1. **Aptos tokens** (for gas fees) and
+2. **ShelbyUSD tokens** (for Shelby operations like upload)
 
 #### Aptos Tokens
 
@@ -176,18 +166,15 @@ Enter the address of the account you want to fund with APT tokens
 Fund
 
 The command below will output the faucet page URL with your active account pre-populated
-    
-    
+
     shelby faucet --no-open # remove the --no-open flag to automatically open in browser
 
 Make sure the aptos cli is aware of your account and configured. The init command will also print out a command you can run to configure the profile, something like:
-    
-    
+
     aptos init --profile shelby-alice --assume-yes --private-key ed25519-priv-0xa... --network custom --rest-url https://api.shelbynet.aptoslabs.com --faucet-url https://faucet.shelbynet.shelby.xyz/
 
 Aptos tokens are used to pay for gas fees. To fund your account with Aptos tokens, you can use `aptos` CLI.
-    
-    
+
     aptos account fund-with-faucet --profile shelby-alice --amount 1000000000000000000
 
 #### ShelbyUSD Tokens
@@ -197,30 +184,27 @@ FaucetShelby CLI
 ### Faucet
 
 The command below will output the faucet page URL with your active account pre-populated
-    
-    
+
     shelby faucet --no-open # remove the --no-open flag to automatically open in browser
 
 ### Verify Account Balance
-    
-    
+
     shelby account balance
 
 Output
-    
-    
+
     👤  Account Information
     ────────────────────────────────────────────
     🏷️  Alias:        alice
     🌐  Context:      shelbynet
-    
+
     🔑  Address:      <ADDRESS>
     🔗  Aptos Explorer:  https://explorer.aptoslabs.com/account/<ADDRESS>?network=shelbynet
     🗂️  Shelby Explorer: https://explorer.shelby.xyz/shelbynet/account/<ADDRESS>
     ────────────────────────────────────────────
-    
+
     💰  Balance:
-    
+
     ┌─────────┬───────────────────────────────────┬─────────────────────┬───────────────────┐
     │ Token   │ Asset                             │ Balance             │ Raw Units         │
     ├─────────┼───────────────────────────────────┼─────────────────────┼───────────────────┤
@@ -231,50 +215,46 @@ Output
     └─────────┴───────────────────────────────────┴─────────────────────┴───────────────────┘
 
 ### Upload a file
-    
-    
+
     # Uploads "filename.txt" to Shelby under a custom path or name (files/filename.txt), expiring tomorrow (auto-confirms payment)
     # Expiration date/time (required). Examples: "tomorrow", "in 2 days", "next Friday", "2025-12-31", UNIX timestamp
     shelby upload /Users/User/.../filename.txt files/filename.txt -e tomorrow --assume-yes
 
 Output
-    
-    
+
     🚀  Upload Summary
     ────────────────────────────────────────────
     📦  File:        /Users/User/.../filename.txt
     📁  Blob Name:   files/filename.txt
-    
+
     🧮  Filelist created (1 entry)
     ⏱️  Took: 0.00013s
     ⚙️  Flag: --assume-yes (auto-confirmed)
-    
+
     🕒  Expires:  Oct 11, 2025, 4:26:56 PM
     ✔ Upload complete — took 1.53s
-    
+
     🌐  Aptos Explorer:
        https://explorer.aptoslabs.com/txn/<TXN_HASH>?network=shelbynet
-    
+
     🗂️  Shelby Explorer:
        https://explorer.shelby.xyz/shelbynet/account/<ACCOUNT_ADDRESS>
-    
+
     ────────────────────────────────────────────
     ✨  Done!
 
 ### Verify Upload
 
 You can verify the upload by clicking on the Shelby Explorer link or by running the command below
-    
-    
+
     shelby account blobs
 
 Output
-    
-    
+
     🔍  Retrieving blobs for alice
     👤  Address: <ACCOUNT_ADDRESS>
     🗂️  Shelby Explorer: https://explorer.shelby.xyz/shelbynet/account/<ACCOUNT_ADDRESS>
-    
+
     ✅  Retrieved 2 blobs
     ────────────────────────────────────────────
     📦  Stored Blobs
@@ -286,11 +266,10 @@ Output
     ✨  Done!
 
 ### Download the file
-    
-    
+
     shelby download files/filename.txt /Users/User/Desktop/filename.txt
 
-* * *
+---
 
 ## Troubleshooting
 

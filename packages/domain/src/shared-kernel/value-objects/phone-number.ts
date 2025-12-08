@@ -120,10 +120,7 @@ export class PhoneNumber {
    * @param defaultRegion - Default region for national numbers
    * @returns Parse result
    */
-  public static parse(
-    input: string,
-    defaultRegion: PhoneRegion = 'RO'
-  ): PhoneNumberParseResult {
+  public static parse(input: string, defaultRegion: PhoneRegion = 'RO'): PhoneNumberParseResult {
     if (!input || typeof input !== 'string') {
       return { success: false, error: 'Phone number is required' };
     }
@@ -179,10 +176,7 @@ export class PhoneNumber {
   /**
    * Parse national format number
    */
-  private static parseNational(
-    national: string,
-    region: PhoneRegion
-  ): PhoneNumberParseResult {
+  private static parseNational(national: string, region: PhoneRegion): PhoneNumberParseResult {
     // Get country code for region
     const countryCode = REGION_TO_COUNTRY_CODE[region];
     if (!countryCode) {

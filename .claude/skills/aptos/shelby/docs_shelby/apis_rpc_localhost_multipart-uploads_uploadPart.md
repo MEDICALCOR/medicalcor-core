@@ -86,13 +86,11 @@ Python
 Java
 
 C#
-    
-    
+
     curl -X PUT "http://localhost:9090/v1/multipart-uploads/string/parts/0"
 
 200400
-    
-    
+
     {
       "success": true
     }

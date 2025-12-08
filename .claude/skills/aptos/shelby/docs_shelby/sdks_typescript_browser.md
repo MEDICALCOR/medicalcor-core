@@ -50,22 +50,20 @@ Client-side functionality optimized for browser environments with Web APIs.
 ## Browser Implementation
 
 The browser package provides the same core functionality as the Node.js client but optimized for browser environments. It uses the same `ShelbyClient` base class with browser-compatible implementations.
-    
-    
+
     import { ShelbyClient } from "@shelby-protocol/sdk/browser";
 
 ## Usage
-    
-    
+
     import { ShelbyClient } from '@shelby-protocol/sdk/browser'
     import { Network } from '@aptos-labs/ts-sdk'
-    
+
     // Create client configuration
     const config = {
       network: Network.SHELBYNET
       apiKey: process.env.SHELBY_API_KEY,
     }
-    
+
     // Initialize the Shelby client
     const shelbyClient = new ShelbyClient(config)
 

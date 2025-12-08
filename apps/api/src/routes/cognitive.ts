@@ -485,9 +485,10 @@ export function createCognitiveRoutes(deps: CognitiveRouteDependencies): Fastify
             subjectType,
             subjectId,
             limit: Number.isNaN(parsedLimit) ? 5 : parsedLimit,
-            minSimilarity: parsedMinSimilarity !== undefined && Number.isNaN(parsedMinSimilarity)
-              ? undefined
-              : parsedMinSimilarity,
+            minSimilarity:
+              parsedMinSimilarity !== undefined && Number.isNaN(parsedMinSimilarity)
+                ? undefined
+                : parsedMinSimilarity,
           });
 
           return await reply.send({

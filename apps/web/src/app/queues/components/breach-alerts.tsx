@@ -201,7 +201,9 @@ export function BreachAlerts({ breaches }: BreachAlertsProps) {
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <CheckCircle2 className="h-8 w-8 text-emerald-500 mb-2" />
                 <p className="text-sm font-medium">No SLA Breaches</p>
-                <p className="text-xs text-muted-foreground">All queues are within SLA thresholds</p>
+                <p className="text-xs text-muted-foreground">
+                  All queues are within SLA thresholds
+                </p>
               </div>
             )}
           </div>

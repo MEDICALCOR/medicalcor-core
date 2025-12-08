@@ -121,10 +121,10 @@ export class DeadLetterQueueService {
   private static readonly DEFAULT_MAX_RETRIES = 5;
   private static readonly DEFAULT_TTL_DAYS = 7;
   private static readonly RETRY_DELAYS_MS = [
-    60 * 1000,       // 1 minute
-    5 * 60 * 1000,   // 5 minutes
-    30 * 60 * 1000,  // 30 minutes
-    2 * 60 * 60 * 1000,  // 2 hours
+    60 * 1000, // 1 minute
+    5 * 60 * 1000, // 5 minutes
+    30 * 60 * 1000, // 30 minutes
+    2 * 60 * 60 * 1000, // 2 hours
     24 * 60 * 60 * 1000, // 24 hours
   ];
 
@@ -145,7 +145,12 @@ export class DeadLetterQueueService {
     } = options;
 
     const id = randomUUID();
-    const errorMessage = error instanceof Error ? error.message : (typeof error === 'string' ? error : JSON.stringify(error));
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : typeof error === 'string'
+          ? error
+          : JSON.stringify(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
     const now = new Date();
     const expiresAt = new Date(now.getTime() + ttlDays * 24 * 60 * 60 * 1000);
@@ -354,10 +359,7 @@ export class DeadLetterQueueService {
    * Get entry by ID
    */
   async getById(id: string): Promise<DlqEntry | null> {
-    const result = await this.db.query(
-      `SELECT * FROM dead_letter_queue WHERE id = $1`,
-      [id]
-    );
+    const result = await this.db.query(`SELECT * FROM dead_letter_queue WHERE id = $1`, [id]);
 
     if (result.rows.length === 0) {
       return null;
@@ -416,11 +418,14 @@ export class DeadLetterQueueService {
    * Purge processed entries older than specified days
    */
   async purgeProcessed(olderThanDays = 30): Promise<number> {
-    const result = await this.db.query(`
+    const result = await this.db.query(
+      `
       DELETE FROM dead_letter_queue
       WHERE status = 'processed'
         AND processed_at < NOW() - INTERVAL '1 day' * $1
-    `, [olderThanDays]);
+    `,
+      [olderThanDays]
+    );
 
     const purgedCount = result.rowCount ?? 0;
 
@@ -435,13 +440,16 @@ export class DeadLetterQueueService {
    * Manually retry a specific entry
    */
   async manualRetry(id: string): Promise<boolean> {
-    const result = await this.db.query(`
+    const result = await this.db.query(
+      `
       UPDATE dead_letter_queue
       SET status = 'pending',
           next_retry_at = NOW(),
           updated_at = NOW()
       WHERE id = $1 AND status IN ('failed', 'expired')
-    `, [id]);
+    `,
+      [id]
+    );
 
     const updated = (result.rowCount ?? 0) > 0;
 

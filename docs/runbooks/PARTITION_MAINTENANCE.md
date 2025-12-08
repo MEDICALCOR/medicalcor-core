@@ -30,10 +30,10 @@ Procedures for managing PostgreSQL table partitions in MedicalCor Core.
 
 MedicalCor Core uses **monthly range partitioning** for high-volume time-series tables:
 
-| Table | Partition Key | Purpose | Retention |
-|-------|--------------|---------|-----------|
-| `domain_events` | `created_at` | Event sourcing | 24 months |
-| `audit_log` | `timestamp` | HIPAA/GDPR compliance | 24 months |
+| Table             | Partition Key | Purpose                    | Retention |
+| ----------------- | ------------- | -------------------------- | --------- |
+| `domain_events`   | `created_at`  | Event sourcing             | 24 months |
+| `audit_log`       | `timestamp`   | HIPAA/GDPR compliance      | 24 months |
 | `episodic_events` | `occurred_at` | Cognitive memory (ADR-004) | 24 months |
 
 ### Benefits
@@ -50,6 +50,7 @@ MedicalCor Core uses **monthly range partitioning** for high-volume time-series 
 ```
 
 Examples:
+
 - `domain_events_y2025m12` - December 2025
 - `audit_log_y2026m01` - January 2026
 - `episodic_events_y2025m06` - June 2025
@@ -151,10 +152,10 @@ SELECT * FROM get_episodic_events_partition_stats();
 
 **Example output:**
 
-| partition_name | row_count | total_size | index_size | partition_range |
-|---------------|-----------|------------|------------|-----------------|
-| domain_events_y2025m11 | 142857 | 84 MB | 32 MB | FROM ('2025-11-01') TO ('2025-12-01') |
-| domain_events_y2025m12 | 98234 | 58 MB | 22 MB | FROM ('2025-12-01') TO ('2026-01-01') |
+| partition_name         | row_count | total_size | index_size | partition_range                       |
+| ---------------------- | --------- | ---------- | ---------- | ------------------------------------- |
+| domain_events_y2025m11 | 142857    | 84 MB      | 32 MB      | FROM ('2025-11-01') TO ('2025-12-01') |
+| domain_events_y2025m12 | 98234     | 58 MB      | 22 MB      | FROM ('2025-12-01') TO ('2026-01-01') |
 
 #### Verify Future Partitions Exist
 
@@ -220,22 +221,24 @@ SELECT * FROM cleanup_old_episodic_events(24);
 
 **Returns:**
 
-| action | count |
-|--------|-------|
-| soft_deleted_events_purged | 1523 |
-| partitions_dropped | 3 |
+| action                     | count |
+| -------------------------- | ----- |
+| soft_deleted_events_purged | 1523  |
+| partitions_dropped         | 3     |
 
 #### Pre-Archival Checklist
 
 Before dropping partitions:
 
 1. **Verify backup exists**
+
    ```bash
    # Check recent backup in GCP
    gcloud sql backups list --instance=medicalcor-db-prod --limit=3
    ```
 
 2. **Export to cold storage (optional)**
+
    ```sql
    -- Export partition data to CSV before dropping
    COPY (SELECT * FROM domain_events_y2023m12)
@@ -345,13 +348,13 @@ SELECT * FROM ensure_partitions_exist('2026-01-01', '2026-06-30');
 
 **Returns:**
 
-| table_name | partition_name |
-|------------|----------------|
-| domain_events | domain_events_y2026m01 |
-| audit_log | audit_log_y2026m01 |
+| table_name      | partition_name           |
+| --------------- | ------------------------ |
+| domain_events   | domain_events_y2026m01   |
+| audit_log       | audit_log_y2026m01       |
 | episodic_events | episodic_events_y2026m01 |
-| domain_events | domain_events_y2026m02 |
-| ... | ... |
+| domain_events   | domain_events_y2026m02   |
+| ...             | ...                      |
 
 ### create_future_partitions(months_ahead)
 
@@ -412,6 +415,7 @@ The following Trigger.dev scheduled task handles automatic partition creation:
 **Task:** `partition-maintenance`
 
 **Expected behavior:**
+
 1. Creates partitions for the next 3 months
 2. Logs partition creation to audit_log
 3. Alerts on failure via PagerDuty
@@ -518,6 +522,7 @@ LIMIT 5;
 ```
 
 **Fix:**
+
 1. If partition is current: Monitor, this is expected growth
 2. If partition is old: Run archival immediately
 3. Consider weekly partitioning for very high volume (requires migration)
@@ -546,6 +551,7 @@ WHERE pg_depend.refobjid = 'partition_name'::regclass;
 ```
 
 **Fix:**
+
 1. Wait for queries to complete
 2. Terminate blocking queries if urgent: `SELECT pg_terminate_backend(pid);`
 3. Address dependencies before dropping
@@ -623,6 +629,6 @@ GROUP BY parent.relname;
 
 ## Revision History
 
-| Date | Version | Author | Changes |
-|------|---------|--------|---------|
-| 2025-12 | 1.0 | Platform Team | Initial runbook creation |
+| Date    | Version | Author        | Changes                  |
+| ------- | ------- | ------------- | ------------------------ |
+| 2025-12 | 1.0     | Platform Team | Initial runbook creation |

@@ -1,6 +1,6 @@
 /**
  * XRAY Audit Engine - Main Orchestrator
- * 
+ *
  * Coordinates all analyzers and generates comprehensive audit reports.
  */
 
@@ -172,10 +172,7 @@ export class AuditEngine {
   }
 
   private calculateHexagonalScore(...layers: any[]): number {
-    const totalViolations = layers.reduce(
-      (sum, layer) => sum + (layer.violations?.length || 0),
-      0
-    );
+    const totalViolations = layers.reduce((sum, layer) => sum + (layer.violations?.length || 0), 0);
     return Math.max(0, 10 - totalViolations * 0.5);
   }
 
@@ -224,12 +221,8 @@ export class AuditEngine {
   private categorizeRecommendations(issues: AuditIssue[]) {
     return {
       phase0: issues.filter((i) => i.priority === 'HIGH'),
-      phase1: issues.filter(
-        (i) => i.priority === 'MEDIUM' && i.category === 'SECURITY'
-      ),
-      phase2: issues.filter(
-        (i) => i.priority === 'MEDIUM' && i.category !== 'SECURITY'
-      ),
+      phase1: issues.filter((i) => i.priority === 'MEDIUM' && i.category === 'SECURITY'),
+      phase2: issues.filter((i) => i.priority === 'MEDIUM' && i.category !== 'SECURITY'),
       phase3: issues.filter((i) => i.priority === 'LOW'),
     };
   }
@@ -254,7 +247,8 @@ export class AuditEngine {
       strengths.push('Well-implemented event-driven architecture with proper patterns');
     else weaknesses.push('Event-driven patterns incomplete (missing outbox or versioning)');
 
-    if (scores.securityPosture >= 8) strengths.push('Strong security posture with proper safeguards');
+    if (scores.securityPosture >= 8)
+      strengths.push('Strong security posture with proper safeguards');
     else weaknesses.push('Security vulnerabilities detected requiring immediate attention');
 
     if (scores.observabilityCompleteness >= 8)
@@ -303,18 +297,13 @@ export class AuditEngine {
   private async analyzeTestCoverage(): Promise<TestCoverageAnalysis> {
     const testFiles = await this.findTestFiles();
 
-    const unitTests = testFiles.filter(
-      (f) => f.includes('.test.') || f.includes('.spec.')
-    ).length;
+    const unitTests = testFiles.filter((f) => f.includes('.test.') || f.includes('.spec.')).length;
     const integrationTests = testFiles.filter((f) => f.includes('integration')).length;
     const e2eTests = testFiles.filter((f) => f.includes('e2e')).length;
 
     // Estimate coverage based on test-to-source ratio
     const sourceFiles = await this.countSourceFiles();
-    const estimatedCoverage = Math.min(
-      100,
-      Math.round((testFiles.length / sourceFiles) * 100)
-    );
+    const estimatedCoverage = Math.min(100, Math.round((testFiles.length / sourceFiles) * 100));
 
     const missingTests = await this.identifyMissingTests();
 
@@ -379,10 +368,7 @@ export class AuditEngine {
         if (entry.isDirectory() && entry.name !== 'node_modules') {
           const subFiles = await this.getAllTestFiles(fullPath);
           files.push(...subFiles);
-        } else if (
-          entry.isFile() &&
-          (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx'))
-        ) {
+        } else if (entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx'))) {
           files.push(fullPath);
         }
       }

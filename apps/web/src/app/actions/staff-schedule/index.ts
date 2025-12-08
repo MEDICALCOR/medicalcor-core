@@ -34,7 +34,16 @@ export interface StaffShift {
   staffId: string;
   staffName: string;
   date: Date;
-  shiftType: 'morning' | 'afternoon' | 'evening' | 'night' | 'regular' | 'on_call' | 'off' | 'vacation' | 'sick';
+  shiftType:
+    | 'morning'
+    | 'afternoon'
+    | 'evening'
+    | 'night'
+    | 'regular'
+    | 'on_call'
+    | 'off'
+    | 'vacation'
+    | 'sick';
   startTime: string | null;
   endTime: string | null;
   isConfirmed: boolean;
@@ -143,7 +152,17 @@ interface StaffShiftRow {
 const CreateShiftSchema = z.object({
   staffId: z.string().uuid(),
   date: z.string(),
-  shiftType: z.enum(['morning', 'afternoon', 'evening', 'night', 'regular', 'on_call', 'off', 'vacation', 'sick']),
+  shiftType: z.enum([
+    'morning',
+    'afternoon',
+    'evening',
+    'night',
+    'regular',
+    'on_call',
+    'off',
+    'vacation',
+    'sick',
+  ]),
   startTime: z.string().optional(),
   endTime: z.string().optional(),
   notes: z.string().optional(),
@@ -151,7 +170,19 @@ const CreateShiftSchema = z.object({
 
 const UpdateShiftSchema = z.object({
   id: z.string().uuid(),
-  shiftType: z.enum(['morning', 'afternoon', 'evening', 'night', 'regular', 'on_call', 'off', 'vacation', 'sick']).optional(),
+  shiftType: z
+    .enum([
+      'morning',
+      'afternoon',
+      'evening',
+      'night',
+      'regular',
+      'on_call',
+      'off',
+      'vacation',
+      'sick',
+    ])
+    .optional(),
   startTime: z.string().optional(),
   endTime: z.string().optional(),
   isConfirmed: z.boolean().optional(),
@@ -211,9 +242,10 @@ export async function getStaffMembersAction(): Promise<{ staff: StaffMember[]; e
   }
 }
 
-export async function getStaffScheduleAction(
-  params: { startDate: string; endDate: string }
-): Promise<{ staff: StaffMember[]; shifts: StaffShift[]; error?: string }> {
+export async function getStaffScheduleAction(params: {
+  startDate: string;
+  endDate: string;
+}): Promise<{ staff: StaffMember[]; shifts: StaffShift[]; error?: string }> {
   try {
     await requirePermission('staff:read');
     const user = await requireCurrentUser();
@@ -249,7 +281,10 @@ export async function getStaffScheduleAction(
   }
 }
 
-export async function getScheduleStatsAction(): Promise<{ stats: ScheduleStats | null; error?: string }> {
+export async function getScheduleStatsAction(): Promise<{
+  stats: ScheduleStats | null;
+  error?: string;
+}> {
   try {
     await requirePermission('staff:read');
     const user = await requireCurrentUser();
@@ -503,14 +538,17 @@ export async function getCapacityDashboardAction(
       const scheduledStaff = Math.floor(3 + Math.random() * 4);
       const requiredStaff = BASE_STAFF_REQUIREMENTS[dayOfWeek] ?? 5;
       const gap = scheduledStaff - requiredStaff;
-      const utilizationRate = requiredStaff > 0 ? Math.round((scheduledStaff / requiredStaff) * 100) : 0;
+      const utilizationRate =
+        requiredStaff > 0 ? Math.round((scheduledStaff / requiredStaff) * 100) : 0;
 
       let status: CapacityMetrics['status'] = 'optimal';
       if (utilizationRate < 80) status = 'understaffed';
       else if (utilizationRate > 120) status = 'overstaffed';
 
       // Predicted appointments
-      const predictedAppointments = Math.round(requiredStaff * APPOINTMENTS_PER_STAFF * (0.8 + Math.random() * 0.4));
+      const predictedAppointments = Math.round(
+        requiredStaff * APPOINTMENTS_PER_STAFF * (0.8 + Math.random() * 0.4)
+      );
 
       weeklyCapacity.push({
         date: dateStr,
@@ -591,15 +629,13 @@ export async function getCapacityDashboardAction(
         date: weeklyCapacity[4]?.date ?? '',
         conflictType: 'overtime_exceeded',
         description: 'Ore suplimentare depășite (52h/săptămână)',
-        shifts: [
-          { id: 's3', type: 'regular', start: '08:00', end: '20:00' },
-        ],
+        shifts: [{ id: 's3', type: 'regular', start: '08:00', end: '20:00' }],
       });
     }
 
     // Calculate summary
-    const understaffedDays = weeklyCapacity.filter(c => c.status === 'understaffed').length;
-    const overstaffedDays = weeklyCapacity.filter(c => c.status === 'overstaffed').length;
+    const understaffedDays = weeklyCapacity.filter((c) => c.status === 'understaffed').length;
+    const overstaffedDays = weeklyCapacity.filter((c) => c.status === 'overstaffed').length;
     const avgUtilization = Math.round(
       weeklyCapacity.reduce((sum, c) => sum + c.utilizationRate, 0) / weeklyCapacity.length
     );
@@ -734,9 +770,7 @@ export async function getStaffingRecommendationsAction(
 /**
  * Get demand forecast for upcoming weeks
  */
-export async function getDemandForecastAction(
-  weeksAhead: number = 2
-): Promise<DemandForecast[]> {
+export async function getDemandForecastAction(weeksAhead: number = 2): Promise<DemandForecast[]> {
   try {
     await requirePermission('staff:read');
 

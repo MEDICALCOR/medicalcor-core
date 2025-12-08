@@ -95,7 +95,9 @@ function MetricCard({ title, value, icon: Icon, iconColor, suffix, format }: Met
             <p className="text-sm text-muted-foreground">{title}</p>
             <p className="text-2xl font-bold">
               {displayValue}
-              {suffix && <span className="text-sm font-normal text-muted-foreground ml-1">{suffix}</span>}
+              {suffix && (
+                <span className="text-sm font-normal text-muted-foreground ml-1">{suffix}</span>
+              )}
             </p>
           </div>
           <Icon className={cn('h-8 w-8', iconColor ?? 'text-muted-foreground')} />
@@ -132,7 +134,12 @@ function ScenarioBadge({ scenario }: { scenario: string }) {
   };
 
   return (
-    <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', colors[scenario] ?? colors.custom)}>
+    <span
+      className={cn(
+        'px-2 py-0.5 rounded-full text-xs font-medium',
+        colors[scenario] ?? colors.custom
+      )}
+    >
       {scenario.charAt(0).toUpperCase() + scenario.slice(1)}
     </span>
   );
@@ -147,7 +154,9 @@ export default function LoadTestingPage() {
 
   // Fetch environments on mount
   useEffect(() => {
-    getLoadTestEnvironmentsAction().then(setEnvironments).catch(() => setEnvironments([]));
+    getLoadTestEnvironmentsAction()
+      .then(setEnvironments)
+      .catch(() => setEnvironments([]));
   }, []);
 
   // Fetch dashboard data when filters change
@@ -217,20 +226,36 @@ export default function LoadTestingPage() {
           <MetricsSkeleton />
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <MetricCard title="Total Runs" value={stats.totalRuns} icon={Activity} iconColor="text-blue-500" />
+            <MetricCard
+              title="Total Runs"
+              value={stats.totalRuns}
+              icon={Activity}
+              iconColor="text-blue-500"
+            />
             <MetricCard
               title="Passed"
               value={stats.passedRuns}
               icon={CheckCircle2}
               iconColor="text-green-500"
             />
-            <MetricCard title="Failed" value={stats.failedRuns} icon={XCircle} iconColor="text-red-500" />
+            <MetricCard
+              title="Failed"
+              value={stats.failedRuns}
+              icon={XCircle}
+              iconColor="text-red-500"
+            />
             <MetricCard
               title="Pass Rate"
               value={passRate}
               format="percentage"
               icon={TrendingUp}
-              iconColor={passRate >= 90 ? 'text-green-500' : passRate >= 70 ? 'text-yellow-500' : 'text-red-500'}
+              iconColor={
+                passRate >= 90
+                  ? 'text-green-500'
+                  : passRate >= 70
+                    ? 'text-yellow-500'
+                    : 'text-red-500'
+              }
             />
             <MetricCard
               title="Avg P95"

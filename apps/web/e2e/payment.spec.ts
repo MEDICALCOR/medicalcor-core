@@ -176,9 +176,12 @@ test.describe('Payment & Billing Flow', () => {
     // Wait for invoices to load
     await page.waitForTimeout(1000);
 
-    const invoiceCard = page.locator('[class*="border"][class*="rounded-lg"]').filter({
-      has: page.locator('[class*="font-medium"]'),
-    }).first();
+    const invoiceCard = page
+      .locator('[class*="border"][class*="rounded-lg"]')
+      .filter({
+        has: page.locator('[class*="font-medium"]'),
+      })
+      .first();
 
     if (await invoiceCard.isVisible({ timeout: 5000 })) {
       // Check for action buttons (icons)
@@ -193,9 +196,7 @@ test.describe('Payment & Billing Flow', () => {
       });
 
       // At least some action buttons should be visible
-      await expect(
-        viewButton.or(printButton).or(sendButton)
-      ).toBeVisible({ timeout: 3000 });
+      await expect(viewButton.or(printButton).or(sendButton)).toBeVisible({ timeout: 3000 });
     }
   });
 
@@ -203,9 +204,12 @@ test.describe('Payment & Billing Flow', () => {
     // Wait for invoices to load
     await page.waitForTimeout(1000);
 
-    const invoiceCard = page.locator('[class*="border"][class*="rounded-lg"]').filter({
-      has: page.locator('[class*="font-medium"]'),
-    }).first();
+    const invoiceCard = page
+      .locator('[class*="border"][class*="rounded-lg"]')
+      .filter({
+        has: page.locator('[class*="font-medium"]'),
+      })
+      .first();
 
     if (await invoiceCard.isVisible({ timeout: 5000 })) {
       // Click view button

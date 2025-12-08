@@ -186,9 +186,9 @@ describe('Async Utilities', () => {
         throw new Error('permanent failure');
       });
 
-      await expect(withRetry(operation, { ...DEFAULT_RETRY_CONFIG, maxRetries: 2 }))
-        .rejects
-        .toThrow('permanent failure');
+      await expect(
+        withRetry(operation, { ...DEFAULT_RETRY_CONFIG, maxRetries: 2 })
+      ).rejects.toThrow('permanent failure');
 
       expect(operation).toHaveBeenCalledTimes(3); // Initial + 2 retries
     });
@@ -258,9 +258,9 @@ describe('Async Utilities', () => {
         throw 'string error'; // Non-Error exception
       });
 
-      await expect(withRetry(operation, { ...DEFAULT_RETRY_CONFIG, maxRetries: 1 }))
-        .rejects
-        .toThrow('string error');
+      await expect(
+        withRetry(operation, { ...DEFAULT_RETRY_CONFIG, maxRetries: 1 })
+      ).rejects.toThrow('string error');
     });
   });
 });

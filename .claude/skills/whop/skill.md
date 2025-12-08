@@ -14,17 +14,20 @@ Provide comprehensive, accurate guidance for building on the Whop platform based
 ## Documentation Coverage
 
 **Full access to official Whop documentation (when available):**
+
 - **Location:** `docs/whop/`
 - **Files:** 212 markdown files
 - **Coverage:** Complete API reference, guides, integrations, and best practices
 
 **Note:** Documentation must be pulled separately:
+
 ```bash
 pipx install docpull
 docpull https://docs.whop.com -o .claude/skills/whop/docs
 ```
 
 **Major Areas:**
+
 - Products & Plans (membership management)
 - Payments, Refunds & Disputes
 - Memberships & Access Control
@@ -38,6 +41,7 @@ docpull https://docs.whop.com -o .claude/skills/whop/docs
 ## When to Use
 
 Invoke when user mentions:
+
 - **Platform:** Whop, membership platform, digital products, monetization
 - **Memberships:** subscriptions, access passes, licenses, member management
 - **Products:** digital products, courses, communities, experiences
@@ -52,12 +56,14 @@ Invoke when user mentions:
 When answering questions:
 
 1. **Search for specific topics:**
+
    ```bash
    # Use Grep to find relevant docs
    grep -r "memberships" .claude/skills/api/whop/docs/ --include="*.md"
    ```
 
 2. **Read specific API references:**
+
    ```bash
    # API docs are organized by resource
    cat .claude/skills/api/whop/docs/docs_whop_com/api-reference_memberships_list-memberships.md
@@ -84,10 +90,11 @@ When answering questions:
    - Use for: Multi-tenant apps, B2B integrations
 
 **Authentication:**
+
 ```typescript
 // Server-side only
 const headers = {
-  'Authorization': `Bearer ${process.env.WHOP_API_KEY}`,
+  Authorization: `Bearer ${process.env.WHOP_API_KEY}`,
   'Content-Type': 'application/json',
 };
 
@@ -97,6 +104,7 @@ const response = await fetch('https://api.whop.com/api/v5/me', {
 ```
 
 **Security:**
+
 - NEVER expose API keys client-side
 - Use environment variables
 - Rotate keys if exposed
@@ -110,7 +118,7 @@ const response = await fetch('https://api.whop.com/api/v5/me', {
 const product = await fetch('https://api.whop.com/api/v5/products', {
   method: 'POST',
   headers: {
-    'Authorization': `Bearer ${API_KEY}`,
+    Authorization: `Bearer ${API_KEY}`,
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
@@ -127,7 +135,7 @@ const product = await fetch('https://api.whop.com/api/v5/products', {
 const plan = await fetch('https://api.whop.com/api/v5/plans', {
   method: 'POST',
   headers: {
-    'Authorization': `Bearer ${API_KEY}`,
+    Authorization: `Bearer ${API_KEY}`,
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
@@ -143,14 +151,11 @@ const plan = await fetch('https://api.whop.com/api/v5/plans', {
 ### 3. List Memberships
 
 ```typescript
-const memberships = await fetch(
-  'https://api.whop.com/api/v5/memberships?valid=true',
-  {
-    headers: {
-      'Authorization': `Bearer ${API_KEY}`,
-    },
-  }
-);
+const memberships = await fetch('https://api.whop.com/api/v5/memberships?valid=true', {
+  headers: {
+    Authorization: `Bearer ${API_KEY}`,
+  },
+});
 ```
 
 ## Membership Management
@@ -162,16 +167,14 @@ const memberships = await fetch(
 async function checkUserAccess(userAccessToken: string) {
   const response = await fetch('https://api.whop.com/api/v5/me/memberships', {
     headers: {
-      'Authorization': `Bearer ${userAccessToken}`,
+      Authorization: `Bearer ${userAccessToken}`,
     },
   });
 
   const memberships = await response.json();
 
   // Check if user has active membership
-  const hasAccess = memberships.data.some(
-    (m: any) => m.status === 'active' && m.valid
-  );
+  const hasAccess = memberships.data.some((m: any) => m.status === 'active' && m.valid);
 
   return hasAccess;
 }
@@ -185,7 +188,7 @@ async function validateLicense(licenseKey: string) {
     `https://api.whop.com/api/v5/memberships?license_key=${licenseKey}`,
     {
       headers: {
-        'Authorization': `Bearer ${API_KEY}`,
+        Authorization: `Bearer ${API_KEY}`,
       },
     }
   );
@@ -199,16 +202,13 @@ async function validateLicense(licenseKey: string) {
 
 ```typescript
 async function cancelMembership(membershipId: string) {
-  const response = await fetch(
-    `https://api.whop.com/api/v5/memberships/${membershipId}/cancel`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-    }
-  );
+  const response = await fetch(`https://api.whop.com/api/v5/memberships/${membershipId}/cancel`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+  });
 
   return response.json();
 }
@@ -220,24 +220,21 @@ async function cancelMembership(membershipId: string) {
 
 ```typescript
 async function createCheckout(planId: string, userId: string) {
-  const response = await fetch(
-    'https://api.whop.com/api/v5/checkout-configurations',
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json',
+  const response = await fetch('https://api.whop.com/api/v5/checkout-configurations', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      plan_id: planId,
+      success_url: 'https://yourapp.com/success',
+      cancel_url: 'https://yourapp.com/cancel',
+      metadata: {
+        user_id: userId,
       },
-      body: JSON.stringify({
-        plan_id: planId,
-        success_url: 'https://yourapp.com/success',
-        cancel_url: 'https://yourapp.com/cancel',
-        metadata: {
-          user_id: userId,
-        },
-      }),
-    }
-  );
+    }),
+  });
 
   const checkout = await response.json();
   return checkout.url; // Redirect user to this URL
@@ -248,14 +245,11 @@ async function createCheckout(planId: string, userId: string) {
 
 ```typescript
 async function getPayment(paymentId: string) {
-  const response = await fetch(
-    `https://api.whop.com/api/v5/payments/${paymentId}`,
-    {
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-      },
-    }
-  );
+  const response = await fetch(`https://api.whop.com/api/v5/payments/${paymentId}`, {
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+    },
+  });
 
   return response.json();
 }
@@ -265,19 +259,16 @@ async function getPayment(paymentId: string) {
 
 ```typescript
 async function refundPayment(paymentId: string, amount?: number) {
-  const response = await fetch(
-    `https://api.whop.com/api/v5/payments/${paymentId}/refund`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        amount, // Optional: partial refund in cents
-      }),
-    }
-  );
+  const response = await fetch(`https://api.whop.com/api/v5/payments/${paymentId}/refund`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      amount, // Optional: partial refund in cents
+    }),
+  });
 
   return response.json();
 }
@@ -292,7 +283,7 @@ async function createCourse(productId: string) {
   const response = await fetch('https://api.whop.com/api/v5/courses', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${API_KEY}`,
+      Authorization: `Bearer ${API_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -311,21 +302,18 @@ async function createCourse(productId: string) {
 
 ```typescript
 async function createChapter(courseId: string) {
-  const response = await fetch(
-    'https://api.whop.com/api/v5/course-chapters',
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        course_id: courseId,
-        title: 'Introduction to JavaScript',
-        order: 1,
-      }),
-    }
-  );
+  const response = await fetch('https://api.whop.com/api/v5/course-chapters', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      course_id: courseId,
+      title: 'Introduction to JavaScript',
+      order: 1,
+    }),
+  });
 
   return response.json();
 }
@@ -335,24 +323,21 @@ async function createChapter(courseId: string) {
 
 ```typescript
 async function createLesson(chapterId: string) {
-  const response = await fetch(
-    'https://api.whop.com/api/v5/course-lessons',
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        chapter_id: chapterId,
-        title: 'Variables and Data Types',
-        content: 'Lesson content in markdown...',
-        type: 'video', // or 'text', 'quiz', 'assignment'
-        video_url: 'https://youtube.com/watch?v=...',
-        order: 1,
-      }),
-    }
-  );
+  const response = await fetch('https://api.whop.com/api/v5/course-lessons', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      chapter_id: chapterId,
+      title: 'Variables and Data Types',
+      content: 'Lesson content in markdown...',
+      type: 'video', // or 'text', 'quiz', 'assignment'
+      video_url: 'https://youtube.com/watch?v=...',
+      order: 1,
+    }),
+  });
 
   return response.json();
 }
@@ -367,7 +352,7 @@ async function markLessonComplete(lessonId: string, userAccessToken: string) {
     {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${userAccessToken}`,
+        Authorization: `Bearer ${userAccessToken}`,
       },
     }
   );
@@ -387,21 +372,18 @@ async function createForumPost(
   content: string,
   userAccessToken: string
 ) {
-  const response = await fetch(
-    'https://api.whop.com/api/v5/forum-posts',
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${userAccessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        forum_id: forumId,
-        title,
-        content,
-      }),
-    }
-  );
+  const response = await fetch('https://api.whop.com/api/v5/forum-posts', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${userAccessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      forum_id: forumId,
+      title,
+      content,
+    }),
+  });
 
   return response.json();
 }
@@ -410,25 +392,18 @@ async function createForumPost(
 ### Create Chat Message
 
 ```typescript
-async function sendChatMessage(
-  channelId: string,
-  content: string,
-  userAccessToken: string
-) {
-  const response = await fetch(
-    'https://api.whop.com/api/v5/messages',
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${userAccessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        channel_id: channelId,
-        content,
-      }),
-    }
-  );
+async function sendChatMessage(channelId: string, content: string, userAccessToken: string) {
+  const response = await fetch('https://api.whop.com/api/v5/messages', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${userAccessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      channel_id: channelId,
+      content,
+    }),
+  });
 
   return response.json();
 }
@@ -448,10 +423,7 @@ export async function POST(req: Request) {
 
   // Verify webhook signature
   const webhookSecret = process.env.WHOP_WEBHOOK_SECRET!;
-  const hash = crypto
-    .createHmac('sha256', webhookSecret)
-    .update(body)
-    .digest('hex');
+  const hash = crypto.createHmac('sha256', webhookSecret).update(body).digest('hex');
 
   if (hash !== signature) {
     return new Response('Invalid signature', { status: 401 });
@@ -490,6 +462,7 @@ export async function POST(req: Request) {
 ```
 
 **Critical webhook events:**
+
 - `payment.succeeded` - Payment completed
 - `payment.failed` - Payment failed
 - `payment.pending` - Payment pending
@@ -504,6 +477,7 @@ export async function POST(req: Request) {
 ### OAuth Integration
 
 **1. Redirect user to Whop OAuth:**
+
 ```typescript
 const authUrl = new URL('https://whop.com/oauth');
 authUrl.searchParams.set('client_id', process.env.WHOP_CLIENT_ID!);
@@ -515,6 +489,7 @@ window.location.href = authUrl.toString();
 ```
 
 **2. Handle callback and exchange code:**
+
 ```typescript
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -548,22 +523,19 @@ export async function GET(req: Request) {
 
 ```typescript
 async function sendNotification(userId: string, message: string) {
-  const response = await fetch(
-    'https://api.whop.com/api/v5/notifications',
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        user_id: userId,
-        title: 'New Update',
-        message,
-        type: 'info', // or 'success', 'warning', 'error'
-      }),
-    }
-  );
+  const response = await fetch('https://api.whop.com/api/v5/notifications', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      user_id: userId,
+      title: 'New Update',
+      message,
+      type: 'info', // or 'success', 'warning', 'error'
+    }),
+  });
 
   return response.json();
 }
@@ -574,28 +546,21 @@ async function sendNotification(userId: string, message: string) {
 ### Create Promo Code
 
 ```typescript
-async function createPromoCode(
-  productId: string,
-  code: string,
-  discount: number
-) {
-  const response = await fetch(
-    'https://api.whop.com/api/v5/promo-codes',
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        product_id: productId,
-        code,
-        discount_type: 'percentage',
-        discount_value: discount, // e.g., 20 for 20% off
-        max_uses: 100,
-      }),
-    }
-  );
+async function createPromoCode(productId: string, code: string, discount: number) {
+  const response = await fetch('https://api.whop.com/api/v5/promo-codes', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      product_id: productId,
+      code,
+      discount_type: 'percentage',
+      discount_value: discount, // e.g., 20 for 20% off
+      max_uses: 100,
+    }),
+  });
 
   return response.json();
 }
@@ -620,14 +585,12 @@ export async function middleware(request: NextRequest) {
   // Check if user has valid membership
   const response = await fetch('https://api.whop.com/api/v5/me/memberships', {
     headers: {
-      'Authorization': `Bearer ${accessToken}`,
+      Authorization: `Bearer ${accessToken}`,
     },
   });
 
   const memberships = await response.json();
-  const hasAccess = memberships.data.some(
-    (m: any) => m.status === 'active' && m.valid
-  );
+  const hasAccess = memberships.data.some((m: any) => m.status === 'active' && m.valid);
 
   if (!hasAccess) {
     return NextResponse.redirect(new URL('/subscribe', request.url));
@@ -655,24 +618,21 @@ export async function createCheckoutSession(planId: string) {
     throw new Error('Unauthorized');
   }
 
-  const response = await fetch(
-    'https://api.whop.com/api/v5/checkout-configurations',
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.WHOP_API_KEY}`,
-        'Content-Type': 'application/json',
+  const response = await fetch('https://api.whop.com/api/v5/checkout-configurations', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.WHOP_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      plan_id: planId,
+      success_url: `${process.env.NEXT_PUBLIC_URL}/dashboard?success=true`,
+      cancel_url: `${process.env.NEXT_PUBLIC_URL}/pricing?canceled=true`,
+      metadata: {
+        user_id: session.user.id,
       },
-      body: JSON.stringify({
-        plan_id: planId,
-        success_url: `${process.env.NEXT_PUBLIC_URL}/dashboard?success=true`,
-        cancel_url: `${process.env.NEXT_PUBLIC_URL}/pricing?canceled=true`,
-        metadata: {
-          user_id: session.user.id,
-        },
-      }),
-    }
-  );
+    }),
+  });
 
   const data = await response.json();
   return { url: data.url };
@@ -684,6 +644,7 @@ export async function createCheckoutSession(planId: string) {
 ### Test Mode
 
 Whop provides a test/sandbox environment:
+
 - Use test API keys from Dashboard
 - No real charges
 - Simulate memberships and payments
@@ -728,15 +689,12 @@ ngrok http 3000
 
 ```typescript
 // lib/whop/check-access.ts
-export async function checkMembershipAccess(
-  userId: string,
-  productId: string
-): Promise<boolean> {
+export async function checkMembershipAccess(userId: string, productId: string): Promise<boolean> {
   const response = await fetch(
     `https://api.whop.com/api/v5/memberships?user_id=${userId}&product_id=${productId}&valid=true`,
     {
       headers: {
-        'Authorization': `Bearer ${process.env.WHOP_API_KEY}`,
+        Authorization: `Bearer ${process.env.WHOP_API_KEY}`,
       },
     }
   );
@@ -821,6 +779,7 @@ ls .claude/skills/api/whop/docs/docs_whop_com/api-reference*/
 ```
 
 **Common doc locations:**
+
 - API Reference: `api-reference_*/`
 - Developer Guides: `developer_*/`
 - Affiliates: `affiliates_*/`
@@ -835,12 +794,14 @@ ls .claude/skills/api/whop/docs/docs_whop_com/api-reference*/
 ## Implementation Checklist
 
 **Setup:**
+
 - [ ] Create Whop account and company
 - [ ] Get API keys from Dashboard → Settings → API Keys
 - [ ] Set environment variables (WHOP_API_KEY, WHOP_WEBHOOK_SECRET)
 - [ ] Install fetch or axios for API calls
 
 **Core Features:**
+
 - [ ] Create products and plans
 - [ ] Implement checkout flow
 - [ ] Add membership access checking
@@ -850,6 +811,7 @@ ls .claude/skills/api/whop/docs/docs_whop_com/api-reference*/
 - [ ] Test in development environment
 
 **Advanced (if needed):**
+
 - [ ] Build Whop App with OAuth
 - [ ] Implement course management
 - [ ] Set up community features (forums, chat)
@@ -860,10 +822,7 @@ ls .claude/skills/api/whop/docs/docs_whop_com/api-reference*/
 ## Error Handling
 
 ```typescript
-async function safeWhopRequest(
-  url: string,
-  options: RequestInit
-): Promise<any> {
+async function safeWhopRequest(url: string, options: RequestInit): Promise<any> {
   try {
     const response = await fetch(url, options);
 
@@ -881,6 +840,7 @@ async function safeWhopRequest(
 ```
 
 **Common errors:**
+
 - `401 Unauthorized` - Invalid or expired API key
 - `403 Forbidden` - Insufficient permissions
 - `404 Not Found` - Resource doesn't exist
@@ -890,6 +850,7 @@ async function safeWhopRequest(
 ## Rate Limiting
 
 Whop implements rate limiting. Best practices:
+
 - Cache membership status where appropriate
 - Use webhooks instead of polling
 - Implement exponential backoff on failures

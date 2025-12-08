@@ -112,9 +112,7 @@ export async function withWorkflowSpan<T>(
 ): Promise<T> {
   const tracer = getTriggerTracer(workflowName);
 
-  const parentContext = parentSpan
-    ? trace.setSpan(context.active(), parentSpan)
-    : context.active();
+  const parentContext = parentSpan ? trace.setSpan(context.active(), parentSpan) : context.active();
 
   const span = tracer.startSpan(
     `trigger.workflow.${workflowName}.${stepName}`,

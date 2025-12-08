@@ -80,7 +80,12 @@ export {
 
 // Export types only (interfaces)
 export type { Result, Option } from './result.js';
-export type { Ok as OkResult, Err as ErrResult, Some as SomeOption, None as NoneOption } from './result.js';
+export type {
+  Ok as OkResult,
+  Err as ErrResult,
+  Some as SomeOption,
+  None as NoneOption,
+} from './result.js';
 // Note: AsyncResult is both a type alias and a namespace, exported as value below
 
 // Export values (constructor functions and utilities)

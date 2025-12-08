@@ -14,6 +14,7 @@ Provide expert guidance on optimizing gas costs and performance for Aptos smart 
 ## When to Use
 
 Auto-invoke when users mention:
+
 - **Gas Costs** - gas fees, transaction costs, gas optimization
 - **Performance** - slow transactions, execution time, throughput
 - **Storage** - storage fees, data structures, table vs vector
@@ -30,16 +31,19 @@ Total Gas Cost = Execution Gas + Storage Gas + IO Gas
 ```
 
 **1. Execution Gas:**
+
 - Function calls, loops, computations
 - Instruction-level costs
 - Type operations, memory access
 
 **2. Storage Gas:**
+
 - Per-byte storage cost
 - Write amplification
 - State rent (upcoming)
 
 **3. IO Gas:**
+
 - Reading from storage
 - Writing to storage
 - Event emission
@@ -53,6 +57,7 @@ Gas Unit Price = market-determined (typically 100-1000 octas per gas unit)
 ```
 
 **Example:**
+
 ```
 Transaction uses 1,000 gas units
 Gas price = 100 octas/unit
@@ -63,14 +68,14 @@ Cost = 1,000 × 100 = 100,000 octas = 0.001 APT
 
 ### Data Structure Costs
 
-| Structure | Read Cost | Write Cost | Storage Cost | Best For |
-|-----------|-----------|------------|--------------|----------|
-| u64 | ~10 gas | ~15 gas | 8 bytes | Simple counters |
-| vector<u64>(100) | ~100 gas | ~150 gas | 800 bytes | Small lists |
-| SimpleMap(100) | ~100 gas | ~150 gas | ~1KB | Small maps |
-| Table(100) | ~15 gas | ~20 gas | ~2KB | Medium maps |
-| SmartTable(100) | ~15 gas | ~20 gas | ~2KB | Large maps |
-| Aggregator | ~10 gas | ~12 gas | 32 bytes | **Parallel counters** |
+| Structure        | Read Cost | Write Cost | Storage Cost | Best For              |
+| ---------------- | --------- | ---------- | ------------ | --------------------- |
+| u64              | ~10 gas   | ~15 gas    | 8 bytes      | Simple counters       |
+| vector<u64>(100) | ~100 gas  | ~150 gas   | 800 bytes    | Small lists           |
+| SimpleMap(100)   | ~100 gas  | ~150 gas   | ~1KB         | Small maps            |
+| Table(100)       | ~15 gas   | ~20 gas    | ~2KB         | Medium maps           |
+| SmartTable(100)  | ~15 gas   | ~20 gas    | ~2KB         | Large maps            |
+| Aggregator       | ~10 gas   | ~12 gas    | 32 bytes     | **Parallel counters** |
 
 ### Choosing the Right Data Structure
 
@@ -193,6 +198,7 @@ public fun calculate(): u64 {
 ```
 
 **When to inline:**
+
 - Functions < 5 lines
 - Called frequently
 - Simple computations
@@ -200,6 +206,7 @@ public fun calculate(): u64 {
 - Validation checks
 
 **When NOT to inline:**
+
 - Large functions (increases code size)
 - Rarely called functions
 - Recursive functions (not supported)
@@ -344,6 +351,7 @@ public entry fun batch_transfer(
 ### Understanding Aggregators
 
 **Problem:** Traditional counter creates conflicts
+
 ```move
 // ❌ Bad: Conflicts on concurrent access
 struct Stats has key {
@@ -358,6 +366,7 @@ public fun register_user() acquires Stats {
 ```
 
 **Solution:** Aggregators enable parallel updates
+
 ```move
 // ✅ Good: No conflicts!
 use aptos_framework::aggregator_v2::{Self, Aggregator};
@@ -376,12 +385,14 @@ public fun register_user() acquires Stats {
 ### When to Use Aggregators
 
 **✅ Use aggregators for:**
+
 - Global counters (total users, total volume)
 - Protocol-level statistics
 - Supply tracking
 - Frequently updated metrics
 
 **❌ Don't use aggregators for:**
+
 - Per-user balances (no conflicts)
 - Rarely updated values
 - Values that need exact reads mid-transaction
@@ -628,19 +639,19 @@ public fun verify_whitelisted(
 
 ## Cost Comparison Table
 
-| Operation | Gas Cost (approx) | Notes |
-|-----------|------------------|-------|
-| u64 addition | 1 | Primitive op |
-| u64 multiplication | 2 | Primitive op |
-| Vector push_back | 5-10 | Depends on size |
-| Table lookup | 10-15 | O(1) access |
-| SmartTable lookup | 10-15 | O(1) access |
-| borrow_global | 20-50 | Depends on resource size |
-| move_to | 50-200 | Depends on resource size |
-| Event emission (V2) | 50-100 | Per event |
-| Event emission (V1) | 100-200 | Higher overhead |
-| String operation | 10-50 | Depends on length |
-| Cryptographic hash | 100-500 | SHA256, etc |
+| Operation           | Gas Cost (approx) | Notes                    |
+| ------------------- | ----------------- | ------------------------ |
+| u64 addition        | 1                 | Primitive op             |
+| u64 multiplication  | 2                 | Primitive op             |
+| Vector push_back    | 5-10              | Depends on size          |
+| Table lookup        | 10-15             | O(1) access              |
+| SmartTable lookup   | 10-15             | O(1) access              |
+| borrow_global       | 20-50             | Depends on resource size |
+| move_to             | 50-200            | Depends on resource size |
+| Event emission (V2) | 50-100            | Per event                |
+| Event emission (V1) | 100-200           | Higher overhead          |
+| String operation    | 10-50             | Depends on length        |
+| Cryptographic hash  | 100-500           | SHA256, etc              |
 
 ## Best Practices Summary
 
@@ -694,6 +705,7 @@ Before deploying to mainnet:
 ## Follow-up Suggestions
 
 After helping with gas optimization, suggest:
+
 - Profile specific functions with --gas flag
 - Implement aggregators for high-throughput paths
 - Review storage structure efficiency

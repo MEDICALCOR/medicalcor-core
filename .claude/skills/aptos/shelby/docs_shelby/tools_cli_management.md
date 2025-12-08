@@ -40,15 +40,13 @@ Manage your Shelby CLI installation
 ## Check Version
 
 To check which version of the Shelby CLI you have installed:
-    
-    
+
     shelby --version
 
 ## Find Installation Location
 
 To find where the Shelby CLI is installed:
-    
-    
+
     which shelby
 
 ## Uninstall
@@ -60,8 +58,7 @@ To uninstall the Shelby CLI:
 The shelby config is located at `~/.shelby/config.yaml`.
 
 ### Uninstall Global Package
-    
-    
+
     npm uninstall -g @shelby-protocol/cli
 
 [Getting StartedShelby CLI Getting Started Guide](/tools/cli)[Account ManagementManaging accounts for the Shelby CLI](/tools/cli/commands/account-management)

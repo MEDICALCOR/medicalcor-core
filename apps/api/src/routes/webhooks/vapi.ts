@@ -75,14 +75,18 @@ const VapiCallSchema = z.object({
   assistantId: z.string().optional(),
   status: z.enum(['queued', 'ringing', 'in-progress', 'forwarding', 'ended']),
   type: z.enum(['inbound', 'outbound']),
-  phoneNumber: z.object({
-    id: z.string(),
-    number: z.string(),
-  }).optional(),
-  customer: z.object({
-    number: z.string(),
-    name: z.string().optional(),
-  }).optional(),
+  phoneNumber: z
+    .object({
+      id: z.string(),
+      number: z.string(),
+    })
+    .optional(),
+  customer: z
+    .object({
+      number: z.string(),
+      name: z.string().optional(),
+    })
+    .optional(),
   startedAt: z.string().optional(),
   endedAt: z.string().optional(),
   endedReason: z.string().optional(),
@@ -246,14 +250,16 @@ export const vapiWebhookRoutes: FastifyPluginAsync = (fastify) => {
               correlationId,
             };
 
-            tasks.trigger('vapi-webhook-handler', webhookPayload, {
-              idempotencyKey: IdempotencyKeys.vapiWebhook(call.id),
-            }).catch((err: unknown) => {
-              fastify.log.error(
-                { err, callId: call.id, correlationId },
-                'Failed to trigger Vapi webhook handler'
-              );
-            });
+            tasks
+              .trigger('vapi-webhook-handler', webhookPayload, {
+                idempotencyKey: IdempotencyKeys.vapiWebhook(call.id),
+              })
+              .catch((err: unknown) => {
+                fastify.log.error(
+                  { err, callId: call.id, correlationId },
+                  'Failed to trigger Vapi webhook handler'
+                );
+              });
 
             fastify.log.info(
               {

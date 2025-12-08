@@ -1,9 +1,9 @@
 /**
  * Voice/Telephony event schemas (Twilio/Vapi compatible)
  */
-import { z } from "zod";
+import { z } from 'zod';
 
-import { E164PhoneSchema, TimestampSchema, UUIDSchema } from "./common.js";
+import { E164PhoneSchema, TimestampSchema, UUIDSchema } from './common.js';
 
 /**
  * Voice call direction (Twilio-compatible values)
@@ -12,43 +12,38 @@ import { E164PhoneSchema, TimestampSchema, UUIDSchema } from "./common.js";
  * - outbound-api: Outbound call initiated via REST API
  * - outbound-dial: Outbound call initiated via TwiML <Dial>
  */
-export const CallDirectionSchema = z.enum([
-  "inbound",
-  "outbound",
-  "outbound-api",
-  "outbound-dial",
-]);
+export const CallDirectionSchema = z.enum(['inbound', 'outbound', 'outbound-api', 'outbound-dial']);
 
 /**
  * Voice call status
  */
 export const CallStatusSchema = z.enum([
-  "queued",
-  "ringing",
-  "in-progress",
-  "completed",
-  "busy",
-  "failed",
-  "no-answer",
-  "canceled",
+  'queued',
+  'ringing',
+  'in-progress',
+  'completed',
+  'busy',
+  'failed',
+  'no-answer',
+  'canceled',
 ]);
 
 /**
  * Voice event types
  */
 export const VoiceEventTypeSchema = z.enum([
-  "call.initiated",
-  "call.ringing",
-  "call.answered",
-  "call.completed",
-  "call.failed",
-  "transcript.partial",
-  "transcript.final",
-  "speech.started",
-  "speech.ended",
-  "dtmf.received",
-  "recording.available",
-  "voicemail.detected",
+  'call.initiated',
+  'call.ringing',
+  'call.answered',
+  'call.completed',
+  'call.failed',
+  'transcript.partial',
+  'transcript.final',
+  'speech.started',
+  'speech.ended',
+  'dtmf.received',
+  'recording.available',
+  'voicemail.detected',
 ]);
 
 /**
@@ -56,7 +51,7 @@ export const VoiceEventTypeSchema = z.enum([
  */
 export const TranscriptSegmentSchema = z.object({
   id: UUIDSchema,
-  speaker: z.enum(["patient", "assistant", "agent"]),
+  speaker: z.enum(['patient', 'assistant', 'agent']),
   text: z.string(),
   confidence: z.number().min(0).max(1),
   startTime: z.number(),
@@ -71,7 +66,7 @@ export const RecordingMetadataSchema = z.object({
   recordingId: z.string(),
   recordingUrl: z.string().url(),
   duration: z.number().positive(),
-  format: z.enum(["mp3", "wav"]),
+  format: z.enum(['mp3', 'wav']),
   size: z.number().positive(),
 });
 
@@ -198,8 +193,8 @@ export const InitiateCallSchema = z.object({
   leadId: UUIDSchema,
   assistantConfig: z
     .object({
-      voice: z.enum(["alloy", "echo", "fable", "onyx", "nova", "shimmer"]).default("nova"),
-      language: z.string().default("ro-RO"),
+      voice: z.enum(['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']).default('nova'),
+      language: z.string().default('ro-RO'),
       systemPrompt: z.string().optional(),
     })
     .optional(),
@@ -223,7 +218,7 @@ export const CallSummarySchema = z.object({
   // AI-generated summary
   summary: z.string(),
   keyPoints: z.array(z.string()),
-  sentiment: z.enum(["positive", "neutral", "negative"]),
+  sentiment: z.enum(['positive', 'neutral', 'negative']),
 
   // Next steps identified
   followUpRequired: z.boolean(),

@@ -25,11 +25,11 @@ Complete guide to deploying MedicalCor Core to production environments.
 
 MedicalCor Core consists of three deployable applications:
 
-| Application | Purpose | Default Port |
-|-------------|---------|--------------|
-| `apps/api` | Webhook gateway (Fastify) | 3000 |
-| `apps/trigger` | Background workflows | Trigger.dev Cloud |
-| `apps/web` | Admin dashboard (Next.js) | 3001 |
+| Application    | Purpose                   | Default Port      |
+| -------------- | ------------------------- | ----------------- |
+| `apps/api`     | Webhook gateway (Fastify) | 3000              |
+| `apps/trigger` | Background workflows      | Trigger.dev Cloud |
+| `apps/web`     | Admin dashboard (Next.js) | 3001              |
 
 ### Deployment Architecture
 
@@ -70,22 +70,22 @@ MedicalCor Core consists of three deployable applications:
 
 ### Required Tools
 
-| Tool | Version | Purpose |
-|------|---------|---------|
-| Node.js | >= 20.0.0 | Runtime |
-| pnpm | >= 9.0.0 | Package manager |
-| Docker | >= 24.0 | Containerization |
-| Git | >= 2.40 | Version control |
+| Tool    | Version   | Purpose          |
+| ------- | --------- | ---------------- |
+| Node.js | >= 20.0.0 | Runtime          |
+| pnpm    | >= 9.0.0  | Package manager  |
+| Docker  | >= 24.0   | Containerization |
+| Git     | >= 2.40   | Version control  |
 
 ### Required Accounts
 
-| Service | Purpose | Required |
-|---------|---------|----------|
-| Trigger.dev | Background jobs | Yes |
-| HubSpot | CRM integration | Optional |
-| 360dialog | WhatsApp API | Optional |
-| OpenAI | AI scoring | Optional |
-| Stripe | Payments | Optional |
+| Service     | Purpose         | Required |
+| ----------- | --------------- | -------- |
+| Trigger.dev | Background jobs | Yes      |
+| HubSpot     | CRM integration | Optional |
+| 360dialog   | WhatsApp API    | Optional |
+| OpenAI      | AI scoring      | Optional |
+| Stripe      | Payments        | Optional |
 
 ---
 
@@ -116,12 +116,12 @@ pnpm dev
 
 ### Service URLs
 
-| Service | URL |
-|---------|-----|
-| API | http://localhost:3000 |
-| Web | http://localhost:3001 |
-| PostgreSQL | localhost:5432 |
-| Redis | localhost:6379 |
+| Service    | URL                   |
+| ---------- | --------------------- |
+| API        | http://localhost:3000 |
+| Web        | http://localhost:3001 |
+| PostgreSQL | localhost:5432        |
+| Redis      | localhost:6379        |
 
 ### With Monitoring
 
@@ -332,6 +332,7 @@ The repository includes pre-configured workflows:
 #### CI Pipeline (`.github/workflows/ci.yml`)
 
 Runs on every PR and push:
+
 - Lint check (ESLint)
 - Type check (TypeScript)
 - Unit tests (Vitest)
@@ -342,6 +343,7 @@ Runs on every PR and push:
 #### Deploy Pipeline (`.github/workflows/deploy.yml`)
 
 Runs on push to main:
+
 - Build Docker image
 - Push to registry
 - Deploy to staging
@@ -378,21 +380,21 @@ API_SECRET_KEY
 
 ### Development vs Production
 
-| Variable | Development | Production |
-|----------|-------------|------------|
-| `NODE_ENV` | development | production |
-| `LOG_LEVEL` | debug | info |
-| `CORS_ORIGIN` | * | https://your-domain.com |
-| `DATABASE_URL` | Local Docker | Cloud SQL |
-| `REDIS_URL` | Local Docker | Memorystore |
+| Variable       | Development  | Production              |
+| -------------- | ------------ | ----------------------- |
+| `NODE_ENV`     | development  | production              |
+| `LOG_LEVEL`    | debug        | info                    |
+| `CORS_ORIGIN`  | \*           | https://your-domain.com |
+| `DATABASE_URL` | Local Docker | Cloud SQL               |
+| `REDIS_URL`    | Local Docker | Memorystore             |
 
 ### Secrets Management
 
-| Environment | Method |
-|-------------|--------|
-| Local | `.env` file |
-| CI/CD | GitHub Secrets |
-| Production | GCP Secret Manager |
+| Environment | Method             |
+| ----------- | ------------------ |
+| Local       | `.env` file        |
+| CI/CD       | GitHub Secrets     |
+| Production  | GCP Secret Manager |
 
 ### Required Variables
 
@@ -444,12 +446,12 @@ export default defineConfig({
 
 ### Cron Jobs
 
-| Schedule | Job | Description |
-|----------|-----|-------------|
-| `0 9 * * *` | Daily Recall | Find patients due |
-| `0 * * * *` | Reminders | Send appointment reminders |
-| `0 2 * * *` | Score Refresh | Re-score stale leads |
-| `0 8 * * 1` | Weekly Report | Generate analytics |
+| Schedule    | Job           | Description                |
+| ----------- | ------------- | -------------------------- |
+| `0 9 * * *` | Daily Recall  | Find patients due          |
+| `0 * * * *` | Reminders     | Send appointment reminders |
+| `0 2 * * *` | Score Refresh | Re-score stale leads       |
+| `0 8 * * 1` | Weekly Report | Generate analytics         |
 
 ---
 
@@ -488,12 +490,12 @@ readinessProbe:
 
 ### Alerting Recommendations
 
-| Alert | Condition | Severity |
-|-------|-----------|----------|
+| Alert           | Condition      | Severity |
+| --------------- | -------------- | -------- |
 | High Error Rate | > 1% for 5 min | Critical |
-| Slow Response | P95 > 500ms | Warning |
-| Service Down | Health failing | Critical |
-| Rate Limited | 100% used | Warning |
+| Slow Response   | P95 > 500ms    | Warning  |
+| Service Down    | Health failing | Critical |
+| Rate Limited    | 100% used      | Warning  |
 
 See [Monitoring Guide](./MONITORING.md) for detailed setup.
 
@@ -590,98 +592,98 @@ Before deploying to production, verify all items in this checklist. This system 
 
 ### Security Requirements
 
-| Requirement | Status | Notes |
-|-------------|--------|-------|
-| **Secrets Management** | | |
-| All secrets in Secret Manager (not in code/env files) | [ ] | Use GCP Secret Manager or AWS Secrets Manager |
-| Webhook secrets configured for all providers | [ ] | WhatsApp, Twilio, Stripe, Vapi |
-| API keys rotated from development values | [ ] | Generate new production keys |
-| Database credentials secured | [ ] | Not in docker-compose or Terraform state |
-| **Authentication** | | |
-| Web dashboard authentication enabled | [ ] | Configure NextAuth with proper providers |
-| API key authentication enforced | [ ] | No bypass in production environment |
-| Webhook signature verification enabled | [ ] | No dev-mode bypass |
-| **Network Security** | | |
-| TLS/SSL certificates configured | [ ] | All traffic encrypted in transit |
-| CORS configured for production domains only | [ ] | No wildcard (*) origins |
-| Rate limiting enabled on all endpoints | [ ] | Review limits for your traffic |
-| Security headers configured (Helmet.js) | [ ] | HSTS, CSP, X-Frame-Options |
+| Requirement                                           | Status | Notes                                         |
+| ----------------------------------------------------- | ------ | --------------------------------------------- |
+| **Secrets Management**                                |        |                                               |
+| All secrets in Secret Manager (not in code/env files) | [ ]    | Use GCP Secret Manager or AWS Secrets Manager |
+| Webhook secrets configured for all providers          | [ ]    | WhatsApp, Twilio, Stripe, Vapi                |
+| API keys rotated from development values              | [ ]    | Generate new production keys                  |
+| Database credentials secured                          | [ ]    | Not in docker-compose or Terraform state      |
+| **Authentication**                                    |        |                                               |
+| Web dashboard authentication enabled                  | [ ]    | Configure NextAuth with proper providers      |
+| API key authentication enforced                       | [ ]    | No bypass in production environment           |
+| Webhook signature verification enabled                | [ ]    | No dev-mode bypass                            |
+| **Network Security**                                  |        |                                               |
+| TLS/SSL certificates configured                       | [ ]    | All traffic encrypted in transit              |
+| CORS configured for production domains only           | [ ]    | No wildcard (\*) origins                      |
+| Rate limiting enabled on all endpoints                | [ ]    | Review limits for your traffic                |
+| Security headers configured (Helmet.js)               | [ ]    | HSTS, CSP, X-Frame-Options                    |
 
 ### Data Protection & Compliance
 
-| Requirement | Status | Notes |
-|-------------|--------|-------|
-| **GDPR** | | |
-| Consent management configured | [ ] | Persistent storage, not in-memory |
-| Consent audit trail enabled | [ ] | All consent changes logged |
-| Data retention policies defined | [ ] | Automatic cleanup of old data |
-| Right to erasure workflow tested | [ ] | Can delete patient data on request |
-| **HIPAA (if applicable)** | | |
-| PHI encryption at rest | [ ] | Database encryption enabled |
-| PHI encryption in transit | [ ] | TLS 1.3 for all connections |
-| Access logging enabled | [ ] | All PHI access logged |
-| BAA signed with all data processors | [ ] | HubSpot, Twilio, etc. |
-| **PII Protection** | | |
-| PII redaction enabled in logs | [ ] | Verify with test logs |
-| No PII in error messages | [ ] | Sanitize before sending to users |
-| Telemetry excludes sensitive data | [ ] | No phone/email in traces |
+| Requirement                         | Status | Notes                              |
+| ----------------------------------- | ------ | ---------------------------------- |
+| **GDPR**                            |        |                                    |
+| Consent management configured       | [ ]    | Persistent storage, not in-memory  |
+| Consent audit trail enabled         | [ ]    | All consent changes logged         |
+| Data retention policies defined     | [ ]    | Automatic cleanup of old data      |
+| Right to erasure workflow tested    | [ ]    | Can delete patient data on request |
+| **HIPAA (if applicable)**           |        |                                    |
+| PHI encryption at rest              | [ ]    | Database encryption enabled        |
+| PHI encryption in transit           | [ ]    | TLS 1.3 for all connections        |
+| Access logging enabled              | [ ]    | All PHI access logged              |
+| BAA signed with all data processors | [ ]    | HubSpot, Twilio, etc.              |
+| **PII Protection**                  |        |                                    |
+| PII redaction enabled in logs       | [ ]    | Verify with test logs              |
+| No PII in error messages            | [ ]    | Sanitize before sending to users   |
+| Telemetry excludes sensitive data   | [ ]    | No phone/email in traces           |
 
 ### Infrastructure
 
-| Requirement | Status | Notes |
-|-------------|--------|-------|
-| **Database** | | |
-| PostgreSQL SSL enabled | [ ] | Verify with `?sslmode=require` |
-| Database backups configured | [ ] | Automated daily backups |
-| Backup restoration tested | [ ] | Verify you can restore |
-| Connection pooling configured | [ ] | Prevent connection exhaustion |
-| **Redis** | | |
-| Redis authentication enabled | [ ] | No default/empty password |
-| Redis TLS enabled (production) | [ ] | Use `rediss://` protocol |
-| Redis persistence configured | [ ] | AOF or RDB based on needs |
-| **Monitoring** | | |
-| Health check endpoints accessible | [ ] | `/health`, `/ready`, `/live` |
-| Prometheus metrics enabled | [ ] | `/metrics` endpoint |
-| Alerting configured | [ ] | PagerDuty/Slack integration |
-| Log aggregation configured | [ ] | Loki, CloudWatch, etc. |
+| Requirement                       | Status | Notes                          |
+| --------------------------------- | ------ | ------------------------------ |
+| **Database**                      |        |                                |
+| PostgreSQL SSL enabled            | [ ]    | Verify with `?sslmode=require` |
+| Database backups configured       | [ ]    | Automated daily backups        |
+| Backup restoration tested         | [ ]    | Verify you can restore         |
+| Connection pooling configured     | [ ]    | Prevent connection exhaustion  |
+| **Redis**                         |        |                                |
+| Redis authentication enabled      | [ ]    | No default/empty password      |
+| Redis TLS enabled (production)    | [ ]    | Use `rediss://` protocol       |
+| Redis persistence configured      | [ ]    | AOF or RDB based on needs      |
+| **Monitoring**                    |        |                                |
+| Health check endpoints accessible | [ ]    | `/health`, `/ready`, `/live`   |
+| Prometheus metrics enabled        | [ ]    | `/metrics` endpoint            |
+| Alerting configured               | [ ]    | PagerDuty/Slack integration    |
+| Log aggregation configured        | [ ]    | Loki, CloudWatch, etc.         |
 
 ### Application
 
-| Requirement | Status | Notes |
-|-------------|--------|-------|
-| **Build & Deploy** | | |
-| Production build tested locally | [ ] | `NODE_ENV=production pnpm build` |
-| Environment variables validated | [ ] | All required vars set |
-| Docker image scanned for vulnerabilities | [ ] | Trivy or similar |
-| Dependency audit passed | [ ] | `pnpm audit --production` |
-| **Integrations** | | |
-| HubSpot webhook URL configured | [ ] | Production URL, not ngrok |
-| WhatsApp webhook URL configured | [ ] | Verified by 360dialog |
-| Stripe webhook URL configured | [ ] | Production endpoint |
-| Trigger.dev production deployment | [ ] | `pnpm deploy` in apps/trigger |
-| **Testing** | | |
-| Integration tests passing | [ ] | All webhook handlers tested |
-| Load testing completed | [ ] | Verify capacity for expected traffic |
-| Smoke tests defined | [ ] | Post-deployment verification |
+| Requirement                              | Status | Notes                                |
+| ---------------------------------------- | ------ | ------------------------------------ |
+| **Build & Deploy**                       |        |                                      |
+| Production build tested locally          | [ ]    | `NODE_ENV=production pnpm build`     |
+| Environment variables validated          | [ ]    | All required vars set                |
+| Docker image scanned for vulnerabilities | [ ]    | Trivy or similar                     |
+| Dependency audit passed                  | [ ]    | `pnpm audit --production`            |
+| **Integrations**                         |        |                                      |
+| HubSpot webhook URL configured           | [ ]    | Production URL, not ngrok            |
+| WhatsApp webhook URL configured          | [ ]    | Verified by 360dialog                |
+| Stripe webhook URL configured            | [ ]    | Production endpoint                  |
+| Trigger.dev production deployment        | [ ]    | `pnpm deploy` in apps/trigger        |
+| **Testing**                              |        |                                      |
+| Integration tests passing                | [ ]    | All webhook handlers tested          |
+| Load testing completed                   | [ ]    | Verify capacity for expected traffic |
+| Smoke tests defined                      | [ ]    | Post-deployment verification         |
 
 ### Operations
 
-| Requirement | Status | Notes |
-|-------------|--------|-------|
-| Runbook documented | [ ] | Common operational tasks |
-| Incident response plan defined | [ ] | Who to contact, escalation |
-| Rollback procedure tested | [ ] | Can revert to previous version |
-| On-call rotation set up | [ ] | 24/7 coverage if needed |
-| Disaster recovery plan documented | [ ] | RTO/RPO defined |
+| Requirement                       | Status | Notes                          |
+| --------------------------------- | ------ | ------------------------------ |
+| Runbook documented                | [ ]    | Common operational tasks       |
+| Incident response plan defined    | [ ]    | Who to contact, escalation     |
+| Rollback procedure tested         | [ ]    | Can revert to previous version |
+| On-call rotation set up           | [ ]    | 24/7 coverage if needed        |
+| Disaster recovery plan documented | [ ]    | RTO/RPO defined                |
 
 ### Sign-off
 
-| Role | Name | Date | Signature |
-|------|------|------|-----------|
-| Engineering Lead | | | |
-| Security Officer | | | |
-| Compliance Officer | | | |
-| Operations Lead | | | |
+| Role               | Name | Date | Signature |
+| ------------------ | ---- | ---- | --------- |
+| Engineering Lead   |      |      |           |
+| Security Officer   |      |      |           |
+| Compliance Officer |      |      |           |
+| Operations Lead    |      |      |           |
 
 ---
 

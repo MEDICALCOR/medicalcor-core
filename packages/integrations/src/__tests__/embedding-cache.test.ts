@@ -205,7 +205,8 @@ describe('embedding-cache - EmbeddingCache', () => {
     it('should set dimensions from embedding length', async () => {
       await cache.set('test', 'model', [0.1, 0.2, 0.3]);
 
-      const key = 'embedding:model:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08'; // SHA-256 of "test"
+      const key =
+        'embedding:model:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08'; // SHA-256 of "test"
       const cached = await redis.get(`embedding:model:${key.split(':')[2]}`);
 
       // Note: We can't easily verify the exact key without duplicating hash logic
@@ -262,7 +263,9 @@ describe('embedding-cache - EmbeddingCache', () => {
       } as unknown as RedisClient;
 
       const errorCache = new EmbeddingCache(errorRedis);
-      await expect(errorCache.setMany([{ text: 'test', embedding: [0.1] }], 'model')).resolves.not.toThrow();
+      await expect(
+        errorCache.setMany([{ text: 'test', embedding: [0.1] }], 'model')
+      ).resolves.not.toThrow();
     });
   });
 

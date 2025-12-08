@@ -141,13 +141,10 @@ export class IndexUsageMonitor {
    * Get detailed information about each index
    */
   private async getIndexDetails(): Promise<IndexUsageReport[]> {
-    const schemaFilter = this.config.includeSchemas.length > 0
-      ? `AND sui.schemaname = ANY($1)`
-      : '';
+    const schemaFilter =
+      this.config.includeSchemas.length > 0 ? `AND sui.schemaname = ANY($1)` : '';
 
-    const params = this.config.includeSchemas.length > 0
-      ? [this.config.includeSchemas]
-      : [];
+    const params = this.config.includeSchemas.length > 0 ? [this.config.includeSchemas] : [];
 
     const result = await this.pool.query<{
       schemaname: string;
@@ -163,7 +160,8 @@ export class IndexUsageMonitor {
       last_vacuum: Date | null;
       is_unique: boolean;
       is_primary: boolean;
-    }>(`
+    }>(
+      `
       SELECT
         sui.schemaname,
         sui.relname as tablename,
@@ -184,10 +182,12 @@ export class IndexUsageMonitor {
       WHERE TRUE
         ${schemaFilter}
       ORDER BY pg_relation_size(sui.indexrelid) DESC
-    `, params);
+    `,
+      params
+    );
 
     return result.rows
-      .filter(row => this.shouldIncludeIndex(row.indexname))
+      .filter((row) => this.shouldIncludeIndex(row.indexname))
       .map((row) => {
         const indexType = this.detectIndexType(row.indexdef);
         const scans = parseInt(row.idx_scan, 10);
@@ -281,19 +281,16 @@ export class IndexUsageMonitor {
     needsVacuum: string[];
     needsAnalyze: string[];
   }> {
-    const schemaFilter = this.config.includeSchemas.length > 0
-      ? `AND n.nspname = ANY($1)`
-      : '';
+    const schemaFilter = this.config.includeSchemas.length > 0 ? `AND n.nspname = ANY($1)` : '';
 
-    const params = this.config.includeSchemas.length > 0
-      ? [this.config.includeSchemas]
-      : [];
+    const params = this.config.includeSchemas.length > 0 ? [this.config.includeSchemas] : [];
 
     const result = await this.pool.query<{
       tablename: string;
       last_vacuum: Date | null;
       last_analyze: Date | null;
-    }>(`
+    }>(
+      `
       SELECT
         c.relname as tablename,
         pg_stat_get_last_vacuum_time(c.oid) as last_vacuum,
@@ -302,7 +299,9 @@ export class IndexUsageMonitor {
       JOIN pg_namespace n ON n.oid = c.relnamespace
       WHERE c.relkind = 'r'
         ${schemaFilter}
-    `, params);
+    `,
+      params
+    );
 
     const needsVacuum: string[] = [];
     const needsAnalyze: string[] = [];
@@ -327,7 +326,7 @@ export class IndexUsageMonitor {
   async getUnusedIndexes(limit = 20): Promise<IndexUsageReport[]> {
     const report = await this.getUsageReport();
     return report.indexes
-      .filter(idx => idx.status === 'unused' && !idx.isPrimaryKey)
+      .filter((idx) => idx.status === 'unused' && !idx.isPrimaryKey)
       .sort((a, b) => b.indexSizeBytes - a.indexSizeBytes)
       .slice(0, limit);
   }
@@ -337,9 +336,7 @@ export class IndexUsageMonitor {
    */
   async getLargestIndexes(limit = 20): Promise<IndexUsageReport[]> {
     const report = await this.getUsageReport();
-    return report.indexes
-      .sort((a, b) => b.indexSizeBytes - a.indexSizeBytes)
-      .slice(0, limit);
+    return report.indexes.sort((a, b) => b.indexSizeBytes - a.indexSizeBytes).slice(0, limit);
   }
 
   /**
@@ -387,11 +384,11 @@ export class IndexUsageMonitor {
           break;
         case 'healthy':
           // Still might need maintenance
-          if (index.recommendations.some(r => r.includes('ANALYZE'))) {
+          if (index.recommendations.some((r) => r.includes('ANALYZE'))) {
             action = 'analyze';
             priority = 'low';
             reason = 'Statistics are stale';
-          } else if (index.recommendations.some(r => r.includes('VACUUM'))) {
+          } else if (index.recommendations.some((r) => r.includes('VACUUM'))) {
             action = 'vacuum';
             priority = 'low';
             reason = 'Dead tuples need to be reclaimed';
@@ -440,28 +437,26 @@ export class IndexUsageMonitor {
     const startTime = Date.now();
     const tablesAnalyzed: string[] = [];
 
-    const schemaFilter = this.config.includeSchemas.length > 0
-      ? `AND n.nspname = ANY($1)`
-      : '';
+    const schemaFilter = this.config.includeSchemas.length > 0 ? `AND n.nspname = ANY($1)` : '';
 
-    const params = this.config.includeSchemas.length > 0
-      ? [this.config.includeSchemas]
-      : [];
+    const params = this.config.includeSchemas.length > 0 ? [this.config.includeSchemas] : [];
 
-    const result = await this.pool.query<{ tablename: string; schemaname: string }>(`
+    const result = await this.pool.query<{ tablename: string; schemaname: string }>(
+      `
       SELECT DISTINCT c.relname as tablename, n.nspname as schemaname
       FROM pg_stat_user_indexes sui
       JOIN pg_class c ON c.oid = sui.relid
       JOIN pg_namespace n ON n.oid = c.relnamespace
       WHERE TRUE
         ${schemaFilter}
-    `, params);
+    `,
+      params
+    );
 
     for (const row of result.rows) {
       try {
-        const fullTableName = row.schemaname === 'public'
-          ? row.tablename
-          : `"${row.schemaname}"."${row.tablename}"`;
+        const fullTableName =
+          row.schemaname === 'public' ? row.tablename : `"${row.schemaname}"."${row.tablename}"`;
         await this.pool.query(`ANALYZE ${fullTableName}`);
         tablesAnalyzed.push(row.tablename);
         logger.info({ table: row.tablename }, 'Analyzed table');
@@ -479,13 +474,15 @@ export class IndexUsageMonitor {
   /**
    * Get index usage trend over time (requires historical data)
    */
-  async getUsageTrend(days = 30): Promise<{
-    checkedAt: Date;
-    totalIndexes: number;
-    unusedCount: number;
-    totalSizeBytes: number;
-    averageEfficiency: number;
-  }[]> {
+  async getUsageTrend(days = 30): Promise<
+    {
+      checkedAt: Date;
+      totalIndexes: number;
+      unusedCount: number;
+      totalSizeBytes: number;
+      averageEfficiency: number;
+    }[]
+  > {
     try {
       const result = await this.pool.query<{
         checked_at: Date;
@@ -506,7 +503,7 @@ export class IndexUsageMonitor {
         ORDER BY checked_at DESC
       `);
 
-      return result.rows.map(row => ({
+      return result.rows.map((row) => ({
         checkedAt: row.checked_at,
         totalIndexes: parseInt(row.total_indexes, 10),
         unusedCount: parseInt(row.unused_count, 10),
@@ -529,7 +526,8 @@ export class IndexUsageMonitor {
 
     for (const index of report.indexes) {
       try {
-        await this.pool.query(`
+        await this.pool.query(
+          `
           INSERT INTO index_usage_metrics (
             index_name, table_name, schema_name, index_type,
             index_scans, tuples_read, tuples_fetched, efficiency,
@@ -538,22 +536,24 @@ export class IndexUsageMonitor {
           ) VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
           )
-        `, [
-          index.indexName,
-          index.tableName,
-          index.schemaName,
-          index.indexType,
-          index.indexScans,
-          index.tuplesRead,
-          index.tuplesFetched,
-          index.efficiency,
-          index.status,
-          index.indexSizeBytes,
-          index.lastAnalyze,
-          index.lastVacuum,
-          JSON.stringify(index.recommendations),
-          report.checkedAt,
-        ]);
+        `,
+          [
+            index.indexName,
+            index.tableName,
+            index.schemaName,
+            index.indexType,
+            index.indexScans,
+            index.tuplesRead,
+            index.tuplesFetched,
+            index.efficiency,
+            index.status,
+            index.indexSizeBytes,
+            index.lastAnalyze,
+            index.lastVacuum,
+            JSON.stringify(index.recommendations),
+            report.checkedAt,
+          ]
+        );
         storedCount++;
       } catch (error) {
         logger.warn({ indexName: index.indexName, error }, 'Failed to store index metric');

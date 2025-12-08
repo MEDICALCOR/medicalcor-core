@@ -1,12 +1,18 @@
 /**
  * XRAY Audit Engine - Event-Driven Architecture Analyzer
- * 
+ *
  * Analyzes CQRS, Event Sourcing, Outbox pattern, and event-driven readiness.
  */
 
 import { readdir, readFile } from 'fs/promises';
 import { join, relative } from 'path';
-import type { EventDrivenAnalysis, CQRSAnalysis, EventDefinition, AuditIssue, AnalyzerConfig } from './types.js';
+import type {
+  EventDrivenAnalysis,
+  CQRSAnalysis,
+  EventDefinition,
+  AuditIssue,
+  AnalyzerConfig,
+} from './types.js';
 
 export class EventAnalyzer {
   constructor(private config: AnalyzerConfig) {}
@@ -63,8 +69,10 @@ export class EventAnalyzer {
           const relativePath = relative(rootPath, file);
 
           // Look for event type definitions
-          const eventMatches = content.matchAll(/(?:export\s+)?(?:interface|type|class)\s+(\w+Event)\s*[{=]/g);
-          
+          const eventMatches = content.matchAll(
+            /(?:export\s+)?(?:interface|type|class)\s+(\w+Event)\s*[{=]/g
+          );
+
           for (const match of eventMatches) {
             const eventName = match[1];
             const properties = this.extractProperties(content, eventName);
@@ -92,7 +100,7 @@ export class EventAnalyzer {
 
     // Check for outbox in code
     const coreFiles = await this.getAllFiles(join(rootPath, 'packages/core/src'), ['.ts']);
-    
+
     for (const file of coreFiles) {
       const content = await readFile(file, 'utf-8');
       if (content.includes('outbox') || content.includes('Outbox')) {
@@ -102,7 +110,7 @@ export class EventAnalyzer {
 
     // Check for outbox table in migrations
     const migrationFiles = await this.getAllFiles(join(rootPath, 'supabase/migrations'), ['.sql']);
-    
+
     for (const file of migrationFiles) {
       const content = await readFile(file, 'utf-8');
       if (content.toLowerCase().includes('outbox')) {
@@ -115,20 +123,17 @@ export class EventAnalyzer {
 
   private async checkIdempotency(): Promise<boolean> {
     const rootPath = this.config.rootPath;
-    const searchPaths = [
-      'packages/core/src',
-      'apps/trigger/src',
-    ];
+    const searchPaths = ['packages/core/src', 'apps/trigger/src'];
 
     for (const searchPath of searchPaths) {
       const fullPath = join(rootPath, searchPath);
-      
+
       try {
         const files = await this.getAllFiles(fullPath, ['.ts']);
 
         for (const file of files) {
           const content = await readFile(file, 'utf-8');
-          
+
           if (
             content.includes('idempotency') ||
             content.includes('Idempotent') ||
@@ -204,14 +209,11 @@ export class EventAnalyzer {
     const commands: string[] = [];
     const rootPath = this.config.rootPath;
 
-    const searchPaths = [
-      'packages/application/src',
-      'packages/core/src/cqrs',
-    ];
+    const searchPaths = ['packages/application/src', 'packages/core/src/cqrs'];
 
     for (const searchPath of searchPaths) {
       const fullPath = join(rootPath, searchPath);
-      
+
       try {
         const files = await this.getAllFiles(fullPath, ['.ts']);
 
@@ -219,8 +221,10 @@ export class EventAnalyzer {
           const content = await readFile(file, 'utf-8');
           const relativePath = relative(rootPath, file);
 
-          const commandMatches = content.matchAll(/(?:export\s+)?(?:class|interface)\s+(\w+Command)\b/g);
-          
+          const commandMatches = content.matchAll(
+            /(?:export\s+)?(?:class|interface)\s+(\w+Command)\b/g
+          );
+
           for (const match of commandMatches) {
             commands.push(`${match[1]} (${relativePath})`);
           }
@@ -237,14 +241,11 @@ export class EventAnalyzer {
     const queries: string[] = [];
     const rootPath = this.config.rootPath;
 
-    const searchPaths = [
-      'packages/application/src',
-      'packages/core/src/cqrs',
-    ];
+    const searchPaths = ['packages/application/src', 'packages/core/src/cqrs'];
 
     for (const searchPath of searchPaths) {
       const fullPath = join(rootPath, searchPath);
-      
+
       try {
         const files = await this.getAllFiles(fullPath, ['.ts']);
 
@@ -252,8 +253,10 @@ export class EventAnalyzer {
           const content = await readFile(file, 'utf-8');
           const relativePath = relative(rootPath, file);
 
-          const queryMatches = content.matchAll(/(?:export\s+)?(?:class|interface)\s+(\w+Query)\b/g);
-          
+          const queryMatches = content.matchAll(
+            /(?:export\s+)?(?:class|interface)\s+(\w+Query)\b/g
+          );
+
           for (const match of queryMatches) {
             queries.push(`${match[1]} (${relativePath})`);
           }
@@ -300,14 +303,14 @@ export class EventAnalyzer {
 
   private extractProperties(content: string, typeName: string): string[] {
     const properties: string[] = [];
-    
+
     // Simple regex to extract property names (not perfect but good enough)
     const typeMatch = content.match(new RegExp(`${typeName}\\s*[={]([^}]+)}`));
-    
+
     if (typeMatch) {
       const body = typeMatch[1];
       const propMatches = body.matchAll(/(\w+):/g);
-      
+
       for (const match of propMatches) {
         properties.push(match[1]);
       }
@@ -322,7 +325,7 @@ export class EventAnalyzer {
     currentDepth: number = 0
   ): Promise<string[]> {
     const maxDepth = 10;
-    
+
     if (currentDepth > maxDepth) {
       return [];
     }

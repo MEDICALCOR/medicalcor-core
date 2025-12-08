@@ -5,6 +5,7 @@ Convert JSON to TOON v2.0 format using the Zig encoder.
 **Usage:** `/toon-encode <file> [options]`
 
 **Options:**
+
 - `--delimiter comma|tab|pipe` - Delimiter choice (default: comma)
 - `--key-folding` - Enable key folding (default: on)
 - `--no-key-folding` - Disable key folding

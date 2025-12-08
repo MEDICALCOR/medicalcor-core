@@ -267,11 +267,7 @@ export class CognitiveGDPRErasureService {
     const results: CognitiveErasureResult[] = [];
 
     for (const subject of subjects) {
-      const result = await this.eraseSubjectMemory(
-        subject.subjectType,
-        subject.subjectId,
-        options
-      );
+      const result = await this.eraseSubjectMemory(subject.subjectType, subject.subjectId, options);
       results.push(result);
     }
 

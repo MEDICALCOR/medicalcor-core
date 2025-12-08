@@ -17,12 +17,7 @@ import { z } from 'zod';
  * NPS Score (0-10)
  * Standard Net Promoter Score scale
  */
-export const NPSScoreSchema = z
-  .number()
-  .int()
-  .min(0)
-  .max(10)
-  .describe('Net Promoter Score (0-10)');
+export const NPSScoreSchema = z.number().int().min(0).max(10).describe('Net Promoter Score (0-10)');
 
 /**
  * NPS Classification based on score

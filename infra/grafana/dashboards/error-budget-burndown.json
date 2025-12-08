@@ -67,12 +67,54 @@
         "defaults": {
           "color": { "mode": "thresholds" },
           "mappings": [
-            { "options": { "from": 0.9, "to": 1, "result": { "color": "green", "text": "VERDE - Safe Zone" } }, "type": "range" },
-            { "options": { "from": 0.75, "to": 0.9, "result": { "color": "#73BF69", "text": "VERDE - OK" } }, "type": "range" },
-            { "options": { "from": 0.5, "to": 0.75, "result": { "color": "yellow", "text": "GALBEN - Caution" } }, "type": "range" },
-            { "options": { "from": 0.25, "to": 0.5, "result": { "color": "orange", "text": "PORTOCALIU - Warning" } }, "type": "range" },
-            { "options": { "from": 0.1, "to": 0.25, "result": { "color": "red", "text": "ROSU - Critical" } }, "type": "range" },
-            { "options": { "from": 0, "to": 0.1, "result": { "color": "dark-red", "text": "NEGRU - Exhausted" } }, "type": "range" }
+            {
+              "options": {
+                "from": 0.9,
+                "to": 1,
+                "result": { "color": "green", "text": "VERDE - Safe Zone" }
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 0.75,
+                "to": 0.9,
+                "result": { "color": "#73BF69", "text": "VERDE - OK" }
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 0.5,
+                "to": 0.75,
+                "result": { "color": "yellow", "text": "GALBEN - Caution" }
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 0.25,
+                "to": 0.5,
+                "result": { "color": "orange", "text": "PORTOCALIU - Warning" }
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 0.1,
+                "to": 0.25,
+                "result": { "color": "red", "text": "ROSU - Critical" }
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 0,
+                "to": 0.1,
+                "result": { "color": "dark-red", "text": "NEGRU - Exhausted" }
+              },
+              "type": "range"
+            }
           ],
           "max": 1,
           "min": 0,
@@ -194,10 +236,26 @@
         "defaults": {
           "color": { "mode": "thresholds" },
           "mappings": [
-            { "options": { "from": 0, "to": 1, "result": { "color": "green", "text": "Normal" } }, "type": "range" },
-            { "options": { "from": 1, "to": 2, "result": { "color": "yellow", "text": "Elevated" } }, "type": "range" },
-            { "options": { "from": 2, "to": 5, "result": { "color": "orange", "text": "High" } }, "type": "range" },
-            { "options": { "from": 5, "to": 100, "result": { "color": "red", "text": "Critical" } }, "type": "range" }
+            {
+              "options": { "from": 0, "to": 1, "result": { "color": "green", "text": "Normal" } },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 1,
+                "to": 2,
+                "result": { "color": "yellow", "text": "Elevated" }
+              },
+              "type": "range"
+            },
+            {
+              "options": { "from": 2, "to": 5, "result": { "color": "orange", "text": "High" } },
+              "type": "range"
+            },
+            {
+              "options": { "from": 5, "to": 100, "result": { "color": "red", "text": "Critical" } },
+              "type": "range"
+            }
           ],
           "max": 5,
           "min": 0,
@@ -453,9 +511,30 @@
         "defaults": {
           "color": { "mode": "thresholds" },
           "mappings": [
-            { "options": { "from": 0.999, "to": 1, "result": { "color": "green", "text": "Compliant" } }, "type": "range" },
-            { "options": { "from": 0.99, "to": 0.999, "result": { "color": "yellow", "text": "At Risk" } }, "type": "range" },
-            { "options": { "from": 0, "to": 0.99, "result": { "color": "red", "text": "Breached" } }, "type": "range" }
+            {
+              "options": {
+                "from": 0.999,
+                "to": 1,
+                "result": { "color": "green", "text": "Compliant" }
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 0.99,
+                "to": 0.999,
+                "result": { "color": "yellow", "text": "At Risk" }
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 0,
+                "to": 0.99,
+                "result": { "color": "red", "text": "Breached" }
+              },
+              "type": "range"
+            }
           ],
           "max": 1,
           "min": 0.99,
@@ -495,9 +574,30 @@
         "defaults": {
           "color": { "mode": "thresholds" },
           "mappings": [
-            { "options": { "from": 0, "to": 0.2, "result": { "color": "green", "text": "Compliant" } }, "type": "range" },
-            { "options": { "from": 0.2, "to": 0.5, "result": { "color": "yellow", "text": "At Risk" } }, "type": "range" },
-            { "options": { "from": 0.5, "to": 10, "result": { "color": "red", "text": "Breached" } }, "type": "range" }
+            {
+              "options": {
+                "from": 0,
+                "to": 0.2,
+                "result": { "color": "green", "text": "Compliant" }
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 0.2,
+                "to": 0.5,
+                "result": { "color": "yellow", "text": "At Risk" }
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 0.5,
+                "to": 10,
+                "result": { "color": "red", "text": "Breached" }
+              },
+              "type": "range"
+            }
           ],
           "max": 1,
           "min": 0,
@@ -537,9 +637,30 @@
         "defaults": {
           "color": { "mode": "thresholds" },
           "mappings": [
-            { "options": { "from": 0, "to": 0.005, "result": { "color": "green", "text": "Compliant" } }, "type": "range" },
-            { "options": { "from": 0.005, "to": 0.01, "result": { "color": "yellow", "text": "At Risk" } }, "type": "range" },
-            { "options": { "from": 0.01, "to": 1, "result": { "color": "red", "text": "Breached" } }, "type": "range" }
+            {
+              "options": {
+                "from": 0,
+                "to": 0.005,
+                "result": { "color": "green", "text": "Compliant" }
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 0.005,
+                "to": 0.01,
+                "result": { "color": "yellow", "text": "At Risk" }
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 0.01,
+                "to": 1,
+                "result": { "color": "red", "text": "Breached" }
+              },
+              "type": "range"
+            }
           ],
           "max": 0.02,
           "min": 0,
@@ -579,9 +700,30 @@
         "defaults": {
           "color": { "mode": "thresholds" },
           "mappings": [
-            { "options": { "from": 0.99, "to": 1, "result": { "color": "green", "text": "Compliant" } }, "type": "range" },
-            { "options": { "from": 0.95, "to": 0.99, "result": { "color": "yellow", "text": "At Risk" } }, "type": "range" },
-            { "options": { "from": 0, "to": 0.95, "result": { "color": "red", "text": "Breached" } }, "type": "range" }
+            {
+              "options": {
+                "from": 0.99,
+                "to": 1,
+                "result": { "color": "green", "text": "Compliant" }
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 0.95,
+                "to": 0.99,
+                "result": { "color": "yellow", "text": "At Risk" }
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 0,
+                "to": 0.95,
+                "result": { "color": "red", "text": "Breached" }
+              },
+              "type": "range"
+            }
           ],
           "max": 1,
           "min": 0.9,
@@ -629,11 +771,42 @@
         "defaults": {
           "color": { "mode": "thresholds" },
           "mappings": [
-            { "options": { "from": 168, "to": 999999, "result": { "color": "green", "text": "> 7 days" } }, "type": "range" },
-            { "options": { "from": 72, "to": 168, "result": { "color": "#73BF69", "text": "3-7 days" } }, "type": "range" },
-            { "options": { "from": 24, "to": 72, "result": { "color": "yellow", "text": "1-3 days" } }, "type": "range" },
-            { "options": { "from": 6, "to": 24, "result": { "color": "orange", "text": "6-24 hours" } }, "type": "range" },
-            { "options": { "from": 0, "to": 6, "result": { "color": "red", "text": "< 6 hours" } }, "type": "range" }
+            {
+              "options": {
+                "from": 168,
+                "to": 999999,
+                "result": { "color": "green", "text": "> 7 days" }
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 72,
+                "to": 168,
+                "result": { "color": "#73BF69", "text": "3-7 days" }
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 24,
+                "to": 72,
+                "result": { "color": "yellow", "text": "1-3 days" }
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 6,
+                "to": 24,
+                "result": { "color": "orange", "text": "6-24 hours" }
+              },
+              "type": "range"
+            },
+            {
+              "options": { "from": 0, "to": 6, "result": { "color": "red", "text": "< 6 hours" } },
+              "type": "range"
+            }
           ],
           "thresholds": {
             "mode": "absolute",
@@ -673,11 +846,42 @@
         "defaults": {
           "color": { "mode": "thresholds" },
           "mappings": [
-            { "options": { "from": 168, "to": 999999, "result": { "color": "green", "text": "> 7 days" } }, "type": "range" },
-            { "options": { "from": 72, "to": 168, "result": { "color": "#73BF69", "text": "3-7 days" } }, "type": "range" },
-            { "options": { "from": 24, "to": 72, "result": { "color": "yellow", "text": "1-3 days" } }, "type": "range" },
-            { "options": { "from": 6, "to": 24, "result": { "color": "orange", "text": "6-24 hours" } }, "type": "range" },
-            { "options": { "from": 0, "to": 6, "result": { "color": "red", "text": "< 6 hours" } }, "type": "range" }
+            {
+              "options": {
+                "from": 168,
+                "to": 999999,
+                "result": { "color": "green", "text": "> 7 days" }
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 72,
+                "to": 168,
+                "result": { "color": "#73BF69", "text": "3-7 days" }
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 24,
+                "to": 72,
+                "result": { "color": "yellow", "text": "1-3 days" }
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 6,
+                "to": 24,
+                "result": { "color": "orange", "text": "6-24 hours" }
+              },
+              "type": "range"
+            },
+            {
+              "options": { "from": 0, "to": 6, "result": { "color": "red", "text": "< 6 hours" } },
+              "type": "range"
+            }
           ],
           "thresholds": {
             "mode": "absolute",
@@ -717,11 +921,42 @@
         "defaults": {
           "color": { "mode": "thresholds" },
           "mappings": [
-            { "options": { "from": 168, "to": 999999, "result": { "color": "green", "text": "> 7 days" } }, "type": "range" },
-            { "options": { "from": 72, "to": 168, "result": { "color": "#73BF69", "text": "3-7 days" } }, "type": "range" },
-            { "options": { "from": 24, "to": 72, "result": { "color": "yellow", "text": "1-3 days" } }, "type": "range" },
-            { "options": { "from": 6, "to": 24, "result": { "color": "orange", "text": "6-24 hours" } }, "type": "range" },
-            { "options": { "from": 0, "to": 6, "result": { "color": "red", "text": "< 6 hours" } }, "type": "range" }
+            {
+              "options": {
+                "from": 168,
+                "to": 999999,
+                "result": { "color": "green", "text": "> 7 days" }
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 72,
+                "to": 168,
+                "result": { "color": "#73BF69", "text": "3-7 days" }
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 24,
+                "to": 72,
+                "result": { "color": "yellow", "text": "1-3 days" }
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 6,
+                "to": 24,
+                "result": { "color": "orange", "text": "6-24 hours" }
+              },
+              "type": "range"
+            },
+            {
+              "options": { "from": 0, "to": 6, "result": { "color": "red", "text": "< 6 hours" } },
+              "type": "range"
+            }
           ],
           "thresholds": {
             "mode": "absolute",
@@ -771,7 +1006,10 @@
           "mappings": [
             { "options": { "0": { "color": "green", "text": "CLOSED (OK)" } }, "type": "value" },
             { "options": { "1": { "color": "red", "text": "OPEN (Failing)" } }, "type": "value" },
-            { "options": { "2": { "color": "yellow", "text": "HALF-OPEN (Recovering)" } }, "type": "value" }
+            {
+              "options": { "2": { "color": "yellow", "text": "HALF-OPEN (Recovering)" } },
+              "type": "value"
+            }
           ],
           "thresholds": {
             "mode": "absolute",
@@ -878,7 +1116,12 @@
       "gridPos": { "h": 6, "w": 6, "x": 18, "y": 41 },
       "id": 63,
       "options": {
-        "legend": { "calcs": ["mean", "last"], "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "legend": {
+          "calcs": ["mean", "last"],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
         "tooltip": { "mode": "multi", "sort": "desc" }
       },
       "targets": [

@@ -33,13 +33,13 @@ The LTV business flow tracks patient value from initial lead capture through con
 
 ### Why LTV Matters
 
-| Challenge | Solution |
-|-----------|----------|
-| Limited sales resources | Prioritize high-LTV leads |
-| Unknown patient value | Predict future value from behavioral signals |
-| Inconsistent follow-up | SLA-driven response times by tier |
-| Revenue leakage | Automated collections workflows |
-| Marketing ROI unclear | Cohort analysis by acquisition source |
+| Challenge               | Solution                                     |
+| ----------------------- | -------------------------------------------- |
+| Limited sales resources | Prioritize high-LTV leads                    |
+| Unknown patient value   | Predict future value from behavioral signals |
+| Inconsistent follow-up  | SLA-driven response times by tier            |
+| Revenue leakage         | Automated collections workflows              |
+| Marketing ROI unclear   | Cohort analysis by acquisition source        |
 
 ---
 
@@ -396,23 +396,23 @@ sequenceDiagram
 
 ### Tier Definitions
 
-| Tier | pLTV Range | % of Patients | Investment Priority |
-|------|------------|---------------|---------------------|
-| **DIAMOND** | > €50,000 | ~5% | PRIORITATE_MAXIMA |
-| **PLATINUM** | €30,000 - €50,000 | ~10% | PRIORITATE_RIDICATA |
-| **GOLD** | €15,000 - €30,000 | ~15% | PRIORITATE_MEDIE |
-| **SILVER** | €5,000 - €15,000 | ~30% | PRIORITATE_SCAZUTA |
-| **BRONZE** | < €5,000 | ~40% | PRIORITATE_SCAZUTA |
+| Tier         | pLTV Range        | % of Patients | Investment Priority |
+| ------------ | ----------------- | ------------- | ------------------- |
+| **DIAMOND**  | > €50,000         | ~5%           | PRIORITATE_MAXIMA   |
+| **PLATINUM** | €30,000 - €50,000 | ~10%          | PRIORITATE_RIDICATA |
+| **GOLD**     | €15,000 - €30,000 | ~15%          | PRIORITATE_MEDIE    |
+| **SILVER**   | €5,000 - €15,000  | ~30%          | PRIORITATE_SCAZUTA  |
+| **BRONZE**   | < €5,000          | ~40%          | PRIORITATE_SCAZUTA  |
 
 ### SLA Response Times
 
-| Tier | Follow-up SLA | Contact Method |
-|------|---------------|----------------|
-| DIAMOND | 2 hours | Personal call from coordinator |
-| PLATINUM | 8 hours | Priority callback |
-| GOLD | 24 hours | Same-day callback |
-| SILVER | 72 hours | Standard follow-up |
-| BRONZE | 72 hours | Automated nurture |
+| Tier     | Follow-up SLA | Contact Method                 |
+| -------- | ------------- | ------------------------------ |
+| DIAMOND  | 2 hours       | Personal call from coordinator |
+| PLATINUM | 8 hours       | Priority callback              |
+| GOLD     | 24 hours      | Same-day callback              |
+| SILVER   | 72 hours      | Standard follow-up             |
+| BRONZE   | 72 hours      | Automated nurture              |
 
 ### Recommended Actions by Tier
 
@@ -455,25 +455,25 @@ BRONZE (<€5k)
 
 ### Service Layer
 
-| Component | Path | Purpose |
-|-----------|------|---------|
-| **pLTV Scoring Service** | `packages/domain/src/ltv/pltv-scoring-service.ts` | Calculate predicted LTV |
-| **LTV Service** | `packages/domain/src/ltv/ltv-service.ts` | Dashboard metrics & analytics |
-| **Cohort Analysis Service** | `packages/domain/src/ltv/cohort-analysis-service.ts` | Cohort LTV tracking |
-| **Overdue Detection Service** | `packages/domain/src/ltv/overdue-detection-service.ts` | Collections automation |
-| **Lead Scoring Service** | `packages/domain/src/scoring/scoring-service.ts` | Initial lead classification |
+| Component                     | Path                                                   | Purpose                       |
+| ----------------------------- | ------------------------------------------------------ | ----------------------------- |
+| **pLTV Scoring Service**      | `packages/domain/src/ltv/pltv-scoring-service.ts`      | Calculate predicted LTV       |
+| **LTV Service**               | `packages/domain/src/ltv/ltv-service.ts`               | Dashboard metrics & analytics |
+| **Cohort Analysis Service**   | `packages/domain/src/ltv/cohort-analysis-service.ts`   | Cohort LTV tracking           |
+| **Overdue Detection Service** | `packages/domain/src/ltv/overdue-detection-service.ts` | Collections automation        |
+| **Lead Scoring Service**      | `packages/domain/src/scoring/scoring-service.ts`       | Initial lead classification   |
 
 ### Use Cases
 
-| Component | Path | Purpose |
-|-----------|------|---------|
-| **Score Patient pLTV** | `packages/domain/src/ltv/use-cases/score-patient-pltv.ts` | Orchestrate pLTV scoring |
+| Component               | Path                                                                  | Purpose                  |
+| ----------------------- | --------------------------------------------------------------------- | ------------------------ |
+| **Score Patient pLTV**  | `packages/domain/src/ltv/use-cases/score-patient-pltv.ts`             | Orchestrate pLTV scoring |
 | **Patient Acquisition** | `packages/application/src/ports/primary/PatientAcquisitionUseCase.ts` | Lead-to-patient pipeline |
 
 ### Value Objects
 
-| Component | Path | Purpose |
-|-----------|------|---------|
+| Component        | Path                                                               | Purpose                       |
+| ---------------- | ------------------------------------------------------------------ | ----------------------------- |
 | **PredictedLTV** | `packages/domain/src/shared-kernel/value-objects/predicted-ltv.ts` | Immutable pLTV representation |
 
 ---
@@ -561,27 +561,28 @@ Predicted LTV = Base Value
 
 ### Factor Weights
 
-| Factor | Range | Description |
-|--------|-------|-------------|
-| **Payment Reliability** | 0.7-1.3 | Based on on-time payment rate |
-| **Engagement** | 0.6-1.4 | Appointments kept, referrals, NPS |
-| **Procedure Interest** | 1.0-2.5 | All-on-X (2.5x), Implants (1.8x), Full-mouth (2.0x) |
-| **Retention** | 0.5-1.2 | Inverse of churn risk |
-| **Tenure** | 0.8-1.3 | Long tenure (365+ days) = 1.3x |
-| **Growth** | 1.0-1.45 | Lead source bonus (referral = 1.1x) |
+| Factor                  | Range    | Description                                         |
+| ----------------------- | -------- | --------------------------------------------------- |
+| **Payment Reliability** | 0.7-1.3  | Based on on-time payment rate                       |
+| **Engagement**          | 0.6-1.4  | Appointments kept, referrals, NPS                   |
+| **Procedure Interest**  | 1.0-2.5  | All-on-X (2.5x), Implants (1.8x), Full-mouth (2.0x) |
+| **Retention**           | 0.5-1.2  | Inverse of churn risk                               |
+| **Tenure**              | 0.8-1.3  | Long tenure (365+ days) = 1.3x                      |
+| **Growth**              | 1.0-1.45 | Lead source bonus (referral = 1.1x)                 |
 
 ### Collections Escalation
 
-| Level | Days Overdue | Actions |
-|-------|--------------|---------|
-| **First** | 1 day | WhatsApp reminder |
-| **Second** | 7 days | WhatsApp + Email + Late fee warning |
-| **Final** | 14 days | Final notice + HubSpot task |
-| **Escalated** | 21+ days | Manual follow-up + Deal stage change |
+| Level         | Days Overdue | Actions                              |
+| ------------- | ------------ | ------------------------------------ |
+| **First**     | 1 day        | WhatsApp reminder                    |
+| **Second**    | 7 days       | WhatsApp + Email + Late fee warning  |
+| **Final**     | 14 days      | Final notice + HubSpot task          |
+| **Escalated** | 21+ days     | Manual follow-up + Deal stage change |
 
 ### Cohort Health Scoring
 
 Health score (0-100) based on:
+
 - Conversion rate weight: 30%
 - Collection rate weight: 25%
 - Average LTV weight: 25%

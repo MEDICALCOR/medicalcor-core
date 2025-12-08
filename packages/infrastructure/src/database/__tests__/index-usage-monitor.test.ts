@@ -110,7 +110,10 @@ describe('Index Usage Monitor', () => {
 
   describe('calculatePotentialSavings', () => {
     it('should calculate savings for unused non-primary indexes', () => {
-      const indexes: Pick<IndexUsageReport, 'status' | 'indexSizeBytes' | 'isPrimaryKey' | 'isUnique'>[] = [
+      const indexes: Pick<
+        IndexUsageReport,
+        'status' | 'indexSizeBytes' | 'isPrimaryKey' | 'isUnique'
+      >[] = [
         { status: 'unused', indexSizeBytes: 1000000, isPrimaryKey: false, isUnique: false },
         { status: 'unused', indexSizeBytes: 500000, isPrimaryKey: false, isUnique: false },
         { status: 'healthy', indexSizeBytes: 2000000, isPrimaryKey: false, isUnique: false },
@@ -122,7 +125,10 @@ describe('Index Usage Monitor', () => {
     });
 
     it('should exclude primary key indexes from savings', () => {
-      const indexes: Pick<IndexUsageReport, 'status' | 'indexSizeBytes' | 'isPrimaryKey' | 'isUnique'>[] = [
+      const indexes: Pick<
+        IndexUsageReport,
+        'status' | 'indexSizeBytes' | 'isPrimaryKey' | 'isUnique'
+      >[] = [
         { status: 'unused', indexSizeBytes: 1000000, isPrimaryKey: true, isUnique: false },
         { status: 'unused', indexSizeBytes: 500000, isPrimaryKey: false, isUnique: false },
       ];
@@ -132,7 +138,10 @@ describe('Index Usage Monitor', () => {
     });
 
     it('should exclude unique indexes from savings', () => {
-      const indexes: Pick<IndexUsageReport, 'status' | 'indexSizeBytes' | 'isPrimaryKey' | 'isUnique'>[] = [
+      const indexes: Pick<
+        IndexUsageReport,
+        'status' | 'indexSizeBytes' | 'isPrimaryKey' | 'isUnique'
+      >[] = [
         { status: 'unused', indexSizeBytes: 1000000, isPrimaryKey: false, isUnique: true },
         { status: 'unused', indexSizeBytes: 500000, isPrimaryKey: false, isUnique: false },
       ];
@@ -142,7 +151,10 @@ describe('Index Usage Monitor', () => {
     });
 
     it('should return zero for no unused indexes', () => {
-      const indexes: Pick<IndexUsageReport, 'status' | 'indexSizeBytes' | 'isPrimaryKey' | 'isUnique'>[] = [
+      const indexes: Pick<
+        IndexUsageReport,
+        'status' | 'indexSizeBytes' | 'isPrimaryKey' | 'isUnique'
+      >[] = [
         { status: 'healthy', indexSizeBytes: 1000000, isPrimaryKey: false, isUnique: false },
         { status: 'degraded', indexSizeBytes: 500000, isPrimaryKey: false, isUnique: false },
       ];
@@ -180,15 +192,17 @@ describe('Index Usage Monitor', () => {
       const index = { ...baseIndex, status: 'unused' as const, isPrimaryKey: true };
       const recommendations = generateIndexRecommendations(index, DEFAULT_CONFIG);
 
-      expect(recommendations.some(r => r.includes('verify table is being accessed correctly'))).toBe(true);
-      expect(recommendations.some(r => r.includes('Consider dropping'))).toBe(false);
+      expect(
+        recommendations.some((r) => r.includes('verify table is being accessed correctly'))
+      ).toBe(true);
+      expect(recommendations.some((r) => r.includes('Consider dropping'))).toBe(false);
     });
 
     it('should recommend reindexing critical indexes', () => {
       const index = { ...baseIndex, status: 'critical' as const, efficiency: 0.1 };
       const recommendations = generateIndexRecommendations(index, DEFAULT_CONFIG);
 
-      expect(recommendations.some(r => r.includes('REINDEX CONCURRENTLY'))).toBe(true);
+      expect(recommendations.some((r) => r.includes('REINDEX CONCURRENTLY'))).toBe(true);
     });
 
     it('should recommend ANALYZE for stale statistics', () => {
@@ -196,7 +210,7 @@ describe('Index Usage Monitor', () => {
       const index = { ...baseIndex, status: 'healthy' as const, lastAnalyze: staleDate };
       const recommendations = generateIndexRecommendations(index, DEFAULT_CONFIG);
 
-      expect(recommendations.some(r => r.includes('ANALYZE'))).toBe(true);
+      expect(recommendations.some((r) => r.includes('ANALYZE'))).toBe(true);
     });
 
     it('should recommend ANALYZE when never analyzed', () => {
@@ -211,7 +225,7 @@ describe('Index Usage Monitor', () => {
       const index = { ...baseIndex, status: 'healthy' as const, lastVacuum: staleDate };
       const recommendations = generateIndexRecommendations(index, DEFAULT_CONFIG);
 
-      expect(recommendations.some(r => r.includes('VACUUM'))).toBe(true);
+      expect(recommendations.some((r) => r.includes('VACUUM'))).toBe(true);
     });
 
     it('should recommend VACUUM when never vacuumed', () => {
@@ -225,7 +239,7 @@ describe('Index Usage Monitor', () => {
       const index = { ...baseIndex, status: 'degraded' as const, efficiency: 0.3 };
       const recommendations = generateIndexRecommendations(index, DEFAULT_CONFIG);
 
-      expect(recommendations.some(r => r.includes('efficiency is 30.0%'))).toBe(true);
+      expect(recommendations.some((r) => r.includes('efficiency is 30.0%'))).toBe(true);
     });
 
     it('should return empty recommendations for healthy indexes', () => {

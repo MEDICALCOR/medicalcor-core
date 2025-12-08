@@ -182,19 +182,23 @@ export default function BehavioralInsightsPage() {
   }
 
   const getPatternLabel = (type: string) => {
-    return patternTypeLabels[type] ?? {
-      label: type.replace(/_/g, ' ').replace('llm ', ''),
-      color: 'bg-gray-100 text-gray-700',
-      icon: Brain,
-    };
+    return (
+      patternTypeLabels[type] ?? {
+        label: type.replace(/_/g, ' ').replace('llm ', ''),
+        color: 'bg-gray-100 text-gray-700',
+        icon: Brain,
+      }
+    );
   };
 
   const getInsightLabel = (type: string) => {
-    return insightTypeLabels[type] ?? {
-      label: type.replace(/_/g, ' '),
-      color: 'bg-gray-100 text-gray-700 border-gray-200',
-      icon: Brain,
-    };
+    return (
+      insightTypeLabels[type] ?? {
+        label: type.replace(/_/g, ' '),
+        color: 'bg-gray-100 text-gray-700 border-gray-200',
+        icon: Brain,
+      }
+    );
   };
 
   const formatConfidence = (confidence: number) => {
@@ -359,9 +363,7 @@ export default function BehavioralInsightsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Patterns Detectate</CardTitle>
-              <CardDescription>
-                Tipare comportamentale identificate prin analiză AI
-              </CardDescription>
+              <CardDescription>Tipare comportamentale identificate prin analiză AI</CardDescription>
             </CardHeader>
             <CardContent>
               {(dashboardData?.topPatterns.length ?? 0) === 0 ? (
@@ -409,10 +411,7 @@ export default function BehavioralInsightsPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <Progress
-                                value={pattern.confidence * 100}
-                                className="w-16 h-2"
-                              />
+                              <Progress value={pattern.confidence * 100} className="w-16 h-2" />
                               <span className="text-sm font-medium">
                                 {formatConfidence(pattern.confidence)}
                               </span>
@@ -444,9 +443,7 @@ export default function BehavioralInsightsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Cognitive Insights</CardTitle>
-              <CardDescription>
-                Recomandări și acțiuni bazate pe patterns detectate
-              </CardDescription>
+              <CardDescription>Recomandări și acțiuni bazate pe patterns detectate</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
@@ -454,10 +451,7 @@ export default function BehavioralInsightsPage() {
                   const insightMeta = getInsightLabel(insight.type);
                   const InsightIcon = insightMeta.icon;
                   return (
-                    <div
-                      key={idx}
-                      className={cn('p-4 rounded-lg border', insightMeta.color)}
-                    >
+                    <div key={idx} className={cn('p-4 rounded-lg border', insightMeta.color)}>
                       <div className="flex items-start gap-3">
                         <div className="p-2 rounded-lg bg-white/50">
                           <InsightIcon className="h-5 w-5" />

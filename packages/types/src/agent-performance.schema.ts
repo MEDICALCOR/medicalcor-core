@@ -21,7 +21,13 @@ export const AgentTypeSchema = z.enum(['human', 'ai', 'hybrid']);
 /**
  * Agent role hierarchy
  */
-export const AgentRoleSchema = z.enum(['agent', 'senior_agent', 'team_lead', 'supervisor', 'manager']);
+export const AgentRoleSchema = z.enum([
+  'agent',
+  'senior_agent',
+  'team_lead',
+  'supervisor',
+  'manager',
+]);
 
 /**
  * Agent status

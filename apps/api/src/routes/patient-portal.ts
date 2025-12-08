@@ -49,8 +49,14 @@ const UpdatePreferencesSchema = z.object({
 // Appointment booking schemas
 const GetAvailableSlotsSchema = z.object({
   procedureType: z.string().min(1).max(128),
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  startDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  endDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
   practitionerId: z.string().optional(),
   locationId: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(20).optional(),
@@ -299,7 +305,8 @@ async function handleVerifyOTP(
       const contact = contacts.results[0];
       if (contact) {
         hubspotContactId = contact.id;
-        patientName = `${contact.properties.firstname ?? ''} ${contact.properties.lastname ?? ''}`.trim();
+        patientName =
+          `${contact.properties.firstname ?? ''} ${contact.properties.lastname ?? ''}`.trim();
         patientEmail = contact.properties.email;
       }
     } catch (err) {
@@ -581,15 +588,15 @@ async function handleGetAvailableSlots(
         practitioner: slot.practitioner
           ? { id: slot.practitioner.id, name: slot.practitioner.name }
           : undefined,
-        location: slot.location
-          ? { id: slot.location.id, name: slot.location.name }
-          : undefined,
+        location: slot.location ? { id: slot.location.id, name: slot.location.name } : undefined,
       })),
       correlationId,
     });
   } catch (err) {
     logger.error({ err, correlationId }, 'Failed to fetch available slots');
-    return await reply.status(500).send({ error: 'Failed to fetch available slots', correlationId });
+    return await reply
+      .status(500)
+      .send({ error: 'Failed to fetch available slots', correlationId });
   }
 }
 
@@ -658,10 +665,7 @@ async function handleBookAppointment(
       },
     });
 
-    logger.info(
-      { correlationId, appointmentId: appointment.id },
-      'Patient booked appointment'
-    );
+    logger.info({ correlationId, appointmentId: appointment.id }, 'Patient booked appointment');
 
     return await reply.status(201).send({
       success: true,
@@ -716,13 +720,19 @@ async function handleCancelAppointment(
         { correlationId, appointmentId },
         'Patient attempted to cancel another patient appointment'
       );
-      return await reply.status(403).send({ error: 'Not authorized to cancel this appointment', correlationId });
+      return await reply
+        .status(403)
+        .send({ error: 'Not authorized to cancel this appointment', correlationId });
     }
     if (existingAppointment.status === 'cancelled') {
-      return await reply.status(400).send({ error: 'Appointment already cancelled', correlationId });
+      return await reply
+        .status(400)
+        .send({ error: 'Appointment already cancelled', correlationId });
     }
     if (existingAppointment.status === 'completed') {
-      return await reply.status(400).send({ error: 'Cannot cancel completed appointment', correlationId });
+      return await reply
+        .status(400)
+        .send({ error: 'Cannot cancel completed appointment', correlationId });
     }
   } catch (err) {
     logger.error({ err, correlationId }, 'Failed to verify appointment ownership');
@@ -801,13 +811,19 @@ async function handleRescheduleAppointment(
         { correlationId, appointmentId },
         'Patient attempted to reschedule another patient appointment'
       );
-      return await reply.status(403).send({ error: 'Not authorized to reschedule this appointment', correlationId });
+      return await reply
+        .status(403)
+        .send({ error: 'Not authorized to reschedule this appointment', correlationId });
     }
     if (existingAppointment.status === 'cancelled') {
-      return await reply.status(400).send({ error: 'Cannot reschedule cancelled appointment', correlationId });
+      return await reply
+        .status(400)
+        .send({ error: 'Cannot reschedule cancelled appointment', correlationId });
     }
     if (existingAppointment.status === 'completed') {
-      return await reply.status(400).send({ error: 'Cannot reschedule completed appointment', correlationId });
+      return await reply
+        .status(400)
+        .send({ error: 'Cannot reschedule completed appointment', correlationId });
     }
   } catch (err) {
     logger.error({ err, correlationId }, 'Failed to verify appointment ownership');
@@ -870,7 +886,9 @@ async function handleRescheduleAppointment(
     });
   } catch (err) {
     logger.error({ err, correlationId }, 'Failed to reschedule appointment');
-    return await reply.status(500).send({ error: 'Failed to reschedule appointment', correlationId });
+    return await reply
+      .status(500)
+      .send({ error: 'Failed to reschedule appointment', correlationId });
   }
 }
 
@@ -890,13 +908,33 @@ export const patientPortalRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/patient/profile', { preHandler: requirePatientAuth }, handleGetProfile);
   fastify.get('/patient/appointments', { preHandler: requirePatientAuth }, handleGetAppointments);
   fastify.get('/patient/preferences', { preHandler: requirePatientAuth }, handleGetPreferences);
-  fastify.put('/patient/preferences', { preHandler: requirePatientAuth }, handleUpdatePreferences as RouteHandlerMethod);
+  fastify.put(
+    '/patient/preferences',
+    { preHandler: requirePatientAuth },
+    handleUpdatePreferences as RouteHandlerMethod
+  );
 
   // Appointment booking routes
-  fastify.get('/patient/appointments/slots', { preHandler: requirePatientAuth }, handleGetAvailableSlots as RouteHandlerMethod);
-  fastify.post('/patient/appointments/book', { preHandler: requirePatientAuth }, handleBookAppointment as RouteHandlerMethod);
-  fastify.post('/patient/appointments/cancel', { preHandler: requirePatientAuth }, handleCancelAppointment as RouteHandlerMethod);
-  fastify.post('/patient/appointments/reschedule', { preHandler: requirePatientAuth }, handleRescheduleAppointment as RouteHandlerMethod);
+  fastify.get(
+    '/patient/appointments/slots',
+    { preHandler: requirePatientAuth },
+    handleGetAvailableSlots as RouteHandlerMethod
+  );
+  fastify.post(
+    '/patient/appointments/book',
+    { preHandler: requirePatientAuth },
+    handleBookAppointment as RouteHandlerMethod
+  );
+  fastify.post(
+    '/patient/appointments/cancel',
+    { preHandler: requirePatientAuth },
+    handleCancelAppointment as RouteHandlerMethod
+  );
+  fastify.post(
+    '/patient/appointments/reschedule',
+    { preHandler: requirePatientAuth },
+    handleRescheduleAppointment as RouteHandlerMethod
+  );
 };
 
 // ============================================

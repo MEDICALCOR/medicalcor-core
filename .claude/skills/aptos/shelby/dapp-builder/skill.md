@@ -14,6 +14,7 @@ Guide developers in building decentralized applications (dApps) that leverage Sh
 ## When to Use
 
 Auto-invoke when users ask about:
+
 - **DApp Development** - Build Shelby app, create dApp, web3 application
 - **Browser Integration** - Browser SDK, client-side uploads, web app
 - **Wallet Integration** - Petra wallet, Aptos wallet, authentication
@@ -24,11 +25,13 @@ Auto-invoke when users ask about:
 ## Knowledge Base
 
 DApp development documentation:
+
 ```
 .claude/skills/blockchain/aptos/docs_shelby/
 ```
 
 Key files:
+
 - `sdks_typescript_browser.md` - Browser SDK overview
 - `sdks_typescript_browser_guides_upload.md` - Upload workflows
 - `tools_wallets_petra-setup.md` - Wallet integration
@@ -68,18 +71,21 @@ Key files:
 ### Key Components
 
 **1. Wallet Integration**
+
 - User authentication via Petra wallet
 - Transaction signing
 - Account management
 - Balance checking
 
 **2. Shelby Browser SDK**
+
 - File uploads from browser
 - Blob downloads
 - Session management
 - Progress tracking
 
 **3. Frontend Framework**
+
 - React, Vue, or vanilla JavaScript
 - File upload UI
 - Content gallery
@@ -90,11 +96,13 @@ Key files:
 ### Setup
 
 **Install Petra Wallet:**
+
 ```
 Chrome Extension: https://petra.app/
 ```
 
 **Detect Wallet:**
+
 ```typescript
 // Check if Petra is installed
 const isPetraInstalled = 'aptos' in window;
@@ -154,24 +162,20 @@ export const walletManager = new WalletManager();
 
 ```typescript
 async function checkBalance(address: string): Promise<any> {
-  const response = await fetch(
-    `https://api.shelbynet.shelby.xyz/v1/accounts/${address}/resources`
-  );
+  const response = await fetch(`https://api.shelbynet.shelby.xyz/v1/accounts/${address}/resources`);
 
   const resources = await response.json();
 
   // Find APT and ShelbyUSD balances
   const aptCoin = resources.find(
-    r => r.type === '0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>'
+    (r) => r.type === '0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>'
   );
 
-  const shelbyUSD = resources.find(
-    r => r.type.includes('ShelbyUSD')
-  );
+  const shelbyUSD = resources.find((r) => r.type.includes('ShelbyUSD'));
 
   return {
     apt: aptCoin?.data?.coin?.value || '0',
-    shelbyUSD: shelbyUSD?.data?.coin?.value || '0'
+    shelbyUSD: shelbyUSD?.data?.coin?.value || '0',
   };
 }
 ```
@@ -200,7 +204,7 @@ class ShelbyService {
 
     this.client = new ShelbyClient({
       network: Network.SHELBYNET,
-      apiKey: process.env.NEXT_PUBLIC_SHELBY_API_KEY // Optional
+      apiKey: process.env.NEXT_PUBLIC_SHELBY_API_KEY, // Optional
     });
   }
 
@@ -216,10 +220,7 @@ export const shelbyService = new ShelbyService();
 
 ```typescript
 class FileUploader {
-  async uploadFile(
-    file: File,
-    onProgress?: (progress: number) => void
-  ): Promise<string> {
+  async uploadFile(file: File, onProgress?: (progress: number) => void): Promise<string> {
     // Read file as ArrayBuffer
     const arrayBuffer = await file.arrayBuffer();
     const data = new Uint8Array(arrayBuffer);
@@ -238,7 +239,7 @@ class FileUploader {
       onProgress: (progressEvent) => {
         const percentage = (progressEvent.loaded / progressEvent.total) * 100;
         onProgress?.(percentage);
-      }
+      },
     });
 
     return blobName;
@@ -559,29 +560,19 @@ export function App() {
   <div class="upload-component">
     <h2>Upload to Shelby</h2>
 
-    <input
-      type="file"
-      @change="handleFileSelect"
-      :disabled="uploading"
-    />
+    <input type="file" @change="handleFileSelect" :disabled="uploading" />
 
     <div v-if="selectedFile" class="file-info">
       <p>Selected: {{ selectedFile.name }}</p>
       <p>Size: {{ fileSizeMB }} MB</p>
     </div>
 
-    <button
-      @click="handleUpload"
-      :disabled="!selectedFile || uploading"
-    >
+    <button @click="handleUpload" :disabled="!selectedFile || uploading">
       {{ uploading ? 'Uploading...' : 'Upload' }}
     </button>
 
     <div v-if="uploading" class="progress-bar">
-      <div
-        class="progress-fill"
-        :style="{ width: `${progress}%` }"
-      />
+      <div class="progress-fill" :style="{ width: `${progress}%` }" />
       <span>{{ progress.toFixed(1) }}%</span>
     </div>
 
@@ -621,12 +612,9 @@ const handleUpload = async () => {
   progress.value = 0;
 
   try {
-    const result = await fileUploader.uploadFile(
-      selectedFile.value,
-      (percentage) => {
-        progress.value = percentage;
-      }
-    );
+    const result = await fileUploader.uploadFile(selectedFile.value, (percentage) => {
+      progress.value = percentage;
+    });
 
     blobName.value = result;
     alert('Upload successful!');
@@ -657,7 +645,7 @@ class ImageGalleryDApp {
     await shelbyService.getClient().uploadBlob({
       blobName,
       data: optimized,
-      expirationTimestamp: Date.now() + 365 * 24 * 60 * 60 * 1000
+      expirationTimestamp: Date.now() + 365 * 24 * 60 * 60 * 1000,
     });
 
     // Store metadata on-chain or in separate index
@@ -670,10 +658,10 @@ class ImageGalleryDApp {
     // Query blobs by prefix
     const images = await this.queryBlobs(`gallery/${albumId}/`);
 
-    return images.map(blob => ({
+    return images.map((blob) => ({
       url: this.getBlobURL(blob.name),
       metadata: blob.metadata,
-      thumbnail: this.getBlobURL(blob.name, { size: 'thumbnail' })
+      thumbnail: this.getBlobURL(blob.name, { size: 'thumbnail' }),
     }));
   }
 
@@ -695,11 +683,11 @@ class VideoStreamingDApp {
 
     // Upload each segment
     const videoId = Date.now().toString();
-    const uploadPromises = hlsSegments.map(segment =>
+    const uploadPromises = hlsSegments.map((segment) =>
       shelbyService.getClient().uploadBlob({
         blobName: `videos/${videoId}/${segment.name}`,
         data: segment.data,
-        expirationTimestamp: Date.now() + 90 * 24 * 60 * 60 * 1000
+        expirationTimestamp: Date.now() + 90 * 24 * 60 * 60 * 1000,
       })
     );
 
@@ -733,7 +721,7 @@ class FileSharingDApp {
     await shelbyService.getClient().uploadBlob({
       blobName,
       data: await file.arrayBuffer(),
-      expirationTimestamp: Date.now() + expireDays * 24 * 60 * 60 * 1000
+      expirationTimestamp: Date.now() + expireDays * 24 * 60 * 60 * 1000,
     });
 
     // Create shareable link
@@ -764,6 +752,7 @@ class FileSharingDApp {
 ### 1. User Experience
 
 **Progress Feedback:**
+
 ```typescript
 // Always show upload/download progress
 const [progress, setProgress] = useState(0);
@@ -775,6 +764,7 @@ await uploadFile(file, (percent) => {
 ```
 
 **Error Handling:**
+
 ```typescript
 try {
   await uploadFile(file);
@@ -790,6 +780,7 @@ try {
 ```
 
 **Loading States:**
+
 ```typescript
 // Show loading indicators
 const [loading, setLoading] = useState(false);
@@ -801,6 +792,7 @@ const [loading, setLoading] = useState(false);
 ### 2. Performance Optimization
 
 **Image Optimization:**
+
 ```typescript
 async function optimizeImage(file: File): Promise<Uint8Array> {
   return new Promise((resolve) => {
@@ -828,7 +820,7 @@ async function optimizeImage(file: File): Promise<Uint8Array> {
       // Convert to blob with compression
       canvas.toBlob(
         (blob) => {
-          blob!.arrayBuffer().then(buffer => {
+          blob!.arrayBuffer().then((buffer) => {
             resolve(new Uint8Array(buffer));
           });
         },
@@ -841,13 +833,14 @@ async function optimizeImage(file: File): Promise<Uint8Array> {
 ```
 
 **Lazy Loading:**
+
 ```typescript
 // Load blobs on-demand
 const [visibleBlobs, setVisibleBlobs] = useState<string[]>([]);
 
 useEffect(() => {
   const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
+    entries.forEach((entry) => {
       if (entry.isIntersecting) {
         // Load blob when visible
         loadBlob(entry.target.dataset.blobName);
@@ -862,6 +855,7 @@ useEffect(() => {
 ### 3. Security
 
 **Wallet Integration:**
+
 ```typescript
 // Always verify wallet connection
 const isConnected = await window.aptos?.isConnected();
@@ -877,6 +871,7 @@ if (network !== 'shelbynet') {
 ```
 
 **Input Validation:**
+
 ```typescript
 // Validate file types
 const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
@@ -894,6 +889,7 @@ if (file.size > maxSize) {
 ### 4. Cost Management
 
 **Estimate Costs:**
+
 ```typescript
 async function estimateUploadCost(fileSize: number, durationDays: number): Promise<number> {
   // Rough estimation based on size and duration
@@ -912,6 +908,7 @@ const confirmed = confirm(`This upload will cost ~${cost.toFixed(4)} ShelbyUSD. 
 ### 1. Understand App Requirements
 
 **Questions:**
+
 - What type of dApp are you building?
 - What files/data need storage?
 - Who are your users?
@@ -921,11 +918,13 @@ const confirmed = confirm(`This upload will cost ~${cost.toFixed(4)} ShelbyUSD. 
 ### 2. Design Architecture
 
 **Choose Pattern:**
+
 - Pure client-side (browser SDK only)
 - Hybrid (frontend + backend API)
 - Server-side rendering with Shelby
 
 **Plan Components:**
+
 - Authentication/wallet
 - Upload interface
 - Download/display logic
@@ -934,6 +933,7 @@ const confirmed = confirm(`This upload will cost ~${cost.toFixed(4)} ShelbyUSD. 
 ### 3. Provide Implementation
 
 **Show:**
+
 - Complete code examples
 - Component structure
 - Integration patterns
@@ -942,6 +942,7 @@ const confirmed = confirm(`This upload will cost ~${cost.toFixed(4)} ShelbyUSD. 
 ### 4. Testing & Deployment
 
 **Guide:**
+
 - Local testing workflow
 - Testnet deployment
 - Production considerations

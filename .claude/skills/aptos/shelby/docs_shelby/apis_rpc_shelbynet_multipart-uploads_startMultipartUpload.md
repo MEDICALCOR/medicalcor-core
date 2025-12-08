@@ -86,13 +86,11 @@ Python
 Java
 
 C#
-    
-    
+
     curl -X POST "https://api.shelbynet.shelby.xyz/shelby/v1/multipart-uploads" \  -H "Content-Type: application/json" \  -d '{}'
 
 200400
-    
-    
+
     {
       "uploadId": "string"
     }

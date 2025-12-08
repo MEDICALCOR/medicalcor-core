@@ -23,16 +23,16 @@ Procedures for safely rolling back deployments, configurations, and database cha
 
 ### When to Rollback vs. Fix Forward
 
-| Scenario | Recommendation | Reasoning |
-|----------|---------------|-----------|
-| Clear regression from recent deploy | **Rollback** | Fast recovery |
-| Bug in new code, fix is simple | Fix Forward | Faster than rollback |
-| Bug in new code, fix is complex | **Rollback** | Reduce MTTR |
-| Performance degradation > 50% | **Rollback** | Immediate impact |
-| Partial feature failure | Fix Forward + Feature Flag | Surgical approach |
-| Database migration failed mid-way | **Assess carefully** | May need forward fix |
-| Security vulnerability discovered | **Rollback** + Rotate keys | Safety first |
-| Third-party integration broken | Wait or workaround | Not our deployment |
+| Scenario                            | Recommendation             | Reasoning            |
+| ----------------------------------- | -------------------------- | -------------------- |
+| Clear regression from recent deploy | **Rollback**               | Fast recovery        |
+| Bug in new code, fix is simple      | Fix Forward                | Faster than rollback |
+| Bug in new code, fix is complex     | **Rollback**               | Reduce MTTR          |
+| Performance degradation > 50%       | **Rollback**               | Immediate impact     |
+| Partial feature failure             | Fix Forward + Feature Flag | Surgical approach    |
+| Database migration failed mid-way   | **Assess carefully**       | May need forward fix |
+| Security vulnerability discovered   | **Rollback** + Rotate keys | Safety first         |
+| Third-party integration broken      | Wait or workaround         | Not our deployment   |
 
 ### Rollback Decision Flowchart
 
@@ -448,15 +448,15 @@ gcloud logging read 'resource.type="cloud_run_revision" AND severity>=ERROR' \
 
 ## Rollback Scenarios Quick Reference
 
-| Scenario | Command/Action |
-|----------|---------------|
-| Bad API deployment | `gcloud run services update-traffic medicalcor-api --to-revisions=PREV=100` |
-| Bad web deployment | `gcloud run services update-traffic medicalcor-web --to-revisions=PREV=100` |
-| Bad Trigger.dev deploy | Dashboard > Deployments > Rollback |
+| Scenario                 | Command/Action                                                              |
+| ------------------------ | --------------------------------------------------------------------------- |
+| Bad API deployment       | `gcloud run services update-traffic medicalcor-api --to-revisions=PREV=100` |
+| Bad web deployment       | `gcloud run services update-traffic medicalcor-web --to-revisions=PREV=100` |
+| Bad Trigger.dev deploy   | Dashboard > Deployments > Rollback                                          |
 | Bad environment variable | `gcloud run services update medicalcor-api --update-env-vars KEY=old_value` |
-| Bad secret | `gcloud secrets versions enable SECRET --version=PREV` + redeploy |
-| Bad feature flag | Set flag to `false` in database or API |
-| Bad DB migration | Execute rollback SQL or restore from backup |
+| Bad secret               | `gcloud secrets versions enable SECRET --version=PREV` + redeploy           |
+| Bad feature flag         | Set flag to `false` in database or API                                      |
+| Bad DB migration         | Execute rollback SQL or restore from backup                                 |
 
 ---
 
@@ -464,12 +464,12 @@ gcloud logging read 'resource.type="cloud_run_revision" AND severity>=ERROR' \
 
 ### Do NOT Rollback Without Coordination
 
-| Scenario | Risk | Action |
-|----------|------|--------|
-| Database has new required columns | App may crash | Coordinate with DB team |
-| API has breaking changes | Clients may break | Check client compatibility |
-| Secrets were rotated | Old secrets may be disabled | Re-enable old secrets first |
-| Third-party webhook URLs changed | Webhooks will fail | Update external configs |
+| Scenario                          | Risk                        | Action                      |
+| --------------------------------- | --------------------------- | --------------------------- |
+| Database has new required columns | App may crash               | Coordinate with DB team     |
+| API has breaking changes          | Clients may break           | Check client compatibility  |
+| Secrets were rotated              | Old secrets may be disabled | Re-enable old secrets first |
+| Third-party webhook URLs changed  | Webhooks will fail          | Update external configs     |
 
 ### Rollback Blockers
 
@@ -484,6 +484,6 @@ If any of these are true, **stop and escalate**:
 
 ## Revision History
 
-| Date | Version | Author | Changes |
-|------|---------|--------|---------|
-| 2024-12 | 1.0 | Platform Team | Initial runbook creation |
+| Date    | Version | Author        | Changes                  |
+| ------- | ------- | ------------- | ------------------------ |
+| 2024-12 | 1.0     | Platform Team | Initial runbook creation |

@@ -14,6 +14,7 @@ Expert guidance for developers integrating Shelby Protocol's decentralized stora
 ## When to Use
 
 Auto-invoke when users mention:
+
 - **SDK Integration** - ShelbyNodeClient, ShelbyClient, @shelby-protocol/sdk
 - **Operations** - upload blob, download blob, Shelby storage, file storage
 - **Features** - session management, micropayment channel, multipart upload
@@ -23,11 +24,13 @@ Auto-invoke when users mention:
 ## Knowledge Base
 
 All Shelby Protocol documentation is located in:
+
 ```
 .claude/skills/blockchain/aptos/docs_shelby/
 ```
 
 Key documentation files:
+
 - `sdks_typescript.md` - SDK overview and installation
 - `sdks_typescript_core_specifications.md` - Core SDK types and functions
 - `sdks_typescript_node_specifications.md` - Node.js specific APIs
@@ -39,12 +42,14 @@ Key documentation files:
 ## Core Concepts
 
 ### 1. Shelby Architecture
+
 - **Aptos Smart Contract** - Manages system state and data correctness audits
 - **Storage Providers (SP)** - Store erasure-coded chunks of user data
 - **RPC Servers** - User-facing API for blob operations
 - **Private Network** - Fiber network for internal communication
 
 ### 2. Data Model
+
 - **Blobs** - User data stored in account-specific namespaces
 - **Chunking** - Data split into 10MB chunksets, erasure coded to 16 chunks
 - **Erasure Coding** - Clay Codes provide 10 data + 6 parity chunks
@@ -53,26 +58,28 @@ Key documentation files:
 ### 3. SDK Components
 
 **Node.js:**
+
 ```typescript
-import { ShelbyNodeClient } from "@shelby-protocol/sdk/node";
-import { Network } from "@aptos-labs/ts-sdk";
+import { ShelbyNodeClient } from '@shelby-protocol/sdk/node';
+import { Network } from '@aptos-labs/ts-sdk';
 
 const config = {
   network: Network.SHELBYNET,
-  apiKey: "aptoslabs_***",
+  apiKey: 'aptoslabs_***',
 };
 
 const shelbyClient = new ShelbyNodeClient(config);
 ```
 
 **Browser:**
+
 ```typescript
 import { ShelbyClient } from '@shelby-protocol/sdk/browser';
 import { Network } from '@aptos-labs/ts-sdk';
 
 const config = {
   network: Network.SHELBYNET,
-  apiKey: "aptoslabs_***",
+  apiKey: 'aptoslabs_***',
 };
 
 const shelbyClient = new ShelbyClient(config);
@@ -89,41 +96,44 @@ npm install @shelby-protocol/sdk @aptos-labs/ts-sdk
 ### Upload Workflow
 
 1. **Create Client**
+
 ```typescript
 const client = new ShelbyNodeClient({
   network: Network.SHELBYNET,
-  apiKey: process.env.SHELBY_API_KEY
+  apiKey: process.env.SHELBY_API_KEY,
 });
 ```
 
 2. **Upload Blob**
+
 ```typescript
 // SDK handles erasure coding and chunk distribution
 const result = await client.uploadBlob({
-  blobName: "user/data/file.txt",
+  blobName: 'user/data/file.txt',
   data: fileBuffer,
-  expirationTimestamp: Date.now() + (30 * 24 * 60 * 60 * 1000) // 30 days
+  expirationTimestamp: Date.now() + 30 * 24 * 60 * 60 * 1000, // 30 days
 });
 ```
 
 3. **Multipart Upload (Large Files)**
+
 ```typescript
 // For files > chunkset size (10MB)
 const upload = await client.startMultipartUpload({
-  blobName: "large-dataset.bin",
-  expirationTimestamp: futureTimestamp
+  blobName: 'large-dataset.bin',
+  expirationTimestamp: futureTimestamp,
 });
 
 for (const part of fileParts) {
   await client.uploadPart({
     uploadId: upload.id,
     partNumber: partNum,
-    data: part
+    data: part,
   });
 }
 
 await client.completeMultipartUpload({
-  uploadId: upload.id
+  uploadId: upload.id,
 });
 ```
 
@@ -131,11 +141,11 @@ await client.completeMultipartUpload({
 
 ```typescript
 // Download entire blob
-const blob = await client.getBlob("user/data/file.txt");
+const blob = await client.getBlob('user/data/file.txt');
 
 // Download byte range
-const partialBlob = await client.getBlob("user/data/file.txt", {
-  range: { start: 0, end: 1024 }
+const partialBlob = await client.getBlob('user/data/file.txt', {
+  range: { start: 0, end: 1024 },
 });
 ```
 
@@ -144,12 +154,12 @@ const partialBlob = await client.getBlob("user/data/file.txt", {
 ```typescript
 // Create session for multiple operations
 const session = await client.createSession({
-  rpcUrl: "https://api.shelbynet.shelby.xyz/shelby",
-  paymentAmount: 1000000 // ShelbyUSD micro-units
+  rpcUrl: 'https://api.shelbynet.shelby.xyz/shelby',
+  paymentAmount: 1000000, // ShelbyUSD micro-units
 });
 
 // Use session for reads
-const data = await client.getBlob("blob/name", { session });
+const data = await client.getBlob('blob/name', { session });
 
 // Close session when done
 await session.close();
@@ -161,7 +171,7 @@ await session.close();
 // Create micropayment channel for efficient payments
 const channel = await client.createMicropaymentChannel({
   amount: 10000000, // ShelbyUSD micro-units
-  recipient: rpcServerAddress
+  recipient: rpcServerAddress,
 });
 
 // Channel automatically manages payments during operations
@@ -172,6 +182,7 @@ const channel = await client.createMicropaymentChannel({
 ### Core Types
 
 **BlobMetadata:**
+
 ```typescript
 interface BlobMetadata {
   blobName: string;
@@ -184,6 +195,7 @@ interface BlobMetadata {
 ```
 
 **UploadOptions:**
+
 ```typescript
 interface UploadOptions {
   blobName: string;
@@ -194,6 +206,7 @@ interface UploadOptions {
 ```
 
 **SessionConfig:**
+
 ```typescript
 interface SessionConfig {
   rpcUrl: string;
@@ -205,32 +218,35 @@ interface SessionConfig {
 ### Node.js Specific
 
 **File Upload Helper:**
+
 ```typescript
-import { uploadFile } from "@shelby-protocol/sdk/node";
+import { uploadFile } from '@shelby-protocol/sdk/node';
 
 await uploadFile({
   client,
-  filePath: "/path/to/file.txt",
-  blobName: "stored/file.txt",
-  expirationTimestamp: Date.now() + 30 * 24 * 60 * 60 * 1000
+  filePath: '/path/to/file.txt',
+  blobName: 'stored/file.txt',
+  expirationTimestamp: Date.now() + 30 * 24 * 60 * 60 * 1000,
 });
 ```
 
 **Stream Support:**
+
 ```typescript
 import fs from 'fs';
 
 const readStream = fs.createReadStream('large-file.bin');
 await client.uploadBlob({
-  blobName: "stream-upload.bin",
+  blobName: 'stream-upload.bin',
   data: readStream,
-  expirationTimestamp: futureDate
+  expirationTimestamp: futureDate,
 });
 ```
 
 ### Browser Specific
 
 **File Input Handling:**
+
 ```typescript
 async function handleFileUpload(file: File) {
   const arrayBuffer = await file.arrayBuffer();
@@ -238,20 +254,21 @@ async function handleFileUpload(file: File) {
   await shelbyClient.uploadBlob({
     blobName: `uploads/${file.name}`,
     data: new Uint8Array(arrayBuffer),
-    expirationTimestamp: Date.now() + 30 * 24 * 60 * 60 * 1000
+    expirationTimestamp: Date.now() + 30 * 24 * 60 * 60 * 1000,
   });
 }
 ```
 
 **Progress Tracking:**
+
 ```typescript
 const result = await shelbyClient.uploadBlob({
-  blobName: "file.txt",
+  blobName: 'file.txt',
   data: fileData,
   expirationTimestamp: futureDate,
   onProgress: (progress) => {
     console.log(`Upload: ${progress.percentage}%`);
-  }
+  },
 });
 ```
 
@@ -265,6 +282,7 @@ const result = await shelbyClient.uploadBlob({
 ### Funding Accounts
 
 **Get tokens from faucet:**
+
 ```bash
 # APT tokens
 aptos account fund-with-faucet --profile my-profile --amount 1000000000
@@ -274,6 +292,7 @@ aptos account fund-with-faucet --profile my-profile --amount 1000000000
 ```
 
 **Check balance:**
+
 ```typescript
 const balance = await client.getAccountBalance();
 console.log(`APT: ${balance.apt}`);
@@ -283,6 +302,7 @@ console.log(`ShelbyUSD: ${balance.shelbyUSD}`);
 ## Best Practices
 
 ### 1. Client Initialization
+
 ```typescript
 // ✅ Singleton pattern for long-lived applications
 class ShelbyService {
@@ -292,7 +312,7 @@ class ShelbyService {
     if (!this.client) {
       this.client = new ShelbyNodeClient({
         network: Network.SHELBYNET,
-        apiKey: process.env.SHELBY_API_KEY
+        apiKey: process.env.SHELBY_API_KEY,
       });
     }
     return this.client;
@@ -301,6 +321,7 @@ class ShelbyService {
 ```
 
 ### 2. Error Handling
+
 ```typescript
 try {
   await client.uploadBlob(options);
@@ -316,21 +337,23 @@ try {
 ```
 
 ### 3. Blob Naming
+
 ```typescript
 // ✅ Use hierarchical paths
-"users/0x123.../documents/report.pdf"
-"projects/my-app/assets/logo.png"
+'users/0x123.../documents/report.pdf';
+'projects/my-app/assets/logo.png';
 
 // ❌ Avoid ending with /
-"users/0x123.../" // Invalid
+'users/0x123.../'; // Invalid
 
 // ✅ Canonical directory structure
-"prefix/bar"
-"prefix/foo/baz"
-"prefix/foo/buzz"
+'prefix/bar';
+'prefix/foo/baz';
+'prefix/foo/buzz';
 ```
 
 ### 4. Large File Handling
+
 ```typescript
 // Files > 10MB: Use multipart upload
 const FILE_SIZE_THRESHOLD = 10 * 1024 * 1024; // 10MB
@@ -344,6 +367,7 @@ async function smartUpload(file: Buffer, blobName: string) {
 ```
 
 ### 5. Session Reuse
+
 ```typescript
 // ✅ Reuse sessions for multiple operations
 const session = await client.createSession({...});
@@ -358,7 +382,9 @@ await session.close();
 ## Common Issues & Solutions
 
 ### Issue: "Insufficient ShelbyUSD tokens"
+
 **Solution:**
+
 ```typescript
 // Check balance first
 const balance = await client.getAccountBalance();
@@ -368,7 +394,9 @@ if (balance.shelbyUSD < estimatedCost) {
 ```
 
 ### Issue: "Blob name already exists"
+
 **Solution:**
+
 ```typescript
 // Use overwrite flag or check existence
 const exists = await client.blobExists(blobName);
@@ -378,18 +406,22 @@ if (exists) {
 ```
 
 ### Issue: "Session expired"
+
 **Solution:**
+
 ```typescript
 // Enable auto-renew
 const session = await client.createSession({
-  rpcUrl: "...",
+  rpcUrl: '...',
   paymentAmount: 1000000,
-  autoRenew: true // Automatically renew when funds low
+  autoRenew: true, // Automatically renew when funds low
 });
 ```
 
 ### Issue: "RPC server unavailable"
+
 **Solution:**
+
 ```typescript
 // Implement retry logic
 async function uploadWithRetry(options, maxRetries = 3) {
@@ -407,13 +439,14 @@ async function uploadWithRetry(options, maxRetries = 3) {
 ## Performance Optimization
 
 ### 1. Concurrent Uploads
+
 ```typescript
 // Upload multiple blobs in parallel
-const uploads = files.map(file =>
+const uploads = files.map((file) =>
   client.uploadBlob({
     blobName: file.name,
     data: file.data,
-    expirationTimestamp: futureDate
+    expirationTimestamp: futureDate,
   })
 );
 
@@ -421,14 +454,16 @@ await Promise.all(uploads);
 ```
 
 ### 2. Byte Range Downloads
+
 ```typescript
 // Only download needed portion
-const header = await client.getBlob("large-file.bin", {
-  range: { start: 0, end: 1023 } // First 1KB
+const header = await client.getBlob('large-file.bin', {
+  range: { start: 0, end: 1023 }, // First 1KB
 });
 ```
 
 ### 3. Local Caching
+
 ```typescript
 // Cache frequently accessed blobs
 const cache = new Map<string, Buffer>();
@@ -447,6 +482,7 @@ async function getCachedBlob(blobName: string) {
 ## Process for Helping Users
 
 ### 1. Identify Task
+
 - Setup/installation
 - Upload implementation
 - Download implementation
@@ -455,6 +491,7 @@ async function getCachedBlob(blobName: string) {
 - Performance optimization
 
 ### 2. Search Documentation
+
 ```bash
 # Find relevant docs
 Grep "upload|download" docs_shelby/ --output-mode files_with_matches
@@ -462,6 +499,7 @@ Read docs_shelby/sdks_typescript_node_guides_uploading-file.md
 ```
 
 ### 3. Provide Solution
+
 - Show complete code example
 - Explain key concepts
 - Handle error cases
@@ -469,6 +507,7 @@ Read docs_shelby/sdks_typescript_node_guides_uploading-file.md
 - Suggest optimizations
 
 ### 4. Follow-up
+
 - Testing recommendations
 - Monitoring suggestions
 - Cost optimization tips
@@ -477,6 +516,7 @@ Read docs_shelby/sdks_typescript_node_guides_uploading-file.md
 ## References
 
 When helping users, cite specific documentation:
+
 - SDK guides: `.claude/skills/blockchain/aptos/docs_shelby/sdks_typescript_*.md`
 - Protocol architecture: `.claude/skills/blockchain/aptos/docs_shelby/protocol_architecture_*.md`
 - API endpoints: `.claude/skills/blockchain/aptos/docs_shelby/apis_rpc_*.md`

@@ -14,6 +14,7 @@ Provide expert guidance on Shelby Protocol's architecture, design principles, er
 ## When to Use
 
 Auto-invoke when users ask about:
+
 - **Architecture** - Shelby system, protocol design, components, infrastructure
 - **Data Engineering** - Erasure coding, Clay Codes, chunking, placement groups
 - **Operations** - Read procedure, write procedure, blob operations, data flow
@@ -24,11 +25,13 @@ Auto-invoke when users ask about:
 ## Knowledge Base
 
 Core protocol documentation in:
+
 ```
 .claude/skills/blockchain/aptos/docs_shelby/
 ```
 
 Key files:
+
 - `protocol.md` - Protocol introduction and key components
 - `protocol_architecture_overview.md` - Comprehensive architecture
 - `protocol_architecture_rpcs.md` - RPC server operations
@@ -86,17 +89,20 @@ Aptos L1 Blockchain (accessible by all)
 ### Accounts and Blob Naming
 
 **Namespace:**
+
 - User blobs stored in account-specific namespace
 - Account = hex representation of Aptos address
 - Format: `0x123.../user/defined/path/file.ext`
 
 **Blob Names:**
+
 - User-defined, unique within namespace
 - Max length: 1024 characters
 - Must NOT end with `/`
 - No directory structure (flat namespace)
 
 **Canonical Directory Layout:**
+
 ```
 Input:
   .
@@ -116,11 +122,13 @@ Uploaded as:
 ### Chunking & Erasure Coding
 
 **Chunkset Basics:**
+
 - Blob data split into 10MB fixed-size chunksets
 - Last chunkset zero-padded if needed (padding not returned on reads)
 - Each chunkset erasure coded into 16 chunks
 
 **Erasure Coding Scheme: Clay Codes**
+
 - **Data chunks:** 10 chunks (original user data)
 - **Parity chunks:** 6 chunks (error correction)
 - **Total:** 16 chunks per chunkset
@@ -128,12 +136,14 @@ Uploaded as:
 - **Chunk size:** 1MB each
 
 **Why Clay Codes?**
+
 - Optimal storage footprint (same as Reed-Solomon)
 - Bandwidth-optimized repair algorithm
 - 4x less network traffic during recovery vs Reed-Solomon
 - Efficient recovery without fetching 10 full chunks
 
 **Recovery Methods:**
+
 1. **Standard Recovery:** Fetch any 10 full chunks (10MB total)
 2. **Optimized Recovery:** Read smaller portions from more servers (2.5MB total)
 
@@ -142,17 +152,20 @@ Uploaded as:
 ### Placement Groups
 
 **Purpose:**
+
 - Efficiently manage chunk locations without massive metadata
 - Control data locality and failure domains
 - Reduce on-chain storage requirements
 
 **How It Works:**
+
 1. Blob randomly assigned to a placement group (load balancing)
 2. All chunks of blob stored on same 16 storage providers
 3. Each placement group = exactly 16 storage provider slots
 4. Smart contract tracks placement group assignments, not individual chunks
 
 **Benefits:**
+
 - Minimal on-chain metadata
 - Predictable chunk locations
 - Simplified read/write coordination
@@ -248,11 +261,13 @@ Uploaded as:
 ### Two-Token Model
 
 **APT (Aptos Tokens):**
+
 - Pay for blockchain gas fees
 - Transaction costs on Aptos L1
 - Required for smart contract interactions
 
 **ShelbyUSD:**
+
 - Pay for storage and bandwidth
 - Storage provider compensation
 - RPC server payments
@@ -261,6 +276,7 @@ Uploaded as:
 ### Paid Reads Model
 
 **Why paid reads?**
+
 - Incentivizes storage providers to deliver good service
 - Ensures high read performance and availability
 - Aligns economic incentives with user needs
@@ -269,12 +285,14 @@ Uploaded as:
 ### Payment Mechanisms
 
 **Micropayment Channels:**
+
 - Efficient off-chain payment aggregation
 - Reduces transaction costs
 - Enables fast, frequent payments
 - Settled periodically on-chain
 
 **Storage Commitments:**
+
 - Pre-paid during write operation
 - Ensures data durability guarantees
 - Based on blob size and expiration time
@@ -282,18 +300,21 @@ Uploaded as:
 ## Auditing System
 
 **Purpose:**
+
 - Ensure data integrity across network
 - Verify storage providers maintain chunks correctly
 - Reward honest participation
 - Penalize malicious or negligent behavior
 
 **How It Works:**
+
 - Smart contract periodically audits storage providers
 - Providers prove possession of chunks via cryptographic challenges
 - Successful audits earn rewards
 - Failed audits result in penalties
 
 **Benefits:**
+
 - Data correctness without trusted parties
 - Economic incentives for honest behavior
 - Decentralized verification
@@ -303,18 +324,21 @@ Uploaded as:
 ### High-Performance Design
 
 **Dedicated Bandwidth:**
+
 - DoubleZero private fiber network
 - Avoids public internet congestion
 - Consistent, predictable performance
 - Low latency for internal operations
 
 **Efficient Recovery:**
+
 - Clay Code bandwidth optimization
 - 4x less network traffic during repairs
 - Faster recovery from node/disk failures
 - Lower operational costs
 
 **Optimized for Read-Heavy Workloads:**
+
 - Video streaming
 - AI training and inference
 - Large-scale data analytics
@@ -323,11 +347,13 @@ Uploaded as:
 ### Scalability
 
 **Placement Groups:**
+
 - Distributes load across storage providers
 - Random assignment for load balancing
 - Flexible capacity expansion
 
 **Erasure Coding:**
+
 - Minimizes storage overhead (1.6x vs 3x for triple replication)
 - Efficient bandwidth usage
 - Optimal storage footprint
@@ -335,16 +361,19 @@ Uploaded as:
 ## Why Aptos?
 
 **High Transaction Throughput:**
+
 - Supports frequent micropayments
 - Fast finality times
 - Scalable settlement layer
 
 **Resource-Efficient Execution:**
+
 - Low cost for storage commitments
 - Efficient smart contract execution
 - Move language safety guarantees
 
 **Team Expertise:**
+
 - Aptos team from Meta's large-scale platforms
 - Experience with global distributed systems
 - Perfect match for Shelby's requirements
@@ -352,6 +381,7 @@ Uploaded as:
 ## Why Jump Crypto?
 
 **Engineering Foundation:**
+
 - Built on Jump Trading Group's infrastructure experience
 - High-performance storage and compute systems
 - Expertise in:
@@ -363,6 +393,7 @@ Uploaded as:
 ## Use Cases
 
 **Ideal Workloads:**
+
 1. **Video Streaming** - High bandwidth reads, global distribution
 2. **AI Training/Inference** - Large datasets, frequent access
 3. **Data Analytics** - Big data processing, read-heavy patterns
@@ -370,6 +401,7 @@ Uploaded as:
 5. **Archival Storage** - Long-term data retention, periodic access
 
 **Key Requirements Met:**
+
 - Robust storage with data durability guarantees
 - Significant capacity (petabyte scale)
 - High read bandwidth
@@ -380,12 +412,14 @@ Uploaded as:
 ## Design Trade-offs
 
 **Optimized For:**
+
 - Read-heavy workloads
 - Large blob storage (multi-MB to GB files)
 - High bandwidth requirements
 - Data durability
 
 **Not Optimized For:**
+
 - Frequent updates/modifications (blobs are immutable)
 - Small file storage (overhead from 10MB chunksets)
 - Low-latency random access to small portions
@@ -396,21 +430,25 @@ Uploaded as:
 ### 1. Identify Question Category
 
 **Architecture Questions:**
+
 - "How does Shelby work?"
 - "What are the system components?"
 - "How is data stored?"
 
 **Technical Deep-Dive:**
+
 - "Explain erasure coding in Shelby"
 - "How do placement groups work?"
 - "What happens during a read/write?"
 
 **Design Decisions:**
+
 - "Why Clay Codes?"
 - "Why Aptos blockchain?"
 - "Why paid reads?"
 
 **Use Case Evaluation:**
+
 - "Is Shelby good for X?"
 - "How does Shelby compare to Y?"
 - "What are the trade-offs?"
@@ -435,6 +473,7 @@ Read docs_shelby/protocol_architecture_storage-providers.md
 ### 3. Provide Comprehensive Answer
 
 **Structure:**
+
 1. **High-level explanation** - Core concept in simple terms
 2. **Technical details** - Precise mechanics and algorithms
 3. **Why it matters** - Benefits and trade-offs
@@ -444,6 +483,7 @@ Read docs_shelby/protocol_architecture_storage-providers.md
 ### 4. Use Diagrams Where Helpful
 
 **Data Flow:**
+
 ```
 Client → RPC Server → Storage Providers (16)
          ↓
@@ -451,6 +491,7 @@ Client → RPC Server → Storage Providers (16)
 ```
 
 **Chunking:**
+
 ```
 10MB Blob → Erasure Code → 16 Chunks (10 data + 6 parity)
                           → Distributed to Placement Group
@@ -459,24 +500,28 @@ Client → RPC Server → Storage Providers (16)
 ## Key Concepts to Reference
 
 **Data Durability:**
+
 - Erasure coding provides fault tolerance
 - Can lose up to 6 chunks per chunkset
 - Storage provider diversity
 - Auditing system ensures integrity
 
 **Performance:**
+
 - Private fiber network (DoubleZero)
 - Clay Code bandwidth optimization
 - RPC caching layer
 - Parallel chunk retrieval
 
 **Decentralization:**
+
 - No single point of failure
 - Aptos blockchain coordination
 - Distributed storage providers
 - Trustless auditing
 
 **Economic Alignment:**
+
 - Paid reads incentivize performance
 - Storage commitments ensure durability
 - Micropayment channels reduce friction
@@ -515,6 +560,7 @@ Response:
 ## Follow-up Suggestions
 
 After answering, suggest:
+
 - Related architectural components to explore
 - Practical SDK integration for concepts discussed
 - Performance implications for use case

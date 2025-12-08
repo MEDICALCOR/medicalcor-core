@@ -5,11 +5,13 @@
 Install Zig (version 0.13.0 or later):
 
 ### macOS
+
 ```bash
 brew install zig
 ```
 
 ### Linux
+
 ```bash
 # Using snap
 sudo snap install zig --classic --beta
@@ -22,6 +24,7 @@ export PATH=$PATH:/usr/local/zig
 ```
 
 ### Windows
+
 ```powershell
 # Using Scoop
 scoop install zig
@@ -126,7 +129,7 @@ toon encode data.json
 
 Create `.claude/commands/check-toon.md`:
 
-```markdown
+````markdown
 # Check TOON
 
 Check if documentation uses appropriate TOON format.
@@ -139,7 +142,9 @@ Execute the following workflow:
    ```bash
    .claude/utils/toon/enforce-toon.sh
    ```
-```
+````
+
+````
 
 ### Use in Hooks
 
@@ -152,7 +157,7 @@ Create `.claude/hooks/toon_check.sh`:
 if [[ "$CLAUDE_FILE_PATH" == *".claude/docs/toon"* ]]; then
     .claude/utils/toon/enforce-toon.sh
 fi
-```
+````
 
 ## Performance
 
