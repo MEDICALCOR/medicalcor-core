@@ -21,9 +21,17 @@ import {
 
 // Mock the auth module - use vi.hoisted for the mock function
 const mockRequirePermission = vi.hoisted(() => vi.fn());
+const mockRequireCurrentUser = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({
+    id: 'user-123',
+    email: 'test@example.com',
+    clinicId: 'clinic-456',
+  })
+);
 
 vi.mock('@/lib/auth/server-action-auth', () => ({
   requirePermission: mockRequirePermission,
+  requireCurrentUser: mockRequireCurrentUser,
 }));
 
 // Import after mocks

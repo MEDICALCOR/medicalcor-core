@@ -51,13 +51,20 @@ function createMockSupabase() {
       builder[method] = vi.fn().mockReturnValue(builder);
     });
 
+    // Handle order().limit().single() chain properly
+    builder.single = vi.fn().mockResolvedValue({ data: null, error: null });
+    builder.limit = vi.fn().mockReturnValue({
+      single: vi.fn().mockResolvedValue({ data: null, error: null }),
+      then: vi.fn().mockResolvedValue({ data: [], error: null }),
+    });
     builder.order = vi.fn().mockReturnValue({
       ...builder,
-      limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+      limit: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({ data: null, error: null }),
+        then: (resolve: (value: { data: unknown[]; error: null }) => void) =>
+          resolve({ data: [], error: null }),
+      }),
     });
-
-    builder.single = vi.fn().mockResolvedValue({ data: null, error: null });
-    builder.limit = vi.fn().mockResolvedValue({ data: [], error: null });
 
     return builder;
   };

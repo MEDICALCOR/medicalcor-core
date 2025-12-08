@@ -7,15 +7,10 @@
  * WARNING: Not suitable for production - data is lost on restart.
  * For production, use PostgresConsentRepository.
  *
- * Uses the Result pattern for consistent error handling.
- *
  * @module @medicalcor/core/repositories/InMemoryConsentRepository
  */
 
-import { Ok, type Result } from '../types/result.js';
-import type { RecordCreateError } from '../errors.js';
 import type {
-  IConsentRepository,
   ConsentRecord,
   ConsentAuditEntry,
   ConsentType,
@@ -28,6 +23,9 @@ import type {
  * Note: Methods are async to match the ConsentRepository interface,
  * but use synchronous operations internally for the in-memory store.
  *
+ * This implementation matches the domain's ConsentRepository port interface
+ * (without Result wrapper) for seamless testing.
+ *
  * @example
  * ```typescript
  * const repository = new InMemoryConsentRepository();
@@ -37,7 +35,7 @@ import type {
  * });
  * ```
  */
-export class InMemoryConsentRepository implements IConsentRepository {
+export class InMemoryConsentRepository {
   private consents = new Map<string, ConsentRecord>();
   private auditLog: ConsentAuditEntry[] = [];
 
@@ -45,15 +43,13 @@ export class InMemoryConsentRepository implements IConsentRepository {
     return `${contactId}:${consentType}`;
   }
 
-  save(consent: ConsentRecord): Promise<Result<ConsentRecord, RecordCreateError>> {
+  save(consent: ConsentRecord): Promise<ConsentRecord> {
     const key = this.getKey(consent.contactId, consent.consentType);
     this.consents.set(key, consent);
-    return Promise.resolve(Ok(consent));
+    return Promise.resolve(consent);
   }
 
-  upsert(
-    consent: ConsentRecord
-  ): Promise<Result<{ record: ConsentRecord; wasCreated: boolean }, RecordCreateError>> {
+  upsert(consent: ConsentRecord): Promise<{ record: ConsentRecord; wasCreated: boolean }> {
     const key = this.getKey(consent.contactId, consent.consentType);
     const existing = this.consents.get(key);
     const wasCreated = !existing;
@@ -68,7 +64,7 @@ export class InMemoryConsentRepository implements IConsentRepository {
         };
 
     this.consents.set(key, recordToSave);
-    return Promise.resolve(Ok({ record: recordToSave, wasCreated }));
+    return Promise.resolve({ record: recordToSave, wasCreated });
   }
 
   findByContactAndType(contactId: string, consentType: ConsentType): Promise<ConsentRecord | null> {

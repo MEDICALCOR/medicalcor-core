@@ -133,9 +133,12 @@ describe('PostgresConsentRepository', () => {
 
       const result = await repository.save(consent);
 
-      expect(result.id).toBe('consent-123');
-      expect(result.contactId).toBe('contact-456');
-      expect(result.consentType).toBe('data_processing');
+      expect(result.isOk).toBe(true);
+      if (result.isOk) {
+        expect(result.value.id).toBe('consent-123');
+        expect(result.value.contactId).toBe('contact-456');
+        expect(result.value.consentType).toBe('data_processing');
+      }
       expect(mockClient.query).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO consents'),
         expect.any(Array)
@@ -146,7 +149,12 @@ describe('PostgresConsentRepository', () => {
       const consent = createTestConsent();
       (mockClient.query as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ rows: [] });
 
-      await expect(repository.save(consent)).rejects.toThrow('Failed to save consent');
+      const result = await repository.save(consent);
+
+      expect(result.isErr).toBe(true);
+      if (result.isErr) {
+        expect(result.error.message).toContain('Failed to save consent');
+      }
     });
 
     it('should handle JSON metadata', async () => {
@@ -172,8 +180,11 @@ describe('PostgresConsentRepository', () => {
 
       const result = await repository.upsert(consent);
 
-      expect(result.wasCreated).toBe(true);
-      expect(result.record.id).toBe('consent-123');
+      expect(result.isOk).toBe(true);
+      if (result.isOk) {
+        expect(result.value.wasCreated).toBe(true);
+        expect(result.value.record.id).toBe('consent-123');
+      }
     });
 
     it('should return wasCreated false for updated record', async () => {
@@ -183,14 +194,22 @@ describe('PostgresConsentRepository', () => {
 
       const result = await repository.upsert(consent);
 
-      expect(result.wasCreated).toBe(false);
+      expect(result.isOk).toBe(true);
+      if (result.isOk) {
+        expect(result.value.wasCreated).toBe(false);
+      }
     });
 
     it('should throw when no row returned', async () => {
       const consent = createTestConsent();
       (mockClient.query as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ rows: [] });
 
-      await expect(repository.upsert(consent)).rejects.toThrow('Failed to upsert consent');
+      const result = await repository.upsert(consent);
+
+      expect(result.isErr).toBe(true);
+      if (result.isErr) {
+        expect(result.error.message).toContain('Failed to upsert consent');
+      }
     });
   });
 
