@@ -183,6 +183,83 @@ export const ConsentRecordedEventSchema = EventBaseSchema.extend({
   }),
 });
 
+// Queue breach events
+const QueueBreachTypeEnum = z.enum([
+  'wait_time_exceeded',
+  'queue_size_exceeded',
+  'abandon_rate_exceeded',
+  'agent_availability_low',
+  'service_level_missed',
+]);
+
+const QueueBreachSeverityEnum = z.enum(['warning', 'critical']);
+
+export const QueueBreachDetectedEventSchema = EventBaseSchema.extend({
+  type: z.literal('queue.breach.detected'),
+  payload: z.object({
+    breachId: z.string().uuid(),
+    queueSid: z.string(),
+    queueName: z.string(),
+    breachType: QueueBreachTypeEnum,
+    severity: QueueBreachSeverityEnum,
+    thresholdValue: z.number(),
+    currentValue: z.number(),
+    affectedCalls: z.number().int().min(0).optional(),
+    detectedAt: z.string().datetime(),
+  }),
+});
+
+export const QueueBreachResolvedEventSchema = EventBaseSchema.extend({
+  type: z.literal('queue.breach.resolved'),
+  payload: z.object({
+    breachId: z.string().uuid(),
+    queueSid: z.string(),
+    queueName: z.string().optional(),
+    breachType: QueueBreachTypeEnum,
+    durationSeconds: z.number().int().min(0),
+    resolvedAt: z.string().datetime(),
+    resolvedBy: z.string().optional(),
+    resolutionNotes: z.string().optional(),
+  }),
+});
+
+export const QueueBreachEscalatedEventSchema = EventBaseSchema.extend({
+  type: z.literal('queue.breach.escalated'),
+  payload: z.object({
+    breachId: z.string().uuid(),
+    queueSid: z.string(),
+    escalationLevel: z.enum(['supervisor', 'manager', 'admin']),
+    escalatedBy: z.string().optional(),
+    reason: z.string(),
+    notifyChannels: z.array(z.enum(['email', 'slack', 'sms', 'dashboard'])),
+  }),
+});
+
+export const QueueBreachAcknowledgedEventSchema = EventBaseSchema.extend({
+  type: z.literal('queue.breach.acknowledged'),
+  payload: z.object({
+    breachId: z.string().uuid(),
+    queueSid: z.string(),
+    acknowledgedBy: z.string(),
+    acknowledgedAt: z.string().datetime(),
+    notes: z.string().optional(),
+  }),
+});
+
+export const QueueBreachAlertSentEventSchema = EventBaseSchema.extend({
+  type: z.literal('queue.breach.alert_sent'),
+  payload: z.object({
+    breachId: z.string().uuid(),
+    queueSid: z.string(),
+    queueName: z.string(),
+    breachType: QueueBreachTypeEnum,
+    severity: QueueBreachSeverityEnum,
+    channels: z.array(z.enum(['email', 'slack', 'sms', 'dashboard'])),
+    recipientCount: z.number().int().min(0),
+    sentAt: z.string().datetime(),
+  }),
+});
+
 // Union of all domain events
 export const DomainEventSchema = z.discriminatedUnion('type', [
   WhatsAppMessageReceivedEventSchema,
@@ -200,6 +277,11 @@ export const DomainEventSchema = z.discriminatedUnion('type', [
   AppointmentScheduledEventSchema,
   AppointmentReminderSentEventSchema,
   ConsentRecordedEventSchema,
+  QueueBreachDetectedEventSchema,
+  QueueBreachResolvedEventSchema,
+  QueueBreachEscalatedEventSchema,
+  QueueBreachAcknowledgedEventSchema,
+  QueueBreachAlertSentEventSchema,
 ]);
 
 // Inferred types
@@ -219,4 +301,9 @@ export type PaymentFailedEvent = z.infer<typeof PaymentFailedEventSchema>;
 export type AppointmentScheduledEvent = z.infer<typeof AppointmentScheduledEventSchema>;
 export type AppointmentReminderSentEvent = z.infer<typeof AppointmentReminderSentEventSchema>;
 export type ConsentRecordedEvent = z.infer<typeof ConsentRecordedEventSchema>;
+export type QueueBreachDetectedEvent = z.infer<typeof QueueBreachDetectedEventSchema>;
+export type QueueBreachResolvedEvent = z.infer<typeof QueueBreachResolvedEventSchema>;
+export type QueueBreachEscalatedEvent = z.infer<typeof QueueBreachEscalatedEventSchema>;
+export type QueueBreachAcknowledgedEvent = z.infer<typeof QueueBreachAcknowledgedEventSchema>;
+export type QueueBreachAlertSentEvent = z.infer<typeof QueueBreachAlertSentEventSchema>;
 export type DomainEvent = z.infer<typeof DomainEventSchema>;
