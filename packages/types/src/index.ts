@@ -1140,3 +1140,53 @@ export {
   type InvoiceGeneratedEvent,
   type InvoiceSentEvent,
 } from './schemas/invoice-generation.js';
+
+// =============================================================================
+// Index Usage Monitoring Schemas (L1 Feature)
+// =============================================================================
+export {
+  // Status Enums
+  IndexHealthStatusSchema,
+  IndexTypeSchema,
+  IndexRecommendationActionSchema,
+  // Index Metrics
+  IndexUsageReportSchema,
+  IndexUsageSummarySchema,
+  IndexUsageMetricSchema,
+  // Recommendations
+  IndexRecommendationSchema,
+  IndexRecommendationBatchSchema,
+  // Monitoring Job
+  IndexMonitoringConfigSchema,
+  IndexMonitoringResultSchema,
+  // Query Schemas
+  IndexUsageQuerySchema,
+  IndexUsageTrendPointSchema,
+  IndexUsageDashboardSchema,
+  // Events
+  IndexMonitoringCompletedEventSchema,
+  UnusedIndexesDetectedEventSchema,
+  CriticalIndexHealthEventSchema,
+  // Helper Functions
+  determineIndexStatus,
+  formatBytes,
+  calculatePotentialSavings,
+  generateIndexRecommendations,
+  // Types
+  type IndexHealthStatus,
+  type IndexType,
+  type IndexRecommendationAction,
+  type IndexUsageReport,
+  type IndexUsageSummary,
+  type IndexUsageMetric,
+  type IndexRecommendation,
+  type IndexRecommendationBatch,
+  type IndexMonitoringConfig,
+  type IndexMonitoringResult,
+  type IndexUsageQuery,
+  type IndexUsageTrendPoint,
+  type IndexUsageDashboard,
+  type IndexMonitoringCompletedEvent,
+  type UnusedIndexesDetectedEvent,
+  type CriticalIndexHealthEvent,
+} from './schemas/index-usage.js';
