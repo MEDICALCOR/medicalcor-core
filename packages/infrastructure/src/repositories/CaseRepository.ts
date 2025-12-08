@@ -34,7 +34,7 @@ import type {
 import type {
   ICaseRepository,
   TrendQueryParams,
-  TrendAnalysis,
+  CaseTrendAnalysis,
   TrendDataPoint,
   TrendDirection,
   CohortTrendDashboard,
@@ -609,35 +609,35 @@ export class CaseRepository implements ICaseRepository {
   /**
    * @inheritdoc
    */
-  async getRevenueTrend(params: TrendQueryParams): Promise<TrendAnalysis> {
+  async getRevenueTrend(params: TrendQueryParams): Promise<CaseTrendAnalysis> {
     return this.buildTrendAnalysis(params, 'revenue');
   }
 
   /**
    * @inheritdoc
    */
-  async getConversionTrend(params: TrendQueryParams): Promise<TrendAnalysis> {
+  async getConversionTrend(params: TrendQueryParams): Promise<CaseTrendAnalysis> {
     return this.buildTrendAnalysis(params, 'conversion');
   }
 
   /**
    * @inheritdoc
    */
-  async getAvgLtvTrend(params: TrendQueryParams): Promise<TrendAnalysis> {
+  async getAvgLtvTrend(params: TrendQueryParams): Promise<CaseTrendAnalysis> {
     return this.buildTrendAnalysis(params, 'avg_ltv');
   }
 
   /**
    * @inheritdoc
    */
-  async getCaseVolumeTrend(params: TrendQueryParams): Promise<TrendAnalysis> {
+  async getCaseVolumeTrend(params: TrendQueryParams): Promise<CaseTrendAnalysis> {
     return this.buildTrendAnalysis(params, 'case_volume');
   }
 
   /**
    * Get collection rate trend analysis (internal method)
    */
-  private async getCollectionRateTrend(params: TrendQueryParams): Promise<TrendAnalysis> {
+  private async getCollectionRateTrend(params: TrendQueryParams): Promise<CaseTrendAnalysis> {
     return this.buildTrendAnalysis(params, 'collection_rate');
   }
 
@@ -647,7 +647,7 @@ export class CaseRepository implements ICaseRepository {
   private async buildTrendAnalysis(
     params: TrendQueryParams,
     metricType: 'revenue' | 'conversion' | 'avg_ltv' | 'case_volume' | 'collection_rate'
-  ): Promise<TrendAnalysis> {
+  ): Promise<CaseTrendAnalysis> {
     const { clinicId, periodType, periodCount = periodType === 'YoY' ? 3 : 12 } = params;
 
     logger.debug({ clinicId, periodType, metricType }, 'Building trend analysis');

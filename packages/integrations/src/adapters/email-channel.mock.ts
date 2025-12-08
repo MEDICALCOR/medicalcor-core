@@ -204,10 +204,7 @@ export class MockEmailChannelAdapter implements INotificationChannel {
         this.behavior.shouldSucceed !== false
           ? 'Mock email channel operational'
           : 'Mock email channel configured to fail',
-      lastSuccessAt:
-        this.sentEmails.length > 0
-          ? this.sentEmails[this.sentEmails.length - 1].timestamp
-          : undefined,
+      lastSuccessAt: this.sentEmails.length > 0 ? this.sentEmails.at(-1)?.timestamp : undefined,
     });
   }
 

@@ -47,7 +47,38 @@ import {
   type ScoringService,
   type TriageService,
   type ConsentService,
+  type ConsentRepository,
 } from '@medicalcor/domain';
+import type { IConsentRepository } from '@medicalcor/core/repositories';
+
+/**
+ * Adapts IConsentRepository (uses Result types) to ConsentRepository (uses plain types)
+ * This bridges the architectural difference between the core and domain layers
+ */
+function adaptConsentRepository(repo: IConsentRepository): ConsentRepository {
+  return {
+    async save(consent) {
+      const result = await repo.save(consent);
+      if (result._tag !== 'Ok') throw new Error('Failed to save consent record');
+      return result.value;
+    },
+    async upsert(consent) {
+      const result = await repo.upsert(consent);
+      if (result._tag !== 'Ok') throw new Error('Failed to upsert consent record');
+      return result.value;
+    },
+    findByContactAndType: (contactId, consentType) =>
+      repo.findByContactAndType(contactId, consentType),
+    findByContact: (contactId) => repo.findByContact(contactId),
+    delete: (consentId) => repo.delete(consentId),
+    deleteByContact: (contactId) => repo.deleteByContact(contactId),
+    findExpiringSoon: (withinDays) => repo.findExpiringSoon(withinDays),
+    findByStatus: (status) => repo.findByStatus(status),
+    appendAuditEntry: (entry) => repo.appendAuditEntry(entry),
+    getAuditTrail: (consentId) => repo.getAuditTrail(consentId),
+    getContactAuditTrail: (contactId) => repo.getContactAuditTrail(contactId),
+  };
+}
 
 /**
  * Event store interface that matches our domain events
@@ -322,11 +353,11 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
   if (includeConsent) {
     if (databaseUrl) {
       const db = createDatabaseClient(databaseUrl);
-      const consentRepository = new PostgresConsentRepository(db);
+      const consentRepository = adaptConsentRepository(new PostgresConsentRepository(db));
       consent = createPersistentConsentService(consentRepository);
     } else {
       // Use in-memory repository for development/testing
-      const inMemoryRepository = new InMemoryConsentRepository();
+      const inMemoryRepository = adaptConsentRepository(new InMemoryConsentRepository());
       consent = createConsentService({ repository: inMemoryRepository });
     }
   }

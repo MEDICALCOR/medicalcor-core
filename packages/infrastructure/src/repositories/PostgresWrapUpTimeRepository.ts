@@ -226,6 +226,20 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
     );
 
     const row = result.rows[0];
+    if (!row) {
+      return {
+        agentId,
+        totalWrapUps: 0,
+        completedWrapUps: 0,
+        abandonedWrapUps: 0,
+        totalWrapUpTimeSeconds: 0,
+        avgWrapUpTimeSeconds: 0,
+        minWrapUpTimeSeconds: 0,
+        maxWrapUpTimeSeconds: 0,
+        periodStart: startDate.toISOString(),
+        periodEnd: endDate.toISOString(),
+      };
+    }
 
     return {
       agentId,
@@ -285,6 +299,20 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
     );
 
     const row = result.rows[0];
+    if (!row) {
+      return {
+        agentId: clinicId,
+        totalWrapUps: 0,
+        completedWrapUps: 0,
+        abandonedWrapUps: 0,
+        totalWrapUpTimeSeconds: 0,
+        avgWrapUpTimeSeconds: 0,
+        minWrapUpTimeSeconds: 0,
+        maxWrapUpTimeSeconds: 0,
+        periodStart: startDate.toISOString(),
+        periodEnd: endDate.toISOString(),
+      };
+    }
 
     return {
       agentId: clinicId, // Using clinicId as identifier for team stats
@@ -459,15 +487,15 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
     const previousStats = previousStatsResult.rows[0];
     const completion = completionResult.rows[0];
 
-    const teamAvgWrapUpSeconds = Number(currentStats.team_avg_wrap_up_seconds);
-    const prevTeamAvg = Number(previousStats.team_avg_wrap_up_seconds);
+    const teamAvgWrapUpSeconds = Number(currentStats?.team_avg_wrap_up_seconds ?? 0);
+    const prevTeamAvg = Number(previousStats?.team_avg_wrap_up_seconds ?? 0);
     const teamAvgChange =
       prevTeamAvg > 0
         ? Math.round(((teamAvgWrapUpSeconds - prevTeamAvg) / prevTeamAvg) * 1000) / 10
         : 0;
 
-    const totalCompletion = Number(completion.total);
-    const completedCount = Number(completion.completed);
+    const totalCompletion = Number(completion?.total ?? 0);
+    const completedCount = Number(completion?.completed ?? 0);
     const completionRate =
       totalCompletion > 0 ? Math.round((completedCount / totalCompletion) * 1000) / 10 : 100;
 
@@ -482,8 +510,8 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
     return {
       teamAvgWrapUpSeconds,
       teamAvgWrapUpSecondsChange: teamAvgChange,
-      totalWrapUps: currentStats.total_wrap_ups,
-      totalWrapUpTimeSeconds: currentStats.total_wrap_up_time,
+      totalWrapUps: currentStats?.total_wrap_ups ?? 0,
+      totalWrapUpTimeSeconds: currentStats?.total_wrap_up_time ?? 0,
       completionRate,
       agentPerformance,
       trend: trendResult.rows.map((row) => ({
