@@ -140,3 +140,27 @@ export {
   type NotifySubjectPayload,
   type NotifyAuthorityPayload,
 } from './workflows/breach-notification.js';
+
+// LTV Orchestration Workflow
+export {
+  recordPaymentToCase,
+  recalculatePLTV,
+  batchRecalculatePLTV,
+  refreshCohortViews,
+  dailyLTVOrchestration,
+  weeklyLTVAudit,
+  RecordPaymentPayloadSchema,
+  RecalculatePLTVPayloadSchema,
+  type RecordPaymentPayload,
+  type RecalculatePLTVPayload,
+} from './workflows/ltv-orchestration.js';
+
+// Retention Scoring Workflow
+export {
+  scorePatientRetention,
+  batchRetentionScoring,
+  dailyRetentionScoring,
+  updateInactivityDays,
+  RetentionScoringPayloadSchema,
+  BatchRetentionScoringPayloadSchema,
+} from './workflows/retention-scoring.js';
