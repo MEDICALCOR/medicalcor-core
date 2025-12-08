@@ -79,8 +79,6 @@ export {
   createPostgresCaseRepository,
   // Configuration types
   type PostgresCaseRepositoryConfig,
-  // Error types
-  type CaseRepositoryError,
 } from './PostgresCaseRepository.js';
 
 // =============================================================================
