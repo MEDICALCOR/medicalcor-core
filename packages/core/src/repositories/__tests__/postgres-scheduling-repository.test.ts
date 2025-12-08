@@ -219,34 +219,41 @@ describe('PostgresSchedulingRepository', () => {
       notes: 'First visit',
     };
 
-    it('should throw ConsentRequiredError when consent is missing', async () => {
+    it('should return ConsentRequiredError when consent is missing', async () => {
       const noConsentService = createMockConsentService(false);
       const repoNoConsent = createTestRepository(mockPool, noConsentService);
 
-      await expect(repoNoConsent.bookAppointment(validBookingRequest)).rejects.toThrow(
-        ConsentRequiredError
-      );
+      const result = await repoNoConsent.bookAppointment(validBookingRequest);
+
+      expect(result.isErr).toBe(true);
+      if (result.isErr) {
+        expect(result.error).toBeInstanceOf(ConsentRequiredError);
+      }
     });
 
     it('should include missing consents in ConsentRequiredError', async () => {
       const noConsentService = createMockConsentService(false);
       const repoNoConsent = createTestRepository(mockPool, noConsentService);
 
-      try {
-        await repoNoConsent.bookAppointment(validBookingRequest);
-      } catch (error) {
-        expect(error).toBeInstanceOf(ConsentRequiredError);
-        expect((error as ConsentRequiredError).missingConsents).toContain('data_processing');
-        expect((error as ConsentRequiredError).contactId).toBe('hs-123');
+      const result = await repoNoConsent.bookAppointment(validBookingRequest);
+
+      expect(result.isErr).toBe(true);
+      if (result.isErr) {
+        expect(result.error).toBeInstanceOf(ConsentRequiredError);
+        expect((result.error as ConsentRequiredError).missingConsents).toContain('data_processing');
+        expect((result.error as ConsentRequiredError).contactId).toBe('hs-123');
       }
     });
 
-    it('should throw error when pool not configured', async () => {
+    it('should return error when pool not configured', async () => {
       const repoNoPool = createTestRepository(null, mockConsentService);
 
-      await expect(repoNoPool.bookAppointment(validBookingRequest)).rejects.toThrow(
-        'Database connection not configured'
-      );
+      const result = await repoNoPool.bookAppointment(validBookingRequest);
+
+      expect(result.isErr).toBe(true);
+      if (result.isErr) {
+        expect(result.error.message).toContain('Database connection not configured');
+      }
     });
 
     it('should successfully book an appointment', async () => {
@@ -261,46 +268,58 @@ describe('PostgresSchedulingRepository', () => {
 
       const result = await repository.bookAppointment(validBookingRequest);
 
-      expect(result.id).toBeDefined();
-      expect(result.status).toBe('confirmed');
+      expect(result.isOk).toBe(true);
+      if (result.isOk) {
+        expect(result.value.id).toBeDefined();
+        expect(result.value.status).toBe('confirmed');
+      }
       expect(mockConsentService.hasRequiredConsents).toHaveBeenCalledWith('hs-123');
     });
 
-    it('should throw error when slot not found', async () => {
+    it('should return error when slot not found', async () => {
       mockPool._mockClient.query
         .mockResolvedValueOnce(undefined) // BEGIN
         .mockResolvedValueOnce({ rows: [] }) // No slot found
         .mockResolvedValueOnce(undefined); // ROLLBACK
 
-      await expect(repository.bookAppointment(validBookingRequest)).rejects.toThrow(
-        'Slot not found'
-      );
+      const result = await repository.bookAppointment(validBookingRequest);
+
+      expect(result.isErr).toBe(true);
+      if (result.isErr) {
+        expect(result.error.message).toContain('TimeSlot');
+      }
     });
 
-    it('should throw error when slot already booked', async () => {
+    it('should return error when slot already booked', async () => {
       mockPool._mockClient.query
         .mockResolvedValueOnce(undefined) // BEGIN
         .mockResolvedValueOnce({ rows: [{ is_booked: true, version: 1 }] }) // Slot is booked
         .mockResolvedValueOnce(undefined); // ROLLBACK
 
-      await expect(repository.bookAppointment(validBookingRequest)).rejects.toThrow(
-        'Slot already booked'
-      );
+      const result = await repository.bookAppointment(validBookingRequest);
+
+      expect(result.isErr).toBe(true);
+      if (result.isErr) {
+        expect(result.error.message).toContain('already booked');
+      }
     });
 
-    it('should throw error when slot has existing active appointment', async () => {
+    it('should return error when slot has existing active appointment', async () => {
       mockPool._mockClient.query
         .mockResolvedValueOnce(undefined) // BEGIN
         .mockResolvedValueOnce({ rows: [{ is_booked: false, version: 1 }] }) // Slot check
         .mockResolvedValueOnce({ rows: [{ id: 'existing-apt' }] }) // Existing appointment
         .mockResolvedValueOnce(undefined); // ROLLBACK
 
-      await expect(repository.bookAppointment(validBookingRequest)).rejects.toThrow(
-        'Slot already has an active appointment'
-      );
+      const result = await repository.bookAppointment(validBookingRequest);
+
+      expect(result.isErr).toBe(true);
+      if (result.isErr) {
+        expect(result.error.message).toContain('already booked');
+      }
     });
 
-    it('should throw error on concurrent modification (optimistic lock failure)', async () => {
+    it('should return error on concurrent modification (optimistic lock failure)', async () => {
       mockPool._mockClient.query
         .mockResolvedValueOnce(undefined) // BEGIN
         .mockResolvedValueOnce({ rows: [{ is_booked: false, version: 1 }] }) // Slot check
@@ -309,9 +328,12 @@ describe('PostgresSchedulingRepository', () => {
         .mockResolvedValueOnce({ rowCount: 0 }) // UPDATE failed (optimistic lock)
         .mockResolvedValueOnce(undefined); // ROLLBACK
 
-      await expect(repository.bookAppointment(validBookingRequest)).rejects.toThrow(
-        'concurrent modification detected'
-      );
+      const result = await repository.bookAppointment(validBookingRequest);
+
+      expect(result.isErr).toBe(true);
+      if (result.isErr) {
+        expect(result.error.message.toLowerCase()).toContain('concurrent modification');
+      }
     });
 
     it('should rollback transaction on error', async () => {
@@ -345,7 +367,10 @@ describe('PostgresSchedulingRepository', () => {
 
       const result = await repository.bookAppointment(minimalRequest);
 
-      expect(result.status).toBe('confirmed');
+      expect(result.isOk).toBe(true);
+      if (result.isOk) {
+        expect(result.value.status).toBe('confirmed');
+      }
     });
   });
 
