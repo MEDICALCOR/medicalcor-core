@@ -130,9 +130,9 @@ describe('Invoice Generation Handler', () => {
         },
       ];
 
-      expect(items[0].quantity).toBeGreaterThan(0);
-      expect(items[0].unitPrice).toBeGreaterThanOrEqual(0);
-      expect(items[0].lineTotal).toBe(items[0].quantity * items[0].unitPrice);
+      expect(items[0]!.quantity).toBeGreaterThan(0);
+      expect(items[0]!.unitPrice).toBeGreaterThanOrEqual(0);
+      expect(items[0]!.lineTotal).toBe(items[0]!.quantity * items[0]!.unitPrice);
     });
 
     it('should validate clinic details', () => {
@@ -353,24 +353,25 @@ describe('Invoice Generation Handler', () => {
         const labels = getInvoiceLabels(lang);
         for (const key of requiredKeys) {
           expect(labels[key]).toBeDefined();
-          expect(labels[key].length).toBeGreaterThan(0);
+          expect(labels[key]!.length).toBeGreaterThan(0);
         }
       }
     });
   });
 
   describe('HubSpot Integration', () => {
-    it('should create timeline event for invoice', async () => {
+    it('should log timeline message for invoice', async () => {
       const hubspot = createHubSpotClient({ accessToken: 'test-token' });
 
-      const timelineEvent = await hubspot.createTimelineEvent({
-        contactId: 'hs_contact_123',
-        eventType: 'invoice_generated',
-        headline: 'Invoice INV-2024-00001 - 595,00 EUR',
-        body: 'Invoice generated for Ion Popescu. Status: PENDING',
-      });
-
-      expect(timelineEvent.id).toBeDefined();
+      // logMessageToTimeline returns void, so we just verify it doesn't throw
+      await expect(
+        hubspot.logMessageToTimeline({
+          contactId: 'hs_contact_123',
+          message: 'Invoice INV-2024-00001 generated for Ion Popescu. Amount: 595,00 EUR. Status: PENDING',
+          direction: 'OUT',
+          channel: 'web',
+        })
+      ).resolves.not.toThrow();
     });
 
     it('should find contact by email for invoice delivery', async () => {

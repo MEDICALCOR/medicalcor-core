@@ -192,15 +192,17 @@ export const handlePaymentReminder = task({
           payment_reminder_level: reminderLevel,
         });
 
-        // Log to timeline
-        await hubspot.createNote({
+        // Log to timeline using available method
+        await hubspot.logMessageToTimeline({
           contactId: installment.hubspotContactId,
-          body: `Payment Reminder Sent (${reminderLevel.toUpperCase()})\n\n` +
-              `Amount Due: ${formattedAmount}\n` +
-              `Days Overdue: ${installment.daysOverdue}\n` +
-              `Reminder #${installment.reminderCount + 1}\n` +
-              `Installment: ${installment.installmentNumber}/${installment.totalInstallments}\n` +
-              `Channel: WhatsApp`,
+          message: `Payment Reminder Sent (${reminderLevel.toUpperCase()})\n\n` +
+            `Amount Due: ${formattedAmount}\n` +
+            `Days Overdue: ${installment.daysOverdue}\n` +
+            `Reminder #${installment.reminderCount + 1}\n` +
+            `Installment: ${installment.installmentNumber}/${installment.totalInstallments}\n` +
+            `Channel: WhatsApp`,
+          direction: 'OUT',
+          channel: 'whatsapp',
         });
 
         hubspotUpdated = true;

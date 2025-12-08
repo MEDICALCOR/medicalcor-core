@@ -16,7 +16,7 @@ interface PerformanceChartProps {
 export function PerformanceChart({ data, height = 300, className }: PerformanceChartProps) {
   const { lines, points, maxLatency, minLatency, labels } = useMemo(() => {
     if (data.length === 0) {
-      return { lines: { p95: '', p99: '', avg: '' }, points: [], maxLatency: 0, minLatency: 0, labels: [] };
+      return { lines: { p95: '', p99: '', avg: '' }, points: [], maxLatency: 0, minLatency: 0, labels: { y: [], x: [] } };
     }
 
     const latencyValues = data.flatMap((d) => [d.p95Duration, d.p99Duration, d.avgDuration]);

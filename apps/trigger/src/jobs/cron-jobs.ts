@@ -2193,7 +2193,7 @@ export const overduePaymentReminders = schedules.task({
             language: whatsappLang,
             components: [
               {
-                type: 'body',
+                type: 'body' as const,
                 parameters: [
                   { type: 'text' as const, text: inst.lead_full_name },
                   { type: 'text' as const, text: formattedAmount },
@@ -2328,7 +2328,7 @@ Generated: ${new Date(metrics.generatedAt).toLocaleString('ro-RO')}
 }
 
 /**
- * Database Partition Maintenance - creates future partitions and cleans old ones
+ * Database Partition Maintenance (Daily) - creates future partitions and cleans old ones
  * Runs every day at 1:00 AM
  *
  * This job ensures partitions exist for future data insertion and optionally
