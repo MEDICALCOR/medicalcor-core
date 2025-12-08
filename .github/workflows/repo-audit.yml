@@ -1,0 +1,23 @@
+Titlu: chore(ci): add repo-audit workflow
+
+Descriere:
+This PR adds a manual repository audit GitHub Actions workflow at .github/workflows/repo-audit.yml.
+
+What it does:
+- Installs workspace dependencies (pnpm), runs typecheck, lint, tests and build across workspace packages (if present).
+- Runs pnpm audit and uploads pnpm-audit.json as an artifact.
+- Runs secret scanning with gitleaks and uploads gitleaks-report.json as an artifact.
+- Initializes and runs CodeQL analysis for JavaScript/TypeScript (results visible under Security → Code scanning).
+- Optional: If you add the CLAUDE_API_KEY secret, the workflow will run a placeholder Claude CLI step and upload claude-report.json.
+
+How to run:
+1. After merge, go to Actions → repo-audit → Run workflow (workflow_dispatch).
+2. After completion, download artifacts from the Actions run page:
+   - pnpm-audit (pnpm-audit.json)
+   - gitleaks-report (gitleaks-report.json)
+   - claude-report (if present)
+
+Notes:
+- Workflow is manual by default (workflow_dispatch).
+- Do NOT add any secrets to the repo. To enable optional Claude step, add CLAUDE_API_KEY in Settings → Secrets → Actions.
+- Attach the screenshot (image3) here in the PR description or include markdown: ![image3](image3)
