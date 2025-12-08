@@ -86,6 +86,16 @@ export {
   errorsTotal,
   circuitBreakerState,
   circuitBreakerTrips,
+  // Read Model / Materialized View Refresh Metrics
+  readModelRefreshTotal,
+  readModelRefreshDuration,
+  readModelStaleness,
+  readModelRowCount,
+  readModelConcurrentRefreshes,
+  readModelHealth,
+  readModelRefreshErrors,
+  readModelRefreshQueueDepth,
+  readModelRefreshInterval,
   // Types
   type MetricLabel,
   type MetricValue,
