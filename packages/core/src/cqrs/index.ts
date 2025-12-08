@@ -302,3 +302,16 @@ export {
   type VerifyStateRequest,
   type OrchestratedReplayResult,
 } from './replay-orchestrator.js';
+
+// Read Model Metrics - Materialized view refresh metrics (Prometheus-compatible)
+export {
+  ReadModelMetricsCollector,
+  createReadModelMetricsCollector,
+  type RefreshMetricEvent,
+  type ReadModelMetadataSnapshot,
+  type RefreshErrorType,
+  type HealthStatus,
+  type ReadModelMetricsCollectorConfig,
+  type ViewMetricsSummary,
+  type ReadModelMetricsSummary,
+} from './read-model-metrics.js';

@@ -3,12 +3,15 @@
  *
  * H8: Normalizes entities from episodic memory into a graph structure
  * for relationship discovery and semantic entity search.
+ *
+ * L4: Integrates with EntityCanonicalizationService to populate canonical_form.
  */
 
 import type { Pool } from 'pg';
 import { createHash } from 'crypto';
 import { createLogger } from '../logger.js';
 import type { IEmbeddingService } from './episode-builder.js';
+import type { EntityCanonicalizationService } from './entity-canonicalization.js';
 import {
   DEFAULT_KNOWLEDGE_GRAPH_CONFIG,
   type KnowledgeGraphConfig,
@@ -31,6 +34,7 @@ const logger = createLogger({ name: 'cognitive-knowledge-graph' });
 
 export class KnowledgeGraphService {
   private config: KnowledgeGraphConfig;
+  private canonicalization: EntityCanonicalizationService | null = null;
 
   constructor(
     private pool: Pool,
@@ -38,6 +42,14 @@ export class KnowledgeGraphService {
     config: Partial<KnowledgeGraphConfig> = {}
   ) {
     this.config = { ...DEFAULT_KNOWLEDGE_GRAPH_CONFIG, ...config };
+  }
+
+  /**
+   * Set the canonicalization service for automatic canonical form population (L4)
+   */
+  setCanonicalizationService(service: EntityCanonicalizationService): void {
+    this.canonicalization = service;
+    logger.info('Canonicalization service connected to knowledge graph');
   }
 
   // ===========================================================================
@@ -170,17 +182,43 @@ export class KnowledgeGraphService {
         }
       }
 
+      // L4: Get canonical form if canonicalization service is available
+      let canonicalForm: string | null = null;
+      if (this.canonicalization) {
+        try {
+          const canonicalResult = await this.canonicalization.canonicalize(
+            entity.value,
+            entity.type
+          );
+          canonicalForm = canonicalResult.canonicalForm;
+          logger.debug(
+            {
+              entityValue: entity.value,
+              canonicalForm,
+              method: canonicalResult.method,
+            },
+            'Canonicalized entity'
+          );
+        } catch (error) {
+          logger.warn(
+            { error, entityValue: entity.value },
+            'Failed to canonicalize entity, proceeding without canonical form'
+          );
+        }
+      }
+
       await this.pool.query(
         `INSERT INTO knowledge_entities (
-           id, entity_type, entity_value, entity_hash, embedding, embedding_model,
+           id, entity_type, entity_value, entity_hash, canonical_form, embedding, embedding_model,
            mention_count, first_mentioned_event_id, avg_confidence,
            first_observed_at, last_observed_at, created_at, updated_at
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
         [
           entityId,
           entity.type,
           entity.value,
           entityHash,
+          canonicalForm,
           embedding ? JSON.stringify(embedding) : null,
           embeddingModel,
           1,
@@ -198,6 +236,7 @@ export class KnowledgeGraphService {
         entityType: entity.type,
         entityValue: entity.value,
         entityHash,
+        canonicalForm: canonicalForm ?? undefined,
         mentionCount: 1,
         firstMentionedEventId: eventId,
         avgConfidence: entity.confidence,

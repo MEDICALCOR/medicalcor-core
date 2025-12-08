@@ -76,7 +76,7 @@ export * from './repositories/index.js';
 export * from './ai/index.js';
 
 // ============================================================================
-// REPOSITORIES
+// DATABASE MONITORING
 // ============================================================================
 
-export * from './repositories/index.js';
+export * from './database/index.js';

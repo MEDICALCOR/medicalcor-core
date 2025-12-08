@@ -770,3 +770,100 @@ export const circuitBreakerTrips = globalMetrics.counter(
   'Total circuit breaker trips',
   ['service']
 );
+
+// ============================================================================
+// READ MODEL / MATERIALIZED VIEW REFRESH METRICS
+// ============================================================================
+
+/**
+ * Total read model refresh operations
+ * Labels: view_name, status (success, failure, skipped)
+ */
+export const readModelRefreshTotal = globalMetrics.counter(
+  'medicalcor_read_model_refresh_total',
+  'Total read model refresh operations',
+  ['view_name', 'status']
+);
+
+/**
+ * Read model refresh duration in seconds
+ * Labels: view_name
+ * Buckets optimized for refresh operations (100ms to 60s)
+ */
+export const readModelRefreshDuration = globalMetrics.histogram(
+  'medicalcor_read_model_refresh_duration_seconds',
+  'Read model refresh duration in seconds',
+  ['view_name'],
+  [0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60]
+);
+
+/**
+ * Seconds since last successful refresh
+ * Labels: view_name
+ * Use to detect stale read models
+ */
+export const readModelStaleness = globalMetrics.gauge(
+  'medicalcor_read_model_staleness_seconds',
+  'Seconds since last successful refresh',
+  ['view_name']
+);
+
+/**
+ * Current row count in materialized view
+ * Labels: view_name
+ */
+export const readModelRowCount = globalMetrics.gauge(
+  'medicalcor_read_model_row_count',
+  'Current row count in materialized view',
+  ['view_name']
+);
+
+/**
+ * Number of concurrent refresh operations in progress
+ * No labels - global metric
+ */
+export const readModelConcurrentRefreshes = globalMetrics.gauge(
+  'medicalcor_read_model_concurrent_refreshes',
+  'Number of concurrent refresh operations in progress'
+);
+
+/**
+ * Read model health status
+ * Labels: view_name
+ * Values: 1=healthy, 0.5=stale, 0=error
+ */
+export const readModelHealth = globalMetrics.gauge(
+  'medicalcor_read_model_health',
+  'Read model health status (1=healthy, 0.5=stale, 0=error)',
+  ['view_name']
+);
+
+/**
+ * Total read model refresh errors by error type
+ * Labels: view_name, error_type (timeout, lock_conflict, connection, unknown)
+ */
+export const readModelRefreshErrors = globalMetrics.counter(
+  'medicalcor_read_model_refresh_errors_total',
+  'Total read model refresh errors',
+  ['view_name', 'error_type']
+);
+
+/**
+ * Read model refresh queue depth
+ * Number of views waiting to be refreshed
+ */
+export const readModelRefreshQueueDepth = globalMetrics.gauge(
+  'medicalcor_read_model_refresh_queue_depth',
+  'Number of read models waiting to be refreshed'
+);
+
+/**
+ * Read model refresh interval configuration (in seconds)
+ * Labels: view_name
+ * Useful for comparing actual staleness vs expected interval
+ */
+export const readModelRefreshInterval = globalMetrics.gauge(
+  'medicalcor_read_model_refresh_interval_seconds',
+  'Configured refresh interval for read model in seconds',
+  ['view_name']
+);

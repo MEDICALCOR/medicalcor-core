@@ -953,3 +953,87 @@ export interface SubjectEventBuffer {
   lastFlushAt: Date | null;
   pendingFlush: boolean;
 }
+
+// =============================================================================
+// Entity Canonicalization Types (L4: Canonical Form Population)
+// =============================================================================
+
+/**
+ * Method used to determine the canonical form
+ */
+export type CanonicalizationMethod = 'rule_based' | 'llm' | 'basic_normalization' | 'cache';
+
+/**
+ * Configuration for the entity canonicalization service
+ */
+export interface EntityCanonicalizationConfig {
+  /** Enable LLM-based canonicalization for complex cases (expensive) */
+  enableLLMCanonicalization: boolean;
+
+  /** LLM model to use for canonicalization */
+  llmModel: string;
+
+  /** Maximum entities to process in a single LLM batch */
+  batchSize: number;
+
+  /** Cache TTL in milliseconds for canonicalization results */
+  cacheTtlMs: number;
+
+  /** Maximum cache size (number of entries) */
+  maxCacheSize: number;
+
+  /** Enable automatic canonicalization on entity creation */
+  enableOnCreation: boolean;
+}
+
+export const DEFAULT_CANONICALIZATION_CONFIG: EntityCanonicalizationConfig = {
+  enableLLMCanonicalization: false, // Expensive, opt-in
+  llmModel: 'gpt-4o-mini',
+  batchSize: 20,
+  cacheTtlMs: 24 * 60 * 60 * 1000, // 24 hours
+  maxCacheSize: 10000,
+  enableOnCreation: true,
+};
+
+/**
+ * Result of canonicalizing an entity value
+ */
+export interface CanonicalFormResult {
+  /** Original entity value */
+  originalValue: string;
+
+  /** Canonical (normalized) form */
+  canonicalForm: string;
+
+  /** Method used to determine the canonical form */
+  method: CanonicalizationMethod;
+
+  /** Confidence score (0-1) */
+  confidence: number;
+
+  /** Processing time in milliseconds */
+  processingTimeMs: number;
+}
+
+/**
+ * Result of batch canonicalization operation
+ */
+export interface BatchCanonicalizationResult {
+  /** Total entities processed */
+  totalProcessed: number;
+
+  /** Successfully canonicalized */
+  successful: number;
+
+  /** Failed to canonicalize */
+  failed: number;
+
+  /** Skipped (already had canonical form) */
+  skipped: number;
+
+  /** Errors encountered */
+  errors: { entityId: string; error: string }[];
+
+  /** Total duration in milliseconds */
+  durationMs: number;
+}
