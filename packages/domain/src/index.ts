@@ -279,6 +279,9 @@ export * from './capacity-planning/index.js';
 // Data Lineage (M15 Milestone)
 export * from './data-lineage/index.js';
 
+// Data Classification (L6 Feature)
+export * from './data-classification/index.js';
+
 // ============================================================================
 // SHARED TYPES & UTILITIES
 // ============================================================================

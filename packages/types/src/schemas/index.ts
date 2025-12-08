@@ -815,3 +815,53 @@ export {
   type InvoiceGeneratedEvent,
   type InvoiceSentEvent,
 } from './invoice-generation.js';
+
+// =============================================================================
+// Data Classification Schemas (L6 Feature)
+// =============================================================================
+export {
+  // Sensitivity & Compliance
+  DataSensitivityLevelSchema,
+  ComplianceFrameworkSchema,
+  DataCategorySchema,
+  EncryptionRequirementSchema,
+  RetentionCategorySchema,
+  // Column Classification
+  ColumnClassificationSchema,
+  // Table Classification
+  TableClassificationSchema,
+  CreateTableClassificationSchema,
+  UpdateTableClassificationSchema,
+  // Query
+  ClassificationQueryFiltersSchema,
+  // Reports
+  ClassificationSummarySchema,
+  ComplianceGapSchema,
+  ClassificationComplianceReportSchema,
+  // Database Record
+  DataClassificationRecordSchema,
+  // Constants
+  DEFAULT_PII_COLUMN_PATTERNS,
+  DEFAULT_PHI_COLUMN_PATTERNS,
+  SENSITIVITY_PRECEDENCE,
+  // Helper Functions
+  getHighestSensitivity,
+  isPiiColumnName,
+  isPhiColumnName,
+  getRequiredFrameworks,
+  // Types
+  type DataSensitivityLevel,
+  type ComplianceFramework,
+  type DataCategory,
+  type EncryptionRequirement,
+  type RetentionCategory,
+  type ColumnClassification,
+  type TableClassification,
+  type CreateTableClassification,
+  type UpdateTableClassification,
+  type ClassificationQueryFilters,
+  type ClassificationSummary,
+  type ComplianceGap,
+  type ClassificationComplianceReport,
+  type DataClassificationRecord,
+} from './data-classification.js';
