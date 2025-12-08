@@ -43,7 +43,12 @@ function verifyVapiSignature(payload: string, signature: string, secret: string)
 
   // Check timestamp is within tolerance (5 minutes) to prevent replay attacks
   const tolerance = 300; // 5 minutes
-  const timestampAge = Math.floor(Date.now() / 1000) - parseInt(timestamp, 10);
+  const parsedTimestamp = parseInt(timestamp, 10);
+  // Reject if timestamp is invalid (NaN)
+  if (Number.isNaN(parsedTimestamp)) {
+    return false;
+  }
+  const timestampAge = Math.floor(Date.now() / 1000) - parsedTimestamp;
   if (timestampAge > tolerance || timestampAge < -tolerance) {
     return false;
   }

@@ -133,7 +133,7 @@ function initializeAIGatewayServices(redis: SecureRedisClient): void {
         const { createLogger } = await import('@medicalcor/core');
         const logger = createLogger({ name: 'ai-budget-controller' });
         
-        logger.warn({
+        const alertData = {
           event: 'ai_budget_alert',
           alertId: alert.id,
           scope: alert.scope,
@@ -142,8 +142,35 @@ function initializeAIGatewayServices(redis: SecureRedisClient): void {
           percentUsed: alert.percentUsed,
           currentSpend: alert.currentSpend,
           budgetLimit: alert.budgetLimit,
-        }, '[AI Budget Alert] Budget threshold exceeded');
-        // TODO: Integrate with monitoring/alerting system (Sentry, PagerDuty, etc.)
+          severity: alert.percentUsed >= 0.9 ? 'critical' : alert.percentUsed >= 0.75 ? 'warning' : 'info',
+          timestamp: new Date().toISOString(),
+        };
+
+        logger.warn(alertData, '[AI Budget Alert] Budget threshold exceeded');
+
+        // Emit event for monitoring systems (Sentry, PagerDuty, Datadog, etc.)
+        // This can be picked up by observability infrastructure
+        if (typeof process.emit === 'function') {
+          process.emit('ai:budget:alert' as never, alertData);
+        }
+
+        // For Sentry integration - check if Sentry is available
+        // Uses dynamic import and type guard to avoid direct Sentry dependency
+        try {
+          const SentryModule = await import('@sentry/node').catch(() => null);
+          if (SentryModule && 'captureMessage' in SentryModule && typeof SentryModule.captureMessage === 'function') {
+            SentryModule.captureMessage(`AI Budget Alert: ${alert.scope} at ${(alert.percentUsed * 100).toFixed(1)}%`, {
+              level: alert.percentUsed >= 0.9 ? 'error' : 'warning',
+              tags: {
+                scope: alert.scope,
+                scopeId: alert.scopeId ?? 'global',
+              },
+              extra: alertData,
+            });
+          }
+        } catch {
+          // Sentry not configured - alerts still logged
+        }
       },
     });
   }

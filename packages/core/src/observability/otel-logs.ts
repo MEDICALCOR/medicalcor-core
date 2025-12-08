@@ -92,7 +92,8 @@ export function initOtelLogs(config: OtelLogsConfig = {}): void {
   const enabled =
     config.enabled ?? (config.endpoint ? true : !!process.env.OTEL_EXPORTER_OTLP_ENDPOINT);
   if (!enabled) {
-    console.info('[otel-logs] Log export disabled');
+    // Use process.stdout for bootstrap messages (logger not yet available)
+    process.stdout.write('[otel-logs] Log export disabled\n');
     return;
   }
 
@@ -142,9 +143,11 @@ export function initOtelLogs(config: OtelLogsConfig = {}): void {
     logs.setGlobalLoggerProvider(loggerProvider);
 
     isInitialized = true;
-    console.info(`[otel-logs] Initialized with endpoint: ${endpoint}`);
+    // Use process.stdout for bootstrap messages (logger not yet available)
+    process.stdout.write(`[otel-logs] Initialized with endpoint: ${endpoint}\n`);
   } catch (error) {
-    console.error('[otel-logs] Failed to initialize:', error);
+    // Use process.stderr for bootstrap errors (logger not yet available)
+    process.stderr.write(`[otel-logs] Failed to initialize: ${error instanceof Error ? error.message : String(error)}\n`);
   }
 }
 
@@ -157,9 +160,11 @@ export async function shutdownOtelLogs(): Promise<void> {
   if (loggerProvider) {
     try {
       await loggerProvider.shutdown();
-      console.info('[otel-logs] Shutdown complete');
+      // Use process.stdout for shutdown messages (logger may be unavailable)
+      process.stdout.write('[otel-logs] Shutdown complete\n');
     } catch (error) {
-      console.error('[otel-logs] Shutdown error:', error);
+      // Use process.stderr for shutdown errors
+      process.stderr.write(`[otel-logs] Shutdown error: ${error instanceof Error ? error.message : String(error)}\n`);
     }
   }
 }

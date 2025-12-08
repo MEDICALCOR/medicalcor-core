@@ -8,7 +8,6 @@
  */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
 
-import type { Pool } from 'pg';
 import {
   createPatternDetector,
   createMemoryRetrievalService,
@@ -80,10 +79,29 @@ export interface BatchProcessingResult {
 }
 
 /**
+ * Database connection pool interface
+ *
+ * This interface defines the minimal contract needed for database operations.
+ * It avoids importing pg directly in the domain layer while providing type safety.
+ * The actual implementation (pg.Pool) is injected by the infrastructure layer.
+ */
+export interface IDatabasePool {
+  query(
+    queryText: string,
+    values?: unknown[]
+  ): Promise<{ rows: Record<string, unknown>[] }>;
+}
+
+/**
  * Service dependencies
+ *
+ * Note: The pool parameter accepts any pg.Pool-compatible object.
+ * This allows the domain layer to remain decoupled from the specific
+ * database driver implementation.
  */
 export interface BehavioralInsightsServiceDependencies {
-  pool: Pool;
+  /** Database pool - must be pg.Pool compatible (injected by infrastructure layer) */
+  pool: IDatabasePool;
   openai: IOpenAIClient;
   embeddings: IEmbeddingService;
   config?: Partial<CognitiveSystemConfig>;
@@ -107,8 +125,12 @@ export class BehavioralInsightsService {
   private memoryRetrieval: ReturnType<typeof createMemoryRetrievalService>;
 
   constructor(private deps: BehavioralInsightsServiceDependencies) {
-    this.patternDetector = createPatternDetector(deps.pool, deps.openai, deps.config);
-    this.memoryRetrieval = createMemoryRetrievalService(deps.pool, deps.embeddings, deps.config);
+    // Cast pool to the expected type - the infrastructure layer is responsible for
+    // providing a pg.Pool-compatible object
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pool type abstraction for DI
+    this.patternDetector = createPatternDetector(deps.pool as any, deps.openai, deps.config);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pool type abstraction for DI
+    this.memoryRetrieval = createMemoryRetrievalService(deps.pool as any, deps.embeddings, deps.config);
   }
 
   // ============================================================================

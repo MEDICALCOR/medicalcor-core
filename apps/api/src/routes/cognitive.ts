@@ -477,11 +477,17 @@ export function createCognitiveRoutes(deps: CognitiveRouteDependencies): Fastify
 
           const { subjectType, subjectId } = paramsResult.data;
 
+          // Safe parsing with NaN validation
+          const parsedLimit = limit ? parseInt(limit, 10) : 5;
+          const parsedMinSimilarity = minSimilarity ? parseFloat(minSimilarity) : undefined;
+
           const similar = await memoryRetrieval.findSimilarInteractions(query, {
             subjectType,
             subjectId,
-            limit: limit ? parseInt(limit, 10) : 5,
-            minSimilarity: minSimilarity ? parseFloat(minSimilarity) : undefined,
+            limit: Number.isNaN(parsedLimit) ? 5 : parsedLimit,
+            minSimilarity: parsedMinSimilarity !== undefined && Number.isNaN(parsedMinSimilarity)
+              ? undefined
+              : parsedMinSimilarity,
           });
 
           return await reply.send({
