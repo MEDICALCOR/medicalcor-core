@@ -259,6 +259,7 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
     const row = result.rows[0];
     if (!row) {
       throw new Error('Failed to create agent');
+      throw new Error('Failed to create agent: no row returned');
     }
     return this.rowToAgent(row);
   }
@@ -326,6 +327,7 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
     const row = result.rows[0];
     if (!row) {
       throw new Error('Failed to create agent session');
+      throw new Error('Failed to start session: no row returned');
     }
     return this.rowToAgentSession(row);
   }
@@ -653,6 +655,8 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
 
     // Default values if no data
     const defaultMetrics = {
+    // Default values when no data is returned
+    const defaultMetrics: DashboardMetricsRow = {
       total_agents: '0',
       active_agents: '0',
       total_leads: '0',
@@ -692,6 +696,36 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       totalRevenueChange: calcChange(
         Number(currentData.total_revenue),
         Number(previousData.total_revenue)
+    const currentMetrics = current ?? defaultMetrics;
+    const previousMetrics = previous ?? defaultMetrics;
+
+    return {
+      totalAgents: Number(currentMetrics.total_agents),
+      activeAgents: Number(currentMetrics.active_agents),
+      avgConversionRate: Number(currentMetrics.avg_conversion_rate),
+      avgConversionRateChange: calcChange(
+        Number(currentMetrics.avg_conversion_rate),
+        Number(previousMetrics.avg_conversion_rate)
+      ),
+      totalLeadsHandled: Number(currentMetrics.total_leads),
+      totalLeadsHandledChange: calcChange(
+        Number(currentMetrics.total_leads),
+        Number(previousMetrics.total_leads)
+      ),
+      avgResponseTime: Number(currentMetrics.avg_response_time),
+      avgResponseTimeChange: calcChange(
+        Number(currentMetrics.avg_response_time),
+        Number(previousMetrics.avg_response_time)
+      ),
+      avgSatisfaction: Number(currentMetrics.avg_satisfaction),
+      avgSatisfactionChange: calcChange(
+        Number(currentMetrics.avg_satisfaction),
+        Number(previousMetrics.avg_satisfaction)
+      ),
+      totalRevenue: Number(currentMetrics.total_revenue),
+      totalRevenueChange: calcChange(
+        Number(currentMetrics.total_revenue),
+        Number(previousMetrics.total_revenue)
       ),
     };
   }
@@ -784,6 +818,8 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
     );
 
     return Number(result.rows[0]?.count ?? 0);
+    const row = result.rows[0];
+    return row ? Number(row.count) : 0;
   }
 
   // ============================================================================

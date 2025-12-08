@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "description": "MedicalCor Core - Medical CRM Monorepo",
-  "packageManager": "pnpm@9.14.2",
+  "packageManager": "pnpm@10.24.0",
   "engines": {
     "node": ">=20.0.0",
-    "pnpm": ">=9.0.0"
+    "pnpm": ">=10.0.0"
   },
   "scripts": {
     "setup:hooks": "bash scripts/setup-git-hooks.sh",
@@ -56,30 +56,30 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.61",
-    "pg": "^8.13.1"
+    "pg": "^8.16.3"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.2.0",
     "@commitlint/config-conventional": "^20.2.0",
-    "@eslint/js": "^9.15.0",
-    "@playwright/test": "^1.49.0",
-    "@sentry/nextjs": "^8.38.0",
+    "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.57.0",
+    "@sentry/nextjs": "^10.29.0",
     "@types/node": "^20.19.25",
     "@types/pg": "^8.11.10",
     "@vitest/coverage-v8": "^4.0.15",
-    "eslint": "^9.15.0",
+    "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "fast-check": "^4.4.0",
-    "husky": "^9.1.6",
+    "husky": "^9.1.7",
     "jscpd": "^4.0.5",
     "lint-staged": "^16.2.7",
     "msw": "^2.12.4",
-    "prettier": "^3.7.3",
+    "prettier": "^3.7.4",
     "tsx": "^4.21.0",
     "turbo": "^2.6.3",
-    "typescript": "^5.6.3",
-    "typescript-eslint": "^8.48.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.48.1",
     "vitest": "^4.0.15"
   },
   "lint-staged": {
