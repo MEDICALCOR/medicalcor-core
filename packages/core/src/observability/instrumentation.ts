@@ -109,7 +109,7 @@ type FastifyLike = any;
  * Instrument a Fastify instance with tracing and metrics
  * Uses generic types to avoid requiring Fastify as a dependency
  */
-/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unnecessary-condition */
+/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
 export function instrumentFastify(
   fastify: FastifyLike,
   options: InstrumentationOptions = {}
@@ -190,7 +190,7 @@ export function instrumentFastify(
     });
   });
 }
-/* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unnecessary-condition */
+/* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
 
 // ============================================================================
 // EXTERNAL SERVICE WRAPPER

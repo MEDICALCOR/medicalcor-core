@@ -59,7 +59,7 @@ interface GdprDeletionRequest {
  *
  * Provides GDPR-compliant data export and deletion endpoints.
  */
-// eslint-disable-next-line max-lines-per-function, @typescript-eslint/require-await
+// eslint-disable-next-line max-lines-per-function
 export const gdprRoutes: FastifyPluginAsync = async (fastify): Promise<void> => {
   /**
    * POST /gdpr/export
@@ -121,7 +121,7 @@ export const gdprRoutes: FastifyPluginAsync = async (fastify): Promise<void> => 
         },
       },
     },
-    // eslint-disable-next-line max-lines-per-function, complexity
+     
     handler: async (request: FastifyRequest<{ Body: GdprExportRequest }>, reply: FastifyReply) => {
       const correlationId = generateCorrelationId();
       const { phone, email, hubspotContactId } = request.body;

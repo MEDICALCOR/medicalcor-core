@@ -5,7 +5,7 @@
  * PLATINUM STANDARD: SQL queries extracted to crm.db.sql.ts for maintainability
  */
 
-/* eslint-disable @typescript-eslint/no-unnecessary-condition -- defensive fallbacks for optional DTO properties */
+ 
 
 import {
   createDatabaseClient,

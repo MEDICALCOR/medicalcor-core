@@ -360,7 +360,7 @@ function getSSEManager(): SupervisorSSEManager {
 // Route Definitions
 // =============================================================================
 
-// eslint-disable-next-line @typescript-eslint/require-await -- Fastify plugin pattern
+ 
 export const supervisorWSRoutes: FastifyPluginAsync = async (fastify) => {
   const manager = getSSEManager();
 

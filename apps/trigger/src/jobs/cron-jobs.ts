@@ -11,6 +11,7 @@ import { nurtureSequenceWorkflow } from '../workflows/patient-journey.js';
 import { scoreLeadWorkflow } from '../workflows/lead-scoring.js';
 import { npsCollectionWorkflow } from '../workflows/nps-collection.js';
 import { batchAttributeUnlinkedPayments } from '../tasks/payment-attribution.js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 /**
  * HubSpot contact search result type
@@ -58,17 +59,8 @@ function getClients() {
  * Supabase client configuration result
  * Uses any types intentionally because we don't have a generated schema for cron jobs
  */
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
-type SupabaseClientAny = ReturnType<
-  typeof import('@supabase/supabase-js').createClient<
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    any
-  >
->;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseClientAny = SupabaseClient<any, any, any>;
 
 interface SupabaseClientResult {
   client: SupabaseClientAny | null;
@@ -1882,11 +1874,11 @@ export const npsSurveyExpiryCheck = schedules.task({
         throw new Error(`Failed to update expired surveys: ${error.message}`);
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Runtime safety for data fetching
+       
       const expiredCount = expiredSurveys?.length ?? 0;
 
       // Emit expiry events
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Runtime safety for data fetching
+       
       for (const survey of expiredSurveys ?? []) {
         await emitJobEvent(eventStore, 'nps.survey_expired', {
           surveyId: survey.id,
@@ -2136,7 +2128,7 @@ export const overduePaymentReminders = schedules.task({
         }
 
         // Process direct query results (simplified - real implementation would flatten)
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Runtime check for null data
+         
         if (!directData || directData.length === 0) {
           logger.info('No overdue installments found', { correlationId });
           return { success: true, remindersTriggered: 0, message: 'No overdue installments' };

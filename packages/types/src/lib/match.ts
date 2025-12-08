@@ -77,7 +77,7 @@ export function match<T, K extends keyof T, R>(handlers: HandlerMap<T, K, R>): (
   return (value: T) => {
     const discriminant = value[Object.keys(handlers)[0] as K] as keyof typeof handlers;
     const handler = handlers[discriminant];
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- handler may be undefined at runtime
+     
     if (handler) {
       return handler(value as never);
     }
@@ -104,7 +104,7 @@ export function matchOn<T, K extends keyof T>(
   return (value: T) => {
     const discriminant = value[key] as keyof typeof handlers;
     const handler = handlers[discriminant];
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- handler may be undefined at runtime
+     
     if (handler) {
       return handler(value as never) as never;
     }

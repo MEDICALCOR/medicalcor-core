@@ -511,7 +511,7 @@ export class MfaService {
     }
 
     // Increment failed attempts
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive fallback for db null values
+     
     const failedAttempts = ((mfaRow.failed_attempts as number) ?? 0) + 1;
     let newLockedUntil: Date | undefined;
 

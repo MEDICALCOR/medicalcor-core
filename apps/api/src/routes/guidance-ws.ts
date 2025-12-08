@@ -5,7 +5,7 @@
  * Provides real-time guidance event streaming for agent dashboard
  * using Server-Sent Events (SSE).
  */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-redundant-type-constituents, @typescript-eslint/no-non-null-assertion, @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { generateCorrelationId, logger, deepRedactObject, redactString } from '@medicalcor/core';
 import { GuidanceService, type IGuidanceRepository } from '@medicalcor/domain';
@@ -414,7 +414,7 @@ export function createGuidanceWSRoutes(repository: IGuidanceRepository): Fastify
   const manager = getGuidanceSSEManager();
   manager.initialize(service);
 
-  // eslint-disable-next-line @typescript-eslint/require-await -- Fastify plugin pattern
+   
   const guidanceWSRoutes: FastifyPluginAsync = async (fastify) => {
     /**
      * GET /guidance/events

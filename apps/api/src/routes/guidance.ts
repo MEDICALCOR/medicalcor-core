@@ -5,7 +5,7 @@
  * REST API endpoints for managing call scripts, guidance, and
  * real-time coaching during calls.
  */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, max-lines, max-lines-per-function */
+/* eslint-disable max-lines-per-function */
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import {
@@ -58,7 +58,7 @@ const ProcessMessageSchema = z.object({
 export function createGuidanceRoutes(repository: IGuidanceRepository): FastifyPluginAsync {
   const service = new GuidanceService(repository);
 
-  // eslint-disable-next-line @typescript-eslint/require-await -- Fastify plugin pattern
+   
   const guidanceRoutes: FastifyPluginAsync = async (fastify) => {
     // ========================================================================
     // CRUD Operations
