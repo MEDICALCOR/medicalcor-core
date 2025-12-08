@@ -40,7 +40,6 @@ import {
 
 /** Error types that can be returned from PostgresCaseRepository operations */
 export type CaseRepositoryError = RecordNotFoundError | RecordUpdateError | RecordDeleteError;
-import { createLogger, RecordNotFoundError } from '@medicalcor/core';
 
 import type {
   Case,
@@ -110,7 +109,6 @@ interface CaseRow {
   updated_at: Date;
   deleted_at: Date | null;
   version: number | null;
-  version?: number;
 }
 
 interface PaymentRow {
@@ -1318,7 +1316,6 @@ export class PostgresCaseRepository implements ICaseRepository {
     return {
       id: row.id,
       version: row.version ?? 1,
-      version: row.version ?? 0,
       clinicId: row.clinic_id,
       leadId: row.lead_id,
       treatmentPlanId: row.treatment_plan_id,

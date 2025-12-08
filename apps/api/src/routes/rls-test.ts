@@ -19,7 +19,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { createDatabaseClient, createLogger } from '@medicalcor/core';
 
-const logger = createLogger('rls-test-routes');
+const logger = createLogger({ name: 'rls-test-routes' });
 
 // =============================================================================
 // CONFIGURATION

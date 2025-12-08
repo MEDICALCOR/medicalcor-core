@@ -283,7 +283,7 @@ export const verifyInsuranceWorkflow = task({
     }
 
     return {
-      success: outcome.success,
+      success: true as const,
       status: outcome.newStatus,
       verificationStatus: apiResult.data.status,
       coverageDetails: outcome.coverageDetails,
@@ -325,7 +325,7 @@ function runPreVerificationChecks(payload: InsuranceVerificationPayload): PreChe
     hasVerificationConsent: payload.hasVerificationConsent,
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- domain package type resolution issue
+   
   const result = performPreVerificationChecks(input) as LocalPreVerificationCheck;
 
   if (result.warnings.length > 0) {
@@ -457,7 +457,7 @@ function processApiResult(
         : undefined,
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- domain package type resolution issue
+   
   const outcome = processVerificationResult(
     input,
     externalResult,
@@ -530,18 +530,28 @@ export const batchVerifyInsuranceWorkflow = task({
       const correlationId = `${batchCorrelationId}-${patient.patientId}`;
 
       try {
-        const result = (await verifyInsuranceWorkflow.triggerAndWait({
+        const taskResult = await verifyInsuranceWorkflow.triggerAndWait({
           ...patient,
           hasVerificationConsent: true,
           correlationId,
           source: 'scheduled',
-        })) as VerificationResult;
-
-        results.push({
-          patientId: patient.patientId,
-          success: result.success,
-          status: result.status,
         });
+
+        if (taskResult.ok) {
+          const result = taskResult.output;
+          results.push({
+            patientId: patient.patientId,
+            success: result.success,
+            status: result.status,
+          });
+        } else {
+          results.push({
+            patientId: patient.patientId,
+            success: false,
+            status: 'api_error',
+            error: 'Task failed to complete',
+          });
+        }
       } catch (error) {
         logger.error('Batch verification failed for patient', {
           patientId: patient.patientId,

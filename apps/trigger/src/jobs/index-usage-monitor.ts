@@ -102,7 +102,7 @@ async function getIndexUsage(db: DatabasePool) {
 
 async function storeMetrics(
   db: DatabasePool,
-  indexes: Array<{
+  indexes: {
     indexName: string;
     tableName: string;
     schemaName: string;
@@ -116,7 +116,7 @@ async function storeMetrics(
     lastAnalyze: Date | null;
     lastVacuum: Date | null;
     recommendations: string[];
-  }>,
+  }[],
   checkedAt: Date
 ): Promise<number> {
   let storedCount = 0;

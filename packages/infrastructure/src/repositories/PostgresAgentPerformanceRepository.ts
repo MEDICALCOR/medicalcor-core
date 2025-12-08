@@ -192,8 +192,6 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       [agentId]
     );
 
-    if (result.rows.length === 0) return null;
-    return this.rowToAgent(result.rows[0]!);
     const row = result.rows[0];
     if (!row) return null;
     return this.rowToAgent(row);
@@ -259,10 +257,8 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
     );
 
     // INSERT RETURNING always returns the inserted row
-    return this.rowToAgent(result.rows[0]!);
     const row = result.rows[0];
     if (!row) {
-      throw new Error('Failed to create agent');
       throw new Error('Failed to create agent: no row returned');
     }
     return this.rowToAgent(row);
@@ -315,8 +311,6 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       [agentId]
     );
 
-    if (result.rows.length === 0) return null;
-    return this.rowToAgentSession(result.rows[0]!);
     const row = result.rows[0];
     if (!row) return null;
     return this.rowToAgentSession(row);
@@ -331,10 +325,8 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
     );
 
     // INSERT RETURNING always returns the inserted row
-    return this.rowToAgentSession(result.rows[0]!);
     const row = result.rows[0];
     if (!row) {
-      throw new Error('Failed to create agent session');
       throw new Error('Failed to start session: no row returned');
     }
     return this.rowToAgentSession(row);
@@ -383,8 +375,6 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       [agentId, dateStr]
     );
 
-    if (result.rows.length === 0) return null;
-    return this.rowToDailyMetrics(result.rows[0]!);
     const row = result.rows[0];
     if (!row) return null;
     return this.rowToDailyMetrics(row);
@@ -536,16 +526,6 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
     return result.rows.map((row) => ({
       id: row.id,
       name: row.name,
-      agentType: row.agent_type as 'human' | 'ai' | 'hybrid',
-      role: row.role as 'agent' | 'senior_agent' | 'team_lead' | 'supervisor' | 'manager',
-      status: row.current_status as
-        | 'available'
-        | 'busy'
-        | 'away'
-        | 'break'
-        | 'training'
-        | 'offline'
-        | undefined,
       avatarUrl: row.avatar_url,
       agentType: row.agent_type as AgentPerformanceSummary['agentType'],
       role: row.role as AgentPerformanceSummary['role'],
@@ -674,79 +654,33 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       return Math.round(((curr - prev) / prev) * 1000) / 10;
     };
 
-    // Default values if no data
-    const defaultMetrics = {
-    // Default values when no data is returned
-    const defaultMetrics: DashboardMetricsRow = {
-      total_agents: '0',
-      active_agents: '0',
-      total_leads: '0',
-      avg_conversion_rate: '0',
-      avg_response_time: '0',
-      avg_satisfaction: '0',
-      total_revenue: '0',
-    };
-
-    const currentData = current ?? defaultMetrics;
-    const previousData = previous ?? defaultMetrics;
-
     return {
-      totalAgents: Number(currentData.total_agents),
-      activeAgents: Number(currentData.active_agents),
-      avgConversionRate: Number(currentData.avg_conversion_rate),
+      totalAgents: Number(current.total_agents),
+      activeAgents: Number(current.active_agents),
+      avgConversionRate: Number(current.avg_conversion_rate),
       avgConversionRateChange: calcChange(
-        Number(currentData.avg_conversion_rate),
-        Number(previousData.avg_conversion_rate)
+        Number(current.avg_conversion_rate),
+        Number(previous.avg_conversion_rate)
       ),
-      totalLeadsHandled: Number(currentData.total_leads),
+      totalLeadsHandled: Number(current.total_leads),
       totalLeadsHandledChange: calcChange(
-        Number(currentData.total_leads),
-        Number(previousData.total_leads)
+        Number(current.total_leads),
+        Number(previous.total_leads)
       ),
-      avgResponseTime: Number(currentData.avg_response_time),
+      avgResponseTime: Number(current.avg_response_time),
       avgResponseTimeChange: calcChange(
-        Number(currentData.avg_response_time),
-        Number(previousData.avg_response_time)
+        Number(current.avg_response_time),
+        Number(previous.avg_response_time)
       ),
-      avgSatisfaction: Number(currentData.avg_satisfaction),
+      avgSatisfaction: Number(current.avg_satisfaction),
       avgSatisfactionChange: calcChange(
-        Number(currentData.avg_satisfaction),
-        Number(previousData.avg_satisfaction)
+        Number(current.avg_satisfaction),
+        Number(previous.avg_satisfaction)
       ),
-      totalRevenue: Number(currentData.total_revenue),
+      totalRevenue: Number(current.total_revenue),
       totalRevenueChange: calcChange(
-        Number(currentData.total_revenue),
-        Number(previousData.total_revenue)
-    const currentMetrics = current ?? defaultMetrics;
-    const previousMetrics = previous ?? defaultMetrics;
-
-    return {
-      totalAgents: Number(currentMetrics.total_agents),
-      activeAgents: Number(currentMetrics.active_agents),
-      avgConversionRate: Number(currentMetrics.avg_conversion_rate),
-      avgConversionRateChange: calcChange(
-        Number(currentMetrics.avg_conversion_rate),
-        Number(previousMetrics.avg_conversion_rate)
-      ),
-      totalLeadsHandled: Number(currentMetrics.total_leads),
-      totalLeadsHandledChange: calcChange(
-        Number(currentMetrics.total_leads),
-        Number(previousMetrics.total_leads)
-      ),
-      avgResponseTime: Number(currentMetrics.avg_response_time),
-      avgResponseTimeChange: calcChange(
-        Number(currentMetrics.avg_response_time),
-        Number(previousMetrics.avg_response_time)
-      ),
-      avgSatisfaction: Number(currentMetrics.avg_satisfaction),
-      avgSatisfactionChange: calcChange(
-        Number(currentMetrics.avg_satisfaction),
-        Number(previousMetrics.avg_satisfaction)
-      ),
-      totalRevenue: Number(currentMetrics.total_revenue),
-      totalRevenueChange: calcChange(
-        Number(currentMetrics.total_revenue),
-        Number(previousMetrics.total_revenue)
+        Number(current.total_revenue),
+        Number(previous.total_revenue)
       ),
     };
   }
@@ -825,8 +759,6 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       [agentId]
     );
 
-    if (result.rows.length === 0) return null;
-    return result.rows[0]!.status as AgentAvailability;
     const row = result.rows[0];
     if (!row) return null;
     return row.status as AgentAvailability;
@@ -841,10 +773,7 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
     );
 
     // COUNT aggregate always returns exactly one row
-    return Number(result.rows[0]!.count);
     return Number(result.rows[0]?.count ?? 0);
-    const row = result.rows[0];
-    return row ? Number(row.count) : 0;
   }
 
   // ============================================================================

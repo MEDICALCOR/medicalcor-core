@@ -369,6 +369,40 @@ export class ConsentService {
   }
 
   /**
+   * Check consent by phone number
+   * Returns an object with granted status for compatibility with different callers
+   */
+  async checkConsent(
+    phone: string,
+    consentType: ConsentType
+  ): Promise<{ granted: boolean }> {
+    // Try to find the contact by phone and check consent
+    // This is a best-effort lookup - if no contact is found, return false
+    const consent = await this.repository.findByPhoneAndType?.(phone, consentType);
+
+    if (!consent) {
+      return { granted: false };
+    }
+
+    if (consent.status !== 'granted') {
+      return { granted: false };
+    }
+
+    // Check expiration
+    if (consent.expiresAt && new Date(consent.expiresAt) < new Date()) {
+      await this.expireConsent(consent);
+      return { granted: false };
+    }
+
+    // Check policy version
+    if (consent.version < this.config.currentPolicyVersion) {
+      return { granted: false };
+    }
+
+    return { granted: true };
+  }
+
+  /**
    * Check if all required consents are granted
    */
   async hasRequiredConsents(

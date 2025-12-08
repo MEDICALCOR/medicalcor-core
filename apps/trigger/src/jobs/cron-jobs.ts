@@ -56,8 +56,11 @@ function getClients() {
 /**
  * Supabase client configuration result
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-imports
+type SupabaseClientAny = ReturnType<typeof import('@supabase/supabase-js').createClient<any, any, any>>;
+
 interface SupabaseClientResult {
-  client: ReturnType<typeof import('@supabase/supabase-js').createClient> | null;
+  client: SupabaseClientAny | null;
   error: string | null;
 }
 
@@ -2192,11 +2195,11 @@ export const overduePaymentReminders = schedules.task({
               {
                 type: 'body',
                 parameters: [
-                  { type: 'text', text: inst.lead_full_name },
-                  { type: 'text', text: formattedAmount },
-                  { type: 'text', text: formattedDueDate },
+                  { type: 'text' as const, text: inst.lead_full_name },
+                  { type: 'text' as const, text: formattedAmount },
+                  { type: 'text' as const, text: formattedDueDate },
                   ...(reminderLevel !== 'first'
-                    ? [{ type: 'text', text: String(daysOverdue) }]
+                    ? [{ type: 'text' as const, text: String(daysOverdue) }]
                     : []),
                 ],
               },
@@ -2333,8 +2336,8 @@ Generated: ${new Date(metrics.generatedAt).toLocaleString('ro-RO')}
  *
  * H6: Database Partitioning for Event Tables
  */
-export const databasePartitionMaintenance = schedules.task({
-  id: 'database-partition-maintenance',
+export const databasePartitionMaintenanceDaily = schedules.task({
+  id: 'database-partition-maintenance-daily',
   cron: '0 1 * * *', // 1:00 AM every day
   run: async () => {
     const correlationId = generateCorrelationId();
@@ -2507,10 +2510,12 @@ export const gdprArticle30ReportGeneration = schedules.task({
       };
 
       // Create the report service
+      /* eslint-disable @typescript-eslint/no-unsafe-assignment */
       const reportService = createArticle30ReportService({
         supabase,
         controller: controllerInfo,
       });
+      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
 
       // Calculate report period (previous month)
       const now = new Date();
@@ -2654,10 +2659,12 @@ export const gdprArticle30QuarterlyReport = schedules.task({
         dpoEmail: process.env.DPO_EMAIL,
       };
 
+      /* eslint-disable @typescript-eslint/no-unsafe-assignment */
       const reportService = createArticle30ReportService({
         supabase,
         controller: controllerInfo,
       });
+      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
 
       // Calculate quarterly period (previous 3 months)
       const now = new Date();

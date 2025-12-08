@@ -3,7 +3,7 @@ import { z } from 'zod';
 import crypto from 'crypto';
 import { createIntegrationClients } from '@medicalcor/integrations';
 import {
-  NPSCollectionPayloadSchema,
+  type NPSCollectionPayloadSchema,
   classifyNPSScore,
   requiresImmediateFollowUp,
   getFollowUpPriority,
@@ -178,10 +178,8 @@ export const npsCollectionWorkflow = task({
     }
 
     // Step 5: Send the survey
-    const templateName =
-      NPS_SURVEY_TEMPLATES[language]?.[triggerType] ??
-      NPS_SURVEY_TEMPLATES[language]?.manual ??
-      'nps_general_ro';
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    const templateName = NPS_SURVEY_TEMPLATES[language][triggerType] || 'nps_general_ro';
 
     let messageId: string | undefined;
 
@@ -210,6 +208,7 @@ export const npsCollectionWorkflow = task({
           ],
         });
 
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         messageId = response.messages?.[0]?.id;
 
         logger.info('NPS survey sent via WhatsApp', {
@@ -347,7 +346,7 @@ export const processNPSResponseWorkflow = task({
       if (whatsapp) {
         await whatsapp.sendText({
           to: phone,
-          content:
+          text:
             'Vă rugăm să răspundeți cu un număr de la 0 la 10 pentru a evalua experiența dumneavoastră.',
         });
       }
@@ -439,7 +438,7 @@ export const processNPSResponseWorkflow = task({
 
       await whatsapp.sendText({
         to: phone,
-        content: thankYouMessages[classification],
+        text: thankYouMessages[classification],
       });
     }
 
@@ -522,11 +521,11 @@ export const processNPSResponseWorkflow = task({
       if (hubspotContactId && hubspot) {
         try {
           await hubspot.createTask({
+            contactId: hubspotContactId,
             subject: `[NPS Follow-up] Detractor - Score ${score}/10`,
             body: `Patient ${phone} gave an NPS score of ${score}/10.\n\nFeedback: ${feedback ?? 'No feedback provided'}\n\nPriority: ${priority}`,
-            dueDate: dueDate.toISOString(),
+            dueDate,
             priority: priority === 'critical' ? 'HIGH' : priority === 'high' ? 'MEDIUM' : 'LOW',
-            associations: [{ id: hubspotContactId, type: 'contact' }],
           });
 
           logger.info('Created HubSpot task for NPS follow-up', {
@@ -598,7 +597,7 @@ async function checkSurveyConsent(
   if (hubspotContactId && hubspot) {
     try {
       const contact = await hubspot.getContact(hubspotContactId);
-      const props = contact.properties;
+      const props = contact.properties as Record<string, string | undefined>;
 
       // Accept treatment_updates or marketing consent for NPS
       if (props.consent_treatment_updates === 'true' || props.consent_marketing === 'true') {
@@ -662,7 +661,7 @@ function parseNPSScore(message: string): { success: true; score: number; feedbac
   const trimmed = message.trim();
 
   // Try to extract a number 0-10 from the beginning of the message
-  const numberMatch = /^(\d{1,2})(?:\s|$|[.,!?\-\/])/.exec(trimmed);
+  const numberMatch = /^(\d{1,2})(?:\s|$|[.,!?\-/])/.exec(trimmed);
 
   if (numberMatch) {
     const score = parseInt(numberMatch[1]!, 10);
@@ -746,6 +745,7 @@ Example response: {"sentimentScore": 0.5, "themes": ["staff_friendly", "professi
       maxTokens: 200,
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     const content = response.choices[0]?.message?.content ?? '{}';
     const parsed = JSON.parse(content) as { sentimentScore?: number; themes?: string[] };
 
