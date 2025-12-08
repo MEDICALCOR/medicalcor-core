@@ -486,6 +486,11 @@ export class Article30ReportService {
       throw new Error(`Failed to fetch processing activities: ${error.message}`);
     }
 
+    // Handle undefined or null data gracefully
+    if (!data) {
+      return [];
+    }
+
     return (data as DataInventoryRow[]).map((row) => this.mapInventoryToActivity(row));
   }
 
