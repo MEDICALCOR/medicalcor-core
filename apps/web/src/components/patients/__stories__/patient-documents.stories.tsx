@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { fn } from '@storybook/test';
+import { fn } from 'storybook/test';
 import { PatientDocuments } from '../patient-documents';
 import type { PatientDocument } from '@/lib/patients';
 
@@ -252,7 +252,9 @@ export const LargeFileList: Story = {
     documents: Array.from({ length: 20 }, (_, i) => ({
       id: String(i + 1),
       name: `Document_${i + 1}.pdf`,
-      type: (['imaging', 'medical_record', 'lab_result', 'consent', 'prescription', 'other'] as const)[i % 6],
+      type: (
+        ['imaging', 'medical_record', 'lab_result', 'consent', 'prescription', 'other'] as const
+      )[i % 6],
       mimeType: 'application/pdf',
       size: Math.floor(Math.random() * 5 * 1024 * 1024),
       uploadedAt: new Date(Date.now() - i * 24 * 60 * 60 * 1000),

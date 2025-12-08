@@ -1,6 +1,6 @@
 // @ts-nocheck
 import type { Meta, StoryObj } from '@storybook/react';
-import { fn } from '@storybook/test';
+import { fn } from 'storybook/test';
 import { Loader2, Save, Send, Plus, Check } from 'lucide-react';
 import { SubmitButton } from '../submit-button';
 
@@ -28,12 +28,7 @@ function SubmitButtonDemo({
         e.preventDefault();
       }}
     >
-      <SubmitButton
-        pendingText={pendingText}
-        variant={variant}
-        size={size}
-        disabled={disabled}
-      >
+      <SubmitButton pendingText={pendingText} variant={variant} size={size} disabled={disabled}>
         {children}
       </SubmitButton>
     </form>
@@ -98,19 +93,11 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
-  render: () => (
-    <SubmitButtonDemo>
-      Submit
-    </SubmitButtonDemo>
-  ),
+  render: () => <SubmitButtonDemo>Submit</SubmitButtonDemo>,
 };
 
 export const WithPendingText: Story = {
-  render: () => (
-    <SubmitButtonDemo pendingText="Saving...">
-      Save Changes
-    </SubmitButtonDemo>
-  ),
+  render: () => <SubmitButtonDemo pendingText="Saving...">Save Changes</SubmitButtonDemo>,
 };
 
 export const PendingState: Story = {
@@ -119,9 +106,7 @@ export const PendingState: Story = {
       <p className="text-sm text-muted-foreground">
         This shows how the button looks during form submission:
       </p>
-      <PendingStateDemo pendingText="Saving...">
-        Save Changes
-      </PendingStateDemo>
+      <PendingStateDemo pendingText="Saving...">Save Changes</PendingStateDemo>
     </div>
   ),
 };
@@ -153,19 +138,11 @@ export const Secondary: Story = {
 };
 
 export const Outline: Story = {
-  render: () => (
-    <SubmitButtonDemo variant="outline">
-      Cancel
-    </SubmitButtonDemo>
-  ),
+  render: () => <SubmitButtonDemo variant="outline">Cancel</SubmitButtonDemo>,
 };
 
 export const Small: Story = {
-  render: () => (
-    <SubmitButtonDemo size="sm">
-      Submit
-    </SubmitButtonDemo>
-  ),
+  render: () => <SubmitButtonDemo size="sm">Submit</SubmitButtonDemo>,
 };
 
 export const Large: Story = {
@@ -178,11 +155,7 @@ export const Large: Story = {
 };
 
 export const Disabled: Story = {
-  render: () => (
-    <SubmitButtonDemo disabled>
-      Submit
-    </SubmitButtonDemo>
-  ),
+  render: () => <SubmitButtonDemo disabled>Submit</SubmitButtonDemo>,
 };
 
 export const AllStates: Story = {
@@ -198,9 +171,7 @@ export const AllStates: Story = {
 
       <div>
         <h4 className="text-sm font-medium mb-3">Pending State (simulated)</h4>
-        <PendingStateDemo pendingText="Confirming...">
-          Confirm Appointment
-        </PendingStateDemo>
+        <PendingStateDemo pendingText="Confirming...">Confirm Appointment</PendingStateDemo>
       </div>
 
       <div>
@@ -245,10 +216,7 @@ export const FormExample: Story = {
         />
       </div>
       <div className="flex justify-end gap-2">
-        <button
-          type="button"
-          className="px-4 py-2 border rounded-md hover:bg-muted"
-        >
+        <button type="button" className="px-4 py-2 border rounded-md hover:bg-muted">
           Cancel
         </button>
         <SubmitButton pendingText="Sending...">

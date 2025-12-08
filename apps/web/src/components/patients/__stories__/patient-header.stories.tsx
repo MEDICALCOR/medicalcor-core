@@ -1,6 +1,6 @@
 // @ts-nocheck
 import type { Meta, StoryObj } from '@storybook/react';
-import { fn } from '@storybook/test';
+import { fn } from 'storybook/test';
 import { PatientHeader } from '../patient-header';
 import type { PatientDetail } from '@/lib/patients';
 
@@ -173,11 +173,7 @@ export const AllStatuses: Story = {
   render: () => (
     <div className="space-y-6">
       {(['lead', 'contacted', 'scheduled', 'patient', 'inactive'] as const).map((status) => (
-        <PatientHeader
-          key={status}
-          patient={{ ...samplePatient, status }}
-          onEdit={() => {}}
-        />
+        <PatientHeader key={status} patient={{ ...samplePatient, status }} onEdit={() => {}} />
       ))}
     </div>
   ),

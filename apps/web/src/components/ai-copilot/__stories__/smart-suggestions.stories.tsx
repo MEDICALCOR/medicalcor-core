@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { fn } from '@storybook/test';
+import { fn } from 'storybook/test';
 import { useState } from 'react';
 import {
   Lightbulb,
@@ -251,9 +251,7 @@ function SmartSuggestionsDemo({
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-medium">{reply.label}</span>
                   {reply.shortcut && (
-                    <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">
-                      {reply.shortcut}
-                    </kbd>
+                    <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">{reply.shortcut}</kbd>
                   )}
                 </div>
                 <p className="text-muted-foreground line-clamp-2">

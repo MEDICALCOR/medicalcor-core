@@ -1,15 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { fn } from '@storybook/test';
+import { fn } from 'storybook/test';
 import { useState } from 'react';
-import {
-  Bot,
-  MessageSquare,
-  Lightbulb,
-  FileText,
-  Sparkles,
-  X,
-  ChevronRight,
-} from 'lucide-react';
+import { Bot, MessageSquare, Lightbulb, FileText, Sparkles, X, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
@@ -210,10 +202,7 @@ export const AllTabs: Story = {
       <h3 className="text-lg font-semibold">AI Copilot Tabs</h3>
       <div className="flex flex-wrap gap-4">
         {tabs.map((tab) => (
-          <div
-            key={tab.id}
-            className="flex items-center gap-2 p-3 border rounded-lg"
-          >
+          <div key={tab.id} className="flex items-center gap-2 p-3 border rounded-lg">
             <tab.icon className="h-5 w-5 text-primary" />
             <span>{tab.label}</span>
           </div>
@@ -237,9 +226,7 @@ export const ButtonOnly: Story = {
       </Button>
       <div>
         <p className="font-medium">AI Copilot Button</p>
-        <p className="text-sm text-muted-foreground">
-          Click to open the AI assistant
-        </p>
+        <p className="text-sm text-muted-foreground">Click to open the AI assistant</p>
       </div>
     </div>
   ),
