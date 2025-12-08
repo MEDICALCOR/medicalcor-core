@@ -311,7 +311,10 @@ export class CapacityPlanningService {
   public wouldCreateConflict(newShift: StaffShift, existingShifts: StaffShift[]): boolean {
     const allShifts = [...existingShifts, newShift];
     const result = this.policy.detectConflicts(allShifts);
-    return result.conflicts.some((c) => c.shiftId === newShift.id);
+    // Check if the new shift is involved in any conflict (either as primary or conflicting)
+    return result.conflicts.some(
+      (c) => c.shiftId === newShift.id || c.conflictingShiftId === newShift.id
+    );
   }
 
   // ============================================================================

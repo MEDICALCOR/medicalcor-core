@@ -159,6 +159,22 @@ vi.mock('@medicalcor/domain', () => ({
       }),
     };
   }),
+  getQueueSLAService: vi.fn(() => ({
+    getQueueStats: vi.fn(() => ({
+      totalCalls: 0,
+      waiting: 0,
+      inProgress: 0,
+      completed: 0,
+      avgWaitTime: 0,
+      maxWaitTime: 0,
+      slaCompliance: 100,
+    })),
+    getQueueHealth: vi.fn(() => ({
+      status: 'healthy',
+      load: 0,
+      waitingCalls: 0,
+    })),
+  })),
 }));
 
 describe('Supervisor Routes', () => {

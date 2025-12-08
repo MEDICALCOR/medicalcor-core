@@ -156,20 +156,25 @@ describe('Client Factory Functions', () => {
       expect(slots).toEqual([]);
     });
 
-    it('should reject booking requests', async () => {
+    it('should return error for booking requests when API unavailable', async () => {
       const { getSchedulingService, resetClients } = await import('../clients.js');
       resetClients();
 
       const service = getSchedulingService();
 
-      await expect(
-        service.bookAppointment({
-          patientId: 'p1',
-          slotId: 's1',
-          procedureType: 'checkup',
-          notes: '',
-        })
-      ).rejects.toThrow('Booking not implemented in web app');
+      // @ts-expect-error - Web API interface differs from domain interface
+      const result = await service.bookAppointment({
+        patientId: 'p1',
+        slotId: 's1',
+        procedureType: 'checkup',
+        notes: '',
+      });
+
+      // The API-based repository returns error object instead of throwing
+      expect(result).toEqual({
+        success: false,
+        error: expect.stringContaining('Booking service unavailable'),
+      });
     });
 
     it('should return empty upcoming appointments', async () => {

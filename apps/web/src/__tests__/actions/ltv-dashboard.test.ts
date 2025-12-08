@@ -34,6 +34,20 @@ vi.mock('@/lib/auth/server-action-auth', () => ({
   requireCurrentUser: mockRequireCurrentUser,
 }));
 
+// Mock the database client
+const mockQuery = vi.hoisted(() => vi.fn());
+vi.mock('@medicalcor/core', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@medicalcor/core')>();
+  return {
+    ...original,
+    createDatabaseClient: () => ({
+      query: mockQuery,
+      connect: vi.fn(),
+      end: vi.fn(),
+    }),
+  };
+});
+
 // Import after mocks
 import {
   getLTVStatsAction,
@@ -53,6 +67,126 @@ describe('LTV Dashboard Server Actions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockRequirePermission.mockResolvedValue(undefined);
+
+    // Default mock responses for database queries
+    mockQuery.mockImplementation((sql: string) => {
+      // Stats query
+      if (sql.includes('monthly_totals')) {
+        return Promise.resolve({
+          rows: [
+            {
+              total_revenue: '1250000',
+              total_outstanding: '350000',
+              avg_ltv: '8500',
+              total_cases: '150',
+              paid_cases: '95',
+              partial_cases: '35',
+              current_month_revenue: '125000',
+              previous_month_revenue: '110000',
+            },
+          ],
+          rowCount: 1,
+        });
+      }
+      // Top customers query (lead_ltv)
+      if (sql.includes('lead_ltv')) {
+        return Promise.resolve({
+          rows: [
+            {
+              lead_id: 'lead-1',
+              clinic_id: 'clinic-456',
+              full_name: 'Test Patient 1',
+              email: 'test1@example.com',
+              phone: '+40721234567',
+              lead_created_at: new Date(),
+              total_cases: '3',
+              completed_cases: '2',
+              total_case_value: '50000',
+              total_paid: '45000',
+              total_outstanding: '5000',
+              avg_case_value: '16667',
+              first_case_date: new Date('2024-01-15'),
+              last_case_date: new Date('2024-11-20'),
+            },
+            {
+              lead_id: 'lead-2',
+              clinic_id: 'clinic-456',
+              full_name: 'Test Patient 2',
+              email: 'test2@example.com',
+              phone: '+40721234568',
+              lead_created_at: new Date(),
+              total_cases: '2',
+              completed_cases: '1',
+              total_case_value: '25000',
+              total_paid: '20000',
+              total_outstanding: '5000',
+              avg_case_value: '12500',
+              first_case_date: new Date('2024-03-10'),
+              last_case_date: new Date('2024-10-15'),
+            },
+          ],
+          rowCount: 2,
+        });
+      }
+      // Monthly revenue query
+      if (sql.includes('monthly_revenue')) {
+        return Promise.resolve({
+          rows: [
+            {
+              month: new Date('2024-11-01'),
+              clinic_id: 'clinic-456',
+              cases_with_payments: '30',
+              payment_count: '45',
+              gross_revenue: '125000',
+              refunds: '2500',
+              net_revenue: '122500',
+              avg_payment_amount: '2778',
+            },
+            {
+              month: new Date('2024-10-01'),
+              clinic_id: 'clinic-456',
+              cases_with_payments: '28',
+              payment_count: '40',
+              gross_revenue: '110000',
+              refunds: '1500',
+              net_revenue: '108500',
+              avg_payment_amount: '2750',
+            },
+          ],
+          rowCount: 2,
+        });
+      }
+      // Case pipeline query
+      if (sql.includes('case_pipeline')) {
+        return Promise.resolve({
+          rows: [
+            {
+              clinic_id: 'clinic-456',
+              status: 'in_progress',
+              payment_status: 'partial',
+              case_count: '25',
+              total_value: '450000',
+              paid_value: '250000',
+              outstanding_value: '200000',
+              avg_case_value: '18000',
+            },
+            {
+              clinic_id: 'clinic-456',
+              status: 'completed',
+              payment_status: 'paid',
+              case_count: '95',
+              total_value: '800000',
+              paid_value: '800000',
+              outstanding_value: '0',
+              avg_case_value: '8421',
+            },
+          ],
+          rowCount: 2,
+        });
+      }
+      // Default empty response
+      return Promise.resolve({ rows: [], rowCount: 0 });
+    });
   });
 
   describe('getLTVStatsAction', () => {

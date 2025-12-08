@@ -164,6 +164,16 @@ export interface NotifySubjectResult {
 }
 
 /**
+ * Result of notifying authority
+ */
+export interface NotifyAuthorityResult {
+  breach: DataBreach;
+  authority: string;
+  withinDeadline: boolean;
+  hoursFromDetection: number;
+}
+
+/**
  * GDPR Breach Notification Service
  */
 export class BreachNotificationService {
@@ -385,7 +395,7 @@ export class BreachNotificationService {
     referenceNumber?: string,
     contactPerson?: string,
     notes?: string
-  ): Promise<DataBreach> {
+  ): Promise<NotifyAuthorityResult> {
     const breach = await this.repository.findById(breachId);
     if (!breach) {
       throw new Error(`Breach not found: ${breachId}`);
@@ -443,7 +453,12 @@ export class BreachNotificationService {
       this.logger.info({ breachId, authority, hoursFromDetection }, 'Authority notified of breach');
     }
 
-    return savedBreach;
+    return {
+      breach: savedBreach,
+      authority,
+      withinDeadline,
+      hoursFromDetection,
+    };
   }
 
   /**
