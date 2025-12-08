@@ -817,6 +817,70 @@ export {
 } from './invoice-generation.js';
 
 // =============================================================================
+// IP Geolocation & Security Alerts Schemas (L5 Feature)
+// =============================================================================
+export {
+  // Core Types
+  GeoCoordinatesSchema,
+  GeoLocationSchema,
+  LocationHistoryEntrySchema,
+  // Anomaly Detection
+  GeoAlertSeveritySchema,
+  GeoAnomalyTypeSchema,
+  GeoAlertStatusSchema,
+  ImpossibleTravelDetailsSchema,
+  GeoAnomalyAlertSchema,
+  // Configuration
+  GeoAnomalyConfigSchema,
+  ClinicGeoConfigSchema,
+  // Request/Response
+  ResolveGeoLocationRequestSchema,
+  ResolveGeoLocationResponseSchema,
+  CheckGeoAnomalyRequestSchema,
+  CheckGeoAnomalyResponseSchema,
+  GeoAlertQueryFiltersSchema,
+  GeoAlertQueryResultSchema,
+  UpdateGeoAlertStatusSchema,
+  // Events
+  GeoAnomalyDetectedEventSchema,
+  GeoAlertStatusChangedEventSchema,
+  GeoAccessBlockedEventSchema,
+  // Dashboard/Statistics
+  GeoAccessDistributionSchema,
+  GeoAlertStatsSchema,
+  GeoDashboardDataSchema,
+  // Helper Functions
+  calculateDistanceKm,
+  calculateRequiredSpeed,
+  isImpossibleTravel,
+  getAnomalySeverity,
+  getRecommendedAction,
+  getAnomalyDescription,
+  // Types
+  type GeoCoordinates,
+  type GeoLocation,
+  type LocationHistoryEntry,
+  type GeoAlertSeverity,
+  type GeoAnomalyType,
+  type GeoAlertStatus,
+  type ImpossibleTravelDetails,
+  type GeoAnomalyAlert,
+  type GeoAnomalyConfig,
+  type ClinicGeoConfig,
+  type ResolveGeoLocationRequest,
+  type ResolveGeoLocationResponse,
+  type CheckGeoAnomalyRequest,
+  type CheckGeoAnomalyResponse,
+  type GeoAlertQueryFilters,
+  type GeoAlertQueryResult,
+  type UpdateGeoAlertStatus,
+  type GeoAnomalyDetectedEvent,
+  type GeoAlertStatusChangedEvent,
+  type GeoAccessBlockedEvent,
+  type GeoAccessDistribution,
+  type GeoAlertStats,
+  type GeoDashboardData,
+} from './geolocation.js';
 // Data Classification Schemas (L6 Feature)
 // =============================================================================
 export {
