@@ -134,6 +134,9 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
 
     const row = result.rows[0];
     if (!row) {
+      throw new Error('Failed to create wrap-up event');
+    }
+
       throw new Error('Failed to start wrap-up: no row returned');
     }
     return this.rowToWrapUpEvent(row);
@@ -552,6 +555,7 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
       [maxAgeMinutes]
     );
 
+    return Number(result.rows[0]?.count ?? 0);
     const row = result.rows[0];
     return row ? Number(row.count) : 0;
   }
