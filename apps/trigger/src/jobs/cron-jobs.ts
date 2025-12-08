@@ -1465,11 +1465,13 @@ export const dsrDueDateMonitor = schedules.task({
       if (overdueCount > 0) {
         logger.error('GDPR ALERT: Overdue DSRs detected', {
           overdueCount,
-          requests: overdueDSRs?.map((r: { id: string; request_type: string; due_date: string }) => ({
-            id: r.id,
-            type: r.request_type,
-            dueDate: r.due_date,
-          })),
+          requests: overdueDSRs?.map(
+            (r: { id: string; request_type: string; due_date: string }) => ({
+              id: r.id,
+              type: r.request_type,
+              dueDate: r.due_date,
+            })
+          ),
           correlationId,
         });
       }
@@ -1477,11 +1479,13 @@ export const dsrDueDateMonitor = schedules.task({
       if (approachingCount > 0) {
         logger.warn('DSRs approaching due date', {
           approachingCount,
-          requests: approachingDSRs?.map((r: { id: string; request_type: string; due_date: string }) => ({
-            id: r.id,
-            type: r.request_type,
-            dueDate: r.due_date,
-          })),
+          requests: approachingDSRs?.map(
+            (r: { id: string; request_type: string; due_date: string }) => ({
+              id: r.id,
+              type: r.request_type,
+              dueDate: r.due_date,
+            })
+          ),
           correlationId,
         });
       }
@@ -1638,7 +1642,8 @@ export const npsPostAppointmentSurvey = schedules.task({
         }
       );
 
-      surveysSkipped = (recentAppointments.results as HubSpotContactResult[]).length - eligibleContacts.length;
+      surveysSkipped =
+        (recentAppointments.results as HubSpotContactResult[]).length - eligibleContacts.length;
 
       // Process eligible contacts in batches
       const todayStr = getTodayString();
@@ -1760,6 +1765,7 @@ export const databasePartitionMaintenance = schedules.task({
       const supabase = createClient(supabaseUrl, supabaseKey);
 
       // Create future partitions (3 months ahead)
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Supabase RPC typing
       const { data: createResult, error: createError } = await supabase.rpc(
         'create_future_partitions',
         { p_months_ahead: 3 }
@@ -1838,9 +1844,11 @@ export const npsSurveyExpiryCheck = schedules.task({
         throw new Error(`Failed to update expired surveys: ${error.message}`);
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Runtime safety for data fetching
       const expiredCount = expiredSurveys?.length ?? 0;
 
       // Emit expiry events
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Runtime safety for data fetching
       for (const survey of expiredSurveys ?? []) {
         await emitJobEvent(eventStore, 'nps.survey_expired', {
           surveyId: survey.id,
@@ -1917,8 +1925,10 @@ export const npsFollowUpReminder = schedules.task({
       const pendingCount = pendingFollowUps?.length ?? 0;
 
       // Count by priority
-      const criticalCount = pendingFollowUps?.filter((f) => f.follow_up_priority === 'critical').length ?? 0;
-      const highCount = pendingFollowUps?.filter((f) => f.follow_up_priority === 'high').length ?? 0;
+      const criticalCount =
+        pendingFollowUps?.filter((f) => f.follow_up_priority === 'critical').length ?? 0;
+      const highCount =
+        pendingFollowUps?.filter((f) => f.follow_up_priority === 'high').length ?? 0;
 
       if (criticalCount > 0) {
         logger.error('ALERT: Critical NPS follow-ups pending', {
@@ -2034,14 +2044,19 @@ export const overduePaymentReminders = schedules.task({
 
       // Query for overdue installments eligible for reminders
       const now = new Date();
-      const minReminderDate = new Date(now.getTime() - MIN_DAYS_BETWEEN_REMINDERS * 24 * 60 * 60 * 1000);
+      const minReminderDate = new Date(
+        now.getTime() - MIN_DAYS_BETWEEN_REMINDERS * 24 * 60 * 60 * 1000
+      );
 
-      const { data: overdueInstallments, error: queryError } = await supabase
-        .rpc('get_overdue_installments_for_reminders', {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Supabase RPC typing
+      const { data: overdueInstallments, error: queryError } = await supabase.rpc(
+        'get_overdue_installments_for_reminders',
+        {
           p_min_reminder_date: minReminderDate.toISOString(),
           p_max_reminders: MAX_REMINDERS,
           p_limit: 100,
-        });
+        }
+      );
 
       if (queryError) {
         // If RPC doesn't exist, fall back to direct query
@@ -2049,7 +2064,8 @@ export const overduePaymentReminders = schedules.task({
 
         const { data: directData, error: directError } = await supabase
           .from('payment_plan_installments')
-          .select(`
+          .select(
+            `
             id,
             payment_plan_id,
             installment_number,
@@ -2077,7 +2093,8 @@ export const overduePaymentReminders = schedules.task({
                 )
               )
             )
-          `)
+          `
+          )
           .in('status', ['pending', 'overdue'])
           .lt('due_date', now.toISOString())
           .or(`reminder_sent_at.is.null,reminder_sent_at.lt.${minReminderDate.toISOString()}`)
@@ -2089,6 +2106,7 @@ export const overduePaymentReminders = schedules.task({
         }
 
         // Process direct query results (simplified - real implementation would flatten)
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Runtime check for null data
         if (!directData || directData.length === 0) {
           logger.info('No overdue installments found', { correlationId });
           return { success: true, remindersTriggered: 0, message: 'No overdue installments' };
@@ -2109,7 +2127,9 @@ export const overduePaymentReminders = schedules.task({
         async (inst) => {
           // Calculate days overdue
           const dueDate = new Date(inst.due_date);
-          const daysOverdue = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+          const daysOverdue = Math.floor(
+            (now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)
+          );
 
           // Determine reminder level
           let reminderLevel: 'first' | 'second' | 'final' | 'escalated';
@@ -2159,7 +2179,9 @@ export const overduePaymentReminders = schedules.task({
                   { type: 'text', text: inst.lead_full_name },
                   { type: 'text', text: formattedAmount },
                   { type: 'text', text: formattedDueDate },
-                  ...(reminderLevel !== 'first' ? [{ type: 'text', text: String(daysOverdue) }] : []),
+                  ...(reminderLevel !== 'first'
+                    ? [{ type: 'text', text: String(daysOverdue) }]
+                    : []),
                 ],
               },
             ],
@@ -2191,7 +2213,9 @@ export const overduePaymentReminders = schedules.task({
                 subject: `${reminderLevel === 'escalated' ? '🚨 URGENT' : '⚠️ FINAL'}: Overdue Payment - ${formattedAmount}`,
                 body: `Patient ${inst.lead_full_name} has an overdue payment.\n\nAmount: ${formattedAmount}\nDays Overdue: ${daysOverdue}\nReminders Sent: ${inst.reminder_count + 1}`,
                 priority: reminderLevel === 'escalated' ? 'HIGH' : 'MEDIUM',
-                dueDate: new Date(now.getTime() + (reminderLevel === 'escalated' ? 4 : 24) * 60 * 60 * 1000),
+                dueDate: new Date(
+                  now.getTime() + (reminderLevel === 'escalated' ? 4 : 24) * 60 * 60 * 1000
+                ),
               });
             }
           }
@@ -2366,7 +2390,7 @@ export const databasePartitionMaintenance = schedules.task({
       const oldPartitions = allPartitions.filter((p) => {
         // Extract date from partition name (e.g., domain_events_y2024m01)
         const match = /y(\d{4})m(\d{2})/.exec(p.partition_name);
-        if (match && match[1] && match[2]) {
+        if (match?.[1] && match[2]) {
           const year = Number.parseInt(match[1], 10);
           const month = Number.parseInt(match[2], 10);
           const partitionDate = new Date(year, month - 1, 1);
@@ -2417,6 +2441,276 @@ export const databasePartitionMaintenance = schedules.task({
       });
 
       return { success: false, error: String(error) };
+    }
+  },
+});
+
+// ============================================
+// GDPR Article 30 Compliance Reporting (L10)
+// ============================================
+
+/**
+ * GDPR Article 30 Report Generation - generates Records of Processing Activities reports
+ * Runs on the 1st of every month at 5:00 AM
+ *
+ * This job automatically generates comprehensive GDPR Article 30 compliance reports
+ * containing all processing activities, consent summaries, DSR statistics, and
+ * data breach information for regulatory audits.
+ *
+ * L10: Automated Compliance Reporting
+ */
+export const gdprArticle30ReportGeneration = schedules.task({
+  id: 'gdpr-article30-report-generation',
+  cron: '0 5 1 * *', // 5:00 AM on the 1st of every month
+  run: async () => {
+    const correlationId = generateCorrelationId();
+    logger.info('Starting GDPR Article 30 report generation', { correlationId });
+
+    const { eventStore } = getClients();
+
+    try {
+      const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_SERVICE_KEY ?? process.env.SUPABASE_ANON_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        logger.warn('Supabase credentials not configured, skipping Article 30 report', {
+          correlationId,
+        });
+        return { success: false, reason: 'Supabase not configured' };
+      }
+
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      // Dynamic import for the report service
+      const { createArticle30ReportService } = await import('@medicalcor/core');
+
+      // Get controller information from environment or database
+      const controllerInfo = {
+        name: process.env.ORGANIZATION_NAME ?? 'MedicalCor',
+        address: process.env.ORGANIZATION_ADDRESS ?? '',
+        country: process.env.ORGANIZATION_COUNTRY ?? 'RO',
+        email: process.env.DPO_EMAIL ?? 'dpo@medicalcor.com',
+        phone: process.env.DPO_PHONE,
+        dpoName: process.env.DPO_NAME,
+        dpoEmail: process.env.DPO_EMAIL,
+        dpoPhone: process.env.DPO_PHONE,
+      };
+
+      // Create the report service
+      const reportService = createArticle30ReportService({
+        supabase,
+        controller: controllerInfo,
+      });
+
+      // Calculate report period (previous month)
+      const now = new Date();
+      const periodEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59); // Last day of previous month
+      const periodStart = new Date(periodEnd.getFullYear(), periodEnd.getMonth(), 1); // First day of previous month
+
+      // Generate the report
+      const report = await reportService.generateReport({
+        periodStart,
+        periodEnd,
+        frequency: 'monthly',
+        includeConsentSummary: true,
+        includeDSRSummary: true,
+        includeDataBreaches: true,
+        correlationId,
+      });
+
+      logger.info('GDPR Article 30 report generated', {
+        reportId: report.reportId,
+        version: report.version,
+        periodStart: periodStart.toISOString(),
+        periodEnd: periodEnd.toISOString(),
+        totalActivities: report.statistics.totalActivities,
+        activitiesWithTransfers: report.statistics.activitiesWithTransfers,
+        activitiesNeedingReview: report.statistics.activitiesNeedingReview,
+        correlationId,
+      });
+
+      // Emit report generated event
+      await emitJobEvent(eventStore, 'gdpr.article30_report_generated', {
+        reportId: report.reportId,
+        version: report.version,
+        periodStart: periodStart.toISOString(),
+        periodEnd: periodEnd.toISOString(),
+        status: report.status,
+        totalActivities: report.statistics.totalActivities,
+        uniqueDataCategories: report.statistics.uniqueDataCategories,
+        uniqueRecipients: report.statistics.uniqueRecipients,
+        activitiesWithTransfers: report.statistics.activitiesWithTransfers,
+        activitiesRequiringDPIA: report.statistics.activitiesRequiringDPIA,
+        activitiesNeedingReview: report.statistics.activitiesNeedingReview,
+        consentSummaryCount: report.consentSummary.length,
+        dsrReceived: report.dsrSummary?.totalReceived ?? 0,
+        dsrCompleted: report.dsrSummary?.completed ?? 0,
+        dsrOverdue: report.dsrSummary?.overdue ?? 0,
+        dataBreaches: report.dataBreachSummary?.totalBreaches ?? 0,
+        correlationId,
+      });
+
+      // Check for compliance alerts
+      if (report.statistics.activitiesNeedingReview > 0) {
+        logger.warn('GDPR ALERT: Processing activities need review', {
+          activitiesNeedingReview: report.statistics.activitiesNeedingReview,
+          correlationId,
+        });
+      }
+
+      if (report.dsrSummary && report.dsrSummary.overdue > 0) {
+        logger.error('GDPR ALERT: Overdue DSRs detected in report period', {
+          overdueCount: report.dsrSummary.overdue,
+          correlationId,
+        });
+      }
+
+      if (report.dataBreachSummary && report.dataBreachSummary.totalBreaches > 0) {
+        logger.warn('Data breaches recorded in report period', {
+          totalBreaches: report.dataBreachSummary.totalBreaches,
+          reportedToAuthority: report.dataBreachSummary.reportedToAuthority,
+          notifiedToSubjects: report.dataBreachSummary.notifiedToSubjects,
+          correlationId,
+        });
+      }
+
+      await emitJobEvent(eventStore, 'cron.gdpr_article30_report.completed', {
+        reportId: report.reportId,
+        version: report.version,
+        totalActivities: report.statistics.totalActivities,
+        correlationId,
+      });
+
+      logger.info('GDPR Article 30 report generation completed', {
+        reportId: report.reportId,
+        correlationId,
+      });
+
+      return {
+        success: true,
+        reportId: report.reportId,
+        version: report.version,
+        totalActivities: report.statistics.totalActivities,
+        status: report.status,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('GDPR Article 30 report generation failed', {
+        error: errorMessage,
+        correlationId,
+      });
+
+      await emitJobEvent(eventStore, 'cron.gdpr_article30_report.failed', {
+        error: errorMessage,
+        correlationId,
+      });
+
+      return { success: false, error: errorMessage };
+    }
+  },
+});
+
+/**
+ * GDPR Article 30 Quarterly Report - comprehensive quarterly compliance report
+ * Runs on the 1st of January, April, July, October at 6:00 AM
+ *
+ * Generates more detailed quarterly reports for regulatory submission.
+ */
+export const gdprArticle30QuarterlyReport = schedules.task({
+  id: 'gdpr-article30-quarterly-report',
+  cron: '0 6 1 1,4,7,10 *', // 6:00 AM on 1st of Jan, Apr, Jul, Oct
+  run: async () => {
+    const correlationId = generateCorrelationId();
+    logger.info('Starting GDPR Article 30 quarterly report generation', { correlationId });
+
+    const { eventStore } = getClients();
+
+    try {
+      const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_SERVICE_KEY ?? process.env.SUPABASE_ANON_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        logger.warn('Supabase credentials not configured', { correlationId });
+        return { success: false, reason: 'Supabase not configured' };
+      }
+
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      const { createArticle30ReportService } = await import('@medicalcor/core');
+
+      const controllerInfo = {
+        name: process.env.ORGANIZATION_NAME ?? 'MedicalCor',
+        address: process.env.ORGANIZATION_ADDRESS ?? '',
+        country: process.env.ORGANIZATION_COUNTRY ?? 'RO',
+        email: process.env.DPO_EMAIL ?? 'dpo@medicalcor.com',
+        dpoName: process.env.DPO_NAME,
+        dpoEmail: process.env.DPO_EMAIL,
+      };
+
+      const reportService = createArticle30ReportService({
+        supabase,
+        controller: controllerInfo,
+      });
+
+      // Calculate quarterly period (previous 3 months)
+      const now = new Date();
+      const periodEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+      const periodStart = new Date(periodEnd.getFullYear(), periodEnd.getMonth() - 2, 1);
+
+      const report = await reportService.generateReport({
+        periodStart,
+        periodEnd,
+        title: `GDPR Article 30 Quarterly RoPA Report - Q${Math.ceil(periodEnd.getMonth() / 3)} ${periodEnd.getFullYear()}`,
+        frequency: 'quarterly',
+        includeConsentSummary: true,
+        includeDSRSummary: true,
+        includeDataBreaches: true,
+        correlationId,
+      });
+
+      logger.info('GDPR Article 30 quarterly report generated', {
+        reportId: report.reportId,
+        version: report.version,
+        quarter: `Q${Math.ceil(periodEnd.getMonth() / 3)}`,
+        year: periodEnd.getFullYear(),
+        totalActivities: report.statistics.totalActivities,
+        correlationId,
+      });
+
+      await emitJobEvent(eventStore, 'gdpr.article30_quarterly_report_generated', {
+        reportId: report.reportId,
+        version: report.version,
+        quarter: `Q${Math.ceil(periodEnd.getMonth() / 3)}`,
+        year: periodEnd.getFullYear(),
+        periodStart: periodStart.toISOString(),
+        periodEnd: periodEnd.toISOString(),
+        status: report.status,
+        statistics: report.statistics,
+        correlationId,
+      });
+
+      return {
+        success: true,
+        reportId: report.reportId,
+        version: report.version,
+        quarter: `Q${Math.ceil(periodEnd.getMonth() / 3)}`,
+        totalActivities: report.statistics.totalActivities,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('GDPR Article 30 quarterly report generation failed', {
+        error: errorMessage,
+        correlationId,
+      });
+
+      await emitJobEvent(eventStore, 'cron.gdpr_article30_quarterly_report.failed', {
+        error: errorMessage,
+        correlationId,
+      });
+
+      return { success: false, error: errorMessage };
     }
   },
 });

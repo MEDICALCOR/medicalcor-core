@@ -20,6 +20,7 @@ import {
   diagnosticsRoutes,
   backupRoutes,
   gdprRoutes,
+  gdprArticle30Routes,
   metricsRoutes,
   loadTestingRoutes,
   rlsTestRoutes,
@@ -423,6 +424,7 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
   await fastify.register(chatgptPluginRoutes);
   await fastify.register(backupRoutes);
   await fastify.register(gdprRoutes);
+  await fastify.register(gdprArticle30Routes);
   await fastify.register(loadTestingRoutes);
   await fastify.register(rlsTestRoutes);
   await fastify.register(apiDocsRoutes);

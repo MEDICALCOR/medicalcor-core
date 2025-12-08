@@ -636,12 +636,16 @@ export {
   // Data Inventory Service (Article 30)
   PostgresDataInventoryService,
   createDataInventoryService,
+  // Article 30 Report Service (Automated Compliance Reporting)
+  Article30ReportService,
+  createArticle30ReportService,
   // Retention Service
   PostgresRetentionService,
   createRetentionService,
   // Types
   type DSRServiceDeps,
   type DataInventoryServiceDeps,
+  type Article30ReportServiceDeps,
   type RetentionServiceDeps,
   type DSRType,
   type DSRStatus,

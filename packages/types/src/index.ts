@@ -1142,6 +1142,61 @@ export {
 } from './schemas/invoice-generation.js';
 
 // =============================================================================
+// GDPR Article 30 Compliance Reporting Schemas (L10)
+// =============================================================================
+export {
+  // Enums
+  Article30LegalBasisSchema,
+  Article30DataCategorySchema,
+  Article30DataSubjectTypeSchema,
+  Article30RecipientTypeSchema,
+  Article30TransferSafeguardSchema,
+  Article30ReportStatusSchema,
+  Article30ReportFrequencySchema,
+  Article30ExportFormatSchema,
+  // Data Structures
+  Article30DataRecipientSchema,
+  Article30ProcessingActivitySchema,
+  Article30ControllerInfoSchema,
+  Article30ConsentSummarySchema,
+  Article30DataBreachSummarySchema,
+  Article30DSRSummarySchema,
+  // Main Report Schema
+  Article30ReportSchema,
+  // Request/Config Schemas
+  GenerateArticle30ReportRequestSchema,
+  Article30ScheduledReportConfigSchema,
+  Article30CronJobPayloadSchema,
+  // Event Schemas
+  Article30ReportGeneratedEventSchema,
+  Article30ReportApprovedEventSchema,
+  // Helper Functions
+  getLegalBasisLabel,
+  getDataCategoryLabel,
+  activityNeedsReview,
+  calculateReportStatistics,
+  // Types
+  type Article30LegalBasis,
+  type Article30DataCategory,
+  type Article30DataSubjectType,
+  type Article30RecipientType,
+  type Article30TransferSafeguard,
+  type Article30ReportStatus,
+  type Article30ReportFrequency,
+  type Article30ExportFormat,
+  type Article30DataRecipient,
+  type Article30ProcessingActivity,
+  type Article30ControllerInfo,
+  type Article30ConsentSummary,
+  type Article30DataBreachSummary,
+  type Article30DSRSummary,
+  type Article30Report,
+  type GenerateArticle30ReportRequest,
+  type Article30ScheduledReportConfig,
+  type Article30CronJobPayload,
+  type Article30ReportGeneratedEvent,
+  type Article30ReportApprovedEvent,
+} from './article30.schema.js';
 // Data Classification Schemas (L6 Feature)
 // =============================================================================
 export {
