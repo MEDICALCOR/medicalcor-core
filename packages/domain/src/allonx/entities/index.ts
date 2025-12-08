@@ -22,6 +22,9 @@ export {
   type CreateAllOnXCaseInput,
   type UpdateAllOnXCaseInput,
 
+  // Entity class (preferred - with instance methods)
+  AllOnXCaseEntity,
+
   // Factory functions
   createAllOnXCase,
   generateCaseNumber,
@@ -30,7 +33,7 @@ export {
   isValidStatusTransition,
   getAllowedNextStatuses,
 
-  // Query helpers
+  // Query helpers (deprecated - use AllOnXCaseEntity instance methods instead)
   requiresImmediateAttention,
   isActiveCase,
   isReadyForSurgery,

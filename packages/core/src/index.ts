@@ -215,6 +215,16 @@ export {
   aiFunctionCalls,
   aiFunctionDuration,
   aiIntentDetections,
+  // Read Model / Materialized View Refresh Metrics
+  readModelRefreshTotal,
+  readModelRefreshDuration,
+  readModelStaleness,
+  readModelRowCount,
+  readModelConcurrentRefreshes,
+  readModelHealth,
+  readModelRefreshErrors,
+  readModelRefreshQueueDepth,
+  readModelRefreshInterval,
   // Types
   type MetricLabel,
   type MetricValue,
@@ -332,6 +342,16 @@ export {
   type CreateSagaOptions,
   type FindSagasOptions,
   type SagaRepository,
+  // Read Model Metrics (Materialized View Refresh)
+  ReadModelMetricsCollector,
+  createReadModelMetricsCollector,
+  type RefreshMetricEvent,
+  type ReadModelMetadataSnapshot,
+  type RefreshErrorType,
+  type HealthStatus as ReadModelHealthStatus,
+  type ReadModelMetricsCollectorConfig,
+  type ViewMetricsSummary,
+  type ReadModelMetricsSummary,
 } from './cqrs/index.js';
 
 // Enhanced Dead Letter Queue with Circuit Breaker
@@ -616,12 +636,16 @@ export {
   // Data Inventory Service (Article 30)
   PostgresDataInventoryService,
   createDataInventoryService,
+  // Article 30 Report Service (Automated Compliance Reporting)
+  Article30ReportService,
+  createArticle30ReportService,
   // Retention Service
   PostgresRetentionService,
   createRetentionService,
   // Types
   type DSRServiceDeps,
   type DataInventoryServiceDeps,
+  type Article30ReportServiceDeps,
   type RetentionServiceDeps,
   type DSRType,
   type DSRStatus,

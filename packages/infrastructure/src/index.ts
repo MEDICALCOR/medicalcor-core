@@ -80,3 +80,7 @@ export * from './ai/index.js';
 // ============================================================================
 
 export * from './services/index.js';
+// DATABASE MONITORING
+// ============================================================================
+
+export * from './database/index.js';

@@ -135,3 +135,15 @@ export {
   PostgresWrapUpTimeRepository,
   createWrapUpTimeRepository,
 } from './PostgresWrapUpTimeRepository.js';
+
+// =============================================================================
+// DATA CLASSIFICATION REPOSITORY (L6)
+// =============================================================================
+
+export {
+  // Class and factory
+  PostgresDataClassificationRepository,
+  createDataClassificationRepository,
+  // Configuration types
+  type PostgresDataClassificationRepositoryConfig,
+} from './PostgresDataClassificationRepository.js';
