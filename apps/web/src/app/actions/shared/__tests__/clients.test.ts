@@ -156,20 +156,21 @@ describe('Client Factory Functions', () => {
       expect(slots).toEqual([]);
     });
 
-    it('should reject booking requests', async () => {
+    it('should return error for booking requests when service unavailable', async () => {
       const { getSchedulingService, resetClients } = await import('../clients.js');
       resetClients();
 
       const service = getSchedulingService();
 
-      await expect(
-        service.bookAppointment({
-          patientId: 'p1',
-          slotId: 's1',
-          procedureType: 'checkup',
-          notes: '',
-        })
-      ).rejects.toThrow('Booking not implemented in web app');
+      const result = await service.bookAppointment({
+        patientId: 'p1',
+        slotId: 's1',
+        procedureType: 'checkup',
+        notes: '',
+      });
+
+      expect(result.success).toBe(false);
+      expect('error' in result).toBe(true);
     });
 
     it('should return empty upcoming appointments', async () => {
