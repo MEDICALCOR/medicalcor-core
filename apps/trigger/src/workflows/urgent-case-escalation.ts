@@ -133,14 +133,9 @@ export const urgentCaseEscalationWorkflow = task({
     await wait.for({ minutes: firstCheckMinutes });
 
     // Check if case was acknowledged
-    // TODO: Implement getTask method in HubSpotClient
-    if (hubspot && taskId && 'getTask' in hubspot) {
+    if (hubspot && taskId) {
       try {
-        const task = await (
-          hubspot as unknown as {
-            getTask: (id: string) => Promise<{ status: string; assignedTo?: string } | null>;
-          }
-        ).getTask(taskId);
+        const task = await hubspot.getTask(taskId);
         if (task?.status === 'COMPLETED' || task?.status === 'IN_PROGRESS') {
           resolved = task.status === 'COMPLETED';
           resolvedBy = task.assignedTo;

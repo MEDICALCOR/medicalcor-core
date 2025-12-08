@@ -97,14 +97,23 @@ export default function WorkflowsPage() {
   // React 19 useOptimistic for instant UI updates
   const [optimisticWorkflows, addOptimisticUpdate] = useOptimistic(workflows, workflowReducer);
 
+  // Error state for user feedback
+  const [workflowsError, setWorkflowsError] = useState<string | null>(null);
+  const [templatesError, setTemplatesError] = useState<string | null>(null);
+
   // Fetch workflows on mount
   useEffect(() => {
     startWorkflowsTransition(async () => {
       try {
+        setWorkflowsError(null);
         const fetchedWorkflows = await getWorkflowsAction();
         setWorkflows(fetchedWorkflows);
-      } catch {
-        // Fetch failed - workflows remain empty
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to load workflows';
+        setWorkflowsError(message);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[workflows] Failed to fetch workflows:', error);
+        }
       }
     });
   }, []);
@@ -114,10 +123,15 @@ export default function WorkflowsPage() {
     if (activeTab === 'templates' && templates.length === 0) {
       startTemplatesTransition(async () => {
         try {
+          setTemplatesError(null);
           const fetchedTemplates = await getWorkflowTemplatesAction();
           setTemplates(fetchedTemplates);
-        } catch {
-          // Fetch failed - templates remain empty
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Failed to load templates';
+          setTemplatesError(message);
+          if (process.env.NODE_ENV === 'development') {
+            console.error('[workflows] Failed to fetch templates:', error);
+          }
         }
       });
     }
@@ -303,6 +317,19 @@ export default function WorkflowsPage() {
           <TabsContent value="workflows" className="mt-6">
             {isLoadingWorkflows && optimisticWorkflows.length === 0 ? (
               <WorkflowsSkeleton />
+            ) : workflowsError ? (
+              <div className="text-center py-12">
+                <Zap className="h-12 w-12 mx-auto mb-4 text-destructive opacity-70" />
+                <p className="text-lg font-medium text-destructive">Eroare la încărcare</p>
+                <p className="text-sm mt-1 text-muted-foreground">{workflowsError}</p>
+                <Button
+                  className="mt-4"
+                  variant="outline"
+                  onClick={() => window.location.reload()}
+                >
+                  Reîncearcă
+                </Button>
+              </div>
             ) : optimisticWorkflows.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Zap className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -327,6 +354,19 @@ export default function WorkflowsPage() {
           <TabsContent value="templates" className="mt-6">
             {isLoadingTemplates && templates.length === 0 ? (
               <WorkflowsSkeleton />
+            ) : templatesError ? (
+              <div className="text-center py-12">
+                <LayoutTemplate className="h-12 w-12 mx-auto mb-4 text-destructive opacity-70" />
+                <p className="text-lg font-medium text-destructive">Eroare la încărcare</p>
+                <p className="text-sm mt-1 text-muted-foreground">{templatesError}</p>
+                <Button
+                  className="mt-4"
+                  variant="outline"
+                  onClick={() => window.location.reload()}
+                >
+                  Reîncearcă
+                </Button>
+              </div>
             ) : templates.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <LayoutTemplate className="h-12 w-12 mx-auto mb-4 opacity-50" />

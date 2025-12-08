@@ -50,6 +50,47 @@ function getClients() {
 }
 
 // ============================================
+// Supabase Client Factory
+// ============================================
+
+/**
+ * Supabase client configuration result
+ */
+interface SupabaseClientResult {
+  client: ReturnType<typeof import('@supabase/supabase-js').createClient> | null;
+  error: string | null;
+}
+
+/**
+ * Get or create a Supabase client for cron jobs
+ *
+ * Centralized factory to avoid duplicating Supabase client initialization
+ * across multiple cron job functions. Handles environment variable resolution
+ * and validation.
+ *
+ * @returns Supabase client or error message if not configured
+ */
+async function getSupabaseClient(): Promise<SupabaseClientResult> {
+  const { createClient } = await import('@supabase/supabase-js');
+
+  // Resolve Supabase URL (check both standard and Next.js public env vars)
+  const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+  // Use service key for server-side operations, fallback to anon key
+  const supabaseKey = process.env.SUPABASE_SERVICE_KEY ?? process.env.SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    return {
+      client: null,
+      error: 'Supabase credentials not configured (SUPABASE_URL and SUPABASE_SERVICE_KEY required)',
+    };
+  }
+
+  const client = createClient(supabaseUrl, supabaseKey);
+  return { client, error: null };
+}
+
+// ============================================
 // GDPR Consent Verification
 // ============================================
 
@@ -1277,18 +1318,12 @@ export const gdprHardDeletionExecutor = schedules.task({
 
     try {
       // Dynamic import for Supabase client
-      const { createClient } = await import('@supabase/supabase-js');
-
-      // Create Supabase client for direct database access
-      const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseKey = process.env.SUPABASE_SERVICE_KEY ?? process.env.SUPABASE_ANON_KEY;
-
-      if (!supabaseUrl || !supabaseKey) {
-        logger.warn('Supabase credentials not configured', { correlationId });
+      // Get Supabase client using centralized factory
+      const { client: supabase, error: supabaseError } = await getSupabaseClient();
+      if (!supabase) {
+        logger.warn('Supabase credentials not configured', { correlationId, error: supabaseError });
         return { success: false, reason: 'Supabase not configured', deletionsProcessed: 0 };
       }
-
-      const supabase = createClient(supabaseUrl, supabaseKey);
 
       // Get scheduled deletions that are due
       const { data: pendingDeletions, error: fetchError } = await supabase
@@ -1429,16 +1464,12 @@ export const dsrDueDateMonitor = schedules.task({
     const { eventStore } = getClients();
 
     try {
-      const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseKey = process.env.SUPABASE_SERVICE_KEY ?? process.env.SUPABASE_ANON_KEY;
-
-      if (!supabaseUrl || !supabaseKey) {
-        logger.warn('Supabase credentials not configured', { correlationId });
+      // Get Supabase client using centralized factory
+      const { client: supabase, error: supabaseError } = await getSupabaseClient();
+      if (!supabase) {
+        logger.warn('Supabase credentials not configured', { correlationId, error: supabaseError });
         return { success: false, reason: 'Supabase not configured' };
       }
-
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(supabaseUrl, supabaseKey);
 
       const now = new Date();
       const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
@@ -1751,18 +1782,15 @@ export const databasePartitionMaintenance = schedules.task({
     const { eventStore } = getClients();
 
     try {
-      const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseKey = process.env.SUPABASE_SERVICE_KEY ?? process.env.SUPABASE_ANON_KEY;
-
-      if (!supabaseUrl || !supabaseKey) {
+      // Get Supabase client using centralized factory
+      const { client: supabase, error: supabaseError } = await getSupabaseClient();
+      if (!supabase) {
         logger.warn('Supabase credentials not configured, skipping partition maintenance', {
           correlationId,
+          error: supabaseError,
         });
         return { success: false, reason: 'Supabase not configured' };
       }
-
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(supabaseUrl, supabaseKey);
 
       // Create future partitions (3 months ahead)
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Supabase RPC typing
@@ -1817,16 +1845,12 @@ export const npsSurveyExpiryCheck = schedules.task({
     const { eventStore } = getClients();
 
     try {
-      const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseKey = process.env.SUPABASE_SERVICE_KEY ?? process.env.SUPABASE_ANON_KEY;
-
-      if (!supabaseUrl || !supabaseKey) {
-        logger.warn('Supabase credentials not configured', { correlationId });
+      // Get Supabase client using centralized factory
+      const { client: supabase, error: supabaseError } = await getSupabaseClient();
+      if (!supabase) {
+        logger.warn('Supabase credentials not configured', { correlationId, error: supabaseError });
         return { success: false, reason: 'Supabase not configured' };
       }
-
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(supabaseUrl, supabaseKey);
 
       // Find expired surveys
       const now = new Date();
@@ -1902,16 +1926,12 @@ export const npsFollowUpReminder = schedules.task({
     const { eventStore } = getClients();
 
     try {
-      const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseKey = process.env.SUPABASE_SERVICE_KEY ?? process.env.SUPABASE_ANON_KEY;
-
-      if (!supabaseUrl || !supabaseKey) {
-        logger.warn('Supabase credentials not configured', { correlationId });
+      // Get Supabase client using centralized factory
+      const { client: supabase, error: supabaseError } = await getSupabaseClient();
+      if (!supabase) {
+        logger.warn('Supabase credentials not configured', { correlationId, error: supabaseError });
         return { success: false, reason: 'Supabase not configured' };
       }
-
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(supabaseUrl, supabaseKey);
 
       // Get pending follow-ups
       const { data: pendingFollowUps } = await supabase
@@ -1999,16 +2019,12 @@ export const overduePaymentReminders = schedules.task({
     let errors = 0;
 
     try {
-      const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseKey = process.env.SUPABASE_SERVICE_KEY ?? process.env.SUPABASE_ANON_KEY;
-
-      if (!supabaseUrl || !supabaseKey) {
-        logger.warn('Supabase credentials not configured', { correlationId });
+      // Get Supabase client using centralized factory
+      const { client: supabase, error: supabaseError } = await getSupabaseClient();
+      if (!supabase) {
+        logger.warn('Supabase credentials not configured', { correlationId, error: supabaseError });
         return { success: false, reason: 'Supabase not configured', remindersTriggered: 0 };
       }
-
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(supabaseUrl, supabaseKey);
 
       // Configuration for reminder timing
       const MIN_DAYS_BETWEEN_REMINDERS = 3;
@@ -2327,16 +2343,12 @@ export const databasePartitionMaintenance = schedules.task({
     const { eventStore } = getClients();
 
     try {
-      const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseKey = process.env.SUPABASE_SERVICE_KEY ?? process.env.SUPABASE_ANON_KEY;
-
-      if (!supabaseUrl || !supabaseKey) {
-        logger.warn('Supabase credentials not configured', { correlationId });
+      // Get Supabase client using centralized factory
+      const { client: supabase, error: supabaseError } = await getSupabaseClient();
+      if (!supabase) {
+        logger.warn('Supabase credentials not configured', { correlationId, error: supabaseError });
         return { success: false, reason: 'Supabase not configured' };
       }
-
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(supabaseUrl, supabaseKey);
 
       // Type for partition statistics
       interface PartitionStats {
@@ -2469,18 +2481,15 @@ export const gdprArticle30ReportGeneration = schedules.task({
     const { eventStore } = getClients();
 
     try {
-      const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseKey = process.env.SUPABASE_SERVICE_KEY ?? process.env.SUPABASE_ANON_KEY;
-
-      if (!supabaseUrl || !supabaseKey) {
+      // Get Supabase client using centralized factory
+      const { client: supabase, error: supabaseError } = await getSupabaseClient();
+      if (!supabase) {
         logger.warn('Supabase credentials not configured, skipping Article 30 report', {
           correlationId,
+          error: supabaseError,
         });
         return { success: false, reason: 'Supabase not configured' };
       }
-
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(supabaseUrl, supabaseKey);
 
       // Dynamic import for the report service
       const { createArticle30ReportService } = await import('@medicalcor/core');
@@ -2627,16 +2636,12 @@ export const gdprArticle30QuarterlyReport = schedules.task({
     const { eventStore } = getClients();
 
     try {
-      const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseKey = process.env.SUPABASE_SERVICE_KEY ?? process.env.SUPABASE_ANON_KEY;
-
-      if (!supabaseUrl || !supabaseKey) {
-        logger.warn('Supabase credentials not configured', { correlationId });
+      // Get Supabase client using centralized factory
+      const { client: supabase, error: supabaseError } = await getSupabaseClient();
+      if (!supabase) {
+        logger.warn('Supabase credentials not configured', { correlationId, error: supabaseError });
         return { success: false, reason: 'Supabase not configured' };
       }
-
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(supabaseUrl, supabaseKey);
 
       const { createArticle30ReportService } = await import('@medicalcor/core');
 

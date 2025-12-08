@@ -441,6 +441,62 @@ export class HubSpotClient {
   }
 
   /**
+   * Get a task by ID
+   *
+   * Retrieves task details including status and assignee information.
+   *
+   * @param taskId - The HubSpot task ID
+   * @returns Task details or null if not found
+   */
+  async getTask(taskId: string): Promise<{ status: string; assignedTo?: string } | null> {
+    try {
+      const properties = [
+        'hs_task_status',
+        'hs_task_subject',
+        'hs_task_body',
+        'hs_task_priority',
+        'hubspot_owner_id',
+      ].join(',');
+
+      const result = await this.request<{
+        id: string;
+        properties: Record<string, string | undefined>;
+      }>(`/crm/v3/objects/tasks/${taskId}?properties=${properties}`);
+
+      // Map HubSpot task status to simplified status
+      const hubspotStatus = result.properties.hs_task_status;
+      let status: string;
+      switch (hubspotStatus) {
+        case 'COMPLETED':
+          status = 'COMPLETED';
+          break;
+        case 'IN_PROGRESS':
+          status = 'IN_PROGRESS';
+          break;
+        case 'WAITING':
+        case 'DEFERRED':
+          status = 'WAITING';
+          break;
+        case undefined:
+        case 'NOT_STARTED':
+        default:
+          status = 'NOT_STARTED';
+      }
+
+      return {
+        status,
+        assignedTo: result.properties.hubspot_owner_id,
+      };
+    } catch (error) {
+      // Return null for 404 (not found) errors
+      if (error instanceof ExternalServiceError && error.message.includes('404')) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  /**
    * Create a task associated with a contact
    */
   async createTask(input: TaskInput): Promise<HubSpotTask> {

@@ -40,6 +40,7 @@ import {
 
 /** Error types that can be returned from PostgresCaseRepository operations */
 export type CaseRepositoryError = RecordNotFoundError | RecordUpdateError | RecordDeleteError;
+import { createLogger, RecordNotFoundError } from '@medicalcor/core';
 
 import type {
   Case,
@@ -109,6 +110,7 @@ interface CaseRow {
   updated_at: Date;
   deleted_at: Date | null;
   version: number | null;
+  version?: number;
 }
 
 interface PaymentRow {
@@ -467,6 +469,7 @@ export class PostgresCaseRepository implements ICaseRepository {
   /**
    * Update a case
    * @throws RecordNotFoundError if case not found
+   * @throws RecordNotFoundError if case is not found
    */
   async update(id: string, updates: Partial<Omit<Case, 'id' | 'createdAt'>>): Promise<Case> {
     const setClauses: string[] = ['updated_at = NOW()'];
@@ -524,6 +527,7 @@ export class PostgresCaseRepository implements ICaseRepository {
   /**
    * Soft delete a case
    * @throws RecordNotFoundError if case not found
+   * @throws RecordNotFoundError if case is not found
    */
   async softDelete(id: string, deletedBy?: string): Promise<void> {
     const sql = `
@@ -613,6 +617,7 @@ export class PostgresCaseRepository implements ICaseRepository {
   /**
    * Update a payment
    * @throws RecordNotFoundError if payment not found
+   * @throws RecordNotFoundError if payment is not found
    */
   async updatePayment(
     id: string,
@@ -672,6 +677,7 @@ export class PostgresCaseRepository implements ICaseRepository {
   /**
    * Process a payment
    * @throws RecordNotFoundError if payment not found
+   * @throws RecordNotFoundError if payment is not found
    */
   async processPayment(
     paymentId: string,
@@ -707,6 +713,7 @@ export class PostgresCaseRepository implements ICaseRepository {
   /**
    * Mark a payment as failed
    * @throws RecordNotFoundError if payment not found
+   * @throws RecordNotFoundError if payment is not found
    */
   async failPayment(paymentId: string, reason: string): Promise<Payment> {
     const sql = `
@@ -1311,6 +1318,7 @@ export class PostgresCaseRepository implements ICaseRepository {
     return {
       id: row.id,
       version: row.version ?? 1,
+      version: row.version ?? 0,
       clinicId: row.clinic_id,
       leadId: row.lead_id,
       treatmentPlanId: row.treatment_plan_id,

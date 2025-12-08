@@ -368,9 +368,11 @@ export const loadTestingRoutes: FastifyPluginAsync = async (fastify) => {
         (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
       );
 
-      // Apply pagination
-      const limitNum = Math.min(parseInt(limit ?? '20', 10), 100);
-      const offsetNum = parseInt(offset ?? '0', 10);
+      // Apply pagination with NaN validation
+      const parsedLimit = parseInt(limit ?? '20', 10);
+      const parsedOffset = parseInt(offset ?? '0', 10);
+      const limitNum = Math.min(Number.isNaN(parsedLimit) ? 20 : parsedLimit, 100);
+      const offsetNum = Number.isNaN(parsedOffset) ? 0 : parsedOffset;
       const paginatedResults = results.slice(offsetNum, offsetNum + limitNum);
 
       return reply.send({

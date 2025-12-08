@@ -14,7 +14,7 @@
  * - GDPR compliant data access
  */
 
-import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import type { FastifyPluginAsync, FastifyRequest, FastifyReply, RouteHandlerMethod } from 'fastify';
 import { z } from 'zod';
 import { randomInt, createHash } from 'crypto';
 // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
@@ -890,18 +890,13 @@ export const patientPortalRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/patient/profile', { preHandler: requirePatientAuth }, handleGetProfile);
   fastify.get('/patient/appointments', { preHandler: requirePatientAuth }, handleGetAppointments);
   fastify.get('/patient/preferences', { preHandler: requirePatientAuth }, handleGetPreferences);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  fastify.put('/patient/preferences', { preHandler: requirePatientAuth }, handleUpdatePreferences as any);
+  fastify.put('/patient/preferences', { preHandler: requirePatientAuth }, handleUpdatePreferences as RouteHandlerMethod);
 
   // Appointment booking routes
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  fastify.get('/patient/appointments/slots', { preHandler: requirePatientAuth }, handleGetAvailableSlots as any);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  fastify.post('/patient/appointments/book', { preHandler: requirePatientAuth }, handleBookAppointment as any);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  fastify.post('/patient/appointments/cancel', { preHandler: requirePatientAuth }, handleCancelAppointment as any);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  fastify.post('/patient/appointments/reschedule', { preHandler: requirePatientAuth }, handleRescheduleAppointment as any);
+  fastify.get('/patient/appointments/slots', { preHandler: requirePatientAuth }, handleGetAvailableSlots as RouteHandlerMethod);
+  fastify.post('/patient/appointments/book', { preHandler: requirePatientAuth }, handleBookAppointment as RouteHandlerMethod);
+  fastify.post('/patient/appointments/cancel', { preHandler: requirePatientAuth }, handleCancelAppointment as RouteHandlerMethod);
+  fastify.post('/patient/appointments/reschedule', { preHandler: requirePatientAuth }, handleRescheduleAppointment as RouteHandlerMethod);
 };
 
 // ============================================
