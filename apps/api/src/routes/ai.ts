@@ -158,7 +158,6 @@ function initializeAIGatewayServices(redis: SecureRedisClient): void {
         // For Sentry integration - check if Sentry is available
         // Uses dynamic import and type guard to avoid direct Sentry dependency
         try {
-          // @ts-expect-error - Sentry is optional dependency
           const SentryModule = await import('@sentry/node').catch(() => null);
           if (
             SentryModule &&
