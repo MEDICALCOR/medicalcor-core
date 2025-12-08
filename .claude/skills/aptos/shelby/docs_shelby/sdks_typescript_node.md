@@ -56,8 +56,7 @@ pnpm
 yarn
 
 bun
-    
-    
+
     npm install @shelby-protocol/sdk @aptos-labs/ts-sdk
 
 ## Usage
@@ -65,26 +64,22 @@ bun
 Make sure you [aquired an API Key](/sdks/typescript/acquire-api-keys)
 
 Access the Node.js version of the SDK by importing using the `@shelby-protocol/sdk/node` entry point.
-    
-    
+
     import { ShelbyNodeClient } from "@shelby-protocol/sdk/node";
     import { Network } from "@aptos-labs/ts-sdk";
-    
+
     // Create client configuration
     const config = {
       network: Network.SHELBYNET,
       apiKey: "aptoslabs_***",
     };
-    
+
     // Initialize the Shelby client
     const shelbyClient = new ShelbyNodeClient(config);
 
 ## Next Steps
 
 ### [SpecificationsReference documentation for the API and specifications](/sdks/typescript/node/specifications)### [Uploading a FileLearn how to upload a file to the Shelby network](/sdks/typescript/node/guides/uploading-file)
-
-  
-
 
 [SpecificationsCore types and functions shared between Node.js and browser environments](/sdks/typescript/core/specifications)[SpecificationsServer-side specific functionality for Node.js environments](/sdks/typescript/node/specifications)
 

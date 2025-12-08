@@ -13,13 +13,7 @@
  * @module @medicalcor/core/encryption
  */
 
-import {
-  createCipheriv,
-  createDecipheriv,
-  randomBytes,
-  createHash,
-  scryptSync,
-} from 'crypto';
+import { createCipheriv, createDecipheriv, randomBytes, createHash, scryptSync } from 'crypto';
 import type { DatabasePool } from './database.js';
 import { createLogger, type Logger } from './logger.js';
 
@@ -298,7 +292,10 @@ export class EncryptionService {
   private dataKeyCacheExpiry = 0;
   private static readonly DATA_KEY_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-  constructor(private db?: DatabasePool, kmsProvider?: KmsProvider) {
+  constructor(
+    private db?: DatabasePool,
+    kmsProvider?: KmsProvider
+  ) {
     this.kmsProvider = kmsProvider ?? null;
     this.loadMasterKey();
   }
@@ -434,7 +431,10 @@ export class EncryptionService {
     this.cachedDataKey = await this.kmsProvider.generateDataKey();
     this.dataKeyCacheExpiry = Date.now() + EncryptionService.DATA_KEY_CACHE_TTL_MS;
 
-    logger.debug({ kmsProvider: this.kmsProvider.name }, 'Generated new data encryption key via KMS');
+    logger.debug(
+      { kmsProvider: this.kmsProvider.name },
+      'Generated new data encryption key via KMS'
+    );
     return this.cachedDataKey;
   }
 
@@ -469,10 +469,7 @@ export class EncryptionService {
       authTagLength: ENCRYPTION_CONFIG.authTagLength,
     });
 
-    const encrypted = Buffer.concat([
-      cipher.update(plaintext, 'utf8'),
-      cipher.final(),
-    ]);
+    const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
 
     const authTag = cipher.getAuthTag();
 
@@ -512,7 +509,10 @@ export class EncryptionService {
     const encrypted = Buffer.from(parts[5]!, 'base64');
 
     if (keyVersion !== this.currentKeyVersion) {
-      logger.warn({ keyVersion, currentVersion: this.currentKeyVersion }, 'Decrypting with old KMS key version');
+      logger.warn(
+        { keyVersion, currentVersion: this.currentKeyVersion },
+        'Decrypting with old KMS key version'
+      );
     }
 
     // Decrypt data key via KMS
@@ -524,10 +524,7 @@ export class EncryptionService {
     });
     decipher.setAuthTag(authTag);
 
-    const decrypted = Buffer.concat([
-      decipher.update(encrypted),
-      decipher.final(),
-    ]);
+    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
 
     return decrypted.toString('utf8');
   }
@@ -560,7 +557,9 @@ export class EncryptionService {
    */
   encrypt(plaintext: string): EncryptionResult {
     if (!this.masterKey) {
-      throw new Error('Encryption key not configured. Set DATA_ENCRYPTION_KEY environment variable.');
+      throw new Error(
+        'Encryption key not configured. Set DATA_ENCRYPTION_KEY environment variable.'
+      );
     }
 
     // Generate random IV and salt
@@ -575,10 +574,7 @@ export class EncryptionService {
       authTagLength: ENCRYPTION_CONFIG.authTagLength,
     });
 
-    const encrypted = Buffer.concat([
-      cipher.update(plaintext, 'utf8'),
-      cipher.final(),
-    ]);
+    const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
 
     const authTag = cipher.getAuthTag();
 
@@ -619,7 +615,10 @@ export class EncryptionService {
     // Get key for this version (for now, just use master key)
     // In production, implement key version management
     if (keyVersion !== this.currentKeyVersion) {
-      logger.warn({ keyVersion, currentVersion: this.currentKeyVersion }, 'Decrypting with old key version');
+      logger.warn(
+        { keyVersion, currentVersion: this.currentKeyVersion },
+        'Decrypting with old key version'
+      );
     }
 
     // Derive key
@@ -631,10 +630,7 @@ export class EncryptionService {
     });
     decipher.setAuthTag(authTag);
 
-    const decrypted = Buffer.concat([
-      decipher.update(encrypted),
-      decipher.final(),
-    ]);
+    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
 
     return decrypted.toString('utf8');
   }
@@ -642,10 +638,7 @@ export class EncryptionService {
   /**
    * Store encrypted field in database
    */
-  async storeEncryptedField(
-    field: EncryptedField,
-    plaintext: string
-  ): Promise<void> {
+  async storeEncryptedField(field: EncryptedField, plaintext: string): Promise<void> {
     if (!this.db) {
       throw new Error('Database connection not available');
     }
@@ -660,7 +653,14 @@ export class EncryptionService {
          encrypted_value = $4,
          key_version = $5,
          updated_at = CURRENT_TIMESTAMP`,
-      [field.entityType, field.entityId, field.fieldName, encryptedValue, keyVersion, field.classification]
+      [
+        field.entityType,
+        field.entityId,
+        field.fieldName,
+        encryptedValue,
+        keyVersion,
+        field.classification,
+      ]
     );
 
     logger.debug(
@@ -777,10 +777,7 @@ export class EncryptionService {
     const newKeyVersion = this.currentKeyVersion + 1;
 
     // Register new key
-    const fingerprint = createHash('sha256')
-      .update(newMasterKey)
-      .digest('hex')
-      .slice(0, 16);
+    const fingerprint = createHash('sha256').update(newMasterKey).digest('hex').slice(0, 16);
 
     await this.db.query(
       `INSERT INTO encryption_keys (version, fingerprint, status)
@@ -833,10 +830,9 @@ export class EncryptionService {
       [newKeyVersion]
     );
 
-    await this.db.query(
-      `UPDATE encryption_keys SET status = 'active' WHERE version = $1`,
-      [newKeyVersion]
-    );
+    await this.db.query(`UPDATE encryption_keys SET status = 'active' WHERE version = $1`, [
+      newKeyVersion,
+    ]);
 
     // SECURITY: Zero out old master key from memory before replacement
     // This prevents the old key from being exposed in heap dumps or memory analysis
@@ -874,7 +870,10 @@ export class EncryptionService {
  * @param db - Optional database pool for storing encrypted data
  * @param kmsProvider - Optional KMS provider for envelope encryption
  */
-export function createEncryptionService(db?: DatabasePool, kmsProvider?: KmsProvider): EncryptionService {
+export function createEncryptionService(
+  db?: DatabasePool,
+  kmsProvider?: KmsProvider
+): EncryptionService {
   return new EncryptionService(db, kmsProvider);
 }
 
@@ -903,7 +902,10 @@ export async function createKmsEncryptionService(
     throw new Error('AWS KMS is not available. Check AWS credentials and KMS key configuration.');
   }
 
-  logger.info({ kmsKeyId: kmsKeyId?.slice(-12) ?? 'from env' }, 'Created KMS-enabled encryption service');
+  logger.info(
+    { kmsKeyId: kmsKeyId?.slice(-12) ?? 'from env' },
+    'Created KMS-enabled encryption service'
+  );
   return new EncryptionService(db, kmsProvider);
 }
 

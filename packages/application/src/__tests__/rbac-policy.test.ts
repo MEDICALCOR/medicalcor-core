@@ -225,11 +225,7 @@ describe('Data Residency Policy', () => {
     const systemPrincipal = createPrincipal({ type: SecurityPrincipalType.SYSTEM });
     const resource = createResource({ organizationId: 'any-org' });
 
-    const result = DATA_RESIDENCY_POLICY.check(
-      systemPrincipal,
-      resource,
-      Permission.CASE_READ
-    );
+    const result = DATA_RESIDENCY_POLICY.check(systemPrincipal, resource, Permission.CASE_READ);
 
     expect(result.allowed).toBe(true);
   });

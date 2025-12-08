@@ -16,7 +16,14 @@ import { requirePermission } from '@/lib/auth/server-action-auth';
 // TYPES
 // ============================================================================
 
-export type WebhookSource = 'whatsapp' | 'vapi' | 'stripe' | 'booking' | 'voice' | 'crm' | 'hubspot';
+export type WebhookSource =
+  | 'whatsapp'
+  | 'vapi'
+  | 'stripe'
+  | 'booking'
+  | 'voice'
+  | 'crm'
+  | 'hubspot';
 
 export type WebhookStatus = 'success' | 'failed' | 'pending' | 'replayed';
 
@@ -208,7 +215,9 @@ function generateMockPayload(source: WebhookSource, eventType: string): Record<s
                 value: {
                   messaging_product: 'whatsapp',
                   metadata: { phone_number_id: '987654321' },
-                  messages: [{ id: 'msg_123', from: '40712345678', type: 'text', text: { body: 'Hello' } }],
+                  messages: [
+                    { id: 'msg_123', from: '40712345678', type: 'text', text: { body: 'Hello' } },
+                  ],
                 },
                 field: 'messages',
               },
@@ -360,10 +369,12 @@ export async function getWebhookListAction(
       source,
       count: allWebhooks.filter((w) => w.source === source).length,
     }));
-    const statuses = (['success', 'failed', 'pending', 'replayed'] as WebhookStatus[]).map((status) => ({
-      status,
-      count: allWebhooks.filter((w) => w.status === status).length,
-    }));
+    const statuses = (['success', 'failed', 'pending', 'replayed'] as WebhookStatus[]).map(
+      (status) => ({
+        status,
+        count: allWebhooks.filter((w) => w.status === status).length,
+      })
+    );
 
     // Paginate
     const total = webhooks.length;
@@ -449,13 +460,16 @@ export async function replayWebhookAction(webhookId: string): Promise<WebhookRep
 
     if (apiKey) {
       try {
-        const response = await fetch(`${apiUrl}/admin/webhooks/${encodeURIComponent(webhookId)}/replay`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': apiKey,
-          },
-        });
+        const response = await fetch(
+          `${apiUrl}/admin/webhooks/${encodeURIComponent(webhookId)}/replay`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-API-Key': apiKey,
+            },
+          }
+        );
 
         if (response.ok) {
           return (await response.json()) as WebhookReplayResult;
@@ -570,7 +584,9 @@ export async function getWebhookStatsAction(): Promise<WebhookStats> {
 
     const durations = webhooks.filter((w) => w.duration > 0).map((w) => w.duration);
     const avgDuration =
-      durations.length > 0 ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0;
+      durations.length > 0
+        ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
+        : 0;
 
     const bySource = WEBHOOK_SOURCES.map((source) => {
       const sourceWebhooks = webhooks.filter((w) => w.source === source);
@@ -578,7 +594,8 @@ export async function getWebhookStatsAction(): Promise<WebhookStats> {
       return {
         source,
         count: sourceWebhooks.length,
-        failureRate: sourceWebhooks.length > 0 ? Math.round((sourceFailed / sourceWebhooks.length) * 100) : 0,
+        failureRate:
+          sourceWebhooks.length > 0 ? Math.round((sourceFailed / sourceWebhooks.length) * 100) : 0,
       };
     });
 

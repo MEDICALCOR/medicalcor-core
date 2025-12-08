@@ -112,14 +112,14 @@ groups:
           service: api
           slo: availability
         annotations:
-          summary: "Critical Error Budget Burn (14.4x) - API Gateway"
+          summary: 'Critical Error Budget Burn (14.4x) - API Gateway'
           description: |
             API Gateway consuming error budget at 14.4x normal rate.
             At current rate, 30-day budget exhausts in 2 days.
             Error rate 1h: {{ $value | humanizePercentage }}
             SLO: 99.9%, Error Budget: 0.1%
-          runbook_url: "https://docs.medicalcor.io/runbooks/error-budget-exhaustion"
-          dashboard_url: "/d/error-budget-burndown?orgId=1"
+          runbook_url: 'https://docs.medicalcor.io/runbooks/error-budget-exhaustion'
+          dashboard_url: '/d/error-budget-burndown?orgId=1'
 
       # WARNING: Medium Burn (consumes entire budget in 5 days)
       # Burn Rate > 6x with multi-window verification
@@ -137,12 +137,12 @@ groups:
           service: api
           slo: availability
         annotations:
-          summary: "High Error Budget Burn (6x) - API Gateway"
+          summary: 'High Error Budget Burn (6x) - API Gateway'
           description: |
             API Gateway consuming error budget at 6x normal rate.
             Risk of exhaustion in 5 days if not addressed.
             Error rate 1h: {{ $value | humanizePercentage }}
-          runbook_url: "https://docs.medicalcor.io/runbooks/error-budget-warning"
+          runbook_url: 'https://docs.medicalcor.io/runbooks/error-budget-warning'
 
       # INFO: Slow Burn (consumes budget over 10 days)
       # Burn Rate > 3x with 6h window verification (catches slow degradation)
@@ -160,7 +160,7 @@ groups:
           service: api
           slo: availability
         annotations:
-          summary: "Elevated Error Budget Burn (3x) - Slow Degradation Detected"
+          summary: 'Elevated Error Budget Burn (3x) - Slow Degradation Detected'
           description: |
             API Gateway showing slow but sustained error rate increase.
             Consider investigating trending issues before escalation.
@@ -184,12 +184,12 @@ groups:
           service: scoring
           slo: success_rate
         annotations:
-          summary: "Critical Error Budget Burn (14.4x) - Lead Scoring"
+          summary: 'Critical Error Budget Burn (14.4x) - Lead Scoring'
           description: |
             Lead Scoring consuming error budget at 14.4x normal rate.
             At current rate, budget exhausts in 2 days.
             SLO: 99.5%, Error Budget: 0.5%
-          runbook_url: "https://docs.medicalcor.io/runbooks/scoring-degradation"
+          runbook_url: 'https://docs.medicalcor.io/runbooks/scoring-degradation'
 
       - alert: ScoringErrorBudgetBurnWarning
         expr: |
@@ -205,7 +205,7 @@ groups:
           service: scoring
           slo: success_rate
         annotations:
-          summary: "High Error Budget Burn (6x) - Lead Scoring"
+          summary: 'High Error Budget Burn (6x) - Lead Scoring'
           description: |
             Lead Scoring consuming error budget at 6x normal rate.
             Risk of exhaustion in 5 days.
@@ -228,12 +228,12 @@ groups:
           service: ai-gateway
           slo: availability
         annotations:
-          summary: "Critical Error Budget Burn (14.4x) - AI Gateway"
+          summary: 'Critical Error Budget Burn (14.4x) - AI Gateway'
           description: |
             AI Gateway consuming error budget at 14.4x normal rate.
             Circuit breaker may activate soon.
             SLO: 99%, Error Budget: 1%
-          runbook_url: "https://docs.medicalcor.io/runbooks/ai-gateway-degradation"
+          runbook_url: 'https://docs.medicalcor.io/runbooks/ai-gateway-degradation'
 
       - alert: AIErrorBudgetBurnWarning
         expr: |
@@ -249,7 +249,7 @@ groups:
           service: ai-gateway
           slo: availability
         annotations:
-          summary: "High Error Budget Burn (6x) - AI Gateway"
+          summary: 'High Error Budget Burn (6x) - AI Gateway'
           description: |
             AI Gateway consuming error budget at 6x normal rate.
             Consider investigating AI provider health.
@@ -268,12 +268,12 @@ groups:
           team: sre-core
           zone: caution
         annotations:
-          summary: "API Error Budget < 50% - Caution Zone"
+          summary: 'API Error Budget < 50% - Caution Zone'
           description: |
             API error budget at {{ $value | humanizePercentage }}.
             ACTION: Technical review required before any releases.
             See Error Budget Policy for details.
-          zone_color: "YELLOW"
+          zone_color: 'YELLOW'
 
       # Budget below 25% - Warning Zone (Orange)
       - alert: ErrorBudgetWarningZone
@@ -284,12 +284,12 @@ groups:
           team: sre-core
           zone: warning
         annotations:
-          summary: "API Error Budget < 25% - Warning Zone"
+          summary: 'API Error Budget < 25% - Warning Zone'
           description: |
             API error budget at {{ $value | humanizePercentage }}.
             ACTION: Partial feature freeze. Bug fixes and security patches only.
             VP approval required for any new features.
-          zone_color: "ORANGE"
+          zone_color: 'ORANGE'
 
       # Budget below 10% - Critical Zone (Red)
       - alert: ErrorBudgetCriticalZone
@@ -300,12 +300,12 @@ groups:
           team: sre-core
           zone: critical
         annotations:
-          summary: "API Error Budget < 10% - Critical Zone"
+          summary: 'API Error Budget < 10% - Critical Zone'
           description: |
             API error budget at {{ $value | humanizePercentage }}.
             ACTION: COMPLETE feature freeze. Hotfixes only. War room active.
             Postmortem required for any incidents.
-          zone_color: "RED"
+          zone_color: 'RED'
 
       # Budget exhausted - Black Zone
       - alert: ErrorBudgetExhausted
@@ -317,12 +317,12 @@ groups:
           zone: exhausted
           escalation: vp-engineering
         annotations:
-          summary: "API Error Budget EXHAUSTED - Incident Mode"
+          summary: 'API Error Budget EXHAUSTED - Incident Mode'
           description: |
             API error budget is EXHAUSTED (0% remaining).
             ACTION: Incident mode activated. Mandatory postmortem in 48h.
             No releases for 2 weeks. Leadership review required.
-          zone_color: "BLACK"
+          zone_color: 'BLACK'
 
   # =============================================================================
   # CIRCUIT BREAKER ALERTS - AI Gateway Protection
@@ -339,12 +339,12 @@ groups:
           service: ai-gateway
           component: circuit-breaker
         annotations:
-          summary: "AI Gateway Circuit Breaker OPEN"
+          summary: 'AI Gateway Circuit Breaker OPEN'
           description: |
             AI Gateway has opened circuit breaker for {{ $labels.service }}.
             Requests are being failed-fast to protect the system.
             Check AI provider status and error logs.
-          runbook_url: "https://docs.medicalcor.io/runbooks/circuit-breaker-open"
+          runbook_url: 'https://docs.medicalcor.io/runbooks/circuit-breaker-open'
 
       # Circuit Breaker Half-Open - Recovery attempt
       - alert: AICircuitBreakerRecovering
@@ -356,7 +356,7 @@ groups:
           service: ai-gateway
           component: circuit-breaker
         annotations:
-          summary: "AI Gateway Circuit Breaker HALF-OPEN - Recovering"
+          summary: 'AI Gateway Circuit Breaker HALF-OPEN - Recovering'
           description: |
             AI Gateway circuit breaker is in recovery mode.
             Testing connectivity to {{ $labels.service }}.
@@ -370,7 +370,7 @@ groups:
           team: sre-core
           component: circuit-breaker
         annotations:
-          summary: "Circuit Breaker OPEN - {{ $labels.service }}"
+          summary: 'Circuit Breaker OPEN - {{ $labels.service }}'
           description: |
             Circuit breaker opened for external service: {{ $labels.service }}.
             Requests are being failed-fast.

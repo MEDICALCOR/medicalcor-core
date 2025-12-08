@@ -240,7 +240,13 @@ describe('clients-factory.enhanced', () => {
       it('should use global config when per-client config is not provided', () => {
         const clients = createEnhancedIntegrationClients({
           source: 'test',
-          retry: { maxRetries: 5, baseDelayMs: 1000, maxDelayMs: 10000, exponentialBackoff: true, jitter: true },
+          retry: {
+            maxRetries: 5,
+            baseDelayMs: 1000,
+            maxDelayMs: 10000,
+            exponentialBackoff: true,
+            jitter: true,
+          },
         });
 
         expect(clients.resilience.has('hubspot')).toBe(true);

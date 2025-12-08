@@ -86,10 +86,7 @@ export interface BatchProcessingResult {
  * The actual implementation (pg.Pool) is injected by the infrastructure layer.
  */
 export interface IDatabasePool {
-  query(
-    queryText: string,
-    values?: unknown[]
-  ): Promise<{ rows: Record<string, unknown>[] }>;
+  query(queryText: string, values?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
 }
 
 /**
@@ -130,7 +127,11 @@ export class BehavioralInsightsService {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pool type abstraction for DI
     this.patternDetector = createPatternDetector(deps.pool as any, deps.openai, deps.config);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pool type abstraction for DI
-    this.memoryRetrieval = createMemoryRetrievalService(deps.pool as any, deps.embeddings, deps.config);
+    this.memoryRetrieval = createMemoryRetrievalService(
+      deps.pool as any,
+      deps.embeddings,
+      deps.config
+    );
   }
 
   // ============================================================================
@@ -217,10 +218,7 @@ export class BehavioralInsightsService {
   /**
    * Detect patterns for a single subject
    */
-  async detectPatterns(
-    subjectType: SubjectType,
-    subjectId: string
-  ): Promise<BehavioralPattern[]> {
+  async detectPatterns(subjectType: SubjectType, subjectId: string): Promise<BehavioralPattern[]> {
     return this.patternDetector.detectPatterns(subjectType, subjectId);
   }
 
@@ -283,10 +281,7 @@ export class BehavioralInsightsService {
   /**
    * Generate insights for a subject
    */
-  async generateInsights(
-    subjectType: SubjectType,
-    subjectId: string
-  ): Promise<CognitiveInsight[]> {
+  async generateInsights(subjectType: SubjectType, subjectId: string): Promise<CognitiveInsight[]> {
     return this.patternDetector.generateInsights(subjectType, subjectId);
   }
 
@@ -296,7 +291,9 @@ export class BehavioralInsightsService {
   async getChurnRiskSubjects(
     clinicId: string,
     limit = 20
-  ): Promise<Array<{ subjectId: string; subjectType: SubjectType; riskLevel: string; reason: string }>> {
+  ): Promise<
+    Array<{ subjectId: string; subjectType: SubjectType; riskLevel: string; reason: string }>
+  > {
     // Query for subjects with declining engagement or appointment_rescheduler patterns
     const result = await this.deps.pool.query(
       `
@@ -330,7 +327,9 @@ export class BehavioralInsightsService {
     clinicId: string,
     minDaysInactive = 60,
     limit = 20
-  ): Promise<Array<{ subjectId: string; subjectType: SubjectType; daysSinceLastInteraction: number }>> {
+  ): Promise<
+    Array<{ subjectId: string; subjectType: SubjectType; daysSinceLastInteraction: number }>
+  > {
     const result = await this.deps.pool.query(
       `
       SELECT

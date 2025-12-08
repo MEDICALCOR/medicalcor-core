@@ -208,7 +208,7 @@ export const authConfig: NextAuthConfig = {
 
         // Validate credentials and convert to AuthUser format
         let user: AuthUser | null = null;
-        
+
         try {
           const userResult: unknown = await validateCredentials(email, password, context);
           user = convertToAuthUser(userResult);

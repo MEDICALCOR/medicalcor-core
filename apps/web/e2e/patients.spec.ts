@@ -29,7 +29,9 @@ test.describe('Patient Management', () => {
     test('patient cards show essential information', async ({ page }) => {
       await page.waitForTimeout(1000);
 
-      const patientCard = page.locator('[data-testid="patient-card"], tr[data-patient-id], [class*="Card"]').first();
+      const patientCard = page
+        .locator('[data-testid="patient-card"], tr[data-patient-id], [class*="Card"]')
+        .first();
 
       if (await patientCard.isVisible({ timeout: 5000 })) {
         // Should show name
@@ -49,7 +51,9 @@ test.describe('Patient Management', () => {
 
       if (await patientCard.isVisible({ timeout: 5000 })) {
         // Should show avatar or initials
-        const avatar = page.locator('[class*="Avatar"], [class*="avatar"], [class*="rounded-full"]').first();
+        const avatar = page
+          .locator('[class*="Avatar"], [class*="avatar"], [class*="rounded-full"]')
+          .first();
         await expect(avatar).toBeVisible({ timeout: 3000 });
       }
     });
@@ -63,9 +67,9 @@ test.describe('Patient Management', () => {
       const pageNumbers = page.locator('button').filter({ hasText: /^\d+$/ });
 
       // If there are enough patients, pagination should be visible
-      await expect(
-        pagination.or(nextButton).or(pageNumbers.first())
-      ).toBeVisible({ timeout: 5000 });
+      await expect(pagination.or(nextButton).or(pageNumbers.first())).toBeVisible({
+        timeout: 5000,
+      });
     });
 
     test('shows patient count or statistics', async ({ page }) => {
@@ -134,7 +138,9 @@ test.describe('Patient Management', () => {
 
     test('can filter by patient status', async ({ page }) => {
       // Look for status filter dropdown
-      const statusFilter = page.locator('[role="combobox"]').filter({ hasText: /status|stare|toate/i });
+      const statusFilter = page
+        .locator('[role="combobox"]')
+        .filter({ hasText: /status|stare|toate/i });
 
       if (await statusFilter.isVisible({ timeout: 5000 })) {
         await statusFilter.click();
@@ -247,26 +253,28 @@ test.describe('Patient Management', () => {
   test.describe('Patient Details', () => {
     test('can view patient details', async ({ page }) => {
       // Click on first patient in list
-      const firstPatient = page.locator(
-        '[data-testid="patient-row"], tr[data-patient-id], [data-testid="patient-card"]'
-      ).first();
+      const firstPatient = page
+        .locator('[data-testid="patient-row"], tr[data-patient-id], [data-testid="patient-card"]')
+        .first();
 
       if (await firstPatient.isVisible()) {
         await firstPatient.click();
 
         // Should navigate to patient detail or open modal
         await expect(
-          page.getByRole('heading', { name: /detalii|details|fisa/i }).or(
-            page.locator('[data-testid="patient-detail"]')
-          )
+          page
+            .getByRole('heading', { name: /detalii|details|fisa/i })
+            .or(page.locator('[data-testid="patient-detail"]'))
         ).toBeVisible({ timeout: 5000 });
       }
     });
 
     test('patient detail shows contact information', async ({ page }) => {
-      const firstPatient = page.locator(
-        '[data-testid="patient-row"], tr[data-patient-id], [data-testid="patient-card"], a[href*="patient"]'
-      ).first();
+      const firstPatient = page
+        .locator(
+          '[data-testid="patient-row"], tr[data-patient-id], [data-testid="patient-card"], a[href*="patient"]'
+        )
+        .first();
 
       if (await firstPatient.isVisible({ timeout: 5000 })) {
         await firstPatient.click();
@@ -279,16 +287,18 @@ test.describe('Patient Management', () => {
     });
 
     test('patient detail shows medical history section', async ({ page }) => {
-      const firstPatient = page.locator(
-        '[data-testid="patient-row"], tr[data-patient-id], a[href*="patient"]'
-      ).first();
+      const firstPatient = page
+        .locator('[data-testid="patient-row"], tr[data-patient-id], a[href*="patient"]')
+        .first();
 
       if (await firstPatient.isVisible({ timeout: 5000 })) {
         await firstPatient.click();
         await page.waitForTimeout(1000);
 
         // Should show history or appointments section
-        const historySection = page.getByText(/istoric|history|programări|appointments|consultații/i);
+        const historySection = page.getByText(
+          /istoric|history|programări|appointments|consultații/i
+        );
         await expect(historySection.first()).toBeVisible({ timeout: 5000 });
       }
     });
@@ -359,9 +369,9 @@ test.describe('Patient Management', () => {
         await page.keyboard.press('ArrowDown');
 
         // First item should be focused/selected
-        const firstItem = page.locator(
-          '[data-testid="patient-row"]:focus, tr:focus, [aria-selected="true"]'
-        ).first();
+        const firstItem = page
+          .locator('[data-testid="patient-row"]:focus, tr:focus, [aria-selected="true"]')
+          .first();
 
         await expect(firstItem).toBeVisible({ timeout: 2000 });
       }
@@ -388,9 +398,12 @@ test.describe('Patient Management', () => {
       await page.waitForTimeout(1000);
 
       // Look for select all checkbox
-      const selectAllCheckbox = page.locator('input[type="checkbox"]').filter({
-        hasNot: page.locator('[aria-hidden="true"]'),
-      }).first();
+      const selectAllCheckbox = page
+        .locator('input[type="checkbox"]')
+        .filter({
+          hasNot: page.locator('[aria-hidden="true"]'),
+        })
+        .first();
 
       const bulkSelectHeader = page.getByText(/selectează|select all/i);
 
@@ -401,7 +414,9 @@ test.describe('Patient Management', () => {
       await page.waitForTimeout(1000);
 
       // Find individual patient checkbox
-      const patientCheckbox = page.locator('[data-testid="patient-card"], tr').first()
+      const patientCheckbox = page
+        .locator('[data-testid="patient-card"], tr')
+        .first()
         .locator('input[type="checkbox"]');
 
       if (await patientCheckbox.isVisible({ timeout: 5000 })) {
@@ -444,7 +459,9 @@ test.describe('Patient Management', () => {
       await page.reload();
 
       // Check for skeleton or content
-      const skeleton = page.locator('[class*="skeleton"], [class*="Skeleton"], [class*="animate-pulse"]');
+      const skeleton = page.locator(
+        '[class*="skeleton"], [class*="Skeleton"], [class*="animate-pulse"]'
+      );
       const content = page.locator('[data-testid="patient-card"], tr[data-patient-id]').first();
       const emptyState = page.getByText(/nu exista pacienti|no patients/i);
 

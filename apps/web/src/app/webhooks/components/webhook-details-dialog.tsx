@@ -179,7 +179,9 @@ export function WebhookDetailsDialog({
           <div>
             <p className="text-xs text-muted-foreground mb-1">Correlation ID</p>
             <div className="flex items-center gap-1">
-              <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{webhook.correlationId}</code>
+              <code className="text-xs bg-muted px-1.5 py-0.5 rounded">
+                {webhook.correlationId}
+              </code>
               <CopyButton text={webhook.correlationId} label="Copy Correlation ID" />
             </div>
           </div>
@@ -226,10 +228,7 @@ export function WebhookDetailsDialog({
                 {JSON.stringify(webhook.payload, null, 2)}
               </pre>
               <div className="absolute top-2 right-2">
-                <CopyButton
-                  text={JSON.stringify(webhook.payload, null, 2)}
-                  label="Copy payload"
-                />
+                <CopyButton text={JSON.stringify(webhook.payload, null, 2)} label="Copy payload" />
               </div>
             </div>
           </TabsContent>
@@ -240,10 +239,7 @@ export function WebhookDetailsDialog({
                 {JSON.stringify(webhook.headers, null, 2)}
               </pre>
               <div className="absolute top-2 right-2">
-                <CopyButton
-                  text={JSON.stringify(webhook.headers, null, 2)}
-                  label="Copy headers"
-                />
+                <CopyButton text={JSON.stringify(webhook.headers, null, 2)} label="Copy headers" />
               </div>
             </div>
           </TabsContent>
@@ -270,9 +266,7 @@ export function WebhookDetailsDialog({
                 </div>
               </div>
             ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                No response available
-              </div>
+              <div className="text-center py-8 text-muted-foreground">No response available</div>
             )}
           </TabsContent>
         </Tabs>

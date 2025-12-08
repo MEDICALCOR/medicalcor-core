@@ -124,7 +124,7 @@ function calculateBackoffDelay(attempt: number, config: RetryConfig): number {
   if (config.jitter) {
     const randomBytes = new Uint32Array(1);
     crypto.getRandomValues(randomBytes);
-    const jitterFactor = 0.5 + (randomBytes[0]! / 0xffffffff);
+    const jitterFactor = 0.5 + randomBytes[0]! / 0xffffffff;
     delay = delay * jitterFactor;
   }
 
@@ -580,7 +580,7 @@ export async function withRetry<T>(
         if (jitter) {
           const randomBytes = new Uint32Array(1);
           crypto.getRandomValues(randomBytes);
-          const jitterFactor = 0.5 + (randomBytes[0]! / 0xffffffff);
+          const jitterFactor = 0.5 + randomBytes[0]! / 0xffffffff;
           delay = delay * jitterFactor;
         }
         delay = Math.round(delay);

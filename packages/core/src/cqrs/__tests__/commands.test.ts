@@ -106,9 +106,7 @@ describe('CQRS Command Handlers', () => {
         const result = await commandBus.send('ScoreLead', {
           phone: '+40721234567',
           channel: 'whatsapp',
-          messages: [
-            { role: 'user', content: 'Vreau informații despre implant dentar' },
-          ],
+          messages: [{ role: 'user', content: 'Vreau informații despre implant dentar' }],
         });
 
         expect(result.success).toBe(true);
@@ -120,9 +118,7 @@ describe('CQRS Command Handlers', () => {
         const result = await commandBus.send('ScoreLead', {
           phone: '+40721234567',
           channel: 'whatsapp',
-          messages: [
-            { role: 'user', content: 'Cât costă all-on-4? Vreau să fac programare.' },
-          ],
+          messages: [{ role: 'user', content: 'Cât costă all-on-4? Vreau să fac programare.' }],
         });
 
         expect(result.success).toBe(true);

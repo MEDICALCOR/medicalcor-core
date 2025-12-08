@@ -87,7 +87,9 @@ test.describe('Dashboard', () => {
       await page.keyboard.press('Control+k');
       await page.waitForTimeout(500);
 
-      const searchDialog = page.getByRole('dialog').or(page.locator('[data-testid="quick-search"]'));
+      const searchDialog = page
+        .getByRole('dialog')
+        .or(page.locator('[data-testid="quick-search"]'));
       if (await searchDialog.isVisible()) {
         // Check for recent items or suggestions
         const suggestions = page.getByText(/recent|sugesti|cautare/i);
@@ -117,9 +119,11 @@ test.describe('Dashboard', () => {
       await page.waitForTimeout(1000);
 
       // Look for cards with numbers
-      const numberDisplay = page.locator('[class*="text-2xl"], [class*="text-3xl"], [class*="font-bold"]').filter({
-        hasText: /^\d+$|^\d+[.,]\d+$/,
-      });
+      const numberDisplay = page
+        .locator('[class*="text-2xl"], [class*="text-3xl"], [class*="font-bold"]')
+        .filter({
+          hasText: /^\d+$|^\d+[.,]\d+$/,
+        });
 
       await expect(numberDisplay.first()).toBeVisible({ timeout: 10000 });
     });
@@ -131,7 +135,9 @@ test.describe('Dashboard', () => {
       const trendIndicator = page.locator('[class*="lucide-trending"], [class*="lucide-arrow"]');
       const percentageChange = page.getByText(/[+-]?\d+(\.\d+)?%/);
 
-      await expect(trendIndicator.first().or(percentageChange.first())).toBeVisible({ timeout: 5000 });
+      await expect(trendIndicator.first().or(percentageChange.first())).toBeVisible({
+        timeout: 5000,
+      });
     });
 
     test('clicking metrics card navigates to detail view', async ({ page }) => {
@@ -196,7 +202,9 @@ test.describe('Dashboard', () => {
         await notificationBell.click();
 
         // Notification panel should open
-        const notificationPanel = page.getByRole('dialog').or(page.locator('[data-testid="notifications"]'));
+        const notificationPanel = page
+          .getByRole('dialog')
+          .or(page.locator('[data-testid="notifications"]'));
         await expect(notificationPanel).toBeVisible({ timeout: 3000 });
 
         await page.keyboard.press('Escape');
@@ -238,9 +246,9 @@ test.describe('Dashboard', () => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 10000 });
 
       // Look for mobile menu button
-      const mobileMenuButton = page.getByRole('button', { name: /menu/i }).or(
-        page.locator('button').filter({ has: page.locator('[class*="lucide-menu"]') })
-      );
+      const mobileMenuButton = page
+        .getByRole('button', { name: /menu/i })
+        .or(page.locator('button').filter({ has: page.locator('[class*="lucide-menu"]') }));
 
       if (await mobileMenuButton.isVisible({ timeout: 5000 })) {
         await mobileMenuButton.click();
@@ -271,7 +279,9 @@ test.describe('Dashboard', () => {
 
       // Look for activity/recent sections
       const activitySection = page.getByText(/activitate|activity|recent|ultimele/i);
-      const activityList = page.locator('[data-testid="activity-feed"], [data-testid="recent-items"]');
+      const activityList = page.locator(
+        '[data-testid="activity-feed"], [data-testid="recent-items"]'
+      );
 
       await expect(activitySection.first().or(activityList.first())).toBeVisible({ timeout: 5000 });
     });
@@ -335,11 +345,15 @@ test.describe('Dashboard', () => {
       await page.reload();
 
       // Check for skeleton or spinner during load
-      const skeleton = page.locator('[class*="skeleton"], [class*="Skeleton"], [class*="animate-pulse"]');
+      const skeleton = page.locator(
+        '[class*="skeleton"], [class*="Skeleton"], [class*="animate-pulse"]'
+      );
       const spinner = page.locator('[class*="spinner"], [class*="loading"]');
 
       // Either skeleton or content should appear
-      await expect(skeleton.first().or(spinner.first()).or(page.locator('.card').first())).toBeVisible({
+      await expect(
+        skeleton.first().or(spinner.first()).or(page.locator('.card').first())
+      ).toBeVisible({
         timeout: 10000,
       });
     });

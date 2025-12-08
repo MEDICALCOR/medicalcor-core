@@ -50,11 +50,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 
 interface FeatureFlag {
@@ -188,9 +184,7 @@ export default function FeatureFlagsPage() {
   const [formData, setFormData] = useState<FormData>(defaultFormData);
 
   const filteredFlags =
-    activeEnvironment === 'all'
-      ? flags
-      : flags.filter((f) => f.environment === activeEnvironment);
+    activeEnvironment === 'all' ? flags : flags.filter((f) => f.environment === activeEnvironment);
 
   const stats = {
     total: flags.length,

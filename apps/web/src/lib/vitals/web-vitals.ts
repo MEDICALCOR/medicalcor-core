@@ -100,7 +100,11 @@ export function reportWebVitalToSentry(metric: WebVitalsMetric): void {
   if (!process.env.NEXT_PUBLIC_SENTRY_DSN) {
     if (process.env.NODE_ENV === 'development') {
       const emoji =
-        budgetCheck.status === 'good' ? '✅' : budgetCheck.status === 'needs-improvement' ? '⚠️' : '❌';
+        budgetCheck.status === 'good'
+          ? '✅'
+          : budgetCheck.status === 'needs-improvement'
+            ? '⚠️'
+            : '❌';
       console.debug(
         `[Web Vitals] ${emoji} ${metric.name}: ${metric.value.toFixed(2)} (${metric.rating}) - ${budgetCheck.percentageOfBudget.toFixed(0)}% of budget`
       );
@@ -135,7 +139,10 @@ export function reportWebVitalToSentry(metric: WebVitalsMetric): void {
 
   // Add budget-specific tags for filtering
   Sentry.setTag(`web-vital.${metric.name.toLowerCase()}.status`, budgetCheck.status);
-  Sentry.setTag(`web-vital.${metric.name.toLowerCase()}.within-budget`, String(budgetCheck.withinBudget));
+  Sentry.setTag(
+    `web-vital.${metric.name.toLowerCase()}.within-budget`,
+    String(budgetCheck.withinBudget)
+  );
 
   // Alert on poor metrics or budget violations
   if (metric.rating === 'poor') {
@@ -324,7 +331,9 @@ export interface PerformanceReport {
   budgetViolations: string[];
 }
 
-export function createPerformanceReport(metrics: { name: MetricName; value: number }[]): PerformanceReport {
+export function createPerformanceReport(
+  metrics: { name: MetricName; value: number }[]
+): PerformanceReport {
   const results = metrics.map((m) => checkBudget(m.name, m.value));
   const violations = results.filter((r) => !r.withinBudget).map((r) => r.metric);
 

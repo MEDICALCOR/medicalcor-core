@@ -64,29 +64,28 @@ The first step before uploading a file is to generate the commitments for the fi
 The SDK now supports automatic provider management. If you're using a single client, you don't need to create a provider manually. For advanced use cases where you need to share a provider across multiple clients, see the example below.
 
 uploadScript.ts
-    
-    
+
     import { Ed25519Account, Ed25519PrivateKey, Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
     import { ShelbyNodeClient, ClayErasureCodingProvider, generateCommitments } from "@shelby-protocol/sdk/node";
     import fs from "fs/promises";
-    
+
     // 1. Setup your signer
     const signer = new Ed25519Account({
       privateKey: new Ed25519PrivateKey("ed25519-priv-<value_of_private_key_from_config.yaml>"),
     });
-    
+
     // 2. Setup your client (provider will be created automatically)
     const aptosClient = new Aptos(new AptosConfig({ network: Network.SHELBYNET }));
     const shelbyClient = new ShelbyNodeClient({
       network: Network.SHELBYNET,
     });
-    
+
     // 3. Generate the commitments
     const blobData = await fs.readFile("file.txt");
     // Option A: Create provider explicitly (for direct use with generateCommitments)
     const provider = await ClayErasureCodingProvider.create();
     const blobCommitments = await generateCommitments(provider, blobData);
-    
+
     // Option B: Pass provider to client (for sharing across multiple clients)
     // const provider = await ClayErasureCodingProvider.create();
     // const shelbyClient = new ShelbyNodeClient(config, provider);
@@ -96,29 +95,28 @@ uploadScript.ts
 The next step is to write the commitments to the coordination layer. This can be done by using the `registerBlob` function on the `ShelbyBlobClient` class (accessible via `client.coordination`).
 
 uploadScript.ts
-    
-    
+
     import { Ed25519Account, Ed25519PrivateKey, Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
     import { ShelbyNodeClient, ClayErasureCodingProvider, generateCommitments } from "@shelby-protocol/sdk/node";
     import fs from "fs/promises";
-    
+
     // 1. Setup your signer
     const signer = new Ed25519Account({
       privateKey: new Ed25519PrivateKey("ed25519-priv-<value_of_private_key_from_config.yaml>"),
     });
-    
+
     // 2. Setup your client
     const aptosClient = new Aptos(new AptosConfig({ network: Network.SHELBYNET }));
     const shelbyClient = new ShelbyNodeClient({
       network: Network.SHELBYNET,
     });
-    
+
     // 3. Generate the commitments
     const blobData = await fs.readFile("file.txt");
     // Create provider explicitly for use with generateCommitments
     const provider = await ClayErasureCodingProvider.create();
     const blobCommitments = await generateCommitments(provider, blobData);
-    
+
     // 4. Write the commitments to the coordination layer
     const { transaction: pendingWriteBlobCommitmentsTransaction } =
       await shelbyClient.coordination.registerBlob({
@@ -128,7 +126,7 @@ uploadScript.ts
         size: blobData.length,
         expirationMicros: (1000 * 60 * 60 * 24 * 30 + Date.now()) * 1000, // 30 days
       });
-    
+
     await aptosClient.waitForTransaction({
       transactionHash: pendingWriteBlobCommitmentsTransaction.hash,
     });
@@ -138,29 +136,28 @@ uploadScript.ts
 Once the commitments have been written to the coordination layer, we can now confirm them through the RPC layer. This can be done by using the `putBlob` function on the `ShelbyRPCClient` class.
 
 uploadScript.ts
-    
-    
+
     import { Ed25519Account, Ed25519PrivateKey, Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
     import { ShelbyNodeClient, ClayErasureCodingProvider, generateCommitments } from "@shelby-protocol/sdk/node";
     import fs from "fs/promises";
-    
+
     // 1. Setup your signer
     const signer = new Ed25519Account({
       privateKey: new Ed25519PrivateKey("ed25519-priv-<value_of_private_key_from_config.yaml>"),
     });
-    
+
     // 2. Setup your client
     const aptosClient = new Aptos(new AptosConfig({ network: Network.SHELBYNET }));
     const shelbyClient = new ShelbyNodeClient({
       network: Network.SHELBYNET,
     });
-    
+
     // 3. Generate the commitments
     const blobData = await fs.readFile("file.txt");
     // Create provider explicitly for use with generateCommitments
     const provider = await ClayErasureCodingProvider.create();
     const blobCommitments = await generateCommitments(provider, blobData);
-    
+
     // 4. Write the commitments to the coordination layer
     const { transaction: pendingWriteBlobCommitmentsTransaction } =
       await shelbyClient.coordination.registerBlob({
@@ -170,11 +167,11 @@ uploadScript.ts
         size: blobData.length,
         expirationMicros: (1000 * 60 * 60 * 24 * 30 + Date.now()) * 1000, // 30 days
       });
-    
+
     await aptosClient.waitForTransaction({
       transactionHash: pendingWriteBlobCommitmentsTransaction.hash,
     });
-    
+
     // 5. Confirm the commitments through the RPC layer
     await shelbyClient.rpc.putBlob({
         account: signer.accountAddress,
@@ -187,9 +184,6 @@ uploadScript.ts
 And that is it! You have now manually uploaded a file to the Shelby network. For more information about the SDK, feel free to refer to the [Specifications](/sdks/typescript/node/specifications) page.
 
 ### [SpecificationsReference documentation for the API and specifications](/sdks/typescript/node/specifications)
-
-  
-
 
 [Uploading a FileLearn how to upload a file to the Shelby network from a Node.js environment](/sdks/typescript/node/guides/uploading-file)[OverviewClient-side specific functionality for browser environments](/sdks/typescript/browser)
 

@@ -12,9 +12,9 @@
 # ===========================================================================
 
 ---
-title: "[H1] Verify Lead → LTV Event Chain with Integration Test"
-labels: ["priority: critical", "type: testing", "area: domain", "effort: 2-3h"]
-milestone: "Sprint 1 - Production Critical"
+title: '[H1] Verify Lead → LTV Event Chain with Integration Test'
+labels: ['priority: critical', 'type: testing', 'area: domain', 'effort: 2-3h']
+milestone: 'Sprint 1 - Production Critical'
 body: |
   ### ID: H1
 
@@ -41,9 +41,9 @@ body: |
   ### Effort Estimate
   2-3 hours
 ---
-title: "[H2] Wire Cognitive Memory to Agent Guidance Flows"
-labels: ["priority: critical", "type: feature", "area: cognitive-memory", "effort: 3-4h"]
-milestone: "Sprint 1 - Production Critical"
+title: '[H2] Wire Cognitive Memory to Agent Guidance Flows'
+labels: ['priority: critical', 'type: feature', 'area: cognitive-memory', 'effort: 3-4h']
+milestone: 'Sprint 1 - Production Critical'
 body: |
   ### ID: H2
 
@@ -69,9 +69,9 @@ body: |
   ### Effort Estimate
   3-4 hours
 ---
-title: "[H3] Add Critical E2E Tests for Core Flows"
-labels: ["priority: critical", "type: testing", "area: e2e", "effort: 4-6h"]
-milestone: "Sprint 1 - Production Critical"
+title: '[H3] Add Critical E2E Tests for Core Flows'
+labels: ['priority: critical', 'type: testing', 'area: e2e', 'effort: 4-6h']
+milestone: 'Sprint 1 - Production Critical'
 body: |
   ### ID: H3
 
@@ -96,9 +96,9 @@ body: |
   ### Effort Estimate
   4-6 hours
 ---
-title: "[H4] Load Test RLS Policies for Performance Validation"
-labels: ["priority: critical", "type: testing", "area: database", "effort: 3-4h"]
-milestone: "Sprint 1 - Production Critical"
+title: '[H4] Load Test RLS Policies for Performance Validation'
+labels: ['priority: critical', 'type: testing', 'area: database', 'effort: 3-4h']
+milestone: 'Sprint 1 - Production Critical'
 body: |
   ### ID: H4
 
@@ -120,9 +120,9 @@ body: |
   ### Effort Estimate
   3-4 hours
 ---
-title: "[H5] Implement Basic Agent Workspace UI"
-labels: ["priority: critical", "type: feature", "area: frontend", "effort: 1-2d"]
-milestone: "Sprint 1 - Production Critical"
+title: '[H5] Implement Basic Agent Workspace UI'
+labels: ['priority: critical', 'type: feature', 'area: frontend', 'effort: 1-2d']
+milestone: 'Sprint 1 - Production Critical'
 body: |
   ### ID: H5
 
@@ -147,9 +147,9 @@ body: |
   ### Effort Estimate
   1-2 days
 ---
-title: "[H6] Add Database Partitioning for Event Tables"
-labels: ["priority: critical", "type: infrastructure", "area: database", "effort: 4-6h"]
-milestone: "Sprint 1 - Production Critical"
+title: '[H6] Add Database Partitioning for Event Tables'
+labels: ['priority: critical', 'type: infrastructure', 'area: database', 'effort: 4-6h']
+milestone: 'Sprint 1 - Production Critical'
 body: |
   ### ID: H6
 
@@ -172,9 +172,9 @@ body: |
   ### Effort Estimate
   4-6 hours
 ---
-title: "[H7] Production Secrets Audit and Rotation Procedure"
-labels: ["priority: critical", "type: security", "area: infrastructure", "effort: 2-3h"]
-milestone: "Sprint 1 - Production Critical"
+title: '[H7] Production Secrets Audit and Rotation Procedure'
+labels: ['priority: critical', 'type: security', 'area: infrastructure', 'effort: 2-3h']
+milestone: 'Sprint 1 - Production Critical'
 body: |
   ### ID: H7
 
@@ -200,9 +200,9 @@ body: |
   ### Effort Estimate
   2-3 hours
 ---
-title: "[H8] Complete Knowledge Graph Migration and Integration"
-labels: ["priority: critical", "type: feature", "area: cognitive-memory", "effort: 4-6h"]
-milestone: "Sprint 1 - Production Critical"
+title: '[H8] Complete Knowledge Graph Migration and Integration'
+labels: ['priority: critical', 'type: feature', 'area: cognitive-memory', 'effort: 4-6h']
+milestone: 'Sprint 1 - Production Critical'
 body: |
   ### ID: H8
 
@@ -227,14 +227,15 @@ body: |
   ### Effort Estimate
   4-6 hours
 
+
 # ===========================================================================
 # MEDIUM PRIORITY (P1) - Top 1% Level
 # ===========================================================================
 
 ---
-title: "[M1] Consolidate Audit Tables into Unified Schema"
-labels: ["priority: high", "type: refactor", "area: database", "effort: 4-6h"]
-milestone: "Sprint 2 - Top Quality"
+title: '[M1] Consolidate Audit Tables into Unified Schema'
+labels: ['priority: high', 'type: refactor', 'area: database', 'effort: 4-6h']
+milestone: 'Sprint 2 - Top Quality'
 body: |
   ### ID: M1
 
@@ -256,9 +257,9 @@ body: |
   ### Effort Estimate
   4-6 hours
 ---
-title: "[M2] Implement Predicted LTV (pLTV) Model Infrastructure"
-labels: ["priority: high", "type: feature", "area: analytics", "effort: 2-3d"]
-milestone: "Sprint 2 - Top Quality"
+title: '[M2] Implement Predicted LTV (pLTV) Model Infrastructure'
+labels: ['priority: high', 'type: feature', 'area: analytics', 'effort: 2-3d']
+milestone: 'Sprint 2 - Top Quality'
 body: |
   ### ID: M2
 
@@ -283,9 +284,9 @@ body: |
   ### Effort Estimate
   2-3 days
 ---
-title: "[M3] Implement Patient Aggregate with Full Lifecycle"
-labels: ["priority: high", "type: feature", "area: domain", "effort: 1-2d"]
-milestone: "Sprint 2 - Top Quality"
+title: '[M3] Implement Patient Aggregate with Full Lifecycle'
+labels: ['priority: high', 'type: feature', 'area: domain', 'effort: 1-2d']
+milestone: 'Sprint 2 - Top Quality'
 body: |
   ### ID: M3
 
@@ -308,9 +309,9 @@ body: |
   ### Effort Estimate
   1-2 days
 ---
-title: "[M4] Wire Feature Flags to Runtime UI"
-labels: ["priority: high", "type: feature", "area: infrastructure", "effort: 3-4h"]
-milestone: "Sprint 2 - Top Quality"
+title: '[M4] Wire Feature Flags to Runtime UI'
+labels: ['priority: high', 'type: feature', 'area: infrastructure', 'effort: 3-4h']
+milestone: 'Sprint 2 - Top Quality'
 body: |
   ### ID: M4
 
@@ -334,9 +335,9 @@ body: |
   ### Effort Estimate
   3-4 hours
 ---
-title: "[M5] Add Real-Time Queue Visualization Dashboard"
-labels: ["priority: high", "type: feature", "area: frontend", "effort: 4-6h"]
-milestone: "Sprint 2 - Top Quality"
+title: '[M5] Add Real-Time Queue Visualization Dashboard'
+labels: ['priority: high', 'type: feature', 'area: frontend', 'effort: 4-6h']
+milestone: 'Sprint 2 - Top Quality'
 body: |
   ### ID: M5
 
@@ -360,9 +361,9 @@ body: |
   ### Effort Estimate
   4-6 hours
 ---
-title: "[M6] Complete Async Embedding Worker Pipeline"
-labels: ["priority: high", "type: feature", "area: cognitive-memory", "effort: 3-4h"]
-milestone: "Sprint 2 - Top Quality"
+title: '[M6] Complete Async Embedding Worker Pipeline'
+labels: ['priority: high', 'type: feature', 'area: cognitive-memory', 'effort: 3-4h']
+milestone: 'Sprint 2 - Top Quality'
 body: |
   ### ID: M6
 
@@ -386,9 +387,9 @@ body: |
   ### Effort Estimate
   3-4 hours
 ---
-title: "[M7] Add Cohort LTV Analysis View"
-labels: ["priority: high", "type: feature", "area: analytics", "effort: 4-6h"]
-milestone: "Sprint 2 - Top Quality"
+title: '[M7] Add Cohort LTV Analysis View'
+labels: ['priority: high', 'type: feature', 'area: analytics', 'effort: 4-6h']
+milestone: 'Sprint 2 - Top Quality'
 body: |
   ### ID: M7
 
@@ -411,9 +412,9 @@ body: |
   ### Effort Estimate
   4-6 hours
 ---
-title: "[M8] Create Operational Runbooks"
-labels: ["priority: high", "type: documentation", "area: operations", "effort: 4-6h"]
-milestone: "Sprint 2 - Top Quality"
+title: '[M8] Create Operational Runbooks'
+labels: ['priority: high', 'type: documentation', 'area: operations', 'effort: 4-6h']
+milestone: 'Sprint 2 - Top Quality'
 body: |
   ### ID: M8
 
@@ -438,9 +439,9 @@ body: |
   ### Effort Estimate
   4-6 hours
 ---
-title: "[M9] Enhance Circuit Breaker Dashboard"
-labels: ["priority: medium", "type: feature", "area: observability", "effort: 2-3h"]
-milestone: "Sprint 2 - Top Quality"
+title: '[M9] Enhance Circuit Breaker Dashboard'
+labels: ['priority: medium', 'type: feature', 'area: observability', 'effort: 2-3h']
+milestone: 'Sprint 2 - Top Quality'
 body: |
   ### ID: M9
 
@@ -462,9 +463,9 @@ body: |
   ### Effort Estimate
   2-3 hours
 ---
-title: "[M10] Implement Data Lineage Visualization"
-labels: ["priority: medium", "type: feature", "area: compliance", "effort: 4-6h"]
-milestone: "Sprint 2 - Top Quality"
+title: '[M10] Implement Data Lineage Visualization'
+labels: ['priority: medium', 'type: feature', 'area: compliance', 'effort: 4-6h']
+milestone: 'Sprint 2 - Top Quality'
 body: |
   ### ID: M10
 
@@ -488,9 +489,9 @@ body: |
   ### Effort Estimate
   4-6 hours
 ---
-title: "[M11] Complete Supervisor Live Monitoring UI"
-labels: ["priority: medium", "type: feature", "area: frontend", "effort: 4-6h"]
-milestone: "Sprint 2 - Top Quality"
+title: '[M11] Complete Supervisor Live Monitoring UI'
+labels: ['priority: medium', 'type: feature', 'area: frontend', 'effort: 4-6h']
+milestone: 'Sprint 2 - Top Quality'
 body: |
   ### ID: M11
 
@@ -515,9 +516,9 @@ body: |
   ### Effort Estimate
   4-6 hours
 ---
-title: "[M12] Add Contract Testing for External Integrations"
-labels: ["priority: medium", "type: testing", "area: integrations", "effort: 4-6h"]
-milestone: "Sprint 2 - Top Quality"
+title: '[M12] Add Contract Testing for External Integrations'
+labels: ['priority: medium', 'type: testing', 'area: integrations', 'effort: 4-6h']
+milestone: 'Sprint 2 - Top Quality'
 body: |
   ### ID: M12
 
@@ -540,9 +541,9 @@ body: |
   ### Effort Estimate
   4-6 hours
 ---
-title: "[M13] Add Request Tracing Visualization"
-labels: ["priority: medium", "type: feature", "area: observability", "effort: 3-4h"]
-milestone: "Sprint 2 - Top Quality"
+title: '[M13] Add Request Tracing Visualization'
+labels: ['priority: medium', 'type: feature', 'area: observability', 'effort: 3-4h']
+milestone: 'Sprint 2 - Top Quality'
 body: |
   ### ID: M13
 
@@ -565,14 +566,15 @@ body: |
   ### Effort Estimate
   3-4 hours
 
+
 # ===========================================================================
 # LOW PRIORITY (P2) - Polish
 # ===========================================================================
 
 ---
-title: "[L1] Add Comprehensive Storybook Coverage"
-labels: ["priority: low", "type: documentation", "area: frontend", "effort: 4-6h"]
-milestone: "Sprint 3 - Polish"
+title: '[L1] Add Comprehensive Storybook Coverage'
+labels: ['priority: low', 'type: documentation', 'area: frontend', 'effort: 4-6h']
+milestone: 'Sprint 3 - Polish'
 body: |
   ### ID: L1
 
@@ -594,9 +596,9 @@ body: |
   ### Effort Estimate
   4-6 hours
 ---
-title: "[L2] Implement Proper Dark Mode Toggle"
-labels: ["priority: low", "type: feature", "area: frontend", "effort: 2-3h"]
-milestone: "Sprint 3 - Polish"
+title: '[L2] Implement Proper Dark Mode Toggle'
+labels: ['priority: low', 'type: feature', 'area: frontend', 'effort: 2-3h']
+milestone: 'Sprint 3 - Polish'
 body: |
   ### ID: L2
 
@@ -619,9 +621,9 @@ body: |
   ### Effort Estimate
   2-3 hours
 ---
-title: "[L3] Create API Documentation Portal"
-labels: ["priority: low", "type: documentation", "area: api", "effort: 3-4h"]
-milestone: "Sprint 3 - Polish"
+title: '[L3] Create API Documentation Portal'
+labels: ['priority: low', 'type: documentation', 'area: api', 'effort: 3-4h']
+milestone: 'Sprint 3 - Polish'
 body: |
   ### ID: L3
 
@@ -644,9 +646,9 @@ body: |
   ### Effort Estimate
   3-4 hours
 ---
-title: "[L4] Optimize Vector Search Performance"
-labels: ["priority: low", "type: performance", "area: database", "effort: 2-3h"]
-milestone: "Sprint 3 - Polish"
+title: '[L4] Optimize Vector Search Performance'
+labels: ['priority: low', 'type: performance', 'area: database', 'effort: 2-3h']
+milestone: 'Sprint 3 - Polish'
 body: |
   ### ID: L4
 
@@ -667,9 +669,9 @@ body: |
   ### Effort Estimate
   2-3 hours
 ---
-title: "[L5] Add Mobile-Responsive Agent UI"
-labels: ["priority: low", "type: feature", "area: frontend", "effort: 3-4h"]
-milestone: "Sprint 3 - Polish"
+title: '[L5] Add Mobile-Responsive Agent UI'
+labels: ['priority: low', 'type: feature', 'area: frontend', 'effort: 3-4h']
+milestone: 'Sprint 3 - Polish'
 body: |
   ### ID: L5
 
@@ -692,9 +694,9 @@ body: |
   ### Effort Estimate
   3-4 hours
 ---
-title: "[L6] Implement Webhook Replay UI"
-labels: ["priority: low", "type: feature", "area: debugging", "effort: 3-4h"]
-milestone: "Sprint 3 - Polish"
+title: '[L6] Implement Webhook Replay UI'
+labels: ['priority: low', 'type: feature', 'area: debugging', 'effort: 3-4h']
+milestone: 'Sprint 3 - Polish'
 body: |
   ### ID: L6
 
@@ -716,9 +718,9 @@ body: |
   ### Effort Estimate
   3-4 hours
 ---
-title: "[L7] Add Performance Budgets and Lighthouse CI"
-labels: ["priority: low", "type: infrastructure", "area: performance", "effort: 2-3h"]
-milestone: "Sprint 3 - Polish"
+title: '[L7] Add Performance Budgets and Lighthouse CI'
+labels: ['priority: low', 'type: infrastructure', 'area: performance', 'effort: 2-3h']
+milestone: 'Sprint 3 - Polish'
 body: |
   ### ID: L7
 
@@ -741,9 +743,9 @@ body: |
   ### Effort Estimate
   2-3 hours
 ---
-title: "[L8] Complete Localization Coverage"
-labels: ["priority: low", "type: feature", "area: i18n", "effort: 3-4h"]
-milestone: "Sprint 3 - Polish"
+title: '[L8] Complete Localization Coverage'
+labels: ['priority: low', 'type: feature', 'area: i18n', 'effort: 3-4h']
+milestone: 'Sprint 3 - Polish'
 body: |
   ### ID: L8
 

@@ -5,6 +5,7 @@ Convert TOON v2.0 format back to JSON using the Zig decoder.
 **Usage:** `/toon-decode <file> [options]`
 
 **Options:**
+
 - `--strict` - Enable strict mode validation during decoding
 - `--no-expand-paths` - Don't expand folded paths (keep dot notation)
 
@@ -143,18 +144,21 @@ head -10 "$OUTPUT"
 ## Examples
 
 ### Basic Decoding
+
 ```bash
 /toon-decode data.toon
 # Outputs: data.json
 ```
 
 ### Strict Mode
+
 ```bash
 /toon-decode data.toon --strict
 # Validates during decoding, fails on format errors
 ```
 
 ### Keep Folded Paths
+
 ```bash
 /toon-decode data.toon --no-expand-paths
 # Keeps "server.host" instead of expanding to {"server": {"host": ...}}
@@ -165,6 +169,7 @@ head -10 "$OUTPUT"
 By default, the decoder expands folded paths:
 
 **TOON Input:**
+
 ```
 server.host: localhost
 server.port: 8080
@@ -173,6 +178,7 @@ database.port: 5432
 ```
 
 **JSON Output (default):**
+
 ```json
 {
   "server": {
@@ -187,6 +193,7 @@ database.port: 5432
 ```
 
 **JSON Output (--no-expand-paths):**
+
 ```json
 {
   "server.host": "localhost",
@@ -201,6 +208,7 @@ database.port: 5432
 The decoder supports all TOON v2.0 features:
 
 **Tabular Arrays:**
+
 ```
 [3]{id,name,age}:
   1,Alice,30
@@ -209,11 +217,13 @@ The decoder supports all TOON v2.0 features:
 ```
 
 **Inline Arrays:**
+
 ```
 tags[5]: javascript,react,node,express,api
 ```
 
 **Expanded Lists:**
+
 ```
 - name: Alice
   role: admin
@@ -222,6 +232,7 @@ tags[5]: javascript,react,node,express,api
 ```
 
 **Three Delimiters:**
+
 - Comma: `[N]{fields}:`
 - Tab: `[N\t]{fields}:`
 - Pipe: `[N|]{fields}:`

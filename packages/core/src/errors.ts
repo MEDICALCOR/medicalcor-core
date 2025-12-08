@@ -363,3 +363,63 @@ export class DatabaseConfigError extends AppError {
     this.repository = repository;
   }
 }
+
+// ============================================================================
+// QUEUE ERRORS - Standardized error types for queue event processing
+// ============================================================================
+
+/**
+ * Queue event validation error
+ * Thrown when a queue event payload fails validation
+ */
+export class QueueEventValidationError extends AppError {
+  public readonly eventId: string | undefined;
+  public readonly validationErrors: unknown;
+
+  constructor(message: string, eventId?: string, validationErrors?: unknown) {
+    super(message, 'QUEUE_EVENT_VALIDATION_ERROR', 400);
+    this.name = 'QueueEventValidationError';
+    this.eventId = eventId;
+    this.validationErrors = validationErrors;
+  }
+}
+
+/**
+ * Queue event processing error
+ * Thrown when processing a queue event fails
+ */
+export class QueueEventProcessingError extends AppError {
+  public readonly eventId: string;
+  public readonly queueSid: string | undefined;
+  public readonly originalError: Error | undefined;
+
+  constructor(eventId: string, message: string, queueSid?: string, originalError?: Error) {
+    super(message, 'QUEUE_EVENT_PROCESSING_ERROR', 500);
+    this.name = 'QueueEventProcessingError';
+    this.eventId = eventId;
+    this.queueSid = queueSid;
+    this.originalError = originalError;
+  }
+}
+
+/**
+ * Queue breach alert error
+ * Thrown when sending a queue breach alert fails
+ */
+export class QueueBreachAlertError extends AppError {
+  public readonly queueSid: string;
+  public readonly breachType: string;
+  public readonly originalError: Error | undefined;
+
+  constructor(queueSid: string, breachType: string, message?: string, originalError?: Error) {
+    super(
+      message ?? `Failed to send alert for ${breachType} breach on queue ${queueSid}`,
+      'QUEUE_BREACH_ALERT_ERROR',
+      500
+    );
+    this.name = 'QueueBreachAlertError';
+    this.queueSid = queueSid;
+    this.breachType = breachType;
+    this.originalError = originalError;
+  }
+}

@@ -75,10 +75,7 @@ export interface AuditService {
    * @param format - Export format
    * @returns Export data
    */
-  export(
-    criteria: AuditQueryCriteria,
-    format: 'json' | 'csv' | 'pdf'
-  ): Promise<AuditExportResult>;
+  export(criteria: AuditQueryCriteria, format: 'json' | 'csv' | 'pdf'): Promise<AuditExportResult>;
 
   /**
    * Get audit summary for a resource

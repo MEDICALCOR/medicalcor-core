@@ -60,8 +60,14 @@ function createMockExpiredSession(session: Omit<PatientSession, 'iat' | 'exp'>):
 describe('Appointment Booking Schema Validation', () => {
   const GetAvailableSlotsSchema = z.object({
     procedureType: z.string().min(1).max(128),
-    startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    startDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    endDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
     practitionerId: z.string().optional(),
     locationId: z.string().optional(),
     limit: z.coerce.number().int().min(1).max(20).optional(),
@@ -488,9 +494,30 @@ describe('Slot Availability Logic', () => {
 
   it('should filter out unavailable slots', () => {
     const slots: TimeSlot[] = [
-      { id: '1', date: '2025-01-15', time: '09:00', dateTime: '2025-01-15T09:00:00Z', duration: 60, available: true },
-      { id: '2', date: '2025-01-15', time: '10:00', dateTime: '2025-01-15T10:00:00Z', duration: 60, available: false },
-      { id: '3', date: '2025-01-15', time: '11:00', dateTime: '2025-01-15T11:00:00Z', duration: 60, available: true },
+      {
+        id: '1',
+        date: '2025-01-15',
+        time: '09:00',
+        dateTime: '2025-01-15T09:00:00Z',
+        duration: 60,
+        available: true,
+      },
+      {
+        id: '2',
+        date: '2025-01-15',
+        time: '10:00',
+        dateTime: '2025-01-15T10:00:00Z',
+        duration: 60,
+        available: false,
+      },
+      {
+        id: '3',
+        date: '2025-01-15',
+        time: '11:00',
+        dateTime: '2025-01-15T11:00:00Z',
+        duration: 60,
+        available: true,
+      },
     ];
 
     const available = filterAvailableSlots(slots);
@@ -499,17 +526,76 @@ describe('Slot Availability Logic', () => {
   });
 
   it('should validate slot is in business hours', () => {
-    expect(isSlotWithinBusinessHours({ id: '1', date: '2025-01-15', time: '09:00', dateTime: '', duration: 60, available: true })).toBe(true);
-    expect(isSlotWithinBusinessHours({ id: '2', date: '2025-01-15', time: '17:30', dateTime: '', duration: 60, available: true })).toBe(true);
-    expect(isSlotWithinBusinessHours({ id: '3', date: '2025-01-15', time: '08:00', dateTime: '', duration: 60, available: true })).toBe(false);
-    expect(isSlotWithinBusinessHours({ id: '4', date: '2025-01-15', time: '18:00', dateTime: '', duration: 60, available: true })).toBe(false);
-    expect(isSlotWithinBusinessHours({ id: '5', date: '2025-01-15', time: '20:00', dateTime: '', duration: 60, available: true })).toBe(false);
+    expect(
+      isSlotWithinBusinessHours({
+        id: '1',
+        date: '2025-01-15',
+        time: '09:00',
+        dateTime: '',
+        duration: 60,
+        available: true,
+      })
+    ).toBe(true);
+    expect(
+      isSlotWithinBusinessHours({
+        id: '2',
+        date: '2025-01-15',
+        time: '17:30',
+        dateTime: '',
+        duration: 60,
+        available: true,
+      })
+    ).toBe(true);
+    expect(
+      isSlotWithinBusinessHours({
+        id: '3',
+        date: '2025-01-15',
+        time: '08:00',
+        dateTime: '',
+        duration: 60,
+        available: true,
+      })
+    ).toBe(false);
+    expect(
+      isSlotWithinBusinessHours({
+        id: '4',
+        date: '2025-01-15',
+        time: '18:00',
+        dateTime: '',
+        duration: 60,
+        available: true,
+      })
+    ).toBe(false);
+    expect(
+      isSlotWithinBusinessHours({
+        id: '5',
+        date: '2025-01-15',
+        time: '20:00',
+        dateTime: '',
+        duration: 60,
+        available: true,
+      })
+    ).toBe(false);
   });
 
   it('should return empty array when no slots available', () => {
     const slots: TimeSlot[] = [
-      { id: '1', date: '2025-01-15', time: '09:00', dateTime: '2025-01-15T09:00:00Z', duration: 60, available: false },
-      { id: '2', date: '2025-01-15', time: '10:00', dateTime: '2025-01-15T10:00:00Z', duration: 60, available: false },
+      {
+        id: '1',
+        date: '2025-01-15',
+        time: '09:00',
+        dateTime: '2025-01-15T09:00:00Z',
+        duration: 60,
+        available: false,
+      },
+      {
+        id: '2',
+        date: '2025-01-15',
+        time: '10:00',
+        dateTime: '2025-01-15T10:00:00Z',
+        duration: 60,
+        available: false,
+      },
     ];
 
     const available = filterAvailableSlots(slots);
@@ -531,11 +617,11 @@ describe('Date Format Validation', () => {
   });
 
   it('should reject invalid date formats', () => {
-    expect(dateRegex.test('15-01-2025')).toBe(false);  // DD-MM-YYYY
-    expect(dateRegex.test('01/15/2025')).toBe(false);  // MM/DD/YYYY
-    expect(dateRegex.test('2025/01/15')).toBe(false);  // Wrong separator
-    expect(dateRegex.test('2025-1-15')).toBe(false);   // Missing leading zero
-    expect(dateRegex.test('25-01-15')).toBe(false);    // 2-digit year
+    expect(dateRegex.test('15-01-2025')).toBe(false); // DD-MM-YYYY
+    expect(dateRegex.test('01/15/2025')).toBe(false); // MM/DD/YYYY
+    expect(dateRegex.test('2025/01/15')).toBe(false); // Wrong separator
+    expect(dateRegex.test('2025-1-15')).toBe(false); // Missing leading zero
+    expect(dateRegex.test('25-01-15')).toBe(false); // 2-digit year
     expect(dateRegex.test('2025-01-15T10:00:00Z')).toBe(false); // Full ISO datetime
   });
 
@@ -724,7 +810,11 @@ describe('Appointment Event Emission', () => {
     payload: Record<string, unknown>;
   }
 
-  function createBookingEvent(appointmentId: string, patientId: string, procedureType: string): AppointmentEvent {
+  function createBookingEvent(
+    appointmentId: string,
+    patientId: string,
+    procedureType: string
+  ): AppointmentEvent {
     return {
       type: 'patient.appointment.booked',
       correlationId: `corr_${Date.now()}`,
@@ -739,7 +829,11 @@ describe('Appointment Event Emission', () => {
     };
   }
 
-  function createCancellationEvent(appointmentId: string, patientId: string, reason?: string): AppointmentEvent {
+  function createCancellationEvent(
+    appointmentId: string,
+    patientId: string,
+    reason?: string
+  ): AppointmentEvent {
     return {
       type: 'patient.appointment.cancelled',
       correlationId: `corr_${Date.now()}`,
@@ -754,7 +848,11 @@ describe('Appointment Event Emission', () => {
     };
   }
 
-  function createRescheduleEvent(appointmentId: string, patientId: string, newSlotId: string): AppointmentEvent {
+  function createRescheduleEvent(
+    appointmentId: string,
+    patientId: string,
+    newSlotId: string
+  ): AppointmentEvent {
     return {
       type: 'patient.appointment.rescheduled',
       correlationId: `corr_${Date.now()}`,
@@ -824,9 +922,10 @@ describe('Concurrent Booking Handling', () => {
   }
 
   // Simulate slot availability check with race condition handling
-  function simulateBookingRace(
-    attempts: SlotBookingAttempt[]
-  ): { winner: string | null; losers: string[] } {
+  function simulateBookingRace(attempts: SlotBookingAttempt[]): {
+    winner: string | null;
+    losers: string[];
+  } {
     // Sort by timestamp - first one wins
     const sorted = [...attempts].sort((a, b) => a.timestamp - b.timestamp);
 

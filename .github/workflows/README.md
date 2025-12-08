@@ -17,12 +17,13 @@ The CI workflow requires the following GitHub Secrets to be configured:
 
 #### E2E Test Secrets
 
-| Secret Name | Description | Required |
-|-------------|-------------|----------|
-| `TEST_USER_EMAIL` | Email of test user for E2E tests | Yes (for E2E tests) |
-| `TEST_USER_PASSWORD` | Password of test user | Yes (for E2E tests) |
+| Secret Name          | Description                      | Required            |
+| -------------------- | -------------------------------- | ------------------- |
+| `TEST_USER_EMAIL`    | Email of test user for E2E tests | Yes (for E2E tests) |
+| `TEST_USER_PASSWORD` | Password of test user            | Yes (for E2E tests) |
 
 **To add secrets:**
+
 1. Go to: `https://github.com/MEDICALCOR/medicalcor-core/settings/secrets/actions`
 2. Click "New repository secret"
 3. Add each secret with the appropriate value
@@ -91,10 +92,10 @@ gh workflow run bulk-create-issues.yml \
 
 ### Input Parameters
 
-| Parameter | Required | Default | Description |
-|-----------|----------|---------|-------------|
-| `backlog_file` | Yes | `BACKLOG.yml` | Path to backlog YAML in repo |
-| `dry_run` | No | `false` | If `true`, only prints what would be created |
+| Parameter      | Required | Default       | Description                                  |
+| -------------- | -------- | ------------- | -------------------------------------------- |
+| `backlog_file` | Yes      | `BACKLOG.yml` | Path to backlog YAML in repo                 |
+| `dry_run`      | No       | `false`       | If `true`, only prints what would be created |
 
 ### YAML File Format
 
@@ -104,23 +105,23 @@ The workflow expects a YAML file with the following structure:
 
 ```yaml
 ---
-title: "[H1] First Issue Title"
-labels: ["priority: critical", "type: feature"]
-milestone: "Sprint 1"
+title: '[H1] First Issue Title'
+labels: ['priority: critical', 'type: feature']
+milestone: 'Sprint 1'
 body: |
   ### Description
   Detailed issue description here.
-  
+
   ### Acceptance Criteria
   - [ ] Criteria 1
   - [ ] Criteria 2
-  
+
   ### Effort
   2-3 hours
 
 ---
-title: "[H2] Second Issue Title"
-labels: ["priority: high", "type: bug"]
+title: '[H2] Second Issue Title'
+labels: ['priority: high', 'type: bug']
 body: |
   Bug description...
 ```
@@ -129,24 +130,24 @@ body: |
 
 ```yaml
 issues:
-  - title: "[H1] First Issue"
-    labels: ["priority: critical"]
-    milestone: "Sprint 1"
-    body: "Issue description"
-    
-  - title: "[H2] Second Issue"
-    labels: ["priority: high"]
-    body: "Issue description"
+  - title: '[H1] First Issue'
+    labels: ['priority: critical']
+    milestone: 'Sprint 1'
+    body: 'Issue description'
+
+  - title: '[H2] Second Issue'
+    labels: ['priority: high']
+    body: 'Issue description'
 ```
 
 ### Field Reference
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `title` | string | Yes | Issue title |
-| `body` | string | No | Issue description (supports Markdown) |
-| `labels` | array | No | List of label names |
-| `milestone` | string | No | Milestone title (must exist) |
+| Field       | Type   | Required | Description                           |
+| ----------- | ------ | -------- | ------------------------------------- |
+| `title`     | string | Yes      | Issue title                           |
+| `body`      | string | No       | Issue description (supports Markdown) |
+| `labels`    | array  | No       | List of label names                   |
+| `milestone` | string | No       | Milestone title (must exist)          |
 
 ### Features
 
@@ -206,6 +207,7 @@ gh workflow run bulk-create-issues.yml \
 ```
 
 This will create:
+
 - 8 critical priority (P0) issues for Sprint 1
 - 13 high priority (P1) issues for Sprint 2
 - 8 low priority (P2) issues for Sprint 3
@@ -213,6 +215,7 @@ This will create:
 ### Permissions
 
 The workflow requires:
+
 - `contents: read` - Read repository files
 - `issues: write` - Create and update issues
 
@@ -221,13 +224,17 @@ These are automatically provided by `${{ secrets.GITHUB_TOKEN }}`.
 ### Troubleshooting
 
 #### Issue Already Exists
+
 ✅ **Expected behavior** - The workflow skips existing issues by design.
 
 #### Milestone Not Found
+
 ⚠️ **Warning logged** - Issue created without milestone. Create the milestone first or remove from YAML.
 
 #### Invalid YAML
+
 ❌ **Fails with parse error** - Validate YAML syntax:
+
 ```bash
 # Replace 'your-backlog.yml' with your actual filename
 python -c "import yaml; yaml.safe_load(open('your-backlog.yml'))"
@@ -237,9 +244,11 @@ python -c "import yaml; yaml.safe_load(open('BACKLOG_IMPORT.yml'))"
 ```
 
 #### Rate Limiting
+
 ⚠️ **Increase delays** - Modify the `time.sleep(0.25)` value in the workflow if needed.
 
 #### Authentication Issues
+
 ❌ **Check token permissions** - Ensure `GITHUB_TOKEN` has `issues: write` permission.
 
 ### Best Practices
@@ -255,27 +264,27 @@ python -c "import yaml; yaml.safe_load(open('BACKLOG_IMPORT.yml'))"
 
 ```yaml
 ---
-title: "[P0] Critical Production Issue"
-labels: ["priority: critical", "type: bug", "area: api"]
-milestone: "Q1 2025"
+title: '[P0] Critical Production Issue'
+labels: ['priority: critical', 'type: bug', 'area: api']
+milestone: 'Q1 2025'
 body: |
   ## Problem
   Describe the issue...
-  
+
   ## Impact
   Production users affected...
-  
+
   ## Solution
   Proposed fix...
-  
+
   ## Acceptance Criteria
   - [ ] Fix implemented
   - [ ] Tests added
   - [ ] Deployed to production
 
 ---
-title: "[P1] Feature Request"
-labels: ["priority: high", "type: feature"]
+title: '[P1] Feature Request'
+labels: ['priority: high', 'type: feature']
 body: |
   Feature description...
 ```

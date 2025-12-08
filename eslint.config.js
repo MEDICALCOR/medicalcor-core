@@ -189,7 +189,8 @@ export default tseslint.config(
           patterns: [
             {
               group: ['@medicalcor/*'],
-              message: 'Types layer is the foundation and cannot import from any other @medicalcor package',
+              message:
+                'Types layer is the foundation and cannot import from any other @medicalcor package',
             },
           ],
         },
@@ -274,16 +275,10 @@ export default tseslint.config(
       complexity: ['warn', { max: 15 }],
 
       // Maximum function lines (encourage smaller functions)
-      'max-lines-per-function': [
-        'warn',
-        { max: 100, skipBlankLines: true, skipComments: true },
-      ],
+      'max-lines-per-function': ['warn', { max: 100, skipBlankLines: true, skipComments: true }],
 
       // Maximum file lines
-      'max-lines': [
-        'warn',
-        { max: 500, skipBlankLines: true, skipComments: true },
-      ],
+      'max-lines': ['warn', { max: 500, skipBlankLines: true, skipComments: true }],
 
       // Maximum nesting depth
       'max-depth': ['warn', { max: 4 }],

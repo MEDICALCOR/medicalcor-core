@@ -14,17 +14,20 @@ Provide comprehensive, accurate guidance for integrating Stripe payment infrastr
 ## Documentation Coverage
 
 **Full access to official Stripe documentation (when available):**
+
 - **Location:** `docs/stripe/`
 - **Files:** 3,253 markdown files
 - **Coverage:** Complete API reference, guides, integrations, and best practices
 
 **Note:** Documentation must be pulled separately:
+
 ```bash
 pipx install docpull
 docpull https://docs.stripe.com -o .claude/skills/stripe/docs
 ```
 
 **Major Areas:**
+
 - Payment processing (Payment Intents, Checkout, Elements)
 - Subscription billing (Subscriptions, Invoices, Metering)
 - Customer management
@@ -44,6 +47,7 @@ docpull https://docs.stripe.com -o .claude/skills/stripe/docs
 ## When to Use
 
 Invoke when user mentions:
+
 - **Payment Processing:** Stripe, payments, checkout, payment intent, one-time payment
 - **Subscriptions:** billing, recurring payments, subscription, metered billing, usage-based
 - **Customer Management:** customers, payment methods, invoices
@@ -60,12 +64,14 @@ Invoke when user mentions:
 When answering questions:
 
 1. **Search for specific topics:**
+
    ```bash
    # Use Grep to find relevant docs
    grep -r "payment intent" docs/stripe/ --include="*.md"
    ```
 
 2. **Read specific API references:**
+
    ```bash
    # API docs are in docs/stripe/api/
    cat docs/stripe/api/payment_intents/api-payment_intents-create.md
@@ -90,11 +96,13 @@ const stripe = Stripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 ```
 
 **Key Types:**
+
 - **Test:** `pk_test_...` (publishable), `sk_test_...` (secret)
 - **Live:** `pk_live_...` (publishable), `sk_live_...` (secret)
 - **Restricted:** Custom permissions for limited access
 
 **Security:**
+
 - NEVER commit secret keys
 - Use environment variables
 - Rotate immediately if exposed
@@ -114,10 +122,12 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 export async function POST(req: Request) {
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ['card'],
-    line_items: [{
-      price: 'price_xxx', // Pre-created price ID
-      quantity: 1,
-    }],
+    line_items: [
+      {
+        price: 'price_xxx', // Pre-created price ID
+        quantity: 1,
+      },
+    ],
     mode: 'payment', // or 'subscription' or 'setup'
     success_url: `${process.env.NEXT_PUBLIC_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.NEXT_PUBLIC_URL}/cancel`,
@@ -161,6 +171,7 @@ function CheckoutForm() {
 ### Pattern 3: Subscriptions
 
 **Create subscription:**
+
 ```typescript
 const subscription = await stripe.subscriptions.create({
   customer: 'cus_xxx',
@@ -175,9 +186,11 @@ const clientSecret = subscription.latest_invoice.payment_intent.client_secret;
 ```
 
 **Subscription lifecycle:**
+
 - `incomplete` → `active` → `past_due` → `canceled` / `unpaid`
 
 **Metered billing:**
+
 ```typescript
 // Report usage
 await stripe.subscriptionItems.createUsageRecord('si_xxx', {
@@ -258,6 +271,7 @@ export async function POST(req: Request) {
 ```
 
 **Critical webhook events:**
+
 - `payment_intent.succeeded` - Payment completed
 - `payment_intent.payment_failed` - Payment failed
 - `customer.subscription.*` - Subscription lifecycle
@@ -267,6 +281,7 @@ export async function POST(req: Request) {
 - `checkout.session.completed` - Checkout session completed
 
 **Testing webhooks locally:**
+
 ```bash
 # Install Stripe CLI
 brew install stripe/stripe-cli/stripe
@@ -318,6 +333,7 @@ await stripe.customers.update('cus_xxx', {
 ### Connect (Marketplaces & Platforms)
 
 **Create connected account:**
+
 ```typescript
 const account = await stripe.accounts.create({
   type: 'express',
@@ -339,6 +355,7 @@ const accountLink = await stripe.accountLinks.create({
 ```
 
 **Split payments:**
+
 ```typescript
 // Application fee
 await stripe.paymentIntents.create({
@@ -381,10 +398,12 @@ if (riskLevel === 'highest') {
 ```typescript
 const session = await stripe.checkout.sessions.create({
   mode: 'payment',
-  line_items: [{
-    price: 'price_xxx',
-    quantity: 1,
-  }],
+  line_items: [
+    {
+      price: 'price_xxx',
+      quantity: 1,
+    },
+  ],
   automatic_tax: { enabled: true }, // Stripe calculates tax automatically
   customer_update: {
     address: 'auto', // Collect address for tax
@@ -399,20 +418,24 @@ const session = await stripe.checkout.sessions.create({
 ### Test Card Numbers
 
 **Success:**
+
 - `4242 4242 4242 4242` - Visa
 - `5555 5555 5555 4444` - Mastercard
 - `3782 822463 10005` - American Express
 
 **Requires 3D Secure:**
+
 - `4000 0025 0000 3155` - Visa (3DS required)
 - `4000 0027 6000 3184` - Visa (3DS required, decline)
 
 **Declined:**
+
 - `4000 0000 0000 9995` - Generic decline
 - `4000 0000 0000 9987` - Insufficient funds
 - `4000 0000 0000 9979` - Stolen card
 
 **Other:**
+
 - Any future expiry date (e.g., `12/34`)
 - Any 3-digit CVC (4 digits for Amex)
 - Any 5-digit ZIP
@@ -448,16 +471,19 @@ const session = await stripe.checkout.sessions.create({
 ## Common Errors
 
 **Authentication:**
+
 - `Invalid API Key` - Check key format and environment
 - `No such customer` - Customer deleted or wrong ID
 
 **Payment failures:**
+
 - `card_declined` - Generic decline (ask customer to try different card)
 - `insufficient_funds` - Not enough money
 - `incorrect_cvc` - Wrong security code
 - `expired_card` - Card expired
 
 **Subscription errors:**
+
 - `resource_missing` - Price or product doesn't exist
 - `payment_intent_authentication_failure` - 3DS failed
 
@@ -631,10 +657,12 @@ export async function createCheckoutSession(priceId: string) {
     customer_email: session.user.email,
     mode: 'subscription',
     payment_method_types: ['card'],
-    line_items: [{
-      price: priceId,
-      quantity: 1,
-    }],
+    line_items: [
+      {
+        price: priceId,
+        quantity: 1,
+      },
+    ],
     success_url: `${process.env.NEXT_PUBLIC_URL}/dashboard?success=true`,
     cancel_url: `${process.env.NEXT_PUBLIC_URL}/pricing?canceled=true`,
     metadata: {
@@ -732,7 +760,8 @@ export async function POST(req: NextRequest) {
     const { amount, currency = 'usd' } = await req.json();
 
     // Validate amount server-side (CRITICAL)
-    if (!amount || amount < 50) { // $0.50 minimum
+    if (!amount || amount < 50) {
+      // $0.50 minimum
       return Response.json({ error: 'Invalid amount' }, { status: 400 });
     }
 
@@ -746,14 +775,11 @@ export async function POST(req: NextRequest) {
     });
 
     return Response.json({
-      clientSecret: paymentIntent.client_secret
+      clientSecret: paymentIntent.client_secret,
     });
   } catch (error) {
     console.error('Payment intent error:', error);
-    return Response.json(
-      { error: 'Failed to create payment intent' },
-      { status: 500 }
-    );
+    return Response.json({ error: 'Failed to create payment intent' }, { status: 500 });
   }
 }
 ```
@@ -849,10 +875,7 @@ export async function POST(req: NextRequest) {
 // lib/stripe/idempotency.ts
 import { v4 as uuidv4 } from 'uuid';
 
-export async function createPaymentWithIdempotency(
-  amount: number,
-  userId: string
-) {
+export async function createPaymentWithIdempotency(amount: number, userId: string) {
   const idempotencyKey = `payment_${userId}_${Date.now()}_${uuidv4()}`;
 
   try {
@@ -876,10 +899,7 @@ export async function createPaymentWithIdempotency(
 }
 
 // For subscriptions
-export async function createSubscriptionIdempotent(
-  customerId: string,
-  priceId: string
-) {
+export async function createSubscriptionIdempotent(customerId: string, priceId: string) {
   const idempotencyKey = `sub_${customerId}_${priceId}`;
 
   return stripe.subscriptions.create(
@@ -918,7 +938,7 @@ export async function retryStripeOperation<T>(
 
       // Retry with exponential backoff
       const delay = Math.min(1000 * Math.pow(2, i), 10000);
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
 
@@ -1006,11 +1026,7 @@ export async function createAccountOnboardingLink(accountId: string) {
 export async function isAccountOnboarded(accountId: string): Promise<boolean> {
   const account = await stripe.accounts.retrieve(accountId);
 
-  return (
-    account.details_submitted &&
-    account.charges_enabled &&
-    account.payouts_enabled
-  );
+  return account.details_submitted && account.charges_enabled && account.payouts_enabled;
 }
 ```
 
@@ -1018,10 +1034,7 @@ export async function isAccountOnboarded(accountId: string): Promise<boolean> {
 
 ```typescript
 // Pattern 1: Direct Charge (platform receives, then transfers)
-export async function createDirectCharge(
-  amount: number,
-  connectedAccountId: string
-) {
+export async function createDirectCharge(amount: number, connectedAccountId: string) {
   const paymentIntent = await stripe.paymentIntents.create({
     amount,
     currency: 'usd',
@@ -1035,10 +1048,7 @@ export async function createDirectCharge(
 }
 
 // Pattern 2: Destination Charge (connected account receives, platform takes fee)
-export async function createDestinationCharge(
-  amount: number,
-  connectedAccountId: string
-) {
+export async function createDestinationCharge(amount: number, connectedAccountId: string) {
   const paymentIntent = await stripe.paymentIntents.create(
     {
       amount,
@@ -1089,7 +1099,7 @@ export async function createMultiPartyPayment(
 
   // After charge succeeds, create transfers to each seller
   const transfers = await Promise.all(
-    sellers.map(seller =>
+    sellers.map((seller) =>
       stripe.transfers.create({
         amount: seller.amount,
         currency: 'usd',
@@ -1153,11 +1163,7 @@ export async function POST(req: Request) {
 
 ```typescript
 // lib/stripe/terminal.ts
-export async function registerReader(
-  registrationCode: string,
-  label: string,
-  locationId: string
-) {
+export async function registerReader(registrationCode: string, label: string, locationId: string) {
   const reader = await stripe.terminal.readers.create({
     registration_code: registrationCode,
     label,
@@ -1424,11 +1430,7 @@ case 'identity.verification_session.requires_input':
 
 ```typescript
 // Create cardholder
-export async function createCardholder(
-  name: string,
-  email: string,
-  phone: string
-) {
+export async function createCardholder(name: string, email: string, phone: string) {
   const cardholder = await stripe.issuing.cardholders.create({
     name,
     email,
@@ -1456,10 +1458,12 @@ export async function createVirtualCard(cardholderId: string) {
     type: 'virtual',
     status: 'active',
     spending_controls: {
-      spending_limits: [{
-        amount: 100000, // $1,000 limit
-        interval: 'monthly',
-      }],
+      spending_limits: [
+        {
+          amount: 100000, // $1,000 limit
+          interval: 'monthly',
+        },
+      ],
       allowed_categories: ['food_restaurants', 'gas_stations'],
     },
   });
@@ -1544,10 +1548,12 @@ export async function calculateTax(
 ) {
   const calculation = await stripe.tax.calculations.create({
     currency: 'usd',
-    line_items: [{
-      amount,
-      reference: 'product_001',
-    }],
+    line_items: [
+      {
+        amount,
+        reference: 'product_001',
+      },
+    ],
     customer_details: {
       address: customerAddress,
       address_source: 'shipping',
@@ -1645,19 +1651,21 @@ export async function createCheckoutWithClimate(priceId: string) {
     mode: 'payment',
     line_items: [{ price: priceId, quantity: 1 }],
     // Let customer choose carbon removal contribution
-    custom_fields: [{
-      key: 'climate_contribution',
-      label: { type: 'custom', custom: 'Contribute to carbon removal?' },
-      type: 'dropdown',
-      dropdown: {
-        options: [
-          { label: 'No contribution', value: '0' },
-          { label: '$1 - Remove 1kg CO2', value: '100' },
-          { label: '$5 - Remove 5kg CO2', value: '500' },
-          { label: '$10 - Remove 10kg CO2', value: '1000' },
-        ],
+    custom_fields: [
+      {
+        key: 'climate_contribution',
+        label: { type: 'custom', custom: 'Contribute to carbon removal?' },
+        type: 'dropdown',
+        dropdown: {
+          options: [
+            { label: 'No contribution', value: '0' },
+            { label: '$1 - Remove 1kg CO2', value: '100' },
+            { label: '$5 - Remove 5kg CO2', value: '500' },
+            { label: '$10 - Remove 10kg CO2', value: '1000' },
+          ],
+        },
       },
-    }],
+    ],
     success_url: `${process.env.NEXT_PUBLIC_URL}/success`,
     cancel_url: `${process.env.NEXT_PUBLIC_URL}/cancel`,
   });
@@ -1702,7 +1710,7 @@ export async function createMeteredPrice(productId: string) {
     tiers_mode: 'graduated',
     tiers: [
       { up_to: 1000, unit_amount: 10 }, // $0.10 per unit for first 1000
-      { up_to: 5000, unit_amount: 8 },  // $0.08 per unit for 1001-5000
+      { up_to: 5000, unit_amount: 8 }, // $0.08 per unit for 1001-5000
       { up_to: 'inf', unit_amount: 5 }, // $0.05 per unit for 5001+
     ],
   });
@@ -1731,10 +1739,9 @@ export async function reportUsage(
 
 // Get usage summary
 export async function getUsageSummary(subscriptionItemId: string) {
-  const summary = await stripe.subscriptionItems.listUsageRecordSummaries(
-    subscriptionItemId,
-    { limit: 1 }
-  );
+  const summary = await stripe.subscriptionItems.listUsageRecordSummaries(subscriptionItemId, {
+    limit: 1,
+  });
 
   return {
     totalUsage: summary.data[0]?.total_usage || 0,
@@ -1836,10 +1843,7 @@ export async function configurePortal() {
 }
 
 // Create portal session with config
-export async function createCustomPortalSession(
-  customerId: string,
-  configId: string
-) {
+export async function createCustomPortalSession(customerId: string, configId: string) {
   const session = await stripe.billingPortal.sessions.create({
     customer: customerId,
     return_url: `${process.env.NEXT_PUBLIC_URL}/dashboard`,
@@ -1869,10 +1873,7 @@ export async function createTestCustomer(email: string) {
   return customer;
 }
 
-export async function createTestSubscription(
-  customerId: string,
-  priceId: string
-) {
+export async function createTestSubscription(customerId: string, priceId: string) {
   // Use test card that won't require payment
   const paymentMethod = await stripe.paymentMethods.create({
     type: 'card',
@@ -1972,8 +1973,8 @@ console.log(invoice.payment_intent.client_secret);
 // Retrieve multiple customers efficiently
 export async function batchRetrieveCustomers(customerIds: string[]) {
   const customers = await Promise.all(
-    customerIds.map(id =>
-      stripe.customers.retrieve(id).catch(() => null) // Handle missing customers
+    customerIds.map(
+      (id) => stripe.customers.retrieve(id).catch(() => null) // Handle missing customers
     )
   );
 
@@ -2053,6 +2054,7 @@ ls .claude/skills/api/stripe/docs/api/payment_intents/
 ```
 
 **Common doc locations:**
+
 - API Reference: `docs/api/`
 - Payment Intents: `docs/api/payment_intents/`
 - Subscriptions: `docs/api/subscriptions/`
@@ -2071,12 +2073,14 @@ ls .claude/skills/api/stripe/docs/api/payment_intents/
 ## Implementation Checklist
 
 **Setup:**
+
 - [ ] Install SDK: `npm install stripe @stripe/stripe-js @stripe/react-stripe-js`
 - [ ] Get API keys from Dashboard (test + live)
 - [ ] Set environment variables
 - [ ] Configure TypeScript types
 
 **Payment Flow:**
+
 - [ ] Choose integration (Checkout vs Payment Element vs Payment Links)
 - [ ] Implement payment creation (server-side)
 - [ ] Add client-side payment UI
@@ -2086,14 +2090,16 @@ ls .claude/skills/api/stripe/docs/api/payment_intents/
 - [ ] Test 3D Secure flow
 
 **Webhooks:**
+
 - [ ] Create webhook endpoint (`/api/webhooks`)
 - [ ] Verify webhook signatures (CRITICAL)
-- [ ] Handle key events (payment_intent.succeeded, customer.subscription.*)
+- [ ] Handle key events (payment_intent.succeeded, customer.subscription.\*)
 - [ ] Test with Stripe CLI
 - [ ] Deploy and configure webhook in Dashboard
 - [ ] Monitor webhook delivery
 
 **Production:**
+
 - [ ] Implement retry logic with exponential backoff
 - [ ] Add idempotency keys for critical operations
 - [ ] Set up rate limiting
@@ -2103,6 +2109,7 @@ ls .claude/skills/api/stripe/docs/api/payment_intents/
 - [ ] Document runbook for common issues
 
 **Advanced (if needed):**
+
 - [ ] Configure Connect for marketplaces
 - [ ] Set up Radar rules for fraud prevention
 - [ ] Enable automatic tax calculation

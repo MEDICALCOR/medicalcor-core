@@ -11,8 +11,8 @@ TOON is a compact format for representing tabular data that reduces token consum
 ```json
 // JSON (verbose) - ~120 tokens
 [
-  {"method": "GET", "path": "/api/users", "auth": "required"},
-  {"method": "POST", "path": "/api/users", "auth": "required"}
+  { "method": "GET", "path": "/api/users", "auth": "required" },
+  { "method": "POST", "path": "/api/users", "auth": "required" }
 ]
 ```
 
@@ -53,6 +53,7 @@ TOON is a compact format for representing tabular data that reduces token consum
 ## When to Use TOON
 
 ### ✅ Use TOON When:
+
 - Array of objects with uniform structure
 - 5+ items in array
 - 60%+ of objects share the same fields
@@ -60,6 +61,7 @@ TOON is a compact format for representing tabular data that reduces token consum
 - Tabular data (API responses, logs, metrics, database results)
 
 ### ❌ Use JSON When:
+
 - Small arrays (<5 items)
 - Non-uniform objects (different fields)
 - Deeply nested structures
@@ -109,6 +111,7 @@ TOON is a compact format for representing tabular data that reduces token consum
 ## Token Estimation
 
 **Rough formula**:
+
 - **JSON**: `(items × fields × 4) + overhead`
   - Each field is ~4 tokens: `"field": "value",`
 
@@ -121,12 +124,13 @@ TOON is a compact format for representing tabular data that reduces token consum
 ## Examples
 
 ### API Endpoints
+
 ```json
 // JSON - 892 tokens
 [
-  {"method": "GET", "path": "/api/users", "auth": "required"},
-  {"method": "POST", "path": "/api/users", "auth": "required"},
-  {"method": "DELETE", "path": "/api/users/:id", "auth": "admin"}
+  { "method": "GET", "path": "/api/users", "auth": "required" },
+  { "method": "POST", "path": "/api/users", "auth": "required" },
+  { "method": "DELETE", "path": "/api/users/:id", "auth": "admin" }
 ]
 ```
 
@@ -139,11 +143,12 @@ TOON is a compact format for representing tabular data that reduces token consum
 ```
 
 ### Transactions
+
 ```json
 // JSON - 4545 tokens
 [
-  {"id": 1001, "amount": 250.50, "status": "completed", "date": "2024-01-15"},
-  {"id": 1002, "amount": 125.00, "status": "pending", "date": "2024-01-16"}
+  { "id": 1001, "amount": 250.5, "status": "completed", "date": "2024-01-15" },
+  { "id": 1002, "amount": 125.0, "status": "pending", "date": "2024-01-16" }
 ]
 ```
 
@@ -157,12 +162,15 @@ TOON is a compact format for representing tabular data that reduces token consum
 ## Usage in Claude Code
 
 ### In Skills
+
 When a skill needs to process large datasets, check if TOON would be beneficial and convert automatically.
 
 ### In Commands
+
 Use `/convert-to-toon <file>` to convert JSON files to TOON format.
 
 ### In Documentation
+
 Store large tabular data in TOON format to reduce token usage when Claude reads docs.
 
 ## References

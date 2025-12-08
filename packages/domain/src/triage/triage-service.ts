@@ -355,12 +355,12 @@ export class TriageService {
       // suggestedOwner is always defined since determineSuggestedOwner always returns a string
       suggestedOwner,
     };
-    
+
     // Add availableSlot only if defined
     if (availableSlot !== undefined) {
       result.availableSlot = availableSlot;
     }
-    
+
     return result;
   }
 
@@ -509,13 +509,13 @@ export class TriageService {
         preferredDates,
         limit: 1,
       };
-      
+
       // Add procedureType only if first procedure is defined
       const firstProcedure = procedureInterest?.[0];
       if (firstProcedure !== undefined) {
         options.procedureType = firstProcedure;
       }
-      
+
       const slots = await this.schedulingService.getAvailableSlots(options);
 
       if (slots.length > 0 && slots[0]) {
@@ -525,12 +525,12 @@ export class TriageService {
           date: slots[0].date,
           startTime: slots[0].startTime,
         };
-        
+
         // Add practitioner only if defined
         if (slots[0].practitioner !== undefined) {
           slotResult.practitioner = slots[0].practitioner;
         }
-        
+
         return slotResult;
       }
     } catch (error) {

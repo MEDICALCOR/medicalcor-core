@@ -166,11 +166,9 @@ export const MultiProviderGatewayConfigSchema = z.object({
   /** Provider configurations */
   providers: z.record(ProviderConfigSchema).optional(),
   /** Fallback order (provider names) */
-  fallbackOrder: z.array(z.enum(['openai', 'anthropic', 'llama', 'ollama'])).default([
-    'openai',
-    'anthropic',
-    'llama',
-  ]),
+  fallbackOrder: z
+    .array(z.enum(['openai', 'anthropic', 'llama', 'ollama']))
+    .default(['openai', 'anthropic', 'llama']),
   /** Enable automatic failover */
   enableFailover: z.boolean().default(true),
   /** Enable cost-aware routing (prefer cheaper providers when appropriate) */
@@ -482,9 +480,7 @@ export class MultiProviderGateway {
       this.metrics.fallbackFailures++;
     }
 
-    throw new Error(
-      `All providers failed. Last error: ${lastError?.message ?? 'Unknown error'}`
-    );
+    throw new Error(`All providers failed. Last error: ${lastError?.message ?? 'Unknown error'}`);
   }
 
   /**
@@ -520,7 +516,10 @@ export class MultiProviderGateway {
     const model = options.model ?? config.defaultModel;
 
     // Execute based on provider type
-    let result: { content: string; tokensUsed: { prompt: number; completion: number; total: number } };
+    let result: {
+      content: string;
+      tokensUsed: { prompt: number; completion: number; total: number };
+    };
 
     switch (provider) {
       case 'openai':
@@ -559,7 +558,10 @@ export class MultiProviderGateway {
     options: CompletionOptions,
     model: string,
     timeoutMs: number
-  ): Promise<{ content: string; tokensUsed: { prompt: number; completion: number; total: number } }> {
+  ): Promise<{
+    content: string;
+    tokensUsed: { prompt: number; completion: number; total: number };
+  }> {
     if (!config.apiKey) {
       throw new Error('OpenAI API key not configured');
     }
@@ -616,7 +618,10 @@ export class MultiProviderGateway {
     options: CompletionOptions,
     model: string,
     timeoutMs: number
-  ): Promise<{ content: string; tokensUsed: { prompt: number; completion: number; total: number } }> {
+  ): Promise<{
+    content: string;
+    tokensUsed: { prompt: number; completion: number; total: number };
+  }> {
     if (!config.apiKey) {
       throw new Error('Anthropic API key not configured');
     }
@@ -681,7 +686,10 @@ export class MultiProviderGateway {
     options: CompletionOptions,
     model: string,
     timeoutMs: number
-  ): Promise<{ content: string; tokensUsed: { prompt: number; completion: number; total: number } }> {
+  ): Promise<{
+    content: string;
+    tokensUsed: { prompt: number; completion: number; total: number };
+  }> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -723,8 +731,7 @@ export class MultiProviderGateway {
       };
 
       // Handle both Ollama and OpenAI-compatible responses
-      const content =
-        data.message?.content ?? data.choices?.[0]?.message?.content ?? '';
+      const content = data.message?.content ?? data.choices?.[0]?.message?.content ?? '';
 
       return {
         content,

@@ -259,9 +259,7 @@ describe('lib/builders - CircuitBreakerBuilder', () => {
     });
 
     it('should throw on threshold > 20', () => {
-      expect(() => CircuitBreakerBuilder.create().halfOpenSuccessThreshold(21)).toThrow(
-        RangeError
-      );
+      expect(() => CircuitBreakerBuilder.create().halfOpenSuccessThreshold(21)).toThrow(RangeError);
     });
   });
 
@@ -500,10 +498,7 @@ describe('lib/builders - RequestBuilder', () => {
     });
 
     it('should add multiple query parameters', () => {
-      const req = RequestBuilder.get('/api/users')
-        .query('limit', 10)
-        .query('offset', 20)
-        .build();
+      const req = RequestBuilder.get('/api/users').query('limit', 10).query('offset', 20).build();
       expect(req.query.limit).toBe('10');
       expect(req.query.offset).toBe('20');
     });
@@ -635,9 +630,7 @@ describe('lib/builders - BaseClientBuilder', () => {
 
 describe('lib/builders - Edge Cases', () => {
   it('should handle chaining with frozen objects', () => {
-    const config = RetryConfigBuilder.create()
-      .maxRetries(3)
-      .build();
+    const config = RetryConfigBuilder.create().maxRetries(3).build();
 
     // Config should be immutable
     expect(Object.isFrozen(config)).toBe(true);

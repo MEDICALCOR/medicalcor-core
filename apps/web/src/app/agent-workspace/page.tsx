@@ -227,8 +227,4 @@ export default function AgentWorkspacePage() {
   );
 }
 
-// Metadata for the page
-export const metadata = {
-  title: 'Agent Workspace | MedicalCor Cortex',
-  description: 'Unified workspace for agents to handle calls and leads',
-};
+// Note: Page metadata moved to layout.tsx (metadata cannot be exported from 'use client' components)

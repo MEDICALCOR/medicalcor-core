@@ -200,14 +200,14 @@ function validateSecret(rule: SecretRule): SecretValidationResult {
       envVar: rule.envVar,
       requirement: rule.requirement,
     };
-    
+
     // Only add error/warning if defined (exactOptionalPropertyTypes compliance)
     if (rule.requirement !== 'optional') {
       result.error = 'Missing';
     } else {
       result.warning = 'Not configured (optional)';
     }
-    
+
     return result;
   }
 
@@ -244,9 +244,7 @@ function validateSecret(rule: SecretRule): SecretValidationResult {
 /**
  * Validate all secrets
  */
-export function validateSecrets(
-  rules: SecretRule[] = DEFAULT_SECRET_RULES
-): ValidationSummary {
+export function validateSecrets(rules: SecretRule[] = DEFAULT_SECRET_RULES): ValidationSummary {
   const results: SecretValidationResult[] = [];
   const missingRequired: string[] = [];
   const missingRecommended: string[] = [];
@@ -281,43 +279,50 @@ export function validateSecrets(
 /**
  * Validate secrets at startup and optionally fail
  */
-export function validateSecretsAtStartup(options: {
-  failOnMissing?: boolean;
-  failOnRecommended?: boolean;
-  rules?: SecretRule[];
-} = {}): ValidationSummary {
-  const {
-    failOnMissing = true,
-    failOnRecommended = false,
-    rules = DEFAULT_SECRET_RULES,
-  } = options;
+export function validateSecretsAtStartup(
+  options: {
+    failOnMissing?: boolean;
+    failOnRecommended?: boolean;
+    rules?: SecretRule[];
+  } = {}
+): ValidationSummary {
+  const { failOnMissing = true, failOnRecommended = false, rules = DEFAULT_SECRET_RULES } = options;
 
   const isProduction = process.env.NODE_ENV === 'production';
   const summary = validateSecrets(rules);
 
   // Log results
-  logger.info({
-    environment: process.env.NODE_ENV,
-    valid: summary.valid,
-    criticalErrors: summary.criticalErrors,
-    warnings: summary.warnings,
-  }, 'Secrets validation completed');
+  logger.info(
+    {
+      environment: process.env.NODE_ENV,
+      valid: summary.valid,
+      criticalErrors: summary.criticalErrors,
+      warnings: summary.warnings,
+    },
+    'Secrets validation completed'
+  );
 
   // Log details for each issue
   for (const result of summary.results) {
     if (result.error) {
       if (result.requirement === 'required') {
-        logger.error({
-          secret: result.secret,
-          envVar: result.envVar,
-          error: result.error,
-        }, `CRITICAL: ${result.secret} - ${result.error}`);
+        logger.error(
+          {
+            secret: result.secret,
+            envVar: result.envVar,
+            error: result.error,
+          },
+          `CRITICAL: ${result.secret} - ${result.error}`
+        );
       } else if (result.requirement === 'recommended') {
-        logger.warn({
-          secret: result.secret,
-          envVar: result.envVar,
-          error: result.error,
-        }, `WARNING: ${result.secret} - ${result.error}`);
+        logger.warn(
+          {
+            secret: result.secret,
+            envVar: result.envVar,
+            error: result.error,
+          },
+          `WARNING: ${result.secret} - ${result.error}`
+        );
       }
     }
   }
@@ -398,7 +403,7 @@ export function printSetupInstructions(summary: ValidationSummary): void {
   if (summary.criticalErrors > 0) {
     console.info('\n🔴 REQUIRED (application will not start):');
     for (const envVar of summary.missingRequired) {
-      const rule = DEFAULT_SECRET_RULES.find(r => r.envVar === envVar);
+      const rule = DEFAULT_SECRET_RULES.find((r) => r.envVar === envVar);
       console.info(`  - ${envVar}`);
       if (rule) {
         console.info(`    ${rule.description}`);
@@ -410,7 +415,7 @@ export function printSetupInstructions(summary: ValidationSummary): void {
   if (summary.warnings > 0) {
     console.info('\n🟡 RECOMMENDED (some features will be limited):');
     for (const envVar of summary.missingRecommended) {
-      const rule = DEFAULT_SECRET_RULES.find(r => r.envVar === envVar);
+      const rule = DEFAULT_SECRET_RULES.find((r) => r.envVar === envVar);
       console.info(`  - ${envVar}`);
       if (rule) {
         console.info(`    ${rule.description}`);

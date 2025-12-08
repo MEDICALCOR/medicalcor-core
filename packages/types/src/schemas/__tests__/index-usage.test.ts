@@ -35,7 +35,17 @@ describe('Index Usage Schemas', () => {
 
   describe('IndexTypeSchema', () => {
     it('should accept valid index types', () => {
-      const validTypes = ['btree', 'hash', 'gin', 'gist', 'spgist', 'brin', 'hnsw', 'ivfflat', 'unknown'];
+      const validTypes = [
+        'btree',
+        'hash',
+        'gin',
+        'gist',
+        'spgist',
+        'brin',
+        'hnsw',
+        'ivfflat',
+        'unknown',
+      ];
       for (const type of validTypes) {
         expect(IndexTypeSchema.safeParse(type).success).toBe(true);
       }
@@ -99,13 +109,21 @@ describe('Index Usage Schemas', () => {
     });
 
     it('should reject efficiency outside 0-1 range', () => {
-      expect(IndexUsageReportSchema.safeParse({ ...validReport, efficiency: -0.1 }).success).toBe(false);
-      expect(IndexUsageReportSchema.safeParse({ ...validReport, efficiency: 1.1 }).success).toBe(false);
+      expect(IndexUsageReportSchema.safeParse({ ...validReport, efficiency: -0.1 }).success).toBe(
+        false
+      );
+      expect(IndexUsageReportSchema.safeParse({ ...validReport, efficiency: 1.1 }).success).toBe(
+        false
+      );
     });
 
     it('should accept efficiency at boundary values', () => {
-      expect(IndexUsageReportSchema.safeParse({ ...validReport, efficiency: 0 }).success).toBe(true);
-      expect(IndexUsageReportSchema.safeParse({ ...validReport, efficiency: 1 }).success).toBe(true);
+      expect(IndexUsageReportSchema.safeParse({ ...validReport, efficiency: 0 }).success).toBe(
+        true
+      );
+      expect(IndexUsageReportSchema.safeParse({ ...validReport, efficiency: 1 }).success).toBe(
+        true
+      );
     });
 
     it('should coerce date strings to Date objects', () => {
@@ -144,8 +162,12 @@ describe('Index Usage Schemas', () => {
     });
 
     it('should reject negative counts', () => {
-      expect(IndexUsageSummarySchema.safeParse({ ...validSummary, totalIndexes: -1 }).success).toBe(false);
-      expect(IndexUsageSummarySchema.safeParse({ ...validSummary, unusedIndexes: -1 }).success).toBe(false);
+      expect(IndexUsageSummarySchema.safeParse({ ...validSummary, totalIndexes: -1 }).success).toBe(
+        false
+      );
+      expect(
+        IndexUsageSummarySchema.safeParse({ ...validSummary, unusedIndexes: -1 }).success
+      ).toBe(false);
     });
   });
 
@@ -184,9 +206,15 @@ describe('Index Usage Schemas', () => {
 
     it('should reject invalid threshold values', () => {
       expect(IndexMonitoringConfigSchema.safeParse({ unusedThresholdDays: 0 }).success).toBe(false);
-      expect(IndexMonitoringConfigSchema.safeParse({ unusedThresholdDays: -1 }).success).toBe(false);
-      expect(IndexMonitoringConfigSchema.safeParse({ healthyEfficiencyThreshold: 1.5 }).success).toBe(false);
-      expect(IndexMonitoringConfigSchema.safeParse({ healthyEfficiencyThreshold: -0.1 }).success).toBe(false);
+      expect(IndexMonitoringConfigSchema.safeParse({ unusedThresholdDays: -1 }).success).toBe(
+        false
+      );
+      expect(
+        IndexMonitoringConfigSchema.safeParse({ healthyEfficiencyThreshold: 1.5 }).success
+      ).toBe(false);
+      expect(
+        IndexMonitoringConfigSchema.safeParse({ healthyEfficiencyThreshold: -0.1 }).success
+      ).toBe(false);
     });
   });
 
@@ -284,7 +312,9 @@ describe('Index Usage Schemas', () => {
         const rec = { ...validRecommendation, priority };
         expect(IndexRecommendationSchema.safeParse(rec).success).toBe(true);
       }
-      expect(IndexRecommendationSchema.safeParse({ ...validRecommendation, priority: 'urgent' }).success).toBe(false);
+      expect(
+        IndexRecommendationSchema.safeParse({ ...validRecommendation, priority: 'urgent' }).success
+      ).toBe(false);
     });
   });
 });

@@ -86,13 +86,11 @@ Python
 Java
 
 C#
-    
-    
+
     curl -X PUT "https://api.shelbynet.shelby.xyz/shelby/v1/multipart-uploads/string/parts/0"
 
 200400
-    
-    
+
     {
       "success": true
     }

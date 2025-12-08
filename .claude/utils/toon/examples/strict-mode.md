@@ -5,11 +5,13 @@ Strict mode enforces additional validation rules for production TOON files.
 ## Enabling Strict Mode
 
 ### Zig CLI:
+
 ```bash
 toon validate data.toon --strict
 ```
 
 ### Decoder:
+
 ```zig
 var config = DecoderConfig.init();
 config.strict = true;
@@ -24,6 +26,7 @@ try toon.validate(toon_str, config);
 **Rule:** Indentation must be multiples of `indent_size` (default: 2 spaces).
 
 ✅ **Valid (2-space indent):**
+
 ```
 server:
   host: localhost
@@ -32,6 +35,7 @@ server:
 ```
 
 ❌ **Invalid (mixed 2 and 3 spaces):**
+
 ```
 server:
   host: localhost
@@ -40,6 +44,7 @@ server:
 ```
 
 **Error:**
+
 ```
 Line 3: Indentation must be multiple of 2 (found 3)
 ```
@@ -49,18 +54,21 @@ Line 3: Indentation must be multiple of 2 (found 3)
 **Rule:** Only spaces allowed for indentation (tabs can be values, but not indent).
 
 ✅ **Valid:**
+
 ```
 server:
   host: localhost
 ```
 
 ❌ **Invalid:**
+
 ```
 server:
 	host: localhost  ← Tab character used for indent
 ```
 
 **Error:**
+
 ```
 Line 2: Tab character found in indentation (use spaces only)
 ```
@@ -70,6 +78,7 @@ Line 2: Tab character found in indentation (use spaces only)
 **Rule:** Declared count `[N]` must equal actual rows.
 
 ✅ **Valid:**
+
 ```
 [3]{name,age}:
   Alice,30
@@ -78,6 +87,7 @@ Line 2: Tab character found in indentation (use spaces only)
 ```
 
 ❌ **Invalid (says 3, has 2):**
+
 ```
 [3]{name,age}:
   Alice,30
@@ -85,6 +95,7 @@ Line 2: Tab character found in indentation (use spaces only)
 ```
 
 **Error:**
+
 ```
 Array declared [3] items but found 2 rows
 ```
@@ -94,6 +105,7 @@ Array declared [3] items but found 2 rows
 **Rule:** All rows in tabular array must have same number of fields.
 
 ✅ **Valid:**
+
 ```
 [2]{name,age,city}:
   Alice,30,NYC
@@ -101,6 +113,7 @@ Array declared [3] items but found 2 rows
 ```
 
 ❌ **Invalid (row 2 missing city):**
+
 ```
 [2]{name,age,city}:
   Alice,30,NYC
@@ -108,6 +121,7 @@ Array declared [3] items but found 2 rows
 ```
 
 **Error:**
+
 ```
 Line 3: Expected 3 fields, found 2
 ```
@@ -117,6 +131,7 @@ Line 3: Expected 3 fields, found 2
 **Rule:** Tabular arrays can't have blank lines between rows.
 
 ✅ **Valid:**
+
 ```
 [2]{name,age}:
   Alice,30
@@ -124,6 +139,7 @@ Line 3: Expected 3 fields, found 2
 ```
 
 ❌ **Invalid:**
+
 ```
 [2]{name,age}:
   Alice,30
@@ -132,6 +148,7 @@ Line 3: Expected 3 fields, found 2
 ```
 
 **Error:**
+
 ```
 Line 3: Blank line not allowed within array
 ```
@@ -141,16 +158,19 @@ Line 3: Blank line not allowed within array
 **Rule:** Only `\\ \" \n \r \t` allowed in strings.
 
 ✅ **Valid:**
+
 ```
 path: "C:\\Users\\Alice"
 ```
 
 ❌ **Invalid:**
+
 ```
 text: "Alert: \a"
 ```
 
 **Error:**
+
 ```
 Line 1: Invalid escape sequence '\a' (valid: \\ \" \n \r \t)
 ```
@@ -164,6 +184,7 @@ toon validate data.toon  # Non-strict (default)
 ```
 
 **Output:**
+
 ```
 ⚠ Warning: Line 3: Indentation not multiple of 2
 ⚠ Warning: Line 5: Array count mismatch
@@ -208,6 +229,7 @@ toon validate output.toon --strict || exit 1
 ### Indentation Error
 
 **TOON:**
+
 ```
 server:
   host: localhost
@@ -215,6 +237,7 @@ server:
 ```
 
 **Strict mode output:**
+
 ```
 ❌ Error at line 3: Indentation must be multiple of 2 (found 3)
 Validation failed
@@ -223,6 +246,7 @@ Validation failed
 ### Array Count Error
 
 **TOON:**
+
 ```
 [5]{id,name}:
   1,Alice
@@ -231,6 +255,7 @@ Validation failed
 ```
 
 **Strict mode output:**
+
 ```
 ❌ Error at line 1: Array declared [5] but found 3 rows
 Validation failed
@@ -239,6 +264,7 @@ Validation failed
 ### Field Count Error
 
 **TOON:**
+
 ```
 [2]{name,age,city}:
   Alice,30,NYC
@@ -246,6 +272,7 @@ Validation failed
 ```
 
 **Strict mode output:**
+
 ```
 ❌ Error at line 3: Expected 3 fields, found 2
 Header: [2]{name,age,city}
@@ -256,11 +283,13 @@ Validation failed
 ### Invalid Escape Error
 
 **TOON:**
+
 ```
 path: "C:\Users\alice"
 ```
 
 **Strict mode output:**
+
 ```
 ❌ Error at line 1: Invalid escape sequence '\U'
 Valid sequences: \\ \" \n \r \t
@@ -277,6 +306,7 @@ toon validate data.toon --strict --indent 4
 ```
 
 **TOON with 4-space indent:**
+
 ```
 server:
     host: localhost
@@ -287,6 +317,7 @@ server:
 ## Strict Mode Performance
 
 Strict validation adds:
+
 - **+15% parse time** (extra checks)
 - **Same memory** (no additional allocation)
 
@@ -312,6 +343,7 @@ toon decode data.toon | toon encode > fixed.toon
 ### Manual fixes
 
 Use editor to:
+
 1. Replace tabs with spaces
 2. Align indentation to multiples of 2
 3. Fix array counts
@@ -326,6 +358,7 @@ Use editor to:
 ```
 
 **Example:**
+
 ```bash
 toon validate data.toon --strict
 if [ $? -eq 0 ]; then

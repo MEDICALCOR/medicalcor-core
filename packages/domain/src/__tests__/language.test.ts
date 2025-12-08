@@ -208,10 +208,7 @@ describe('LanguageService', () => {
       });
 
       it('should detect from message text when no preference', () => {
-        const lang = service.getLanguageForContact(
-          'newcontact',
-          'Hello, I need help'
-        );
+        const lang = service.getLanguageForContact('newcontact', 'Hello, I need help');
 
         expect(lang).toBe('en');
       });
@@ -413,7 +410,7 @@ describe('Medical Term Extraction', () => {
       toLanguage: 'ro',
     });
 
-    expect(result.medicalTerms.some(t => t.toLowerCase().includes('implant'))).toBe(true);
+    expect(result.medicalTerms.some((t) => t.toLowerCase().includes('implant'))).toBe(true);
   });
 
   it('should extract extraction terms', () => {
@@ -423,7 +420,7 @@ describe('Medical Term Extraction', () => {
       toLanguage: 'ro',
     });
 
-    expect(result.medicalTerms.some(t => t.toLowerCase().includes('extraction'))).toBe(true);
+    expect(result.medicalTerms.some((t) => t.toLowerCase().includes('extraction'))).toBe(true);
   });
 
   it('should extract whitening terms', () => {
@@ -433,7 +430,7 @@ describe('Medical Term Extraction', () => {
       toLanguage: 'ro',
     });
 
-    expect(result.medicalTerms.some(t => t.toLowerCase().includes('whitening'))).toBe(true);
+    expect(result.medicalTerms.some((t) => t.toLowerCase().includes('whitening'))).toBe(true);
   });
 
   it('should deduplicate extracted terms', () => {
@@ -443,8 +440,8 @@ describe('Medical Term Extraction', () => {
       toLanguage: 'ro',
     });
 
-    const implantCount = result.medicalTerms.filter(
-      t => t.toLowerCase().includes('implant')
+    const implantCount = result.medicalTerms.filter((t) =>
+      t.toLowerCase().includes('implant')
     ).length;
 
     // Should have unique terms, not all 3 mentions

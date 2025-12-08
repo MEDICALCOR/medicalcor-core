@@ -317,8 +317,15 @@ export const processNPSResponseWorkflow = task({
     factor: 2,
   },
   run: async (payload: z.infer<typeof NPSResponsePayloadSchema>) => {
-    const { surveyId, phone, hubspotContactId, messageContent, channel, receivedAt, correlationId } =
-      payload;
+    const {
+      surveyId,
+      phone,
+      hubspotContactId,
+      messageContent,
+      channel,
+      receivedAt,
+      correlationId,
+    } = payload;
 
     const { hubspot, whatsapp, openai, eventStore } = getClients();
     const responseId = crypto.randomUUID();
@@ -346,8 +353,7 @@ export const processNPSResponseWorkflow = task({
       if (whatsapp) {
         await whatsapp.sendText({
           to: phone,
-          text:
-            'Vă rugăm să răspundeți cu un număr de la 0 la 10 pentru a evalua experiența dumneavoastră.',
+          text: 'Vă rugăm să răspundeți cu un număr de la 0 la 10 pentru a evalua experiența dumneavoastră.',
         });
       }
 
@@ -457,7 +463,8 @@ export const processNPSResponseWorkflow = task({
         }
 
         if (sentimentScore !== undefined) {
-          updateProps.nps_sentiment = sentimentScore > 0.2 ? 'positive' : sentimentScore < -0.2 ? 'negative' : 'neutral';
+          updateProps.nps_sentiment =
+            sentimentScore > 0.2 ? 'positive' : sentimentScore < -0.2 ? 'negative' : 'neutral';
         }
 
         await hubspot.updateContact(hubspotContactId, updateProps);
@@ -657,7 +664,9 @@ async function checkSurveyFrequency(
 /**
  * Parse NPS score from message content
  */
-function parseNPSScore(message: string): { success: true; score: number; feedback?: string } | { success: false } {
+function parseNPSScore(
+  message: string
+): { success: true; score: number; feedback?: string } | { success: false } {
   const trimmed = message.trim();
 
   // Try to extract a number 0-10 from the beginning of the message

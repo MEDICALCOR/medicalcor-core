@@ -14,6 +14,7 @@ Guide users through creating effective Claude Code slash commands with proper st
 ## When to Use
 
 Auto-invoke when users mention:
+
 - **Creating commands** - "create command", "make command", "new slash command"
 - **Command structure** - "command template", "command format", "command frontmatter"
 - **Arguments** - "$ARGUMENTS", "$1", "$2", "command parameters", "positional args"
@@ -62,12 +63,14 @@ Let me help you create a Claude Code slash command! I need a few details:
 ### 2. Validate Input
 
 Check the command name:
+
 - Must be valid filename (no spaces, special chars except hyphen)
 - Descriptive and memorable
 - Won't conflict with built-in commands
 - Use hyphens (not underscores)
 
 Validate arguments:
+
 - Define expected arguments
 - Provide defaults if needed
 - Document argument order
@@ -75,11 +78,13 @@ Validate arguments:
 ### 3. Determine Command Type
 
 **Simple Prompt (no frontmatter):**
+
 ```markdown
 Analyze this code for performance issues and suggest optimizations.
 ```
 
 **With Arguments:**
+
 ```markdown
 ---
 argument-hint: [file-path]
@@ -90,6 +95,7 @@ Analyze the file at $1 for performance issues and suggest optimizations.
 ```
 
 **With Bash Execution:**
+
 ```markdown
 ---
 allowed-tools: Bash(git status:*), Bash(git diff:*)
@@ -108,6 +114,7 @@ Based on the above changes, create a git commit with a clear, conventional commi
 ```
 
 **Full-Featured:**
+
 ```markdown
 ---
 allowed-tools: Bash(npm run:*), Bash(git add:*), Bash(git commit:*)
@@ -143,6 +150,7 @@ Execute the following workflow:
 Create command structure based on complexity:
 
 **Template for Simple Command:**
+
 ```markdown
 Brief description of what the command does.
 
@@ -150,6 +158,7 @@ Brief description of what the command does.
 ```
 
 **Template for Command with Frontmatter:**
+
 ```markdown
 ---
 argument-hint: [arg1] [arg2]
@@ -170,7 +179,7 @@ Usage: /command-name [args]
 
 Structure the workflow with clear steps:
 
-```markdown
+````markdown
 Execute the following workflow:
 
 1. **Step Name**
@@ -178,9 +187,11 @@ Execute the following workflow:
    # Bash command (if needed)
    command arg1 arg2
    ```
-   - What this step does
-   - Validation checks
-   - Error handling
+````
+
+- What this step does
+- Validation checks
+- Error handling
 
 2. **Next Step**
    [Instructions for Claude]
@@ -192,26 +203,31 @@ Execute the following workflow:
    - Summary of results
    - Next actions for user
    - Success criteria
-```
+
+````
 
 ### 6. Add Argument Handling
 
 **All Arguments ($ARGUMENTS):**
 ```markdown
 Fix issue #$ARGUMENTS following our coding standards.
-```
+````
+
 User runs: `/fix-issue 123 high-priority`
 Becomes: "Fix issue #123 high-priority following our coding standards."
 
 **Positional Arguments ($1, $2, $3):**
+
 ```markdown
 Review PR #$1 with priority $2 and assign to $3.
 Focus on: $4
 ```
+
 User runs: `/review-pr 456 high alice security`
 Becomes individual parameters you can reference separately.
 
 **With Defaults:**
+
 ```markdown
 ---
 argument-hint: [environment] [branch]
@@ -242,6 +258,7 @@ allowed-tools: Bash(git:*)
 ```
 
 **Important:**
+
 - Must specify `allowed-tools` with specific Bash permissions
 - Output is included in command context
 - Commands run before Claude processes the prompt
@@ -277,12 +294,14 @@ These keywords can trigger extended thinking mode.
 Save to correct location:
 
 **Personal command:**
+
 ```bash
 ~/.claude/commands/command-name.md
 ~/.claude/commands/category/command-name.md  # With namespace
 ```
 
 **Project command:**
+
 ```bash
 .claude/commands/command-name.md
 .claude/commands/category/command-name.md  # With namespace
@@ -302,6 +321,7 @@ To test your command:
 ```
 
 **Test cases:**
+
 ```bash
 # No arguments
 /your-command
@@ -317,13 +337,13 @@ To test your command:
 
 ## Frontmatter Reference
 
-Field| Purpose| Example
----|---|---
-`argument-hint`| Show expected arguments in autocomplete| `[pr-number] [priority]`
-`description`| Brief description for `/help` menu| `Review pull request`
-`allowed-tools`| Tools command can use| `Bash(git:*), Read, Write`
-`model`| Specific model to use| `claude-sonnet-4-5-20250929`
-`disable-model-invocation`| Prevent SlashCommand tool from calling this| `true`
+| Field                      | Purpose                                     | Example                      |
+| -------------------------- | ------------------------------------------- | ---------------------------- |
+| `argument-hint`            | Show expected arguments in autocomplete     | `[pr-number] [priority]`     |
+| `description`              | Brief description for `/help` menu          | `Review pull request`        |
+| `allowed-tools`            | Tools command can use                       | `Bash(git:*), Read, Write`   |
+| `model`                    | Specific model to use                       | `claude-sonnet-4-5-20250929` |
+| `disable-model-invocation` | Prevent SlashCommand tool from calling this | `true`                       |
 
 ## Bash Tool Permissions
 
@@ -336,6 +356,7 @@ allowed-tools: Bash(git add:*), Bash(git commit:*), Bash(git push:*)
 ```
 
 **Permission patterns:**
+
 - `Bash(git:*)` - All git commands
 - `Bash(npm run:*)` - All npm run scripts
 - `Bash(git add:*), Bash(git commit:*)` - Specific git commands
@@ -343,20 +364,25 @@ allowed-tools: Bash(git add:*), Bash(git commit:*), Bash(git push:*)
 ## Argument Patterns
 
 ### Pattern 1: All Arguments
+
 ```markdown
 Run tests for: $ARGUMENTS
 ```
+
 Usage: `/test users api database`
 Becomes: "Run tests for: users api database"
 
 ### Pattern 2: Positional
+
 ```markdown
 Deploy $1 to $2 environment with tag $3
 ```
+
 Usage: `/deploy my-app staging v1.2.3`
 Becomes: "Deploy my-app to staging environment with tag v1.2.3"
 
 ### Pattern 3: Mixed
+
 ```markdown
 ---
 argument-hint: <file> [rest of args]
@@ -364,17 +390,21 @@ argument-hint: <file> [rest of args]
 
 Analyze file $1 for: $ARGUMENTS
 ```
+
 Usage: `/analyze src/app.js performance security`
 Becomes: "Analyze file src/app.js for: src/app.js performance security"
 Note: $ARGUMENTS includes all args, so $1 is duplicated
 
 **Better approach:**
+
 ```markdown
 Analyze file $1 for: ${2:+${@:2}}
 ```
+
 This uses $1 separately and remaining args starting from $2
 
 ### Pattern 4: With Defaults
+
 ```markdown
 Environment: ${1:-production}
 Verbose: ${2:-false}
@@ -387,6 +417,7 @@ Verbose: ${2:-false}
 - ❌ **Too large:** > 250 lines (must refactor)
 
 **If too large:**
+
 - Extract to external script
 - Split into multiple commands
 - Use sub-commands pattern
@@ -394,6 +425,7 @@ Verbose: ${2:-false}
 ## Common Command Types
 
 ### 1. Git Workflow
+
 ```markdown
 ---
 allowed-tools: Bash(git:*)
@@ -401,6 +433,7 @@ description: Create conventional commit
 ---
 
 ## Context
+
 - Status: !`git status --short`
 - Diff: !`git diff HEAD`
 
@@ -408,6 +441,7 @@ Create a conventional commit message.
 ```
 
 ### 2. Code Generator
+
 ```markdown
 ---
 argument-hint: [component-name]
@@ -415,12 +449,14 @@ description: Generate React component
 ---
 
 Create a new React component named $1:
+
 - Component file
 - Test file
 - Storybook story
 ```
 
 ### 3. Analysis Tool
+
 ```markdown
 ---
 argument-hint: [file-path]
@@ -428,12 +464,14 @@ description: Analyze code complexity
 ---
 
 Analyze @$1 for:
+
 - Cyclomatic complexity
 - Code smells
 - Improvement suggestions
 ```
 
 ### 4. Deployment Helper
+
 ```markdown
 ---
 allowed-tools: Bash(npm:*), Bash(git:*)
@@ -442,12 +480,14 @@ description: Deploy to environment
 ---
 
 Deploy to ${1:-staging}:
+
 1. Run tests: !`npm test`
 2. Build: !`npm run build`
 3. Deploy: !`npm run deploy:$1`
 ```
 
 ### 5. Documentation Generator
+
 ```markdown
 ---
 argument-hint: [file-pattern]
@@ -456,6 +496,7 @@ description: Generate API documentation
 
 Generate documentation for: $1
 Include:
+
 - Function signatures
 - Parameters
 - Return types
@@ -465,6 +506,7 @@ Include:
 ## Examples from TOON Formatter
 
 **Simple version:**
+
 ```markdown
 # Convert to TOON
 
@@ -474,6 +516,7 @@ Usage: /convert-to-toon <file>
 ```
 
 **Advanced version with bash:**
+
 ```markdown
 ---
 allowed-tools: Bash(jq:*), Bash(.claude/utils/toon/zig-out/bin/toon:*)
@@ -497,6 +540,7 @@ Delimiter: ${2:-comma}
 ### Command Not Found
 
 **Check:**
+
 ```bash
 # List all commands
 ls ~/.claude/commands/*.md
@@ -507,6 +551,7 @@ ls .claude/commands/your-command.md
 ```
 
 **Remember:**
+
 - Filename (without `.md`) becomes command name
 - Hyphens in filename become hyphens in command
 - Case-sensitive on Linux/Mac
@@ -514,6 +559,7 @@ ls .claude/commands/your-command.md
 ### Arguments Not Working
 
 **Debug:**
+
 ```markdown
 Debug: $ARGUMENTS
 Debug $1: "$1"
@@ -525,6 +571,7 @@ Run command and check output to see what's being passed.
 ### Bash Commands Not Executing
 
 **Check:**
+
 1. `allowed-tools` includes correct Bash permissions
 2. Using `!` prefix: `!`command``
 3. Backticks are correct: \`command\` not 'command'
@@ -533,6 +580,7 @@ Run command and check output to see what's being passed.
 ### Command Not in /help
 
 **Possible reasons:**
+
 - File not in correct location
 - File doesn't have `.md` extension
 - Syntax error in frontmatter
@@ -541,6 +589,7 @@ Run command and check output to see what's being passed.
 ## Best Practices
 
 ### DO:
+
 ✅ Provide clear argument hints
 ✅ Include usage examples
 ✅ Handle errors gracefully
@@ -550,6 +599,7 @@ Run command and check output to see what's being passed.
 ✅ Use descriptive command names
 
 ### DON'T:
+
 ❌ Make commands too complex (>250 lines)
 ❌ Forget to specify allowed-tools for Bash
 ❌ Use unclear argument names
@@ -560,18 +610,21 @@ Run command and check output to see what's being passed.
 ## Comparison: Commands vs Skills
 
 **Use Commands when:**
+
 - You want explicit control (manual invocation)
 - Simple, repetitive prompts
 - Specific workflow steps
 - Frequently-used templates
 
 **Use Skills when:**
+
 - Claude should auto-detect need
 - Complex, multi-file workflows
 - Comprehensive domain knowledge
 - Team needs standardized expertise
 
 **Can use both:**
+
 - Command invokes skill explicitly
 - Skill activates automatically
 - Command provides quick access

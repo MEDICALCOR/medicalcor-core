@@ -31,6 +31,12 @@ const DEFAULT_PROCEDURE_TYPE = 'consultation';
  */
 const MAX_SLOTS_PER_DAY = 50;
 
+/**
+ * Default clinic ID for slot queries
+ * @constant
+ */
+const DEFAULT_CLINIC_ID = process.env.DEFAULT_CLINIC_ID ?? 'default-clinic';
+
 // ============================================================================
 // CALENDAR ACTIONS
 // ============================================================================
@@ -68,6 +74,7 @@ export async function getCalendarSlotsAction(dateStr: string): Promise<CalendarS
     // Fetch both available slots and booked appointments in parallel
     const [availableSlots, appointments] = await Promise.all([
       scheduling.getAvailableSlots({
+        clinicId: DEFAULT_CLINIC_ID,
         procedureType: DEFAULT_PROCEDURE_TYPE,
         preferredDates: [dateStr],
         limit: MAX_SLOTS_PER_DAY,
@@ -101,9 +108,7 @@ export async function getCalendarSlotsAction(dateStr: string): Promise<CalendarS
     }
 
     // Convert to array and sort by time
-    const allSlots = Array.from(slotMap.values()).sort((a, b) =>
-      a.time.localeCompare(b.time)
-    );
+    const allSlots = Array.from(slotMap.values()).sort((a, b) => a.time.localeCompare(b.time));
 
     return allSlots;
   } catch (error) {
@@ -156,6 +161,7 @@ export async function getAvailableSlotsRangeAction(
     }
 
     const availableSlots = await scheduling.getAvailableSlots({
+      clinicId: DEFAULT_CLINIC_ID,
       procedureType,
       preferredDates: dates,
       limit: MAX_SLOTS_PER_DAY * dates.length,
@@ -239,9 +245,16 @@ export async function bookAppointmentAction(
       notes: request.notes,
     });
 
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error,
+      };
+    }
+
     return {
       success: true,
-      appointmentId: result.id,
+      appointmentId: result.appointmentId,
     };
   } catch (error) {
     // SECURITY FIX: Only log in non-production to avoid console noise

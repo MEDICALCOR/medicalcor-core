@@ -8,16 +8,16 @@
 
 ## 📊 EXECUTIVE SUMMARY
 
-| Categorie | Scor | Status |
-|-----------|------|--------|
-| **Securitate** | 8.5/10 | ✅ Bun |
-| **Calitate Cod** | 7.5/10 | 🟡 Necesită îmbunătățiri |
-| **Type Safety** | 7.7/10 | 🟡 Solid cu puncte slabe |
-| **Error Handling** | 7.8/10 | 🟡 Funcțional dar inconsistent |
-| **Performanță** | 5.8/10 | 🔴 Suboptimal |
-| **Test Coverage** | 3/10 | 🔴 Critic - ~15-20% |
-| **Dependențe** | 8.5/10 | ✅ Bun |
-| **OVERALL** | **6.9/10** | ⚠️ **NECESITĂ ATENȚIE** |
+| Categorie          | Scor       | Status                         |
+| ------------------ | ---------- | ------------------------------ |
+| **Securitate**     | 8.5/10     | ✅ Bun                         |
+| **Calitate Cod**   | 7.5/10     | 🟡 Necesită îmbunătățiri       |
+| **Type Safety**    | 7.7/10     | 🟡 Solid cu puncte slabe       |
+| **Error Handling** | 7.8/10     | 🟡 Funcțional dar inconsistent |
+| **Performanță**    | 5.8/10     | 🔴 Suboptimal                  |
+| **Test Coverage**  | 3/10       | 🔴 Critic - ~15-20%            |
+| **Dependențe**     | 8.5/10     | ✅ Bun                         |
+| **OVERALL**        | **6.9/10** | ⚠️ **NECESITĂ ATENȚIE**        |
 
 **Verdict:** Proiectul are o arhitectură solidă și bune practici de securitate, dar necesită îmbunătățiri semnificative în testare și performanță înainte de production.
 
@@ -26,23 +26,26 @@
 ## 📁 STRUCTURA PROIECTULUI
 
 ### Arhitectură
+
 - **Tip:** Monorepo cu Turbo + pnpm
 - **Pattern:** CQRS + Event Sourcing + Microservices-ready
 - **Runtime:** Node.js >=20.0.0
 
 ### Stack Tehnologic
-| Component | Tehnologie | Versiune |
-|-----------|-----------|----------|
-| API Framework | Fastify | 5.1.0 |
-| Frontend | Next.js | 15.5.6 |
-| Language | TypeScript | 5.6.3 |
-| Database | PostgreSQL | pg 8.16.3 |
-| Cache | Redis | ioredis 5.8.2 |
-| Background Jobs | Trigger.dev | 3.1.0 |
-| AI | OpenAI | 4.70.0 |
-| Testing | Vitest | 2.1.4 |
+
+| Component       | Tehnologie  | Versiune      |
+| --------------- | ----------- | ------------- |
+| API Framework   | Fastify     | 5.1.0         |
+| Frontend        | Next.js     | 15.5.6        |
+| Language        | TypeScript  | 5.6.3         |
+| Database        | PostgreSQL  | pg 8.16.3     |
+| Cache           | Redis       | ioredis 5.8.2 |
+| Background Jobs | Trigger.dev | 3.1.0         |
+| AI              | OpenAI      | 4.70.0        |
+| Testing         | Vitest      | 2.1.4         |
 
 ### Pachete
+
 ```
 apps/
 ├── api/          → Fastify Webhook Gateway
@@ -63,27 +66,29 @@ packages/
 
 ### Scorecard OWASP Top 10
 
-| Vulnerabilitate | Status | Detalii |
-|-----------------|--------|---------|
-| **SQL Injection** | ✅ Protejat | Query-uri parametrizate |
-| **Broken Auth** | ✅ Bun | bcrypt cost 12, rate limiting |
-| **Sensitive Data** | ✅ Bun | PII redaction în logs |
-| **XXE** | ✅ N/A | Nu se parsează XML |
-| **Broken Access Control** | ✅ Excelent | RBAC implementat |
-| **Security Misconfig** | ✅ Bun | Helmet, CORS restrictiv |
-| **XSS** | ✅ Protejat | Nu e dangerouslySetInnerHTML |
-| **Insecure Deserialization** | ✅ Validat | Zod pe toate endpoints |
-| **Vulnerable Dependencies** | ⚠️ Minor | esbuild (doar dev) |
-| **Insufficient Logging** | ✅ Bun | OpenTelemetry + Pino |
+| Vulnerabilitate              | Status      | Detalii                       |
+| ---------------------------- | ----------- | ----------------------------- |
+| **SQL Injection**            | ✅ Protejat | Query-uri parametrizate       |
+| **Broken Auth**              | ✅ Bun      | bcrypt cost 12, rate limiting |
+| **Sensitive Data**           | ✅ Bun      | PII redaction în logs         |
+| **XXE**                      | ✅ N/A      | Nu se parsează XML            |
+| **Broken Access Control**    | ✅ Excelent | RBAC implementat              |
+| **Security Misconfig**       | ✅ Bun      | Helmet, CORS restrictiv       |
+| **XSS**                      | ✅ Protejat | Nu e dangerouslySetInnerHTML  |
+| **Insecure Deserialization** | ✅ Validat  | Zod pe toate endpoints        |
+| **Vulnerable Dependencies**  | ⚠️ Minor    | esbuild (doar dev)            |
+| **Insufficient Logging**     | ✅ Bun      | OpenTelemetry + Pino          |
 
 ### Vulnerabilități Identificate
 
 #### 🔴 CRITICE
+
 1. **SQL Table Name Interpolation**
    - Locație: `packages/core/src/event-store.ts:149-175`
    - Fix: Validare whitelist pentru table names
 
 #### 🟠 IMPORTANTE
+
 2. **NextAuth Beta în Production**
    - Pachet: `next-auth: ^5.0.0-beta.25`
    - Fix: Upgrade la versiune stabilă
@@ -93,6 +98,7 @@ packages/
    - Fix: Throw error în production dacă nu e configurat
 
 ### Recomandări Securitate
+
 ```typescript
 // 1. Validare table name (event-store.ts)
 const validTableNames = ['domain_events'];
@@ -113,18 +119,21 @@ if (!process.env.NEXTAUTH_SECRET && process.env.NODE_ENV === 'production') {
 ### Code Smells Identificate
 
 #### Fișiere Prea Lungi
-| Fișier | Linii | Problemă |
-|--------|-------|----------|
-| `whatsapp.ts` | 892 | God object - multiple responsabilități |
-| `patient-journey.ts` | 941 | Workflow monolitic |
-| `medical-functions.ts` | 734 | 50+ funcții în același fișier |
-| `get-patients.ts` | 1447 | Server action supradimensionat |
+
+| Fișier                 | Linii | Problemă                               |
+| ---------------------- | ----- | -------------------------------------- |
+| `whatsapp.ts`          | 892   | God object - multiple responsabilități |
+| `patient-journey.ts`   | 941   | Workflow monolitic                     |
+| `medical-functions.ts` | 734   | 50+ funcții în același fișier          |
+| `get-patients.ts`      | 1447  | Server action supradimensionat         |
 
 #### Deep Nesting (>3 nivele)
+
 - `whatsapp.ts:403-467` - Request handler
 - `scoring-service.ts:131-152` - Rule processing
 
 #### Magic Numbers
+
 - `lead-context.ts:164` → `20` (MAX_MESSAGE_HISTORY)
 - `medical-functions.ts:21` → `2000` (MAX_MESSAGE_CONTENT)
 - `app.ts:101-107` → Rate limits hardcodate
@@ -132,6 +141,7 @@ if (!process.env.NEXTAUTH_SECRET && process.env.NODE_ENV === 'production') {
 ### Antipatterns Detectate
 
 1. **Lazy Initialization Antipattern**
+
    ```typescript
    // ❌ Race condition în concurrent requests
    let hubspotClient: HubSpotClient | null = null;
@@ -151,13 +161,13 @@ if (!process.env.NEXTAUTH_SECRET && process.env.NODE_ENV === 'production') {
 
 ### Recomandări Refactoring
 
-| Prioritate | Acțiune | Efort |
-|------------|---------|-------|
-| 🔴 Critical | Split `whatsapp.ts` în 3 module | 4h |
-| 🔴 Critical | Fix race condition `get-patients.ts` | 1h |
-| 🟠 Major | Centralizare magic numbers | 2h |
-| 🟠 Major | Standardizare error handling | 3h |
-| 🟡 Medium | Replace `console.*` cu logger | 1h |
+| Prioritate  | Acțiune                              | Efort |
+| ----------- | ------------------------------------ | ----- |
+| 🔴 Critical | Split `whatsapp.ts` în 3 module      | 4h    |
+| 🔴 Critical | Fix race condition `get-patients.ts` | 1h    |
+| 🟠 Major    | Centralizare magic numbers           | 2h    |
+| 🟠 Major    | Standardizare error handling         | 3h    |
+| 🟡 Medium   | Replace `console.*` cu logger        | 1h    |
 
 ---
 
@@ -165,18 +175,19 @@ if (!process.env.NEXTAUTH_SECRET && process.env.NODE_ENV === 'production') {
 
 ### Scorecard
 
-| Categorie | Scor | Status |
-|-----------|------|--------|
-| Strict Mode Config | 10/10 | ✅ Excelent |
-| Generic Types | 9/10 | ✅ Foarte Bun |
-| Type Exports | 8/10 | ✅ Bun |
-| Null Safety | 7/10 | ⚠️ Moderat |
-| Type Assertions | 5/10 | ❌ Problematic |
-| Non-null Usage | 6/10 | ❌ Problematic |
+| Categorie          | Scor  | Status         |
+| ------------------ | ----- | -------------- |
+| Strict Mode Config | 10/10 | ✅ Excelent    |
+| Generic Types      | 9/10  | ✅ Foarte Bun  |
+| Type Exports       | 8/10  | ✅ Bun         |
+| Null Safety        | 7/10  | ⚠️ Moderat     |
+| Type Assertions    | 5/10  | ❌ Problematic |
+| Non-null Usage     | 6/10  | ❌ Problematic |
 
 ### Probleme Type Safety
 
 #### `as any` Usage (4 instanțe critice)
+
 ```typescript
 // telemetry.ts:96-97
 sdk = new NodeSDK({
@@ -189,14 +200,16 @@ registry.register(fn as any, inputSchema as any, ...); // ❌
 ```
 
 #### Non-Null Assertions (20+ instanțe)
+
 ```typescript
 // ❌ Problematic
-intents[0]!.confidence          // ai-router.ts:393
-result.rows[0]!                 // auth-event-repository.ts:55
-externalServiceHealth[service]! // diagnostics.ts:260
+intents[0]!.confidence; // ai-router.ts:393
+result.rows[0]!; // auth-event-repository.ts:55
+externalServiceHealth[service]!; // diagnostics.ts:260
 ```
 
 ### Recomandări
+
 1. Fix OpenTelemetry version mismatch pentru a elimina `as any`
 2. Înlocuire `!` assertions cu validări explicite
 3. Consolidare `LeadContextSchema` (există 2 definiții conflictuale)
@@ -210,6 +223,7 @@ externalServiceHealth[service]! // diagnostics.ts:260
 ### Probleme Critice
 
 #### 🔴 Memory Leaks
+
 1. **WebSocket Event Listeners**
    - Locație: `use-websocket.ts:148-152`
    - Handlers nu sunt curățați la disconnect
@@ -221,32 +235,35 @@ externalServiceHealth[service]! // diagnostics.ts:260
    - Impact: 50-100MB după 100K events
 
 #### 🔴 Database N+1 Queries
+
 ```typescript
 // auth-service.ts:219-232 - Login flow face 3 queries în loc de 1
-const activeCount = await sessionRepo.countActiveForUser(userId);  // Query 1
+const activeCount = await sessionRepo.countActiveForUser(userId); // Query 1
 const activeSessions = await sessionRepo.getActiveForUser(userId); // Query 2
-await sessionRepo.revoke(oldest.id, 'max_sessions');               // Query 3
+await sessionRepo.revoke(oldest.id, 'max_sessions'); // Query 3
 ```
 
 #### 🔴 Zero Caching
+
 - Niciun layer de cache Redis pentru API responses
 - Fiecare request merge direct la DB + external APIs
 - OpenAI rate limiting risk
 
 #### 🔴 No Response Compression
+
 - Lipsă gzip/brotli în Fastify
 - 10KB JSON → 2KB cu compression (5x savings)
 
 ### Optimizări Recomandate
 
-| Prioritate | Optimizare | Impact | Efort |
-|------------|-----------|--------|-------|
-| 🔴 1 | Adaugă Redis caching | 50% latency reduction | 1 zi |
-| 🔴 2 | Combină N+1 queries | 40% DB load reduction | 2 zile |
-| 🔴 3 | Adaugă compression | 5x smaller payloads | 2h |
-| 🟠 4 | Indexuri database | 10x query speed | 4h |
-| 🟠 5 | Graceful shutdown | No connection leaks | 2h |
-| 🟠 6 | Image optimization | 80% smaller images | 1 zi |
+| Prioritate | Optimizare           | Impact                | Efort  |
+| ---------- | -------------------- | --------------------- | ------ |
+| 🔴 1       | Adaugă Redis caching | 50% latency reduction | 1 zi   |
+| 🔴 2       | Combină N+1 queries  | 40% DB load reduction | 2 zile |
+| 🔴 3       | Adaugă compression   | 5x smaller payloads   | 2h     |
+| 🟠 4       | Indexuri database    | 10x query speed       | 4h     |
+| 🟠 5       | Graceful shutdown    | No connection leaks   | 2h     |
+| 🟠 6       | Image optimization   | 80% smaller images    | 1 zi   |
 
 ---
 
@@ -255,6 +272,7 @@ await sessionRepo.revoke(oldest.id, 'max_sessions');               // Query 3
 ### Scorecard: 7.8/10
 
 ### Puncte Forte
+
 - ✅ Custom error classes bine structurate (`AppError`, `ValidationError`, etc.)
 - ✅ PII redaction comprehensiv (28+ câmpuri)
 - ✅ Global error handlers pentru uncaughtException/unhandledRejection
@@ -263,6 +281,7 @@ await sessionRepo.revoke(oldest.id, 'max_sessions');               // Query 3
 ### Probleme Identificate
 
 #### Console.log în Production (13 fișiere)
+
 ```bash
 # Fișiere cu console usage
 apps/api/src/index.ts
@@ -271,10 +290,12 @@ apps/web/src/app/actions/get-patients.ts (13 occurrences!)
 ```
 
 #### Circuit Breaker Nefolosit
+
 - Implementat în `packages/core/src/circuit-breaker.ts`
 - **0 utilizări** în cod production
 
 #### Trigger.dev Tasks fără Error Handling
+
 ```typescript
 // ❌ Task-urile nu au try-catch
 export const handleWhatsAppMessage = task({
@@ -287,6 +308,7 @@ export const handleWhatsAppMessage = task({
 ```
 
 ### Recomandări
+
 1. Înlocuire `console.log` cu `logger.info/error` (13 fișiere)
 2. Activare circuit breaker în integrations
 3. Adăugare error handling în Trigger.dev tasks
@@ -300,49 +322,52 @@ export const handleWhatsAppMessage = task({
 
 ### Statistici
 
-| Metric | Valoare |
-|--------|---------|
-| Total Test Files | 13 |
-| Total Test Lines | ~3,473 |
-| Source Files | ~150+ |
+| Metric             | Valoare    |
+| ------------------ | ---------- |
+| Total Test Files   | 13         |
+| Total Test Lines   | ~3,473     |
+| Source Files       | ~150+      |
 | Estimated Coverage | **15-20%** |
-| Production Ready | ❌ NO |
+| Production Ready   | ❌ NO      |
 
 ### Coverage by Package
 
-| Package | Coverage | Status |
-|---------|----------|--------|
-| core | 19.4% | 🟡 Low |
-| domain | 15.4% | 🟡 Low |
-| integrations | 12.5% | 🔴 Very Low |
-| api | 5.9% | 🔴 Critical |
-| web | 0% | 🔴 Critical |
-| trigger | ~30% | 🟡 Low-Medium |
+| Package      | Coverage | Status        |
+| ------------ | -------- | ------------- |
+| core         | 19.4%    | 🟡 Low        |
+| domain       | 15.4%    | 🟡 Low        |
+| integrations | 12.5%    | 🔴 Very Low   |
+| api          | 5.9%     | 🔴 Critical   |
+| web          | 0%       | 🔴 Critical   |
+| trigger      | ~30%     | 🟡 Low-Medium |
 
 ### Funcționalități Critice FĂRĂ Teste
 
-| Funcționalitate | Impact | Coverage |
-|-----------------|--------|----------|
-| 🔴 Autentificare | CRITICAL | ~5% |
-| 🔴 Payment Processing | CRITICAL | 0% |
-| 🔴 CRM Integration | CRITICAL | 0% |
-| 🔴 WhatsApp Communication | CRITICAL | 0% |
-| 🔴 Patient UI | CRITICAL | 0% |
-| 🔴 GDPR Consent | CRITICAL | 0% |
+| Funcționalitate           | Impact   | Coverage |
+| ------------------------- | -------- | -------- |
+| 🔴 Autentificare          | CRITICAL | ~5%      |
+| 🔴 Payment Processing     | CRITICAL | 0%       |
+| 🔴 CRM Integration        | CRITICAL | 0%       |
+| 🔴 WhatsApp Communication | CRITICAL | 0%       |
+| 🔴 Patient UI             | CRITICAL | 0%       |
+| 🔴 GDPR Consent           | CRITICAL | 0%       |
 
 ### Plan de Testare Recomandat
 
 **Săptămâna 1-2: Critical Paths**
+
 - Authentication tests: 200 linii
 - Payment processing: 300 linii
 - GDPR consent: 200 linii
 
 **Săptămâna 3-4: Integrations**
+
 - HubSpot: 300 linii
 - WhatsApp: 200 linii
 - Database layer: 250 linii
 
 **Săptămâna 5-6: E2E**
+
 - E2E test suite: 400 linii
 - Performance tests: 150 linii
 
@@ -357,14 +382,16 @@ export const handleWhatsAppMessage = task({
 ### Probleme Identificate
 
 #### Inconsistență Versiuni
-| Pachet | Versiuni | Locații |
-|--------|----------|---------|
-| zod | ^3.23.0, ^3.23.8 | 7 package.json |
-| uuid | ^10.0.0, ^11.0.3 | core, domain |
-| @types/node | ^20.10.0, ^22.9.0 | root, packages |
-| @types/bcryptjs | ^2.4.6, ^3.0.0 | core, web |
+
+| Pachet          | Versiuni          | Locații        |
+| --------------- | ----------------- | -------------- |
+| zod             | ^3.23.0, ^3.23.8  | 7 package.json |
+| uuid            | ^10.0.0, ^11.0.3  | core, domain   |
+| @types/node     | ^20.10.0, ^22.9.0 | root, packages |
+| @types/bcryptjs | ^2.4.6, ^3.0.0    | core, web      |
 
 #### Vulnerabilitate esbuild
+
 ```
 esbuild <= 0.24.2
 Severity: moderate
@@ -372,6 +399,7 @@ Impact: Development only
 ```
 
 ### Recomandări
+
 1. Standardizare zod la `^3.23.8`
 2. Standardizare uuid la `^11.0.3`
 3. Update esbuild pentru fix security
@@ -383,39 +411,40 @@ Impact: Development only
 
 ### 🔴 CRITICE (Săptămâna 1)
 
-| # | Acțiune | Fișier | Efort |
-|---|---------|--------|-------|
-| 1 | Add authentication tests | auth/*.ts | 4h |
-| 2 | Add payment processing tests | stripe.ts | 4h |
-| 3 | Fix race condition | get-patients.ts | 1h |
-| 4 | Add Redis caching | api/app.ts | 4h |
-| 5 | Add gzip compression | api/app.ts | 1h |
+| #   | Acțiune                      | Fișier          | Efort |
+| --- | ---------------------------- | --------------- | ----- |
+| 1   | Add authentication tests     | auth/\*.ts      | 4h    |
+| 2   | Add payment processing tests | stripe.ts       | 4h    |
+| 3   | Fix race condition           | get-patients.ts | 1h    |
+| 4   | Add Redis caching            | api/app.ts      | 4h    |
+| 5   | Add gzip compression         | api/app.ts      | 1h    |
 
 ### 🟠 IMPORTANTE (Săptămâna 2-3)
 
-| # | Acțiune | Fișier | Efort |
-|---|---------|--------|-------|
-| 6 | Split whatsapp.ts | integrations/ | 4h |
-| 7 | Fix N+1 queries | auth-service.ts | 3h |
-| 8 | Add GDPR consent tests | consent/*.ts | 3h |
-| 9 | Standardize error handling | Multiple | 3h |
-| 10 | Fix memory leaks | use-websocket.ts | 2h |
+| #   | Acțiune                    | Fișier           | Efort |
+| --- | -------------------------- | ---------------- | ----- |
+| 6   | Split whatsapp.ts          | integrations/    | 4h    |
+| 7   | Fix N+1 queries            | auth-service.ts  | 3h    |
+| 8   | Add GDPR consent tests     | consent/\*.ts    | 3h    |
+| 9   | Standardize error handling | Multiple         | 3h    |
+| 10  | Fix memory leaks           | use-websocket.ts | 2h    |
 
 ### 🟡 MEDIU (Săptămâna 4+)
 
-| # | Acțiune | Fișier | Efort |
-|---|---------|--------|-------|
-| 11 | Activate circuit breaker | integrations/ | 2h |
-| 12 | Add database indexes | SQL migrations | 2h |
-| 13 | Replace console.log | 13 fișiere | 2h |
-| 14 | Add E2E tests | web/ | 8h |
-| 15 | Fix type assertions | Multiple | 3h |
+| #   | Acțiune                  | Fișier         | Efort |
+| --- | ------------------------ | -------------- | ----- |
+| 11  | Activate circuit breaker | integrations/  | 2h    |
+| 12  | Add database indexes     | SQL migrations | 2h    |
+| 13  | Replace console.log      | 13 fișiere     | 2h    |
+| 14  | Add E2E tests            | web/           | 8h    |
+| 15  | Fix type assertions      | Multiple       | 3h    |
 
 ---
 
 ## 📋 CHECKLIST PRODUCTION READINESS
 
 ### Securitate
+
 - [x] SQL injection protection
 - [x] Authentication cu bcrypt
 - [x] Rate limiting pe webhooks
@@ -424,6 +453,7 @@ Impact: Development only
 - [ ] NextAuth upgrade de la beta
 
 ### Calitate Cod
+
 - [x] TypeScript strict mode
 - [x] ESLint + Prettier configurate
 - [ ] Split fișiere mari (>500 linii)
@@ -431,6 +461,7 @@ Impact: Development only
 - [ ] Eliminare console.log
 
 ### Performanță
+
 - [ ] Redis caching layer
 - [ ] Response compression
 - [ ] Database connection pooling optimizat
@@ -438,6 +469,7 @@ Impact: Development only
 - [ ] Memory leak fixes
 
 ### Testare
+
 - [ ] Minimum 70% coverage
 - [ ] Authentication tests
 - [ ] Payment tests
@@ -445,6 +477,7 @@ Impact: Development only
 - [ ] GDPR compliance tests
 
 ### Observabilitate
+
 - [x] OpenTelemetry tracing
 - [x] Pino structured logging
 - [x] PII redaction
@@ -462,6 +495,7 @@ Impact: Development only
 ✅ **Stack modern** - Fastify, Next.js 15, TypeScript strict
 
 ⚠️ **Dar necesită:**
+
 - **Testare extensivă** - Coverage de la 15% la 70%+
 - **Optimizări performanță** - Caching, compression, N+1 fixes
 - **Refactoring** - Split fișiere mari, standardizare patterns
@@ -471,8 +505,9 @@ Impact: Development only
 
 ---
 
-*Raport generat automat de Claude Code*
-*24 Noiembrie 2025*
+_Raport generat automat de Claude Code_
+_24 Noiembrie 2025_
+
 # 🔍 RAPORT AUDIT EXHAUSTIV - MEDICALCOR-CORE
 
 **Data:** 24 Noiembrie 2025
@@ -483,21 +518,21 @@ Impact: Development only
 
 ## 📊 SUMAR EXECUTIV
 
-| Categorie | Status | Scor | Risc |
-|-----------|--------|------|------|
-| **I. Structură & Arhitectură** | ✅ BUN | 7.6/10 | LOW |
-| **II. Calitate Cod** | ⚠️ NECESITĂ ATENȚIE | 6/10 | MEDIUM |
-| **III. Type Safety** | ✅ EXCELENT | 9.5/10 | LOW |
-| **IV. Error Handling** | ❌ PROBLEMATIC | 4/10 | HIGH |
-| **V. Data Integrity** | ❌ CRITIC | 3/10 | CRITICAL |
-| **VI. Business Logic** | ❌ CRITIC | 4/10 | CRITICAL |
-| **VII. Idempotency** | ⚠️ PARȚIAL | 5/10 | HIGH |
-| **VIII. Securitate OWASP** | ⚠️ MODERAT | 7/10 | MEDIUM |
-| **IX. Compliance GDPR/HIPAA** | ❌ CRITIC | 5.5/10 | CRITICAL |
-| **X. Dependențe** | ✅ BUN | 8/10 | LOW |
-| **XI. Performanță** | ⚠️ NECESITĂ ATENȚIE | 5/10 | HIGH |
-| **XII. Infrastructură** | ⚠️ PARȚIAL | 6/10 | HIGH |
-| **XIII. Teste** | ❌ INSUFICIENT | 3/10 | CRITICAL |
+| Categorie                      | Status              | Scor   | Risc     |
+| ------------------------------ | ------------------- | ------ | -------- |
+| **I. Structură & Arhitectură** | ✅ BUN              | 7.6/10 | LOW      |
+| **II. Calitate Cod**           | ⚠️ NECESITĂ ATENȚIE | 6/10   | MEDIUM   |
+| **III. Type Safety**           | ✅ EXCELENT         | 9.5/10 | LOW      |
+| **IV. Error Handling**         | ❌ PROBLEMATIC      | 4/10   | HIGH     |
+| **V. Data Integrity**          | ❌ CRITIC           | 3/10   | CRITICAL |
+| **VI. Business Logic**         | ❌ CRITIC           | 4/10   | CRITICAL |
+| **VII. Idempotency**           | ⚠️ PARȚIAL          | 5/10   | HIGH     |
+| **VIII. Securitate OWASP**     | ⚠️ MODERAT          | 7/10   | MEDIUM   |
+| **IX. Compliance GDPR/HIPAA**  | ❌ CRITIC           | 5.5/10 | CRITICAL |
+| **X. Dependențe**              | ✅ BUN              | 8/10   | LOW      |
+| **XI. Performanță**            | ⚠️ NECESITĂ ATENȚIE | 5/10   | HIGH     |
+| **XII. Infrastructură**        | ⚠️ PARȚIAL          | 6/10   | HIGH     |
+| **XIII. Teste**                | ❌ INSUFICIENT      | 3/10   | CRITICAL |
 
 **SCOR GLOBAL: 5.7/10** - ⚠️ **NU ESTE PREGĂTIT PENTRU PRODUCȚIE**
 
@@ -506,24 +541,28 @@ Impact: Development only
 ## 🚨 PROBLEME CRITICE - BLOCANTE PENTRU PRODUCȚIE
 
 ### 1. GDPR/HIPAA: Lipsa Criptării la Repaus (CRITICAL)
+
 - **Impact:** Încălcare GDPR Art. 32, HIPAA 45 CFR § 164.312(a)(2)(ii)
 - **Locație:** Toate tabelele cu date medicale
 - **Detalii:** Date pacienți (telefon, nume, diagnostic) stocate în text clar
 - **Efort remediere:** 2-3 săptămâni
 
 ### 2. Business Logic: Programare fără Consimțământ (CRITICAL)
+
 - **Impact:** Încălcare GDPR - prelucrare date fără bază legală
 - **Locație:** `apps/trigger/src/workflows/patient-journey.ts:370-722`
 - **Detalii:** `bookingAgentWorkflow` nu verifică consimțământul înainte de programare
 - **Efort remediere:** 2-3 zile
 
 ### 3. Data Integrity: Race Conditions în ConsentService (CRITICAL)
+
 - **Impact:** Consimțământul retras poate fi suprascris de cereri concurente
 - **Locație:** `packages/domain/src/consent/consent-service.ts:140-200`
 - **Detalii:** Pattern read-modify-write fără locks
 - **Efort remediere:** 2-3 zile
 
 ### 4. Test Coverage: ~8-10% (CRITICAL)
+
 - **Impact:** Risc ridicat de regresii în producție
 - **Detalii:**
   - 0 teste E2E
@@ -532,6 +571,7 @@ Impact: Development only
 - **Efort remediere:** 2-4 săptămâni
 
 ### 5. Infrastructură: Secrete Hardcodate (CRITICAL)
+
 - **Impact:** Credențiale expuse în version control
 - **Locație:** `infra/docker-compose.yml:68, 125-126`
 - **Detalii:** Parole DB și Grafana în cod
@@ -565,12 +605,12 @@ medicalcor-core/
 
 ### ⚠️ PROBLEME IDENTIFICATE
 
-| Problemă | Severitate | Locație |
-|----------|------------|---------|
-| Configurație ESLint duală | LOW | `.eslintrc.cjs` + `eslint.config.js` |
-| Versiuni inconsistente (`@types/node`, `uuid`) | LOW | Multiple `package.json` |
-| `@medicalcor/infra` placeholder | MEDIUM | `packages/infra/` |
-| Web app tsconfig izolat | LOW | `apps/web/tsconfig.json` |
+| Problemă                                       | Severitate | Locație                              |
+| ---------------------------------------------- | ---------- | ------------------------------------ |
+| Configurație ESLint duală                      | LOW        | `.eslintrc.cjs` + `eslint.config.js` |
+| Versiuni inconsistente (`@types/node`, `uuid`) | LOW        | Multiple `package.json`              |
+| `@medicalcor/infra` placeholder                | MEDIUM     | `packages/infra/`                    |
+| Web app tsconfig izolat                        | LOW        | `apps/web/tsconfig.json`             |
 
 ### RECOMANDĂRI
 
@@ -584,24 +624,25 @@ medicalcor-core/
 
 ### 📊 METRICI
 
-| Metric | Valoare | Status |
-|--------|---------|--------|
-| Total fișiere TypeScript | 169 | - |
-| Comentarii eslint-disable | 11 (0.6%) | ✅ Acceptabil |
-| Fișiere cu disable | 7 (2.5%) | ✅ Foarte bun |
-| Cel mai mare fișier | 1,447 linii | ❌ CRITIC |
+| Metric                    | Valoare     | Status        |
+| ------------------------- | ----------- | ------------- |
+| Total fișiere TypeScript  | 169         | -             |
+| Comentarii eslint-disable | 11 (0.6%)   | ✅ Acceptabil |
+| Fișiere cu disable        | 7 (2.5%)    | ✅ Foarte bun |
+| Cel mai mare fișier       | 1,447 linii | ❌ CRITIC     |
 
 ### ❌ CODE SMELLS CRITICE
 
 **Fișier: `apps/web/src/app/actions/get-patients.ts` - 1,447 LINII**
 
-| Funcție | Linii | Complexitate Ciclomatică |
-|---------|-------|--------------------------|
-| `getAnalyticsDataAction()` | ~330 | 12-15 (foarte mare) |
-| `getTriageLeadsAction()` | ~195 | 10-12 (mare) |
-| `mapContactToLead()` | ~120 | 8-10 |
+| Funcție                    | Linii | Complexitate Ciclomatică |
+| -------------------------- | ----- | ------------------------ |
+| `getAnalyticsDataAction()` | ~330  | 12-15 (foarte mare)      |
+| `getTriageLeadsAction()`   | ~195  | 10-12 (mare)             |
+| `mapContactToLead()`       | ~120  | 8-10                     |
 
 **RECOMANDARE:** Refactorizează urgent în module separate:
+
 - `PatientActions.ts`
 - `TriageActions.ts`
 - `AnalyticsActions.ts`
@@ -609,12 +650,12 @@ medicalcor-core/
 
 ### ALTE FIȘIERE MARI
 
-| Fișier | Linii |
-|--------|-------|
-| `patient-journey.ts` | 941 |
-| `cron-jobs.ts` | 930 |
-| `whatsapp.ts` | 892 |
-| `lead-context.ts` | 772 |
+| Fișier               | Linii |
+| -------------------- | ----- |
+| `patient-journey.ts` | 941   |
+| `cron-jobs.ts`       | 930   |
+| `whatsapp.ts`        | 892   |
+| `lead-context.ts`    | 772   |
 
 ---
 
@@ -623,6 +664,7 @@ medicalcor-core/
 ### ✅ SCOR: A+ - EXCELENT
 
 **Configurație TypeScript (`tsconfig.base.json`):**
+
 ```json
 {
   "strict": true,
@@ -636,21 +678,21 @@ medicalcor-core/
 
 ### STATISTICI
 
-| Metric | Valoare | Status |
-|--------|---------|--------|
-| Fișiere TypeScript | 169 | - |
-| Utilizări `any` | 10 (0.06%) | ✅ Excelent |
-| Scheme Zod | 8 fișiere | ✅ Comprehensive |
-| `any` nejustificate | 0 | ✅ Perfect |
+| Metric              | Valoare    | Status           |
+| ------------------- | ---------- | ---------------- |
+| Fișiere TypeScript  | 169        | -                |
+| Utilizări `any`     | 10 (0.06%) | ✅ Excelent      |
+| Scheme Zod          | 8 fișiere  | ✅ Comprehensive |
+| `any` nejustificate | 0          | ✅ Perfect       |
 
 ### UTILIZĂRI `any` JUSTIFICATE
 
-| Fișier | Linie | Motiv |
-|--------|-------|-------|
-| `instrumentation.ts` | 62, 115 | Tipuri generice Fastify |
+| Fișier                 | Linie    | Motiv                    |
+| ---------------------- | -------- | ------------------------ |
+| `instrumentation.ts`   | 62, 115  | Tipuri generice Fastify  |
 | `function-registry.ts` | 335, 373 | Introspecție Zod internă |
-| `telemetry.ts` | 96-97 | Versiuni OpenTelemetry |
-| `ai.ts` | 41-42 | Schema type assertion |
+| `telemetry.ts`         | 96-97    | Versiuni OpenTelemetry   |
+| `ai.ts`                | 41-42    | Schema type assertion    |
 
 ---
 
@@ -662,17 +704,18 @@ medicalcor-core/
 
 ### TIPURI DE PROBLEME
 
-| Tip | Număr | Severitate |
-|-----|-------|------------|
-| Swallowed Errors (catch gol/return empty) | 19 | CRITICAL |
-| Log-Only Errors (fără rethrow) | 18 | CRITICAL |
-| Fire-and-Forget Promises | 2 | CRITICAL |
-| Silent Catch Blocks | 5 | HIGH |
-| Health Check Info Disclosure | 2 | HIGH |
+| Tip                                       | Număr | Severitate |
+| ----------------------------------------- | ----- | ---------- |
+| Swallowed Errors (catch gol/return empty) | 19    | CRITICAL   |
+| Log-Only Errors (fără rethrow)            | 18    | CRITICAL   |
+| Fire-and-Forget Promises                  | 2     | CRITICAL   |
+| Silent Catch Blocks                       | 5     | HIGH       |
+| Health Check Info Disclosure              | 2     | HIGH       |
 
 ### EXEMPLE CRITICE
 
 **1. Swallowed Errors în `get-patients.ts`:**
+
 ```typescript
 // Linii 301-314 - Eroare ascunsă complet
 } catch (error) {
@@ -682,12 +725,14 @@ medicalcor-core/
 ```
 
 **2. Fire-and-Forget în `whatsapp.ts`:**
+
 ```typescript
 // Linia 240 - Rezultatele sunt ignorate
 void Promise.allSettled([...messagePromises, ...statusPromises]);
 ```
 
 **3. Log-Only în `voice-handler.ts`:**
+
 ```typescript
 // Linii 82-84 - Eroare logată dar continuă fără contact
 } catch (err) {
@@ -712,15 +757,16 @@ void Promise.allSettled([...messagePromises, ...statusPromises]);
 
 ### RACE CONDITIONS IDENTIFICATE
 
-| Locație | Problemă | Impact |
-|---------|----------|--------|
-| `consent-service.ts:140-200` | Read-modify-write fără lock | Consimțământ suprascris |
-| `auth-service.ts:77-93` | Check-then-act rate limiting | Bypass limită |
-| `event-store.ts:361-365` | Fire-and-forget publishing | Evenimente pierdute |
+| Locație                      | Problemă                     | Impact                  |
+| ---------------------------- | ---------------------------- | ----------------------- |
+| `consent-service.ts:140-200` | Read-modify-write fără lock  | Consimțământ suprascris |
+| `auth-service.ts:77-93`      | Check-then-act rate limiting | Bypass limită           |
+| `event-store.ts:361-365`     | Fire-and-forget publishing   | Evenimente pierdute     |
 
 ### OPTIMISTIC LOCKING - LIPSEȘTE
 
 **Problemă în `postgres-consent-repository.ts:75-89`:**
+
 ```sql
 -- Câmpul version există dar NU e validat
 ON CONFLICT (contact_id, consent_type) DO UPDATE SET
@@ -729,6 +775,7 @@ ON CONFLICT (contact_id, consent_type) DO UPDATE SET
 ```
 
 **Soluție corectă:**
+
 ```sql
 UPDATE consents SET ... WHERE version = $expectedVersion
 ```
@@ -741,11 +788,11 @@ UPDATE consents SET ... WHERE version = $expectedVersion
 
 ### TRANZACȚII LIPSĂ
 
-| Operație | Fișier | Risc |
-|----------|--------|------|
-| Password change + session revoke | `auth-service.ts:428-432` | Inconsistență |
-| Consent save + audit | `consent-service.ts:180-192` | Audit incomplet |
-| GDPR erasure | `consent-service.ts:357-377` | Date rămase |
+| Operație                         | Fișier                       | Risc            |
+| -------------------------------- | ---------------------------- | --------------- |
+| Password change + session revoke | `auth-service.ts:428-432`    | Inconsistență   |
+| Consent save + audit             | `consent-service.ts:180-192` | Audit incomplet |
+| GDPR erasure                     | `consent-service.ts:357-377` | Date rămase     |
 
 ---
 
@@ -764,8 +811,8 @@ export const bookingAgentWorkflow = task({
     // Step 1: Get available slots
     // Step 3: Book the appointment ← FĂRĂ CHECK CONSENT
     // Step 4-6: Send confirmation
-  }
-})
+  },
+});
 ```
 
 **Impact GDPR:** Prelucrare date personale fără bază legală
@@ -790,10 +837,10 @@ if (!hasValidConsent) {
 
 ### GAP #4: SISTEME DE CONSIMȚĂMÂNT DUALE
 
-| Sistem | Locație | Tip |
-|--------|---------|-----|
-| **ConsentService** (formal) | PostgreSQL | 7 tipuri, audit trail |
-| **HubSpot field** (informal) | `consent_marketing` | Boolean simplu |
+| Sistem                       | Locație             | Tip                   |
+| ---------------------------- | ------------------- | --------------------- |
+| **ConsentService** (formal)  | PostgreSQL          | 7 tipuri, audit trail |
+| **HubSpot field** (informal) | `consent_marketing` | Boolean simplu        |
 
 **Risc:** Inconsistență între sisteme, enforcement variabil
 
@@ -805,20 +852,20 @@ if (!hasValidConsent) {
 
 ### ✅ IMPLEMENTAT CORECT
 
-| Sistem | Mecanism |
-|--------|----------|
-| Event Store | `idempotency_key` UNIQUE + `ON CONFLICT DO NOTHING` |
-| Trigger.dev Tasks | `IdempotencyKeys.*` pentru toate task-urile |
-| Webhook Signatures | HMAC-SHA256 cu timing-safe comparison |
+| Sistem             | Mecanism                                            |
+| ------------------ | --------------------------------------------------- |
+| Event Store        | `idempotency_key` UNIQUE + `ON CONFLICT DO NOTHING` |
+| Trigger.dev Tasks  | `IdempotencyKeys.*` pentru toate task-urile         |
+| Webhook Signatures | HMAC-SHA256 cu timing-safe comparison               |
 
 ### ❌ LIPSEȘTE
 
-| Gap | Impact | Severitate |
-|-----|--------|------------|
-| Tabel webhook deduplication | Webhook-uri procesate de mai multe ori | HIGH |
-| Stripe idempotency keys în API | Plăți duplicate posibile | HIGH |
-| CQRS cache doar în memorie | Pierdut la restart | HIGH |
-| WhatsApp timestamp validation | Vulnerabil la replay attacks | HIGH |
+| Gap                            | Impact                                 | Severitate |
+| ------------------------------ | -------------------------------------- | ---------- |
+| Tabel webhook deduplication    | Webhook-uri procesate de mai multe ori | HIGH       |
+| Stripe idempotency keys în API | Plăți duplicate posibile               | HIGH       |
+| CQRS cache doar în memorie     | Pierdut la restart                     | HIGH       |
+| WhatsApp timestamp validation  | Vulnerabil la replay attacks           | HIGH       |
 
 ### RECOMANDARE TABEL WEBHOOK
 
@@ -840,25 +887,28 @@ CREATE TABLE webhook_events (
 
 ### REZUMAT SEVERITĂȚI
 
-| Severitate | Număr | Probleme |
-|------------|-------|----------|
-| CRITICAL | 0 | - |
-| HIGH | 0 | - |
-| MEDIUM | 3 | Diagnostics, RBAC, HSTS |
-| LOW | 5 | Health info, webhooks dev |
+| Severitate | Număr | Probleme                  |
+| ---------- | ----- | ------------------------- |
+| CRITICAL   | 0     | -                         |
+| HIGH       | 0     | -                         |
+| MEDIUM     | 3     | Diagnostics, RBAC, HSTS   |
+| LOW        | 5     | Health info, webhooks dev |
 
 ### PROBLEME MEDIUM
 
 **1. Diagnostics Endpoints Neautentificate**
+
 - **Locație:** `apps/api/src/routes/diagnostics.ts:49-219`
 - **Expuse:** Metrics sistem, CPU, memorie, traces
 - **Fix:** Adaugă autentificare API key
 
 **2. Lipsa HSTS**
+
 - **Locație:** `apps/api/src/app.ts:87-89`
 - **Fix:** `helmet({ hsts: { maxAge: 31536000 } })`
 
 **3. RBAC Insuficient**
+
 - **Locație:** `apps/api/src/routes/workflows.ts`
 - **Problemă:** API key valid = acces la TOATE workflow-urile
 
@@ -879,24 +929,24 @@ CREATE TABLE webhook_events (
 
 ### REZUMAT CONFORMITATE
 
-| Cerință | Status | Detalii |
-|---------|--------|---------|
-| Audit Trail | ✅ 8/10 | Auth events, consent audit, domain events |
-| PII Redaction | ✅ 9/10 | 60+ paths, Romanian patterns |
-| Encryption at Rest | ❌ 2/10 | **LIPSEȘTE COMPLET** |
-| Data Subject Rights | ⚠️ 6/10 | Ștergere parțială, lipsă DSAR API |
-| Data Retention | ✅ 7/10 | Auth cleanup, consent expiration |
-| Consent Management | ✅ 8/10 | 7 tipuri, audit trail, expirare |
+| Cerință             | Status  | Detalii                                   |
+| ------------------- | ------- | ----------------------------------------- |
+| Audit Trail         | ✅ 8/10 | Auth events, consent audit, domain events |
+| PII Redaction       | ✅ 9/10 | 60+ paths, Romanian patterns              |
+| Encryption at Rest  | ❌ 2/10 | **LIPSEȘTE COMPLET**                      |
+| Data Subject Rights | ⚠️ 6/10 | Ștergere parțială, lipsă DSAR API         |
+| Data Retention      | ✅ 7/10 | Auth cleanup, consent expiration          |
+| Consent Management  | ✅ 8/10 | 7 tipuri, audit trail, expirare           |
 
 ### ❌ CRIPTARE LA REPAUS - CRITICĂ
 
-| Date | Stocaj | Criptare | Risc |
-|------|--------|----------|------|
-| Telefon pacient | Plain text | ❌ | CRITICAL |
-| Nume pacient | Plain text | ❌ | CRITICAL |
-| Diagnostic | Plain text | ❌ | CRITICAL |
-| Detalii programare | Plain text | ❌ | CRITICAL |
-| Parole | bcrypt hash | ✅ | SAFE |
+| Date               | Stocaj      | Criptare | Risc     |
+| ------------------ | ----------- | -------- | -------- |
+| Telefon pacient    | Plain text  | ❌       | CRITICAL |
+| Nume pacient       | Plain text  | ❌       | CRITICAL |
+| Diagnostic         | Plain text  | ❌       | CRITICAL |
+| Detalii programare | Plain text  | ❌       | CRITICAL |
+| Parole             | bcrypt hash | ✅       | SAFE     |
 
 ### LIPSĂ API DSAR
 
@@ -907,6 +957,7 @@ CREATE TABLE webhook_events (
 ### CASCADE DELETE INCOMPLET
 
 După `eraseConsentData()`, RĂMÂN:
+
 - `appointments` - nume și telefon pacient
 - `lead_scoring_history` - telefon
 - `message_log` - telefon
@@ -925,9 +976,9 @@ După `eraseConsentData()`, RĂMÂN:
 Severity: 1 moderate
 ```
 
-| Pachet | Severitate | Detalii |
-|--------|------------|---------|
-| `esbuild` | MODERATE | Dev server request forwarding (<=0.24.2) |
+| Pachet    | Severitate | Detalii                                  |
+| --------- | ---------- | ---------------------------------------- |
+| `esbuild` | MODERATE   | Dev server request forwarding (<=0.24.2) |
 
 **Fix:** `pnpm update esbuild` la >= 0.25.0
 
@@ -946,29 +997,29 @@ Severity: 1 moderate
 
 ### MEMORY LEAKS
 
-| Locație | Problemă | Impact |
-|---------|----------|--------|
-| `use-websocket.ts:147` | Event handlers nu se curăță | 100+ KB/oră |
-| `context.tsx:85-87` | `readUrgencies` Set crește nelimitat | 10K+ IDs/zi |
-| `query-bus.ts:97` | Cache fără cleanup proactiv | Creștere continuă |
+| Locație                | Problemă                             | Impact            |
+| ---------------------- | ------------------------------------ | ----------------- |
+| `use-websocket.ts:147` | Event handlers nu se curăță          | 100+ KB/oră       |
+| `context.tsx:85-87`    | `readUrgencies` Set crește nelimitat | 10K+ IDs/zi       |
+| `query-bus.ts:97`      | Cache fără cleanup proactiv          | Creștere continuă |
 
 ### SLOW QUERIES
 
-| Problemă | Locație | Impact |
-|----------|---------|--------|
-| `SELECT *` fără coloane | Multiple repositories | +10-20% bandwidth |
-| `fetchAllContacts()` 5000 limite | `get-patients.ts:83` | 50 HTTP requests |
-| N+1 în Triage page | `get-patients.ts:523-611` | 4 cereri în loc de 1 |
+| Problemă                         | Locație                   | Impact               |
+| -------------------------------- | ------------------------- | -------------------- |
+| `SELECT *` fără coloane          | Multiple repositories     | +10-20% bandwidth    |
+| `fetchAllContacts()` 5000 limite | `get-patients.ts:83`      | 50 HTTP requests     |
+| N+1 în Triage page               | `get-patients.ts:523-611` | 4 cereri în loc de 1 |
 
 ### CONNECTION POOLS
 
 **PROBLEMĂ:** 3 pool-uri separate = 30+ conexiuni
 
-| Componenta | Pool | Conexiuni |
-|------------|------|-----------|
-| `database.ts` | Separat | 10 |
-| `event-store.ts` | Separat | 10 |
-| `scheduling-service.ts` | Separat | 10 |
+| Componenta              | Pool    | Conexiuni |
+| ----------------------- | ------- | --------- |
+| `database.ts`           | Separat | 10        |
+| `event-store.ts`        | Separat | 10        |
+| `scheduling-service.ts` | Separat | 10        |
 
 **RECOMANDARE:** Pool unic partajat prin dependency injection
 
@@ -980,12 +1031,12 @@ Severity: 1 moderate
 
 ### DOCKER SECURITY
 
-| Aspect | Status | Detalii |
-|--------|--------|---------|
-| Non-root user | ✅ | UID 1001 `fastify` |
-| Multi-stage build | ✅ | Build separat de runtime |
-| Resource limits | ✅ | CPU 1 core, 512MB RAM |
-| Image versions | ⚠️ | Folosesc `:latest` |
+| Aspect            | Status | Detalii                  |
+| ----------------- | ------ | ------------------------ |
+| Non-root user     | ✅     | UID 1001 `fastify`       |
+| Multi-stage build | ✅     | Build separat de runtime |
+| Resource limits   | ✅     | CPU 1 core, 512MB RAM    |
+| Image versions    | ⚠️     | Folosesc `:latest`       |
 
 ### ❌ SECRETE HARDCODATE
 
@@ -997,14 +1048,14 @@ GF_SECURITY_ADMIN_PASSWORD=admin           # Linia 126
 
 ### BACKUP STRATEGY
 
-| Aspect | Status |
-|--------|--------|
-| Daily backups Cloud SQL | ✅ Prod |
-| Point-in-Time Recovery | ✅ Prod |
-| Cross-region replication | ❌ |
-| Disaster Recovery plan | ❌ |
-| Backup verification | ❌ |
-| Redis backup | ❌ |
+| Aspect                   | Status  |
+| ------------------------ | ------- |
+| Daily backups Cloud SQL  | ✅ Prod |
+| Point-in-Time Recovery   | ✅ Prod |
+| Cross-region replication | ❌      |
+| Disaster Recovery plan   | ❌      |
+| Backup verification      | ❌      |
+| Redis backup             | ❌      |
 
 ### TERRAFORM
 
@@ -1021,25 +1072,25 @@ GF_SECURITY_ADMIN_PASSWORD=admin           # Linia 126
 
 ### STATISTICI
 
-| Metric | Valoare |
-|--------|---------|
-| Fișiere test | 13 |
-| Coverage estimat | ~8-10% |
-| Teste E2E | 0 |
-| Teste DB | 0 |
-| Module netestate | 40+ |
+| Metric           | Valoare |
+| ---------------- | ------- |
+| Fișiere test     | 13      |
+| Coverage estimat | ~8-10%  |
+| Teste E2E        | 0       |
+| Teste DB         | 0       |
+| Module netestate | 40+     |
 
 ### COVERAGE PE PACHETE
 
-| Pachet | Fișiere | Testate | Coverage |
-|--------|---------|---------|----------|
-| `packages/core` | 35 | 6 | 17% |
-| `packages/domain` | 13 | 2 | 15% |
-| `packages/integrations` | 8 | 1 | 12% |
-| `packages/types` | 9 | 0 | 0% |
-| `apps/api` | 17 | 1 | 6% |
-| `apps/trigger` | ~20 | 2 | 10% |
-| `apps/web` | 159 | 0 | 0% |
+| Pachet                  | Fișiere | Testate | Coverage |
+| ----------------------- | ------- | ------- | -------- |
+| `packages/core`         | 35      | 6       | 17%      |
+| `packages/domain`       | 13      | 2       | 15%      |
+| `packages/integrations` | 8       | 1       | 12%      |
+| `packages/types`        | 9       | 0       | 0%       |
+| `apps/api`              | 17      | 1       | 6%       |
+| `apps/trigger`          | ~20     | 2       | 10%      |
+| `apps/web`              | 159     | 0       | 0%       |
 
 ### MODULE CRITICE NETESTATE
 
@@ -1057,53 +1108,53 @@ GF_SECURITY_ADMIN_PASSWORD=admin           # Linia 126
 
 ### FAZA 1: BLOCANTE PRODUCȚIE (2-3 săptămâni)
 
-| # | Task | Prioritate | Efort | Owner |
-|---|------|------------|-------|-------|
-| 1 | Implementare criptare la repaus | CRITICAL | 2 săpt | Backend |
-| 2 | Verificare consimțământ în booking | CRITICAL | 2 zile | Backend |
-| 3 | Fix race conditions consent | CRITICAL | 2 zile | Backend |
-| 4 | Eliminare secrete hardcodate | CRITICAL | 1 zi | DevOps |
-| 5 | Tabel webhook deduplication | HIGH | 1 zi | Backend |
+| #   | Task                               | Prioritate | Efort  | Owner   |
+| --- | ---------------------------------- | ---------- | ------ | ------- |
+| 1   | Implementare criptare la repaus    | CRITICAL   | 2 săpt | Backend |
+| 2   | Verificare consimțământ în booking | CRITICAL   | 2 zile | Backend |
+| 3   | Fix race conditions consent        | CRITICAL   | 2 zile | Backend |
+| 4   | Eliminare secrete hardcodate       | CRITICAL   | 1 zi   | DevOps  |
+| 5   | Tabel webhook deduplication        | HIGH       | 1 zi   | Backend |
 
 ### FAZA 2: STABILIZARE (2-4 săptămâni)
 
-| # | Task | Prioritate | Efort |
-|---|------|------------|-------|
-| 6 | Fix error handling (46 instanțe) | HIGH | 1 săpt |
-| 7 | Teste pentru module critice | HIGH | 2 săpt |
-| 8 | Consolidare connection pools | HIGH | 2 zile |
-| 9 | Implementare HSTS + RBAC | MEDIUM | 2 zile |
-| 10 | Refactorizare get-patients.ts | MEDIUM | 3 zile |
+| #   | Task                             | Prioritate | Efort  |
+| --- | -------------------------------- | ---------- | ------ |
+| 6   | Fix error handling (46 instanțe) | HIGH       | 1 săpt |
+| 7   | Teste pentru module critice      | HIGH       | 2 săpt |
+| 8   | Consolidare connection pools     | HIGH       | 2 zile |
+| 9   | Implementare HSTS + RBAC         | MEDIUM     | 2 zile |
+| 10  | Refactorizare get-patients.ts    | MEDIUM     | 3 zile |
 
 ### FAZA 3: CONFORMITATE (1-2 săptămâni)
 
-| # | Task | Prioritate | Efort |
-|---|------|------------|-------|
-| 11 | API endpoint DSAR | HIGH | 2 zile |
-| 12 | Cascade delete pentru GDPR | HIGH | 2 zile |
-| 13 | Documentare DR plan | MEDIUM | 2 zile |
-| 14 | Setup backup cross-region | MEDIUM | 1 zi |
+| #   | Task                       | Prioritate | Efort  |
+| --- | -------------------------- | ---------- | ------ |
+| 11  | API endpoint DSAR          | HIGH       | 2 zile |
+| 12  | Cascade delete pentru GDPR | HIGH       | 2 zile |
+| 13  | Documentare DR plan        | MEDIUM     | 2 zile |
+| 14  | Setup backup cross-region  | MEDIUM     | 1 zi   |
 
 ### FAZA 4: OPTIMIZARE (ongoing)
 
-| # | Task | Prioritate |
-|---|------|------------|
-| 15 | Fix memory leaks | MEDIUM |
-| 16 | Optimizare queries N+1 | MEDIUM |
-| 17 | E2E tests cu Playwright | LOW |
-| 18 | Coverage target 80% | LOW |
+| #   | Task                    | Prioritate |
+| --- | ----------------------- | ---------- |
+| 15  | Fix memory leaks        | MEDIUM     |
+| 16  | Optimizare queries N+1  | MEDIUM     |
+| 17  | E2E tests cu Playwright | LOW        |
+| 18  | Coverage target 80%     | LOW        |
 
 ---
 
 ## 📈 METRICI DE SUCCES
 
-| Metric | Actual | Target | Deadline |
-|--------|--------|--------|----------|
-| Vulnerabilități CRITICAL | 5 | 0 | Faza 1 |
-| Vulnerabilități HIGH | 12 | 0 | Faza 2 |
-| Test Coverage | ~8% | 80% | Faza 3 |
-| Error Handling Issues | 46 | 0 | Faza 2 |
-| Hardcoded Secrets | 3 | 0 | Faza 1 |
+| Metric                   | Actual | Target | Deadline |
+| ------------------------ | ------ | ------ | -------- |
+| Vulnerabilități CRITICAL | 5      | 0      | Faza 1   |
+| Vulnerabilități HIGH     | 12     | 0      | Faza 2   |
+| Test Coverage            | ~8%    | 80%    | Faza 3   |
+| Error Handling Issues    | 46     | 0      | Faza 2   |
+| Hardcoded Secrets        | 3      | 0      | Faza 1   |
 
 ---
 

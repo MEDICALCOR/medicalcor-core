@@ -207,10 +207,7 @@ export const bulkImportRoutes: FastifyPluginAsync = async (fastify) => {
             statusUrl: `/api/leads/bulk-import/jobs/${job.id}`,
           };
 
-          request.log.info(
-            { correlationId, jobId: job.id },
-            'Async bulk import job created'
-          );
+          request.log.info({ correlationId, jobId: job.id }, 'Async bulk import job created');
 
           return reply.status(202).send(response);
         }

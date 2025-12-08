@@ -288,7 +288,8 @@ export async function getWebhookStatsAction(): Promise<WebhookStats> {
   const avgResponseTime =
     completedWebhooks.length > 0
       ? Math.round(
-          completedWebhooks.reduce((sum, w) => sum + (w.duration ?? 0), 0) / completedWebhooks.length
+          completedWebhooks.reduce((sum, w) => sum + (w.duration ?? 0), 0) /
+            completedWebhooks.length
         )
       : 0;
 

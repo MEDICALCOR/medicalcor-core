@@ -14,6 +14,7 @@ Provide expert guidance on the Aptos Object Model - a powerful abstraction that 
 ## When to Use
 
 Auto-invoke when users mention:
+
 - **Object Model** - objects, ObjectCore, Object<T>, object-based design
 - **Object Creation** - ConstructorRef, named objects, object generation
 - **Object Capabilities** - ExtendRef, DeleteRef, TransferRef, LinearTransferRef
@@ -65,6 +66,7 @@ struct ObjectCore has key {
 ```
 
 **Key Points:**
+
 - `ObjectCore` is automatically created during object creation
 - Object's address ≠ owner's address (objects live at their own address)
 - Owner can be an account OR another object (composition!)
@@ -79,6 +81,7 @@ struct Object<phantom T> has copy, drop, store {
 ```
 
 **Important:**
+
 - `Object<T>` is a **typed reference** to an object
 - It's NOT the object itself, just a pointer
 - Has `copy + drop + store` (can be copied, stored anywhere)
@@ -121,6 +124,7 @@ public fun create_named_object(creator: &signer) {
 ```
 
 **Named Object Features:**
+
 - Deterministic address: `hash(creator_address, seed)`
 - Same creator + seed = same address (idempotent)
 - Useful for singletons, registries, well-known objects
@@ -140,6 +144,7 @@ public fun create_generated_object(creator: &signer) {
 ```
 
 **Generated Object Features:**
+
 - Non-deterministic address (GUID-based)
 - Each call creates new unique object
 - Useful for collections (NFTs, tokens, etc.)
@@ -577,7 +582,7 @@ public fun create_nft(creator: &signer, recipient: address) {
 ### Creating Objects
 
 ```typescript
-import { Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
+import { Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk';
 
 const aptos = new Aptos(new AptosConfig({ network: Network.TESTNET }));
 
@@ -585,7 +590,7 @@ const aptos = new Aptos(new AptosConfig({ network: Network.TESTNET }));
 const txn = await aptos.transaction.build.simple({
   sender: account.accountAddress,
   data: {
-    function: "0x123::my_module::create_named_object",
+    function: '0x123::my_module::create_named_object',
     functionArguments: [],
   },
 });
@@ -601,17 +606,17 @@ const response = await aptos.signAndSubmitTransaction({
 ```typescript
 // Get object data
 const objectData = await aptos.getAccountResource({
-  accountAddress: "0xobject_address",
-  resourceType: "0x1::object::ObjectCore"
+  accountAddress: '0xobject_address',
+  resourceType: '0x1::object::ObjectCore',
 });
 
-console.log("Owner:", objectData.owner);
-console.log("Transferable:", objectData.allow_ungated_transfer);
+console.log('Owner:', objectData.owner);
+console.log('Transferable:', objectData.allow_ungated_transfer);
 
 // Get custom resource at object address
 const nftData = await aptos.getAccountResource({
-  accountAddress: "0xobject_address",
-  resourceType: "0x123::my_module::NFT"
+  accountAddress: '0xobject_address',
+  resourceType: '0x123::my_module::NFT',
 });
 ```
 
@@ -621,12 +626,9 @@ const nftData = await aptos.getAccountResource({
 const txn = await aptos.transaction.build.simple({
   sender: owner.accountAddress,
   data: {
-    function: "0x1::object::transfer",
-    typeArguments: ["0x123::my_module::NFT"],
-    functionArguments: [
-      objectAddress,
-      recipientAddress,
-    ],
+    function: '0x1::object::transfer',
+    typeArguments: ['0x123::my_module::NFT'],
+    functionArguments: [objectAddress, recipientAddress],
   },
 });
 ```
@@ -727,6 +729,7 @@ move_to(&object_signer, Refs { /* ... */ });
 ## Documentation References
 
 Reference official Aptos docs:
+
 - aptos.dev/guides/objects
 - aptos.dev/standards/digital-asset
 - aptos.dev/standards/fungible-asset
@@ -743,6 +746,7 @@ Reference official Aptos docs:
 ## Follow-up Suggestions
 
 After helping with objects, suggest:
+
 - Object composition strategies
 - Ref management patterns
 - Migration path from resources

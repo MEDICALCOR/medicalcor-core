@@ -172,12 +172,7 @@ export class SecurityContext {
    * @returns New SecurityContext instance
    */
   static create(principal: SecurityPrincipal, correlationId: string): SecurityContext {
-    return new SecurityContext(
-      principal,
-      correlationId,
-      new Date(),
-      randomUUID()
-    );
+    return new SecurityContext(principal, correlationId, new Date(), randomUUID());
   }
 
   /**
@@ -241,7 +236,7 @@ export class SecurityContext {
    * @returns True if principal has at least one
    */
   hasAnyPermission(permissions: Permission[]): boolean {
-    return permissions.some(p => this.hasPermission(p));
+    return permissions.some((p) => this.hasPermission(p));
   }
 
   /**
@@ -251,7 +246,7 @@ export class SecurityContext {
    * @returns True if principal has all
    */
   hasAllPermissions(permissions: Permission[]): boolean {
-    return permissions.every(p => this.hasPermission(p));
+    return permissions.every((p) => this.hasPermission(p));
   }
 
   /**

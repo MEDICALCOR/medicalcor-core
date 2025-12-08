@@ -5,6 +5,7 @@ Key folding flattens nested objects into dotted keys, reducing token overhead.
 ## Syntax
 
 **Without key folding (nested):**
+
 ```
 server:
   host: localhost
@@ -12,6 +13,7 @@ server:
 ```
 
 **With key folding (flattened):**
+
 ```
 server.host: localhost
 server.port: 8080
@@ -20,12 +22,14 @@ server.port: 8080
 ## When to Use
 
 ✅ **Use key folding when:**
+
 - Objects have 2-3 levels of nesting
 - Field names are valid identifiers (`[A-Za-z_][A-Za-z0-9_]*`)
 - No sibling key collisions
 - Configuration or settings data
 
 ❌ **Don't use key folding when:**
+
 - Deeply nested (>3 levels) - harder to read
 - Field names have spaces or special characters
 - Collision with existing dotted keys
@@ -34,6 +38,7 @@ server.port: 8080
 ## Basic Example
 
 **JSON:**
+
 ```json
 {
   "database": {
@@ -45,6 +50,7 @@ server.port: 8080
 ```
 
 **TOON with key folding:**
+
 ```
 database.host: localhost
 database.port: 5432
@@ -52,6 +58,7 @@ database.name: mydb
 ```
 
 **TOON without key folding (28% more tokens):**
+
 ```
 database:
   host: localhost
@@ -62,6 +69,7 @@ database:
 ## Configuration Example
 
 **JSON:**
+
 ```json
 {
   "server": {
@@ -84,6 +92,7 @@ database:
 ```
 
 **TOON with key folding:**
+
 ```
 server.host: 0.0.0.0
 server.port: 8080
@@ -100,18 +109,22 @@ database.pool.max: 10
 Key folding provides **25-35% token savings** for nested config:
 
 **Without folding:**
+
 ```
 server:         # 10 tokens for nesting overhead
   host: localhost
   port: 8080
 ```
+
 ≈ 28 tokens
 
 **With folding:**
+
 ```
 server.host: localhost
 server.port: 8080
 ```
+
 ≈ 18 tokens
 
 **Savings: 36%**
@@ -121,6 +134,7 @@ server.port: 8080
 Key segments must be valid identifiers:
 
 ✅ **Valid:**
+
 ```
 server.host: value
 db_connection.pool_size: 10
@@ -129,6 +143,7 @@ _private.setting: value
 ```
 
 ❌ **Invalid (can't be folded):**
+
 ```
 "server name".host: value        # Space in key
 "api-key".value: secret          # Hyphen in key
@@ -142,14 +157,16 @@ Key folding is **disabled** if it would create a collision:
 ### Example 1: Sibling collision
 
 **JSON:**
+
 ```json
 {
-  "server": {"host": "localhost"},
+  "server": { "host": "localhost" },
   "server.host": "override"
 }
 ```
 
 **TOON (no folding - collision detected):**
+
 ```
 server:
   host: localhost
@@ -159,14 +176,16 @@ server.host: override
 ### Example 2: Safe to fold (no collision)
 
 **JSON:**
+
 ```json
 {
-  "server": {"host": "localhost"},
+  "server": { "host": "localhost" },
   "serverName": "prod-1"
 }
 ```
 
 **TOON (folding OK):**
+
 ```
 server.host: localhost
 serverName: prod-1
@@ -177,6 +196,7 @@ serverName: prod-1
 Key folding works for multiple levels:
 
 **JSON:**
+
 ```json
 {
   "app": {
@@ -189,6 +209,7 @@ Key folding works for multiple levels:
 ```
 
 **TOON:**
+
 ```
 app.logging.level: info
 app.logging.file: /var/log/app.log
@@ -199,6 +220,7 @@ app.logging.file: /var/log/app.log
 Key folding stops at arrays:
 
 **JSON:**
+
 ```json
 {
   "server": {
@@ -209,6 +231,7 @@ Key folding stops at arrays:
 ```
 
 **TOON:**
+
 ```
 server.hosts[2]: host1,host2
 server.port: 8080
@@ -219,16 +242,18 @@ server.port: 8080
 Objects inside tabular arrays are NOT folded:
 
 **JSON:**
+
 ```json
 [
   {
     "name": "Alice",
-    "config": {"role": "admin", "level": 5}
+    "config": { "role": "admin", "level": 5 }
   }
 ]
 ```
 
 **TOON (config NOT folded inside array):**
+
 ```
 [1]{name,config}:
   Alice,{role: admin, level: 5}
@@ -260,12 +285,14 @@ const result = try toon.encode(json_str, config);
 Decoders can expand dotted keys back to nested objects:
 
 **TOON:**
+
 ```
 server.host: localhost
 server.port: 8080
 ```
 
 **Decoded to JSON:**
+
 ```json
 {
   "server": {
@@ -289,6 +316,7 @@ const json = try toon.decode(toon_str, config);
 When multiple dotted keys share a prefix, they're merged:
 
 **TOON:**
+
 ```
 server.host: localhost
 server.port: 8080
@@ -297,10 +325,11 @@ database.port: 5432
 ```
 
 **Decoded:**
+
 ```json
 {
-  "server": {"host": "localhost", "port": 8080},
-  "database": {"host": "db.example.com", "port": 5432}
+  "server": { "host": "localhost", "port": 8080 },
+  "database": { "host": "db.example.com", "port": 5432 }
 }
 ```
 
@@ -309,32 +338,39 @@ database.port: 5432
 ### Empty objects
 
 **JSON:**
+
 ```json
-{"server": {}}
+{ "server": {} }
 ```
 
 **TOON:**
+
 ```
 server: {}
 ```
+
 (Can't fold empty object)
 
 ### Single nested field
 
 **JSON:**
+
 ```json
-{"server": {"host": "localhost"}}
+{ "server": { "host": "localhost" } }
 ```
 
 **TOON:**
+
 ```
 server.host: localhost
 ```
+
 (Folding beneficial even for single field)
 
 ### Very deep nesting (>3 levels)
 
 **JSON:**
+
 ```json
 {
   "a": {
@@ -348,6 +384,7 @@ server.host: localhost
 ```
 
 **TOON (still folds, but less readable):**
+
 ```
 a.b.c.d: value
 ```
@@ -357,6 +394,7 @@ a.b.c.d: value
 ## Real-World Example: Application Config
 
 **JSON (180 tokens):**
+
 ```json
 {
   "app": {
@@ -385,6 +423,7 @@ a.b.c.d: value
 ```
 
 **TOON with key folding (115 tokens, 36% savings):**
+
 ```
 app.name: MyApp
 app.version: 1.0.0
@@ -410,6 +449,7 @@ logging.file: /var/log/app.log
 ```
 
 **Correct:**
+
 ```
 api_key.value: secret
 my_key.value: secret
@@ -418,20 +458,23 @@ my_key.value: secret
 ### Wrong: Creating collision
 
 **JSON:**
+
 ```json
 {
   "server.host": "override",
-  "server": {"host": "localhost"}
+  "server": { "host": "localhost" }
 }
 ```
 
 **Wrong TOON:**
+
 ```
 server.host: override   ❌ Collision!
 server.host: localhost
 ```
 
 **Correct (no folding):**
+
 ```
 server.host: override
 server:
@@ -446,6 +489,7 @@ server.hosts.1: host2
 ```
 
 **Correct:**
+
 ```
 server.hosts[2]: host1,host2
 ```
@@ -455,10 +499,12 @@ server.hosts[2]: host1,host2
 Key folding impacts performance minimally:
 
 **Encoding:**
+
 - +5% time for collision detection
 - -25% output size (fewer bytes)
 
 **Decoding:**
+
 - +10% time for path expansion
 - Same memory usage
 

@@ -145,8 +145,14 @@ export class TriageRoutingIntegration {
   /**
    * Perform triage assessment and route to best matching agent
    */
-  async triageAndRoute(input: TriageInput, additionalContext?: Partial<RoutingContext>): Promise<TriageRoutingResult> {
-    logger.info({ phone: input.leadScore, channel: input.channel }, 'Starting triage-based routing');
+  async triageAndRoute(
+    input: TriageInput,
+    additionalContext?: Partial<RoutingContext>
+  ): Promise<TriageRoutingResult> {
+    logger.info(
+      { phone: input.leadScore, channel: input.channel },
+      'Starting triage-based routing'
+    );
 
     // Step 1: Perform triage assessment
     const triageResult = await this.triageService.assess(input);
@@ -196,15 +202,17 @@ export class TriageRoutingIntegration {
     if (input.procedureInterest) {
       for (const procedure of input.procedureInterest) {
         const procedureLower = procedure.toLowerCase();
-        const skillIds = this.config.procedureSkillMapping.get(procedureLower) ??
-                        this.config.procedureSkillMapping.get(procedure);
+        const skillIds =
+          this.config.procedureSkillMapping.get(procedureLower) ??
+          this.config.procedureSkillMapping.get(procedure);
 
         if (skillIds) {
           for (const skillId of skillIds) {
             requiredSkills.push({
               skillId,
               matchType: 'required',
-              minimumProficiency: triage.urgencyLevel === 'high_priority' ? 'advanced' : 'intermediate',
+              minimumProficiency:
+                triage.urgencyLevel === 'high_priority' ? 'advanced' : 'intermediate',
               weight: 50,
             });
           }

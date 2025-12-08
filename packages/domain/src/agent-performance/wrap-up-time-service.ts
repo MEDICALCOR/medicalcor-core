@@ -64,20 +64,12 @@ export interface IWrapUpTimeRepository {
   getWrapUpByCallSid(callSid: string, agentId: string): Promise<WrapUpEvent | null>;
 
   // Statistics
-  getWrapUpStats(
-    agentId: string,
-    startDate: Date,
-    endDate: Date
-  ): Promise<WrapUpStats>;
+  getWrapUpStats(agentId: string, startDate: Date, endDate: Date): Promise<WrapUpStats>;
   getWrapUpTrend(
     agentId: string,
     timeRange: AgentPerformanceTimeRange
   ): Promise<WrapUpTrendPoint[]>;
-  getTeamWrapUpStats(
-    clinicId: string,
-    startDate: Date,
-    endDate: Date
-  ): Promise<WrapUpStats>;
+  getTeamWrapUpStats(clinicId: string, startDate: Date, endDate: Date): Promise<WrapUpStats>;
 
   // Dashboard data
   getAgentWrapUpPerformance(
@@ -130,10 +122,7 @@ export class WrapUpTimeService {
   private readonly config: Required<WrapUpTimeServiceConfig>;
   private readonly repository: IWrapUpTimeRepository;
 
-  constructor(
-    deps: WrapUpTimeServiceDeps,
-    config?: WrapUpTimeServiceConfig
-  ) {
+  constructor(deps: WrapUpTimeServiceDeps, config?: WrapUpTimeServiceConfig) {
     this.repository = deps.repository;
     this.config = {
       maxWrapUpMinutes: config?.maxWrapUpMinutes ?? DEFAULT_WRAP_UP_TIMEOUT_MINUTES,
@@ -170,10 +159,7 @@ export class WrapUpTimeService {
 
     const wrapUpEvent = await this.repository.startWrapUp(request);
 
-    logger.info(
-      { wrapUpId: wrapUpEvent.id, agentId: request.agentId },
-      'Wrap-up tracking started'
-    );
+    logger.info({ wrapUpId: wrapUpEvent.id, agentId: request.agentId }, 'Wrap-up tracking started');
 
     return wrapUpEvent;
   }
@@ -314,9 +300,7 @@ export class WrapUpTimeService {
 
     const avgWrapUpSeconds = stats.avgWrapUpTimeSeconds;
     const targetSeconds = this.config.targetWrapUpSeconds;
-    const percentOfTarget = targetSeconds > 0
-      ? (avgWrapUpSeconds / targetSeconds) * 100
-      : 0;
+    const percentOfTarget = targetSeconds > 0 ? (avgWrapUpSeconds / targetSeconds) * 100 : 0;
 
     // Calculate trend direction
     const trendDirection = this.calculateTrendDirection(trend);
@@ -380,7 +364,10 @@ export class WrapUpTimeService {
     const count = await this.repository.abandonStaleWrapUps(this.config.maxWrapUpMinutes);
 
     if (count > 0) {
-      logger.info({ count, maxAgeMinutes: this.config.maxWrapUpMinutes }, 'Abandoned stale wrap-ups');
+      logger.info(
+        { count, maxAgeMinutes: this.config.maxWrapUpMinutes },
+        'Abandoned stale wrap-ups'
+      );
     }
 
     return count;
@@ -393,9 +380,7 @@ export class WrapUpTimeService {
   /**
    * Calculate trend direction from trend data points
    */
-  private calculateTrendDirection(
-    trend: WrapUpTrendPoint[]
-  ): 'improving' | 'stable' | 'declining' {
+  private calculateTrendDirection(trend: WrapUpTrendPoint[]): 'improving' | 'stable' | 'declining' {
     if (trend.length < 2) {
       return 'stable';
     }

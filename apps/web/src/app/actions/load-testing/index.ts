@@ -135,14 +135,16 @@ export async function getLoadTestDashboardAction(
  *
  * @returns Paginated list of load test results
  */
-export async function getLoadTestResultsAction(options: {
-  timeRange?: LoadTestTimeRange;
-  scenario?: string;
-  environment?: string;
-  status?: string;
-  limit?: number;
-  offset?: number;
-} = {}): Promise<{ results: LoadTestResult[]; total: number }> {
+export async function getLoadTestResultsAction(
+  options: {
+    timeRange?: LoadTestTimeRange;
+    scenario?: string;
+    environment?: string;
+    status?: string;
+    limit?: number;
+    offset?: number;
+  } = {}
+): Promise<{ results: LoadTestResult[]; total: number }> {
   try {
     await requirePermission('VIEW_ANALYTICS');
 

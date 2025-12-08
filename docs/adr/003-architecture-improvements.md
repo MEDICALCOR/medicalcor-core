@@ -22,18 +22,18 @@ Following a comprehensive architecture review, several improvement opportunities
 | **RAG**            | No automatic embedding refresh           | Stale embeddings degrade AI quality   |
 | **RAG**            | No embedding caching                     | Redundant OpenAI API calls            |
 | **Kubernetes**     | ServiceMonitor not implemented           | Prometheus can't scrape pods          |
-| Category | Gap | Impact |
-|----------|-----|--------|
-| **Database** | pgvector schema not in dbmate migrations | Production deployments may fail |
-| **Event Sourcing** | No aggregate snapshots | Performance degrades with event count |
-| **Event Sourcing** | No event schema versioning | Breaking changes corrupt projections |
-| **Observability** | No Prometheus metrics endpoint | Cannot track business metrics |
-| **Observability** | No projection health monitoring | Stale projections go undetected |
-| **CQRS** | Saga persistence is in-memory only | State lost on restart |
-| **Resilience** | DLQ lacks circuit breaker integration | May hammer failing services |
-| **RAG** | No automatic embedding refresh | Stale embeddings degrade AI quality |
-| **RAG** | No embedding caching | Redundant OpenAI API calls |
-| **Kubernetes** | ServiceMonitor not implemented | Prometheus can't scrape pods |
+| Category           | Gap                                      | Impact                                |
+| ----------         | -----                                    | --------                              |
+| **Database**       | pgvector schema not in dbmate migrations | Production deployments may fail       |
+| **Event Sourcing** | No aggregate snapshots                   | Performance degrades with event count |
+| **Event Sourcing** | No event schema versioning               | Breaking changes corrupt projections  |
+| **Observability**  | No Prometheus metrics endpoint           | Cannot track business metrics         |
+| **Observability**  | No projection health monitoring          | Stale projections go undetected       |
+| **CQRS**           | Saga persistence is in-memory only       | State lost on restart                 |
+| **Resilience**     | DLQ lacks circuit breaker integration    | May hammer failing services           |
+| **RAG**            | No automatic embedding refresh           | Stale embeddings degrade AI quality   |
+| **RAG**            | No embedding caching                     | Redundant OpenAI API calls            |
+| **Kubernetes**     | ServiceMonitor not implemented           | Prometheus can't scrape pods          |
 
 ## Decision
 
@@ -660,11 +660,7 @@ export class EmbeddingCache {
 
   async set(text: string, model: string, embedding: number[]): Promise<void> {
     await this.redis.setex(this.getKey(text, model), this.ttlSeconds, JSON.stringify(embedding));
-    await this.redis.setex(
-      this.getKey(text, model),
-      this.ttlSeconds,
-      JSON.stringify(embedding)
-    );
+    await this.redis.setex(this.getKey(text, model), this.ttlSeconds, JSON.stringify(embedding));
   }
 
   async invalidateByPattern(pattern: string): Promise<void> {
@@ -697,10 +693,9 @@ export const embeddingRefreshJob = schedules.task({
     const outdatedEntries = await knowledgeBaseRepository.findByEmbeddingModel(currentModel, {
       excludeCurrent: true,
     });
-    const outdatedEntries = await knowledgeBaseRepository.findByEmbeddingModel(
-      currentModel,
-      { excludeCurrent: true }
-    );
+    const outdatedEntries = await knowledgeBaseRepository.findByEmbeddingModel(currentModel, {
+      excludeCurrent: true,
+    });
 
     let refreshed = 0;
     const batchSize = 100;
@@ -708,7 +703,7 @@ export const embeddingRefreshJob = schedules.task({
     for (let i = 0; i < outdatedEntries.length; i += batchSize) {
       const batch = outdatedEntries.slice(i, i + batchSize);
       const texts = batch.map((e) => e.content);
-      const texts = batch.map(e => e.content);
+      const texts = batch.map((e) => e.content);
 
       const newEmbeddings = await embeddings.embedBatch(texts);
 
@@ -767,9 +762,11 @@ export const embeddingRefreshJob = schedules.task({
 **Rejected**: The existing architecture is solid; improvements should build on it, not replace it.
 
 ### 2. Third-party Event Store (EventStoreDB)
+
 **Deferred**: Would provide snapshots and schema versioning out-of-box, but adds operational complexity. Current PostgreSQL-based solution is sufficient with proposed enhancements.
 
 ### 3. Managed Vector Database (Pinecone, Weaviate)
+
 **Deferred**: pgvector provides adequate performance for current scale. Revisit when exceeding 10M vectors.
 
 ## Implementation Checklist
@@ -801,24 +798,28 @@ export const embeddingRefreshJob = schedules.task({
 ### Phase 4 (AI/RAG)
 
 ### Phase 1 (Critical)
+
 - [ ] Create `20241202000001_add_pgvector_extension.sql` migration
 - [ ] Add `/metrics` endpoint with prom-client
 - [ ] Implement `ProjectionHealthMonitor`
 - [ ] Add projection health to `/health/ready` endpoint
 
 ### Phase 2 (Event Sourcing)
+
 - [ ] Create `20241202000002_add_aggregate_snapshots.sql` migration
 - [ ] Implement `SnapshotStore` class
 - [ ] Integrate snapshots into `EventStore.loadAggregate()`
 - [ ] Implement `EventSchemaRegistry`
 
 ### Phase 3 (Resilience)
+
 - [ ] Create `20241202000003_add_saga_store.sql` migration
 - [ ] Implement `PostgresSagaRepository`
 - [ ] Add circuit breaker to DLQ
 - [ ] Create Kubernetes ServiceMonitor
 
 ### Phase 4 (AI/RAG)
+
 - [ ] Implement `EmbeddingCache` with Redis
 - [ ] Add embedding model tracking to knowledge_base
 - [ ] Create embedding refresh Trigger.dev job

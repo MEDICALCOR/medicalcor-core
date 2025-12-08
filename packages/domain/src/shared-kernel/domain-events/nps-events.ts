@@ -66,7 +66,10 @@ export interface NPSSurveyScheduledPayload {
   readonly expiresAt: string; // ISO 8601
 }
 
-export type NPSSurveyScheduledEvent = DomainEvent<'nps.survey_scheduled', NPSSurveyScheduledPayload>;
+export type NPSSurveyScheduledEvent = DomainEvent<
+  'nps.survey_scheduled',
+  NPSSurveyScheduledPayload
+>;
 
 /**
  * NPSSurveySent - Emitted when an NPS survey is sent to the patient
@@ -120,7 +123,10 @@ export interface NPSResponseReceivedPayload {
   readonly procedureType?: string;
 }
 
-export type NPSResponseReceivedEvent = DomainEvent<'nps.response_received', NPSResponseReceivedPayload>;
+export type NPSResponseReceivedEvent = DomainEvent<
+  'nps.response_received',
+  NPSResponseReceivedPayload
+>;
 
 /**
  * NPSSurveyExpired - Emitted when an NPS survey expires without response
@@ -177,7 +183,10 @@ export interface NPSFollowUpRequiredPayload {
   readonly dueDate: string; // ISO 8601
 }
 
-export type NPSFollowUpRequiredEvent = DomainEvent<'nps.follow_up_required', NPSFollowUpRequiredPayload>;
+export type NPSFollowUpRequiredEvent = DomainEvent<
+  'nps.follow_up_required',
+  NPSFollowUpRequiredPayload
+>;
 
 /**
  * NPSFollowUpCompleted - Emitted when a follow-up is completed
@@ -192,7 +201,10 @@ export interface NPSFollowUpCompletedPayload {
   readonly completedAt: string; // ISO 8601
 }
 
-export type NPSFollowUpCompletedEvent = DomainEvent<'nps.follow_up_completed', NPSFollowUpCompletedPayload>;
+export type NPSFollowUpCompletedEvent = DomainEvent<
+  'nps.follow_up_completed',
+  NPSFollowUpCompletedPayload
+>;
 
 // ============================================================================
 // NPS ANALYTICS EVENTS
@@ -212,7 +224,10 @@ export interface NPSFeedbackAnalyzedPayload {
   readonly analysisMethod: 'ai' | 'rule_based';
 }
 
-export type NPSFeedbackAnalyzedEvent = DomainEvent<'nps.feedback_analyzed', NPSFeedbackAnalyzedPayload>;
+export type NPSFeedbackAnalyzedEvent = DomainEvent<
+  'nps.feedback_analyzed',
+  NPSFeedbackAnalyzedPayload
+>;
 
 /**
  * NPSScoreSynced - Emitted when NPS score is synced to CRM
@@ -430,7 +445,9 @@ export function isNPSSurveySentEvent(event: NPSDomainEvent): event is NPSSurveyS
 /**
  * Type guard for NPSResponseReceived event
  */
-export function isNPSResponseReceivedEvent(event: NPSDomainEvent): event is NPSResponseReceivedEvent {
+export function isNPSResponseReceivedEvent(
+  event: NPSDomainEvent
+): event is NPSResponseReceivedEvent {
   return event.type === 'nps.response_received';
 }
 
@@ -451,21 +468,27 @@ export function isNPSSurveySkippedEvent(event: NPSDomainEvent): event is NPSSurv
 /**
  * Type guard for NPSFollowUpRequired event
  */
-export function isNPSFollowUpRequiredEvent(event: NPSDomainEvent): event is NPSFollowUpRequiredEvent {
+export function isNPSFollowUpRequiredEvent(
+  event: NPSDomainEvent
+): event is NPSFollowUpRequiredEvent {
   return event.type === 'nps.follow_up_required';
 }
 
 /**
  * Type guard for NPSFollowUpCompleted event
  */
-export function isNPSFollowUpCompletedEvent(event: NPSDomainEvent): event is NPSFollowUpCompletedEvent {
+export function isNPSFollowUpCompletedEvent(
+  event: NPSDomainEvent
+): event is NPSFollowUpCompletedEvent {
   return event.type === 'nps.follow_up_completed';
 }
 
 /**
  * Type guard for NPSFeedbackAnalyzed event
  */
-export function isNPSFeedbackAnalyzedEvent(event: NPSDomainEvent): event is NPSFeedbackAnalyzedEvent {
+export function isNPSFeedbackAnalyzedEvent(
+  event: NPSDomainEvent
+): event is NPSFeedbackAnalyzedEvent {
   return event.type === 'nps.feedback_analyzed';
 }
 

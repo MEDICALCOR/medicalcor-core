@@ -18,6 +18,7 @@ Domain terminology and technical definitions used in MedicalCor Core.
 A potential patient who has shown interest in dental/medical services through any communication channel.
 
 **Properties**:
+
 - Phone number (E.164 format)
 - Communication channel
 - Message history
@@ -28,24 +29,24 @@ A potential patient who has shown interest in dental/medical services through an
 
 The categorization of a lead based on their likelihood to convert:
 
-| Classification | Description | Typical Action |
-|----------------|-------------|----------------|
-| **HOT** | Ready to book, high intent | Immediate callback |
-| **WARM** | Interested but not urgent | Follow-up within 24-48h |
-| **COLD** | Low interest | Add to nurture campaign |
-| **UNQUALIFIED** | Not a good fit | No follow-up |
+| Classification  | Description                | Typical Action          |
+| --------------- | -------------------------- | ----------------------- |
+| **HOT**         | Ready to book, high intent | Immediate callback      |
+| **WARM**        | Interested but not urgent  | Follow-up within 24-48h |
+| **COLD**        | Low interest               | Add to nurture campaign |
+| **UNQUALIFIED** | Not a good fit             | No follow-up            |
 
 ### Lead Score
 
 A numerical value (1-5) indicating the quality and readiness of a lead:
 
-| Score | Meaning |
-|-------|---------|
-| 5 | Excellent - Ready to book high-value procedure |
-| 4 | Good - Strong interest, needs timely follow-up |
-| 3 | Average - Moderate interest |
-| 2 | Below average - Low intent signals |
-| 1 | Poor - Unlikely to convert |
+| Score | Meaning                                        |
+| ----- | ---------------------------------------------- |
+| 5     | Excellent - Ready to book high-value procedure |
+| 4     | Good - Strong interest, needs timely follow-up |
+| 3     | Average - Moderate interest                    |
+| 2     | Below average - Low intent signals             |
+| 1     | Poor - Unlikely to convert                     |
 
 ### Lead Channel
 
@@ -61,6 +62,7 @@ The communication channel through which a lead contacted the clinic:
 Permission granted by a patient for specific data processing activities.
 
 **Types**:
+
 - `data_processing`: Essential data handling
 - `marketing_whatsapp`: WhatsApp marketing messages
 - `marketing_email`: Email marketing
@@ -70,6 +72,7 @@ Permission granted by a patient for specific data processing activities.
 - `third_party_sharing`: Sharing with partner organizations
 
 **Status**:
+
 - `granted`: Patient has given consent
 - `denied`: Patient has declined
 - `withdrawn`: Patient revoked previous consent
@@ -80,6 +83,7 @@ Permission granted by a patient for specific data processing activities.
 The process of evaluating a lead's urgency and determining appropriate routing:
 
 **Urgency Levels**:
+
 - **Critical**: Medical emergency (route to on-call)
 - **High**: Urgent issue, same-day response needed
 - **Medium**: Standard priority, 24-48h response
@@ -88,6 +92,7 @@ The process of evaluating a lead's urgency and determining appropriate routing:
 ### Recall
 
 A scheduled follow-up appointment for returning patients, typically for:
+
 - Routine checkups
 - Cleaning appointments
 - Treatment follow-ups
@@ -100,6 +105,7 @@ A healthcare provider (dentist, hygienist, specialist) who sees patients and has
 ### Time Slot
 
 An available appointment period for a practitioner:
+
 - Start time
 - Duration
 - Procedure types supported
@@ -107,13 +113,13 @@ An available appointment period for a practitioner:
 
 ### Appointment Status
 
-| Status | Description |
-|--------|-------------|
-| `scheduled` | Appointment booked |
+| Status      | Description                  |
+| ----------- | ---------------------------- |
+| `scheduled` | Appointment booked           |
 | `confirmed` | Patient confirmed attendance |
-| `completed` | Appointment finished |
+| `completed` | Appointment finished         |
 | `cancelled` | Cancelled before appointment |
-| `no_show` | Patient didn't attend |
+| `no_show`   | Patient didn't attend        |
 
 ---
 
@@ -122,6 +128,7 @@ An available appointment period for a practitioner:
 ### Domain Event
 
 An immutable record of something that happened in the system. Used for:
+
 - Audit trails
 - Event sourcing
 - State reconstruction
@@ -130,6 +137,7 @@ An immutable record of something that happened in the system. Used for:
 ### Event Store
 
 An append-only database table storing all domain events with:
+
 - Event type
 - Payload (JSONB)
 - Correlation ID
@@ -143,6 +151,7 @@ The property that an operation can be applied multiple times without changing th
 ### Idempotency Key
 
 A unique identifier for an operation that ensures it's processed only once:
+
 ```
 {provider}:{eventId}:{timestamp}
 ```
@@ -151,10 +160,10 @@ A unique identifier for an operation that ensures it's processed only once:
 
 A resilience pattern that prevents repeated calls to a failing service:
 
-| State | Behavior |
-|-------|----------|
-| **Closed** | Normal operation, requests pass through |
-| **Open** | All requests fail immediately |
+| State         | Behavior                                |
+| ------------- | --------------------------------------- |
+| **Closed**    | Normal operation, requests pass through |
+| **Open**      | All requests fail immediately           |
 | **Half-Open** | Allow limited requests to test recovery |
 
 ### Rate Limiting
@@ -164,6 +173,7 @@ Controlling the number of requests a client can make in a time window to prevent
 ### Webhook
 
 An HTTP callback that delivers data when an event occurs. Used for:
+
 - WhatsApp messages (360dialog → API)
 - Voice calls (Twilio → API)
 - Payments (Stripe → API)
@@ -172,6 +182,7 @@ An HTTP callback that delivers data when an event occurs. Used for:
 ### Signature Verification
 
 Validating that a webhook request came from the expected sender using HMAC-SHA256:
+
 1. Provider signs payload with shared secret
 2. API calculates expected signature
 3. Compare using timing-safe method
@@ -179,6 +190,7 @@ Validating that a webhook request came from the expected sender using HMAC-SHA25
 ### Durable Workflow
 
 A background process that:
+
 - Survives application restarts
 - Automatically retries on failure
 - Maintains state across steps
@@ -191,6 +203,7 @@ A unique identifier that tracks a request through all system components for debu
 ### PII (Personally Identifiable Information)
 
 Data that can identify an individual:
+
 - Phone numbers
 - Email addresses
 - Names
@@ -206,6 +219,7 @@ A TypeScript-first schema declaration and validation library. Used as the single
 ### Monorepo
 
 A single repository containing multiple packages/applications:
+
 ```
 medicalcor-core/
 ├── apps/          # Applications
@@ -216,6 +230,7 @@ medicalcor-core/
 ### Turborepo
 
 A build system for monorepos that:
+
 - Caches build outputs
 - Runs tasks in parallel
 - Respects package dependencies
@@ -227,6 +242,7 @@ A build system for monorepos that:
 ### 360dialog
 
 WhatsApp Business API provider that enables:
+
 - Sending/receiving WhatsApp messages
 - Template message delivery
 - Webhook notifications
@@ -234,6 +250,7 @@ WhatsApp Business API provider that enables:
 ### HubSpot
 
 CRM platform for:
+
 - Contact management
 - Timeline activity logging
 - Task creation
@@ -242,6 +259,7 @@ CRM platform for:
 ### Trigger.dev
 
 Background job orchestration platform for:
+
 - Durable workflow execution
 - Scheduled cron jobs
 - Automatic retries
@@ -250,6 +268,7 @@ Background job orchestration platform for:
 ### Twilio
 
 Communication platform for:
+
 - Voice calls
 - SMS messages
 - Webhook notifications
@@ -257,6 +276,7 @@ Communication platform for:
 ### Vapi
 
 Voice AI platform for:
+
 - Conversational AI agents
 - Call transcription
 - Intent analysis
@@ -264,6 +284,7 @@ Voice AI platform for:
 ### OpenAI
 
 AI platform providing:
+
 - GPT-4o for lead scoring
 - Natural language understanding
 - Intent classification
@@ -271,6 +292,7 @@ AI platform providing:
 ### Stripe
 
 Payment processing for:
+
 - Invoice generation
 - Payment collection
 - Subscription management
@@ -279,34 +301,34 @@ Payment processing for:
 
 ## Acronyms
 
-| Acronym | Full Form | Description |
-|---------|-----------|-------------|
-| **API** | Application Programming Interface | Interface for software communication |
-| **CRM** | Customer Relationship Management | System for managing customer interactions |
-| **CORS** | Cross-Origin Resource Sharing | Browser security mechanism |
-| **E.164** | ITU-T E.164 | International phone number format (+15551234567) |
-| **GDPR** | General Data Protection Regulation | EU data privacy law |
-| **HIPAA** | Health Insurance Portability and Accountability Act | US healthcare data privacy law |
-| **HMAC** | Hash-based Message Authentication Code | Cryptographic authentication |
-| **HSTS** | HTTP Strict Transport Security | Force HTTPS connections |
-| **JWT** | JSON Web Token | Token-based authentication |
-| **KMS** | Key Management Service | Cryptographic key management |
-| **LLM** | Large Language Model | AI model like GPT-4 |
-| **MSW** | Mock Service Worker | API mocking library |
-| **OTEL** | OpenTelemetry | Observability framework |
-| **OTLP** | OpenTelemetry Protocol | Telemetry data transfer protocol |
-| **PII** | Personally Identifiable Information | Data identifying individuals |
-| **PWA** | Progressive Web App | Web app with native features |
-| **RBAC** | Role-Based Access Control | Permission management |
-| **SDK** | Software Development Kit | Development tools and libraries |
-| **SLA** | Service Level Agreement | Performance guarantees |
-| **SOC2** | Service Organization Control 2 | Security compliance standard |
-| **TLS** | Transport Layer Security | Encryption protocol |
-| **TTL** | Time To Live | Expiration duration |
-| **UUID** | Universally Unique Identifier | 128-bit unique ID |
-| **VPC** | Virtual Private Cloud | Isolated cloud network |
-| **WAF** | Web Application Firewall | Web security service |
-| **XSS** | Cross-Site Scripting | Web security vulnerability |
+| Acronym   | Full Form                                           | Description                                      |
+| --------- | --------------------------------------------------- | ------------------------------------------------ |
+| **API**   | Application Programming Interface                   | Interface for software communication             |
+| **CRM**   | Customer Relationship Management                    | System for managing customer interactions        |
+| **CORS**  | Cross-Origin Resource Sharing                       | Browser security mechanism                       |
+| **E.164** | ITU-T E.164                                         | International phone number format (+15551234567) |
+| **GDPR**  | General Data Protection Regulation                  | EU data privacy law                              |
+| **HIPAA** | Health Insurance Portability and Accountability Act | US healthcare data privacy law                   |
+| **HMAC**  | Hash-based Message Authentication Code              | Cryptographic authentication                     |
+| **HSTS**  | HTTP Strict Transport Security                      | Force HTTPS connections                          |
+| **JWT**   | JSON Web Token                                      | Token-based authentication                       |
+| **KMS**   | Key Management Service                              | Cryptographic key management                     |
+| **LLM**   | Large Language Model                                | AI model like GPT-4                              |
+| **MSW**   | Mock Service Worker                                 | API mocking library                              |
+| **OTEL**  | OpenTelemetry                                       | Observability framework                          |
+| **OTLP**  | OpenTelemetry Protocol                              | Telemetry data transfer protocol                 |
+| **PII**   | Personally Identifiable Information                 | Data identifying individuals                     |
+| **PWA**   | Progressive Web App                                 | Web app with native features                     |
+| **RBAC**  | Role-Based Access Control                           | Permission management                            |
+| **SDK**   | Software Development Kit                            | Development tools and libraries                  |
+| **SLA**   | Service Level Agreement                             | Performance guarantees                           |
+| **SOC2**  | Service Organization Control 2                      | Security compliance standard                     |
+| **TLS**   | Transport Layer Security                            | Encryption protocol                              |
+| **TTL**   | Time To Live                                        | Expiration duration                              |
+| **UUID**  | Universally Unique Identifier                       | 128-bit unique ID                                |
+| **VPC**   | Virtual Private Cloud                               | Isolated cloud network                           |
+| **WAF**   | Web Application Firewall                            | Web security service                             |
+| **XSS**   | Cross-Site Scripting                                | Web security vulnerability                       |
 
 ---
 

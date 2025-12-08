@@ -13,6 +13,7 @@
 **Error Budget** = cantitatea de "eroare" pe care sistemul o poate tolera inainte de a incalca SLO-urile stabilite.
 
 **Formula:**
+
 ```
 Error Budget = 100% - SLO Target
 
@@ -28,41 +29,41 @@ Error Budget = 100% - 99.9% = 0.1% = 43.2 minute/luna de downtime permis
 
 ### 2.1 API Gateway
 
-| SLO | Target | Error Budget (lunar) |
-|-----|--------|---------------------|
-| Availability | 99.9% | 43.2 minute downtime |
-| Latency P95 | < 200ms | 0.1% requests > 200ms |
-| Latency P99 | < 1s | 0.1% requests > 1s |
-| Error Rate 5xx | < 0.5% | 0.5% failed requests |
+| SLO            | Target  | Error Budget (lunar)  |
+| -------------- | ------- | --------------------- |
+| Availability   | 99.9%   | 43.2 minute downtime  |
+| Latency P95    | < 200ms | 0.1% requests > 200ms |
+| Latency P99    | < 1s    | 0.1% requests > 1s    |
+| Error Rate 5xx | < 0.5%  | 0.5% failed requests  |
 
 ### 2.2 Lead Scoring
 
-| SLO | Target | Error Budget (lunar) |
-|-----|--------|---------------------|
-| Success Rate | 99.5% | 0.5% scoring failures |
-| Latency P95 | < 5s | 0.5% requests > 5s |
+| SLO          | Target | Error Budget (lunar)  |
+| ------------ | ------ | --------------------- |
+| Success Rate | 99.5%  | 0.5% scoring failures |
+| Latency P95  | < 5s   | 0.5% requests > 5s    |
 
 ### 2.3 AI Gateway
 
-| SLO | Target | Error Budget (lunar) |
-|-----|--------|---------------------|
-| Availability | 99.0% | 7.2 ore downtime |
-| Fallback Rate | < 20% | 20% pe fallback provider |
-| Daily Spend | < $500 | $0 over budget |
+| SLO           | Target | Error Budget (lunar)     |
+| ------------- | ------ | ------------------------ |
+| Availability  | 99.0%  | 7.2 ore downtime         |
+| Fallback Rate | < 20%  | 20% pe fallback provider |
+| Daily Spend   | < $500 | $0 over budget           |
 
 ### 2.4 Database
 
-| SLO | Target | Error Budget (lunar) |
-|-----|--------|---------------------|
-| Availability | 99.95% | 21.6 minute downtime |
-| Query P95 | < 100ms | 0.05% queries > 100ms |
+| SLO          | Target  | Error Budget (lunar)  |
+| ------------ | ------- | --------------------- |
+| Availability | 99.95%  | 21.6 minute downtime  |
+| Query P95    | < 100ms | 0.05% queries > 100ms |
 
 ### 2.5 Trigger.dev Workers
 
-| SLO | Target | Error Budget (lunar) |
-|-----|--------|---------------------|
-| Job Success | 99.5% | 0.5% job failures |
-| Queue Lag | < 60s | 0.5% timp > 60s lag |
+| SLO         | Target | Error Budget (lunar) |
+| ----------- | ------ | -------------------- |
+| Job Success | 99.5%  | 0.5% job failures    |
+| Queue Lag   | < 60s  | 0.5% timp > 60s lag  |
 
 ---
 
@@ -75,6 +76,7 @@ Current Burn Rate = (actual_errors / total_requests) / (error_budget / time_wind
 ```
 
 **Interpretare:**
+
 - Burn Rate = 1.0: Consumam exact cat e permis
 - Burn Rate > 1.0: Consumam prea repede (problema!)
 - Burn Rate < 1.0: Sub limita (OK pentru features)
@@ -97,29 +99,32 @@ Daca in prima saptamana avem 20 minute downtime:
 
 ### 4.1 Zone de Consum
 
-| Consum Budget | Zona | Culoare | Actiuni |
-|---------------|------|---------|---------|
-| 0-50% | Safe | Verde | Feature development normal |
-| 50-75% | Caution | Galben | Review tehnic inainte de release |
-| 75-90% | Warning | Portocaliu | Feature freeze partial |
-| 90-100% | Critical | Rosu | Feature freeze complet |
-| >100% | Exhausted | Negru | Incident mode |
+| Consum Budget | Zona      | Culoare    | Actiuni                          |
+| ------------- | --------- | ---------- | -------------------------------- |
+| 0-50%         | Safe      | Verde      | Feature development normal       |
+| 50-75%        | Caution   | Galben     | Review tehnic inainte de release |
+| 75-90%        | Warning   | Portocaliu | Feature freeze partial           |
+| 90-100%       | Critical  | Rosu       | Feature freeze complet           |
+| >100%         | Exhausted | Negru      | Incident mode                    |
 
 ### 4.2 Actiuni per Zona
 
 #### Zona Verde (0-50% consumat)
+
 - Development normal
 - Features pot fi released
 - Experimentare permisa
 - Tech debt se adreseaza organic
 
 #### Zona Galben (50-75% consumat)
+
 - Review tehnic obligatoriu pentru orice release
 - Rollout gradual (canary) obligatoriu
 - Monitoring intens post-deploy
 - Focus pe stabilitate in code reviews
 
 #### Zona Portocaliu (75-90% consumat)
+
 - **Feature freeze partial**
   - Doar bug fixes si security patches
   - Features critice necesita aprobare VP Engineering
@@ -128,6 +133,7 @@ Daca in prima saptamana avem 20 minute downtime:
 - Capacity planning urgent
 
 #### Zona Rosu (90-100% consumat)
+
 - **Feature freeze complet**
 - Doar hotfixes critice permise
 - All-hands pe reliability
@@ -135,6 +141,7 @@ Daca in prima saptamana avem 20 minute downtime:
 - Postmortem pentru orice incident
 
 #### Zona Negru (>100% - Budget epuizat)
+
 - **Incident mode activat**
 - Postmortem obligatoriu in 48h
 - No releases pentru 2 saptamani
@@ -147,23 +154,23 @@ Daca in prima saptamana avem 20 minute downtime:
 
 ### 5.1 Ownership
 
-| Rol | Responsabilitate |
-|-----|------------------|
-| **SRE/Platform** | Monitorizare error budget, alerte, raportare |
-| **Tech Lead** | Decizii release bazate pe budget status |
-| **Engineering Manager** | Enforcement policy, escalation |
-| **Product Manager** | Prioritizare features vs reliability |
-| **VP Engineering** | Exceptii policy, strategic decisions |
+| Rol                     | Responsabilitate                             |
+| ----------------------- | -------------------------------------------- |
+| **SRE/Platform**        | Monitorizare error budget, alerte, raportare |
+| **Tech Lead**           | Decizii release bazate pe budget status      |
+| **Engineering Manager** | Enforcement policy, escalation               |
+| **Product Manager**     | Prioritizare features vs reliability         |
+| **VP Engineering**      | Exceptii policy, strategic decisions         |
 
 ### 5.2 Decision Matrix
 
-| Decizie | Zona Verde | Zona Galben | Zona Portocaliu | Zona Rosu |
-|---------|------------|-------------|-----------------|-----------|
-| Release feature nou | Tech Lead | Tech Lead + Review | VP Approval | NU |
-| Release bug fix | Auto | Auto | Tech Lead | Tech Lead |
-| Release security patch | Auto | Auto | Auto | Auto |
-| Experimentare prod | Da | Cu review | NU | NU |
-| Refactoring major | Da | Cu review | NU | NU |
+| Decizie                | Zona Verde | Zona Galben        | Zona Portocaliu | Zona Rosu |
+| ---------------------- | ---------- | ------------------ | --------------- | --------- |
+| Release feature nou    | Tech Lead  | Tech Lead + Review | VP Approval     | NU        |
+| Release bug fix        | Auto       | Auto               | Tech Lead       | Tech Lead |
+| Release security patch | Auto       | Auto               | Auto            | Auto      |
+| Experimentare prod     | Da         | Cu review          | NU              | NU        |
+| Refactoring major      | Da         | Cu review          | NU              | NU        |
 
 ---
 
@@ -172,18 +179,19 @@ Daca in prima saptamana avem 20 minute downtime:
 ### 6.1 Raportare Automata
 
 **Dashboard Grafana:** Error Budget Burn-down
+
 - Actualizare: Real-time
 - Metrici: Budget remaining, burn rate, trend
 - Alerte: La 50%, 75%, 90%, 100%
 
 ### 6.2 Review-uri Programate
 
-| Frecventa | Participanti | Focus |
-|-----------|--------------|-------|
-| Zilnic | On-call + Tech Lead | Status check, incidents |
-| Saptamanal | Engineering Team | Trend analysis, planning |
-| Lunar | Leadership | Strategic review, SLO adjustment |
-| Trimestrial | All stakeholders | Policy review, improvements |
+| Frecventa   | Participanti        | Focus                            |
+| ----------- | ------------------- | -------------------------------- |
+| Zilnic      | On-call + Tech Lead | Status check, incidents          |
+| Saptamanal  | Engineering Team    | Trend analysis, planning         |
+| Lunar       | Leadership          | Strategic review, SLO adjustment |
+| Trimestrial | All stakeholders    | Policy review, improvements      |
 
 ### 6.3 Structura Report Saptamanal
 
@@ -191,20 +199,24 @@ Daca in prima saptamana avem 20 minute downtime:
 ## Error Budget Report - Saptamana X
 
 ### Status General
+
 - API: 67% budget remaining (Zona Galben)
 - AI Gateway: 85% budget remaining (Zona Verde)
 - Database: 92% budget remaining (Zona Verde)
 
 ### Incidente
+
 - [INC-123] API degradation - 15 min downtime
   - Root cause: Database connection pool exhausted
   - Remediation: Pool size increased
 
 ### Actiuni
+
 - [ ] Implement connection pooling monitoring
 - [ ] Review auto-scaling thresholds
 
 ### Recomandari
+
 - Feature freeze NU recomandat
 - Review tehnic pentru urmatorul release
 ```
@@ -285,12 +297,12 @@ CTO (2h)
 
 ### 9.1 Alerte Error Budget
 
-| Alert | Conditie | Severitate | Actiune |
-|-------|----------|------------|---------|
-| `ErrorBudgetWarning` | Budget < 50% | Warning | Notify Slack |
-| `ErrorBudgetCritical` | Budget < 25% | Critical | Page on-call |
-| `ErrorBudgetExhausted` | Budget < 10% | Emergency | Page Tech Lead |
-| `ErrorBudgetBurnRate` | Burn rate > 2x | Warning | Notify Slack |
+| Alert                  | Conditie       | Severitate | Actiune        |
+| ---------------------- | -------------- | ---------- | -------------- |
+| `ErrorBudgetWarning`   | Budget < 50%   | Warning    | Notify Slack   |
+| `ErrorBudgetCritical`  | Budget < 25%   | Critical   | Page on-call   |
+| `ErrorBudgetExhausted` | Budget < 10%   | Emergency  | Page Tech Lead |
+| `ErrorBudgetBurnRate`  | Burn rate > 2x | Warning    | Notify Slack   |
 
 ### 9.2 Prometheus Alert Rules
 
@@ -308,7 +320,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "Error budget below 50%"
+          summary: 'Error budget below 50%'
 
       - alert: ErrorBudgetBurnRateHigh
         expr: |
@@ -319,7 +331,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "Error budget burn rate 2x normal"
+          summary: 'Error budget burn rate 2x normal'
 ```
 
 ---
@@ -344,4 +356,4 @@ groups:
 
 ---
 
-*Policy pentru MedicalCor Core Platform - Decembrie 2024*
+_Policy pentru MedicalCor Core Platform - Decembrie 2024_

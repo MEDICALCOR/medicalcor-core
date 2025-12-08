@@ -14,6 +14,7 @@ MedicalCor OSAX is a medical-grade platform handling Protected Health Informatio
 4. **Long-term Maintainability**: The codebase must support evolution over years
 
 Previous implementations suffered from:
+
 - Tight coupling between business logic and infrastructure
 - Difficulty testing without database connections
 - Vendor lock-in to specific cloud services
@@ -69,10 +70,12 @@ packages/
 ### Key Interfaces
 
 **Primary Ports** (what the application offers):
+
 - `OsaxCaseService`: Case management operations
 - `OsaxCaseDto`: Data transfer objects for external communication
 
 **Secondary Ports** (what the application needs):
+
 - `OsaxCaseRepository`: Persistence abstraction
 - `EventPublisher`: Event publishing abstraction
 - `AuditService`: Audit logging abstraction
@@ -102,12 +105,15 @@ packages/
 ## Alternatives Considered
 
 ### 1. Traditional Layered Architecture
+
 **Rejected**: Tight coupling between layers, difficult to swap technologies, compliance code scattered.
 
 ### 2. Clean Architecture
+
 **Considered but simplified**: Full Clean Architecture adds too many layers (Entities, Use Cases, Interface Adapters, Frameworks). Hexagonal provides similar benefits with less complexity.
 
 ### 3. Vertical Slice Architecture
+
 **Partially adopted**: Feature organization used within bounded contexts, but hexagonal provides the horizontal layering needed for compliance isolation.
 
 ## Implementation Guidelines

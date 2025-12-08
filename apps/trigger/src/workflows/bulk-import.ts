@@ -12,11 +12,7 @@
 import { task, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
 import crypto from 'crypto';
-import {
-  processBulkImport,
-  updateJobProgress,
-  getBulkImportJob,
-} from '@medicalcor/core';
+import { processBulkImport, updateJobProgress, getBulkImportJob } from '@medicalcor/core';
 import {
   BulkImportRowSchema,
   BulkImportOptionsSchema,
@@ -103,7 +99,10 @@ export const bulkImportWorkflow = task({
       });
 
       // Build error summary
-      const errorSummary: Record<BulkImportErrorCode, number> = {} as Record<BulkImportErrorCode, number>;
+      const errorSummary: Record<BulkImportErrorCode, number> = {} as Record<
+        BulkImportErrorCode,
+        number
+      >;
       if (result.errors) {
         for (const error of result.errors) {
           if (error.errorCode) {

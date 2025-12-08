@@ -212,7 +212,10 @@ export class HubSpotContextProvider {
 
       return this.formatPatientContext(contact);
     } catch (error) {
-      logger.debug({ error, phone }, 'Failed to search HubSpot contacts by phone - graceful degradation');
+      logger.debug(
+        { error, phone },
+        'Failed to search HubSpot contacts by phone - graceful degradation'
+      );
       return null;
     }
   }

@@ -18,13 +18,13 @@ This code review analyzes the MedicalCor Core platform - an enterprise-grade med
 
 ### Strengths
 
-| Aspect | Rating | Notes |
-|--------|--------|-------|
-| Monorepo Structure | ⭐⭐⭐⭐⭐ | Excellent separation via Turborepo with clear package boundaries |
-| Separation of Concerns | ⭐⭐⭐⭐⭐ | Clean split: `core`, `domain`, `integrations`, `types`, `apps` |
-| TypeScript Usage | ⭐⭐⭐⭐⭐ | Strict mode enabled, comprehensive Zod validation |
-| Security Patterns | ⭐⭐⭐⭐⭐ | PII redaction, HMAC verification, timing-safe comparisons |
-| Error Handling | ⭐⭐⭐⭐ | Custom error hierarchy with safe API responses |
+| Aspect                 | Rating     | Notes                                                            |
+| ---------------------- | ---------- | ---------------------------------------------------------------- |
+| Monorepo Structure     | ⭐⭐⭐⭐⭐ | Excellent separation via Turborepo with clear package boundaries |
+| Separation of Concerns | ⭐⭐⭐⭐⭐ | Clean split: `core`, `domain`, `integrations`, `types`, `apps`   |
+| TypeScript Usage       | ⭐⭐⭐⭐⭐ | Strict mode enabled, comprehensive Zod validation                |
+| Security Patterns      | ⭐⭐⭐⭐⭐ | PII redaction, HMAC verification, timing-safe comparisons        |
+| Error Handling         | ⭐⭐⭐⭐   | Custom error hierarchy with safe API responses                   |
 
 ### Architecture Highlights
 
@@ -50,6 +50,7 @@ This code review analyzes the MedicalCor Core platform - an enterprise-grade med
 ### 🔴 High Priority
 
 #### 2.1 Race Condition in Lead Repository Phone Search
+
 **Location:** `packages/core/src/cqrs/aggregate.ts:447-458`
 
 ```typescript
@@ -65,6 +66,7 @@ async findByPhone(phone: string): Promise<LeadAggregate | null> {
 ```
 
 **Issue:** This scans ALL `LeadCreated` events without pagination, which will cause:
+
 - Performance degradation as events grow
 - Memory issues with large event stores
 - No caching mechanism
@@ -74,6 +76,7 @@ async findByPhone(phone: string): Promise<LeadAggregate | null> {
 ---
 
 #### 2.2 Potential Memory Leak in Circuit Breaker
+
 **Location:** `packages/core/src/circuit-breaker.ts:69`
 
 ```typescript
@@ -83,6 +86,7 @@ private failureTimestamps: number[] = [];
 **Issue:** `failureTimestamps` array could grow unbounded if `cleanupFailureTimestamps()` isn't called frequently enough during sustained failures.
 
 **Recommendation:** Add a maximum array size check:
+
 ```typescript
 private cleanupFailureTimestamps(): void {
   const windowStart = Date.now() - (this.config.failureWindowMs ?? 60000);
@@ -99,32 +103,37 @@ private cleanupFailureTimestamps(): void {
 ### 🟡 Medium Priority
 
 #### 2.3 Idempotency Key Collision Risk
+
 **Location:** `packages/core/src/event-store.ts:385-386`
 
 ```typescript
-idempotencyKey: input.idempotencyKey ?? `${input.type}:${input.correlationId}:${Date.now()}`
+idempotencyKey: input.idempotencyKey ?? `${input.type}:${input.correlationId}:${Date.now()}`;
 ```
 
 **Issue:** `Date.now()` has millisecond precision, which could cause collisions under high load.
 
 **Recommendation:** Use UUID or include a random component:
+
 ```typescript
-idempotencyKey: input.idempotencyKey ?? `${input.type}:${input.correlationId}:${crypto.randomUUID()}`
+idempotencyKey: input.idempotencyKey ??
+  `${input.type}:${input.correlationId}:${crypto.randomUUID()}`;
 ```
 
 ---
 
 #### 2.4 Retry Middleware Re-executes Side Effects
+
 **Location:** `packages/core/src/cqrs/command-bus.ts:280-310`
 
 ```typescript
 for (let attempt = 0; attempt <= options.maxRetries; attempt++) {
-  const result = await next();  // This calls the handler again
+  const result = await next(); // This calls the handler again
   // ...
 }
 ```
 
 **Issue:** The retry middleware calls `next()` multiple times, which will re-execute the entire handler including any side effects. This could cause:
+
 - Duplicate event emissions
 - Duplicate external API calls
 
@@ -133,6 +142,7 @@ for (let attempt = 0; attempt <= options.maxRetries; attempt++) {
 ---
 
 #### 2.5 HubSpot Sync Contact Race Condition
+
 **Location:** `packages/integrations/src/hubspot.ts:104-144`
 
 ```typescript
@@ -150,6 +160,7 @@ async syncContact(data) {
 **Issue:** Time-of-check to time-of-use (TOCTOU) race condition. Two concurrent requests for the same phone could both find no existing contact and create duplicates.
 
 **Recommendation:** Use the atomic `upsertContactByPhone` method that's already available:
+
 ```typescript
 async syncContact(data) {
   return this.upsertContactByPhone(phone, {
@@ -165,6 +176,7 @@ async syncContact(data) {
 ### 🟢 Low Priority
 
 #### 2.6 WhatsApp Message Type Not Fully Handled
+
 **Location:** `apps/api/src/routes/webhooks/whatsapp.ts:300-319`
 
 ```typescript
@@ -178,6 +190,7 @@ const messagePayload = {
 **Issue:** Only `text` message type is forwarded. Other types (image, document, audio, location, etc.) are processed but their content may be lost.
 
 **Recommendation:** Forward all message types to the handler:
+
 ```typescript
 message: {
   ...message,  // Include all fields
@@ -188,6 +201,7 @@ message: {
 ---
 
 #### 2.7 Scoring Service AI Response Validation
+
 **Location:** `packages/domain/src/scoring/scoring-service.ts:269-304`
 
 ```typescript
@@ -205,6 +219,7 @@ private parseAIResponse(content: string): ScoringOutput {
 **Issue:** The regex `\{[\s\S]*\}` will match the largest possible JSON object, which could include surrounding text if the AI response is malformed. Silent fallback to COLD could cause business issues.
 
 **Recommendation:** Add Zod validation for the AI response and log parsing failures for monitoring:
+
 ```typescript
 const ScoringOutputSchema = z.object({
   score: z.number().min(1).max(5),
@@ -228,6 +243,7 @@ const ScoringOutputSchema = z.object({
 ### Areas for Improvement
 
 #### 3.1 Type Assertions Could Be Reduced
+
 **Location:** `packages/core/src/database.ts:92-94, 110-113`
 
 ```typescript
@@ -241,13 +257,16 @@ const pool = this.pool as {
 ---
 
 #### 3.2 Magic Numbers Should Be Constants
+
 **Location:** Multiple files
 
 Examples:
+
 - `packages/integrations/src/hubspot.ts:194` - Association type IDs (202, 194, 204)
 - `packages/core/src/resilient-fetch.ts:102` - Retryable status codes array
 
 **Recommendation:** Extract to named constants:
+
 ```typescript
 const HUBSPOT_ASSOCIATIONS = {
   NOTE_TO_CONTACT: 202,
@@ -259,9 +278,11 @@ const HUBSPOT_ASSOCIATIONS = {
 ---
 
 #### 3.3 Long Methods Could Be Decomposed
+
 **Location:** `apps/api/src/routes/webhooks/whatsapp.ts:163-369`
 
 The POST handler is 200+ lines with multiple responsibilities. Consider extracting:
+
 - `validateWebhookPayload()`
 - `extractMessagesAndStatuses()`
 - `triggerHandlers()`
@@ -272,19 +293,20 @@ The POST handler is 200+ lines with multiple responsibilities. Consider extracti
 
 ### ✅ Conventions Followed
 
-| Convention | Status | Evidence |
-|------------|--------|----------|
-| Zod for input validation | ✅ | All integration clients, webhooks |
-| Custom error classes | ✅ | `AppError`, `ValidationError`, etc. |
-| PII redaction in logs | ✅ | Logger module with comprehensive patterns |
-| HMAC webhook verification | ✅ | WhatsApp, Stripe routes use timing-safe comparison |
-| Correlation ID tracking | ✅ | Passed through webhooks and commands |
-| TypeScript strict mode | ✅ | `tsconfig.json` with strict: true |
-| ESLint/Prettier | ✅ | Configured in root with Husky hooks |
+| Convention                | Status | Evidence                                           |
+| ------------------------- | ------ | -------------------------------------------------- |
+| Zod for input validation  | ✅     | All integration clients, webhooks                  |
+| Custom error classes      | ✅     | `AppError`, `ValidationError`, etc.                |
+| PII redaction in logs     | ✅     | Logger module with comprehensive patterns          |
+| HMAC webhook verification | ✅     | WhatsApp, Stripe routes use timing-safe comparison |
+| Correlation ID tracking   | ✅     | Passed through webhooks and commands               |
+| TypeScript strict mode    | ✅     | `tsconfig.json` with strict: true                  |
+| ESLint/Prettier           | ✅     | Configured in root with Husky hooks                |
 
 ### ⚠️ Minor Inconsistencies
 
 #### 4.1 Error Response Format Variation
+
 Most errors use `toSafeErrorResponse()`, but some endpoints return custom formats:
 
 ```typescript
@@ -298,7 +320,9 @@ return reply.status(403).send(toSafeErrorResponse(new AuthenticationError('Verif
 ---
 
 #### 4.2 Async/Await Consistency
+
 Some Fastify plugins use:
+
 ```typescript
 await Promise.resolve(); // Satisfy require-await
 ```
@@ -321,19 +345,26 @@ This is functional but could be cleaner with explicit `async` removal or using `
 ### ⚠️ Security Recommendations
 
 #### 5.1 Consider API Key Rotation Support
+
 Current implementation doesn't support key rotation. Consider:
+
 - Multiple active keys with deprecation dates
 - Key version tracking in logs
 
 #### 5.2 Add Request Signature Logging
+
 Log signature verification failures (without the actual signatures) for security monitoring:
+
 ```typescript
 if (!verifySignature(rawBody, signature)) {
-  fastify.log.warn({
-    correlationId,
-    signaturePresent: !!signature,
-    payloadLength: rawBody.length,
-  }, 'WhatsApp webhook signature verification failed');
+  fastify.log.warn(
+    {
+      correlationId,
+      signaturePresent: !!signature,
+      payloadLength: rawBody.length,
+    },
+    'WhatsApp webhook signature verification failed'
+  );
 }
 ```
 
@@ -351,12 +382,16 @@ if (!verifySignature(rawBody, signature)) {
 ### ⚠️ Performance Recommendations
 
 #### 6.1 Add Caching for Frequent Lookups
+
 The phone-to-lead lookup scans all events. Consider:
+
 - Redis cache for phone → aggregateId mapping
 - Read model projection
 
 #### 6.2 Batch Event Emission
+
 When saving aggregates with multiple uncommitted events, consider batch insert:
+
 ```typescript
 async save(aggregate: T): Promise<void> {
   const events = aggregate.getUncommittedEvents();
@@ -386,24 +421,27 @@ Based on the test files found:
 ## 8. Summary of Action Items
 
 ### Must Fix (High Priority)
-| # | Issue | Location | Impact |
-|---|-------|----------|--------|
-| 1 | Lead repository phone search performance | `aggregate.ts:447` | Will degrade with scale |
-| 2 | Circuit breaker memory growth | `circuit-breaker.ts:69` | Memory leak potential |
+
+| #   | Issue                                    | Location                | Impact                  |
+| --- | ---------------------------------------- | ----------------------- | ----------------------- |
+| 1   | Lead repository phone search performance | `aggregate.ts:447`      | Will degrade with scale |
+| 2   | Circuit breaker memory growth            | `circuit-breaker.ts:69` | Memory leak potential   |
 
 ### Should Fix (Medium Priority)
-| # | Issue | Location | Impact |
-|---|-------|----------|--------|
-| 3 | Idempotency key collision risk | `event-store.ts:386` | Rare duplicate events |
-| 4 | Command retry re-executes side effects | `command-bus.ts:288` | Duplicate operations |
-| 5 | HubSpot syncContact race condition | `hubspot.ts:104` | Duplicate contacts |
+
+| #   | Issue                                  | Location             | Impact                |
+| --- | -------------------------------------- | -------------------- | --------------------- |
+| 3   | Idempotency key collision risk         | `event-store.ts:386` | Rare duplicate events |
+| 4   | Command retry re-executes side effects | `command-bus.ts:288` | Duplicate operations  |
+| 5   | HubSpot syncContact race condition     | `hubspot.ts:104`     | Duplicate contacts    |
 
 ### Nice to Have (Low Priority)
-| # | Issue | Location | Impact |
-|---|-------|----------|--------|
-| 6 | Forward all WhatsApp message types | `whatsapp.ts:300` | Lost message content |
-| 7 | AI response validation | `scoring-service.ts:269` | Silent scoring failures |
-| 8 | Magic numbers to constants | Multiple | Maintainability |
+
+| #   | Issue                              | Location                 | Impact                  |
+| --- | ---------------------------------- | ------------------------ | ----------------------- |
+| 6   | Forward all WhatsApp message types | `whatsapp.ts:300`        | Lost message content    |
+| 7   | AI response validation             | `scoring-service.ts:269` | Silent scoring failures |
+| 8   | Magic numbers to constants         | Multiple                 | Maintainability         |
 
 ---
 
@@ -412,6 +450,7 @@ Based on the test files found:
 The MedicalCor Core codebase demonstrates **excellent architectural decisions** with proper use of event sourcing, CQRS, and domain-driven design. The security posture is strong with comprehensive PII redaction and webhook verification.
 
 The main areas requiring attention are:
+
 1. **Scaling concerns**: Phone lookup and event scanning patterns
 2. **Race conditions**: In contact sync operations
 3. **Minor code quality**: Type assertions and magic numbers
@@ -420,4 +459,4 @@ Overall, this is a **well-engineered healthcare platform** that follows industry
 
 ---
 
-*Report generated by Claude Code Analysis*
+_Report generated by Claude Code Analysis_

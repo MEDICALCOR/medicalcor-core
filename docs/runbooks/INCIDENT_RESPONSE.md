@@ -53,26 +53,26 @@ Procedures for detecting, responding to, and resolving incidents in MedicalCor C
 
 ### Alert Sources
 
-| Source | Type | Access |
-|--------|------|--------|
-| **PagerDuty** | Critical/High alerts | pagerduty.com/medicalcor |
-| **Grafana** | Dashboards, warning alerts | grafana.medicalcor.com |
-| **Slack #alerts** | All alerts | Slack channel |
-| **Sentry** | Error tracking | sentry.io/medicalcor |
-| **Trigger.dev** | Job failures | cloud.trigger.dev |
-| **GCP Console** | Infrastructure alerts | console.cloud.google.com |
+| Source            | Type                       | Access                   |
+| ----------------- | -------------------------- | ------------------------ |
+| **PagerDuty**     | Critical/High alerts       | pagerduty.com/medicalcor |
+| **Grafana**       | Dashboards, warning alerts | grafana.medicalcor.com   |
+| **Slack #alerts** | All alerts                 | Slack channel            |
+| **Sentry**        | Error tracking             | sentry.io/medicalcor     |
+| **Trigger.dev**   | Job failures               | cloud.trigger.dev        |
+| **GCP Console**   | Infrastructure alerts      | console.cloud.google.com |
 
 ### Key Metrics to Monitor
 
-| Metric | Warning Threshold | Critical Threshold |
-|--------|------------------|-------------------|
-| Error Rate (5xx) | > 1% for 5 min | > 5% for 2 min |
-| Latency P95 | > 500ms for 5 min | > 2s for 2 min |
-| API Availability | < 99.9% (rolling) | < 99% (rolling) |
-| Circuit Breakers | 1 open | > 2 open |
-| AI Fallback Rate | > 30% for 10 min | > 50% for 5 min |
-| Queue Depth | > 500 pending | > 1000 pending |
-| Database Connections | > 80% pool | > 95% pool |
+| Metric               | Warning Threshold | Critical Threshold |
+| -------------------- | ----------------- | ------------------ |
+| Error Rate (5xx)     | > 1% for 5 min    | > 5% for 2 min     |
+| Latency P95          | > 500ms for 5 min | > 2s for 2 min     |
+| API Availability     | < 99.9% (rolling) | < 99% (rolling)    |
+| Circuit Breakers     | 1 open            | > 2 open           |
+| AI Fallback Rate     | > 30% for 10 min  | > 50% for 5 min    |
+| Queue Depth          | > 500 pending     | > 1000 pending     |
+| Database Connections | > 80% pool        | > 95% pool         |
 
 ### Quick Health Check
 
@@ -95,26 +95,26 @@ curl -s https://api.medicalcor.com/metrics | grep -E "^(http_requests|medicalcor
 
 ### Step 1: Acknowledge (Within SLA)
 
-| Severity | Ack Time | Action |
-|----------|----------|--------|
-| P1 | 5 min | Acknowledge in PagerDuty immediately |
-| P2 | 15 min | Acknowledge in PagerDuty |
-| P3 | 30 min | Acknowledge in Slack |
-| P4 | 4 hours | Acknowledge in Slack |
+| Severity | Ack Time | Action                               |
+| -------- | -------- | ------------------------------------ |
+| P1       | 5 min    | Acknowledge in PagerDuty immediately |
+| P2       | 15 min   | Acknowledge in PagerDuty             |
+| P3       | 30 min   | Acknowledge in Slack                 |
+| P4       | 4 hours  | Acknowledge in Slack                 |
 
 ### Step 2: Assess Severity
 
 Use this decision matrix:
 
-| Question | Yes → Higher Severity | No → Lower Severity |
-|----------|----------------------|---------------------|
-| Is the API completely down? | P1 | Check next |
-| Are > 50% of requests failing? | P1 | Check next |
-| Is payment processing affected? | P1-P2 | Check next |
-| Are patient communications blocked? | P2 | Check next |
-| Is lead scoring completely unavailable? | P2-P3 | Check next |
-| Is only one integration affected? | P3 | Check next |
-| Is it affecting only staging/dev? | P4 | P3-P4 |
+| Question                                | Yes → Higher Severity | No → Lower Severity |
+| --------------------------------------- | --------------------- | ------------------- |
+| Is the API completely down?             | P1                    | Check next          |
+| Are > 50% of requests failing?          | P1                    | Check next          |
+| Is payment processing affected?         | P1-P2                 | Check next          |
+| Are patient communications blocked?     | P2                    | Check next          |
+| Is lead scoring completely unavailable? | P2-P3                 | Check next          |
+| Is only one integration affected?       | P3                    | Check next          |
+| Is it affecting only staging/dev?       | P4                    | P3-P4               |
 
 ### Step 3: Open Incident Channel
 
@@ -134,12 +134,12 @@ For P1/P2 incidents:
 
 ### Step 4: Notify Stakeholders
 
-| Severity | Notify Immediately | Notify Within 15 min |
-|----------|-------------------|---------------------|
-| P1 | On-call, Eng Manager | VP Eng, Customer Support |
-| P2 | On-call | Eng Manager |
-| P3 | - | On-call |
-| P4 | - | - |
+| Severity | Notify Immediately   | Notify Within 15 min     |
+| -------- | -------------------- | ------------------------ |
+| P1       | On-call, Eng Manager | VP Eng, Customer Support |
+| P2       | On-call              | Eng Manager              |
+| P3       | -                    | On-call                  |
+| P4       | -                    | -                        |
 
 ---
 
@@ -301,6 +301,7 @@ gcloud logging read 'resource.type="cloud_run_revision" AND severity>=ERROR' \
 ### Close Incident
 
 1. Update incident channel:
+
    ```
    **Incident Resolved**
    - Resolution Time: [HH:MM UTC]
@@ -320,12 +321,12 @@ gcloud logging read 'resource.type="cloud_run_revision" AND severity>=ERROR' \
 
 ### Timeline (for P1/P2)
 
-| Action | Deadline |
-|--------|----------|
-| Incident Summary | Within 4 hours |
-| Preliminary Root Cause | Within 24 hours |
-| Full Post-Mortem | Within 72 hours |
-| Action Items Assigned | Within 1 week |
+| Action                 | Deadline         |
+| ---------------------- | ---------------- |
+| Incident Summary       | Within 4 hours   |
+| Preliminary Root Cause | Within 24 hours  |
+| Full Post-Mortem       | Within 72 hours  |
+| Action Items Assigned  | Within 1 week    |
 | Action Items Completed | Track to closure |
 
 ### Post-Mortem Template
@@ -339,43 +340,52 @@ gcloud logging read 'resource.type="cloud_run_revision" AND severity>=ERROR' \
 **Author:** [Name]
 
 ## Summary
+
 [2-3 sentence summary of what happened]
 
 ## Impact
+
 - Users affected: [Number or percentage]
 - Requests failed: [Number]
 - Revenue impact: [If applicable]
 - Error budget consumed: [Percentage]
 
 ## Timeline (UTC)
-| Time | Event |
-|------|-------|
+
+| Time  | Event                    |
+| ----- | ------------------------ |
 | HH:MM | [First symptom detected] |
-| HH:MM | [Incident declared] |
-| HH:MM | [Root cause identified] |
-| HH:MM | [Mitigation applied] |
-| HH:MM | [Incident resolved] |
+| HH:MM | [Incident declared]      |
+| HH:MM | [Root cause identified]  |
+| HH:MM | [Mitigation applied]     |
+| HH:MM | [Incident resolved]      |
 
 ## Root Cause
+
 [Detailed explanation of what caused the incident]
 
 ## Resolution
+
 [What was done to fix the issue]
 
 ## Lessons Learned
+
 ### What went well
+
 - [Point 1]
 - [Point 2]
 
 ### What could be improved
+
 - [Point 1]
 - [Point 2]
 
 ## Action Items
-| Priority | Action | Owner | Due Date |
-|----------|--------|-------|----------|
-| P1 | [Action] | @name | YYYY-MM-DD |
-| P2 | [Action] | @name | YYYY-MM-DD |
+
+| Priority | Action   | Owner | Due Date   |
+| -------- | -------- | ----- | ---------- |
+| P1       | [Action] | @name | YYYY-MM-DD |
+| P2       | [Action] | @name | YYYY-MM-DD |
 ```
 
 ---
@@ -385,11 +395,13 @@ gcloud logging read 'resource.type="cloud_run_revision" AND severity>=ERROR' \
 ### 1. API Outage
 
 **Symptoms:**
+
 - Health checks failing
 - 5xx errors on all endpoints
 - No traffic in monitoring
 
 **Quick Diagnosis:**
+
 ```bash
 # Check service status
 gcloud run services describe medicalcor-api --format="yaml(status)"
@@ -399,6 +411,7 @@ gcloud run revisions list --service=medicalcor-api --limit=3
 ```
 
 **Common Causes:**
+
 - Bad deployment
 - Database unavailable
 - Misconfiguration
@@ -410,11 +423,13 @@ gcloud run revisions list --service=medicalcor-api --limit=3
 ### 2. Database Outage
 
 **Symptoms:**
+
 - `/ready` endpoint failing
 - Connection errors in logs
 - All data operations failing
 
 **Quick Diagnosis:**
+
 ```bash
 # Test direct connection
 psql $DATABASE_URL -c "SELECT 1"
@@ -430,11 +445,13 @@ gcloud sql instances describe medicalcor-db --format="yaml(state,serviceAccountE
 ### 3. External Integration Failure
 
 **Symptoms:**
+
 - Circuit breaker open
 - Specific operation failing
 - Fallback metrics elevated
 
 **Quick Diagnosis:**
+
 ```bash
 # Check circuit breaker status
 curl -s https://api.medicalcor.com/health/circuit-breakers | jq .
@@ -445,6 +462,7 @@ gcloud logging read 'jsonPayload.component="hubspot" OR jsonPayload.component="o
 ```
 
 **Mitigation:**
+
 - Wait for circuit breaker to recover
 - Check external service status pages
 - If persistent, contact integration support
@@ -454,11 +472,13 @@ gcloud logging read 'jsonPayload.component="hubspot" OR jsonPayload.component="o
 ### 4. Performance Degradation
 
 **Symptoms:**
+
 - Elevated latency
 - Slow responses but not errors
 - Queue backlog growing
 
 **Quick Diagnosis:**
+
 ```bash
 # Check current latency
 curl -s https://api.medicalcor.com/metrics | grep "http_request_duration"
@@ -469,6 +489,7 @@ FROM pg_stat_statements ORDER BY mean_exec_time DESC LIMIT 10;"
 ```
 
 **Mitigation:**
+
 - Scale up resources
 - Add missing indexes
 - Enable query caching
@@ -478,11 +499,13 @@ FROM pg_stat_statements ORDER BY mean_exec_time DESC LIMIT 10;"
 ### 5. Security Incident
 
 **Symptoms:**
+
 - Unusual access patterns
 - Credential exposure
 - Data exfiltration alerts
 
 **Immediate Actions:**
+
 1. **DO NOT** discuss in public channels
 2. Notify Security Team immediately: security@medicalcor.com
 3. Preserve all logs and evidence
@@ -537,6 +560,6 @@ This incident has been resolved. [Brief description of fix].
 
 ## Revision History
 
-| Date | Version | Author | Changes |
-|------|---------|--------|---------|
-| 2024-12 | 1.0 | Platform Team | Initial runbook creation |
+| Date    | Version | Author        | Changes                  |
+| ------- | ------- | ------------- | ------------------------ |
+| 2024-12 | 1.0     | Platform Team | Initial runbook creation |

@@ -49,9 +49,20 @@ const logger = createLogger({ name: 'bulk-import' });
 /**
  * Field names used for row mapping
  */
-type ImportFieldName = 'phone' | 'fullName' | 'firstName' | 'lastName' | 'email' |
-  'source' | 'acquisitionChannel' | 'tags' | 'language' | 'gdprConsent' |
-  'status' | 'notes' | 'externalContactId';
+type ImportFieldName =
+  | 'phone'
+  | 'fullName'
+  | 'firstName'
+  | 'lastName'
+  | 'email'
+  | 'source'
+  | 'acquisitionChannel'
+  | 'tags'
+  | 'language'
+  | 'gdprConsent'
+  | 'status'
+  | 'notes'
+  | 'externalContactId';
 
 /**
  * Default CSV column mappings (case-insensitive)
@@ -101,7 +112,7 @@ const DEFAULT_CSV_MAPPINGS: Record<string, ImportFieldName> = {
   notes: 'notes',
   note: 'notes',
   observatii: 'notes',
-  'external_id': 'externalContactId',
+  external_id: 'externalContactId',
   'external id': 'externalContactId',
   id: 'externalContactId',
 };
@@ -109,16 +120,17 @@ const DEFAULT_CSV_MAPPINGS: Record<string, ImportFieldName> = {
 /**
  * Parse CSV content into rows
  */
-export function parseCSV(
-  csvContent: string
-): { rows: BulkImportRow[]; errors: Array<{ line: number; error: string }> } {
+export function parseCSV(csvContent: string): {
+  rows: BulkImportRow[];
+  errors: { line: number; error: string }[];
+} {
   const lines = csvContent.trim().split(/\r?\n/);
   if (lines.length < 2) {
     throw new ValidationError('CSV must have at least a header row and one data row');
   }
 
   const rows: BulkImportRow[] = [];
-  const errors: Array<{ line: number; error: string }> = [];
+  const errors: { line: number; error: string }[] = [];
 
   // Parse header
   const headerLine = lines[0];
@@ -171,9 +183,7 @@ export function parseCSV(
 
       // Construct full name from first/last if needed
       if (!rowData.fullName && (rowData.firstName ?? rowData.lastName)) {
-        rowData.fullName = [rowData.firstName, rowData.lastName]
-          .filter(Boolean)
-          .join(' ');
+        rowData.fullName = [rowData.firstName, rowData.lastName].filter(Boolean).join(' ');
       }
 
       // Validate row
@@ -206,8 +216,8 @@ function parseCSVLine(line: string): string[] {
   let inQuotes = false;
 
   for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    const nextChar = line[i + 1];
+    const char = line.charAt(i);
+    const nextChar = line.charAt(i + 1);
 
     if (inQuotes) {
       if (char === '"' && nextChar === '"') {
@@ -450,11 +460,16 @@ export async function processBulkImport(
             if (!row) continue;
             const rowNumber = i + j + 1;
 
-            const result = await processRow(row, rowNumber, {
-              correlationId,
-              options: opts,
-              existingPhones,
-            }, tx);
+            const result = await processRow(
+              row,
+              rowNumber,
+              {
+                correlationId,
+                options: opts,
+                existingPhones,
+              },
+              tx
+            );
 
             results.push(result);
 
@@ -655,13 +670,13 @@ async function processRow(
     const existing = existingPhones.get(normalizedPhone) ?? existingPhones.get(row.phone);
 
     // Generate external contact ID if not provided
-    const externalContactId = row.externalContactId ??
-      `${options.defaultSource}-${normalizedPhone.replace(/\D/g, '')}`;
-    const externalSource = row.externalSource ?? options.defaultSource;
+    const externalContactId =
+      row.externalContactId ?? `${options.defaultSource}-${normalizedPhone.replace(/\D/g, '')}`;
+    const externalSource = row.externalSource;
 
     // Build full name
-    const fullName = row.fullName ??
-      ([row.firstName, row.lastName].filter(Boolean).join(' ') || undefined);
+    const fullName =
+      row.fullName ?? ([row.firstName, row.lastName].filter(Boolean).join(' ') || undefined);
 
     // Process tags
     const tags = Array.isArray(row.tags) ? row.tags : undefined;
@@ -682,13 +697,13 @@ async function processRow(
         null, // ai_intent
         null, // ai_summary
         null, // ai_last_analysis_at
-        row.language ?? null, // language
+        row.language, // language
         tags ?? null, // tags
         null, // metadata
         row.gdprConsent ?? null, // gdpr_consent
         row.gdprConsent ? new Date() : null, // gdpr_consent_at
         row.gdprConsent ? 'bulk_import' : null, // gdpr_consent_source
-        row.status ?? null, // status
+        row.status, // status
         options.actor ?? null, // updated_by
         externalSource, // WHERE external_source
         existing.externalContactId, // WHERE external_contact_id
@@ -731,13 +746,13 @@ async function processRow(
       null, // ai_intent
       null, // ai_summary
       null, // ai_last_analysis_at
-      row.language ?? 'ro', // language
+      row.language, // language
       tags ?? null, // tags
       null, // metadata
       row.gdprConsent ?? false, // gdpr_consent
       row.gdprConsent ? new Date() : null, // gdpr_consent_at
       row.gdprConsent ? 'bulk_import' : null, // gdpr_consent_source
-      row.status ?? 'new', // status
+      row.status, // status
       options.actor ?? null, // created_by
       options.actor ?? null, // updated_by
     ]);
@@ -789,10 +804,7 @@ async function processRow(
       errorMessage: 'External ID already exists',
     };
   } catch (error) {
-    logger.error(
-      { correlationId, rowNumber, error },
-      'Failed to process row'
-    );
+    logger.error({ correlationId, rowNumber, error }, 'Failed to process row');
 
     return {
       rowNumber,

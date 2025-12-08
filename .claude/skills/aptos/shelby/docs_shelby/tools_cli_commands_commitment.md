@@ -42,8 +42,7 @@ Commitment command in Shelby CLI
 Generate blob and chunkset commitments for a local file without uploading. Useful for debugging, introspection, or pre-computing metadata. The command runs entirely offline but requires the CLI to have access to the Clay erasure-code WASM artifacts (the published package includes them by default).
 
 Note that the commitments can also be saved to local files during upload with the `--output-commitments` option.
-    
-    
+
     shelby commitment [options]
 
 ### Options
@@ -51,13 +50,11 @@ Note that the commitments can also be saved to local files during upload with th
 None
 
 #### Example
-    
-    
+
     shelby commitment README.md out.json
 
 Output:
-    
-    
+
     $ jq . out.json  | head
     {
       "schema_version": "1.3",

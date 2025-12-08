@@ -23,7 +23,7 @@
     "@medicalcor/types": "workspace:*",
     "@opentelemetry/api": "^1.7.0",
     "@opentelemetry/core": "^2.2.0",
-    "@supabase/supabase-js": "^2.86.2",
+    "@supabase/supabase-js": "^2.87.0",
     "@trigger.dev/sdk": "^3.1.0",
     "zod": "^3.23.8"
   },

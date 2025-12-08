@@ -89,12 +89,12 @@ If you discover a security vulnerability, please report it responsibly:
 
 ### Classification
 
-| Level | Description | Response Time |
-|-------|-------------|---------------|
-| Critical | Data breach, system compromise | Immediate |
-| High | Vulnerability exploitation | 4 hours |
-| Medium | Potential vulnerability | 24 hours |
-| Low | Security improvement | 1 week |
+| Level    | Description                    | Response Time |
+| -------- | ------------------------------ | ------------- |
+| Critical | Data breach, system compromise | Immediate     |
+| High     | Vulnerability exploitation     | 4 hours       |
+| Medium   | Potential vulnerability        | 24 hours      |
+| Low      | Security improvement           | 1 week        |
 
 ### Response Steps
 

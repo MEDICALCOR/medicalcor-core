@@ -212,13 +212,17 @@ export default function CapacityPlanningPage() {
               <div className="flex items-center gap-2">
                 <p className="text-xl font-bold">{summary.avgUtilization}%</p>
                 {summary.avgUtilization < 80 && (
-                  <Badge variant="destructive" className="text-xs">Sub</Badge>
+                  <Badge variant="destructive" className="text-xs">
+                    Sub
+                  </Badge>
                 )}
                 {summary.avgUtilization >= 80 && summary.avgUtilization <= 100 && (
                   <Badge className="bg-green-500 text-xs">Optim</Badge>
                 )}
                 {summary.avgUtilization > 100 && (
-                  <Badge variant="secondary" className="text-xs">Supra</Badge>
+                  <Badge variant="secondary" className="text-xs">
+                    Supra
+                  </Badge>
                 )}
               </div>
             </div>
@@ -311,10 +315,7 @@ export default function CapacityPlanningPage() {
                 {(data?.weeklyCapacity ?? []).map((day) => (
                   <div
                     key={day.date}
-                    className={cn(
-                      'p-3 rounded-lg border text-center',
-                      statusColors[day.status]
-                    )}
+                    className={cn('p-3 rounded-lg border text-center', statusColors[day.status])}
                   >
                     <p className="font-medium text-sm">{day.dayOfWeek}</p>
                     <p className="text-xs opacity-80">
@@ -328,10 +329,7 @@ export default function CapacityPlanningPage() {
                       <p className="text-xs opacity-80">din {day.requiredStaff} necesari</p>
                     </div>
                     <div className="mt-2">
-                      <Progress
-                        value={Math.min(day.utilizationRate, 100)}
-                        className="h-2"
-                      />
+                      <Progress value={Math.min(day.utilizationRate, 100)} className="h-2" />
                       <p className="text-xs mt-1">{day.utilizationRate}%</p>
                     </div>
                     <Badge
@@ -370,9 +368,7 @@ export default function CapacityPlanningPage() {
           <Card>
             <CardHeader>
               <CardTitle>Recomandări Personal</CardTitle>
-              <CardDescription>
-                Acțiuni sugerate pentru optimizarea programului
-              </CardDescription>
+              <CardDescription>Acțiuni sugerate pentru optimizarea programului</CardDescription>
             </CardHeader>
             <CardContent>
               {(data?.recommendations.length ?? 0) === 0 ? (
@@ -384,10 +380,7 @@ export default function CapacityPlanningPage() {
               ) : (
                 <div className="space-y-4">
                   {data?.recommendations.map((rec, idx) => (
-                    <div
-                      key={idx}
-                      className="p-4 border rounded-lg"
-                    >
+                    <div key={idx} className="p-4 border rounded-lg">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
@@ -408,10 +401,9 @@ export default function CapacityPlanningPage() {
                               <UserCheck className="h-4 w-4 text-green-500" />
                               Necesar: {rec.recommendedStaff}
                             </span>
-                            <Badge
-                              variant={rec.gap < 0 ? 'destructive' : 'default'}
-                            >
-                              {rec.gap > 0 ? '+' : ''}{rec.gap}
+                            <Badge variant={rec.gap < 0 ? 'destructive' : 'default'}>
+                              {rec.gap > 0 ? '+' : ''}
+                              {rec.gap}
                             </Badge>
                           </div>
                         </div>
@@ -440,9 +432,7 @@ export default function CapacityPlanningPage() {
           <Card>
             <CardHeader>
               <CardTitle>Conflicte Detectate</CardTitle>
-              <CardDescription>
-                Probleme de programare ce necesită atenție
-              </CardDescription>
+              <CardDescription>Probleme de programare ce necesită atenție</CardDescription>
             </CardHeader>
             <CardContent>
               {(data?.conflicts.length ?? 0) === 0 ? (
@@ -490,9 +480,7 @@ export default function CapacityPlanningPage() {
           <Card>
             <CardHeader>
               <CardTitle>Prognoză Cerere</CardTitle>
-              <CardDescription>
-                Estimări bazate pe date istorice și tendințe
-              </CardDescription>
+              <CardDescription>Estimări bazate pe date istorice și tendințe</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -532,15 +520,10 @@ export default function CapacityPlanningPage() {
                             Scădere
                           </Badge>
                         )}
-                        {forecast.trend === 'stable' && (
-                          <Badge variant="secondary">Stabil</Badge>
-                        )}
+                        {forecast.trend === 'stable' && <Badge variant="secondary">Stabil</Badge>}
                       </div>
                       <div className="text-right">
-                        <Progress
-                          value={forecast.confidence * 100}
-                          className="w-20 h-2"
-                        />
+                        <Progress value={forecast.confidence * 100} className="w-20 h-2" />
                         <p className="text-xs text-muted-foreground mt-1">
                           {Math.round(forecast.confidence * 100)}% încredere
                         </p>

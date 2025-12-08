@@ -77,53 +77,53 @@ Type
 
 Registers a blob on the blockchain by writing its commitments.
 
-Parameter| Type| Description  
----|---|---  
-`account`| `Account`| The account to register the blob for  
-`blobName`| `BlobName`| The name/path of the blob  
-`blobMerkleRoot`| `string`| The merkle root of the blob  
-`size`| `number`| The size of the blob in bytes  
-`expirationMicros`| `number`| The expiration time in microseconds  
-`options`| `WriteBlobCommitmentsOptions`| Optional write blob commitments options  
-  
+| Parameter          | Type                          | Description                             |
+| ------------------ | ----------------------------- | --------------------------------------- |
+| `account`          | `Account`                     | The account to register the blob for    |
+| `blobName`         | `BlobName`                    | The name/path of the blob               |
+| `blobMerkleRoot`   | `string`                      | The merkle root of the blob             |
+| `size`             | `number`                      | The size of the blob in bytes           |
+| `expirationMicros` | `number`                      | The expiration time in microseconds     |
+| `options`          | `WriteBlobCommitmentsOptions` | Optional write blob commitments options |
+
 **Returns:** `Promise<{ transaction: PendingTransactionResponse }>`
 
 #### `confirmBlobChunks({signer, account, blobName, signedChunksetChunkCommitments, options})`
 
 Confirms the blob chunks for a given blob.
 
-Parameter| Type| Description  
----|---|---  
-`signer`| `Account`| The account to confirm the blob chunks for  
-`account`| `AccountAddressInput`| The account address  
-`blobName`| `string`| The name/path of the blob  
-`signedChunksetChunkCommitments`| `SignedChunkCommitment[][]`| The signed chunk commitments for the blob  
-`options`| `ConfirmBlobChunksOptions`| Optional confirm blob chunks options  
-  
+| Parameter                        | Type                        | Description                                |
+| -------------------------------- | --------------------------- | ------------------------------------------ |
+| `signer`                         | `Account`                   | The account to confirm the blob chunks for |
+| `account`                        | `AccountAddressInput`       | The account address                        |
+| `blobName`                       | `string`                    | The name/path of the blob                  |
+| `signedChunksetChunkCommitments` | `SignedChunkCommitment[][]` | The signed chunk commitments for the blob  |
+| `options`                        | `ConfirmBlobChunksOptions`  | Optional confirm blob chunks options       |
+
 **Returns:** `Promise<{ transaction: PendingTransactionResponse }>`
 
 #### `getBlobMetadata({account, name})`
 
 Retrieves blob metadata from the blockchain.
 
-Parameter| Type| Description  
----|---|---  
-`account`| `AccountAddressInput`| The account address  
-`name`| `string`| The name/path of the blob  
-  
+| Parameter | Type                  | Description               |
+| --------- | --------------------- | ------------------------- |
+| `account` | `AccountAddressInput` | The account address       |
+| `name`    | `string`              | The name/path of the blob |
+
 **Returns:** `Promise<BlobMetadata>`
 
 #### `getAccountBlobs({account})`
 
 Gets all blob metadata for a specific account.
 
-Parameter| Type| Description  
----|---|---  
-`account`| `AccountAddressInput`| The account address  
-  
+| Parameter | Type                  | Description         |
+| --------- | --------------------- | ------------------- |
+| `account` | `AccountAddressInput` | The account address |
+
 **Returns:** `Promise<BlobMetadata[]>`
 
-* * *
+---
 
 ## ShelbyRPCClient
 
@@ -151,25 +151,25 @@ Type
 
 Uploads blob data to Shelby storage using multipart upload for reliability.
 
-Parameter| Type| Description  
----|---|---  
-`account`| `AccountAddressInput`| The account address to store the blob under  
-`blobName`| `string`| The name/path of the blob  
-`blobData`| `Uint8Array`| The blob data to upload  
-  
+| Parameter  | Type                  | Description                                 |
+| ---------- | --------------------- | ------------------------------------------- |
+| `account`  | `AccountAddressInput` | The account address to store the blob under |
+| `blobName` | `string`              | The name/path of the blob                   |
+| `blobData` | `Uint8Array`          | The blob data to upload                     |
+
 #### `getBlob({account, blobName, range?})`
 
 Downloads blob data as a readable stream with optional byte range support.
 
-Parameter| Type| Description  
----|---|---  
-`account`| `AccountAddressInput`| The account address  
-`blobName`| `string`| The name/path of the blob  
-`range`| `{ start: number; end?: number }`| Optional byte range  
-  
+| Parameter  | Type                              | Description               |
+| ---------- | --------------------------------- | ------------------------- |
+| `account`  | `AccountAddressInput`             | The account address       |
+| `blobName` | `string`                          | The name/path of the blob |
+| `range`    | `{ start: number; end?: number }` | Optional byte range       |
+
 **Returns:** `Promise<ShelbyBlob>`
 
-* * *
+---
 
 ### ShelbyBlob
 

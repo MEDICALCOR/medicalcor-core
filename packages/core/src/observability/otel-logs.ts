@@ -147,7 +147,9 @@ export function initOtelLogs(config: OtelLogsConfig = {}): void {
     process.stdout.write(`[otel-logs] Initialized with endpoint: ${endpoint}\n`);
   } catch (error) {
     // Use process.stderr for bootstrap errors (logger not yet available)
-    process.stderr.write(`[otel-logs] Failed to initialize: ${error instanceof Error ? error.message : String(error)}\n`);
+    process.stderr.write(
+      `[otel-logs] Failed to initialize: ${error instanceof Error ? error.message : String(error)}\n`
+    );
   }
 }
 
@@ -164,7 +166,9 @@ export async function shutdownOtelLogs(): Promise<void> {
       process.stdout.write('[otel-logs] Shutdown complete\n');
     } catch (error) {
       // Use process.stderr for shutdown errors
-      process.stderr.write(`[otel-logs] Shutdown error: ${error instanceof Error ? error.message : String(error)}\n`);
+      process.stderr.write(
+        `[otel-logs] Shutdown error: ${error instanceof Error ? error.message : String(error)}\n`
+      );
     }
   }
 }

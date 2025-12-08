@@ -144,7 +144,11 @@ function PreviewDialog({ template, onClose }: PreviewDialogProps) {
 
   const handleSendTest = async () => {
     if (!testPhone) {
-      toast({ title: 'Eroare', description: 'Introdu un număr de telefon', variant: 'destructive' });
+      toast({
+        title: 'Eroare',
+        description: 'Introdu un număr de telefon',
+        variant: 'destructive',
+      });
       return;
     }
     setIsSending(true);
@@ -159,7 +163,11 @@ function PreviewDialog({ template, onClose }: PreviewDialogProps) {
         toast({ title: 'Eroare', description: result.error, variant: 'destructive' });
       }
     } catch {
-      toast({ title: 'Eroare', description: 'Nu s-a putut trimite mesajul', variant: 'destructive' });
+      toast({
+        title: 'Eroare',
+        description: 'Nu s-a putut trimite mesajul',
+        variant: 'destructive',
+      });
     }
     setIsSending(false);
   };
@@ -620,7 +628,9 @@ export default function WhatsAppTemplatesPage() {
           <Card>
             <CardHeader>
               <CardTitle>Template-urile mele</CardTitle>
-              <CardDescription>Template-uri pentru comunicare prin WhatsApp Business</CardDescription>
+              <CardDescription>
+                Template-uri pentru comunicare prin WhatsApp Business
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {templates.length === 0 ? (
@@ -663,7 +673,8 @@ export default function WhatsAppTemplatesPage() {
                               <span>{template.usageCount.toLocaleString()} utilizări</span>
                               {template.successCount > 0 && (
                                 <span className="text-green-600">
-                                  {Math.round((template.successCount / template.usageCount) * 100)}% succes
+                                  {Math.round((template.successCount / template.usageCount) * 100)}%
+                                  succes
                                 </span>
                               )}
                             </div>
@@ -728,9 +739,13 @@ export default function WhatsAppTemplatesPage() {
                     <Send className="h-4 w-4" />
                     Livrate
                   </div>
-                  <p className="text-2xl font-bold mt-1">{totalAnalytics.delivered.toLocaleString()}</p>
+                  <p className="text-2xl font-bold mt-1">
+                    {totalAnalytics.delivered.toLocaleString()}
+                  </p>
                   <Progress value={totalAnalytics.deliveryRate} className="h-1 mt-2" />
-                  <p className="text-xs text-muted-foreground mt-1">{totalAnalytics.deliveryRate}% din trimise</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {totalAnalytics.deliveryRate}% din trimise
+                  </p>
                 </CardContent>
               </Card>
               <Card>
@@ -741,7 +756,9 @@ export default function WhatsAppTemplatesPage() {
                   </div>
                   <p className="text-2xl font-bold mt-1">{totalAnalytics.read.toLocaleString()}</p>
                   <Progress value={totalAnalytics.readRate} className="h-1 mt-2" />
-                  <p className="text-xs text-muted-foreground mt-1">{totalAnalytics.readRate}% din livrate</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {totalAnalytics.readRate}% din livrate
+                  </p>
                 </CardContent>
               </Card>
               <Card>
@@ -750,9 +767,13 @@ export default function WhatsAppTemplatesPage() {
                     <Mail className="h-4 w-4" />
                     Răspunsuri
                   </div>
-                  <p className="text-2xl font-bold mt-1">{totalAnalytics.replied.toLocaleString()}</p>
+                  <p className="text-2xl font-bold mt-1">
+                    {totalAnalytics.replied.toLocaleString()}
+                  </p>
                   <Progress value={totalAnalytics.replyRate} className="h-1 mt-2" />
-                  <p className="text-xs text-muted-foreground mt-1">{totalAnalytics.replyRate}% din citite</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {totalAnalytics.replyRate}% din citite
+                  </p>
                 </CardContent>
               </Card>
               <Card>
@@ -771,7 +792,9 @@ export default function WhatsAppTemplatesPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Performanță per template</CardTitle>
-                <CardDescription>Statistici detaliate pentru fiecare template aprobat</CardDescription>
+                <CardDescription>
+                  Statistici detaliate pentru fiecare template aprobat
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {analytics.length === 0 ? (
@@ -840,15 +863,10 @@ export default function WhatsAppTemplatesPage() {
               <Eye className="h-5 w-5" />
               Previzualizare: {previewTemplate?.name}
             </DialogTitle>
-            <DialogDescription>
-              Editează variabilele și testează template-ul
-            </DialogDescription>
+            <DialogDescription>Editează variabilele și testează template-ul</DialogDescription>
           </DialogHeader>
           {previewTemplate && (
-            <PreviewDialog
-              template={previewTemplate}
-              onClose={() => setPreviewTemplate(null)}
-            />
+            <PreviewDialog template={previewTemplate} onClose={() => setPreviewTemplate(null)} />
           )}
         </DialogContent>
       </Dialog>

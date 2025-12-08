@@ -63,7 +63,7 @@ logger.error('External service failed', { error: err });
 
 // With context
 logger.info('Lead scored', {
-  phone: '+1555...',  // Automatically redacted
+  phone: '+1555...', // Automatically redacted
   score: 5,
   classification: 'HOT',
   correlationId: ctx.correlationId,
@@ -72,12 +72,12 @@ logger.info('Lead scored', {
 
 ### Log Levels
 
-| Level | When to Use | Environment |
-|-------|-------------|-------------|
+| Level   | When to Use             | Environment      |
+| ------- | ----------------------- | ---------------- |
 | `debug` | Detailed debugging info | Development only |
-| `info` | Normal operations | All |
-| `warn` | Warning conditions | All |
-| `error` | Error conditions | All |
+| `info`  | Normal operations       | All              |
+| `warn`  | Warning conditions      | All              |
+| `error` | Error conditions        | All              |
 
 ### Environment Configuration
 
@@ -94,15 +94,15 @@ NODE_ENV=development  # Pretty printed
 
 The following fields are automatically redacted in logs:
 
-| Field | Replacement |
-|-------|-------------|
-| `phone` | `[REDACTED_PHONE]` |
-| `email` | `[REDACTED_EMAIL]` |
-| `content` | `[REDACTED_CONTENT]` |
-| `message` | `[REDACTED_MESSAGE]` |
-| `password` | `[REDACTED]` |
-| `token` | `[REDACTED]` |
-| `apiKey` | `[REDACTED]` |
+| Field      | Replacement          |
+| ---------- | -------------------- |
+| `phone`    | `[REDACTED_PHONE]`   |
+| `email`    | `[REDACTED_EMAIL]`   |
+| `content`  | `[REDACTED_CONTENT]` |
+| `message`  | `[REDACTED_MESSAGE]` |
+| `password` | `[REDACTED]`         |
+| `token`    | `[REDACTED]`         |
+| `apiKey`   | `[REDACTED]`         |
 
 ### Child Loggers
 
@@ -195,6 +195,7 @@ async function scoreLead(context: LeadContext) {
 ### Trace Context Propagation
 
 Correlation IDs are propagated through:
+
 - HTTP headers (`X-Correlation-ID`)
 - Trigger.dev task metadata
 - Log entries
@@ -288,11 +289,11 @@ leadScoringCounter.inc({
 
 ### Available Endpoints
 
-| Endpoint | Purpose | Checks |
-|----------|---------|--------|
-| `GET /health` | Basic health | Application running |
-| `GET /ready` | Kubernetes readiness | Database, Redis |
-| `GET /live` | Kubernetes liveness | Simple ping |
+| Endpoint      | Purpose              | Checks              |
+| ------------- | -------------------- | ------------------- |
+| `GET /health` | Basic health         | Application running |
+| `GET /ready`  | Kubernetes readiness | Database, Redis     |
+| `GET /live`   | Kubernetes liveness  | Simple ping         |
 
 ### Response Format
 
@@ -351,15 +352,15 @@ spec:
 
 ### Recommended Alerts
 
-| Alert | Condition | Severity |
-|-------|-----------|----------|
-| High Error Rate | Error rate > 1% for 5 min | Critical |
-| Slow Response | P95 latency > 500ms for 5 min | Warning |
-| Service Down | Health check failing | Critical |
-| Database Issues | Connection errors | Critical |
-| Rate Limit Exhausted | 100% limit used | Warning |
-| AI Service Degraded | Fallback rate > 50% | Warning |
-| Webhook Backlog | Queue depth > 1000 | Warning |
+| Alert                | Condition                     | Severity |
+| -------------------- | ----------------------------- | -------- |
+| High Error Rate      | Error rate > 1% for 5 min     | Critical |
+| Slow Response        | P95 latency > 500ms for 5 min | Warning  |
+| Service Down         | Health check failing          | Critical |
+| Database Issues      | Connection errors             | Critical |
+| Rate Limit Exhausted | 100% limit used               | Warning  |
+| AI Service Degraded  | Fallback rate > 50%           | Warning  |
+| Webhook Backlog      | Queue depth > 1000            | Warning  |
 
 ### Prometheus Alert Rules
 
@@ -410,6 +411,7 @@ groups:
 ### Alert Notification
 
 Configure alertmanager for notifications:
+
 - Slack
 - PagerDuty
 - Email
@@ -423,29 +425,29 @@ Configure alertmanager for notifications:
 
 #### Overview Dashboard
 
-| Panel | Metrics | Purpose |
-|-------|---------|---------|
-| Request Rate | `http_requests_total` | Traffic volume |
-| Error Rate | `http_requests_total{status=~"5.."}` | Error percentage |
-| P95 Latency | `http_request_duration_seconds` | Response time |
-| Active Leads | Custom | Lead pipeline |
+| Panel        | Metrics                              | Purpose          |
+| ------------ | ------------------------------------ | ---------------- |
+| Request Rate | `http_requests_total`                | Traffic volume   |
+| Error Rate   | `http_requests_total{status=~"5.."}` | Error percentage |
+| P95 Latency  | `http_request_duration_seconds`      | Response time    |
+| Active Leads | Custom                               | Lead pipeline    |
 
 #### Lead Scoring Dashboard
 
-| Panel | Metrics | Purpose |
-|-------|---------|---------|
-| Scores Distribution | `lead_scoring_total` | HOT/WARM/COLD breakdown |
-| Scoring Latency | `lead_scoring_duration_seconds` | AI response time |
-| Fallback Rate | `lead_scoring_fallback_total` | AI health indicator |
-| Score Trend | `lead_scoring_total` over time | Conversion trends |
+| Panel               | Metrics                         | Purpose                 |
+| ------------------- | ------------------------------- | ----------------------- |
+| Scores Distribution | `lead_scoring_total`            | HOT/WARM/COLD breakdown |
+| Scoring Latency     | `lead_scoring_duration_seconds` | AI response time        |
+| Fallback Rate       | `lead_scoring_fallback_total`   | AI health indicator     |
+| Score Trend         | `lead_scoring_total` over time  | Conversion trends       |
 
 #### Integration Health Dashboard
 
-| Panel | Metrics | Purpose |
-|-------|---------|---------|
-| HubSpot Latency | `integration_request_duration_seconds{service="hubspot"}` | CRM health |
-| OpenAI Errors | `integration_errors_total{service="openai"}` | AI service health |
-| WhatsApp Delivery | Custom | Message delivery rate |
+| Panel             | Metrics                                                   | Purpose               |
+| ----------------- | --------------------------------------------------------- | --------------------- |
+| HubSpot Latency   | `integration_request_duration_seconds{service="hubspot"}` | CRM health            |
+| OpenAI Errors     | `integration_errors_total{service="openai"}`              | AI service health     |
+| WhatsApp Delivery | Custom                                                    | Message delivery rate |
 
 ### Importing Dashboards
 
@@ -550,16 +552,17 @@ OTEL_EXPORTER_OTLP_ENDPOINT=https://xray.region.amazonaws.com
 
 ### Log Retention
 
-| Environment | Retention |
-|-------------|-----------|
-| Development | 7 days |
-| Staging | 30 days |
-| Production | 90 days |
-| Compliance (audit) | 7 years |
+| Environment        | Retention |
+| ------------------ | --------- |
+| Development        | 7 days    |
+| Staging            | 30 days   |
+| Production         | 90 days   |
+| Compliance (audit) | 7 years   |
 
 ### Data Privacy
 
 Ensure monitoring data doesn't contain:
+
 - Patient health information
 - Unredacted PII
 - API keys or tokens

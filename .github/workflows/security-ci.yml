@@ -6,9 +6,22 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '10.24.0'
+
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,16 +51,18 @@ jobs:
 
       - name: Upload test logs (always)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: unit-test-logs
           path: ./test-output.log
           if-no-files-found: ignore
 
   npm-audit:
-    name: npm audit (vulnerabilities)
+    name: pnpm audit (vulnerabilities)
     runs-on: ubuntu-latest
     needs: build-and-test
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -71,7 +86,7 @@ jobs:
 
       - name: Upload pnpm audit
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: npm-audit
           path: pnpm-audit.json
@@ -81,17 +96,31 @@ jobs:
     name: Gitleaks secret scan
     runs-on: ubuntu-latest
     needs: build-and-test
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
-      - uses: actions/checkout@v4
-      - name: Run gitleaks (detect)
-        uses: zricethezav/gitleaks-action@v2
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          args: detect --report-format json --report-path gitleaks-report.json || true
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install gitleaks
+        run: |
+          GITLEAKS_VERSION="8.21.2"
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar -xz
+          sudo mv gitleaks /usr/local/bin/
+
+      - name: Run gitleaks (detect)
+        run: |
+          gitleaks detect --source . --config .gitleaks.toml --report-format json --report-path gitleaks-report.json --verbose --redact 2>&1 || true
+
       - name: Upload gitleaks report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: gitleaks-report
+          name: security-ci-gitleaks-report
           path: gitleaks-report.json
           if-no-files-found: ignore
 
@@ -99,15 +128,34 @@ jobs:
     name: OSSF Scorecard
     runs-on: ubuntu-latest
     needs: build-and-test
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      security-events: write
+      id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - name: Run OSSF Scorecard action
-        uses: ossf/scorecard-action@v4
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          output_format: json
-      - name: Upload scorecard results
+          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
+
+      - name: Run OSSF Scorecard action
+        uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
+        with:
+          results_file: scorecard-results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload Scorecard results
+        uses: github/codeql-action/upload-sarif@fe4161a26a8629af62121b670040955b330f9af2 # v4.31.6
+        with:
+          sarif_file: scorecard-results.sarif
+
+      - name: Upload scorecard results artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ossf-scorecard
           path: scorecard-results.json
@@ -117,11 +165,15 @@ jobs:
     name: (optional) Dependency Review fallback
     runs-on: ubuntu-latest
     needs: [build-and-test, npm-audit]
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
       - name: Run dependency review action non-blocking (skip if unsupported)
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@3c4e3dcb1aa7874d2c16be7d79418e9b7efd6261 # v4.6.0
         continue-on-error: true
 
       - name: Upload dependency review dir (if present)

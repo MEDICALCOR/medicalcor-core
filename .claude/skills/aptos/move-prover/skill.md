@@ -14,6 +14,7 @@ Provide deep expertise on the Move Prover - a formal verification tool that math
 ## When to Use
 
 Auto-invoke when users mention:
+
 - **Move Prover** - formal verification, prove, verification
 - **Specifications** - spec blocks, spec module, spec fun
 - **Properties** - invariants, preconditions, postconditions
@@ -27,6 +28,7 @@ Auto-invoke when users mention:
 ### What is the Move Prover?
 
 The Move Prover is a **formal verification tool** that:
+
 - Mathematically proves contract properties hold for ALL possible inputs
 - Uses SMT (Satisfiability Modulo Theories) solvers
 - Finds bugs that testing might miss
@@ -36,6 +38,7 @@ The Move Prover is a **formal verification tool** that:
 ### Why Use the Move Prover?
 
 **Testing vs Verification:**
+
 ```move
 // Testing: Checks specific inputs
 #[test]
@@ -52,6 +55,7 @@ spec transfer {
 ```
 
 **Benefits:**
+
 - ✅ Catches edge cases testing misses
 - ✅ Proves absence of integer overflow/underflow
 - ✅ Guarantees invariants always hold
@@ -112,6 +116,7 @@ spec withdraw {
 ```
 
 **Multiple requires:**
+
 ```move
 spec withdraw {
     requires exists<Balance>(addr);
@@ -169,6 +174,7 @@ spec withdraw {
 ```
 
 **Conditional aborts:**
+
 ```move
 spec withdraw {
     // Only aborts if these conditions are met
@@ -879,6 +885,7 @@ error: post-condition does not hold
 ```
 
 **Solution:** Add precondition to prevent overflow
+
 ```move
 spec deposit {
     requires global<Balance>(addr).coins + amount <= MAX_U64;
@@ -903,6 +910,7 @@ spec transfer {
 ```
 
 **Solution:** Add precondition
+
 ```move
 spec transfer {
     requires global<Balance>(from).coins >= amount;
@@ -913,6 +921,7 @@ spec transfer {
 ### Common Issues
 
 **1. Missing preconditions**
+
 ```move
 // ❌ Fails: no precondition about existence
 spec withdraw {
@@ -927,6 +936,7 @@ spec withdraw {
 ```
 
 **2. Incomplete abort specifications**
+
 ```move
 spec module {
     pragma aborts_if_is_strict;
@@ -948,6 +958,7 @@ spec transfer {
 ```
 
 **3. Timeouts**
+
 ```move
 // Complex verification may timeout
 spec complex_function {
@@ -1079,6 +1090,7 @@ For each critical function:
 ## Follow-up Suggestions
 
 After helping with Move Prover, suggest:
+
 - Start with simple function specs
 - Add module-level invariants
 - Create schema for common patterns

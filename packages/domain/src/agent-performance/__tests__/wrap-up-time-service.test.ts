@@ -91,7 +91,10 @@ function createWrapUpStats(overrides: Partial<WrapUpStats> = {}): WrapUpStats {
   };
 }
 
-function createTrendPoint(date: string, overrides: Partial<WrapUpTrendPoint> = {}): WrapUpTrendPoint {
+function createTrendPoint(
+  date: string,
+  overrides: Partial<WrapUpTrendPoint> = {}
+): WrapUpTrendPoint {
   return {
     date,
     wrapUpCount: 10,
@@ -296,8 +299,16 @@ describe('WrapUpTimeService', () => {
     it('should evaluate agent as meeting target when under threshold', async () => {
       const stats = createWrapUpStats({ avgWrapUpTimeSeconds: 45 }); // Under 60s target
       const trend: WrapUpTrendPoint[] = [
-        createTrendPoint('2024-01-01', { avgWrapUpTimeSeconds: 50, wrapUpCount: 10, totalWrapUpTimeSeconds: 500 }),
-        createTrendPoint('2024-01-02', { avgWrapUpTimeSeconds: 45, wrapUpCount: 10, totalWrapUpTimeSeconds: 450 }),
+        createTrendPoint('2024-01-01', {
+          avgWrapUpTimeSeconds: 50,
+          wrapUpCount: 10,
+          totalWrapUpTimeSeconds: 500,
+        }),
+        createTrendPoint('2024-01-02', {
+          avgWrapUpTimeSeconds: 45,
+          wrapUpCount: 10,
+          totalWrapUpTimeSeconds: 450,
+        }),
       ];
 
       vi.mocked(mockRepository.getWrapUpStats).mockResolvedValue(stats);
@@ -326,10 +337,26 @@ describe('WrapUpTimeService', () => {
     it('should calculate improving trend when wrap-up time is decreasing', async () => {
       const stats = createWrapUpStats({ avgWrapUpTimeSeconds: 50 });
       const trend: WrapUpTrendPoint[] = [
-        createTrendPoint('2024-01-01', { avgWrapUpTimeSeconds: 70, wrapUpCount: 10, totalWrapUpTimeSeconds: 700 }),
-        createTrendPoint('2024-01-02', { avgWrapUpTimeSeconds: 65, wrapUpCount: 10, totalWrapUpTimeSeconds: 650 }),
-        createTrendPoint('2024-01-03', { avgWrapUpTimeSeconds: 55, wrapUpCount: 10, totalWrapUpTimeSeconds: 550 }),
-        createTrendPoint('2024-01-04', { avgWrapUpTimeSeconds: 50, wrapUpCount: 10, totalWrapUpTimeSeconds: 500 }),
+        createTrendPoint('2024-01-01', {
+          avgWrapUpTimeSeconds: 70,
+          wrapUpCount: 10,
+          totalWrapUpTimeSeconds: 700,
+        }),
+        createTrendPoint('2024-01-02', {
+          avgWrapUpTimeSeconds: 65,
+          wrapUpCount: 10,
+          totalWrapUpTimeSeconds: 650,
+        }),
+        createTrendPoint('2024-01-03', {
+          avgWrapUpTimeSeconds: 55,
+          wrapUpCount: 10,
+          totalWrapUpTimeSeconds: 550,
+        }),
+        createTrendPoint('2024-01-04', {
+          avgWrapUpTimeSeconds: 50,
+          wrapUpCount: 10,
+          totalWrapUpTimeSeconds: 500,
+        }),
       ];
 
       vi.mocked(mockRepository.getWrapUpStats).mockResolvedValue(stats);
@@ -343,10 +370,26 @@ describe('WrapUpTimeService', () => {
     it('should calculate declining trend when wrap-up time is increasing', async () => {
       const stats = createWrapUpStats({ avgWrapUpTimeSeconds: 90 });
       const trend: WrapUpTrendPoint[] = [
-        createTrendPoint('2024-01-01', { avgWrapUpTimeSeconds: 50, wrapUpCount: 10, totalWrapUpTimeSeconds: 500 }),
-        createTrendPoint('2024-01-02', { avgWrapUpTimeSeconds: 55, wrapUpCount: 10, totalWrapUpTimeSeconds: 550 }),
-        createTrendPoint('2024-01-03', { avgWrapUpTimeSeconds: 75, wrapUpCount: 10, totalWrapUpTimeSeconds: 750 }),
-        createTrendPoint('2024-01-04', { avgWrapUpTimeSeconds: 90, wrapUpCount: 10, totalWrapUpTimeSeconds: 900 }),
+        createTrendPoint('2024-01-01', {
+          avgWrapUpTimeSeconds: 50,
+          wrapUpCount: 10,
+          totalWrapUpTimeSeconds: 500,
+        }),
+        createTrendPoint('2024-01-02', {
+          avgWrapUpTimeSeconds: 55,
+          wrapUpCount: 10,
+          totalWrapUpTimeSeconds: 550,
+        }),
+        createTrendPoint('2024-01-03', {
+          avgWrapUpTimeSeconds: 75,
+          wrapUpCount: 10,
+          totalWrapUpTimeSeconds: 750,
+        }),
+        createTrendPoint('2024-01-04', {
+          avgWrapUpTimeSeconds: 90,
+          wrapUpCount: 10,
+          totalWrapUpTimeSeconds: 900,
+        }),
       ];
 
       vi.mocked(mockRepository.getWrapUpStats).mockResolvedValue(stats);
@@ -360,10 +403,26 @@ describe('WrapUpTimeService', () => {
     it('should report stable trend when no significant change', async () => {
       const stats = createWrapUpStats({ avgWrapUpTimeSeconds: 60 });
       const trend: WrapUpTrendPoint[] = [
-        createTrendPoint('2024-01-01', { avgWrapUpTimeSeconds: 58, wrapUpCount: 10, totalWrapUpTimeSeconds: 580 }),
-        createTrendPoint('2024-01-02', { avgWrapUpTimeSeconds: 62, wrapUpCount: 10, totalWrapUpTimeSeconds: 620 }),
-        createTrendPoint('2024-01-03', { avgWrapUpTimeSeconds: 59, wrapUpCount: 10, totalWrapUpTimeSeconds: 590 }),
-        createTrendPoint('2024-01-04', { avgWrapUpTimeSeconds: 61, wrapUpCount: 10, totalWrapUpTimeSeconds: 610 }),
+        createTrendPoint('2024-01-01', {
+          avgWrapUpTimeSeconds: 58,
+          wrapUpCount: 10,
+          totalWrapUpTimeSeconds: 580,
+        }),
+        createTrendPoint('2024-01-02', {
+          avgWrapUpTimeSeconds: 62,
+          wrapUpCount: 10,
+          totalWrapUpTimeSeconds: 620,
+        }),
+        createTrendPoint('2024-01-03', {
+          avgWrapUpTimeSeconds: 59,
+          wrapUpCount: 10,
+          totalWrapUpTimeSeconds: 590,
+        }),
+        createTrendPoint('2024-01-04', {
+          avgWrapUpTimeSeconds: 61,
+          wrapUpCount: 10,
+          totalWrapUpTimeSeconds: 610,
+        }),
       ];
 
       vi.mocked(mockRepository.getWrapUpStats).mockResolvedValue(stats);

@@ -36,6 +36,9 @@ import {
   RecordNotFoundError,
   ConcurrencyError,
 } from '../errors.js';
+
+// Re-export ConsentRequiredError for convenience
+export { ConsentRequiredError } from '../errors.js';
 import { Ok, Err, type Result } from '../types/result.js';
 
 const logger = createLogger({ name: 'postgres-scheduling-repository' });

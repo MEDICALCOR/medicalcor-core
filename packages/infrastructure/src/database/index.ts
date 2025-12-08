@@ -6,7 +6,4 @@
  * @module infrastructure/database
  */
 
-export {
-  IndexUsageMonitor,
-  createIndexUsageMonitor,
-} from './index-usage-monitor.js';
+export { IndexUsageMonitor, createIndexUsageMonitor } from './index-usage-monitor.js';

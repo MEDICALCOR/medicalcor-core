@@ -78,13 +78,11 @@ Python
 Java
 
 C#
-    
-    
+
     curl -X POST "https://api.shelbynet.shelby.xyz/shelby/v1/sessions" \  -H "Content-Type: application/json" \  -d '{}'
 
 201
-    
-    
+
     {
       "sessionId": "string"
     }

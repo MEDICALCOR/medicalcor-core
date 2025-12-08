@@ -173,7 +173,7 @@ module.exports = {
     'no-console': 'error', // Use logger instead
     'prefer-const': 'error',
     'no-var': 'error',
-  }
+  },
 };
 ```
 
@@ -193,16 +193,16 @@ module.exports = {
 
 ### Naming Conventions
 
-| Type | Convention | Example |
-|------|------------|---------|
-| Files (components) | PascalCase | `LeadCard.tsx` |
-| Files (utilities) | kebab-case | `scoring-service.ts` |
-| Classes | PascalCase | `ScoringService` |
-| Functions | camelCase | `calculateScore()` |
-| Constants | UPPER_SNAKE | `MAX_RETRY_ATTEMPTS` |
-| Types/Interfaces | PascalCase | `LeadContext` |
-| Zod Schemas | PascalCase + Schema | `LeadContextSchema` |
-| Environment vars | UPPER_SNAKE | `DATABASE_URL` |
+| Type               | Convention          | Example              |
+| ------------------ | ------------------- | -------------------- |
+| Files (components) | PascalCase          | `LeadCard.tsx`       |
+| Files (utilities)  | kebab-case          | `scoring-service.ts` |
+| Classes            | PascalCase          | `ScoringService`     |
+| Functions          | camelCase           | `calculateScore()`   |
+| Constants          | UPPER_SNAKE         | `MAX_RETRY_ATTEMPTS` |
+| Types/Interfaces   | PascalCase          | `LeadContext`        |
+| Zod Schemas        | PascalCase + Schema | `LeadContextSchema`  |
+| Environment vars   | UPPER_SNAKE         | `DATABASE_URL`       |
 
 ### Import Order
 
@@ -265,7 +265,7 @@ import { logger } from '@medicalcor/core';
 
 // Use structured logging
 logger.info('Processing lead', {
-  phone: lead.phone,  // Will be redacted automatically
+  phone: lead.phone, // Will be redacted automatically
   channel: lead.channel,
   correlationId: context.correlationId,
 });
@@ -314,6 +314,7 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 ```
 
 **Types**:
+
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation
@@ -366,12 +367,14 @@ pnpm lint-staged
 ### Before Creating PR
 
 1. **Update from main**:
+
    ```bash
    git fetch origin main
    git rebase origin/main
    ```
 
 2. **Run all checks**:
+
    ```bash
    pnpm lint
    pnpm typecheck
@@ -389,20 +392,24 @@ pnpm lint-staged
 
 ```markdown
 ## Description
+
 Brief description of the changes.
 
 ## Type of Change
+
 - [ ] Bug fix
 - [ ] New feature
 - [ ] Breaking change
 - [ ] Documentation update
 
 ## How Has This Been Tested?
+
 - [ ] Unit tests
 - [ ] Integration tests
 - [ ] Manual testing
 
 ## Checklist
+
 - [ ] My code follows the project style guidelines
 - [ ] I have performed a self-review
 - [ ] I have added tests that prove my fix/feature works
@@ -413,12 +420,12 @@ Brief description of the changes.
 
 ### PR Size Guidelines
 
-| Size | Lines Changed | Review Time |
-|------|---------------|-------------|
-| Small | < 200 | Same day |
-| Medium | 200-500 | 1-2 days |
-| Large | 500-1000 | 2-3 days |
-| XL | > 1000 | Consider splitting |
+| Size   | Lines Changed | Review Time        |
+| ------ | ------------- | ------------------ |
+| Small  | < 200         | Same day           |
+| Medium | 200-500       | 1-2 days           |
+| Large  | 500-1000      | 2-3 days           |
+| XL     | > 1000        | Consider splitting |
 
 **Best Practice**: Keep PRs under 400 lines when possible.
 
@@ -485,13 +492,13 @@ describe('ScoringService', () => {
 
 ### Test Coverage Requirements
 
-| Package | Minimum Coverage |
-|---------|------------------|
-| packages/core | 80% |
-| packages/domain | 85% |
-| packages/integrations | 70% |
-| apps/api | 75% |
-| apps/trigger | 75% |
+| Package               | Minimum Coverage |
+| --------------------- | ---------------- |
+| packages/core         | 80%              |
+| packages/domain       | 85%              |
+| packages/integrations | 70%              |
+| apps/api              | 75%              |
+| apps/trigger          | 75%              |
 
 ### Running Tests
 
@@ -542,12 +549,12 @@ pnpm test -- scoring
 
 ### Comment Prefixes
 
-| Prefix | Meaning |
-|--------|---------|
-| `nit:` | Minor suggestion, non-blocking |
-| `question:` | Seeking clarification |
-| `suggestion:` | Alternative approach |
-| `blocker:` | Must be addressed before merge |
+| Prefix        | Meaning                        |
+| ------------- | ------------------------------ |
+| `nit:`        | Minor suggestion, non-blocking |
+| `question:`   | Seeking clarification          |
+| `suggestion:` | Alternative approach           |
+| `blocker:`    | Must be addressed before merge |
 
 ---
 
@@ -568,29 +575,35 @@ MAJOR.MINOR.PATCH
 ### Release Workflow
 
 1. **Create release branch**:
+
    ```bash
    git checkout -b release/v1.2.0
    ```
 
 2. **Update version**:
+
    ```bash
    pnpm version:bump 1.2.0
    ```
 
 3. **Update CHANGELOG**:
+
    ```markdown
    ## [1.2.0] - 2024-01-15
 
    ### Added
+
    - New AI scoring model (#123)
 
    ### Fixed
+
    - Webhook timeout issue (#456)
    ```
 
 4. **Create PR** to main
 
 5. **After merge**, tag release:
+
    ```bash
    git tag v1.2.0
    git push origin v1.2.0

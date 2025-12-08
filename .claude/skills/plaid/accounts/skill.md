@@ -14,6 +14,7 @@ Provide expert guidance on Plaid account data structures, balance retrieval, acc
 ## When to Use
 
 Auto-invoke when users mention:
+
 - Plaid accounts or account data
 - Account balances
 - Account types (checking, savings, credit)
@@ -27,6 +28,7 @@ Auto-invoke when users mention:
 Plaid accounts documentation in `.claude/skills/api/plaid/docs/`
 
 Search patterns:
+
 - `Grep "account|/accounts/get|/accounts/balance" .claude/skills/api/plaid/docs/ -i`
 - `Grep "balance|account.*type|account.*subtype" .claude/skills/api/plaid/docs/ -i`
 - `Grep "available.*balance|current.*balance" .claude/skills/api/plaid/docs/ -i`
@@ -34,6 +36,7 @@ Search patterns:
 ## Coverage Areas
 
 **Account Data**
+
 - Account IDs
 - Account names
 - Account masks (last 4 digits)
@@ -42,6 +45,7 @@ Search patterns:
 - Official names
 
 **Account Types**
+
 - Depository (checking, savings, money market)
 - Credit (credit card, line of credit)
 - Loan (mortgage, student, auto)
@@ -49,6 +53,7 @@ Search patterns:
 - Other (prepaid, cash management)
 
 **Balance Information**
+
 - Available balance
 - Current balance
 - Limit (credit accounts)
@@ -57,6 +62,7 @@ Search patterns:
 - Real-time balance updates
 
 **Account Management**
+
 - Multiple account handling
 - Account selection UI
 - Account persistence
@@ -64,6 +70,7 @@ Search patterns:
 - Item rotation
 
 **Webhooks**
+
 - DEFAULT_UPDATE
 - NEW_ACCOUNTS_AVAILABLE
 - BALANCE updates
@@ -71,7 +78,7 @@ Search patterns:
 
 ## Response Format
 
-```markdown
+````markdown
 ## [Accounts Topic]
 
 [Overview of accounts feature]
@@ -85,54 +92,58 @@ const response = await client.accountsBalanceGet({
 
 const { accounts } = response.data;
 ```
+````
 
 ### Response Structure
 
 ```json
 {
-  "accounts": [{
-    "account_id": "vzeNDwK7KQIm4yEog683uElbp9GRLEFXGK98D",
-    "balances": {
-      "available": 100.50,
-      "current": 110.25,
-      "limit": null,
-      "iso_currency_code": "USD"
-    },
-    "mask": "0000",
-    "name": "Plaid Checking",
-    "official_name": "Plaid Gold Standard 0% Interest Checking",
-    "type": "depository",
-    "subtype": "checking"
-  }]
+  "accounts": [
+    {
+      "account_id": "vzeNDwK7KQIm4yEog683uElbp9GRLEFXGK98D",
+      "balances": {
+        "available": 100.5,
+        "current": 110.25,
+        "limit": null,
+        "iso_currency_code": "USD"
+      },
+      "mask": "0000",
+      "name": "Plaid Checking",
+      "official_name": "Plaid Gold Standard 0% Interest Checking",
+      "type": "depository",
+      "subtype": "checking"
+    }
+  ]
 }
 ```
 
 ### Account Types & Subtypes
 
 **Depository:**
+
 - checking, savings, hsa, cd, money market, paypal, prepaid
 
 **Credit:**
+
 - credit card, paypal
 
 **Loan:**
+
 - auto, business, commercial, construction, consumer, home equity, loan, mortgage, overdraft, line of credit, student
 
 **Investment:**
+
 - 401k, 403b, 457b, 529, brokerage, cash isa, education savings account, gic, health reimbursement arrangement, ira, isa, keogh, lif, life insurance, lira, lrif, lrsp, non-taxable brokerage account, other, other annuity, other insurance, prif, rdsp, resp, retirement, rlif, rrif, rrsp, sarsep, sep ira, simple ira, sipp, stock plan, tfsa, trust, ugma, utma, variable annuity
 
 ### Integration Patterns
 
 **Balance Checking:**
+
 ```javascript
-async function checkSufficientFunds(
-  accessToken,
-  accountId,
-  amount
-) {
+async function checkSufficientFunds(accessToken, accountId, amount) {
   const response = await client.accountsBalanceGet({
     access_token: accessToken,
-    options: { account_ids: [accountId] }
+    options: { account_ids: [accountId] },
   });
 
   const account = response.data.accounts[0];
@@ -141,15 +152,16 @@ async function checkSufficientFunds(
 ```
 
 **Multi-Account Selection:**
+
 ```javascript
 // Let user select from multiple accounts
 const accounts = response.data.accounts
-  .filter(a => a.type === 'depository')
-  .map(a => ({
+  .filter((a) => a.type === 'depository')
+  .map((a) => ({
     id: a.account_id,
     name: a.name,
     mask: a.mask,
-    balance: a.balances.available
+    balance: a.balances.available,
   }));
 ```
 
@@ -172,6 +184,7 @@ const accounts = response.data.accounts
 - Solution: Use current balance as fallback
 
 **Source:** `.claude/skills/api/plaid/docs/[filename].md`
+
 ```
 
 ## Key Endpoints
@@ -205,3 +218,4 @@ const accounts = response.data.accounts
 - Include webhook integration
 - Consider real-time requirements
 - Provide account selection patterns
+```

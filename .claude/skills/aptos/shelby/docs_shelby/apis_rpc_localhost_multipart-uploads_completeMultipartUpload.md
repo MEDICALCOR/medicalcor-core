@@ -74,13 +74,11 @@ Python
 Java
 
 C#
-    
-    
+
     curl -X POST "http://localhost:9090/v1/multipart-uploads/string/complete"
 
 200
-    
-    
+
     {
       "success": true
     }

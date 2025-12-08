@@ -126,10 +126,7 @@ export default function UsersPage() {
   async function loadData() {
     try {
       setIsLoading(true);
-      const [usersData, statsData] = await Promise.all([
-        getUsersAction(),
-        getUserStatsAction(),
-      ]);
+      const [usersData, statsData] = await Promise.all([getUsersAction(), getUserStatsAction()]);
       setUsers(usersData);
       setStats(statsData);
     } catch {
@@ -285,7 +282,9 @@ export default function UsersPage() {
           <Card>
             <CardContent className="p-4">
               <div className="text-sm text-muted-foreground">Personal</div>
-              <div className="text-2xl font-bold">{stats.byRole.staff + stats.byRole.receptionist}</div>
+              <div className="text-2xl font-bold">
+                {stats.byRole.staff + stats.byRole.receptionist}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -420,10 +419,13 @@ export default function UsersPage() {
         </Card>
 
         {/* Add User Dialog */}
-        <Dialog open={isAddingUser} onOpenChange={(open) => {
-          setIsAddingUser(open);
-          if (!open) resetForm();
-        }}>
+        <Dialog
+          open={isAddingUser}
+          onOpenChange={(open) => {
+            setIsAddingUser(open);
+            if (!open) resetForm();
+          }}
+        >
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Adaugă utilizator nou</DialogTitle>

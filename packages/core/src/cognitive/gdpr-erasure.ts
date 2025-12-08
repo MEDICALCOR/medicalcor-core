@@ -261,17 +261,13 @@ export class CognitiveGDPRErasureService {
    * Useful for batch erasure operations.
    */
   async eraseMultipleSubjects(
-    subjects: Array<{ subjectType: SubjectType; subjectId: string }>,
+    subjects: { subjectType: SubjectType; subjectId: string }[],
     options: ErasureOptions
   ): Promise<CognitiveErasureResult[]> {
     const results: CognitiveErasureResult[] = [];
 
     for (const subject of subjects) {
-      const result = await this.eraseSubjectMemory(
-        subject.subjectType,
-        subject.subjectId,
-        options
-      );
+      const result = await this.eraseSubjectMemory(subject.subjectType, subject.subjectId, options);
       results.push(result);
     }
 
@@ -282,7 +278,7 @@ export class CognitiveGDPRErasureService {
    * Check if a subject has any cognitive memory data
    */
   async hasMemoryData(subjectType: SubjectType, subjectId: string): Promise<boolean> {
-    const result = await this.pool.query(
+    const result = await this.pool.query<{ has_data: boolean }>(
       `SELECT EXISTS(
         SELECT 1 FROM episodic_events
         WHERE subject_type = $1 AND subject_id = $2 AND deleted_at IS NULL
@@ -303,13 +299,13 @@ export class CognitiveGDPRErasureService {
     subjectType: SubjectType,
     subjectId: string
   ): Promise<{ episodicEvents: number; behavioralPatterns: number }> {
-    const eventsResult = await this.pool.query(
+    const eventsResult = await this.pool.query<{ count: string }>(
       `SELECT COUNT(*) as count FROM episodic_events
        WHERE subject_type = $1 AND subject_id = $2 AND deleted_at IS NULL`,
       [subjectType, subjectId]
     );
 
-    const patternsResult = await this.pool.query(
+    const patternsResult = await this.pool.query<{ count: string }>(
       `SELECT COUNT(*) as count FROM behavioral_patterns
        WHERE subject_type = $1 AND subject_id = $2`,
       [subjectType, subjectId]
@@ -367,7 +363,7 @@ export class CognitiveGDPRErasureService {
    * Called by scheduled cleanup job to permanently remove
    * records that have been soft-deleted and exceeded retention.
    */
-  async purgeExpiredRecords(retentionDays: number = 30): Promise<number> {
+  async purgeExpiredRecords(retentionDays = 30): Promise<number> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
