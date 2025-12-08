@@ -126,3 +126,17 @@ export {
   dailyStaleEmbeddingCleanup,
 } from './jobs/embedding-refresh.js';
 export { queueSLAMonitor, dailySLAReport } from './jobs/queue-sla-monitor.js';
+
+// Breach Notification Workflow (GDPR Compliance)
+export {
+  reportBreach,
+  notifyDPO,
+  breachNotificationWorkflow,
+  notifyAuthority,
+  notifySubject,
+  breachDeadlineMonitor,
+  type ReportBreachPayload,
+  type BreachNotificationWorkflowPayload,
+  type NotifySubjectPayload,
+  type NotifyAuthorityPayload,
+} from './workflows/breach-notification.js';

@@ -1142,6 +1142,63 @@ export {
 } from './schemas/invoice-generation.js';
 
 // =============================================================================
+// Breach Notification Schemas (L3 - GDPR Compliance)
+// =============================================================================
+export {
+  // Enums & Status Types
+  BreachSeveritySchema,
+  BreachDataCategorySchema,
+  BreachNatureSchema,
+  BreachStatusSchema,
+  BreachNotificationChannelSchema,
+  // Core Schemas
+  AffectedSubjectSchema,
+  BreachMeasureSchema,
+  AuthorityNotificationSchema,
+  DataBreachSchema,
+  // Workflow Payloads
+  ReportBreachPayloadSchema,
+  BreachNotificationWorkflowPayloadSchema,
+  NotifySubjectPayloadSchema,
+  NotifyAuthorityPayloadSchema,
+  // Events
+  BreachDetectedEventSchema,
+  BreachAssessedEventSchema,
+  BreachAuthorityNotifiedEventSchema,
+  BreachSubjectNotifiedEventSchema,
+  BreachResolvedEventSchema,
+  BreachEventSchema,
+  // Dashboard & Config
+  BreachSummarySchema,
+  BreachNotificationConfigSchema,
+  // Helper Functions
+  calculateHoursUntilDeadline,
+  requiresAuthorityNotification,
+  requiresSubjectNotification,
+  assessBreachSeverity,
+  // Types
+  type BreachSeverity,
+  type BreachDataCategory,
+  type BreachNature,
+  type BreachStatus,
+  type BreachNotificationChannel,
+  type AffectedSubject,
+  type BreachMeasure,
+  type AuthorityNotification,
+  type DataBreach,
+  type ReportBreachPayload,
+  type BreachNotificationWorkflowPayload,
+  type NotifySubjectPayload,
+  type NotifyAuthorityPayload,
+  type BreachDetectedEvent,
+  type BreachAssessedEvent,
+  type BreachAuthorityNotifiedEvent,
+  type BreachSubjectNotifiedEvent,
+  type BreachResolvedEvent,
+  type BreachEvent,
+  type BreachSummary,
+  type BreachNotificationConfig,
+} from './schemas/breach-notification.js';
 // Index Usage Monitoring Schemas (L1 Feature)
 // =============================================================================
 export {
