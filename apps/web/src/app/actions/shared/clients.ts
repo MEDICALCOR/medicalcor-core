@@ -112,27 +112,103 @@ export function getStripeClient(): StripeClient | MockStripeClient {
 }
 
 /**
- * Mock Scheduling Repository for Web App
- * NOTE: In production, this should be replaced with actual database calls
- * through an API layer, not direct database access from Next.js server actions
+ * API-based Scheduling Repository for Web App
+ *
+ * This repository delegates to the backend API for scheduling operations.
+ * Direct database access from Next.js server actions is not recommended
+ * for scheduling operations which require transactional consistency.
  */
-class MockSchedulingRepository implements ISchedulingRepository {
-  getAvailableSlots(_options: string | GetAvailableSlotsOptions): Promise<TimeSlot[]> {
-    // Mock implementation - return empty array for now
-    // TODO: Replace with API call to backend service
-    return Promise.resolve([]);
+class APISchedulingRepository implements ISchedulingRepository {
+  private readonly apiBaseUrl: string;
+
+  constructor() {
+    this.apiBaseUrl = process.env.API_BASE_URL ?? 'http://localhost:3000';
   }
 
-  bookAppointment(_request: BookingRequest): Promise<BookingResult> {
-    // Mock implementation
-    // TODO: Replace with API call to backend service
-    return Promise.reject(new Error('Booking not implemented in web app - use API endpoint'));
+  async getAvailableSlots(options: string | GetAvailableSlotsOptions): Promise<TimeSlot[]> {
+    try {
+      const queryParams = typeof options === 'string'
+        ? `clinicId=${encodeURIComponent(options)}`
+        : new URLSearchParams({
+            clinicId: options.clinicId,
+            ...(options.providerId && { providerId: options.providerId }),
+            ...(options.serviceType && { serviceType: options.serviceType }),
+            ...(options.startDate && { startDate: options.startDate.toISOString() }),
+            ...(options.endDate && { endDate: options.endDate.toISOString() }),
+          }).toString();
+
+      const response = await fetch(`${this.apiBaseUrl}/api/scheduling/slots?${queryParams}`, {
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        // Return empty array if API unavailable (graceful degradation)
+        return [];
+      }
+
+      const data = (await response.json()) as { slots?: TimeSlot[] };
+      return data.slots ?? [];
+    } catch {
+      // Return empty array on network errors (graceful degradation)
+      return [];
+    }
   }
 
-  getUpcomingAppointments(_startDate: Date, _endDate: Date): Promise<AppointmentDetails[]> {
-    // Mock implementation - return empty array for now
-    // TODO: Replace with API call to backend service
-    return Promise.resolve([]);
+  async bookAppointment(request: BookingRequest): Promise<BookingResult> {
+    try {
+      const response = await fetch(`${this.apiBaseUrl}/api/scheduling/book`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        const errorData = (await response.json().catch(() => ({}))) as { message?: string };
+        return {
+          success: false,
+          error: errorData.message ?? `Booking failed with status ${response.status}`,
+        };
+      }
+
+      const data = (await response.json()) as { appointmentId: string; confirmationNumber: string };
+      return {
+        success: true,
+        appointmentId: data.appointmentId,
+        confirmationNumber: data.confirmationNumber,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error
+          ? `Booking service unavailable: ${error.message}`
+          : 'Booking service unavailable. Please try again later.',
+      };
+    }
+  }
+
+  async getUpcomingAppointments(startDate: Date, endDate: Date): Promise<AppointmentDetails[]> {
+    try {
+      const queryParams = new URLSearchParams({
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+      }).toString();
+
+      const response = await fetch(`${this.apiBaseUrl}/api/scheduling/appointments?${queryParams}`, {
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        return [];
+      }
+
+      const data = (await response.json()) as { appointments?: AppointmentDetails[] };
+      return data.appointments ?? [];
+    } catch {
+      // Return empty array on network errors (graceful degradation)
+      return [];
+    }
   }
 }
 
@@ -147,7 +223,7 @@ class MockSchedulingRepository implements ISchedulingRepository {
  * ```
  */
 export function getSchedulingService(): ISchedulingRepository {
-  schedulingService ??= new MockSchedulingRepository();
+  schedulingService ??= new APISchedulingRepository();
   return schedulingService;
 }
 

@@ -7,7 +7,6 @@
  * @module domain/data-lineage/data-lineage-service
  */
 
-import type { Pool } from 'pg';
 import {
   createDataLineageSystem,
   createPostgresLineageStore,
@@ -35,11 +34,13 @@ import {
 
 /**
  * Dependencies for the data lineage service
+ *
+ * Note: This interface is infrastructure-agnostic. The connectionString
+ * is used by the core layer to create appropriate database connections.
+ * Domain layer should never depend on specific database implementations.
  */
 export interface DataLineageServiceDependencies {
-  /** Database pool for production use */
-  pool?: Pool;
-  /** Connection string (alternative to pool) */
+  /** Connection string for database (handled by core layer) */
   connectionString?: string;
   /** Event store for enhanced debugging */
   eventStore?: EventStoreRepository;

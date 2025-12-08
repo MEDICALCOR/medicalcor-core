@@ -7,7 +7,6 @@
  * @module domain/voice/supervisor-state-repository
  */
 
-import type { Pool, PoolClient } from 'pg';
 import type {
   MonitoredCall,
   SupervisorSession,
@@ -98,6 +97,22 @@ export interface ISupervisorStateRepository {
 }
 
 // ============================================================================
+// DATABASE POOL INTERFACE
+// ============================================================================
+
+/**
+ * Database pool interface for PostgreSQL operations
+ * This abstraction allows the domain layer to remain infrastructure-agnostic.
+ * The actual implementation (pg.Pool) is injected by the infrastructure layer.
+ */
+export interface IDatabasePool {
+  query(
+    queryText: string,
+    values?: unknown[]
+  ): Promise<{ rows: Record<string, unknown>[]; rowCount: number | null }>;
+}
+
+// ============================================================================
 // REPOSITORY IMPLEMENTATION
 // ============================================================================
 
@@ -105,7 +120,7 @@ export interface ISupervisorStateRepository {
  * PostgreSQL implementation of the supervisor state repository
  */
 export class PostgresSupervisorStateRepository implements ISupervisorStateRepository {
-  constructor(private readonly pool: Pool) {}
+  constructor(private readonly pool: IDatabasePool) {}
 
   // ============================================================================
   // CALL OPERATIONS
@@ -161,8 +176,9 @@ export class PostgresSupervisorStateRepository implements ISupervisorStateReposi
       [callSid]
     );
 
-    if (result.rows.length === 0) return null;
-    return this.rowToMonitoredCall(result.rows[0]);
+    const row = result.rows[0];
+    if (!row) return null;
+    return this.rowToMonitoredCall(row);
   }
 
   async updateCall(callSid: string, updates: Partial<MonitoredCall>): Promise<void> {
@@ -282,8 +298,9 @@ export class PostgresSupervisorStateRepository implements ISupervisorStateReposi
       [sessionId]
     );
 
-    if (result.rows.length === 0) return null;
-    return this.rowToSupervisorSession(result.rows[0]);
+    const row = result.rows[0];
+    if (!row) return null;
+    return this.rowToSupervisorSession(row);
   }
 
   async updateSession(sessionId: string, updates: Partial<SupervisorSession>): Promise<void> {
@@ -581,7 +598,9 @@ export class PostgresSupervisorStateRepository implements ISupervisorStateReposi
 
 /**
  * Create a PostgreSQL supervisor state repository
+ *
+ * @param pool - Database pool (pg.Pool compatible)
  */
-export function createSupervisorStateRepository(pool: Pool): ISupervisorStateRepository {
+export function createSupervisorStateRepository(pool: IDatabasePool): ISupervisorStateRepository {
   return new PostgresSupervisorStateRepository(pool);
 }

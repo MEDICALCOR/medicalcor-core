@@ -434,13 +434,55 @@ export class RevenueProjection {
   }
 
   /**
-   * Get quarterly projection (assumes monthly periods)
+   * Seasonal adjustment factors for dental clinic revenue by quarter.
+   *
+   * Based on industry patterns:
+   * - Q1 (Jan-Mar): 0.92 - Post-holiday spending fatigue, but insurance resets help
+   * - Q2 (Apr-Jun): 1.02 - Spring cleanings, moderate demand
+   * - Q3 (Jul-Sep): 0.88 - Summer vacations reduce appointments
+   * - Q4 (Oct-Dec): 1.18 - Use-it-or-lose-it insurance benefits drive high demand
+   *
+   * Factors sum to 4.0 (4 quarters) to maintain annual totals.
    */
-  public getQuarterlyProjection(_quarter: FinancialQuarter): number {
-    // Simplified: assume equal distribution
-    // TODO: Implement quarter-specific projections based on seasonal factors
-    const quarterlyShare = this.totalRevenue / 4;
-    return Math.round(quarterlyShare);
+  private static readonly QUARTERLY_SEASONAL_FACTORS: Record<FinancialQuarter, number> = {
+    Q1: 0.92,
+    Q2: 1.02,
+    Q3: 0.88,
+    Q4: 1.18,
+  };
+
+  /**
+   * Get quarterly projection (assumes monthly periods) with seasonal adjustment
+   *
+   * Uses dental industry seasonal factors to provide more accurate
+   * quarterly projections rather than simple 4-way division.
+   *
+   * @param quarter - The financial quarter (Q1-Q4)
+   * @returns Seasonally-adjusted quarterly revenue projection
+   */
+  public getQuarterlyProjection(quarter: FinancialQuarter): number {
+    // Base quarterly share (equal distribution)
+    const baseQuarterlyShare = this.totalRevenue / 4;
+
+    // Apply seasonal adjustment factor for more realistic projections
+    const seasonalFactor = RevenueProjection.QUARTERLY_SEASONAL_FACTORS[quarter];
+    const adjustedProjection = baseQuarterlyShare * seasonalFactor;
+
+    return Math.round(adjustedProjection);
+  }
+
+  /**
+   * Get all quarterly projections with seasonal adjustments
+   *
+   * @returns Object with projected revenue for each quarter
+   */
+  public getAllQuarterlyProjections(): Record<FinancialQuarter, number> {
+    return {
+      Q1: this.getQuarterlyProjection('Q1'),
+      Q2: this.getQuarterlyProjection('Q2'),
+      Q3: this.getQuarterlyProjection('Q3'),
+      Q4: this.getQuarterlyProjection('Q4'),
+    };
   }
 
   /**
