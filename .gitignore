@@ -181,3 +181,4 @@ playwright-report/
 # Audit artifacts
 .audit/
 AUDIT-REPORT.md
+storybook-static
