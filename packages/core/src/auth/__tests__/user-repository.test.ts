@@ -115,13 +115,15 @@ describe('UserRepository', () => {
         rowCount: 1,
       });
 
-      const user = await repo.create({
+      const result = await repo.create({
         email: 'new@example.com',
         password: 'Password123!',
         name: 'New User',
         role: 'doctor',
       });
 
+      expect(result.isOk).toBe(true);
+      const user = result.unwrap();
       expect(user).toBeDefined();
       expect(user.email).toBe('test@example.com');
       expect(mockDb.query).toHaveBeenCalledWith(
@@ -288,8 +290,10 @@ describe('UserRepository', () => {
 
       const result = await repo.incrementFailedAttempts('user-123');
 
-      expect(result.attempts).toBe(1);
-      expect(result.lockedUntil).toBeUndefined();
+      expect(result.isOk).toBe(true);
+      const data = result.unwrap();
+      expect(data.attempts).toBe(1);
+      expect(data.lockedUntil).toBeUndefined();
     });
 
     it('should lock account after 5 failed attempts', async () => {
@@ -301,8 +305,10 @@ describe('UserRepository', () => {
 
       const result = await repo.incrementFailedAttempts('user-123');
 
-      expect(result.attempts).toBe(5);
-      expect(result.lockedUntil).toBeDefined();
+      expect(result.isOk).toBe(true);
+      const data = result.unwrap();
+      expect(data.attempts).toBe(5);
+      expect(data.lockedUntil).toBeDefined();
     });
   });
 
@@ -385,10 +391,9 @@ describe('UserRepository', () => {
 
       await repo.unlockAccount('user-123');
 
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('locked_until = NULL'),
-        ['user-123']
-      );
+      expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('locked_until = NULL'), [
+        'user-123',
+      ]);
     });
   });
 

@@ -43,8 +43,18 @@ function createSampleController(
 
 function createMockSupabase() {
   // Create a simple mock that returns empty data
+  // The builder must be thenable to work with await
   const createQueryBuilder = () => {
-    const builder: Record<string, unknown> = {};
+    const defaultResult = { data: [], error: null };
+
+    const builder: Record<string, unknown> = {
+      // Make the builder thenable so it can be awaited directly
+      then: (resolve: (value: { data: unknown[]; error: null }) => void) => {
+        resolve(defaultResult);
+        return Promise.resolve(defaultResult);
+      },
+    };
+
     const chainMethods = ['select', 'insert', 'update', 'eq', 'gte', 'lte', 'range'];
 
     chainMethods.forEach((method) => {
@@ -54,15 +64,14 @@ function createMockSupabase() {
     // Handle order().limit().single() chain properly
     builder.single = vi.fn().mockResolvedValue({ data: null, error: null });
     builder.limit = vi.fn().mockReturnValue({
+      ...builder,
       single: vi.fn().mockResolvedValue({ data: null, error: null }),
-      then: vi.fn().mockResolvedValue({ data: [], error: null }),
     });
     builder.order = vi.fn().mockReturnValue({
       ...builder,
       limit: vi.fn().mockReturnValue({
+        ...builder,
         single: vi.fn().mockResolvedValue({ data: null, error: null }),
-        then: (resolve: (value: { data: unknown[]; error: null }) => void) =>
-          resolve({ data: [], error: null }),
       }),
     });
 
