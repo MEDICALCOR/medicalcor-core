@@ -24,3 +24,4 @@ export { bulkImportRoutes } from './bulk-import.js';
 export { loadTestingRoutes } from './load-testing.js';
 export { rlsTestRoutes } from './rls-test.js';
 export { apiDocsRoutes } from './api-docs.js';
+export { indexUsageRoutes } from './index-usage.js';

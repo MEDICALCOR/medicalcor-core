@@ -236,49 +236,26 @@ function generateId(): string {
 
 /**
  * Create a new AllOnX case
+ *
+ * Returns an AllOnXCaseEntity instance with query methods available.
+ * The return type is AllOnXCase for backward compatibility, but
+ * the actual instance is AllOnXCaseEntity.
+ *
+ * @example
+ * ```typescript
+ * const caseEntity = createAllOnXCase({ patientId: 'patient-123' });
+ *
+ * // Use instance methods (preferred)
+ * if (caseEntity instanceof AllOnXCaseEntity) {
+ *   console.log(caseEntity.requiresImmediateAttention());
+ * }
+ *
+ * // Or use deprecated helper functions
+ * console.log(requiresImmediateAttention(caseEntity));
+ * ```
  */
-export function createAllOnXCase(input: CreateAllOnXCaseInput): AllOnXCase {
-  const now = new Date();
-
-  return Object.freeze({
-    id: generateId(),
-    caseNumber: generateCaseNumber(),
-    patientId: input.patientId,
-
-    status: 'INTAKE' as AllOnXCaseStatus,
-    priority: input.priority ?? 'MEDIUM',
-
-    clinicalScore: null,
-    indicators: null,
-
-    recommendedProcedure: null,
-    targetArch: input.targetArch ?? null,
-    estimatedDuration: null,
-
-    imagingRecords: [],
-    treatmentPhases: [],
-    consultations: [],
-    implants: [],
-    followUps: [],
-    physicianReviews: [],
-
-    assignedClinicianId: input.assignedClinicianId ?? null,
-    assignedProsthodontistId: null,
-
-    createdAt: now,
-    updatedAt: now,
-    assessmentCompletedAt: null,
-    surgeryScheduledFor: null,
-    surgeryCompletedAt: null,
-    prosthesisDeliveredAt: null,
-
-    consentObtained: false,
-    consentObtainedAt: null,
-    informedConsentDocumentId: null,
-
-    clinicalNotes: input.clinicalNotes ?? null,
-    internalNotes: null,
-  });
+export function createAllOnXCase(input: CreateAllOnXCaseInput): AllOnXCaseEntity {
+  return AllOnXCaseEntity.create(input);
 }
 
 // ============================================================================
@@ -331,18 +308,425 @@ export function getAllowedNextStatuses(
 }
 
 // ============================================================================
-// QUERY HELPERS
+// ALLONXCASE ENTITY CLASS
+// ============================================================================
+
+/**
+ * AllOnXCaseEntity - Rich Domain Entity with Query Methods
+ *
+ * Encapsulates case data and provides instance methods for querying case state.
+ * Follows DDD pattern where behavior is co-located with data.
+ *
+ * @example
+ * ```typescript
+ * const caseEntity = AllOnXCaseEntity.create({
+ *   patientId: 'patient-123',
+ *   priority: 'URGENT'
+ * });
+ *
+ * if (caseEntity.requiresImmediateAttention()) {
+ *   // Handle urgent case
+ * }
+ *
+ * console.log(caseEntity.getCaseSummary());
+ * ```
+ */
+export class AllOnXCaseEntity implements AllOnXCase {
+  // Identity
+  public readonly id: string;
+  public readonly caseNumber: string;
+  public readonly patientId: string;
+
+  // Status
+  public readonly status: AllOnXCaseStatus;
+  public readonly priority: CasePriority;
+
+  // Clinical Assessment
+  public readonly clinicalScore: AllOnXClinicalScore | null;
+  public readonly indicators: AllOnXClinicalIndicators | null;
+
+  // Treatment Planning
+  public readonly recommendedProcedure: AllOnXProcedureType | null;
+  public readonly targetArch: 'MAXILLA' | 'MANDIBLE' | 'BOTH' | null;
+  public readonly estimatedDuration: number | null;
+
+  // Records
+  public readonly imagingRecords: readonly ImagingRecord[];
+  public readonly treatmentPhases: readonly TreatmentPhaseRecord[];
+  public readonly consultations: readonly ConsultationRecord[];
+  public readonly implants: readonly ImplantRecord[];
+  public readonly followUps: readonly FollowUpRecord[];
+  public readonly physicianReviews: readonly PhysicianReviewRecord[];
+
+  // Assignment
+  public readonly assignedClinicianId: string | null;
+  public readonly assignedProsthodontistId: string | null;
+
+  // Timestamps
+  public readonly createdAt: Date;
+  public readonly updatedAt: Date;
+  public readonly assessmentCompletedAt: Date | null;
+  public readonly surgeryScheduledFor: Date | null;
+  public readonly surgeryCompletedAt: Date | null;
+  public readonly prosthesisDeliveredAt: Date | null;
+
+  // Consent & Compliance
+  public readonly consentObtained: boolean;
+  public readonly consentObtainedAt: Date | null;
+  public readonly informedConsentDocumentId: string | null;
+
+  // Notes
+  public readonly clinicalNotes: string | null;
+  public readonly internalNotes: string | null;
+
+  // ============================================================================
+  // PRIVATE CONSTRUCTOR
+  // ============================================================================
+
+  private constructor(data: AllOnXCase) {
+    this.id = data.id;
+    this.caseNumber = data.caseNumber;
+    this.patientId = data.patientId;
+    this.status = data.status;
+    this.priority = data.priority;
+    this.clinicalScore = data.clinicalScore;
+    this.indicators = data.indicators;
+    this.recommendedProcedure = data.recommendedProcedure;
+    this.targetArch = data.targetArch;
+    this.estimatedDuration = data.estimatedDuration;
+    this.imagingRecords = data.imagingRecords;
+    this.treatmentPhases = data.treatmentPhases;
+    this.consultations = data.consultations;
+    this.implants = data.implants;
+    this.followUps = data.followUps;
+    this.physicianReviews = data.physicianReviews;
+    this.assignedClinicianId = data.assignedClinicianId;
+    this.assignedProsthodontistId = data.assignedProsthodontistId;
+    this.createdAt = data.createdAt;
+    this.updatedAt = data.updatedAt;
+    this.assessmentCompletedAt = data.assessmentCompletedAt;
+    this.surgeryScheduledFor = data.surgeryScheduledFor;
+    this.surgeryCompletedAt = data.surgeryCompletedAt;
+    this.prosthesisDeliveredAt = data.prosthesisDeliveredAt;
+    this.consentObtained = data.consentObtained;
+    this.consentObtainedAt = data.consentObtainedAt;
+    this.informedConsentDocumentId = data.informedConsentDocumentId;
+    this.clinicalNotes = data.clinicalNotes;
+    this.internalNotes = data.internalNotes;
+
+    Object.freeze(this);
+  }
+
+  // ============================================================================
+  // FACTORY METHODS
+  // ============================================================================
+
+  /**
+   * Create a new AllOnXCaseEntity from input
+   */
+  public static create(input: CreateAllOnXCaseInput): AllOnXCaseEntity {
+    const now = new Date();
+
+    const data: AllOnXCase = {
+      id: generateId(),
+      caseNumber: generateCaseNumber(),
+      patientId: input.patientId,
+
+      status: 'INTAKE' as AllOnXCaseStatus,
+      priority: input.priority ?? 'MEDIUM',
+
+      clinicalScore: null,
+      indicators: null,
+
+      recommendedProcedure: null,
+      targetArch: input.targetArch ?? null,
+      estimatedDuration: null,
+
+      imagingRecords: [],
+      treatmentPhases: [],
+      consultations: [],
+      implants: [],
+      followUps: [],
+      physicianReviews: [],
+
+      assignedClinicianId: input.assignedClinicianId ?? null,
+      assignedProsthodontistId: null,
+
+      createdAt: now,
+      updatedAt: now,
+      assessmentCompletedAt: null,
+      surgeryScheduledFor: null,
+      surgeryCompletedAt: null,
+      prosthesisDeliveredAt: null,
+
+      consentObtained: false,
+      consentObtainedAt: null,
+      informedConsentDocumentId: null,
+
+      clinicalNotes: input.clinicalNotes ?? null,
+      internalNotes: null,
+    };
+
+    return new AllOnXCaseEntity(data);
+  }
+
+  /**
+   * Reconstitute from existing data (e.g., from database)
+   */
+  public static fromData(data: AllOnXCase): AllOnXCaseEntity {
+    return new AllOnXCaseEntity(data);
+  }
+
+  // ============================================================================
+  // QUERY METHODS (Instance Methods)
+  // ============================================================================
+
+  /**
+   * Check if case requires immediate attention
+   */
+  public requiresImmediateAttention(): boolean {
+    if (this.priority === 'URGENT') return true;
+
+    if (this.clinicalScore?.riskLevel === 'CRITICAL') return true;
+
+    // Surgery scheduled within 7 days
+    if (this.surgeryScheduledFor) {
+      const daysUntilSurgery = Math.ceil(
+        (this.surgeryScheduledFor.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+      );
+      if (daysUntilSurgery <= 7 && daysUntilSurgery >= 0) return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Check if case is active (not completed/cancelled/on-hold)
+   */
+  public isActive(): boolean {
+    return !['COMPLETED', 'CANCELLED', 'ON_HOLD'].includes(this.status);
+  }
+
+  /**
+   * Check if case is ready for surgery
+   */
+  public isReadyForSurgery(): boolean {
+    return (
+      this.status === 'SURGICAL_PHASE' &&
+      this.consentObtained &&
+      this.clinicalScore !== null &&
+      this.clinicalScore.isCandidate() &&
+      this.assignedClinicianId !== null
+    );
+  }
+
+  /**
+   * Check if case needs clinical assessment
+   */
+  public needsAssessment(): boolean {
+    return this.status === 'INTAKE' || this.clinicalScore === null;
+  }
+
+  /**
+   * Check if case has bone augmentation requirement
+   */
+  public requiresBoneAugmentation(): boolean {
+    return this.clinicalScore?.requiresBoneAugmentation() ?? false;
+  }
+
+  /**
+   * Calculate case progress percentage
+   */
+  public getProgress(): number {
+    const statusProgress: Record<AllOnXCaseStatus, number> = {
+      INTAKE: 5,
+      ASSESSMENT: 15,
+      PLANNING: 25,
+      PRE_TREATMENT: 40,
+      SURGICAL_PHASE: 60,
+      HEALING: 75,
+      PROSTHETIC_PHASE: 90,
+      COMPLETED: 100,
+      FOLLOW_UP: 100,
+      ON_HOLD: -1,
+      CANCELLED: -1,
+    };
+
+    return statusProgress[this.status];
+  }
+
+  /**
+   * Get case summary
+   */
+  public getSummary(): string {
+    const parts: string[] = [];
+
+    parts.push(`Case ${this.caseNumber}`);
+    parts.push(`Status: ${this.status}`);
+
+    if (this.clinicalScore) {
+      parts.push(`Eligibility: ${this.clinicalScore.eligibility}`);
+      parts.push(`Risk: ${this.clinicalScore.riskLevel}`);
+    }
+
+    if (this.recommendedProcedure) {
+      parts.push(`Procedure: ${this.recommendedProcedure.replace(/_/g, ' ')}`);
+    }
+
+    return parts.join(' | ');
+  }
+
+  /**
+   * Get days since case creation
+   */
+  public getDaysSinceCreation(): number {
+    return Math.floor((Date.now() - this.createdAt.getTime()) / (1000 * 60 * 60 * 24));
+  }
+
+  /**
+   * Check if case is overdue for follow-up
+   */
+  public isOverdueForFollowUp(): boolean {
+    if (this.status === 'CANCELLED') return false;
+
+    const pendingFollowUps = this.followUps.filter(
+      (f) => !f.completedAt && f.scheduledFor < new Date()
+    );
+
+    return pendingFollowUps.length > 0;
+  }
+
+  /**
+   * Get next scheduled follow-up
+   */
+  public getNextFollowUp(): FollowUpRecord | null {
+    const pendingFollowUps = this.followUps
+      .filter((f) => !f.completedAt && f.scheduledFor >= new Date())
+      .sort((a, b) => a.scheduledFor.getTime() - b.scheduledFor.getTime());
+
+    return pendingFollowUps[0] ?? null;
+  }
+
+  /**
+   * Get implant count
+   */
+  public getImplantCount(): number {
+    return this.implants.length;
+  }
+
+  /**
+   * Get expected implant count based on procedure
+   */
+  public getExpectedImplantCount(): number {
+    if (!this.recommendedProcedure) return 0;
+
+    const archMultiplier = this.targetArch === 'BOTH' ? 2 : 1;
+
+    switch (this.recommendedProcedure) {
+      case 'ALL_ON_4':
+        return 4 * archMultiplier;
+      case 'ALL_ON_6':
+        return 6 * archMultiplier;
+      case 'ALL_ON_X_HYBRID':
+        return 5 * archMultiplier;
+      default:
+        return 0;
+    }
+  }
+
+  /**
+   * Check if all expected implants are placed
+   */
+  public areAllImplantsPlaced(): boolean {
+    const expected = this.getExpectedImplantCount();
+    const actual = this.getImplantCount();
+    return expected > 0 && actual >= expected;
+  }
+
+  /**
+   * Get case eligibility summary
+   */
+  public getEligibilitySummary(): {
+    eligibility: AllOnXEligibility | null;
+    riskLevel: AllOnXRiskLevel | null;
+    complexity: AllOnXComplexity | null;
+    recommendation: AllOnXTreatmentRecommendation | null;
+    riskFactors: string[];
+  } {
+    if (!this.clinicalScore) {
+      return {
+        eligibility: null,
+        riskLevel: null,
+        complexity: null,
+        recommendation: null,
+        riskFactors: [],
+      };
+    }
+
+    return {
+      eligibility: this.clinicalScore.eligibility,
+      riskLevel: this.clinicalScore.riskLevel,
+      complexity: this.clinicalScore.complexity,
+      recommendation: this.clinicalScore.treatmentRecommendation,
+      riskFactors: this.clinicalScore.getRiskFactors(),
+    };
+  }
+
+  /**
+   * Convert to plain object
+   */
+  public toJSON(): AllOnXCase {
+    return {
+      id: this.id,
+      caseNumber: this.caseNumber,
+      patientId: this.patientId,
+      status: this.status,
+      priority: this.priority,
+      clinicalScore: this.clinicalScore,
+      indicators: this.indicators,
+      recommendedProcedure: this.recommendedProcedure,
+      targetArch: this.targetArch,
+      estimatedDuration: this.estimatedDuration,
+      imagingRecords: this.imagingRecords,
+      treatmentPhases: this.treatmentPhases,
+      consultations: this.consultations,
+      implants: this.implants,
+      followUps: this.followUps,
+      physicianReviews: this.physicianReviews,
+      assignedClinicianId: this.assignedClinicianId,
+      assignedProsthodontistId: this.assignedProsthodontistId,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+      assessmentCompletedAt: this.assessmentCompletedAt,
+      surgeryScheduledFor: this.surgeryScheduledFor,
+      surgeryCompletedAt: this.surgeryCompletedAt,
+      prosthesisDeliveredAt: this.prosthesisDeliveredAt,
+      consentObtained: this.consentObtained,
+      consentObtainedAt: this.consentObtainedAt,
+      informedConsentDocumentId: this.informedConsentDocumentId,
+      clinicalNotes: this.clinicalNotes,
+      internalNotes: this.internalNotes,
+    };
+  }
+}
+
+// ============================================================================
+// QUERY HELPERS (Backward-compatible module-level functions)
 // ============================================================================
 
 /**
  * Check if case requires immediate attention
+ * @deprecated Use AllOnXCaseEntity.requiresImmediateAttention() instance method instead
  */
 export function requiresImmediateAttention(caseEntity: AllOnXCase): boolean {
+  if (caseEntity instanceof AllOnXCaseEntity) {
+    return caseEntity.requiresImmediateAttention();
+  }
+
   if (caseEntity.priority === 'URGENT') return true;
 
   if (caseEntity.clinicalScore?.riskLevel === 'CRITICAL') return true;
 
-  // Surgery scheduled within 7 days
   if (caseEntity.surgeryScheduledFor) {
     const daysUntilSurgery = Math.ceil(
       (caseEntity.surgeryScheduledFor.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
@@ -355,15 +739,23 @@ export function requiresImmediateAttention(caseEntity: AllOnXCase): boolean {
 
 /**
  * Check if case is active (not completed/cancelled/on-hold)
+ * @deprecated Use AllOnXCaseEntity.isActive() instance method instead
  */
 export function isActiveCase(caseEntity: AllOnXCase): boolean {
+  if (caseEntity instanceof AllOnXCaseEntity) {
+    return caseEntity.isActive();
+  }
   return !['COMPLETED', 'CANCELLED', 'ON_HOLD'].includes(caseEntity.status);
 }
 
 /**
  * Check if case is ready for surgery
+ * @deprecated Use AllOnXCaseEntity.isReadyForSurgery() instance method instead
  */
 export function isReadyForSurgery(caseEntity: AllOnXCase): boolean {
+  if (caseEntity instanceof AllOnXCaseEntity) {
+    return caseEntity.isReadyForSurgery();
+  }
   return (
     caseEntity.status === 'SURGICAL_PHASE' &&
     caseEntity.consentObtained &&
@@ -375,22 +767,35 @@ export function isReadyForSurgery(caseEntity: AllOnXCase): boolean {
 
 /**
  * Check if case needs clinical assessment
+ * @deprecated Use AllOnXCaseEntity.needsAssessment() instance method instead
  */
 export function needsAssessment(caseEntity: AllOnXCase): boolean {
+  if (caseEntity instanceof AllOnXCaseEntity) {
+    return caseEntity.needsAssessment();
+  }
   return caseEntity.status === 'INTAKE' || caseEntity.clinicalScore === null;
 }
 
 /**
  * Check if case has bone augmentation requirement
+ * @deprecated Use AllOnXCaseEntity.requiresBoneAugmentation() instance method instead
  */
 export function requiresBoneAugmentation(caseEntity: AllOnXCase): boolean {
+  if (caseEntity instanceof AllOnXCaseEntity) {
+    return caseEntity.requiresBoneAugmentation();
+  }
   return caseEntity.clinicalScore?.requiresBoneAugmentation() ?? false;
 }
 
 /**
  * Calculate case progress percentage
+ * @deprecated Use AllOnXCaseEntity.getProgress() instance method instead
  */
 export function calculateCaseProgress(caseEntity: AllOnXCase): number {
+  if (caseEntity instanceof AllOnXCaseEntity) {
+    return caseEntity.getProgress();
+  }
+
   const statusProgress: Record<AllOnXCaseStatus, number> = {
     INTAKE: 5,
     ASSESSMENT: 15,
@@ -401,8 +806,8 @@ export function calculateCaseProgress(caseEntity: AllOnXCase): number {
     PROSTHETIC_PHASE: 90,
     COMPLETED: 100,
     FOLLOW_UP: 100,
-    ON_HOLD: -1, // Special case
-    CANCELLED: -1, // Special case
+    ON_HOLD: -1,
+    CANCELLED: -1,
   };
 
   return statusProgress[caseEntity.status];
@@ -410,8 +815,13 @@ export function calculateCaseProgress(caseEntity: AllOnXCase): number {
 
 /**
  * Get case summary
+ * @deprecated Use AllOnXCaseEntity.getSummary() instance method instead
  */
 export function getCaseSummary(caseEntity: AllOnXCase): string {
+  if (caseEntity instanceof AllOnXCaseEntity) {
+    return caseEntity.getSummary();
+  }
+
   const parts: string[] = [];
 
   parts.push(`Case ${caseEntity.caseNumber}`);
@@ -431,15 +841,24 @@ export function getCaseSummary(caseEntity: AllOnXCase): string {
 
 /**
  * Get days since case creation
+ * @deprecated Use AllOnXCaseEntity.getDaysSinceCreation() instance method instead
  */
 export function getDaysSinceCreation(caseEntity: AllOnXCase): number {
+  if (caseEntity instanceof AllOnXCaseEntity) {
+    return caseEntity.getDaysSinceCreation();
+  }
   return Math.floor((Date.now() - caseEntity.createdAt.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 /**
  * Check if case is overdue for follow-up
+ * @deprecated Use AllOnXCaseEntity.isOverdueForFollowUp() instance method instead
  */
 export function isOverdueForFollowUp(caseEntity: AllOnXCase): boolean {
+  if (caseEntity instanceof AllOnXCaseEntity) {
+    return caseEntity.isOverdueForFollowUp();
+  }
+
   if (caseEntity.status === 'CANCELLED') return false;
 
   const pendingFollowUps = caseEntity.followUps.filter(
@@ -451,8 +870,13 @@ export function isOverdueForFollowUp(caseEntity: AllOnXCase): boolean {
 
 /**
  * Get next scheduled follow-up
+ * @deprecated Use AllOnXCaseEntity.getNextFollowUp() instance method instead
  */
 export function getNextFollowUp(caseEntity: AllOnXCase): FollowUpRecord | null {
+  if (caseEntity instanceof AllOnXCaseEntity) {
+    return caseEntity.getNextFollowUp();
+  }
+
   const pendingFollowUps = caseEntity.followUps
     .filter((f) => !f.completedAt && f.scheduledFor >= new Date())
     .sort((a, b) => a.scheduledFor.getTime() - b.scheduledFor.getTime());
@@ -462,15 +886,24 @@ export function getNextFollowUp(caseEntity: AllOnXCase): FollowUpRecord | null {
 
 /**
  * Get implant count
+ * @deprecated Use AllOnXCaseEntity.getImplantCount() instance method instead
  */
 export function getImplantCount(caseEntity: AllOnXCase): number {
+  if (caseEntity instanceof AllOnXCaseEntity) {
+    return caseEntity.getImplantCount();
+  }
   return caseEntity.implants.length;
 }
 
 /**
  * Get expected implant count based on procedure
+ * @deprecated Use AllOnXCaseEntity.getExpectedImplantCount() instance method instead
  */
 export function getExpectedImplantCount(caseEntity: AllOnXCase): number {
+  if (caseEntity instanceof AllOnXCaseEntity) {
+    return caseEntity.getExpectedImplantCount();
+  }
+
   if (!caseEntity.recommendedProcedure) return 0;
 
   const archMultiplier = caseEntity.targetArch === 'BOTH' ? 2 : 1;
@@ -481,7 +914,7 @@ export function getExpectedImplantCount(caseEntity: AllOnXCase): number {
     case 'ALL_ON_6':
       return 6 * archMultiplier;
     case 'ALL_ON_X_HYBRID':
-      return 5 * archMultiplier; // Average estimate
+      return 5 * archMultiplier;
     default:
       return 0;
   }
@@ -489,8 +922,12 @@ export function getExpectedImplantCount(caseEntity: AllOnXCase): number {
 
 /**
  * Check if all expected implants are placed
+ * @deprecated Use AllOnXCaseEntity.areAllImplantsPlaced() instance method instead
  */
 export function areAllImplantsPlaced(caseEntity: AllOnXCase): boolean {
+  if (caseEntity instanceof AllOnXCaseEntity) {
+    return caseEntity.areAllImplantsPlaced();
+  }
   const expected = getExpectedImplantCount(caseEntity);
   const actual = getImplantCount(caseEntity);
   return expected > 0 && actual >= expected;
@@ -498,6 +935,7 @@ export function areAllImplantsPlaced(caseEntity: AllOnXCase): boolean {
 
 /**
  * Get case eligibility summary
+ * @deprecated Use AllOnXCaseEntity.getEligibilitySummary() instance method instead
  */
 export function getEligibilitySummary(caseEntity: AllOnXCase): {
   eligibility: AllOnXEligibility | null;
@@ -506,6 +944,10 @@ export function getEligibilitySummary(caseEntity: AllOnXCase): {
   recommendation: AllOnXTreatmentRecommendation | null;
   riskFactors: string[];
 } {
+  if (caseEntity instanceof AllOnXCaseEntity) {
+    return caseEntity.getEligibilitySummary();
+  }
+
   if (!caseEntity.clinicalScore) {
     return {
       eligibility: null,

@@ -150,6 +150,13 @@ export {
   type PatternUpdateCallback,
   type RealtimePatternStats,
   type SubjectEventBuffer,
+
+  // Entity Canonicalization Types (L4: Canonical Form Population)
+  DEFAULT_CANONICALIZATION_CONFIG,
+  type EntityCanonicalizationConfig,
+  type CanonicalizationMethod,
+  type CanonicalFormResult,
+  type BatchCanonicalizationResult,
 } from './types.js';
 
 // =============================================================================
@@ -210,6 +217,12 @@ export {
   createEntityDeduplicationService,
 } from './entity-deduplication.js';
 
+// Entity Canonicalization Service (L4: Canonical Form Population)
+export {
+  EntityCanonicalizationService,
+  createEntityCanonicalizationService,
+} from './entity-canonicalization.js';
+
 // =============================================================================
 // Factory Function
 // =============================================================================
@@ -221,12 +234,14 @@ import { MaskedMemoryRetrievalService } from './masked-memory-retrieval.js';
 import { PatternDetector } from './pattern-detector.js';
 import { KnowledgeGraphService } from './knowledge-graph.js';
 import { EntityDeduplicationService } from './entity-deduplication.js';
+import { EntityCanonicalizationService } from './entity-canonicalization.js';
 import { PiiMaskingService } from './pii-masking.js';
 import { RealtimePatternStream } from './realtime-pattern-stream.js';
 import type {
   CognitiveSystemConfig,
   KnowledgeGraphConfig,
   EntityDeduplicationConfig,
+  EntityCanonicalizationConfig,
   PiiMaskingConfig,
   RealtimePatternStreamConfig,
 } from './types.js';
@@ -247,6 +262,8 @@ export interface CognitiveSystemDependencies {
   knowledgeGraphConfig?: Partial<KnowledgeGraphConfig>;
   /** Optional entity deduplication configuration (H8) */
   deduplicationConfig?: Partial<EntityDeduplicationConfig>;
+  /** Optional entity canonicalization configuration (L4) */
+  canonicalizationConfig?: Partial<EntityCanonicalizationConfig>;
   /** Optional PII masking configuration (L6) */
   maskingConfig?: Partial<PiiMaskingConfig>;
   /** Optional real-time pattern stream configuration (L5) */
@@ -271,6 +288,8 @@ export interface CognitiveSystem {
   knowledgeGraph: KnowledgeGraphService;
   /** Entity deduplication service for auto-merging similar entities (H8) */
   entityDeduplication: EntityDeduplicationService;
+  /** Entity canonicalization service for normalizing entity names (L4) */
+  entityCanonicalization: EntityCanonicalizationService;
   /** Real-time pattern stream for automatic pattern updates (L5) */
   realtimePatternStream: RealtimePatternStream;
 }
@@ -329,6 +348,13 @@ export function createCognitiveSystem(deps: CognitiveSystemDependencies): Cognit
     deps.deduplicationConfig
   );
 
+  // L4: Entity Canonicalization Service for normalizing entity names
+  const entityCanonicalization = new EntityCanonicalizationService(
+    deps.pool,
+    deps.openai,
+    deps.canonicalizationConfig
+  );
+
   // L5: Real-Time Pattern Stream for automatic pattern updates
   const realtimePatternStream = new RealtimePatternStream(
     deps.pool,
@@ -339,6 +365,9 @@ export function createCognitiveSystem(deps: CognitiveSystemDependencies): Cognit
 
   // Wire knowledge graph to episode builder for automatic entity extraction
   episodeBuilder.setKnowledgeGraph(knowledgeGraph);
+
+  // L4: Wire canonicalization service to knowledge graph for automatic canonical form population
+  knowledgeGraph.setCanonicalizationService(entityCanonicalization);
 
   // L5: Wire real-time pattern stream to episode builder for automatic pattern detection
   episodeBuilder.setRealtimePatternStream(realtimePatternStream);
@@ -351,6 +380,7 @@ export function createCognitiveSystem(deps: CognitiveSystemDependencies): Cognit
     patternDetector,
     knowledgeGraph,
     entityDeduplication,
+    entityCanonicalization,
     realtimePatternStream,
   };
 }
