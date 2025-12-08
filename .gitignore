@@ -182,3 +182,4 @@ playwright-report/
 .audit/
 AUDIT-REPORT.md
 storybook-static
+coverage-report.json
