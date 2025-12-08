@@ -122,7 +122,7 @@ const DEFAULT_CSV_MAPPINGS: Record<string, ImportFieldName> = {
  */
 export function parseCSV(csvContent: string): {
   rows: BulkImportRow[];
-  errors: Array<{ line: number; error: string }>;
+  errors: { line: number; error: string }[];
 } {
   const lines = csvContent.trim().split(/\r?\n/);
   if (lines.length < 2) {
@@ -130,7 +130,7 @@ export function parseCSV(csvContent: string): {
   }
 
   const rows: BulkImportRow[] = [];
-  const errors: Array<{ line: number; error: string }> = [];
+  const errors: { line: number; error: string }[] = [];
 
   // Parse header
   const headerLine = lines[0];
@@ -216,8 +216,8 @@ function parseCSVLine(line: string): string[] {
   let inQuotes = false;
 
   for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    const nextChar = line[i + 1];
+    const char = line.charAt(i);
+    const nextChar = line.charAt(i + 1);
 
     if (inQuotes) {
       if (char === '"' && nextChar === '"') {
@@ -672,7 +672,7 @@ async function processRow(
     // Generate external contact ID if not provided
     const externalContactId =
       row.externalContactId ?? `${options.defaultSource}-${normalizedPhone.replace(/\D/g, '')}`;
-    const externalSource = row.externalSource ?? options.defaultSource;
+    const externalSource = row.externalSource;
 
     // Build full name
     const fullName =
@@ -697,13 +697,13 @@ async function processRow(
         null, // ai_intent
         null, // ai_summary
         null, // ai_last_analysis_at
-        row.language ?? null, // language
+        row.language, // language
         tags ?? null, // tags
         null, // metadata
         row.gdprConsent ?? null, // gdpr_consent
         row.gdprConsent ? new Date() : null, // gdpr_consent_at
         row.gdprConsent ? 'bulk_import' : null, // gdpr_consent_source
-        row.status ?? null, // status
+        row.status, // status
         options.actor ?? null, // updated_by
         externalSource, // WHERE external_source
         existing.externalContactId, // WHERE external_contact_id
@@ -746,13 +746,13 @@ async function processRow(
       null, // ai_intent
       null, // ai_summary
       null, // ai_last_analysis_at
-      row.language ?? 'ro', // language
+      row.language, // language
       tags ?? null, // tags
       null, // metadata
       row.gdprConsent ?? false, // gdpr_consent
       row.gdprConsent ? new Date() : null, // gdpr_consent_at
       row.gdprConsent ? 'bulk_import' : null, // gdpr_consent_source
-      row.status ?? 'new', // status
+      row.status, // status
       options.actor ?? null, // created_by
       options.actor ?? null, // updated_by
     ]);

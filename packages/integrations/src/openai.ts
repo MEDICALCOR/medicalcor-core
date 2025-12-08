@@ -211,11 +211,11 @@ export class OpenAIClient {
    * Create a chat completion and return the full response object
    */
   async chat(options: {
-    messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
+    messages: { role: 'user' | 'assistant' | 'system'; content: string }[];
     temperature?: number;
     maxTokens?: number;
   }): Promise<{
-    choices: Array<{ message: { content: string | null } }>;
+    choices: { message: { content: string | null } }[];
   }> {
     const {
       messages,

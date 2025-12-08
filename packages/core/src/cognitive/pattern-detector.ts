@@ -279,7 +279,7 @@ const PATTERN_RULES: PatternRule[] = [
           e.summary.toLowerCase().includes('pret') ||
           e.summary.toLowerCase().includes('discount') ||
           e.summary.toLowerCase().includes('reducere') ||
-          e.intent?.toLowerCase().includes('price') ||
+          (e.intent?.toLowerCase().includes('price') ?? false) ||
           e.keyEntities.some((entity) => entity.type === 'amount')
       );
 
@@ -447,7 +447,7 @@ export class PatternDetector {
     subjectType: SubjectType,
     subjectId: string
   ): Promise<BehavioralPattern[]> {
-    const result = await this.pool.query(
+    const result = await this.pool.query<Record<string, unknown>>(
       `
       SELECT *
       FROM behavioral_patterns
@@ -469,7 +469,17 @@ export class PatternDetector {
     highConfidenceCount: number;
     recentlyDetected: number;
   }> {
-    const result = await this.pool.query(`
+    interface StatsRow {
+      total_patterns: number;
+      high_confidence: number;
+      recently_detected: number;
+    }
+    interface TypeRow {
+      pattern_type: string;
+      count: number;
+    }
+
+    const result = await this.pool.query<StatsRow>(`
       SELECT
         COUNT(*)::int as total_patterns,
         COUNT(*) FILTER (WHERE confidence >= 0.8)::int as high_confidence,
@@ -477,7 +487,7 @@ export class PatternDetector {
       FROM behavioral_patterns
     `);
 
-    const typeResult = await this.pool.query(`
+    const typeResult = await this.pool.query<TypeRow>(`
       SELECT pattern_type, COUNT(*)::int as count
       FROM behavioral_patterns
       GROUP BY pattern_type
@@ -485,15 +495,15 @@ export class PatternDetector {
 
     const byType: Record<string, number> = {};
     for (const row of typeResult.rows) {
-      byType[row.pattern_type as string] = row.count as number;
+      byType[row.pattern_type] = row.count;
     }
 
     const row = result.rows[0];
     return {
-      totalPatterns: (row?.total_patterns as number) ?? 0,
+      totalPatterns: row?.total_patterns ?? 0,
       byType,
-      highConfidenceCount: (row?.high_confidence as number) ?? 0,
-      recentlyDetected: (row?.recently_detected as number) ?? 0,
+      highConfidenceCount: row?.high_confidence ?? 0,
+      recentlyDetected: row?.recently_detected ?? 0,
     };
   }
 
@@ -505,7 +515,7 @@ export class PatternDetector {
     subjectType: SubjectType,
     subjectId: string
   ): Promise<EpisodicEvent[]> {
-    const result = await this.pool.query(
+    const result = await this.pool.query<Record<string, unknown>>(
       `
       SELECT
         id, subject_type, subject_id, event_type, event_category,
@@ -705,8 +715,14 @@ export class PatternDetector {
     subjectType: SubjectType,
     subjectId: string
   ): Promise<CognitiveInsight | null> {
+    interface EngagementRow {
+      last_interaction: Date | null;
+      recent_count: string;
+      older_count: string;
+    }
+
     // Check for reactivation candidate
-    const result = await this.pool.query(
+    const result = await this.pool.query<EngagementRow>(
       `
       SELECT
         MAX(occurred_at) as last_interaction,
@@ -721,9 +737,9 @@ export class PatternDetector {
     const row = result.rows[0];
     if (!row) return null;
 
-    const lastInteraction = row.last_interaction as Date | null;
-    const recentCount = Number(row.recent_count ?? 0);
-    const olderCount = Number(row.older_count ?? 0);
+    const lastInteraction = row.last_interaction;
+    const recentCount = Number(row.recent_count);
+    const olderCount = Number(row.older_count);
 
     // Check for dormant patient with history
     if (lastInteraction && olderCount > 3 && recentCount === 0) {
@@ -744,7 +760,12 @@ export class PatternDetector {
 
     // Check for positive momentum
     if (recentCount >= 3) {
-      const sentimentResult = await this.pool.query(
+      interface SentimentRow {
+        positive: string;
+        total: string;
+      }
+
+      const sentimentResult = await this.pool.query<SentimentRow>(
         `
         SELECT
           COUNT(*) FILTER (WHERE sentiment = 'positive') as positive,
@@ -787,12 +808,14 @@ export class PatternDetector {
       sourceChannel: row.source_channel as EpisodicEvent['sourceChannel'],
       rawEventId: row.raw_event_id as string | undefined,
       summary: row.summary as string,
-      keyEntities: (row.key_entities as EpisodicEvent['keyEntities']) ?? [],
+      keyEntities: Array.isArray(row.key_entities)
+        ? (row.key_entities as EpisodicEvent['keyEntities'])
+        : [],
       sentiment: row.sentiment as EpisodicEvent['sentiment'],
       intent: row.intent as string | undefined,
       occurredAt: row.occurred_at as Date,
       processedAt: row.processed_at as Date | undefined,
-      metadata: (row.metadata as Record<string, unknown>) ?? undefined,
+      metadata: row.metadata ? (row.metadata as Record<string, unknown>) : undefined,
     };
   }
 
@@ -804,11 +827,13 @@ export class PatternDetector {
       patternType: row.pattern_type as string,
       patternDescription: row.pattern_description as string,
       confidence: Number(row.confidence),
-      supportingEventIds: (row.supporting_event_ids as string[]) ?? [],
+      supportingEventIds: Array.isArray(row.supporting_event_ids)
+        ? (row.supporting_event_ids as string[])
+        : [],
       firstObservedAt: row.first_observed_at as Date,
       lastObservedAt: row.last_observed_at as Date,
-      occurrenceCount: (row.occurrence_count as number) ?? 1,
-      metadata: (row.metadata as Record<string, unknown>) ?? undefined,
+      occurrenceCount: typeof row.occurrence_count === 'number' ? row.occurrence_count : 1,
+      metadata: row.metadata ? (row.metadata as Record<string, unknown>) : undefined,
     };
   }
 }
