@@ -101,7 +101,7 @@ export function ScenarioDonut({ data, className }: ScenarioDonutProps) {
           />
 
           {/* Segment arcs */}
-          {segments.map((segment, i) => (
+          {segments.map((segment) => (
             <path
               key={segment.scenario}
               d={segment.path}

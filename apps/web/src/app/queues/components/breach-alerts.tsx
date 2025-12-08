@@ -271,7 +271,7 @@ export function BreachTrendChart({ stats }: BreachTrendChartProps) {
       <CardContent>
         <div className="space-y-2">
           {stats.map((day) => {
-            const percentage = (day.totalBreaches / maxBreaches) * 100;
+            const _percentage = (day.totalBreaches / maxBreaches) * 100;
             const dateLabel = new Date(day.date).toLocaleDateString('ro-RO', {
               weekday: 'short',
               day: 'numeric',

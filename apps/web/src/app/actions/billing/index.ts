@@ -1,7 +1,7 @@
 'use server';
 
 import { z } from 'zod';
-import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
+import { getDatabase } from '@/lib/db';
 import { requirePermission, requireCurrentUser } from '@/lib/auth/server-action-auth';
 import { getStripeClient } from '../shared/clients';
 
@@ -10,14 +10,6 @@ import { getStripeClient } from '../shared/clients';
  *
  * Integrates with PostgreSQL for invoice storage and Stripe for payments.
  */
-
-// Lazy-initialized database connection
-let db: DatabasePool | null = null;
-
-function getDatabase(): DatabasePool {
-  db ??= createDatabaseClient();
-  return db;
-}
 
 // =============================================================================
 // Types

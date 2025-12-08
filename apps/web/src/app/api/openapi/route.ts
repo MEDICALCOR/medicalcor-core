@@ -31,7 +31,7 @@ export async function GET() {
 /**
  * OPTIONS handler for CORS preflight
  */
-export async function OPTIONS() {
+export function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
     headers: {

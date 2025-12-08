@@ -357,9 +357,9 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
       consent = createPersistentConsentService(consentRepository);
     } else {
       // Use in-memory repository for development/testing
-      // InMemoryConsentRepository already returns plain types (not Result-wrapped),
-      // so it can be used directly without adaptConsentRepository
-      const inMemoryRepository = new InMemoryConsentRepository();
+      // InMemoryConsentRepository implements IConsentRepository (Result-wrapped),
+      // so it needs adaptConsentRepository to convert to ConsentRepository
+      const inMemoryRepository = adaptConsentRepository(new InMemoryConsentRepository());
       consent = createConsentService({ repository: inMemoryRepository });
     }
   }

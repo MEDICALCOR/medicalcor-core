@@ -1,7 +1,7 @@
 'use server';
 
 import { z } from 'zod';
-import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
+import { getDatabase } from '@/lib/db';
 import { requirePermission } from '@/lib/auth/server-action-auth';
 import type { TriggerType, Workflow, WorkflowTemplate, WorkflowStep } from '@/lib/workflows/types';
 
@@ -11,14 +11,6 @@ import type { TriggerType, Workflow, WorkflowTemplate, WorkflowStep } from '@/li
  * All actions require authentication and appropriate permissions.
  * Data is stored in PostgreSQL workflows table.
  */
-
-// Lazy-initialized database connection
-let db: DatabasePool | null = null;
-
-function getDatabase(): DatabasePool {
-  db ??= createDatabaseClient();
-  return db;
-}
 
 // =============================================================================
 // Validation Schemas

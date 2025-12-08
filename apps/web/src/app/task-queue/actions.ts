@@ -1,5 +1,8 @@
 'use server';
 
+/* eslint-disable @typescript-eslint/require-await */
+// Server actions must be async for Next.js, but these mock implementations don't need await
+
 import { revalidatePath } from 'next/cache';
 
 /**
@@ -133,7 +136,7 @@ function getTasks(): TaskQueueItem[] {
 /**
  * Get overall task queue statistics
  */
-export function getTaskQueueStatsAction(): Promise<TaskQueueStats> {
+export async function getTaskQueueStatsAction(): Promise<TaskQueueStats> {
   const tasks = getTasks();
 
   const completed = tasks.filter((t) => t.status === 'completed');
@@ -145,7 +148,7 @@ export function getTaskQueueStatsAction(): Promise<TaskQueueStats> {
   );
   const processedCount = completed.length + failed.length;
 
-  return Promise.resolve({
+  return {
     totalTasks: tasks.length,
     pendingTasks: tasks.filter((t) => t.status === 'pending').length,
     runningTasks: tasks.filter((t) => t.status === 'running').length,
@@ -154,13 +157,13 @@ export function getTaskQueueStatsAction(): Promise<TaskQueueStats> {
     avgProcessingTimeMs: processedCount > 0 ? Math.round(totalProcessingTime / processedCount) : 0,
     successRate:
       processedCount > 0 ? Math.round((completed.length / processedCount) * 100 * 10) / 10 : 100,
-  });
+  };
 }
 
 /**
  * Get task queue items with filtering and pagination
  */
-export function getTaskQueueItemsAction(options?: {
+export async function getTaskQueueItemsAction(options?: {
   status?: TaskQueueItem['status'] | 'all';
   taskType?: string;
   limit?: number;
@@ -182,16 +185,16 @@ export function getTaskQueueItemsAction(options?: {
   const limit = options?.limit ?? 20;
   const offset = options?.offset ?? 0;
 
-  return Promise.resolve({
+  return {
     items: tasks.slice(offset, offset + limit),
     total,
-  });
+  };
 }
 
 /**
  * Get breakdown by task type
  */
-export function getTaskTypeBreakdownAction(): Promise<TaskTypeBreakdown[]> {
+export async function getTaskTypeBreakdownAction(): Promise<TaskTypeBreakdown[]> {
   const tasks = getTasks();
   const breakdown = new Map<string, TaskTypeBreakdown>();
 
@@ -222,24 +225,24 @@ export function getTaskTypeBreakdownAction(): Promise<TaskTypeBreakdown[]> {
     }
   }
 
-  return Promise.resolve(Array.from(breakdown.values()).sort((a, b) => b.total - a.total));
+  return Array.from(breakdown.values()).sort((a, b) => b.total - a.total);
 }
 
 /**
  * Get failed tasks for retry management
  */
-export function getFailedTasksAction(limit = 10): Promise<TaskQueueItem[]> {
-  return Promise.resolve(
-    getTasks()
-      .filter((t) => t.status === 'failed')
-      .slice(0, limit)
-  );
+export async function getFailedTasksAction(limit = 10): Promise<TaskQueueItem[]> {
+  return getTasks()
+    .filter((t) => t.status === 'failed')
+    .slice(0, limit);
 }
 
 /**
  * Retry a failed task (mock action)
  */
-export function retryTaskAction(taskId: string): Promise<{ success: boolean; message: string }> {
+export async function retryTaskAction(
+  taskId: string
+): Promise<{ success: boolean; message: string }> {
   // In production, this would call Trigger.dev API to retry the task
 
   // Simulate retry
@@ -252,16 +255,18 @@ export function retryTaskAction(taskId: string): Promise<{ success: boolean; mes
 
   revalidatePath('/task-queue');
 
-  return Promise.resolve({
+  return {
     success: true,
     message: `Task ${taskId} queued for retry`,
-  });
+  };
 }
 
 /**
  * Cancel a pending/running task (mock action)
  */
-export function cancelTaskAction(taskId: string): Promise<{ success: boolean; message: string }> {
+export async function cancelTaskAction(
+  taskId: string
+): Promise<{ success: boolean; message: string }> {
   // In production, this would call Trigger.dev API to cancel the task
 
   // Simulate cancel
@@ -272,15 +277,15 @@ export function cancelTaskAction(taskId: string): Promise<{ success: boolean; me
 
   revalidatePath('/task-queue');
 
-  return Promise.resolve({
+  return {
     success: true,
     message: `Task ${taskId} cancelled`,
-  });
+  };
 }
 
 /**
  * Get list of available task types
  */
-export function getTaskTypesAction(): Promise<string[]> {
-  return Promise.resolve([...TASK_TYPES]);
+export async function getTaskTypesAction(): Promise<string[]> {
+  return [...TASK_TYPES];
 }
