@@ -195,10 +195,12 @@ run_code_quality_audit() {
       RESULTS[eslint_warnings]="0"
     else
       # Count errors and warnings
-      ERRORS=$(grep -c "error" "$OUTPUT_DIR/eslint.txt" 2>/dev/null || echo "0")
-      WARNINGS_COUNT=$(grep -c "warning" "$OUTPUT_DIR/eslint.txt" 2>/dev/null || echo "0")
+      ERRORS=$(grep -c "error" "$OUTPUT_DIR/eslint.txt" 2>/dev/null | tr -d '\n' || echo "0")
+      WARNINGS_COUNT=$(grep -c "warning" "$OUTPUT_DIR/eslint.txt" 2>/dev/null | tr -d '\n' || echo "0")
+      ERRORS=${ERRORS:-0}
+      WARNINGS_COUNT=${WARNINGS_COUNT:-0}
 
-      if [ "$ERRORS" -gt 0 ]; then
+      if [[ "$ERRORS" =~ ^[0-9]+$ ]] && [ "$ERRORS" -gt 0 ]; then
         log_failure "ESLint: $ERRORS errors, $WARNINGS_COUNT warnings"
       else
         log_warning "ESLint: $WARNINGS_COUNT warnings"
@@ -223,7 +225,8 @@ run_code_quality_audit() {
       log_success "Prettier: All files properly formatted"
       RESULTS[prettier]="pass"
     else
-      UNFORMATTED=$(grep -c "Forgot to run Prettier\|would be reformatted" "$OUTPUT_DIR/prettier.txt" 2>/dev/null || wc -l < "$OUTPUT_DIR/prettier.txt")
+      UNFORMATTED=$(grep -c "Forgot to run Prettier\|would be reformatted" "$OUTPUT_DIR/prettier.txt" 2>/dev/null | head -1 || echo "some")
+      UNFORMATTED=${UNFORMATTED:-some}
       log_warning "Prettier: $UNFORMATTED files need formatting"
       RESULTS[prettier]="$UNFORMATTED files"
     fi
@@ -262,8 +265,10 @@ run_typescript_audit() {
     log_success "TypeScript: No type errors"
     RESULTS[typescript_errors]="0"
   else
-    TS_ERRORS=$(grep -c "error TS" "$OUTPUT_DIR/typescript.txt" 2>/dev/null || echo "0")
-    if [ "$TS_ERRORS" -gt 0 ]; then
+    TS_ERRORS=$(grep -c "error TS" "$OUTPUT_DIR/typescript.txt" 2>/dev/null | head -1 || echo "0")
+    TS_ERRORS=$(echo "$TS_ERRORS" | tr -d '[:space:]')
+    TS_ERRORS=${TS_ERRORS:-0}
+    if [[ "$TS_ERRORS" =~ ^[0-9]+$ ]] && [ "$TS_ERRORS" -gt 0 ]; then
       log_failure "TypeScript: $TS_ERRORS type errors"
     else
       log_warning "TypeScript: Check $AUDIT_OUTPUT_DIR/typescript.txt for details"
@@ -273,8 +278,9 @@ run_typescript_audit() {
 
   # Check strict mode compliance
   log_step "Verifying strict mode configuration..."
-  STRICT_COUNT=$(grep -rn '"strict": true' --include="tsconfig*.json" "$PROJECT_ROOT" 2>/dev/null | wc -l)
-  if [ "$STRICT_COUNT" -gt 0 ]; then
+  STRICT_COUNT=$(grep -rn '"strict": true' --include="tsconfig*.json" "$PROJECT_ROOT" 2>/dev/null | wc -l | tr -d '[:space:]')
+  STRICT_COUNT=${STRICT_COUNT:-0}
+  if [[ "$STRICT_COUNT" =~ ^[0-9]+$ ]] && [ "$STRICT_COUNT" -gt 0 ]; then
     log_success "TypeScript strict mode enabled in $STRICT_COUNT config(s)"
   else
     log_warning "TypeScript strict mode not found in configs"
@@ -292,19 +298,15 @@ run_dependency_audit() {
 
   # Outdated packages
   log_step "Checking for outdated packages..."
-  if pnpm outdated --format json > "$OUTPUT_DIR/outdated.json" 2>&1; then
+  if pnpm outdated > "$OUTPUT_DIR/outdated.txt" 2>&1; then
     log_success "All packages are up to date"
     RESULTS[outdated_packages]="0"
   else
     # pnpm outdated returns non-zero when packages are outdated
-    OUTDATED_COUNT=$(cat "$OUTPUT_DIR/outdated.json" 2>/dev/null | grep -c '"current"' || echo "0")
-    if [ "$OUTDATED_COUNT" -eq 0 ]; then
-      # Try parsing differently
-      pnpm outdated > "$OUTPUT_DIR/outdated.txt" 2>&1 || true
-      OUTDATED_COUNT=$(tail -n +2 "$OUTPUT_DIR/outdated.txt" 2>/dev/null | wc -l || echo "0")
-    fi
+    OUTDATED_COUNT=$(tail -n +2 "$OUTPUT_DIR/outdated.txt" 2>/dev/null | grep -v "^$" | wc -l | tr -d '[:space:]')
+    OUTDATED_COUNT=${OUTDATED_COUNT:-0}
 
-    if [ "$OUTDATED_COUNT" -gt 20 ]; then
+    if [[ "$OUTDATED_COUNT" =~ ^[0-9]+$ ]] && [ "$OUTDATED_COUNT" -gt 20 ]; then
       log_warning "$OUTDATED_COUNT packages are outdated"
     else
       log_info "$OUTDATED_COUNT packages have updates available"
@@ -324,8 +326,9 @@ run_dependency_audit() {
 
   # Check for peer dependency issues
   log_step "Checking peer dependencies..."
-  PEER_ISSUES=$(pnpm install --dry-run 2>&1 | grep -c "peer dependency" || echo "0")
-  if [ "$PEER_ISSUES" -gt 0 ]; then
+  PEER_ISSUES=$(pnpm install --dry-run 2>&1 | grep -c "peer dependency" | tr -d '[:space:]' || echo "0")
+  PEER_ISSUES=${PEER_ISSUES:-0}
+  if [[ "$PEER_ISSUES" =~ ^[0-9]+$ ]] && [ "$PEER_ISSUES" -gt 0 ]; then
     log_warning "$PEER_ISSUES peer dependency warnings"
   else
     log_success "No peer dependency issues"
@@ -347,14 +350,16 @@ run_test_audit() {
 
     # Extract coverage percentage if available
     COVERAGE=$(grep -oP 'All files.*?\|\s*\K[\d.]+' "$OUTPUT_DIR/test-coverage.txt" 2>/dev/null | head -1 || echo "N/A")
-    if [ "$COVERAGE" != "N/A" ]; then
+    if [ "$COVERAGE" != "N/A" ] && [ "$COVERAGE" != "" ]; then
       log_info "Test coverage: ${COVERAGE}%"
       RESULTS[test_coverage]="${COVERAGE}%"
     else
       RESULTS[test_coverage]="passed"
     fi
   else
-    FAILED=$(grep -c "FAIL" "$OUTPUT_DIR/test-coverage.txt" 2>/dev/null || echo "unknown")
+    FAILED=$(grep -c "FAIL" "$OUTPUT_DIR/test-coverage.txt" 2>/dev/null | head -1 || echo "unknown")
+    FAILED=$(echo "$FAILED" | tr -d '[:space:]')
+    FAILED=${FAILED:-unknown}
     log_failure "Tests failed: $FAILED test suites"
     RESULTS[test_coverage]="$FAILED failed"
   fi
