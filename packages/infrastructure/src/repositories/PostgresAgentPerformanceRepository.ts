@@ -192,8 +192,9 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       [agentId]
     );
 
-    if (result.rows.length === 0) return null;
-    return this.rowToAgent(result.rows[0]);
+    const row = result.rows[0];
+    if (!row) return null;
+    return this.rowToAgent(row);
   }
 
   async getAgents(clinicId: string, options: GetAgentsOptions = {}): Promise<Agent[]> {
@@ -255,7 +256,11 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       ]
     );
 
-    return this.rowToAgent(result.rows[0]);
+    const row = result.rows[0];
+    if (!row) {
+      throw new Error('Failed to create agent: no row returned');
+    }
+    return this.rowToAgent(row);
   }
 
   async updateAgent(agentId: string, updates: Partial<Agent>): Promise<void> {
@@ -305,8 +310,9 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       [agentId]
     );
 
-    if (result.rows.length === 0) return null;
-    return this.rowToAgentSession(result.rows[0]);
+    const row = result.rows[0];
+    if (!row) return null;
+    return this.rowToAgentSession(row);
   }
 
   async startSession(session: Omit<AgentSession, 'id'>): Promise<AgentSession> {
@@ -317,7 +323,11 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       [session.agentId, session.clinicId, session.startedAt, session.status]
     );
 
-    return this.rowToAgentSession(result.rows[0]);
+    const row = result.rows[0];
+    if (!row) {
+      throw new Error('Failed to start session: no row returned');
+    }
+    return this.rowToAgentSession(row);
   }
 
   async endSession(sessionId: string): Promise<void> {
@@ -363,8 +373,9 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       [agentId, dateStr]
     );
 
-    if (result.rows.length === 0) return null;
-    return this.rowToDailyMetrics(result.rows[0]);
+    const row = result.rows[0];
+    if (!row) return null;
+    return this.rowToDailyMetrics(row);
   }
 
   async incrementMetric(
@@ -514,9 +525,9 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       id: row.id,
       name: row.name,
       avatarUrl: row.avatar_url,
-      agentType: row.agent_type,
-      role: row.role,
-      status: row.current_status,
+      agentType: row.agent_type as AgentPerformanceSummary['agentType'],
+      role: row.role as AgentPerformanceSummary['role'],
+      status: row.current_status as AgentPerformanceSummary['status'],
       leadsHandled: row.leads_handled,
       conversions: row.conversions,
       conversionRate: Number(row.conversion_rate),
@@ -640,31 +651,48 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       return Math.round(((curr - prev) / prev) * 1000) / 10;
     };
 
+    // Default values when no data is returned
+    const defaultMetrics: DashboardMetricsRow = {
+      total_agents: '0',
+      active_agents: '0',
+      total_leads: '0',
+      avg_conversion_rate: '0',
+      avg_response_time: '0',
+      avg_satisfaction: '0',
+      total_revenue: '0',
+    };
+
+    const currentMetrics = current ?? defaultMetrics;
+    const previousMetrics = previous ?? defaultMetrics;
+
     return {
-      totalAgents: Number(current.total_agents),
-      activeAgents: Number(current.active_agents),
-      avgConversionRate: Number(current.avg_conversion_rate),
+      totalAgents: Number(currentMetrics.total_agents),
+      activeAgents: Number(currentMetrics.active_agents),
+      avgConversionRate: Number(currentMetrics.avg_conversion_rate),
       avgConversionRateChange: calcChange(
-        Number(current.avg_conversion_rate),
-        Number(previous.avg_conversion_rate)
+        Number(currentMetrics.avg_conversion_rate),
+        Number(previousMetrics.avg_conversion_rate)
       ),
-      totalLeadsHandled: Number(current.total_leads),
+      totalLeadsHandled: Number(currentMetrics.total_leads),
       totalLeadsHandledChange: calcChange(
-        Number(current.total_leads),
-        Number(previous.total_leads)
+        Number(currentMetrics.total_leads),
+        Number(previousMetrics.total_leads)
       ),
-      avgResponseTime: Number(current.avg_response_time),
+      avgResponseTime: Number(currentMetrics.avg_response_time),
       avgResponseTimeChange: calcChange(
-        Number(current.avg_response_time),
-        Number(previous.avg_response_time)
+        Number(currentMetrics.avg_response_time),
+        Number(previousMetrics.avg_response_time)
       ),
-      avgSatisfaction: Number(current.avg_satisfaction),
+      avgSatisfaction: Number(currentMetrics.avg_satisfaction),
       avgSatisfactionChange: calcChange(
-        Number(current.avg_satisfaction),
-        Number(previous.avg_satisfaction)
+        Number(currentMetrics.avg_satisfaction),
+        Number(previousMetrics.avg_satisfaction)
       ),
-      totalRevenue: Number(current.total_revenue),
-      totalRevenueChange: calcChange(Number(current.total_revenue), Number(previous.total_revenue)),
+      totalRevenue: Number(currentMetrics.total_revenue),
+      totalRevenueChange: calcChange(
+        Number(currentMetrics.total_revenue),
+        Number(previousMetrics.total_revenue)
+      ),
     };
   }
 
@@ -742,8 +770,9 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       [agentId]
     );
 
-    if (result.rows.length === 0) return null;
-    return result.rows[0].status as AgentAvailability;
+    const row = result.rows[0];
+    if (!row) return null;
+    return row.status as AgentAvailability;
   }
 
   async getActiveAgentCount(clinicId: string): Promise<number> {
@@ -754,7 +783,8 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
       [clinicId]
     );
 
-    return Number(result.rows[0].count);
+    const row = result.rows[0];
+    return row ? Number(row.count) : 0;
   }
 
   // ============================================================================

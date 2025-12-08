@@ -132,7 +132,11 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
       [request.agentId, request.clinicId, request.callSid, request.leadId ?? null]
     );
 
-    return this.rowToWrapUpEvent(result.rows[0]);
+    const row = result.rows[0];
+    if (!row) {
+      throw new Error('Failed to start wrap-up: no row returned');
+    }
+    return this.rowToWrapUpEvent(row);
   }
 
   async completeWrapUp(request: CompleteWrapUpRequest): Promise<WrapUpEvent | null> {
@@ -149,11 +153,12 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
       [request.callSid, request.agentId, request.dispositionId ?? null, request.notes ?? null]
     );
 
-    if (result.rows.length === 0) {
+    const row = result.rows[0];
+    if (!row) {
       return null;
     }
 
-    const event = this.rowToWrapUpEvent(result.rows[0]);
+    const event = this.rowToWrapUpEvent(row);
 
     // Update daily metrics
     await this.updateDailyMetrics(event.agentId, event.clinicId, event.durationSeconds ?? 0);
@@ -182,11 +187,12 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
       [agentId]
     );
 
-    if (result.rows.length === 0) {
+    const row = result.rows[0];
+    if (!row) {
       return null;
     }
 
-    return this.rowToWrapUpEvent(result.rows[0]);
+    return this.rowToWrapUpEvent(row);
   }
 
   async getWrapUpByCallSid(callSid: string, agentId: string): Promise<WrapUpEvent | null> {
@@ -198,11 +204,12 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
       [callSid, agentId]
     );
 
-    if (result.rows.length === 0) {
+    const row = result.rows[0];
+    if (!row) {
       return null;
     }
 
-    return this.rowToWrapUpEvent(result.rows[0]);
+    return this.rowToWrapUpEvent(row);
   }
 
   // ============================================================================
@@ -545,7 +552,8 @@ export class PostgresWrapUpTimeRepository implements IWrapUpTimeRepository {
       [maxAgeMinutes]
     );
 
-    return Number(result.rows[0].count);
+    const row = result.rows[0];
+    return row ? Number(row.count) : 0;
   }
 
   // ============================================================================
