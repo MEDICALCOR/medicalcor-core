@@ -569,13 +569,13 @@ export const embeddingEventCron = schedules.task({
  * Build a trigger event from a raw database event
  */
 function buildTriggerEvent(event: PendingEmbeddingEvent): EmbeddingTriggerEvent | null {
-  const payload = event.payload as Record<string, unknown>;
+  const payload = event.payload;
 
   switch (event.type) {
     case 'knowledge.entry.created':
     case 'knowledge.entry.updated':
       return {
-        eventType: event.type as 'knowledge.entry.created' | 'knowledge.entry.updated',
+        eventType: event.type,
         eventId: event.id,
         correlationId: event.correlation_id,
         payload: {
@@ -623,11 +623,11 @@ function buildTriggerEvent(event: PendingEmbeddingEvent): EmbeddingTriggerEvent 
         correlationId: event.correlation_id,
         payload: {
           batchId: (payload.batchId as string) ?? event.aggregate_id,
-          items: payload.items as Array<{
+          items: payload.items as {
             contentId: string;
             content: string;
             metadata?: Record<string, unknown>;
-          }>,
+          }[],
           targetType: (payload.targetType as 'knowledge_base' | 'message' | 'custom') ?? 'custom',
           clinicId: payload.clinicId as string | undefined,
         },
