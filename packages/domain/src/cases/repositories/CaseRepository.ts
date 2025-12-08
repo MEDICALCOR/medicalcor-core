@@ -2,10 +2,12 @@
  * @fileoverview Case Repository Interface
  *
  * Defines the contract for case persistence operations.
+ * Uses Result pattern for operations that can fail with typed errors.
  *
  * @module domain/cases/repositories/case-repository
  */
 
+import type { Result, RecordNotFoundError } from '@medicalcor/core';
 import type {
   Case,
   Payment,
@@ -227,13 +229,18 @@ export interface ICaseRepository {
 
   /**
    * Update a case
+   * @returns Result containing the updated Case or a RecordNotFoundError
    */
-  update(id: string, updates: Partial<Omit<Case, 'id' | 'createdAt'>>): Promise<Case>;
+  update(
+    id: string,
+    updates: Partial<Omit<Case, 'id' | 'createdAt'>>
+  ): Promise<Result<Case, RecordNotFoundError>>;
 
   /**
    * Soft delete a case
+   * @returns Result containing void or a RecordNotFoundError
    */
-  softDelete(id: string, deletedBy?: string): Promise<void>;
+  softDelete(id: string, deletedBy?: string): Promise<Result<void, RecordNotFoundError>>;
 
   /**
    * Generate the next case number for a clinic
@@ -261,22 +268,28 @@ export interface ICaseRepository {
 
   /**
    * Update a payment
+   * @returns Result containing the updated Payment or a RecordNotFoundError
    */
-  updatePayment(id: string, updates: Partial<Omit<Payment, 'id' | 'createdAt'>>): Promise<Payment>;
+  updatePayment(
+    id: string,
+    updates: Partial<Omit<Payment, 'id' | 'createdAt'>>
+  ): Promise<Result<Payment, RecordNotFoundError>>;
 
   /**
    * Process a payment (mark as completed and update case totals)
+   * @returns Result containing the processed Payment or a RecordNotFoundError
    */
   processPayment(
     paymentId: string,
     processorName: string,
     processorTransactionId: string
-  ): Promise<Payment>;
+  ): Promise<Result<Payment, RecordNotFoundError>>;
 
   /**
    * Fail a payment
+   * @returns Result containing the failed Payment or a RecordNotFoundError
    */
-  failPayment(paymentId: string, reason: string): Promise<Payment>;
+  failPayment(paymentId: string, reason: string): Promise<Result<Payment, RecordNotFoundError>>;
 
   /**
    * Generate payment reference

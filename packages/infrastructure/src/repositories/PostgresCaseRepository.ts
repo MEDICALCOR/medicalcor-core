@@ -88,6 +88,7 @@ export interface PostgresCaseRepositoryConfig {
 
 interface CaseRow {
   id: string;
+  version?: number; // Optional for backward compatibility with existing database
   clinic_id: string;
   lead_id: string;
   treatment_plan_id: string;
@@ -1319,6 +1320,7 @@ export class PostgresCaseRepository implements ICaseRepository {
   private mapRowToCase(row: CaseRow): Case {
     return {
       id: row.id,
+      version: row.version ?? 1, // Default to 1 for backward compatibility
       clinicId: row.clinic_id,
       leadId: row.lead_id,
       treatmentPlanId: row.treatment_plan_id,
