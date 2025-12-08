@@ -173,3 +173,7 @@ _archive/
 playwright-report/
 **/e2e/test-results/
 **/e2e/.auth/
+
+# Audit artifacts
+.audit/
+AUDIT-REPORT.md
