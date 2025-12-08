@@ -58,3 +58,17 @@ export {
   type PresenceWebSocketManagerConfig,
   type PresenceWebSocketManagerEvents,
 } from './presence-websocket-manager.js';
+
+// Queue Actions Handler (Queue Action Processing)
+export {
+  QueueActionsHandler,
+  getQueueActionsHandler,
+  createQueueActionsHandler,
+  resetQueueActionsHandler,
+  InMemoryQueueEventPort,
+  InMemoryAlertNotificationPort,
+  type ActionHandlerResult,
+  type IQueueEventPort,
+  type IAlertNotificationPort,
+  type QueueActionsHandlerConfig,
+} from './queue-actions-handler.js';
