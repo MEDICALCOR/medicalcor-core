@@ -77,12 +77,11 @@ export interface BookingRequest {
 }
 
 /**
- * Result of a successful booking
+ * Result of a booking attempt
  */
-export interface BookingResult {
-  id: string;
-  status: string;
-}
+export type BookingResult =
+  | { success: true; appointmentId: string; confirmationNumber: string }
+  | { success: false; error: string };
 
 /**
  * Appointment details returned from queries
@@ -105,8 +104,13 @@ export interface AppointmentDetails {
  * Options for fetching available slots
  */
 export interface GetAvailableSlotsOptions {
+  clinicId: string;
   procedureType?: string;
   preferredDates?: string[];
+  providerId?: string;
+  serviceType?: string;
+  startDate?: Date;
+  endDate?: Date;
   limit?: number;
 }
 

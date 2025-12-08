@@ -302,7 +302,8 @@ export const translations = {
       somethingWentWrong: 'Ceva nu a funcționat corect.',
       tryAgain: 'Încearcă din nou',
       pageError: 'Eroare de aplicație',
-      unexpectedError: 'A apărut o eroare neașteptată. Vă rugăm să reîncărcați pagina sau să contactați suportul dacă problema persistă.',
+      unexpectedError:
+        'A apărut o eroare neașteptată. Vă rugăm să reîncărcați pagina sau să contactați suportul dacă problema persistă.',
       errorId: 'ID Eroare',
       reloadPage: 'Reîncarcă pagina',
       goHome: 'Înapoi la pagina principală',
@@ -336,16 +337,21 @@ export const translations = {
       workingHours: 'Care sunt orele de funcționare?',
       consultationCost: 'Cât costă o consultație?',
       talkToOperator: 'Vreau să vorbesc cu un operator',
-      appointmentResponse: 'Perfect! Pentru a face o programare, accesați secțiunea Programări din meniu sau contactați-ne la 0800 123 456.',
-      workingHoursResponse: 'Clinica noastră este deschisă Luni-Vineri între 09:00 și 18:00. Sâmbăta și Duminica suntem închiși.',
-      costResponse: 'Consultația generală costă 150 RON. Pentru consultații de specialitate, vă rugăm să consultați lista de prețuri sau să ne contactați.',
-      operatorResponse: 'Un operator va prelua conversația în curând. Timp mediu de așteptare: 2 minute.',
+      appointmentResponse:
+        'Perfect! Pentru a face o programare, accesați secțiunea Programări din meniu sau contactați-ne la 0800 123 456.',
+      workingHoursResponse:
+        'Clinica noastră este deschisă Luni-Vineri între 09:00 și 18:00. Sâmbăta și Duminica suntem închiși.',
+      costResponse:
+        'Consultația generală costă 150 RON. Pentru consultații de specialitate, vă rugăm să consultați lista de prețuri sau să ne contactați.',
+      operatorResponse:
+        'Un operator va prelua conversația în curând. Timp mediu de așteptare: 2 minute.',
       defaultResponse: 'Mulțumim pentru mesaj! Un operator vă va răspunde în curând.',
     },
     onboarding: {
       welcome: 'Bun venit',
       welcomeTitle: 'Bun venit la MedicalCor Cortex!',
-      welcomeDescription: 'Te vom ghida prin configurarea clinicii tale. Procesul durează aproximativ 5 minute și poți reveni oricând pentru a modifica setările.',
+      welcomeDescription:
+        'Te vom ghida prin configurarea clinicii tale. Procesul durează aproximativ 5 minute și poți reveni oricând pentru a modifica setările.',
       configureClinic: 'Configurează-ți clinica în câțiva pași simpli',
       clinicDetails: 'Detalii clinică',
       clinicInfo: 'Informații despre clinica ta',
@@ -373,7 +379,8 @@ export const translations = {
       compliance: 'Conformitate',
       gdprCompliant: 'GDPR Compliant',
       hipaaCompliant: 'HIPAA Compliant',
-      inviteTeamDescription: 'Invită membrii echipei tale. Aceștia vor primi un email cu instrucțiuni de activare. Poți sări acest pas și adăuga echipa mai târziu.',
+      inviteTeamDescription:
+        'Invită membrii echipei tale. Aceștia vor primi un email cu instrucțiuni de activare. Poți sări acest pas și adăuga echipa mai târziu.',
       youAdmin: 'Tu (Administrator)',
       mainAdmin: 'Administrator principal',
       active: 'Activ',
@@ -386,7 +393,8 @@ export const translations = {
       receptionist: 'Recepționer',
       auxiliaryStaff: 'Personal auxiliar',
       add: 'Adaugă',
-      scheduleDescription: 'Configurează programul de lucru standard al clinicii. Poți modifica ulterior pentru fiecare medic în parte.',
+      scheduleDescription:
+        'Configurează programul de lucru standard al clinicii. Poți modifica ulterior pentru fiecare medic în parte.',
       resetToDefault: 'Resetează la implicit',
       workingDaysOnly: 'Doar zile lucrătoare',
       notificationDescription: 'Configurează modul în care clinica comunică automat cu pacienții.',
@@ -1031,7 +1039,8 @@ export const translations = {
       somethingWentWrong: 'Something went wrong.',
       tryAgain: 'Try again',
       pageError: 'Application error',
-      unexpectedError: 'An unexpected error occurred. Please reload the page or contact support if the problem persists.',
+      unexpectedError:
+        'An unexpected error occurred. Please reload the page or contact support if the problem persists.',
       errorId: 'Error ID',
       reloadPage: 'Reload page',
       goHome: 'Go to home page',
@@ -1065,16 +1074,21 @@ export const translations = {
       workingHours: 'What are the working hours?',
       consultationCost: 'How much does a consultation cost?',
       talkToOperator: 'I want to talk to an operator',
-      appointmentResponse: 'Perfect! To make an appointment, access the Appointments section from the menu or contact us at 0800 123 456.',
-      workingHoursResponse: 'Our clinic is open Monday-Friday from 09:00 to 18:00. We are closed on Saturdays and Sundays.',
-      costResponse: 'A general consultation costs 150 RON. For specialty consultations, please check the price list or contact us.',
-      operatorResponse: 'An operator will take over the conversation soon. Average waiting time: 2 minutes.',
+      appointmentResponse:
+        'Perfect! To make an appointment, access the Appointments section from the menu or contact us at 0800 123 456.',
+      workingHoursResponse:
+        'Our clinic is open Monday-Friday from 09:00 to 18:00. We are closed on Saturdays and Sundays.',
+      costResponse:
+        'A general consultation costs 150 RON. For specialty consultations, please check the price list or contact us.',
+      operatorResponse:
+        'An operator will take over the conversation soon. Average waiting time: 2 minutes.',
       defaultResponse: 'Thank you for your message! An operator will respond shortly.',
     },
     onboarding: {
       welcome: 'Welcome',
       welcomeTitle: 'Welcome to MedicalCor Cortex!',
-      welcomeDescription: "We'll guide you through setting up your clinic. The process takes about 5 minutes and you can come back anytime to modify the settings.",
+      welcomeDescription:
+        "We'll guide you through setting up your clinic. The process takes about 5 minutes and you can come back anytime to modify the settings.",
       configureClinic: 'Configure your clinic in a few simple steps',
       clinicDetails: 'Clinic details',
       clinicInfo: 'Information about your clinic',
@@ -1102,7 +1116,8 @@ export const translations = {
       compliance: 'Compliance',
       gdprCompliant: 'GDPR Compliant',
       hipaaCompliant: 'HIPAA Compliant',
-      inviteTeamDescription: "Invite your team members. They will receive an email with activation instructions. You can skip this step and add the team later.",
+      inviteTeamDescription:
+        'Invite your team members. They will receive an email with activation instructions. You can skip this step and add the team later.',
       youAdmin: 'You (Administrator)',
       mainAdmin: 'Main administrator',
       active: 'Active',
@@ -1115,7 +1130,8 @@ export const translations = {
       receptionist: 'Receptionist',
       auxiliaryStaff: 'Auxiliary staff',
       add: 'Add',
-      scheduleDescription: "Configure the clinic's standard working hours. You can modify later for each doctor individually.",
+      scheduleDescription:
+        "Configure the clinic's standard working hours. You can modify later for each doctor individually.",
       resetToDefault: 'Reset to default',
       workingDaysOnly: 'Working days only',
       notificationDescription: 'Configure how the clinic automatically communicates with patients.',
