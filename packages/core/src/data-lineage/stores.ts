@@ -24,7 +24,7 @@ import type {
 /**
  * In-memory lineage store for development and testing
  */
-/* eslint-disable @typescript-eslint/require-await */
+
 export class InMemoryLineageStore implements LineageStore {
   private entries: LineageEntry[] = [];
   private logger: Logger;
@@ -314,7 +314,6 @@ export class InMemoryLineageStore implements LineageStore {
     }
   }
 }
-/* eslint-enable @typescript-eslint/require-await */
 
 // =============================================================================
 // POSTGRESQL STORE (Production)
