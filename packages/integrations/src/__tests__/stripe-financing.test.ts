@@ -12,15 +12,42 @@
  * @module integrations/__tests__/stripe-financing
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   StripeFinancingClient,
   MockStripeFinancingClient,
   createStripeFinancingClient,
   createMockStripeFinancingClient,
+  getStripeFinancingCredentials,
   type StripeFinancingClientConfig,
 } from '../stripe-financing.js';
 import type { FinancingApplicant } from '@medicalcor/types';
+
+// Use importOriginal to get actual exports and only mock the logger
+vi.mock('@medicalcor/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@medicalcor/core')>();
+
+  const mockChildLogger = {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    child: vi.fn().mockReturnThis(),
+  };
+
+  const mockLogger = {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    child: vi.fn().mockReturnValue(mockChildLogger),
+  };
+
+  return {
+    ...actual,
+    createLogger: () => mockLogger,
+  };
+});
 
 describe('StripeFinancingClient', () => {
   const config: StripeFinancingClientConfig = {
@@ -533,5 +560,339 @@ describe('MockStripeFinancingClient', () => {
 
       expect(result.checkId).toBe('mock_check_1');
     });
+  });
+});
+
+describe('StripeFinancingClient API methods', () => {
+  let client: StripeFinancingClient;
+  let originalFetch: typeof globalThis.fetch;
+
+  const config: StripeFinancingClientConfig = {
+    secretKey: 'sk_test_api_123',
+    webhookSecret: 'whsec_test_456',
+    timeoutMs: 1000,
+    retryConfig: {
+      maxRetries: 0,
+      baseDelayMs: 10,
+    },
+    financing: {
+      defaultProvider: 'stripe_financing',
+      minAmount: 50000,
+      maxAmount: 10000000,
+      defaultCurrency: 'RON',
+      availableTerms: ['6', '12', '18', '24'],
+    },
+  };
+
+  const testApplicant: FinancingApplicant = {
+    leadId: '550e8400-e29b-41d4-a716-446655440000',
+    firstName: 'Maria',
+    lastName: 'Popescu',
+    email: 'maria.popescu@example.com',
+    phone: '+40712345678',
+    country: 'RO',
+  };
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    client = createStripeFinancingClient(config);
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  describe('checkEligibility', () => {
+    it('should return eligibility result from API', async () => {
+      // Stripe API returns snake_case format with Unix timestamps
+      const validUntilTimestamp = Math.floor((Date.now() + 86400000) / 1000);
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            id: 'chk_123', // Stripe uses 'id' which maps to checkId
+            eligible: true,
+            pre_qualified_amount_max: 500000,
+            available_terms: ['6', '12'],
+            available_plan_types: ['installment'],
+            valid_until: validUntilTimestamp, // Unix timestamp
+          }),
+      });
+
+      const result = await client.checkEligibility({
+        leadId: 'lead-123',
+        clinicId: 'clinic-456',
+        requestedAmountMin: 100000,
+        requestedAmountMax: 300000,
+        currency: 'RON',
+        applicant: testApplicant,
+        correlationId: 'corr-123',
+      });
+
+      expect(result.eligible).toBe(true);
+      expect(result.checkId).toBe('chk_123');
+    });
+
+    it('should handle API error', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ error: 'Internal server error' }),
+      });
+
+      await expect(
+        client.checkEligibility({
+          leadId: 'lead-123',
+          clinicId: 'clinic-456',
+          requestedAmountMin: 100000,
+          requestedAmountMax: 300000,
+          currency: 'RON',
+          applicant: testApplicant,
+          correlationId: 'corr-123',
+        })
+      ).rejects.toThrow();
+    });
+
+    it('should handle network error', async () => {
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network failure'));
+
+      await expect(
+        client.checkEligibility({
+          leadId: 'lead-123',
+          clinicId: 'clinic-456',
+          requestedAmountMin: 100000,
+          requestedAmountMax: 300000,
+          currency: 'RON',
+          applicant: testApplicant,
+          correlationId: 'corr-123',
+        })
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('createApplication', () => {
+    it('should create application via API', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            id: 'app_internal_123',
+            externalId: 'fin_app_123',
+            caseId: 'case-123',
+            clinicId: 'clinic-456',
+            status: 'approved',
+            decisionCode: 'approved',
+            requestedAmount: 250000,
+            currency: 'RON',
+            offers: [
+              {
+                offerId: 'off_123',
+                termMonths: 12,
+                apr: 15.99,
+                monthlyPayment: 22000,
+                totalRepayment: 264000,
+                financeCharge: 14000,
+              },
+            ],
+            applicant: testApplicant,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }),
+      });
+
+      const result = await client.createApplication({
+        caseId: 'case-123',
+        clinicId: 'clinic-456',
+        applicant: testApplicant,
+        requestedAmount: 250000,
+        currency: 'RON',
+        correlationId: 'corr-789',
+      });
+
+      expect(result.status).toBe('approved');
+      expect(result.offers).toHaveLength(1);
+    });
+
+    it('should handle API error', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        json: () => Promise.resolve({ error: 'Invalid request' }),
+      });
+
+      await expect(
+        client.createApplication({
+          caseId: 'case-123',
+          clinicId: 'clinic-456',
+          applicant: testApplicant,
+          requestedAmount: 250000,
+          currency: 'RON',
+          correlationId: 'corr-789',
+        })
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('acceptOffer', () => {
+    it('should accept offer via API', async () => {
+      // Stripe API returns the application in snake_case format with Unix timestamps
+      const now = Math.floor(Date.now() / 1000);
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            id: 'fin_app_123',
+            object: 'financing.application',
+            status: 'accepted',
+            requested_amount: 250000,
+            currency: 'RON',
+            accepted_offer_id: 'off_123',
+            accepted_at: now,
+            applicant: {
+              first_name: 'Maria',
+              last_name: 'Popescu',
+              email: 'maria.popescu@example.com',
+              phone: '+40712345678',
+              address: { country: 'RO' },
+            },
+            metadata: {
+              case_id: 'case-123',
+              clinic_id: 'clinic-456',
+              lead_id: 'lead-123',
+            },
+            created: now - 3600,
+            updated: now,
+          }),
+      });
+
+      const result = await client.acceptOffer({
+        applicationId: 'app_123',
+        offerId: 'off_123',
+        signatureConsent: true,
+        correlationId: 'corr-accept',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.application.status).toBe('accepted');
+    });
+
+    it('should handle API error gracefully', async () => {
+      // acceptOffer catches errors and returns success: false instead of throwing
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network failure'));
+
+      const result = await client.acceptOffer({
+        applicationId: 'nonexistent',
+        offerId: 'off_123',
+        signatureConsent: true,
+        correlationId: 'corr-accept',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Network failure');
+    });
+  });
+
+  describe('getApplication', () => {
+    it('should get application via API', async () => {
+      // Stripe API returns snake_case format with Unix timestamps
+      const now = Math.floor(Date.now() / 1000);
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            id: 'fin_app_123', // This becomes externalId
+            object: 'financing.application',
+            status: 'approved',
+            requested_amount: 250000,
+            currency: 'RON',
+            offers: [],
+            applicant: {
+              first_name: 'Maria',
+              last_name: 'Popescu',
+              email: 'maria.popescu@example.com',
+              phone: '+40712345678',
+              address: { country: 'RO' },
+            },
+            metadata: {
+              case_id: 'case-123',
+              clinic_id: 'clinic-456',
+              lead_id: 'lead-123',
+            },
+            created: now - 3600,
+            updated: now,
+          }),
+      });
+
+      const result = await client.getApplication(
+        'fin_app_123',
+        { caseId: 'case-123', clinicId: 'clinic-456', leadId: 'lead-123' },
+        'corr-get'
+      );
+
+      expect(result.externalId).toBe('fin_app_123');
+    });
+
+    it('should handle not found error', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: () => Promise.resolve({ error: 'Not found' }),
+      });
+
+      await expect(
+        client.getApplication(
+          'nonexistent',
+          { caseId: 'case-123', clinicId: 'clinic-456', leadId: 'lead-123' },
+          'corr-get'
+        )
+      ).rejects.toThrow();
+    });
+  });
+});
+
+describe('getStripeFinancingCredentials', () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    vi.resetModules();
+    process.env = { ...originalEnv };
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
+  it('should return credentials from environment', () => {
+    process.env.STRIPE_SECRET_KEY = 'sk_test_123';
+    process.env.STRIPE_FINANCING_WEBHOOK_SECRET = 'whsec_test_456';
+    process.env.STRIPE_CONNECTED_ACCOUNT_ID = 'acct_123';
+
+    const credentials = getStripeFinancingCredentials();
+
+    expect(credentials.secretKey).toBe('sk_test_123');
+    expect(credentials.webhookSecret).toBe('whsec_test_456');
+    expect(credentials.connectedAccountId).toBe('acct_123');
+  });
+
+  it('should throw when STRIPE_SECRET_KEY is not set', () => {
+    delete process.env.STRIPE_SECRET_KEY;
+
+    expect(() => getStripeFinancingCredentials()).toThrow(
+      'STRIPE_SECRET_KEY environment variable is required'
+    );
+  });
+
+  it('should return undefined for optional webhook secret when not set', () => {
+    process.env.STRIPE_SECRET_KEY = 'sk_test_123';
+    delete process.env.STRIPE_FINANCING_WEBHOOK_SECRET;
+
+    const credentials = getStripeFinancingCredentials();
+
+    expect(credentials.secretKey).toBe('sk_test_123');
+    expect(credentials.webhookSecret).toBeUndefined();
   });
 });
