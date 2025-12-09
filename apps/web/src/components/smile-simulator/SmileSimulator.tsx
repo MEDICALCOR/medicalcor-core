@@ -32,8 +32,6 @@ import {
   AlertCircle,
   Smile,
   X,
-  ZoomIn,
-  Play,
 } from 'lucide-react';
 
 // ============================================================================
@@ -82,7 +80,7 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
   const [isWebcamActive, setIsWebcamActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sliderPosition, setSliderPosition] = useState(50);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [_isProcessing, setIsProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState(0);
 
   // Refs
@@ -124,7 +122,7 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
     reader.onload = (e) => {
       const result = e.target?.result as string;
       setOriginalImage(result);
-      startSimulation(result);
+      void startSimulation(result);
     };
     reader.readAsDataURL(file);
   }, []);
@@ -167,76 +165,78 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
     stream?.getTracks().forEach((track) => track.stop());
     setIsWebcamActive(false);
 
-    startSimulation(imageData);
+    void startSimulation(imageData);
   }, []);
 
-  const startSimulation = useCallback(async (imageData: string) => {
-    setStep('processing');
-    setIsProcessing(true);
-    setError(null);
+  const startSimulation = useCallback(
+    async (imageData: string) => {
+      setStep('processing');
+      setIsProcessing(true);
+      setError(null);
 
-    // Animate through processing steps
-    for (let i = 0; i < processingSteps.length; i++) {
-      setProcessingStep(i);
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-    }
-
-    try {
-      // Call API for simulation
-      const response = await fetch('/api/smile-simulator/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: imageData }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Eroare la procesarea imaginii');
+      // Animate through processing steps
+      for (let i = 0; i < processingSteps.length; i++) {
+        setProcessingStep(i);
+        await new Promise((resolve) => setTimeout(resolve, 1500));
       }
 
-      const result: SimulationResult = await response.json();
-      setSimulationResult(result);
-      setStep('result');
-      onSimulationComplete?.(result);
-    } catch {
-      // Fallback: Generate demo result for preview
-      const demoResult: SimulationResult = {
-        originalImage: imageData,
-        simulatedImage: imageData, // In production, this would be AI-generated
-        analysis: {
-          currentScore: 6,
-          potentialScore: 9.5,
-          issues: [
-            'Spații interdentare vizibile',
-            'Colorație ușoară',
-            'Aliniere imperfectă',
-          ],
-          recommendations: [
-            'All-on-4 pentru rezultat complet',
-            'Albire profesională',
-            'Fațete dentare pentru corecție',
-          ],
-          estimatedTreatment: 'All-on-4',
-          estimatedPrice: {
-            min: 4500,
-            max: 7500,
+      try {
+        // Call API for simulation
+        const response = await fetch('/api/smile-simulator/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: imageData }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Eroare la procesarea imaginii');
+        }
+
+        const result: SimulationResult = await response.json();
+        setSimulationResult(result);
+        setStep('result');
+        onSimulationComplete?.(result);
+      } catch {
+        // Fallback: Generate demo result for preview
+        const demoResult: SimulationResult = {
+          originalImage: imageData,
+          simulatedImage: imageData, // In production, this would be AI-generated
+          analysis: {
+            currentScore: 6,
+            potentialScore: 9.5,
+            issues: ['Spații interdentare vizibile', 'Colorație ușoară', 'Aliniere imperfectă'],
+            recommendations: [
+              'All-on-4 pentru rezultat complet',
+              'Albire profesională',
+              'Fațete dentare pentru corecție',
+            ],
+            estimatedTreatment: 'All-on-4',
+            estimatedPrice: {
+              min: 4500,
+              max: 7500,
+            },
           },
-        },
-      };
-      setSimulationResult(demoResult);
-      setStep('result');
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [onSimulationComplete]);
+        };
+        setSimulationResult(demoResult);
+        setStep('result');
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    [onSimulationComplete]
+  );
 
-  const handleSliderMove = useCallback((event: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
-    if (!sliderRef.current) return;
+  const handleSliderMove = useCallback(
+    (event: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
+      if (!sliderRef.current) return;
 
-    const rect = sliderRef.current.getBoundingClientRect();
-    const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX;
-    const position = ((clientX - rect.left) / rect.width) * 100;
-    setSliderPosition(Math.max(0, Math.min(100, position)));
-  }, []);
+      const rect = sliderRef.current.getBoundingClientRect();
+      const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX;
+      const position = ((clientX - rect.left) / rect.width) * 100;
+      setSliderPosition(Math.max(0, Math.min(100, position)));
+    },
+    []
+  );
 
   const resetSimulator = useCallback(() => {
     setStep('upload');
@@ -257,15 +257,14 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
           <Sparkles size={32} />
         </div>
         <h2>Descoperă-ți Zâmbetul Perfect</h2>
-        <p>Încarcă o poză sau fă un selfie și vezi cum vei arăta cu un zâmbet nou în doar 10 secunde!</p>
+        <p>
+          Încarcă o poză sau fă un selfie și vezi cum vei arăta cu un zâmbet nou în doar 10 secunde!
+        </p>
       </div>
 
       <div className="upload-options">
         {/* File Upload Option */}
-        <button
-          className="upload-option"
-          onClick={() => fileInputRef.current?.click()}
-        >
+        <button className="upload-option" onClick={() => fileInputRef.current?.click()}>
           <div className="option-icon">
             <Upload size={28} />
           </div>
@@ -277,10 +276,7 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
         </button>
 
         {/* Webcam Option */}
-        <button
-          className="upload-option"
-          onClick={startWebcam}
-        >
+        <button className="upload-option" onClick={startWebcam}>
           <div className="option-icon camera">
             <Camera size={28} />
           </div>
@@ -315,11 +311,14 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
               <Camera size={24} />
               <span>Captează</span>
             </button>
-            <button className="cancel-btn" onClick={() => {
-              const stream = videoRef.current?.srcObject as MediaStream;
-              stream?.getTracks().forEach((track) => track.stop());
-              setIsWebcamActive(false);
-            }}>
+            <button
+              className="cancel-btn"
+              onClick={() => {
+                const stream = videoRef.current?.srcObject as MediaStream;
+                stream?.getTracks().forEach((track) => track.stop());
+                setIsWebcamActive(false);
+              }}
+            >
               <X size={20} />
             </button>
           </div>
@@ -355,11 +354,17 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
             <div className="scan-line" />
             <div className="ai-particles">
               {[...Array(20)].map((_, i) => (
-                <div key={i} className="particle" style={{
-                  '--delay': `${i * 0.1}s`,
-                  '--x': `${Math.random() * 100}%`,
-                  '--y': `${Math.random() * 100}%`,
-                } as React.CSSProperties} />
+                <div
+                  key={i}
+                  className="particle"
+                  style={
+                    {
+                      '--delay': `${i * 0.1}s`,
+                      '--x': `${Math.random() * 100}%`,
+                      '--y': `${Math.random() * 100}%`,
+                    } as React.CSSProperties
+                  }
+                />
               ))}
             </div>
           </div>
@@ -409,10 +414,7 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
             <img src={simulationResult.simulatedImage} alt="După" />
             <span className="ba-label">DUPĂ</span>
           </div>
-          <div
-            className="ba-handle"
-            style={{ left: `${sliderPosition}%` }}
-          >
+          <div className="ba-handle" style={{ left: `${sliderPosition}%` }}>
             <div className="handle-line" />
             <div className="handle-circle">
               <ChevronRight size={16} className="chevron-left" />
@@ -465,7 +467,10 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
         <div className="price-estimate">
           <div className="price-header">
             <span>Investiție estimată:</span>
-            <strong>€{analysis.estimatedPrice.min.toLocaleString()} - €{analysis.estimatedPrice.max.toLocaleString()}</strong>
+            <strong>
+              €{analysis.estimatedPrice.min.toLocaleString()} - €
+              {analysis.estimatedPrice.max.toLocaleString()}
+            </strong>
           </div>
           <p className="price-note">*Preț final stabilit după consultația gratuită</p>
         </div>
@@ -504,22 +509,27 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
       <div className="form-header">
         <CheckCircle2 size={48} className="success-icon" />
         <h2>Excelent! Hai să Transformăm Zâmbetul Tău</h2>
-        <p>Completează datele pentru a programa consultația gratuită și a primi rezultatul simulării pe email.</p>
+        <p>
+          Completează datele pentru a programa consultația gratuită și a primi rezultatul simulării
+          pe email.
+        </p>
       </div>
 
-      <form onSubmit={(e) => {
-        e.preventDefault();
-        const formData = new FormData(e.currentTarget);
-        const leadData: LeadData = {
-          name: formData.get('name') as string,
-          phone: formData.get('phone') as string,
-          email: formData.get('email') as string,
-          simulationId: Date.now().toString(),
-          currentScore: simulationResult?.analysis.currentScore || 0,
-          interestedIn: simulationResult?.analysis.estimatedTreatment || 'All-on-X',
-        };
-        onLeadCapture?.(leadData);
-      }}>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const formData = new FormData(e.currentTarget);
+          const leadData: LeadData = {
+            name: formData.get('name') as string,
+            phone: formData.get('phone') as string,
+            email: formData.get('email') as string,
+            simulationId: Date.now().toString(),
+            currentScore: simulationResult?.analysis.currentScore ?? 0,
+            interestedIn: simulationResult?.analysis.estimatedTreatment ?? 'All-on-X',
+          };
+          onLeadCapture?.(leadData);
+        }}
+      >
         <div className="form-group">
           <label htmlFor="name">Numele tău *</label>
           <input type="text" id="name" name="name" placeholder="ex: Ion Popescu" required />
@@ -538,7 +548,8 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
         <div className="form-consent">
           <input type="checkbox" id="consent" required />
           <label htmlFor="consent">
-            Accept prelucrarea datelor conform GDPR și sunt de acord să fiu contactat pentru programare.
+            Accept prelucrarea datelor conform GDPR și sunt de acord să fiu contactat pentru
+            programare.
           </label>
         </div>
 
@@ -578,20 +589,20 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
 
       <style jsx>{`
         .smile-simulator {
-          --gold: #C9A962;
-          --gold-light: #E8D5A3;
-          --navy: #0A1628;
+          --gold: #c9a962;
+          --gold-light: #e8d5a3;
+          --navy: #0a1628;
           --navy-light: #152238;
-          --success: #10B981;
-          --danger: #EF4444;
-          --gray: #6B7A90;
+          --success: #10b981;
+          --danger: #ef4444;
+          --gray: #6b7a90;
 
           background: white;
           border-radius: 24px;
           overflow: hidden;
           max-width: 500px;
           margin: 0 auto;
-          box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
         }
 
         /* Upload Step */
@@ -639,7 +650,7 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
           align-items: center;
           gap: 1rem;
           padding: 1.25rem;
-          background: #F7F8FA;
+          background: #f7f8fa;
           border: 2px solid transparent;
           border-radius: 16px;
           cursor: pointer;
@@ -684,7 +695,8 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
           color: var(--gray);
         }
 
-        .hidden-input, .hidden-canvas {
+        .hidden-input,
+        .hidden-canvas {
           display: none;
         }
 
@@ -732,7 +744,7 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
 
         .webcam-controls {
           height: 80px;
-          background: rgba(0,0,0,0.8);
+          background: rgba(0, 0, 0, 0.8);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -755,7 +767,7 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
         .cancel-btn {
           width: 48px;
           height: 48px;
-          background: rgba(255,255,255,0.1);
+          background: rgba(255, 255, 255, 0.1);
           border: none;
           border-radius: 50%;
           color: white;
@@ -770,7 +782,7 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
           align-items: center;
           gap: 0.5rem;
           padding: 1rem;
-          background: rgba(239,68,68,0.1);
+          background: rgba(239, 68, 68, 0.1);
           color: var(--danger);
           border-radius: 12px;
           margin-top: 1rem;
@@ -827,8 +839,12 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
         }
 
         @keyframes scan {
-          0% { top: 0; }
-          100% { top: 100%; }
+          0% {
+            top: 0;
+          }
+          100% {
+            top: 100%;
+          }
         }
 
         .ai-particles {
@@ -853,8 +869,15 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
         }
 
         @keyframes particle {
-          0%, 100% { opacity: 0; transform: scale(0); }
-          50% { opacity: 1; transform: scale(1); }
+          0%,
+          100% {
+            opacity: 0;
+            transform: scale(0);
+          }
+          50% {
+            opacity: 1;
+            transform: scale(1);
+          }
         }
 
         .processing-status h3 {
@@ -869,13 +892,17 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
         }
 
         @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
         }
 
         .progress-bar {
           height: 6px;
-          background: #E8ECF1;
+          background: #e8ecf1;
           border-radius: 3px;
           overflow: hidden;
           margin: 1rem 0;
@@ -925,7 +952,7 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
           position: absolute;
           bottom: 1rem;
           padding: 0.5rem 1rem;
-          background: rgba(0,0,0,0.7);
+          background: rgba(0, 0, 0, 0.7);
           color: white;
           border-radius: 8px;
           font-size: 0.75rem;
@@ -971,7 +998,7 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
 
         .handle-circle .chevron-left {
@@ -985,7 +1012,7 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
           gap: 1.5rem;
           margin: 1.5rem 0;
           padding: 1rem;
-          background: #F7F8FA;
+          background: #f7f8fa;
           border-radius: 16px;
         }
 
@@ -1026,11 +1053,13 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
           margin-bottom: 0.5rem;
         }
 
-        .issues-list, .recommendations-list {
+        .issues-list,
+        .recommendations-list {
           list-style: none;
         }
 
-        .issues-list li, .recommendations-list li {
+        .issues-list li,
+        .recommendations-list li {
           display: flex;
           align-items: center;
           gap: 0.5rem;
@@ -1097,7 +1126,7 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
 
         .action-primary:hover {
           transform: translateY(-2px);
-          box-shadow: 0 10px 30px rgba(201,169,98,0.3);
+          box-shadow: 0 10px 30px rgba(201, 169, 98, 0.3);
         }
 
         .secondary-actions {
@@ -1112,7 +1141,7 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
           align-items: center;
           gap: 0.25rem;
           padding: 0.75rem 1rem;
-          background: #F7F8FA;
+          background: #f7f8fa;
           border: none;
           border-radius: 8px;
           font-size: 0.85rem;
@@ -1122,7 +1151,7 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
         }
 
         .action-secondary:hover {
-          background: #E8ECF1;
+          background: #e8ecf1;
         }
 
         /* Lead Form */
@@ -1167,7 +1196,7 @@ export function SmileSimulator({ onLeadCapture, onSimulationComplete }: SmileSim
         .form-group input {
           width: 100%;
           padding: 1rem;
-          border: 2px solid #E8ECF1;
+          border: 2px solid #e8ecf1;
           border-radius: 12px;
           font-size: 1rem;
           transition: all 0.2s ease;

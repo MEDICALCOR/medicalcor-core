@@ -393,9 +393,9 @@ export function AdaptiveQuiz({
   // Calculate total score
   const calculateScore = useCallback((): number => {
     return answers.reduce((total, answer) => {
-      const question = QUIZ_QUESTIONS.find(q => q.id === answer.questionId);
+      const question = QUIZ_QUESTIONS.find((q) => q.id === answer.questionId);
       const optionScores = answer.selectedOptions.reduce((sum, optId) => {
-        const option = question?.options?.find(o => o.id === optId);
+        const option = question?.options?.find((o) => o.id === optId);
         return sum + (option?.score ?? 0);
       }, 0);
       return total + optionScores;
@@ -412,11 +412,11 @@ export function AdaptiveQuiz({
   // Get all tags
   const getAllTags = useCallback((): string[] => {
     const tags = new Set<string>();
-    answers.forEach(answer => {
-      const question = QUIZ_QUESTIONS.find(q => q.id === answer.questionId);
-      answer.selectedOptions.forEach(optId => {
-        const option = question?.options?.find(o => o.id === optId);
-        option?.tags?.forEach(tag => tags.add(tag));
+    answers.forEach((answer) => {
+      const question = QUIZ_QUESTIONS.find((q) => q.id === answer.questionId);
+      answer.selectedOptions.forEach((optId) => {
+        const option = question?.options?.find((o) => o.id === optId);
+        option?.tags?.forEach((tag) => tags.add(tag));
       });
     });
     return Array.from(tags);
@@ -432,18 +432,21 @@ export function AdaptiveQuiz({
   }, []);
 
   // Handle option selection
-  const handleOptionSelect = useCallback((optionId: string) => {
-    if (currentQuestion?.type === 'single') {
-      setSelectedOptions([optionId]);
-    } else {
-      setSelectedOptions(prev => {
-        if (prev.includes(optionId)) {
-          return prev.filter(id => id !== optionId);
-        }
-        return [...prev, optionId];
-      });
-    }
-  }, [currentQuestion?.type]);
+  const handleOptionSelect = useCallback(
+    (optionId: string) => {
+      if (currentQuestion?.type === 'single') {
+        setSelectedOptions([optionId]);
+      } else {
+        setSelectedOptions((prev) => {
+          if (prev.includes(optionId)) {
+            return prev.filter((id) => id !== optionId);
+          }
+          return [...prev, optionId];
+        });
+      }
+    },
+    [currentQuestion?.type]
+  );
 
   // Handle next question
   const handleNext = useCallback(() => {
@@ -458,17 +461,17 @@ export function AdaptiveQuiz({
       textValue: textValue || undefined,
       timestamp: new Date(),
     };
-    setAnswers(prev => [...prev, newAnswer]);
+    setAnswers((prev) => [...prev, newAnswer]);
 
     // Check for video response
-    const selectedOption = currentQuestion?.options?.find(o => o.id === selectedOptions[0]);
+    const selectedOption = currentQuestion?.options?.find((o) => o.id === selectedOptions[0]);
     if (selectedOption?.videoUrl) {
       setShowVideoResponse(true);
       // After video, go to next question
     } else {
       // Move to next question or contact form
       if (currentQuestionIndex < QUIZ_QUESTIONS.length - 1) {
-        setCurrentQuestionIndex(prev => prev + 1);
+        setCurrentQuestionIndex((prev) => prev + 1);
         setSelectedOptions([]);
         setTextValue('');
       } else {
@@ -480,13 +483,13 @@ export function AdaptiveQuiz({
   // Handle previous
   const handlePrevious = useCallback(() => {
     if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(prev => prev - 1);
+      setCurrentQuestionIndex((prev) => prev - 1);
       const previousAnswer = answers[currentQuestionIndex - 1];
       if (previousAnswer) {
         setSelectedOptions(previousAnswer.selectedOptions);
         setTextValue(previousAnswer.textValue ?? '');
       }
-      setAnswers(prev => prev.slice(0, -1));
+      setAnswers((prev) => prev.slice(0, -1));
     }
   }, [currentQuestionIndex, answers]);
 
@@ -495,7 +498,7 @@ export function AdaptiveQuiz({
     setShowVideoResponse(false);
     setIsVideoPlaying(false);
     if (currentQuestionIndex < QUIZ_QUESTIONS.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
+      setCurrentQuestionIndex((prev) => prev + 1);
       setSelectedOptions([]);
       setTextValue('');
     } else {
@@ -550,7 +553,16 @@ export function AdaptiveQuiz({
 
     setIsSubmitting(false);
     onComplete?.(result);
-  }, [contactData, answers, calculateScore, classifyLead, getAllTags, getRecommendedTreatment, quizStartTime, onComplete]);
+  }, [
+    contactData,
+    answers,
+    calculateScore,
+    classifyLead,
+    getAllTags,
+    getRecommendedTreatment,
+    quizStartTime,
+    onComplete,
+  ]);
 
   // ============================================================================
   // RENDER: Quiz Step
@@ -563,7 +575,9 @@ export function AdaptiveQuiz({
         <div className="progress-bar">
           <div className="progress-fill" style={{ width: `${progress}%` }} />
         </div>
-        <span className="progress-text">{currentQuestionIndex + 1} / {QUIZ_QUESTIONS.length}</span>
+        <span className="progress-text">
+          {currentQuestionIndex + 1} / {QUIZ_QUESTIONS.length}
+        </span>
       </div>
 
       {/* Doctor Avatar with Video Intro */}
@@ -619,7 +633,9 @@ export function AdaptiveQuiz({
           onClick={handleNext}
           disabled={selectedOptions.length === 0}
         >
-          <span>{currentQuestionIndex === QUIZ_QUESTIONS.length - 1 ? 'Finalizează' : 'Continuă'}</span>
+          <span>
+            {currentQuestionIndex === QUIZ_QUESTIONS.length - 1 ? 'Finalizează' : 'Continuă'}
+          </span>
           <ChevronRight size={20} />
         </button>
       </div>
@@ -647,7 +663,7 @@ export function AdaptiveQuiz({
   // ============================================================================
 
   const renderVideoResponse = () => {
-    const selectedOption = currentQuestion?.options?.find(o => o.id === selectedOptions[0]);
+    const selectedOption = currentQuestion?.options?.find((o) => o.id === selectedOptions[0]);
 
     return (
       <div className="video-response">
@@ -662,10 +678,10 @@ export function AdaptiveQuiz({
             className="response-video"
           />
           <div className="video-controls">
-            <button onClick={() => setIsVideoPlaying(v => !v)}>
+            <button onClick={() => setIsVideoPlaying((v) => !v)}>
               {isVideoPlaying ? <Pause size={20} /> : <Play size={20} />}
             </button>
-            <button onClick={() => setIsMuted(m => !m)}>
+            <button onClick={() => setIsMuted((m) => !m)}>
               {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
             </button>
           </div>
@@ -704,14 +720,20 @@ export function AdaptiveQuiz({
           <p>Completează datele pentru a primi planul personalizat și programarea gratuită.</p>
         </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="contact-form">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleSubmit();
+          }}
+          className="contact-form"
+        >
           <div className="form-group">
             <label htmlFor="quiz-name">Numele tău *</label>
             <input
               type="text"
               id="quiz-name"
               value={contactData.name}
-              onChange={(e) => setContactData(d => ({ ...d, name: e.target.value }))}
+              onChange={(e) => setContactData((d) => ({ ...d, name: e.target.value }))}
               placeholder="ex: Ion Popescu"
               required
             />
@@ -723,7 +745,7 @@ export function AdaptiveQuiz({
               type="tel"
               id="quiz-phone"
               value={contactData.phone}
-              onChange={(e) => setContactData(d => ({ ...d, phone: e.target.value }))}
+              onChange={(e) => setContactData((d) => ({ ...d, phone: e.target.value }))}
               placeholder="ex: 0747 099 099"
               required
             />
@@ -735,7 +757,7 @@ export function AdaptiveQuiz({
               type="email"
               id="quiz-email"
               value={contactData.email}
-              onChange={(e) => setContactData(d => ({ ...d, email: e.target.value }))}
+              onChange={(e) => setContactData((d) => ({ ...d, email: e.target.value }))}
               placeholder="ex: ion@email.com"
             />
           </div>
@@ -745,7 +767,7 @@ export function AdaptiveQuiz({
             <select
               id="quiz-time"
               value={contactData.preferredTime}
-              onChange={(e) => setContactData(d => ({ ...d, preferredTime: e.target.value }))}
+              onChange={(e) => setContactData((d) => ({ ...d, preferredTime: e.target.value }))}
             >
               <option value="morning">Dimineața (9-12)</option>
               <option value="afternoon">După-amiaza (12-17)</option>
@@ -805,19 +827,19 @@ export function AdaptiveQuiz({
 
       <style jsx>{`
         .adaptive-quiz {
-          --gold: #C9A962;
-          --gold-light: #E8D5A3;
-          --navy: #0A1628;
+          --gold: #c9a962;
+          --gold-light: #e8d5a3;
+          --navy: #0a1628;
           --navy-light: #152238;
-          --success: #10B981;
-          --gray: #6B7A90;
+          --success: #10b981;
+          --gray: #6b7a90;
 
           background: white;
           border-radius: 24px;
           padding: 2rem;
           max-width: 600px;
           margin: 0 auto;
-          box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15);
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
         }
 
         /* Progress */
@@ -831,7 +853,7 @@ export function AdaptiveQuiz({
         .progress-bar {
           flex: 1;
           height: 8px;
-          background: #E8ECF1;
+          background: #e8ecf1;
           border-radius: 4px;
           overflow: hidden;
         }
@@ -887,7 +909,7 @@ export function AdaptiveQuiz({
         }
 
         .intro-bubble {
-          background: #F7F8FA;
+          background: #f7f8fa;
           padding: 1rem;
           border-radius: 16px;
           border-top-left-radius: 4px;
@@ -930,7 +952,7 @@ export function AdaptiveQuiz({
           align-items: center;
           gap: 1rem;
           padding: 1rem 1.25rem;
-          background: #F7F8FA;
+          background: #f7f8fa;
           border: 2px solid transparent;
           border-radius: 12px;
           cursor: pointer;
@@ -945,7 +967,7 @@ export function AdaptiveQuiz({
         }
 
         .option-button.selected {
-          background: linear-gradient(135deg, rgba(201,169,98,0.1), rgba(201,169,98,0.05));
+          background: linear-gradient(135deg, rgba(201, 169, 98, 0.1), rgba(201, 169, 98, 0.05));
           border-color: var(--gold);
         }
 
@@ -985,7 +1007,7 @@ export function AdaptiveQuiz({
         }
 
         .nav-prev {
-          background: #F7F8FA;
+          background: #f7f8fa;
           color: var(--navy);
         }
 
@@ -1002,7 +1024,7 @@ export function AdaptiveQuiz({
 
         .nav-next:not(:disabled):hover {
           transform: translateY(-2px);
-          box-shadow: 0 10px 30px rgba(201,169,98,0.3);
+          box-shadow: 0 10px 30px rgba(201, 169, 98, 0.3);
         }
 
         /* Trust Badges */
@@ -1057,7 +1079,7 @@ export function AdaptiveQuiz({
         .video-controls button {
           width: 44px;
           height: 44px;
-          background: rgba(255,255,255,0.9);
+          background: rgba(255, 255, 255, 0.9);
           border: none;
           border-radius: 50%;
           display: flex;
@@ -1135,18 +1157,18 @@ export function AdaptiveQuiz({
         }
 
         .badge-hot {
-          background: linear-gradient(135deg, #FEE2E2, #FECACA);
-          color: #DC2626;
+          background: linear-gradient(135deg, #fee2e2, #fecaca);
+          color: #dc2626;
         }
 
         .badge-warm {
-          background: linear-gradient(135deg, #FEF3C7, #FDE68A);
-          color: #D97706;
+          background: linear-gradient(135deg, #fef3c7, #fde68a);
+          color: #d97706;
         }
 
         .badge-cold {
-          background: linear-gradient(135deg, #E0E7FF, #C7D2FE);
-          color: #4F46E5;
+          background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
+          color: #4f46e5;
         }
 
         .result-preview p {
@@ -1174,7 +1196,7 @@ export function AdaptiveQuiz({
         .form-group select {
           width: 100%;
           padding: 1rem;
-          border: 2px solid #E8ECF1;
+          border: 2px solid #e8ecf1;
           border-radius: 12px;
           font-size: 1rem;
           transition: all 0.2s ease;
@@ -1222,7 +1244,7 @@ export function AdaptiveQuiz({
 
         .submit-btn:not(:disabled):hover {
           transform: translateY(-2px);
-          box-shadow: 0 10px 30px rgba(201,169,98,0.3);
+          box-shadow: 0 10px 30px rgba(201, 169, 98, 0.3);
         }
 
         .submit-btn:disabled {
@@ -1235,8 +1257,12 @@ export function AdaptiveQuiz({
         }
 
         @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
         }
 
         .benefits-list {

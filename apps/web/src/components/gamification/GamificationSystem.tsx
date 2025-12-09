@@ -31,7 +31,6 @@ import {
   Sparkles,
   Target,
   Heart,
-  Shield,
   Crown,
   Flame,
 } from 'lucide-react';
@@ -81,11 +80,46 @@ interface GamificationContextType {
 // ============================================================================
 
 const LEVELS: Level[] = [
-  { level: 1, name: 'Începător', minPoints: 0, maxPoints: 99, reward: 'Consultație gratuită', color: '#6B7A90' },
-  { level: 2, name: 'Explorator', minPoints: 100, maxPoints: 299, reward: '10% reducere', color: '#3B82F6' },
-  { level: 3, name: 'Avansat', minPoints: 300, maxPoints: 599, reward: '15% reducere', color: '#8B5CF6' },
-  { level: 4, name: 'Expert', minPoints: 600, maxPoints: 999, reward: '20% reducere + CT gratuit', color: '#C9A962' },
-  { level: 5, name: 'VIP Gold', minPoints: 1000, maxPoints: Infinity, reward: '25% reducere + pachet premium', color: '#F59E0B' },
+  {
+    level: 1,
+    name: 'Începător',
+    minPoints: 0,
+    maxPoints: 99,
+    reward: 'Consultație gratuită',
+    color: '#6B7A90',
+  },
+  {
+    level: 2,
+    name: 'Explorator',
+    minPoints: 100,
+    maxPoints: 299,
+    reward: '10% reducere',
+    color: '#3B82F6',
+  },
+  {
+    level: 3,
+    name: 'Avansat',
+    minPoints: 300,
+    maxPoints: 599,
+    reward: '15% reducere',
+    color: '#8B5CF6',
+  },
+  {
+    level: 4,
+    name: 'Expert',
+    minPoints: 600,
+    maxPoints: 999,
+    reward: '20% reducere + CT gratuit',
+    color: '#C9A962',
+  },
+  {
+    level: 5,
+    name: 'VIP Gold',
+    minPoints: 1000,
+    maxPoints: Infinity,
+    reward: '25% reducere + pachet premium',
+    color: '#F59E0B',
+  },
 ];
 
 const INITIAL_ACHIEVEMENTS: Achievement[] = [
@@ -247,80 +281,87 @@ export function GamificationProvider({
   }, []);
 
   // Add points
-  const addPoints = useCallback((amount: number, reason: string) => {
-    setState(prev => {
-      const multipliedAmount = Math.round(amount * prev.multiplier);
-      const newPoints = prev.points + multipliedAmount;
-      const newLevel = calculateLevel(newPoints);
+  const addPoints = useCallback(
+    (amount: number, reason: string) => {
+      setState((prev) => {
+        const multipliedAmount = Math.round(amount * prev.multiplier);
+        const newPoints = prev.points + multipliedAmount;
+        const newLevel = calculateLevel(newPoints);
 
-      // Check for level up
-      if (newLevel.level > prev.level.level) {
-        onLevelUp?.(newLevel);
-      }
+        // Check for level up
+        if (newLevel.level > prev.level.level) {
+          onLevelUp?.(newLevel);
+        }
 
-      console.info('[Gamification] Points added:', {
-        amount: multipliedAmount,
-        reason,
-        multiplier: prev.multiplier,
-        totalPoints: newPoints,
+        console.info('[Gamification] Points added:', {
+          amount: multipliedAmount,
+          reason,
+          multiplier: prev.multiplier,
+          totalPoints: newPoints,
+        });
+
+        return {
+          ...prev,
+          points: newPoints,
+          level: newLevel,
+        };
       });
-
-      return {
-        ...prev,
-        points: newPoints,
-        level: newLevel,
-      };
-    });
-  }, [calculateLevel, onLevelUp]);
+    },
+    [calculateLevel, onLevelUp]
+  );
 
   // Unlock achievement
-  const unlockAchievement = useCallback((achievementId: string) => {
-    setState(prev => {
-      const achievement = prev.achievements.find(a => a.id === achievementId);
-      if (!achievement || achievement.unlocked) return prev;
+  const unlockAchievement = useCallback(
+    (achievementId: string) => {
+      setState((prev) => {
+        const achievement = prev.achievements.find((a) => a.id === achievementId);
+        if (!achievement || achievement.unlocked) return prev;
 
-      const updatedAchievements = prev.achievements.map(a =>
-        a.id === achievementId
-          ? { ...a, unlocked: true, unlockedAt: new Date() }
-          : a
-      );
+        const updatedAchievements = prev.achievements.map((a) =>
+          a.id === achievementId ? { ...a, unlocked: true, unlockedAt: new Date() } : a
+        );
 
-      const newPoints = prev.points + achievement.points;
-      const newLevel = calculateLevel(newPoints);
+        const newPoints = prev.points + achievement.points;
+        const newLevel = calculateLevel(newPoints);
 
-      onAchievementUnlocked?.(achievement);
+        onAchievementUnlocked?.(achievement);
 
-      console.info('[Gamification] Achievement unlocked:', {
-        achievement: achievement.name,
-        points: achievement.points,
+        console.info('[Gamification] Achievement unlocked:', {
+          achievement: achievement.name,
+          points: achievement.points,
+        });
+
+        return {
+          ...prev,
+          achievements: updatedAchievements,
+          points: newPoints,
+          level: newLevel,
+        };
       });
-
-      return {
-        ...prev,
-        achievements: updatedAchievements,
-        points: newPoints,
-        level: newLevel,
-      };
-    });
-  }, [calculateLevel, onAchievementUnlocked]);
+    },
+    [calculateLevel, onAchievementUnlocked]
+  );
 
   // Activate bonus multiplier
   const activateBonus = useCallback((multiplier: number, durationMinutes: number) => {
     const endTime = new Date(Date.now() + durationMinutes * 60 * 1000);
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
       multiplier,
       bonusEndTime: endTime,
     }));
 
     // Reset multiplier after duration
-    setTimeout(() => {
-      setState(prev => ({
-        ...prev,
-        multiplier: 1,
-        bonusEndTime: undefined,
-      }));
-    }, durationMinutes * 60 * 1000);
+    setTimeout(
+      () => {
+        setState((prev) => ({
+          ...prev,
+          multiplier: 1,
+          bonusEndTime: undefined,
+        }));
+      },
+      durationMinutes * 60 * 1000
+    );
   }, []);
 
   // Auto-unlock time-based achievements
@@ -336,9 +377,7 @@ export function GamificationProvider({
   }, [unlockAchievement]);
 
   return (
-    <GamificationContext.Provider
-      value={{ state, addPoints, unlockAchievement, activateBonus }}
-    >
+    <GamificationContext.Provider value={{ state, addPoints, unlockAchievement, activateBonus }}>
       {children}
     </GamificationContext.Provider>
   );
@@ -353,8 +392,9 @@ export function GamificationProvider({
  */
 export function PointsDisplay() {
   const { state } = useGamification();
-  const progressPercent = ((state.points - state.level.minPoints) /
-    (state.level.maxPoints - state.level.minPoints)) * 100;
+  const progressPercent =
+    ((state.points - state.level.minPoints) / (state.level.maxPoints - state.level.minPoints)) *
+    100;
 
   return (
     <div className="points-display">
@@ -370,7 +410,10 @@ export function PointsDisplay() {
         <div className="progress-bar">
           <div
             className="progress-fill"
-            style={{ width: `${Math.min(progressPercent, 100)}%`, backgroundColor: state.level.color }}
+            style={{
+              width: `${Math.min(progressPercent, 100)}%`,
+              backgroundColor: state.level.color,
+            }}
           />
         </div>
         <span className="next-level">
@@ -391,7 +434,7 @@ export function PointsDisplay() {
           background: white;
           border-radius: 16px;
           padding: 1rem;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         }
 
         .level-badge {
@@ -413,12 +456,12 @@ export function PointsDisplay() {
         .points-value {
           font-size: 2rem;
           font-weight: 800;
-          color: #0A1628;
+          color: #0a1628;
         }
 
         .points-label {
           font-size: 0.9rem;
-          color: #6B7A90;
+          color: #6b7a90;
           margin-left: 0.25rem;
         }
 
@@ -428,7 +471,7 @@ export function PointsDisplay() {
 
         .progress-bar {
           height: 8px;
-          background: #E8ECF1;
+          background: #e8ecf1;
           border-radius: 4px;
           overflow: hidden;
           margin-bottom: 0.25rem;
@@ -442,7 +485,7 @@ export function PointsDisplay() {
 
         .next-level {
           font-size: 0.75rem;
-          color: #6B7A90;
+          color: #6b7a90;
         }
 
         .bonus-indicator {
@@ -450,8 +493,8 @@ export function PointsDisplay() {
           align-items: center;
           gap: 0.25rem;
           padding: 0.25rem 0.5rem;
-          background: linear-gradient(135deg, #FEF3C7, #FDE68A);
-          color: #D97706;
+          background: linear-gradient(135deg, #fef3c7, #fde68a);
+          color: #d97706;
           border-radius: 100px;
           font-size: 0.75rem;
           font-weight: 700;
@@ -459,8 +502,13 @@ export function PointsDisplay() {
         }
 
         @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.7; }
+          0%,
+          100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.7;
+          }
         }
       `}</style>
     </div>
@@ -472,16 +520,18 @@ export function PointsDisplay() {
  */
 export function AchievementsPanel() {
   const { state } = useGamification();
-  const unlockedCount = state.achievements.filter(a => a.unlocked).length;
+  const unlockedCount = state.achievements.filter((a) => a.unlocked).length;
 
   return (
     <div className="achievements-panel">
       <div className="panel-header">
         <Trophy size={20} />
-        <h3>Realizări ({unlockedCount}/{state.achievements.length})</h3>
+        <h3>
+          Realizări ({unlockedCount}/{state.achievements.length})
+        </h3>
       </div>
       <div className="achievements-grid">
-        {state.achievements.map(achievement => (
+        {state.achievements.map((achievement) => (
           <div
             key={achievement.id}
             className={`achievement ${achievement.unlocked ? 'unlocked' : 'locked'}`}
@@ -493,9 +543,7 @@ export function AchievementsPanel() {
               <span className="achievement-name">{achievement.name}</span>
               <span className="achievement-desc">{achievement.description}</span>
             </div>
-            <div className="achievement-points">
-              +{achievement.points}
-            </div>
+            <div className="achievement-points">+{achievement.points}</div>
           </div>
         ))}
       </div>
@@ -505,7 +553,7 @@ export function AchievementsPanel() {
           background: white;
           border-radius: 16px;
           padding: 1.5rem;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         }
 
         .panel-header {
@@ -516,13 +564,13 @@ export function AchievementsPanel() {
         }
 
         .panel-header svg {
-          color: #C9A962;
+          color: #c9a962;
         }
 
         .panel-header h3 {
           font-size: 1rem;
           font-weight: 700;
-          color: #0A1628;
+          color: #0a1628;
           margin: 0;
         }
 
@@ -537,7 +585,7 @@ export function AchievementsPanel() {
           align-items: center;
           gap: 0.75rem;
           padding: 0.75rem;
-          background: #F7F8FA;
+          background: #f7f8fa;
           border-radius: 12px;
           transition: all 0.2s ease;
         }
@@ -547,8 +595,8 @@ export function AchievementsPanel() {
         }
 
         .achievement.unlocked {
-          background: linear-gradient(135deg, rgba(201,169,98,0.1), rgba(201,169,98,0.05));
-          border: 1px solid rgba(201,169,98,0.3);
+          background: linear-gradient(135deg, rgba(201, 169, 98, 0.1), rgba(201, 169, 98, 0.05));
+          border: 1px solid rgba(201, 169, 98, 0.3);
         }
 
         .achievement-icon {
@@ -559,11 +607,11 @@ export function AchievementsPanel() {
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #C9A962;
+          color: #c9a962;
         }
 
         .achievement.locked .achievement-icon {
-          color: #6B7A90;
+          color: #6b7a90;
         }
 
         .achievement-info {
@@ -573,24 +621,24 @@ export function AchievementsPanel() {
         .achievement-name {
           display: block;
           font-weight: 600;
-          color: #0A1628;
+          color: #0a1628;
           font-size: 0.9rem;
         }
 
         .achievement-desc {
           display: block;
           font-size: 0.75rem;
-          color: #6B7A90;
+          color: #6b7a90;
         }
 
         .achievement-points {
           font-weight: 700;
-          color: #C9A962;
+          color: #c9a962;
           font-size: 0.85rem;
         }
 
         .achievement.locked .achievement-points {
-          color: #6B7A90;
+          color: #6b7a90;
         }
       `}</style>
     </div>
@@ -610,14 +658,14 @@ export function RewardsPanel() {
         <h3>Recompense Disponibile</h3>
       </div>
       <div className="rewards-list">
-        {LEVELS.map(level => {
+        {LEVELS.map((level) => {
           const isUnlocked = state.points >= level.minPoints;
           return (
-            <div
-              key={level.level}
-              className={`reward ${isUnlocked ? 'unlocked' : 'locked'}`}
-            >
-              <div className="reward-level" style={{ backgroundColor: isUnlocked ? level.color : '#E8ECF1' }}>
+            <div key={level.level} className={`reward ${isUnlocked ? 'unlocked' : 'locked'}`}>
+              <div
+                className="reward-level"
+                style={{ backgroundColor: isUnlocked ? level.color : '#E8ECF1' }}
+              >
                 {level.level}
               </div>
               <div className="reward-info">
@@ -639,7 +687,7 @@ export function RewardsPanel() {
           background: white;
           border-radius: 16px;
           padding: 1.5rem;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         }
 
         .panel-header {
@@ -650,13 +698,13 @@ export function RewardsPanel() {
         }
 
         .panel-header svg {
-          color: #C9A962;
+          color: #c9a962;
         }
 
         .panel-header h3 {
           font-size: 1rem;
           font-weight: 700;
-          color: #0A1628;
+          color: #0a1628;
           margin: 0;
         }
 
@@ -671,7 +719,7 @@ export function RewardsPanel() {
           align-items: center;
           gap: 0.75rem;
           padding: 0.75rem;
-          background: #F7F8FA;
+          background: #f7f8fa;
           border-radius: 12px;
         }
 
@@ -698,14 +746,14 @@ export function RewardsPanel() {
         .reward-name {
           display: block;
           font-weight: 600;
-          color: #0A1628;
+          color: #0a1628;
           font-size: 0.9rem;
         }
 
         .reward-value {
           display: block;
           font-size: 0.8rem;
-          color: #6B7A90;
+          color: #6b7a90;
         }
 
         .reward-status {
@@ -713,11 +761,11 @@ export function RewardsPanel() {
         }
 
         .reward-status.unlocked {
-          color: #10B981;
+          color: #10b981;
         }
 
         .reward-status.locked {
-          color: #6B7A90;
+          color: #6b7a90;
         }
       `}</style>
     </div>
@@ -743,7 +791,7 @@ export function SocialProofWidget() {
     setRecentActivity([activities[0]]);
 
     const interval = setInterval(() => {
-      setRecentActivity(prev => {
+      setRecentActivity((prev) => {
         const newIndex = (activities.indexOf(prev[0]) + 1) % activities.length;
         return [activities[newIndex]];
       });
@@ -768,8 +816,8 @@ export function SocialProofWidget() {
           align-items: center;
           gap: 0.75rem;
           padding: 0.75rem 1rem;
-          background: linear-gradient(135deg, #F0FDF4, #DCFCE7);
-          border: 1px solid #86EFAC;
+          background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+          border: 1px solid #86efac;
           border-radius: 12px;
           animation: slideIn 0.3s ease;
         }
@@ -793,7 +841,7 @@ export function SocialProofWidget() {
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #10B981;
+          color: #10b981;
         }
 
         .proof-content {
@@ -801,11 +849,11 @@ export function SocialProofWidget() {
           align-items: center;
           gap: 0.5rem;
           font-size: 0.85rem;
-          color: #065F46;
+          color: #065f46;
         }
 
         .trend-icon {
-          color: #10B981;
+          color: #10b981;
         }
       `}</style>
     </div>
@@ -879,7 +927,7 @@ export function TimeLimitedOffer({
 
       <style jsx>{`
         .time-offer {
-          background: linear-gradient(135deg, #0A1628, #152238);
+          background: linear-gradient(135deg, #0a1628, #152238);
           border-radius: 16px;
           padding: 1.5rem;
           color: white;
@@ -891,7 +939,7 @@ export function TimeLimitedOffer({
           align-items: center;
           gap: 0.25rem;
           padding: 0.25rem 0.75rem;
-          background: linear-gradient(135deg, #EF4444, #DC2626);
+          background: linear-gradient(135deg, #ef4444, #dc2626);
           border-radius: 100px;
           font-size: 0.75rem;
           font-weight: 700;
@@ -912,7 +960,7 @@ export function TimeLimitedOffer({
         .offer-discount {
           font-size: 2rem;
           font-weight: 800;
-          color: #C9A962;
+          color: #c9a962;
           margin-bottom: 1rem;
         }
 
@@ -942,8 +990,8 @@ export function TimeLimitedOffer({
           gap: 0.5rem;
           width: 100%;
           padding: 1rem;
-          background: linear-gradient(135deg, #C9A962, #E8D5A3);
-          color: #0A1628;
+          background: linear-gradient(135deg, #c9a962, #e8d5a3);
+          color: #0a1628;
           border: none;
           border-radius: 12px;
           font-size: 1rem;

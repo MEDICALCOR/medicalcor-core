@@ -355,7 +355,7 @@ export async function initiateCallAction(leadId: string): Promise<void> {
   if (hubspot) {
     try {
       const contact = await hubspot.getContact(leadId);
-      phone = contact.properties.phone as string | undefined;
+      phone = contact.properties.phone;
     } catch (error) {
       logger.warn({ error, leadId }, 'Failed to fetch contact from HubSpot');
     }
