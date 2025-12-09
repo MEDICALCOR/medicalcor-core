@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import type { QueueSLAStatus } from '@medicalcor/types';
 
 // Re-export for components
-export type SLABreachEvent = {
+export interface SLABreachEvent {
   eventId: string;
   queueSid: string;
   queueName: string;
@@ -18,7 +18,7 @@ export type SLABreachEvent = {
   affectedCalls?: number;
   durationSeconds?: number;
   alertSent?: boolean;
-};
+}
 
 /**
  * Server actions for the Queue SLA Dashboard
@@ -104,8 +104,8 @@ export async function getQueueDashboardStatsAction(): Promise<QueueDashboardStat
       throw new Error(`Failed to fetch breaches: ${breachError.message}`);
     }
 
-    const statuses = (queueStatuses ?? []) as QueueSLAStatus[];
-    const breaches = (recentBreaches ?? []) as Array<{ severity: string }>;
+    const statuses = queueStatuses as QueueSLAStatus[];
+    const breaches = recentBreaches as { severity: string }[];
 
     // Calculate aggregate stats
     const totalQueues = statuses.length;
@@ -194,8 +194,8 @@ export async function getQueueStatusesAction(): Promise<QueueStatusWithAlerts[]>
       throw new Error(`Failed to fetch breaches: ${breachError.message}`);
     }
 
-    const statuses = (queueStatuses ?? []) as QueueSLAStatus[];
-    const breaches = recentBreaches ?? [];
+    const statuses = queueStatuses as QueueSLAStatus[];
+    const breaches = recentBreaches;
 
     // Build alert count map
     const alertCountMap = new Map<string, { count: number; lastAt: Date }>();
@@ -245,7 +245,7 @@ export async function getRecentBreachesAction(limit = 50): Promise<SLABreachEven
 
     // Transform to match SLABreachEvent type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data ?? []).map((row: any) => ({
+    return data.map((row: any) => ({
       eventId: row.id,
       queueSid: row.queue_sid,
       queueName: row.queue_name,
@@ -284,7 +284,7 @@ export async function getBreachSummaryAction(): Promise<BreachSummary[]> {
       throw new Error(`Failed to fetch breach summary: ${error.message}`);
     }
 
-    const breaches = data ?? [];
+    const breaches = data;
 
     // Group by breach type
     const summaryMap = new Map<string, BreachSummary>();
@@ -336,7 +336,7 @@ export async function getDailyBreachStatsAction(days = 7): Promise<DailyBreachSt
       throw new Error(`Failed to fetch daily stats: ${error.message}`);
     }
 
-    const breaches = data ?? [];
+    const breaches = data;
 
     // Group by date
     const statsMap = new Map<string, DailyBreachStats>();
@@ -345,7 +345,7 @@ export async function getDailyBreachStatsAction(days = 7): Promise<DailyBreachSt
     for (let i = 0; i < days; i++) {
       const date = new Date();
       date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0]!;
+      const dateStr = date.toISOString().split('T')[0] ?? '';
       statsMap.set(dateStr, {
         date: dateStr,
         totalBreaches: 0,
@@ -357,7 +357,7 @@ export async function getDailyBreachStatsAction(days = 7): Promise<DailyBreachSt
 
     // Count breaches per day
     for (const breach of breaches) {
-      const dateStr = new Date(breach.detected_at).toISOString().split('T')[0]!;
+      const dateStr = new Date(breach.detected_at).toISOString().split('T')[0] ?? '';
       const stats = statsMap.get(dateStr);
       if (stats) {
         stats.totalBreaches++;

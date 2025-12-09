@@ -26,6 +26,7 @@ import { gdprRoutes } from '../routes/gdpr.js';
 // =============================================================================
 
 let mockDbQuery: ReturnType<typeof vi.fn>;
+let mockEraseSubject: ReturnType<typeof vi.fn>;
 
 vi.mock('@medicalcor/core', async () => {
   const actual = await vi.importActual<typeof import('@medicalcor/core')>('@medicalcor/core');
@@ -33,6 +34,9 @@ vi.mock('@medicalcor/core', async () => {
     ...actual,
     createDatabaseClient: vi.fn(() => ({
       query: mockDbQuery,
+    })),
+    createUnifiedGDPRErasureService: vi.fn(() => ({
+      eraseSubject: mockEraseSubject,
     })),
     generateCorrelationId: vi.fn(() => 'test-correlation-id-12345'),
     maskPhone: vi.fn((phone: string) => {
@@ -55,8 +59,9 @@ describe('GDPR Routes', () => {
   let app: FastifyInstance;
 
   beforeEach(async () => {
-    // Reset mock
+    // Reset mocks
     mockDbQuery = vi.fn();
+    mockEraseSubject = vi.fn();
 
     // Create Fastify instance
     app = Fastify({ logger: false });
@@ -399,15 +404,29 @@ describe('GDPR Routes', () => {
     describe('Successful Deletions', () => {
       it('should soft-delete data for valid request', async () => {
         const phone = '+40712345678';
-        const mockDeletedLeads = [{ id: 'lead-123' }];
+        const permanentDeletionDate = new Date();
+        permanentDeletionDate.setDate(permanentDeletionDate.getDate() + 30);
 
-        mockDbQuery
-          .mockResolvedValueOnce({ rows: mockDeletedLeads, rowCount: 1 } as QueryResult) // leads update
-          .mockResolvedValueOnce({ rows: [{ id: 'int-1' }], rowCount: 1 } as QueryResult) // interactions update
-          .mockResolvedValueOnce({ rows: [{ id: 'apt-1' }], rowCount: 1 } as QueryResult) // appointments update
-          .mockResolvedValueOnce({ rows: [{ id: 'com-1' }], rowCount: 1 } as QueryResult) // communications update
-          .mockResolvedValueOnce({ rows: [{ id: 'con-1' }], rowCount: 1 } as QueryResult) // consent update
-          .mockResolvedValueOnce({ rows: [], rowCount: 0 } as QueryResult); // audit log
+        mockEraseSubject.mockResolvedValueOnce({
+          success: true,
+          identifier: phone,
+          identifierType: 'phone',
+          totalRecordsAffected: 5,
+          tableResults: [
+            { tableName: 'leads', recordsAffected: 1, erasureType: 'soft_delete' },
+            { tableName: 'interactions', recordsAffected: 1, erasureType: 'soft_delete' },
+            { tableName: 'appointments', recordsAffected: 1, erasureType: 'soft_delete' },
+            { tableName: 'communications', recordsAffected: 1, erasureType: 'soft_delete' },
+            { tableName: 'consent_records', recordsAffected: 1, erasureType: 'soft_delete' },
+          ],
+          erasedAt: new Date(),
+          reason: 'GDPR Article 17: User requested data deletion',
+          requestedBy: 'api',
+          correlationId: 'test-correlation-id-12345',
+          retentionPeriodDays: 30,
+          estimatedPermanentDeletion: permanentDeletionDate,
+          errors: [],
+        });
 
         const response = await app.inject({
           method: 'POST',
@@ -425,7 +444,7 @@ describe('GDPR Routes', () => {
         expect(body.success).toBe(true);
         expect(body.requestId).toBe('test-correlation-id-12345');
         expect(body.deletionType).toBe('SOFT');
-        expect(body.recordsAffected).toBe(5); // 1 lead + 1 interaction + 1 appointment + 1 communication + 1 consent
+        expect(body.recordsAffected).toBe(5);
         expect(body.auditTrailPreserved).toBe(true);
         expect(body.retentionPeriodDays).toBe(30);
         expect(body.estimatedPermanentDeletion).toBeDefined();
@@ -433,18 +452,29 @@ describe('GDPR Routes', () => {
 
       it('should delete related records (interactions, appointments, communications)', async () => {
         const phone = '+40712345678';
-        const mockDeletedLeads = [{ id: 'lead-123' }];
+        const permanentDeletionDate = new Date();
+        permanentDeletionDate.setDate(permanentDeletionDate.getDate() + 30);
 
-        mockDbQuery
-          .mockResolvedValueOnce({ rows: mockDeletedLeads, rowCount: 1 } as QueryResult)
-          .mockResolvedValueOnce({
-            rows: [{ id: '1' }, { id: '2' }, { id: '3' }],
-            rowCount: 3,
-          } as QueryResult) // 3 interactions
-          .mockResolvedValueOnce({ rows: [{ id: '1' }, { id: '2' }], rowCount: 2 } as QueryResult) // 2 appointments
-          .mockResolvedValueOnce({ rows: [{ id: '1' }], rowCount: 1 } as QueryResult) // 1 communication
-          .mockResolvedValueOnce({ rows: [{ id: '1' }], rowCount: 1 } as QueryResult) // 1 consent
-          .mockResolvedValueOnce({ rows: [], rowCount: 0 } as QueryResult);
+        mockEraseSubject.mockResolvedValueOnce({
+          success: true,
+          identifier: phone,
+          identifierType: 'phone',
+          totalRecordsAffected: 8,
+          tableResults: [
+            { tableName: 'leads', recordsAffected: 1, erasureType: 'soft_delete' },
+            { tableName: 'interactions', recordsAffected: 3, erasureType: 'soft_delete' },
+            { tableName: 'appointments', recordsAffected: 2, erasureType: 'soft_delete' },
+            { tableName: 'communications', recordsAffected: 1, erasureType: 'soft_delete' },
+            { tableName: 'consent_records', recordsAffected: 1, erasureType: 'soft_delete' },
+          ],
+          erasedAt: new Date(),
+          reason: 'GDPR Article 17: GDPR Article 17',
+          requestedBy: 'api',
+          correlationId: 'test-correlation-id-12345',
+          retentionPeriodDays: 30,
+          estimatedPermanentDeletion: permanentDeletionDate,
+          errors: [],
+        });
 
         const response = await app.inject({
           method: 'POST',
@@ -457,36 +487,37 @@ describe('GDPR Routes', () => {
         });
 
         const body = JSON.parse(response.body);
-        expect(body.recordsAffected).toBe(8); // 1 lead + 3 interactions + 2 appointments + 1 communication + 1 consent
+        expect(body.recordsAffected).toBe(8);
 
-        // Verify soft delete queries were called
-        expect(mockDbQuery).toHaveBeenCalledWith(
-          expect.stringContaining('UPDATE leads'),
-          expect.anything()
-        );
-        expect(mockDbQuery).toHaveBeenCalledWith(
-          expect.stringContaining('UPDATE interactions'),
-          expect.anything()
-        );
-        expect(mockDbQuery).toHaveBeenCalledWith(
-          expect.stringContaining('UPDATE appointments'),
-          expect.anything()
-        );
-        expect(mockDbQuery).toHaveBeenCalledWith(
-          expect.stringContaining('UPDATE communications'),
-          expect.anything()
+        // Verify unified erasure service was called with correct params
+        expect(mockEraseSubject).toHaveBeenCalledWith(
+          { identifierType: 'phone', identifier: phone },
+          expect.objectContaining({
+            reason: 'GDPR Article 17: GDPR Article 17',
+            requestedBy: 'api',
+            hardDelete: false,
+          })
         );
       });
 
       it('should return retention period info', async () => {
-        const mockDeletedLeads = [{ id: 'lead-123' }];
-        mockDbQuery
-          .mockResolvedValueOnce({ rows: mockDeletedLeads, rowCount: 1 } as QueryResult)
-          .mockResolvedValueOnce({ rows: [], rowCount: 0 } as QueryResult)
-          .mockResolvedValueOnce({ rows: [], rowCount: 0 } as QueryResult)
-          .mockResolvedValueOnce({ rows: [], rowCount: 0 } as QueryResult)
-          .mockResolvedValueOnce({ rows: [], rowCount: 0 } as QueryResult)
-          .mockResolvedValueOnce({ rows: [], rowCount: 0 } as QueryResult);
+        const permanentDeletionDate = new Date();
+        permanentDeletionDate.setDate(permanentDeletionDate.getDate() + 30);
+
+        mockEraseSubject.mockResolvedValueOnce({
+          success: true,
+          identifier: 'test@example.com',
+          identifierType: 'email',
+          totalRecordsAffected: 1,
+          tableResults: [{ tableName: 'leads', recordsAffected: 1, erasureType: 'soft_delete' }],
+          erasedAt: new Date(),
+          reason: 'GDPR Article 17: User request',
+          requestedBy: 'api',
+          correlationId: 'test-correlation-id-12345',
+          retentionPeriodDays: 30,
+          estimatedPermanentDeletion: permanentDeletionDate,
+          errors: [],
+        });
 
         const response = await app.inject({
           method: 'POST',
@@ -507,32 +538,40 @@ describe('GDPR Routes', () => {
       it('should log deletion in audit trail', async () => {
         const phone = '+40712345678';
         const reason = 'GDPR Article 17 - User exercising right to erasure';
-        const mockDeletedLeads = [{ id: 'lead-123' }];
+        const permanentDeletionDate = new Date();
+        permanentDeletionDate.setDate(permanentDeletionDate.getDate() + 30);
 
-        mockDbQuery
-          .mockResolvedValueOnce({ rows: mockDeletedLeads, rowCount: 1 } as QueryResult)
-          .mockResolvedValueOnce({ rows: [], rowCount: 0 } as QueryResult)
-          .mockResolvedValueOnce({ rows: [], rowCount: 0 } as QueryResult)
-          .mockResolvedValueOnce({ rows: [], rowCount: 0 } as QueryResult)
-          .mockResolvedValueOnce({ rows: [], rowCount: 0 } as QueryResult)
-          .mockResolvedValueOnce({ rows: [], rowCount: 0 } as QueryResult);
+        mockEraseSubject.mockResolvedValueOnce({
+          success: true,
+          identifier: phone,
+          identifierType: 'phone',
+          totalRecordsAffected: 1,
+          tableResults: [{ tableName: 'leads', recordsAffected: 1, erasureType: 'soft_delete' }],
+          erasedAt: new Date(),
+          reason: `GDPR Article 17: ${reason}`,
+          requestedBy: 'api',
+          correlationId: 'test-correlation-id-12345',
+          retentionPeriodDays: 30,
+          estimatedPermanentDeletion: permanentDeletionDate,
+          errors: [],
+        });
 
-        await app.inject({
+        const response = await app.inject({
           method: 'POST',
           url: '/gdpr/delete-request',
           payload: { phone, reason, confirmDeletion: true },
           headers: { 'x-forwarded-for': '192.168.1.200' },
         });
 
-        // Verify audit log was created (6th call)
-        expect(mockDbQuery).toHaveBeenNthCalledWith(
-          6,
-          expect.stringContaining('INSERT INTO sensitive_data_access_log'),
-          expect.arrayContaining([
-            'test-correlation-id-12345',
-            'lead-123',
-            expect.stringContaining('GDPR Article 17'),
-          ])
+        expect(response.statusCode).toBe(200);
+
+        // Verify unified erasure service was called (audit is handled internally)
+        expect(mockEraseSubject).toHaveBeenCalledWith(
+          { identifierType: 'phone', identifier: phone },
+          expect.objectContaining({
+            reason: `GDPR Article 17: ${reason}`,
+            correlationId: 'test-correlation-id-12345',
+          })
         );
       });
     });
@@ -575,20 +614,31 @@ describe('GDPR Routes', () => {
 
     describe('Multiple Identifiers', () => {
       it('should accept phone, email, and hubspotContactId', async () => {
-        const mockDeletedLeads = [{ id: 'lead-123' }];
-        mockDbQuery
-          .mockResolvedValueOnce({ rows: mockDeletedLeads, rowCount: 1 } as QueryResult)
-          .mockResolvedValueOnce({ rows: [], rowCount: 0 } as QueryResult)
-          .mockResolvedValueOnce({ rows: [], rowCount: 0 } as QueryResult)
-          .mockResolvedValueOnce({ rows: [], rowCount: 0 } as QueryResult)
-          .mockResolvedValueOnce({ rows: [], rowCount: 0 } as QueryResult)
-          .mockResolvedValueOnce({ rows: [], rowCount: 0 } as QueryResult);
+        const phone = '+40712345678';
+        const permanentDeletionDate = new Date();
+        permanentDeletionDate.setDate(permanentDeletionDate.getDate() + 30);
+
+        // When multiple identifiers are provided, phone takes precedence
+        mockEraseSubject.mockResolvedValueOnce({
+          success: true,
+          identifier: phone,
+          identifierType: 'phone',
+          totalRecordsAffected: 1,
+          tableResults: [{ tableName: 'leads', recordsAffected: 1, erasureType: 'soft_delete' }],
+          erasedAt: new Date(),
+          reason: 'GDPR Article 17: User request',
+          requestedBy: 'api',
+          correlationId: 'test-correlation-id-12345',
+          retentionPeriodDays: 30,
+          estimatedPermanentDeletion: permanentDeletionDate,
+          errors: [],
+        });
 
         const response = await app.inject({
           method: 'POST',
           url: '/gdpr/delete-request',
           payload: {
-            phone: '+40712345678',
+            phone,
             email: 'test@example.com',
             hubspotContactId: 'hs-123',
             reason: 'User request',
@@ -799,7 +849,7 @@ describe('GDPR Routes', () => {
     });
 
     it('should handle database errors gracefully in deletion', async () => {
-      mockDbQuery.mockRejectedValueOnce(new Error('Database connection failed'));
+      mockEraseSubject.mockRejectedValueOnce(new Error('Database connection failed'));
 
       const response = await app.inject({
         method: 'POST',

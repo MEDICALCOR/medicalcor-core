@@ -172,4 +172,9 @@ export const PERMISSIONS = {
   // Booking
   'booking:read': ['admin', 'doctor', 'receptionist', 'staff'] as UserRole[],
   'booking:write': ['admin', 'doctor', 'receptionist'] as UserRole[],
+
+  // System Administration (webhooks, circuit breakers, etc.)
+  'system:admin': ['admin'] as UserRole[],
+  'system:read': ['admin'] as UserRole[],
+  'system:write': ['admin'] as UserRole[],
 } as const;

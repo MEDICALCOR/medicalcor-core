@@ -1,5 +1,8 @@
 'use server';
 
+/* eslint-disable @typescript-eslint/require-await */
+// Server actions must be async for Next.js, but these mock implementations don't need await
+
 import { revalidatePath } from 'next/cache';
 
 /**
@@ -134,7 +137,6 @@ function getTasks(): TaskQueueItem[] {
  * Get overall task queue statistics
  */
 export async function getTaskQueueStatsAction(): Promise<TaskQueueStats> {
-  await Promise.resolve(); // Server Actions must be async
   const tasks = getTasks();
 
   const completed = tasks.filter((t) => t.status === 'completed');
@@ -194,7 +196,6 @@ export async function getTaskQueueItemsAction(options?: {
  * Get breakdown by task type
  */
 export async function getTaskTypeBreakdownAction(): Promise<TaskTypeBreakdown[]> {
-  await Promise.resolve(); // Server Actions must be async
   const tasks = getTasks();
   const breakdown = new Map<string, TaskTypeBreakdown>();
 
@@ -232,7 +233,6 @@ export async function getTaskTypeBreakdownAction(): Promise<TaskTypeBreakdown[]>
  * Get failed tasks for retry management
  */
 export async function getFailedTasksAction(limit = 10): Promise<TaskQueueItem[]> {
-  await Promise.resolve(); // Server Actions must be async
   return getTasks()
     .filter((t) => t.status === 'failed')
     .slice(0, limit);
@@ -244,7 +244,6 @@ export async function getFailedTasksAction(limit = 10): Promise<TaskQueueItem[]>
 export async function retryTaskAction(
   taskId: string
 ): Promise<{ success: boolean; message: string }> {
-  await Promise.resolve(); // Server Actions must be async
   // In production, this would call Trigger.dev API to retry the task
 
   // Simulate retry
@@ -269,7 +268,6 @@ export async function retryTaskAction(
 export async function cancelTaskAction(
   taskId: string
 ): Promise<{ success: boolean; message: string }> {
-  await Promise.resolve(); // Server Actions must be async
   // In production, this would call Trigger.dev API to cancel the task
 
   // Simulate cancel
@@ -290,6 +288,5 @@ export async function cancelTaskAction(
  * Get list of available task types
  */
 export async function getTaskTypesAction(): Promise<string[]> {
-  await Promise.resolve(); // Server Actions must be async
   return [...TASK_TYPES];
 }

@@ -10,9 +10,13 @@ Comprehensive guide to testing in MedicalCor Core.
 - [Load Testing with k6](#load-testing-with-k6)
 - [Writing Tests](#writing-tests)
 - [Test Patterns](#test-patterns)
+  - [Reference Template](#reference-template)
+  - [Core Testing Principles](#core-testing-principles)
 - [Mocking](#mocking)
 - [Coverage](#coverage)
 - [CI Integration](#ci-integration)
+- [Best Practices](#best-practices)
+  - [Property-Based Testing with fast-check](#property-based-testing-with-fast-check)
 
 ---
 
@@ -318,6 +322,73 @@ describe('LeadScoring', () => {
 ---
 
 ## Test Patterns
+
+### Reference Template
+
+A comprehensive test template demonstrating all patterns is available at:
+
+```
+packages/domain/src/__tests__/_test-template.ts
+```
+
+Copy this template when creating new test files. It includes:
+
+- **Arrange-Act-Assert (AAA)**: Clear structure for each test
+- **Property-Based Testing**: Using fast-check for invariant verification
+- **Dependency Injection Mocking**: In-memory test doubles and vi.fn() patterns
+- **Cleanup in afterEach**: Prevent test pollution
+
+### Core Testing Principles
+
+1. **Arrange-Act-Assert (AAA)**: Structure every test with clear sections
+2. **Property-Based Testing**: Use fast-check for invariants and edge cases
+3. **Dependency Injection**: Mock dependencies through constructor injection
+4. **Cleanup**: Always clean up state in `afterEach`
+
+```typescript
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import fc from 'fast-check';
+
+describe('MyService', () => {
+  let service: MyService;
+  let mockRepository: InMemoryRepository;
+
+  beforeEach(() => {
+    // Fresh setup for each test
+    mockRepository = new InMemoryRepository();
+    service = new MyService(mockRepository);
+  });
+
+  afterEach(() => {
+    // Clean up after each test
+    vi.clearAllMocks();
+    vi.useRealTimers();
+    mockRepository.clear();
+  });
+
+  it('should process valid input', async () => {
+    // ARRANGE - Set up test data
+    const input = { name: 'test', value: 42 };
+
+    // ACT - Execute code under test
+    const result = await service.process(input);
+
+    // ASSERT - Verify outcome
+    expect(result.success).toBe(true);
+  });
+
+  // Property-based test
+  it('should always return valid score range', () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 1, max: 100 }), (score) => {
+        const status = service.calculateStatus(score);
+        expect(['active', 'pending', 'inactive']).toContain(status);
+      }),
+      { numRuns: 100 }
+    );
+  });
+});
+```
 
 ### Testing Services
 
@@ -715,6 +786,54 @@ e2e:
 
 ## Best Practices
 
+### Property-Based Testing with fast-check
+
+Property-based testing verifies that invariants hold for ALL possible inputs, not just specific test cases. Use it for:
+
+- **Invariants**: Properties that should always be true (e.g., score always between 1-5)
+- **Determinism**: Same input produces same output
+- **Monotonicity**: Adding positive signals never decreases score
+- **Edge cases**: Automatically finds boundary conditions
+
+```typescript
+import fc from 'fast-check';
+
+// Custom arbitraries for domain-specific data
+const phoneArbitrary = fc
+  .tuple(
+    fc.constantFrom('+40', '+1', '+44'),
+    fc.array(fc.constantFrom(...'0123456789'.split('')), { minLength: 9, maxLength: 10 })
+  )
+  .map(([prefix, digits]) => `${prefix}${digits.join('')}`);
+
+const dateArbitrary = fc
+  .integer({ min: new Date('2020-01-01').getTime(), max: new Date('2030-12-31').getTime() })
+  .map((ts) => new Date(ts));
+
+// Property test example
+it('score should always be between 1 and 5', () => {
+  fc.assert(
+    fc.property(scoringContextArbitrary, (context) => {
+      const result = service.ruleBasedScore(context);
+      expect(result.score).toBeGreaterThanOrEqual(1);
+      expect(result.score).toBeLessThanOrEqual(5);
+    }),
+    { numRuns: 500 } // Run many iterations
+  );
+});
+
+// Async property test
+it('valid inputs should always succeed', () => {
+  fc.assert(
+    fc.asyncProperty(validInputArbitrary, async (input) => {
+      const result = await service.process(input);
+      expect(result.success).toBe(true);
+    }),
+    { numRuns: 50 }
+  );
+});
+```
+
 ### Do
 
 - Write tests before or alongside code (TDD/BDD)
@@ -724,6 +843,8 @@ e2e:
 - Use fixtures for complex data
 - Mock external services
 - Clean up after tests
+- Use property-based tests for invariants and edge cases
+- Create in-memory test doubles for complex dependencies
 
 ### Don't
 

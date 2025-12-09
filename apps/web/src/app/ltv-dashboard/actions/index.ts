@@ -10,16 +10,8 @@
  * @security All actions require VIEW_ANALYTICS permission
  */
 
-import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
+import { getDatabase } from '@/lib/db';
 import { requirePermission, requireCurrentUser } from '@/lib/auth/server-action-auth';
-
-// Lazy-initialized database connection
-let db: DatabasePool | null = null;
-
-function getDatabase(): DatabasePool {
-  db ??= createDatabaseClient();
-  return db;
-}
 
 // ============================================================================
 // TYPES

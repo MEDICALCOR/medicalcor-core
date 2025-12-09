@@ -733,6 +733,98 @@ export const triggerWorkflowHandler: CommandHandler<
 };
 
 // ============================================================================
+// QUEUE BREACH COMMANDS
+// ============================================================================
+
+/**
+ * Record a queue breach event
+ */
+export const RecordQueueBreachCommand = defineCommand(
+  'RecordQueueBreach',
+  z.object({
+    id: z.string().uuid(),
+    queueSid: z.string().min(1),
+    queueName: z.string().min(1),
+    breachType: z.enum([
+      'wait_time_exceeded',
+      'queue_size_exceeded',
+      'abandon_rate_exceeded',
+      'agent_availability_low',
+      'service_level_missed',
+    ]),
+    severity: z.enum(['warning', 'critical']),
+    thresholdValue: z.number(),
+    currentValue: z.number(),
+    affectedCalls: z.number().int().min(0).optional(),
+    metadata: z.record(z.unknown()).optional(),
+  })
+);
+
+/**
+ * Resolve a queue breach (breach has ended)
+ */
+export const ResolveQueueBreachCommand = defineCommand(
+  'ResolveQueueBreach',
+  z.object({
+    breachId: z.string().uuid(),
+    queueSid: z.string().min(1),
+    resolvedAt: z.string().datetime().optional(),
+    resolutionNotes: z.string().max(1000).optional(),
+    resolvedBy: z.string().optional(),
+  })
+);
+
+/**
+ * Escalate a queue breach to supervisors/managers
+ */
+export const EscalateQueueBreachCommand = defineCommand(
+  'EscalateQueueBreach',
+  z.object({
+    breachId: z.string().uuid(),
+    queueSid: z.string().min(1),
+    escalationLevel: z.enum(['supervisor', 'manager', 'admin']),
+    reason: z.string().max(500),
+    escalatedBy: z.string().optional(),
+    notifyChannels: z.array(z.enum(['email', 'slack', 'sms', 'dashboard'])).default(['dashboard']),
+  })
+);
+
+/**
+ * Acknowledge a queue breach (supervisor has seen it)
+ */
+export const AcknowledgeQueueBreachCommand = defineCommand(
+  'AcknowledgeQueueBreach',
+  z.object({
+    breachId: z.string().uuid(),
+    acknowledgedBy: z.string().min(1),
+    notes: z.string().max(500).optional(),
+  })
+);
+
+/**
+ * Send alert for a queue breach
+ */
+export const SendQueueBreachAlertCommand = defineCommand(
+  'SendQueueBreachAlert',
+  z.object({
+    breachId: z.string().uuid(),
+    queueSid: z.string().min(1),
+    queueName: z.string().min(1),
+    breachType: z.enum([
+      'wait_time_exceeded',
+      'queue_size_exceeded',
+      'abandon_rate_exceeded',
+      'agent_availability_low',
+      'service_level_missed',
+    ]),
+    severity: z.enum(['warning', 'critical']),
+    channels: z.array(z.enum(['email', 'slack', 'sms', 'dashboard'])).min(1),
+    recipients: z.array(z.string()).optional(),
+    message: z.string().max(1000).optional(),
+  })
+);
+
+// ============================================================================
 // HANDLER REGISTRATION
 // ============================================================================
 

@@ -140,7 +140,6 @@ export function getMetricRating(
   value: number
 ): 'good' | 'needs-improvement' | 'poor' {
   const budget = CORE_WEB_VITALS[metricName];
-  if (!budget) return 'poor';
 
   if (value <= budget.thresholds.good) return 'good';
   if (value <= budget.thresholds.warning) return 'needs-improvement';
@@ -151,8 +150,11 @@ export function getMetricRating(
  * Format metric value with appropriate unit
  */
 export function formatMetricValue(metricName: string, value: number): string {
-  const budget = CORE_WEB_VITALS[metricName as keyof typeof CORE_WEB_VITALS];
-  if (!budget) return value.toFixed(2);
+  const budget = CORE_WEB_VITALS[metricName] as PerformanceBudget | undefined;
+
+  if (!budget) {
+    return value.toFixed(2);
+  }
 
   if (budget.unit === 'ms') {
     if (value >= 1000) {

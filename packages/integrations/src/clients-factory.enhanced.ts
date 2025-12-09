@@ -546,9 +546,9 @@ export function createEnhancedIntegrationClients(
   if (config.includeConsent !== false) {
     // Use in-memory repository for development/testing
     // InMemoryConsentRepository implements IConsentRepository (Result-wrapped),
-    // so it needs adaptConsentRepository to work with the domain's ConsentRepository interface
-    const consentRepository = adaptConsentRepository(new InMemoryConsentRepository());
-    consent = createConsentService({ repository: consentRepository });
+    // so it needs adaptConsentRepository to convert to ConsentRepository
+    const inMemoryRepository = adaptConsentRepository(new InMemoryConsentRepository());
+    consent = createConsentService({ repository: inMemoryRepository });
   }
 
   if (config.includeTemplateCatalog !== false && whatsapp) {

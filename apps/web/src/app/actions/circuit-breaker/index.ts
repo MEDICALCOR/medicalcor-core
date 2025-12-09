@@ -473,7 +473,7 @@ export async function resetCircuitBreakerAction(
   serviceName: string
 ): Promise<CircuitBreakerResetResult> {
   try {
-    await requirePermission('system:admin' as any);
+    await requirePermission('system:admin');
 
     const apiUrl = getApiBaseUrl();
     const apiKey = getApiSecretKey();

@@ -22,7 +22,6 @@ import {
   Send,
   BarChart3,
   Play,
-  Phone,
   TrendingUp,
   Users,
   Mail,
@@ -52,7 +51,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -111,7 +109,7 @@ interface PreviewDialogProps {
 }
 
 function PreviewDialog({ template, onClose }: PreviewDialogProps) {
-  const [preview, setPreview] = useState<TemplatePreview | null>(null);
+  const [_preview, setPreview] = useState<TemplatePreview | null>(null);
   const [variables, setVariables] = useState<Record<string, string>>({});
   const [testPhone, setTestPhone] = useState('');
   const [isLoading, setIsLoading] = useState(true);

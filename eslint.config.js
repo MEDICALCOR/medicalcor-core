@@ -316,6 +316,39 @@ export default tseslint.config(
     },
   },
 
+  // ==========================================================================
+  // Web App Overrides
+  // The web app uses Next.js with server actions that import from monorepo
+  // packages. ESLint's projectService has trouble resolving types from
+  // workspace packages, causing false positive "error typed value" warnings.
+  // TypeScript compilation still verifies type safety via tsc.
+  // ==========================================================================
+  {
+    files: ['apps/web/src/**/*.ts', 'apps/web/src/**/*.tsx'],
+    rules: {
+      // Relax type-aware rules that produce false positives with monorepo imports
+      // Type safety is still enforced by TypeScript compiler (tsc --noEmit)
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-redundant-type-constituents': 'off',
+      '@typescript-eslint/restrict-plus-operands': 'off',
+
+      // Keep important rules active
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
+    },
+  },
+
   // Prettier compatibility (must be last)
   prettier
 );

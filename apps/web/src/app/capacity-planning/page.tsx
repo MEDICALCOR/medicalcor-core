@@ -35,13 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import {
-  getCapacityDashboardAction,
-  type CapacityDashboardData,
-  type CapacityMetrics,
-  type StaffingRecommendation,
-  type ShiftConflict,
-} from '@/app/actions';
+import { getCapacityDashboardAction, type CapacityDashboardData } from '@/app/actions';
 
 // ============================================================================
 // CONSTANTS
