@@ -105,7 +105,7 @@ function validateEnvironment(): { projectRef: string; errors: string[] } {
   try {
     exec('npx supabase --version');
   } catch {
-    errors.push('Supabase CLI not found. Install with: npm install supabase --save-dev');
+    errors.push('Supabase CLI not found. Install with: pnpm add -D supabase');
   }
 
   return { projectRef: projectRef ?? '', errors };
