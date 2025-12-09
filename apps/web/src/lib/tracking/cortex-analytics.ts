@@ -102,15 +102,15 @@ export interface ConversionEvent {
 
 declare global {
   interface Window {
-    dataLayer: Array<Record<string, unknown>>;
-    gtag: (...args: unknown[]) => void;
-    fbq: (...args: unknown[]) => void;
-    ttq: {
+    dataLayer?: (Record<string, unknown> | unknown[])[];
+    gtag?: (...args: unknown[]) => void;
+    fbq?: (...args: unknown[]) => void;
+    ttq?: {
       track: (...args: unknown[]) => void;
       identify: (...args: unknown[]) => void;
     };
-    _hsq: Array<unknown[]>;
-    cortexAnalytics: CortexAnalytics;
+    _hsq?: unknown[][];
+    cortexAnalytics?: CortexAnalytics;
   }
 }
 
@@ -190,12 +190,18 @@ function getUtmParams(): Record<string, string> {
   const params = new URLSearchParams(window.location.search);
   const utm: Record<string, string> = {};
 
-  ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'gclid', 'fbclid'].forEach(
-    (param) => {
-      const value = params.get(param);
-      if (value) utm[param] = value;
-    }
-  );
+  [
+    'utm_source',
+    'utm_medium',
+    'utm_campaign',
+    'utm_content',
+    'utm_term',
+    'gclid',
+    'fbclid',
+  ].forEach((param) => {
+    const value = params.get(param);
+    if (value) utm[param] = value;
+  });
 
   // Store in session for cross-page tracking
   if (Object.keys(utm).length > 0) {
@@ -269,12 +275,10 @@ export class CortexAnalytics {
   }
 
   private initDataLayer(): void {
-    window.dataLayer = window.dataLayer || [];
-    window.gtag =
-      window.gtag ||
-      function (...args: unknown[]) {
-        window.dataLayer.push(args);
-      };
+    window.dataLayer ??= [];
+    window.gtag ??= function (...args: unknown[]) {
+      window.dataLayer?.push(args);
+    };
   }
 
   private initScrollTracking(): void {
@@ -365,7 +369,7 @@ export class CortexAnalytics {
     this.sendToFacebook(event);
     this.sendToTikTok(event);
     this.sendToHubSpot(event);
-    this.sendToInternalCRM(event);
+    void this.sendToInternalCRM(event);
   }
 
   trackPageView(): void {
@@ -530,7 +534,7 @@ export class CortexAnalytics {
   private sendToHubSpot(event: ConversionEvent): void {
     if (!this.config.hubspotPortalId) return;
 
-    window._hsq = window._hsq || [];
+    window._hsq ??= [];
     window._hsq.push([
       'trackCustomBehavioralEvent',
       {
@@ -633,7 +637,7 @@ export class CortexAnalytics {
 
   private log(message: string, data?: unknown): void {
     if (this.config.debug) {
-      console.log(`[CORTEX] ${message}`, data);
+      console.debug(`[CORTEX] ${message}`, data);
     }
   }
 
@@ -657,16 +661,12 @@ export class CortexAnalytics {
 let analyticsInstance: CortexAnalytics | null = null;
 
 export function getAnalytics(): CortexAnalytics {
-  if (!analyticsInstance) {
-    analyticsInstance = new CortexAnalytics();
-  }
+  analyticsInstance ??= new CortexAnalytics();
   return analyticsInstance;
 }
 
 export function initAnalytics(config?: TrackingConfig): CortexAnalytics {
-  if (!analyticsInstance) {
-    analyticsInstance = new CortexAnalytics(config);
-  }
+  analyticsInstance ??= new CortexAnalytics(config);
   analyticsInstance.init();
   return analyticsInstance;
 }
