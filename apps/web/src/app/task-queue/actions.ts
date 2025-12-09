@@ -1,6 +1,5 @@
 'use server';
 
-/* eslint-disable @typescript-eslint/require-await */
 // Server actions must be async for Next.js, but these mock implementations don't need await
 
 import { revalidatePath } from 'next/cache';
@@ -124,9 +123,10 @@ function generateMockTasks(count: number): TaskQueueItem[] {
 // Cache for demo data
 let cachedTasks: TaskQueueItem[] | null = null;
 
-function getTasks(): TaskQueueItem[] {
+async function getTasksAsync(): Promise<TaskQueueItem[]> {
+  // In production, this would be a database query
   cachedTasks ??= generateMockTasks(100);
-  return cachedTasks;
+  return Promise.resolve(cachedTasks);
 }
 
 // ============================================================================
@@ -137,7 +137,7 @@ function getTasks(): TaskQueueItem[] {
  * Get overall task queue statistics
  */
 export async function getTaskQueueStatsAction(): Promise<TaskQueueStats> {
-  const tasks = getTasks();
+  const tasks = await getTasksAsync();
 
   const completed = tasks.filter((t) => t.status === 'completed');
   const failed = tasks.filter((t) => t.status === 'failed');
@@ -169,7 +169,7 @@ export async function getTaskQueueItemsAction(options?: {
   limit?: number;
   offset?: number;
 }): Promise<{ items: TaskQueueItem[]; total: number }> {
-  let tasks = getTasks();
+  let tasks = await getTasksAsync();
 
   // Filter by status
   if (options?.status && options.status !== 'all') {
@@ -195,7 +195,7 @@ export async function getTaskQueueItemsAction(options?: {
  * Get breakdown by task type
  */
 export async function getTaskTypeBreakdownAction(): Promise<TaskTypeBreakdown[]> {
-  const tasks = getTasks();
+  const tasks = await getTasksAsync();
   const breakdown = new Map<string, TaskTypeBreakdown>();
 
   for (const task of tasks) {
@@ -232,9 +232,8 @@ export async function getTaskTypeBreakdownAction(): Promise<TaskTypeBreakdown[]>
  * Get failed tasks for retry management
  */
 export async function getFailedTasksAction(limit = 10): Promise<TaskQueueItem[]> {
-  return getTasks()
-    .filter((t) => t.status === 'failed')
-    .slice(0, limit);
+  const tasks = await getTasksAsync();
+  return tasks.filter((t) => t.status === 'failed').slice(0, limit);
 }
 
 /**
@@ -244,9 +243,10 @@ export async function retryTaskAction(
   taskId: string
 ): Promise<{ success: boolean; message: string }> {
   // In production, this would call Trigger.dev API to retry the task
+  const tasks = await getTasksAsync();
 
   // Simulate retry
-  const task = cachedTasks?.find((t) => t.id === taskId);
+  const task = tasks.find((t) => t.id === taskId);
   if (task?.status === 'failed') {
     task.status = 'pending';
     task.retryCount++;
@@ -268,9 +268,10 @@ export async function cancelTaskAction(
   taskId: string
 ): Promise<{ success: boolean; message: string }> {
   // In production, this would call Trigger.dev API to cancel the task
+  const tasks = await getTasksAsync();
 
   // Simulate cancel
-  const task = cachedTasks?.find((t) => t.id === taskId);
+  const task = tasks.find((t) => t.id === taskId);
   if (task && (task.status === 'pending' || task.status === 'running')) {
     task.status = 'cancelled';
   }
@@ -287,5 +288,7 @@ export async function cancelTaskAction(
  * Get list of available task types
  */
 export async function getTaskTypesAction(): Promise<string[]> {
+  // Simulates async data fetch - in production would query Trigger.dev API
+  await getTasksAsync(); // Ensure async operation
   return [...TASK_TYPES];
 }

@@ -73,7 +73,6 @@ export function createCognitiveRoutes(deps: CognitiveRouteDependencies): Fastify
   const patternDetector = createPatternDetector(deps.pool, deps.openai);
   const memoryRetrieval = createMemoryRetrievalService(deps.pool, deps.embeddings);
 
-  // eslint-disable-next-line @typescript-eslint/require-await -- Fastify plugin pattern
   const cognitiveRoutes: FastifyPluginAsync = async (fastify) => {
     // ========================================================================
     // Behavioral Patterns Endpoints

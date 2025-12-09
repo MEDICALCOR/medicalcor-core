@@ -35,6 +35,7 @@ The best software is **invisible**. Staff shouldn't think about the software - t
 ### The 3-Second Rule
 
 Every screen must answer in 3 seconds:
+
 1. **What needs my attention?** (Colors: 🔴 Red = urgent, 🟡 Yellow = soon, 🟢 Green = ok)
 2. **What should I do?** (One big button for the main action)
 3. **Did it work?** (Instant feedback: ✓ Done!)
@@ -141,14 +142,14 @@ Every screen must answer in 3 seconds:
 
 ### No Training Required
 
-| Action | How Staff Does It |
-|--------|-------------------|
-| See hot leads | Red cards at top of screen |
-| Call a patient | Tap the phone icon |
-| Book appointment | Tap slot on calendar |
-| Send reminder | Tap "Send Reminder" button |
-| Check if patient confirmed | Green ✅ or Yellow ⚠️ |
-| Know if something's wrong | Red banner appears |
+| Action                     | How Staff Does It          |
+| -------------------------- | -------------------------- |
+| See hot leads              | Red cards at top of screen |
+| Call a patient             | Tap the phone icon         |
+| Book appointment           | Tap slot on calendar       |
+| Send reminder              | Tap "Send Reminder" button |
+| Check if patient confirmed | Green ✅ or Yellow ⚠️      |
+| Know if something's wrong  | Red banner appears         |
 
 ### Smart Defaults (Zero Configuration)
 
@@ -214,6 +215,7 @@ That's it. Nothing else needed.
 > **If my grandmother can't use it, redesign it.**
 
 Every feature must pass:
+
 1. Can a 65-year-old receptionist use it without asking for help?
 2. Can someone use it while on the phone with a patient?
 3. Can it be used on a busy Monday morning without thinking?
@@ -262,6 +264,7 @@ Every day, dental clinics **lose money** and **waste staff hours** because:
 ### Pain Point #1: "We Miss Calls When Busy"
 
 **The Reality:**
+
 - Receptionist on the phone
 - Second call comes in, rings 5 times, voicemail
 - Patient hangs up, calls competitor
@@ -298,6 +301,7 @@ sequenceDiagram
 ### Pain Point #2: "Leads Go Cold Because We're Too Busy"
 
 **The Reality:**
+
 - Lead contacts you Thursday: "Interested in implants"
 - Friday: Emergency patient, no time to call back
 - Monday: You call, they've already booked elsewhere
@@ -324,13 +328,13 @@ Friday 11am: Lead responds "Yes, how much?"
 
 **The Scoring That Makes This Work:**
 
-| Signal Detected | Score Impact | Action Triggered |
-|-----------------|--------------|------------------|
-| "All-on-X" mentioned | +2 → HOT | Priority task, 30-min callback |
-| "How much?" (budget) | +1.5 → HOT | Send pricing, urgent follow-up |
-| "Pain", "urgent" | +1.5 → HOT | Same-day callback |
-| "Just looking" | 0 → WARM | Nurture sequence |
-| No response 24h | -0.5 → COLD | Re-engagement workflow |
+| Signal Detected      | Score Impact | Action Triggered               |
+| -------------------- | ------------ | ------------------------------ |
+| "All-on-X" mentioned | +2 → HOT     | Priority task, 30-min callback |
+| "How much?" (budget) | +1.5 → HOT   | Send pricing, urgent follow-up |
+| "Pain", "urgent"     | +1.5 → HOT   | Same-day callback              |
+| "Just looking"       | 0 → WARM     | Nurture sequence               |
+| No response 24h      | -0.5 → COLD  | Re-engagement workflow         |
 
 **Result:** No lead falls through the cracks. System follows up when humans forget.
 
@@ -339,6 +343,7 @@ Friday 11am: Lead responds "Yes, how much?"
 ### Pain Point #3: "Patients Don't Show Up"
 
 **The Reality:**
+
 - 30 appointments scheduled this week
 - 15% no-show rate = 4-5 empty chairs
 - Each empty chair = €500 lost
@@ -369,10 +374,10 @@ If patient cancels:
 ```typescript
 // System learns patterns:
 const riskFactors = {
-  newPatient: 1.5,           // New patients cancel 50% more
-  fridayAfternoon: 1.3,      // Friday PM = high no-show
-  previousNoShows: 2.0,      // History repeats
-  weatherAlert: 1.2,         // Bad weather = more cancellations
+  newPatient: 1.5, // New patients cancel 50% more
+  fridayAfternoon: 1.3, // Friday PM = high no-show
+  previousNoShows: 2.0, // History repeats
+  weatherAlert: 1.2, // Bad weather = more cancellations
   daysUntilAppointment: 1.1, // Booked 30+ days ago = risky
 };
 
@@ -389,6 +394,7 @@ const riskFactors = {
 ### Pain Point #4: "Patients Disappear After Treatment"
 
 **The Reality:**
+
 - Patient completes €15,000 All-on-X treatment
 - Needs 3-month follow-up (€300)
 - Needs 6-month check (€300)
@@ -419,14 +425,14 @@ No contact in 30 days:
 
 **Retention Scoring:**
 
-| Factor | Impact |
-|--------|--------|
-| Days since last visit | -1 point per 10 days |
-| Canceled appointments | -10 points each |
-| Completed treatments | +10 points |
-| High lifetime value (>€20K) | +5 points |
-| NPS promoter (9-10) | +10 points |
-| NPS detractor (0-6) | -20 points |
+| Factor                      | Impact               |
+| --------------------------- | -------------------- |
+| Days since last visit       | -1 point per 10 days |
+| Canceled appointments       | -10 points each      |
+| Completed treatments        | +10 points           |
+| High lifetime value (>€20K) | +5 points            |
+| NPS promoter (9-10)         | +10 points           |
+| NPS detractor (0-6)         | -20 points           |
 
 **Result:** 15% more patients retained. €4,000/month in recovered revenue.
 
@@ -435,6 +441,7 @@ No contact in 30 days:
 ### Pain Point #5: "We Miss Premium Cases"
 
 **The Reality:**
+
 - Patient says: "My teeth are a mess, I can't smile"
 - Receptionist books them for basic consultation
 - Doctor later realizes: This is an All-on-X case (€15,000+)
@@ -471,12 +478,12 @@ Agent sees dashboard:
 
 **Procedure Detection:**
 
-| Keywords/Patterns | Procedure Flag | LTV Multiplier |
-|-------------------|----------------|----------------|
-| "all my teeth", "full mouth", "can't eat" | All-on-X | 2.5x |
-| "implant", "missing tooth" | Single implant | 1.5x |
-| "straighten", "braces", "invisalign" | Orthodontics | 1.8x |
-| "whitening", "smile", "wedding" | Cosmetic | 1.3x |
+| Keywords/Patterns                         | Procedure Flag | LTV Multiplier |
+| ----------------------------------------- | -------------- | -------------- |
+| "all my teeth", "full mouth", "can't eat" | All-on-X       | 2.5x           |
+| "implant", "missing tooth"                | Single implant | 1.5x           |
+| "straighten", "braces", "invisalign"      | Orthodontics   | 1.8x           |
+| "whitening", "smile", "wedding"           | Cosmetic       | 1.3x           |
 
 **Result:** Zero missed premium opportunities. €15,000+ cases identified immediately.
 
@@ -514,14 +521,14 @@ Total wasted: 5 minutes
 
 ### Automation Summary
 
-| Task | Before | After | Time Saved |
-|------|--------|-------|------------|
-| Lead data entry | Manual | Auto-sync to HubSpot | 8 hrs/month |
-| Appointment reminders | Phone calls | WhatsApp auto | 20 hrs/month |
-| Insurance verification | Phone calls | API integration | 16 hrs/month |
-| Lead follow-up | Forget often | Auto-workflows | 8 hrs/month |
-| Question answering | Repeat 50x/week | AI handles 40% | 6 hrs/month |
-| **TOTAL** | - | - | **58 hrs/month** |
+| Task                   | Before          | After                | Time Saved       |
+| ---------------------- | --------------- | -------------------- | ---------------- |
+| Lead data entry        | Manual          | Auto-sync to HubSpot | 8 hrs/month      |
+| Appointment reminders  | Phone calls     | WhatsApp auto        | 20 hrs/month     |
+| Insurance verification | Phone calls     | API integration      | 16 hrs/month     |
+| Lead follow-up         | Forget often    | Auto-workflows       | 8 hrs/month      |
+| Question answering     | Repeat 50x/week | AI handles 40%       | 6 hrs/month      |
+| **TOTAL**              | -               | -                    | **58 hrs/month** |
 
 ---
 
@@ -564,12 +571,12 @@ Real-time visibility into what's happening:
 
 **Supervisor Powers:**
 
-| Action | What It Does | When to Use |
-|--------|--------------|-------------|
-| **Listen** | Hear call without patient knowing | Quality monitoring |
-| **Whisper** | Talk to agent, patient can't hear | Coach in real-time |
-| **Barge** | Join call, take over | Escalation handling |
-| **Flag** | Mark call for review | Training material |
+| Action      | What It Does                      | When to Use         |
+| ----------- | --------------------------------- | ------------------- |
+| **Listen**  | Hear call without patient knowing | Quality monitoring  |
+| **Whisper** | Talk to agent, patient can't hear | Coach in real-time  |
+| **Barge**   | Join call, take over              | Escalation handling |
+| **Flag**    | Mark call for review              | Training material   |
 
 ---
 
@@ -657,6 +664,7 @@ PAYBACK PERIOD: 2-3 months
 ### 1. You Can't Go Back
 
 Once you have:
+
 - AI answering calls 24/7
 - Automatic lead scoring
 - Reminders that work
@@ -667,11 +675,13 @@ Going back to manual = immediate revenue drop.
 ### 2. Staff Becomes 3x More Effective
 
 Instead of:
+
 - Making reminder calls
 - Entering data
 - Chasing cold leads
 
 Staff focuses on:
+
 - Closing hot leads
 - Premium consultations
 - Patient relationships
@@ -688,11 +698,13 @@ After:  "We have 23 HOT leads, 15 WARM leads aging,
 ### 4. Competitors Without This Lose
 
 When patient calls your competitor:
+
 - Ring... ring... voicemail
 - Maybe callback Monday
 - No follow-up
 
 When patient calls you:
+
 - Immediate AI answer
 - Scored and prioritized
 - Follow-up guaranteed
@@ -706,41 +718,41 @@ When patient calls you:
 
 ### Week 1: Stop the Bleeding
 
-| Deploy | Revenue Impact | Effort |
-|--------|----------------|--------|
-| AI call answering (Vapi) | +€2,000/month | Ready |
-| Lead scoring + alerts | +€3,500/month | Ready |
-| HubSpot auto-sync | Save 8 hours | Ready |
+| Deploy                   | Revenue Impact | Effort |
+| ------------------------ | -------------- | ------ |
+| AI call answering (Vapi) | +€2,000/month  | Ready  |
+| Lead scoring + alerts    | +€3,500/month  | Ready  |
+| HubSpot auto-sync        | Save 8 hours   | Ready  |
 
 ### Week 2-3: Prevent Loss
 
-| Deploy | Revenue Impact | Effort |
-|--------|----------------|--------|
-| Appointment reminders | +€2,500/month | 3 days |
-| WhatsApp follow-up workflows | +€2,000/month | 2 days |
-| Insurance pre-verification | Save 16 hours | Ready |
+| Deploy                       | Revenue Impact | Effort |
+| ---------------------------- | -------------- | ------ |
+| Appointment reminders        | +€2,500/month  | 3 days |
+| WhatsApp follow-up workflows | +€2,000/month  | 2 days |
+| Insurance pre-verification   | Save 16 hours  | Ready  |
 
 ### Month 2: Maximize Value
 
-| Deploy | Revenue Impact | Effort |
-|--------|----------------|--------|
-| Retention scoring + alerts | +€4,000/month | 1 week |
-| No-show prediction | +€1,500/month | 4 days |
-| Supervisor dashboard | Quality improvement | Ready |
+| Deploy                     | Revenue Impact      | Effort |
+| -------------------------- | ------------------- | ------ |
+| Retention scoring + alerts | +€4,000/month       | 1 week |
+| No-show prediction         | +€1,500/month       | 4 days |
+| Supervisor dashboard       | Quality improvement | Ready  |
 
 ---
 
 ## Summary: Why Clinics Can't Live Without This
 
-| Pain Point | Without MedicalCor | With MedicalCor |
-|------------|-------------------|-----------------|
-| Missed calls | Lost forever | AI answers, lead scored |
-| Cold leads | Forgotten | Auto follow-up |
-| No-shows | 15% rate, €2,500 lost | 5% rate, reminders work |
-| Churn | Silent, unnoticed | Predicted, prevented |
-| Premium cases | Missed, misclassified | Detected, prioritized |
-| Staff time | 70 hours wasted | 58 hours saved |
-| Visibility | Blind | Real-time dashboard |
+| Pain Point    | Without MedicalCor    | With MedicalCor         |
+| ------------- | --------------------- | ----------------------- |
+| Missed calls  | Lost forever          | AI answers, lead scored |
+| Cold leads    | Forgotten             | Auto follow-up          |
+| No-shows      | 15% rate, €2,500 lost | 5% rate, reminders work |
+| Churn         | Silent, unnoticed     | Predicted, prevented    |
+| Premium cases | Missed, misclassified | Detected, prioritized   |
+| Staff time    | 70 hours wasted       | 58 hours saved          |
+| Visibility    | Blind                 | Real-time dashboard     |
 
 **The question isn't "Can we afford this?"**
 
@@ -751,6 +763,7 @@ When patient calls you:
 ## Technical Architecture (For Engineers)
 
 See [CALL_CENTER_ARCHITECTURE.md](./CALL_CENTER_ARCHITECTURE.md) for:
+
 - System component diagrams
 - API reference
 - Database schema

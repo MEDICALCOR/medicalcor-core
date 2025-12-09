@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/require-await */
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import {
   CreateLoadTestResultSchema,

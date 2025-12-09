@@ -37,19 +37,17 @@ function createReportService(): ReturnType<typeof createArticle30ReportService> 
     return null;
   }
 
-  /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment -- Supabase types resolve incorrectly */
   const supabase = createClient(supabaseUrl, supabaseKey);
   return createArticle30ReportService({
     supabase,
     controller: getControllerInfo(),
   });
-  /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment */
 }
 
 /**
  * GDPR Article 30 Compliance Reporting Routes
  */
-// eslint-disable-next-line @typescript-eslint/require-await -- FastifyPluginAsync requires async signature
+
 export const gdprArticle30Routes: FastifyPluginAsync = async (fastify): Promise<void> => {
   /**
    * GET /gdpr/article30/reports

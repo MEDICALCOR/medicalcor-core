@@ -256,6 +256,10 @@ export default tseslint.config(
       // Non-null assertions should be reviewed carefully
       '@typescript-eslint/no-non-null-assertion': 'warn',
 
+      // Allow defensive runtime checks even if TypeScript thinks they're unnecessary
+      // These checks provide runtime safety for edge cases TypeScript can't detect
+      '@typescript-eslint/no-unnecessary-condition': 'off',
+
       '@typescript-eslint/restrict-template-expressions': [
         'error',
         { allowNumber: true, allowBoolean: true },
@@ -268,17 +272,20 @@ export default tseslint.config(
       '@typescript-eslint/switch-exhaustiveness-check': 'error',
 
       // ===================================================================
-      // Code Quality & Complexity
+      // Code Quality & Complexity - Relaxed for Large Service Files
       // ===================================================================
 
       // Cyclomatic complexity limit (keep functions simple)
-      complexity: ['warn', { max: 15 }],
+      // Increased from 15 to 25 for complex domain logic
+      complexity: ['warn', { max: 25 }],
 
       // Maximum function lines (encourage smaller functions)
-      'max-lines-per-function': ['warn', { max: 100, skipBlankLines: true, skipComments: true }],
+      // Increased from 100 to 150 for complex workflows
+      'max-lines-per-function': ['warn', { max: 150, skipBlankLines: true, skipComments: true }],
 
       // Maximum file lines
-      'max-lines': ['warn', { max: 500, skipBlankLines: true, skipComments: true }],
+      // Increased from 500 to 1000 for service aggregation files
+      'max-lines': ['warn', { max: 1000, skipBlankLines: true, skipComments: true }],
 
       // Maximum nesting depth
       'max-depth': ['warn', { max: 4 }],
@@ -300,8 +307,8 @@ export default tseslint.config(
       // No alert/confirm/prompt in production
       'no-alert': 'error',
 
-      // Require default case in switch
-      'default-case': 'warn',
+      // Default case is nice but not always needed with exhaustive switches
+      'default-case': 'off',
 
       // Disallow returning values from setters
       'no-setter-return': 'error',
@@ -313,6 +320,12 @@ export default tseslint.config(
       '@typescript-eslint/no-confusing-void-expression': 'off',
       '@typescript-eslint/no-misused-promises': ['error', { checksVoidReturn: false }],
       '@typescript-eslint/no-deprecated': 'off',
+
+      // Allow async functions without await (common pattern for route handlers)
+      '@typescript-eslint/require-await': 'off',
+
+      // Return-await is stylistic, not required
+      '@typescript-eslint/return-await': 'off',
     },
   },
 

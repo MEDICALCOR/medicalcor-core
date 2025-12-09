@@ -235,13 +235,13 @@ stateDiagram-v2
 
 ### Agent Presence Events
 
-| Event | Trigger | Action |
-|-------|---------|--------|
-| `agent:registered` | Login/connect | Add to available pool |
-| `agent:status_changed` | Status update | Update routing eligibility |
-| `agent:heartbeat` | 15s interval | Confirm connection |
-| `agent:timeout` | 3 missed heartbeats | Mark offline, reassign tasks |
-| `agent:unregistered` | Logout/disconnect | Remove from pool |
+| Event                  | Trigger             | Action                       |
+| ---------------------- | ------------------- | ---------------------------- |
+| `agent:registered`     | Login/connect       | Add to available pool        |
+| `agent:status_changed` | Status update       | Update routing eligibility   |
+| `agent:heartbeat`      | 15s interval        | Confirm connection           |
+| `agent:timeout`        | 3 missed heartbeats | Mark offline, reassign tasks |
+| `agent:unregistered`   | Logout/disconnect   | Remove from pool             |
 
 ---
 
@@ -292,23 +292,25 @@ flowchart TB
 
 ### Call Flags
 
-| Flag | Description | Auto-Detected |
-|------|-------------|---------------|
-| `escalation-requested` | Customer requested supervisor | Yes |
-| `high-value-lead` | Lead score >= 4 | Yes |
-| `complaint` | Customer complaint detected | Yes |
-| `long-hold` | Hold time > threshold | Yes |
-| `silence-detected` | Extended silence in call | Yes |
-| `ai-handoff-needed` | AI unable to handle query | Yes |
-| `manual-flag` | Manually flagged by supervisor | No |
+| Flag                   | Description                    | Auto-Detected |
+| ---------------------- | ------------------------------ | ------------- |
+| `escalation-requested` | Customer requested supervisor  | Yes           |
+| `high-value-lead`      | Lead score >= 4                | Yes           |
+| `complaint`            | Customer complaint detected    | Yes           |
+| `long-hold`            | Hold time > threshold          | Yes           |
+| `silence-detected`     | Extended silence in call       | Yes           |
+| `ai-handoff-needed`    | AI unable to handle query      | Yes           |
+| `manual-flag`          | Manually flagged by supervisor | No            |
 
 ### Escalation Keywords
 
 **English:**
+
 - supervisor, manager, complaint, legal, lawyer, sue, attorney
 - terrible, worst, unacceptable, refund, cancel, report
 
 **Romanian:**
+
 - supervizor, manager, reclamație, avocat, proces, inacceptabil
 - rambursare, anulare, plângere
 
@@ -375,30 +377,30 @@ interface QueueSLAConfig {
   queueName: string;
 
   // Time thresholds (seconds)
-  answerTimeThreshold: number;      // Target: 30s
-  maxWaitTimeWarning: number;       // Warning: 120s
-  maxWaitTimeCritical: number;      // Critical: 300s
+  answerTimeThreshold: number; // Target: 30s
+  maxWaitTimeWarning: number; // Warning: 120s
+  maxWaitTimeCritical: number; // Critical: 300s
 
   // Performance thresholds
-  serviceLevelTarget: number;       // Target: 80%
-  maxAbandonRate: number;           // Max: 5%
-  minAgentAvailability: number;     // Min: 2 agents
+  serviceLevelTarget: number; // Target: 80%
+  maxAbandonRate: number; // Max: 5%
+  minAgentAvailability: number; // Min: 2 agents
 
   // Queue size limits
-  queueSizeWarning: number;         // Warning: 10
-  queueSizeCritical: number;        // Critical: 25
+  queueSizeWarning: number; // Warning: 10
+  queueSizeCritical: number; // Critical: 25
 }
 ```
 
 ### SLA Breach Types
 
-| Breach Type | Severity | Trigger |
-|-------------|----------|---------|
-| `wait_time_exceeded` | warning/critical | Wait > threshold |
-| `queue_size_exceeded` | warning/critical | Queue > limit |
-| `abandon_rate_exceeded` | critical | Abandon > 5% |
-| `agent_availability_low` | warning | Available < min |
-| `service_level_missed` | critical | SL < target |
+| Breach Type              | Severity         | Trigger          |
+| ------------------------ | ---------------- | ---------------- |
+| `wait_time_exceeded`     | warning/critical | Wait > threshold |
+| `queue_size_exceeded`    | warning/critical | Queue > limit    |
+| `abandon_rate_exceeded`  | critical         | Abandon > 5%     |
+| `agent_availability_low` | warning          | Available < min  |
+| `service_level_missed`   | critical         | SL < target      |
 
 ### SLA Monitoring Flow
 
@@ -480,21 +482,21 @@ flowchart TB
 
 ### Proficiency Levels
 
-| Level | Score Weight | Description |
-|-------|-------------|-------------|
-| `basic` | 0.25 | Entry level, supervised |
-| `intermediate` | 0.50 | Independent handling |
-| `advanced` | 0.75 | Complex cases |
-| `expert` | 1.00 | Training others, edge cases |
+| Level          | Score Weight | Description                 |
+| -------------- | ------------ | --------------------------- |
+| `basic`        | 0.25         | Entry level, supervised     |
+| `intermediate` | 0.50         | Independent handling        |
+| `advanced`     | 0.75         | Complex cases               |
+| `expert`       | 1.00         | Training others, edge cases |
 
 ### Routing Strategies
 
-| Strategy | Description | Use Case |
-|----------|-------------|----------|
-| `skill-first` | Prioritize skill match over availability | Specialized procedures |
-| `availability-first` | Prioritize available agents | High volume periods |
-| `balanced` | Equal weight to skills and availability | Default routing |
-| `best-match` | Highest combined score | VIP/high-value leads |
+| Strategy             | Description                              | Use Case               |
+| -------------------- | ---------------------------------------- | ---------------------- |
+| `skill-first`        | Prioritize skill match over availability | Specialized procedures |
+| `availability-first` | Prioritize available agents              | High volume periods    |
+| `balanced`           | Equal weight to skills and availability  | Default routing        |
+| `best-match`         | Highest combined score                   | VIP/high-value leads   |
 
 ### Match Scoring Algorithm
 
@@ -504,7 +506,7 @@ function calculateMatchScore(agent: Agent, task: Task): number {
 
   // Skill proficiency (0-40 points)
   for (const required of task.requiredSkills) {
-    const agentSkill = agent.skills.find(s => s.skillId === required.skillId);
+    const agentSkill = agent.skills.find((s) => s.skillId === required.skillId);
     if (agentSkill) {
       score += agentSkill.proficiency * 10 * required.weight;
     }
@@ -556,18 +558,18 @@ sequenceDiagram
 
 ### Event Types
 
-| Event | Payload | Description |
-|-------|---------|-------------|
-| `call:started` | CallMetadata | New call registered |
-| `call:updated` | CallUpdate | Call state/sentiment changed |
-| `call:ended` | CallDisposition | Call completed |
-| `transcript:message` | TranscriptMessage | New transcript line |
-| `alert:escalation` | EscalationAlert | Escalation triggered |
-| `supervisor:joined` | SessionInfo | Supervisor started monitoring |
-| `handoff:requested` | HandoffRequest | AI-to-human handoff initiated |
-| `handoff:completed` | HandoffComplete | Handoff successful |
-| `sla:breach` | BreachEvent | SLA threshold exceeded |
-| `agent:status_changed` | PresenceUpdate | Agent availability changed |
+| Event                  | Payload           | Description                   |
+| ---------------------- | ----------------- | ----------------------------- |
+| `call:started`         | CallMetadata      | New call registered           |
+| `call:updated`         | CallUpdate        | Call state/sentiment changed  |
+| `call:ended`           | CallDisposition   | Call completed                |
+| `transcript:message`   | TranscriptMessage | New transcript line           |
+| `alert:escalation`     | EscalationAlert   | Escalation triggered          |
+| `supervisor:joined`    | SessionInfo       | Supervisor started monitoring |
+| `handoff:requested`    | HandoffRequest    | AI-to-human handoff initiated |
+| `handoff:completed`    | HandoffComplete   | Handoff successful            |
+| `sla:breach`           | BreachEvent       | SLA threshold exceeded        |
+| `agent:status_changed` | PresenceUpdate    | Agent availability changed    |
 
 ---
 
@@ -575,21 +577,21 @@ sequenceDiagram
 
 ### Supervisor REST Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/supervisor/dashboard` | Real-time stats and active calls |
-| `POST` | `/supervisor/sessions` | Create supervisor session |
-| `GET` | `/supervisor/sessions/:id` | Get session details |
-| `DELETE` | `/supervisor/sessions/:id` | End session |
-| `POST` | `/supervisor/calls/:callSid/monitor` | Start monitoring |
-| `DELETE` | `/supervisor/calls/:callSid/monitor` | Stop monitoring |
-| `POST` | `/supervisor/calls/:callSid/mode` | Change monitoring mode |
-| `POST` | `/supervisor/calls/:callSid/notes` | Add note to call |
-| `POST` | `/supervisor/calls/:callSid/flag` | Flag call |
-| `POST` | `/supervisor/calls/:callSid/handoff` | Request handoff |
-| `PUT` | `/supervisor/queue-sla/:queueSid` | Update SLA config |
-| `GET` | `/supervisor/queue-sla/status` | Get all queue SLA statuses |
-| `GET` | `/supervisor/queue-sla/breaches` | Get breach history |
+| Method   | Endpoint                             | Description                      |
+| -------- | ------------------------------------ | -------------------------------- |
+| `GET`    | `/supervisor/dashboard`              | Real-time stats and active calls |
+| `POST`   | `/supervisor/sessions`               | Create supervisor session        |
+| `GET`    | `/supervisor/sessions/:id`           | Get session details              |
+| `DELETE` | `/supervisor/sessions/:id`           | End session                      |
+| `POST`   | `/supervisor/calls/:callSid/monitor` | Start monitoring                 |
+| `DELETE` | `/supervisor/calls/:callSid/monitor` | Stop monitoring                  |
+| `POST`   | `/supervisor/calls/:callSid/mode`    | Change monitoring mode           |
+| `POST`   | `/supervisor/calls/:callSid/notes`   | Add note to call                 |
+| `POST`   | `/supervisor/calls/:callSid/flag`    | Flag call                        |
+| `POST`   | `/supervisor/calls/:callSid/handoff` | Request handoff                  |
+| `PUT`    | `/supervisor/queue-sla/:queueSid`    | Update SLA config                |
+| `GET`    | `/supervisor/queue-sla/status`       | Get all queue SLA statuses       |
+| `GET`    | `/supervisor/queue-sla/breaches`     | Get breach history               |
 
 ### Dashboard Stats Response
 
@@ -681,21 +683,21 @@ erDiagram
 
 ### Key Tables
 
-| Table | Purpose |
-|-------|---------|
-| `queue_sla_configs` | SLA thresholds per queue |
-| `queue_sla_status` | Real-time queue metrics |
-| `queue_sla_breaches` | Historical breach events |
-| `sla_reports` | Aggregated SLA reports |
-| `supervisor_monitored_calls` | Active call state |
-| `supervisor_sessions` | Active monitoring sessions |
-| `supervisor_escalation_history` | Escalation audit trail |
-| `supervisor_handoff_history` | Handoff audit trail |
-| `agent_daily_metrics` | Agent performance metrics |
-| `agent_sessions` | Agent work sessions |
-| `skills` | Skill definitions |
-| `agent_skills` | Agent-skill assignments |
-| `routing_rules` | Routing rule configurations |
+| Table                           | Purpose                     |
+| ------------------------------- | --------------------------- |
+| `queue_sla_configs`             | SLA thresholds per queue    |
+| `queue_sla_status`              | Real-time queue metrics     |
+| `queue_sla_breaches`            | Historical breach events    |
+| `sla_reports`                   | Aggregated SLA reports      |
+| `supervisor_monitored_calls`    | Active call state           |
+| `supervisor_sessions`           | Active monitoring sessions  |
+| `supervisor_escalation_history` | Escalation audit trail      |
+| `supervisor_handoff_history`    | Handoff audit trail         |
+| `agent_daily_metrics`           | Agent performance metrics   |
+| `agent_sessions`                | Agent work sessions         |
+| `skills`                        | Skill definitions           |
+| `agent_skills`                  | Agent-skill assignments     |
+| `routing_rules`                 | Routing rule configurations |
 
 ---
 
@@ -721,12 +723,12 @@ interface AgentPresence {
 }
 
 interface AgentPresenceMetrics {
-  onlineTimeToday: number;      // seconds
-  busyTimeToday: number;        // seconds
-  awayTimeToday: number;        // seconds
+  onlineTimeToday: number; // seconds
+  busyTimeToday: number; // seconds
+  awayTimeToday: number; // seconds
   statusChangesToday: number;
   callsHandledToday: number;
-  utilizationPercent: number;   // 0-100
+  utilizationPercent: number; // 0-100
 }
 ```
 
@@ -888,25 +890,28 @@ const redactedTranscript = redactPII(transcript, {
   email: true,
   ssn: true,
   creditCard: true,
-  names: true
+  names: true,
 });
 
 // Audit trail for supervisor actions
-logger.info({
-  action: 'supervisor:listen',
-  supervisorId: 'sup_123',
-  callSid: 'CA_xxx',
-  // No customer PII logged
-}, 'Supervisor started listening');
+logger.info(
+  {
+    action: 'supervisor:listen',
+    supervisorId: 'sup_123',
+    callSid: 'CA_xxx',
+    // No customer PII logged
+  },
+  'Supervisor started listening'
+);
 ```
 
 ### Role-Based Access Control
 
-| Role | Listen | Whisper | Barge | Coach | SLA Config | Reports |
-|------|--------|---------|-------|-------|------------|---------|
-| Supervisor | ✓ | ✓ | - | - | Read | Own Team |
-| Manager | ✓ | ✓ | ✓ | - | Read/Write | All Teams |
-| Admin | ✓ | ✓ | ✓ | ✓ | Full | All + Export |
+| Role       | Listen | Whisper | Barge | Coach | SLA Config | Reports      |
+| ---------- | ------ | ------- | ----- | ----- | ---------- | ------------ |
+| Supervisor | ✓      | ✓       | -     | -     | Read       | Own Team     |
+| Manager    | ✓      | ✓       | ✓     | -     | Read/Write | All Teams    |
+| Admin      | ✓      | ✓       | ✓     | ✓     | Full       | All + Export |
 
 ### Audit Requirements
 
@@ -920,13 +925,13 @@ logger.info({
 
 ## Deployment Milestones
 
-| Milestone | Feature | Status | Package Location |
-|-----------|---------|--------|------------------|
-| W3 | Voice AI + Realtime Supervisor | ~50% | `domain/voice/supervisor-agent.ts` |
-| H6 | Intelligent Agent Routing | ~70% | `domain/routing/skill-routing-service.ts` |
-| H8 | Queue SLA Tracking | ~85% | `domain/voice/queue-sla-service.ts` |
-| M2 | Agent Presence WebSocket | ~85% | `domain/voice/agent-presence-service.ts` |
-| M7 | Round-Robin Assignment | ~80% | `domain/routing/round-robin-assignment-service.ts` |
+| Milestone | Feature                        | Status | Package Location                                   |
+| --------- | ------------------------------ | ------ | -------------------------------------------------- |
+| W3        | Voice AI + Realtime Supervisor | ~50%   | `domain/voice/supervisor-agent.ts`                 |
+| H6        | Intelligent Agent Routing      | ~70%   | `domain/routing/skill-routing-service.ts`          |
+| H8        | Queue SLA Tracking             | ~85%   | `domain/voice/queue-sla-service.ts`                |
+| M2        | Agent Presence WebSocket       | ~85%   | `domain/voice/agent-presence-service.ts`           |
+| M7        | Round-Robin Assignment         | ~80%   | `domain/routing/round-robin-assignment-service.ts` |
 
 ---
 
