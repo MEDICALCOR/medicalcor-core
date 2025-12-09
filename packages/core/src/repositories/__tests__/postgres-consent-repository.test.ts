@@ -330,10 +330,9 @@ describe('PostgresConsentRepository', () => {
       const results = await repository.findExpiringSoon(30);
 
       expect(results).toHaveLength(1);
-      expect(mockClient.query).toHaveBeenCalledWith(
-        expect.stringContaining("status = 'granted'"),
-        [30]
-      );
+      expect(mockClient.query).toHaveBeenCalledWith(expect.stringContaining("status = 'granted'"), [
+        30,
+      ]);
     });
 
     it('should return empty array when none found', async () => {

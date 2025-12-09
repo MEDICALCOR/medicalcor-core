@@ -256,7 +256,8 @@ export abstract class BaseAggregateFactory<
   TId,
   TEvent extends DomainEvent,
   TCreateParams,
-> implements AggregateFactory<TAggregate, TId, TEvent, TCreateParams> {
+> implements AggregateFactory<TAggregate, TId, TEvent, TCreateParams>
+{
   /**
    * Create a new aggregate from parameters
    */

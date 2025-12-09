@@ -1,1694 +1,1839 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ro">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Zâmbetul Tău în 24 de Ore | MedicalCor - Clinica #1 All-on-X din România</title>
-  <meta name="description" content="Transformă-ți viața cu un zâmbet nou în doar 24 de ore. Procedură All-on-X cu garanție 10 ani. Peste 2,500 de pacienți fericiți.">
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>
-    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
-    :root {
-      --gold: #C9A962;
-      --gold-light: #E8D5A3;
-      --navy: #0A1628;
-      --navy-light: #152238;
-      --white: #FFFFFF;
-      --gray-100: #F7F8FA;
-      --gray-200: #E8ECF1;
-      --gray-500: #6B7A90;
-      --success: #10B981;
-      --danger: #EF4444;
-      --radius: 16px;
-      --shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
-      --shadow-gold: 0 20px 40px rgba(201,169,98,0.3);
-    }
-
-    html { scroll-behavior: smooth; }
-
-    body {
-      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--white);
-      color: var(--navy);
-      line-height: 1.6;
-      overflow-x: hidden;
-    }
-
-    /* ==================== HERO - FULL IMPACT ==================== */
-    .hero {
-      position: relative;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      background: var(--navy);
-      overflow: hidden;
-    }
-
-    .hero-video-container {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-    }
-
-    .hero-video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      opacity: 0.6;
-    }
-
-    .hero-gradient {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(135deg, rgba(10,22,40,0.9) 0%, rgba(10,22,40,0.7) 50%, rgba(10,22,40,0.8) 100%);
-    }
-
-    .hero-content {
-      position: relative;
-      z-index: 10;
-      width: 100%;
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 2rem;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 4rem;
-      align-items: center;
-    }
-
-    @media (max-width: 1024px) {
-      .hero-content { grid-template-columns: 1fr; text-align: center; }
-    }
-
-    .hero-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      background: rgba(201,169,98,0.15);
-      border: 1px solid var(--gold);
-      color: var(--gold);
-      padding: 0.5rem 1rem;
-      border-radius: 100px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      margin-bottom: 1.5rem;
-      backdrop-filter: blur(10px);
-    }
-
-    .hero-title {
-      font-size: clamp(2.5rem, 5vw, 4rem);
-      font-weight: 800;
-      color: var(--white);
-      line-height: 1.1;
-      margin-bottom: 1.5rem;
-    }
-
-    .hero-title .highlight {
-      color: var(--gold);
-      position: relative;
-    }
-
-    .hero-subtitle {
-      font-size: 1.25rem;
-      color: var(--gray-200);
-      margin-bottom: 2rem;
-      max-width: 540px;
-    }
-
-    @media (max-width: 1024px) {
-      .hero-subtitle { margin-left: auto; margin-right: auto; }
-    }
-
-    .hero-stats {
-      display: flex;
-      gap: 2rem;
-      margin-bottom: 2.5rem;
-    }
-
-    @media (max-width: 1024px) {
-      .hero-stats { justify-content: center; }
-    }
-
-    .hero-stat {
-      text-align: left;
-    }
-
-    @media (max-width: 1024px) {
-      .hero-stat { text-align: center; }
-    }
-
-    .hero-stat-number {
-      font-size: 2rem;
-      font-weight: 800;
-      color: var(--gold);
-    }
-
-    .hero-stat-label {
-      font-size: 0.85rem;
-      color: var(--gray-500);
-    }
-
-    .hero-cta-group {
-      display: flex;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
-
-    @media (max-width: 1024px) {
-      .hero-cta-group { justify-content: center; }
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      padding: 1rem 2rem;
-      font-size: 1rem;
-      font-weight: 700;
-      border-radius: var(--radius);
-      border: none;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      text-decoration: none;
-    }
-
-    .btn-gold {
-      background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
-      color: var(--navy);
-      box-shadow: var(--shadow-gold);
-    }
-
-    .btn-gold:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 25px 50px rgba(201,169,98,0.4);
-    }
-
-    .btn-outline {
-      background: transparent;
-      color: var(--white);
-      border: 2px solid rgba(255,255,255,0.3);
-    }
-
-    .btn-outline:hover {
-      background: rgba(255,255,255,0.1);
-      border-color: rgba(255,255,255,0.5);
-    }
-
-    /* Hero Right - Video Testimonial Preview */
-    .hero-video-preview {
-      position: relative;
-      border-radius: 24px;
-      overflow: hidden;
-      box-shadow: var(--shadow);
-      aspect-ratio: 16/10;
-      background: var(--navy-light);
-    }
-
-    .video-preview-placeholder {
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(135deg, var(--navy-light) 0%, var(--navy) 100%);
-      color: var(--white);
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .video-preview-placeholder:hover {
-      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
-    }
-
-    .play-icon {
-      width: 80px;
-      height: 80px;
-      background: var(--gold);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 1rem;
-      box-shadow: var(--shadow-gold);
-      transition: transform 0.3s ease;
-    }
-
-    .video-preview-placeholder:hover .play-icon {
-      transform: scale(1.1);
-    }
-
-    .play-icon::after {
-      content: '';
-      width: 0;
-      height: 0;
-      border-left: 24px solid var(--navy);
-      border-top: 14px solid transparent;
-      border-bottom: 14px solid transparent;
-      margin-left: 6px;
-    }
-
-    .video-preview-text {
-      font-weight: 600;
-      margin-bottom: 0.25rem;
-    }
-
-    .video-preview-subtext {
-      font-size: 0.85rem;
-      color: var(--gray-500);
-    }
-
-    .video-testimonial-badge {
-      position: absolute;
-      bottom: 1rem;
-      left: 1rem;
-      background: rgba(0,0,0,0.7);
-      backdrop-filter: blur(10px);
-      padding: 0.75rem 1rem;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .testimonial-avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: var(--gold);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      color: var(--navy);
-    }
-
-    .testimonial-info {
-      color: var(--white);
-    }
-
-    .testimonial-name {
-      font-weight: 600;
-      font-size: 0.9rem;
-    }
-
-    .testimonial-detail {
-      font-size: 0.75rem;
-      color: var(--gray-500);
-    }
-
-    /* ==================== TRUST BAR ==================== */
-    .trust-bar {
-      background: var(--gray-100);
-      padding: 1.5rem 2rem;
-      border-bottom: 1px solid var(--gray-200);
-    }
-
-    .trust-bar-content {
-      max-width: 1400px;
-      margin: 0 auto;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 3rem;
-      flex-wrap: wrap;
-    }
-
-    .trust-item {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      color: var(--gray-500);
-      font-size: 0.9rem;
-    }
-
-    .trust-icon {
-      width: 24px;
-      height: 24px;
-      fill: var(--gold);
-    }
-
-    /* ==================== PROBLEM/SOLUTION SECTION ==================== */
-    .problem-section {
-      padding: 6rem 2rem;
-      background: var(--white);
-    }
-
-    .section-container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-
-    .section-header {
-      text-align: center;
-      max-width: 700px;
-      margin: 0 auto 4rem;
-    }
-
-    .section-badge {
-      display: inline-block;
-      background: rgba(201,169,98,0.1);
-      color: var(--gold);
-      padding: 0.5rem 1rem;
-      border-radius: 100px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      margin-bottom: 1rem;
-    }
-
-    .section-title {
-      font-size: clamp(2rem, 4vw, 3rem);
-      font-weight: 800;
-      margin-bottom: 1rem;
-      color: var(--navy);
-    }
-
-    .section-subtitle {
-      font-size: 1.1rem;
-      color: var(--gray-500);
-    }
-
-    .problem-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 2rem;
-    }
-
-    .problem-card {
-      background: var(--gray-100);
-      border-radius: var(--radius);
-      padding: 2rem;
-      text-align: center;
-      transition: all 0.3s ease;
-      border: 2px solid transparent;
-    }
-
-    .problem-card:hover {
-      border-color: var(--gold);
-      transform: translateY(-5px);
-    }
-
-    .problem-icon {
-      width: 60px;
-      height: 60px;
-      background: rgba(239,68,68,0.1);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 1rem;
-      font-size: 1.5rem;
-    }
-
-    .problem-card.solution .problem-icon {
-      background: rgba(16,185,129,0.1);
-    }
-
-    .problem-title {
-      font-size: 1.25rem;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
-    }
-
-    .problem-text {
-      color: var(--gray-500);
-      font-size: 0.95rem;
-    }
-
-    /* ==================== TRANSFORMATION GALLERY ==================== */
-    .transformation-section {
-      padding: 6rem 2rem;
-      background: var(--navy);
-      color: var(--white);
-    }
-
-    .transformation-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-      gap: 2rem;
-    }
-
-    .transformation-card {
-      background: var(--navy-light);
-      border-radius: var(--radius);
-      overflow: hidden;
-      box-shadow: var(--shadow);
-    }
-
-    .transformation-media {
-      position: relative;
-      aspect-ratio: 4/3;
-      background: #1a1a1a;
-      overflow: hidden;
-    }
-
-    .transformation-placeholder {
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(135deg, #1a2a3a 0%, #0a1628 100%);
-      color: var(--gray-500);
-      font-size: 0.9rem;
-      text-align: center;
-      padding: 2rem;
-    }
-
-    .placeholder-icon {
-      font-size: 3rem;
-      margin-bottom: 1rem;
-      opacity: 0.5;
-    }
-
-    .transformation-labels {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      display: flex;
-      justify-content: space-between;
-      padding: 1rem;
-    }
-
-    .label-before, .label-after {
-      padding: 0.5rem 1rem;
-      border-radius: 8px;
-      font-size: 0.75rem;
-      font-weight: 700;
-      text-transform: uppercase;
-    }
-
-    .label-before {
-      background: rgba(239,68,68,0.9);
-    }
-
-    .label-after {
-      background: rgba(16,185,129,0.9);
-    }
-
-    .transformation-content {
-      padding: 1.5rem;
-    }
-
-    .transformation-quote {
-      font-style: italic;
-      color: var(--gray-200);
-      margin-bottom: 1rem;
-      font-size: 0.95rem;
-    }
-
-    .transformation-patient {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .patient-avatar {
-      width: 45px;
-      height: 45px;
-      border-radius: 50%;
-      background: var(--gold);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      color: var(--navy);
-    }
-
-    .patient-name {
-      font-weight: 600;
-    }
-
-    .patient-procedure {
-      font-size: 0.8rem;
-      color: var(--gray-500);
-    }
-
-    /* ==================== VIDEO TESTIMONIALS ==================== */
-    .testimonials-section {
-      padding: 6rem 2rem;
-      background: var(--gray-100);
-    }
-
-    .testimonials-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 2rem;
-    }
-
-    .testimonial-card {
-      background: var(--white);
-      border-radius: var(--radius);
-      overflow: hidden;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.08);
-      transition: all 0.3s ease;
-    }
-
-    .testimonial-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 20px 60px rgba(0,0,0,0.12);
-    }
-
-    .testimonial-video {
-      aspect-ratio: 16/9;
-      background: var(--navy);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      position: relative;
-    }
-
-    .testimonial-video-placeholder {
-      text-align: center;
-      color: var(--gray-500);
-    }
-
-    .mini-play-icon {
-      width: 60px;
-      height: 60px;
-      background: var(--gold);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 0.5rem;
-      transition: transform 0.3s ease;
-    }
-
-    .testimonial-video:hover .mini-play-icon {
-      transform: scale(1.1);
-    }
-
-    .mini-play-icon::after {
-      content: '';
-      width: 0;
-      height: 0;
-      border-left: 16px solid var(--navy);
-      border-top: 10px solid transparent;
-      border-bottom: 10px solid transparent;
-      margin-left: 4px;
-    }
-
-    .testimonial-card-content {
-      padding: 1.5rem;
-    }
-
-    .testimonial-stars {
-      color: var(--gold);
-      font-size: 1.1rem;
-      margin-bottom: 0.75rem;
-    }
-
-    .testimonial-text {
-      color: var(--navy);
-      margin-bottom: 1rem;
-      font-size: 0.95rem;
-    }
-
-    .testimonial-author {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .author-avatar {
-      width: 45px;
-      height: 45px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      color: var(--navy);
-    }
-
-    .author-name {
-      font-weight: 600;
-      color: var(--navy);
-    }
-
-    .author-location {
-      font-size: 0.8rem;
-      color: var(--gray-500);
-    }
-
-    /* ==================== PRICING/FINANCING ==================== */
-    .pricing-section {
-      padding: 6rem 2rem;
-      background: var(--white);
-    }
-
-    .pricing-card {
-      max-width: 800px;
-      margin: 0 auto;
-      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
-      border-radius: 24px;
-      padding: 3rem;
-      color: var(--white);
-      text-align: center;
-      box-shadow: var(--shadow);
-    }
-
-    .pricing-badge {
-      display: inline-block;
-      background: var(--gold);
-      color: var(--navy);
-      padding: 0.5rem 1.5rem;
-      border-radius: 100px;
-      font-size: 0.85rem;
-      font-weight: 700;
-      margin-bottom: 1.5rem;
-    }
-
-    .pricing-title {
-      font-size: 2rem;
-      font-weight: 800;
-      margin-bottom: 0.5rem;
-    }
-
-    .pricing-subtitle {
-      color: var(--gray-500);
-      margin-bottom: 2rem;
-    }
-
-    .price-display {
-      margin-bottom: 2rem;
-    }
-
-    .price-original {
-      font-size: 1.5rem;
-      text-decoration: line-through;
-      color: var(--gray-500);
-    }
-
-    .price-current {
-      font-size: 4rem;
-      font-weight: 800;
-      color: var(--gold);
-    }
-
-    .price-note {
-      font-size: 0.9rem;
-      color: var(--gray-500);
-    }
-
-    .financing-calculator {
-      background: rgba(255,255,255,0.05);
-      border-radius: var(--radius);
-      padding: 2rem;
-      margin: 2rem 0;
-    }
-
-    .calculator-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
-    }
-
-    .calculator-label {
-      color: var(--gray-200);
-    }
-
-    .calculator-value {
-      font-weight: 700;
-      color: var(--gold);
-    }
-
-    .rate-slider {
-      width: 100%;
-      height: 8px;
-      border-radius: 4px;
-      background: rgba(255,255,255,0.1);
-      outline: none;
-      -webkit-appearance: none;
-      margin: 1rem 0;
-    }
-
-    .rate-slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      background: var(--gold);
-      cursor: pointer;
-      box-shadow: var(--shadow-gold);
-    }
-
-    .monthly-result {
-      background: rgba(16,185,129,0.2);
-      border: 1px solid rgba(16,185,129,0.3);
-      border-radius: var(--radius);
-      padding: 1.5rem;
-      margin-top: 1rem;
-    }
-
-    .monthly-label {
-      color: var(--gray-200);
-      font-size: 0.9rem;
-    }
-
-    .monthly-amount {
-      font-size: 2.5rem;
-      font-weight: 800;
-      color: var(--success);
-    }
-
-    .pricing-features {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1rem;
-      margin: 2rem 0;
-      text-align: left;
-    }
-
-    @media (max-width: 600px) {
-      .pricing-features { grid-template-columns: 1fr; }
-    }
-
-    .pricing-feature {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      color: var(--gray-200);
-      font-size: 0.95rem;
-    }
-
-    .feature-check {
-      width: 24px;
-      height: 24px;
-      background: rgba(16,185,129,0.2);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--success);
-      font-size: 0.8rem;
-      flex-shrink: 0;
-    }
-
-    /* ==================== LEAD FORM SECTION ==================== */
-    .form-section {
-      padding: 6rem 2rem;
-      background: linear-gradient(180deg, var(--gray-100) 0%, var(--white) 100%);
-    }
-
-    .form-container {
-      max-width: 600px;
-      margin: 0 auto;
-    }
-
-    .form-card {
-      background: var(--white);
-      border-radius: 24px;
-      padding: 3rem;
-      box-shadow: var(--shadow);
-    }
-
-    .form-header {
-      text-align: center;
-      margin-bottom: 2rem;
-    }
-
-    .form-title {
-      font-size: 1.75rem;
-      font-weight: 800;
-      margin-bottom: 0.5rem;
-    }
-
-    .form-subtitle {
-      color: var(--gray-500);
-    }
-
-    .form-group {
-      margin-bottom: 1.5rem;
-    }
-
-    .form-label {
-      display: block;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-      color: var(--navy);
-    }
-
-    .form-input {
-      width: 100%;
-      padding: 1rem 1.25rem;
-      border: 2px solid var(--gray-200);
-      border-radius: 12px;
-      font-size: 1rem;
-      font-family: inherit;
-      transition: all 0.3s ease;
-    }
-
-    .form-input:focus {
-      outline: none;
-      border-color: var(--gold);
-      box-shadow: 0 0 0 4px rgba(201,169,98,0.1);
-    }
-
-    .form-select {
-      width: 100%;
-      padding: 1rem 1.25rem;
-      border: 2px solid var(--gray-200);
-      border-radius: 12px;
-      font-size: 1rem;
-      font-family: inherit;
-      background: var(--white);
-      cursor: pointer;
-    }
-
-    .form-checkbox-group {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.75rem;
-      margin-top: 1.5rem;
-    }
-
-    .form-checkbox {
-      width: 20px;
-      height: 20px;
-      margin-top: 2px;
-      accent-color: var(--gold);
-    }
-
-    .form-checkbox-label {
-      font-size: 0.85rem;
-      color: var(--gray-500);
-    }
-
-    .form-submit {
-      width: 100%;
-      padding: 1.25rem;
-      background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
-      color: var(--navy);
-      font-size: 1.1rem;
-      font-weight: 700;
-      border: none;
-      border-radius: 12px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      margin-top: 1rem;
-    }
-
-    .form-submit:hover {
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-gold);
-    }
-
-    .form-security {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      margin-top: 1rem;
-      color: var(--gray-500);
-      font-size: 0.8rem;
-    }
-
-    /* ==================== DOCTOR/CLINIC SECTION ==================== */
-    .clinic-section {
-      padding: 6rem 2rem;
-      background: var(--white);
-    }
-
-    .clinic-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 4rem;
-      align-items: center;
-    }
-
-    @media (max-width: 900px) {
-      .clinic-grid { grid-template-columns: 1fr; }
-    }
-
-    .clinic-media {
-      position: relative;
-    }
-
-    .clinic-video-placeholder {
-      aspect-ratio: 16/10;
-      background: var(--gray-100);
-      border-radius: var(--radius);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      color: var(--gray-500);
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .clinic-video-placeholder:hover {
-      background: var(--gray-200);
-    }
-
-    .clinic-content h2 {
-      font-size: 2rem;
-      font-weight: 800;
-      margin-bottom: 1rem;
-    }
-
-    .clinic-content p {
-      color: var(--gray-500);
-      margin-bottom: 1.5rem;
-    }
-
-    .doctor-card {
-      background: var(--gray-100);
-      border-radius: var(--radius);
-      padding: 1.5rem;
-      display: flex;
-      gap: 1rem;
-      align-items: center;
-    }
-
-    .doctor-photo {
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      background: var(--gold);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 2rem;
-      color: var(--navy);
-      flex-shrink: 0;
-    }
-
-    .doctor-name {
-      font-weight: 700;
-      font-size: 1.1rem;
-    }
-
-    .doctor-title {
-      color: var(--gold);
-      font-size: 0.85rem;
-      font-weight: 600;
-    }
-
-    .doctor-credentials {
-      font-size: 0.85rem;
-      color: var(--gray-500);
-      margin-top: 0.25rem;
-    }
-
-    /* ==================== FINAL CTA ==================== */
-    .final-cta {
-      padding: 6rem 2rem;
-      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
-      text-align: center;
-      color: var(--white);
-    }
-
-    .final-cta h2 {
-      font-size: clamp(2rem, 4vw, 3rem);
-      font-weight: 800;
-      margin-bottom: 1rem;
-    }
-
-    .final-cta p {
-      font-size: 1.2rem;
-      color: var(--gray-200);
-      margin-bottom: 2rem;
-      max-width: 600px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    .cta-buttons {
-      display: flex;
-      gap: 1rem;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-
-    .guarantee-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.75rem;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      padding: 1rem 1.5rem;
-      border-radius: 100px;
-      margin-top: 2rem;
-      color: var(--gray-200);
-      font-size: 0.9rem;
-    }
-
-    .guarantee-icon {
-      width: 32px;
-      height: 32px;
-      fill: var(--gold);
-    }
-
-    /* ==================== FLOATING ELEMENTS ==================== */
-    .whatsapp-float {
-      position: fixed;
-      bottom: 30px;
-      right: 30px;
-      width: 60px;
-      height: 60px;
-      background: #25D366;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 5px 25px rgba(37,211,102,0.4);
-      cursor: pointer;
-      z-index: 1000;
-      transition: transform 0.3s ease;
-    }
-
-    .whatsapp-float:hover {
-      transform: scale(1.1);
-    }
-
-    .whatsapp-float svg {
-      width: 32px;
-      height: 32px;
-      fill: white;
-    }
-
-    .mobile-cta {
-      display: none;
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: var(--white);
-      padding: 1rem;
-      box-shadow: 0 -5px 30px rgba(0,0,0,0.1);
-      z-index: 999;
-    }
-
-    @media (max-width: 768px) {
-      .mobile-cta { display: block; }
-      .whatsapp-float { bottom: 100px; }
-    }
-
-    .mobile-cta-content {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      max-width: 500px;
-      margin: 0 auto;
-    }
-
-    .mobile-cta-text {
-      font-size: 0.85rem;
-      color: var(--gray-500);
-    }
-
-    .mobile-cta-text strong {
-      display: block;
-      font-size: 1.1rem;
-      color: var(--navy);
-    }
-
-    .mobile-cta-btn {
-      background: var(--gold);
-      color: var(--navy);
-      padding: 0.875rem 1.5rem;
-      font-weight: 700;
-      border-radius: 10px;
-      border: none;
-      cursor: pointer;
-    }
-
-    /* ==================== CONTENT PLACEHOLDERS ==================== */
-    .content-placeholder {
-      border: 2px dashed var(--gray-200);
-      border-radius: var(--radius);
-      padding: 2rem;
-      text-align: center;
-      color: var(--gray-500);
-      background: rgba(201,169,98,0.05);
-    }
-
-    .placeholder-title {
-      font-weight: 700;
-      color: var(--navy);
-      margin-bottom: 0.5rem;
-    }
-
-    .placeholder-instructions {
-      font-size: 0.85rem;
-    }
-  </style>
-</head>
-<body>
-
-  <!-- ==================== HERO ==================== -->
-  <section class="hero">
-    <div class="hero-video-container">
-      <!-- ÎNLOCUIEȘTE: Video cu clinica/procedura -->
-      <video class="hero-video" autoplay muted loop playsinline>
-        <source src="YOUR_HERO_VIDEO.mp4" type="video/mp4">
-      </video>
-      <div class="hero-gradient"></div>
-    </div>
-
-    <div class="hero-content">
-      <div class="hero-left">
-        <div class="hero-badge">
-          <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z"/></svg>
-          Clinica #1 All-on-X din România
-        </div>
-
-        <h1 class="hero-title">
-          Zâmbetul care îți schimbă <span class="highlight">viața</span>, în doar 24 de ore
-        </h1>
-
-        <p class="hero-subtitle">
-          Procedură completă All-on-X cu garanție 10 ani. Fără durere, fără proteze mobile, fără compromisuri.
-        </p>
-
-        <div class="hero-stats">
-          <div class="hero-stat">
-            <div class="hero-stat-number">2,500+</div>
-            <div class="hero-stat-label">Pacienți fericiți</div>
-          </div>
-          <div class="hero-stat">
-            <div class="hero-stat-number">98.7%</div>
-            <div class="hero-stat-label">Rată de succes</div>
-          </div>
-          <div class="hero-stat">
-            <div class="hero-stat-number">15+</div>
-            <div class="hero-stat-label">Ani experiență</div>
-          </div>
-        </div>
-
-        <div class="hero-cta-group">
-          <a href="#form" class="btn btn-gold">Programează Consultația Gratuită</a>
-          <a href="tel:+40747099099" class="btn btn-outline">📞 0747 099 099</a>
-        </div>
-      </div>
-
-      <div class="hero-right">
-        <div class="hero-video-preview">
-          <!-- ÎNLOCUIEȘTE: Video testimonial principal -->
-          <div class="video-preview-placeholder" onclick="playMainTestimonial()">
-            <div class="play-icon"></div>
-            <div class="video-preview-text">Vezi povestea Mariei</div>
-            <div class="video-preview-subtext">2:34 min • Transformare completă</div>
-          </div>
-          <div class="video-testimonial-badge">
-            <div class="testimonial-avatar">M</div>
-            <div class="testimonial-info">
-              <div class="testimonial-name">Maria P., 58 ani</div>
-              <div class="testimonial-detail">București • All-on-4</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ==================== TRUST BAR ==================== -->
-  <div class="trust-bar">
-    <div class="trust-bar-content">
-      <div class="trust-item">
-        <svg class="trust-icon" viewBox="0 0 24 24"><path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5zm-1 14.59l-3.29-3.29 1.41-1.41L11 13.17l5.88-5.88 1.41 1.41L11 16.59z"/></svg>
-        <span>Garanție 10 Ani</span>
-      </div>
-      <div class="trust-item">
-        <svg class="trust-icon" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-        <span>4.9★ Google Reviews</span>
-      </div>
-      <div class="trust-item">
-        <svg class="trust-icon" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/></svg>
-        <span>Certificare ISO</span>
-      </div>
-      <div class="trust-item">
-        <svg class="trust-icon" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12z"/></svg>
-        <span>Finanțare 0% Avans</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- ==================== PROBLEM/AGITATION ==================== -->
-  <section class="problem-section">
-    <div class="section-container">
-      <div class="section-header">
-        <div class="section-badge">De ce All-on-X?</div>
-        <h2 class="section-title">Problemele pe care le rezolvăm</h2>
-        <p class="section-subtitle">Înțelegem prin ce treci. Mii de pacienți au fost în locul tău.</p>
-      </div>
-
-      <div class="problem-grid">
-        <div class="problem-card">
-          <div class="problem-icon">😔</div>
-          <h3 class="problem-title">Nu mai zâmbești în poze</h3>
-          <p class="problem-text">Evizi să arăți dinții în public. Acoperi gura când râzi.</p>
-        </div>
-        <div class="problem-card">
-          <div class="problem-icon">🍽️</div>
-          <h3 class="problem-title">Nu poți mânca ce îți place</h3>
-          <p class="problem-text">Protezele se mișcă. Mâncarea devine un stres, nu o plăcere.</p>
-        </div>
-        <div class="problem-card">
-          <div class="problem-icon">😰</div>
-          <h3 class="problem-title">Ai frică de dentist</h3>
-          <p class="problem-text">Experiențe neplăcute din trecut te fac să amâni la nesfârșit.</p>
-        </div>
-        <div class="problem-card solution">
-          <div class="problem-icon">✨</div>
-          <h3 class="problem-title">Soluția: All-on-X</h3>
-          <p class="problem-text">Dinți ficși în 24h. Mănânci, zâmbești și trăiești normal din prima zi.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ==================== TRANSFORMATIONS ==================== -->
-  <section class="transformation-section">
-    <div class="section-container">
-      <div class="section-header">
-        <div class="section-badge" style="background: rgba(201,169,98,0.2); color: var(--gold);">Rezultate Reale</div>
-        <h2 class="section-title" style="color: var(--white);">Transformări în 24 de Ore</h2>
-        <p class="section-subtitle" style="color: var(--gray-200);">Acești pacienți au plecat acasă cu un zâmbet nou în aceeași zi.</p>
-      </div>
-
-      <div class="transformation-grid">
-        <!-- CARD 1 -->
-        <div class="transformation-card">
-          <div class="transformation-media">
-            <!-- ÎNLOCUIEȘTE: Before/After real -->
-            <div class="transformation-placeholder">
-              <div class="placeholder-icon">📸</div>
-              <strong>Before/After #1</strong><br>
-              <small>Adaugă imagini reale ale pacientului</small>
-            </div>
-            <div class="transformation-labels">
-              <span class="label-before">Înainte</span>
-              <span class="label-after">După 24h</span>
-            </div>
-          </div>
-          <div class="transformation-content">
-            <p class="transformation-quote">"După 20 de ani cu proteză mobilă, în sfârșit pot mânca un măr fără grijă!"</p>
-            <div class="transformation-patient">
-              <div class="patient-avatar">I</div>
-              <div>
-                <div class="patient-name">Ion M., 62 ani</div>
-                <div class="patient-procedure">All-on-4 Maxilar</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- CARD 2 -->
-        <div class="transformation-card">
-          <div class="transformation-media">
-            <div class="transformation-placeholder">
-              <div class="placeholder-icon">📸</div>
-              <strong>Before/After #2</strong><br>
-              <small>Adaugă imagini reale ale pacientului</small>
-            </div>
-            <div class="transformation-labels">
-              <span class="label-before">Înainte</span>
-              <span class="label-after">După 24h</span>
-            </div>
-          </div>
-          <div class="transformation-content">
-            <p class="transformation-quote">"Nepoții mei nu mă mai recunosc când zâmbesc. Cea mai bună investiție!"</p>
-            <div class="transformation-patient">
-              <div class="patient-avatar">E</div>
-              <div>
-                <div class="patient-name">Elena D., 55 ani</div>
-                <div class="patient-procedure">All-on-6 Complet</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- CARD 3 -->
-        <div class="transformation-card">
-          <div class="transformation-media">
-            <div class="transformation-placeholder">
-              <div class="placeholder-icon">📸</div>
-              <strong>Before/After #3</strong><br>
-              <small>Adaugă imagini reale ale pacientului</small>
-            </div>
-            <div class="transformation-labels">
-              <span class="label-before">Înainte</span>
-              <span class="label-after">După 24h</span>
-            </div>
-          </div>
-          <div class="transformation-content">
-            <p class="transformation-quote">"Eram sceptic, dar echipa MedicalCor m-a convins. Rezultatul e perfect!"</p>
-            <div class="transformation-patient">
-              <div class="patient-avatar">A</div>
-              <div>
-                <div class="patient-name">Alexandru T., 48 ani</div>
-                <div class="patient-procedure">All-on-4 Mandibulă</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ==================== VIDEO TESTIMONIALS ==================== -->
-  <section class="testimonials-section">
-    <div class="section-container">
-      <div class="section-header">
-        <div class="section-badge">Povești Reale</div>
-        <h2 class="section-title">Ce Spun Pacienții Noștri</h2>
-        <p class="section-subtitle">Ascultă direct de la oameni care au trecut prin aceeași experiență.</p>
-      </div>
-
-      <div class="testimonials-grid">
-        <!-- TESTIMONIAL 1 -->
-        <div class="testimonial-card">
-          <div class="testimonial-video">
-            <!-- ÎNLOCUIEȘTE: Video testimonial real -->
-            <div class="testimonial-video-placeholder">
-              <div class="mini-play-icon"></div>
-              <small>Video Testimonial #1</small>
-            </div>
-          </div>
-          <div class="testimonial-card-content">
-            <div class="testimonial-stars">★★★★★</div>
-            <p class="testimonial-text">"Am venit cu frică, am plecat cu cel mai frumos zâmbet din viața mea. Echipa este incredibilă!"</p>
-            <div class="testimonial-author">
-              <div class="author-avatar">M</div>
-              <div>
-                <div class="author-name">Maria P.</div>
-                <div class="author-location">București</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- TESTIMONIAL 2 -->
-        <div class="testimonial-card">
-          <div class="testimonial-video">
-            <div class="testimonial-video-placeholder">
-              <div class="mini-play-icon"></div>
-              <small>Video Testimonial #2</small>
-            </div>
-          </div>
-          <div class="testimonial-card-content">
-            <div class="testimonial-stars">★★★★★</div>
-            <p class="testimonial-text">"Finanțarea în rate a făcut posibilă această transformare. Nu credeam că îmi voi permite."</p>
-            <div class="testimonial-author">
-              <div class="author-avatar">G</div>
-              <div>
-                <div class="author-name">George R.</div>
-                <div class="author-location">Cluj-Napoca</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- TESTIMONIAL 3 -->
-        <div class="testimonial-card">
-          <div class="testimonial-video">
-            <div class="testimonial-video-placeholder">
-              <div class="mini-play-icon"></div>
-              <small>Video Testimonial #3</small>
-            </div>
-          </div>
-          <div class="testimonial-card-content">
-            <div class="testimonial-stars">★★★★★</div>
-            <p class="testimonial-text">"După 10 ani cu probleme dentare, în sfârșit pot zâmbi fără jenă. Mulțumesc, MedicalCor!"</p>
-            <div class="testimonial-author">
-              <div class="author-avatar">A</div>
-              <div>
-                <div class="author-name">Ana S.</div>
-                <div class="author-location">Timișoara</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ==================== PRICING ==================== -->
-  <section class="pricing-section">
-    <div class="section-container">
-      <div class="section-header">
-        <div class="section-badge">Investiție Transparentă</div>
-        <h2 class="section-title">Prețuri Clare, Fără Surprize</h2>
-        <p class="section-subtitle">Știm că bugetul contează. De aceea oferim opțiuni flexibile.</p>
-      </div>
-
-      <div class="pricing-card">
-        <div class="pricing-badge">CEA MAI POPULARĂ OPȚIUNE</div>
-        <h3 class="pricing-title">All-on-4 Complet</h3>
-        <p class="pricing-subtitle">O arcadă completă cu 4 implanturi premium</p>
-
-        <div class="price-display">
-          <div class="price-original">€12,000</div>
-          <div class="price-current">€6,500</div>
-          <div class="price-note">Preț promoțional - valabil până la 31 Decembrie</div>
-        </div>
-
-        <div class="financing-calculator">
-          <div class="calculator-row">
-            <span class="calculator-label">Suma totală:</span>
-            <span class="calculator-value">€6,500</span>
-          </div>
-          <div class="calculator-row">
-            <span class="calculator-label">Perioada (luni):</span>
-            <span class="calculator-value" id="monthsValue">48</span>
-          </div>
-          <input type="range" class="rate-slider" id="rateSlider" min="12" max="72" value="48" step="12">
-          <div class="monthly-result">
-            <div class="monthly-label">Rata ta lunară:</div>
-            <div class="monthly-amount" id="monthlyAmount">€135/lună</div>
-          </div>
-        </div>
-
-        <div class="pricing-features">
-          <div class="pricing-feature">
-            <span class="feature-check">✓</span>
-            <span>4 implanturi Straumann/Nobel</span>
-          </div>
-          <div class="pricing-feature">
-            <span class="feature-check">✓</span>
-            <span>Proteză provizorie în 24h</span>
-          </div>
-          <div class="pricing-feature">
-            <span class="feature-check">✓</span>
-            <span>CT Scan 3D inclus</span>
-          </div>
-          <div class="pricing-feature">
-            <span class="feature-check">✓</span>
-            <span>Garanție 10 ani</span>
-          </div>
-          <div class="pricing-feature">
-            <span class="feature-check">✓</span>
-            <span>Sedare conștientă inclusă</span>
-          </div>
-          <div class="pricing-feature">
-            <span class="feature-check">✓</span>
-            <span>Controale gratuite 1 an</span>
-          </div>
-        </div>
-
-        <a href="#form" class="btn btn-gold" style="width: 100%;">Programează Consultația Gratuită</a>
-      </div>
-    </div>
-  </section>
-
-  <!-- ==================== DOCTOR/CLINIC ==================== -->
-  <section class="clinic-section">
-    <div class="section-container">
-      <div class="clinic-grid">
-        <div class="clinic-media">
-          <!-- ÎNLOCUIEȘTE: Video tour clinică sau video cu doctorul -->
-          <div class="clinic-video-placeholder">
-            <div class="placeholder-icon" style="font-size: 3rem; margin-bottom: 1rem;">🎥</div>
-            <strong>Video Prezentare Clinică</strong><br>
-            <small>Adaugă video tour sau prezentare doctor</small>
-          </div>
-        </div>
-        <div class="clinic-content">
-          <div class="section-badge">Despre Noi</div>
-          <h2>Clinică de Excelență în Implantologie</h2>
-          <p>Cu peste 15 ani de experiență și mii de proceduri reușite, suntem lideri în România pentru procedurile All-on-X. Tehnologie de ultimă generație, echipă dedicată și rezultate garantate.</p>
-
-          <div class="doctor-card">
-            <!-- ÎNLOCUIEȘTE: Poza și datele doctorului -->
-            <div class="doctor-photo">👨‍⚕️</div>
-            <div>
-              <div class="doctor-name">Dr. [Nume Doctor]</div>
-              <div class="doctor-title">Medic Primar Implantologie</div>
-              <div class="doctor-credentials">15+ ani experiență • 2,500+ proceduri • Certificat Straumann</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ==================== LEAD FORM ==================== -->
-  <section class="form-section" id="form">
-    <div class="form-container">
-      <div class="form-card">
-        <div class="form-header">
-          <h2 class="form-title">Programează Consultația Gratuită</h2>
-          <p class="form-subtitle">Completează formularul și te contactăm în maxim 15 minute.</p>
-        </div>
-
-        <form id="leadForm" onsubmit="submitForm(event)">
-          <div class="form-group">
-            <label class="form-label">Numele tău complet *</label>
-            <input type="text" class="form-input" name="name" placeholder="ex: Ion Popescu" required>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Număr de telefon *</label>
-            <input type="tel" class="form-input" name="phone" placeholder="ex: 0747 099 099" required>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Situația ta actuală</label>
-            <select class="form-select" name="situation">
-              <option value="">Selectează...</option>
-              <option value="missing_few">Îmi lipsesc câțiva dinți</option>
-              <option value="missing_many">Îmi lipsesc mulți dinți</option>
-              <option value="dentures">Port proteză mobilă</option>
-              <option value="all_teeth">Trebuie să-mi extrag toți dinții</option>
-              <option value="info">Doar mă informez</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Când dorești să rezolvi?</label>
-            <select class="form-select" name="urgency">
-              <option value="">Selectează...</option>
-              <option value="urgent">Cât mai repede posibil</option>
-              <option value="1-2months">În următoarele 1-2 luni</option>
-              <option value="3-6months">În următoarele 3-6 luni</option>
-              <option value="later">Mai târziu</option>
-            </select>
-          </div>
-
-          <div class="form-checkbox-group">
-            <input type="checkbox" class="form-checkbox" id="consent" required>
-            <label for="consent" class="form-checkbox-label">
-              Sunt de acord cu prelucrarea datelor personale conform GDPR și accept să fiu contactat pentru programarea consultației.
-            </label>
-          </div>
-
-          <button type="submit" class="form-submit">
-            ✓ Programează Consultația Gratuită
-          </button>
-
-          <div class="form-security">
-            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z"/></svg>
-            <span>Datele tale sunt în siguranță. Nu facem spam.</span>
-          </div>
-        </form>
-      </div>
-    </div>
-  </section>
-
-  <!-- ==================== FINAL CTA ==================== -->
-  <section class="final-cta">
-    <h2>Gata să-ți Transformi Viața?</h2>
-    <p>Fă primul pas către zâmbetul pe care îl meriți. Consultația este gratuită și fără obligații.</p>
-
-    <div class="cta-buttons">
-      <a href="#form" class="btn btn-gold">Programează Acum</a>
-      <a href="tel:+40747099099" class="btn btn-outline">📞 Sună Direct: 0747 099 099</a>
-    </div>
-
-    <div class="guarantee-badge">
-      <svg class="guarantee-icon" viewBox="0 0 24 24"><path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5zm-1 14.59l-3.29-3.29 1.41-1.41L11 13.17l5.88-5.88 1.41 1.41L11 16.59z"/></svg>
-      <span>Garanție 10 ani pe implant și lucrare • Satisfacție garantată sau banii înapoi</span>
-    </div>
-  </section>
-
-  <!-- ==================== FLOATING ELEMENTS ==================== -->
-  <a href="https://wa.me/40747099099?text=Bună! Doresc informații despre procedura All-on-X." class="whatsapp-float" target="_blank">
-    <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-  </a>
-
-  <div class="mobile-cta">
-    <div class="mobile-cta-content">
-      <div class="mobile-cta-text">
-        Rate de la
-        <strong>€89/lună</strong>
-      </div>
-      <a href="#form" class="mobile-cta-btn">Consultație Gratuită</a>
-    </div>
-  </div>
-
-  <script>
-    // Financing Calculator
-    const rateSlider = document.getElementById('rateSlider');
-    const monthsValue = document.getElementById('monthsValue');
-    const monthlyAmount = document.getElementById('monthlyAmount');
-    const totalPrice = 6500;
-    const interestRate = 0.099;
-
-    rateSlider.addEventListener('input', function() {
-      const months = parseInt(this.value);
-      monthsValue.textContent = months;
-      const totalWithInterest = totalPrice * (1 + (interestRate * months / 12));
-      const monthly = Math.round(totalWithInterest / months);
-      monthlyAmount.textContent = `€${monthly}/lună`;
-    });
-
-    // Form Submission
-    function submitForm(e) {
-      e.preventDefault();
-      const formData = new FormData(e.target);
-      const data = Object.fromEntries(formData);
-
-      // În producție, trimite către /api/leads
-      console.log('Lead data:', data);
-
-      alert('Mulțumim! Te vom contacta în maxim 15 minute.');
-      e.target.reset();
-    }
-
-    // Video Play Functions (placeholder)
-    function playMainTestimonial() {
-      alert('Aici se va deschide video-ul testimonial principal.\n\nÎnlocuiește cu implementarea reală a player-ului video.');
-    }
-
-    // Smooth Scroll
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-      anchor.addEventListener('click', function (e) {
-        e.preventDefault();
-        document.querySelector(this.getAttribute('href')).scrollIntoView({
-          behavior: 'smooth'
-        });
-      });
-    });
-
-    // Track scroll depth for analytics
-    let maxScroll = 0;
-    window.addEventListener('scroll', function() {
-      const scrollPercent = Math.round((window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100);
-      if (scrollPercent > maxScroll) {
-        maxScroll = scrollPercent;
-        // În producție, trimite către analytics
-        if (scrollPercent === 25 || scrollPercent === 50 || scrollPercent === 75 || scrollPercent === 100) {
-          console.log('Scroll depth:', scrollPercent + '%');
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zâmbetul Tău în 24 de Ore | MedicalCor - Clinica #1 All-on-X din România</title>
+    <meta
+      name="description"
+      content="Transformă-ți viața cu un zâmbet nou în doar 24 de ore. Procedură All-on-X cu garanție 10 ani. Peste 2,500 de pacienți fericiți."
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --gold: #c9a962;
+        --gold-light: #e8d5a3;
+        --navy: #0a1628;
+        --navy-light: #152238;
+        --white: #ffffff;
+        --gray-100: #f7f8fa;
+        --gray-200: #e8ecf1;
+        --gray-500: #6b7a90;
+        --success: #10b981;
+        --danger: #ef4444;
+        --radius: 16px;
+        --shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        --shadow-gold: 0 20px 40px rgba(201, 169, 98, 0.3);
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        font-family:
+          'Plus Jakarta Sans',
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        background: var(--white);
+        color: var(--navy);
+        line-height: 1.6;
+        overflow-x: hidden;
+      }
+
+      /* ==================== HERO - FULL IMPACT ==================== */
+      .hero {
+        position: relative;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        background: var(--navy);
+        overflow: hidden;
+      }
+
+      .hero-video-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .hero-video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        opacity: 0.6;
+      }
+
+      .hero-gradient {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          135deg,
+          rgba(10, 22, 40, 0.9) 0%,
+          rgba(10, 22, 40, 0.7) 50%,
+          rgba(10, 22, 40, 0.8) 100%
+        );
+      }
+
+      .hero-content {
+        position: relative;
+        z-index: 10;
+        width: 100%;
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4rem;
+        align-items: center;
+      }
+
+      @media (max-width: 1024px) {
+        .hero-content {
+          grid-template-columns: 1fr;
+          text-align: center;
         }
       }
-    });
-  </script>
 
-</body>
+      .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(201, 169, 98, 0.15);
+        border: 1px solid var(--gold);
+        color: var(--gold);
+        padding: 0.5rem 1rem;
+        border-radius: 100px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        backdrop-filter: blur(10px);
+      }
+
+      .hero-title {
+        font-size: clamp(2.5rem, 5vw, 4rem);
+        font-weight: 800;
+        color: var(--white);
+        line-height: 1.1;
+        margin-bottom: 1.5rem;
+      }
+
+      .hero-title .highlight {
+        color: var(--gold);
+        position: relative;
+      }
+
+      .hero-subtitle {
+        font-size: 1.25rem;
+        color: var(--gray-200);
+        margin-bottom: 2rem;
+        max-width: 540px;
+      }
+
+      @media (max-width: 1024px) {
+        .hero-subtitle {
+          margin-left: auto;
+          margin-right: auto;
+        }
+      }
+
+      .hero-stats {
+        display: flex;
+        gap: 2rem;
+        margin-bottom: 2.5rem;
+      }
+
+      @media (max-width: 1024px) {
+        .hero-stats {
+          justify-content: center;
+        }
+      }
+
+      .hero-stat {
+        text-align: left;
+      }
+
+      @media (max-width: 1024px) {
+        .hero-stat {
+          text-align: center;
+        }
+      }
+
+      .hero-stat-number {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--gold);
+      }
+
+      .hero-stat-label {
+        font-size: 0.85rem;
+        color: var(--gray-500);
+      }
+
+      .hero-cta-group {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+
+      @media (max-width: 1024px) {
+        .hero-cta-group {
+          justify-content: center;
+        }
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 1rem 2rem;
+        font-size: 1rem;
+        font-weight: 700;
+        border-radius: var(--radius);
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+      }
+
+      .btn-gold {
+        background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
+        color: var(--navy);
+        box-shadow: var(--shadow-gold);
+      }
+
+      .btn-gold:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 25px 50px rgba(201, 169, 98, 0.4);
+      }
+
+      .btn-outline {
+        background: transparent;
+        color: var(--white);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+      }
+
+      .btn-outline:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.5);
+      }
+
+      /* Hero Right - Video Testimonial Preview */
+      .hero-video-preview {
+        position: relative;
+        border-radius: 24px;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+        aspect-ratio: 16/10;
+        background: var(--navy-light);
+      }
+
+      .video-preview-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, var(--navy-light) 0%, var(--navy) 100%);
+        color: var(--white);
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .video-preview-placeholder:hover {
+        background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+      }
+
+      .play-icon {
+        width: 80px;
+        height: 80px;
+        background: var(--gold);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+        box-shadow: var(--shadow-gold);
+        transition: transform 0.3s ease;
+      }
+
+      .video-preview-placeholder:hover .play-icon {
+        transform: scale(1.1);
+      }
+
+      .play-icon::after {
+        content: '';
+        width: 0;
+        height: 0;
+        border-left: 24px solid var(--navy);
+        border-top: 14px solid transparent;
+        border-bottom: 14px solid transparent;
+        margin-left: 6px;
+      }
+
+      .video-preview-text {
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+      }
+
+      .video-preview-subtext {
+        font-size: 0.85rem;
+        color: var(--gray-500);
+      }
+
+      .video-testimonial-badge {
+        position: absolute;
+        bottom: 1rem;
+        left: 1rem;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(10px);
+        padding: 0.75rem 1rem;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .testimonial-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--gold);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: var(--navy);
+      }
+
+      .testimonial-info {
+        color: var(--white);
+      }
+
+      .testimonial-name {
+        font-weight: 600;
+        font-size: 0.9rem;
+      }
+
+      .testimonial-detail {
+        font-size: 0.75rem;
+        color: var(--gray-500);
+      }
+
+      /* ==================== TRUST BAR ==================== */
+      .trust-bar {
+        background: var(--gray-100);
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid var(--gray-200);
+      }
+
+      .trust-bar-content {
+        max-width: 1400px;
+        margin: 0 auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 3rem;
+        flex-wrap: wrap;
+      }
+
+      .trust-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: var(--gray-500);
+        font-size: 0.9rem;
+      }
+
+      .trust-icon {
+        width: 24px;
+        height: 24px;
+        fill: var(--gold);
+      }
+
+      /* ==================== PROBLEM/SOLUTION SECTION ==================== */
+      .problem-section {
+        padding: 6rem 2rem;
+        background: var(--white);
+      }
+
+      .section-container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      .section-header {
+        text-align: center;
+        max-width: 700px;
+        margin: 0 auto 4rem;
+      }
+
+      .section-badge {
+        display: inline-block;
+        background: rgba(201, 169, 98, 0.1);
+        color: var(--gold);
+        padding: 0.5rem 1rem;
+        border-radius: 100px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+      }
+
+      .section-title {
+        font-size: clamp(2rem, 4vw, 3rem);
+        font-weight: 800;
+        margin-bottom: 1rem;
+        color: var(--navy);
+      }
+
+      .section-subtitle {
+        font-size: 1.1rem;
+        color: var(--gray-500);
+      }
+
+      .problem-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 2rem;
+      }
+
+      .problem-card {
+        background: var(--gray-100);
+        border-radius: var(--radius);
+        padding: 2rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+      }
+
+      .problem-card:hover {
+        border-color: var(--gold);
+        transform: translateY(-5px);
+      }
+
+      .problem-icon {
+        width: 60px;
+        height: 60px;
+        background: rgba(239, 68, 68, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        font-size: 1.5rem;
+      }
+
+      .problem-card.solution .problem-icon {
+        background: rgba(16, 185, 129, 0.1);
+      }
+
+      .problem-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+      }
+
+      .problem-text {
+        color: var(--gray-500);
+        font-size: 0.95rem;
+      }
+
+      /* ==================== TRANSFORMATION GALLERY ==================== */
+      .transformation-section {
+        padding: 6rem 2rem;
+        background: var(--navy);
+        color: var(--white);
+      }
+
+      .transformation-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 2rem;
+      }
+
+      .transformation-card {
+        background: var(--navy-light);
+        border-radius: var(--radius);
+        overflow: hidden;
+        box-shadow: var(--shadow);
+      }
+
+      .transformation-media {
+        position: relative;
+        aspect-ratio: 4/3;
+        background: #1a1a1a;
+        overflow: hidden;
+      }
+
+      .transformation-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #1a2a3a 0%, #0a1628 100%);
+        color: var(--gray-500);
+        font-size: 0.9rem;
+        text-align: center;
+        padding: 2rem;
+      }
+
+      .placeholder-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+      }
+
+      .transformation-labels {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: space-between;
+        padding: 1rem;
+      }
+
+      .label-before,
+      .label-after {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      .label-before {
+        background: rgba(239, 68, 68, 0.9);
+      }
+
+      .label-after {
+        background: rgba(16, 185, 129, 0.9);
+      }
+
+      .transformation-content {
+        padding: 1.5rem;
+      }
+
+      .transformation-quote {
+        font-style: italic;
+        color: var(--gray-200);
+        margin-bottom: 1rem;
+        font-size: 0.95rem;
+      }
+
+      .transformation-patient {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .patient-avatar {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background: var(--gold);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: var(--navy);
+      }
+
+      .patient-name {
+        font-weight: 600;
+      }
+
+      .patient-procedure {
+        font-size: 0.8rem;
+        color: var(--gray-500);
+      }
+
+      /* ==================== VIDEO TESTIMONIALS ==================== */
+      .testimonials-section {
+        padding: 6rem 2rem;
+        background: var(--gray-100);
+      }
+
+      .testimonials-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 2rem;
+      }
+
+      .testimonial-card {
+        background: var(--white);
+        border-radius: var(--radius);
+        overflow: hidden;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+      }
+
+      .testimonial-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+      }
+
+      .testimonial-video {
+        aspect-ratio: 16/9;
+        background: var(--navy);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        position: relative;
+      }
+
+      .testimonial-video-placeholder {
+        text-align: center;
+        color: var(--gray-500);
+      }
+
+      .mini-play-icon {
+        width: 60px;
+        height: 60px;
+        background: var(--gold);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 0.5rem;
+        transition: transform 0.3s ease;
+      }
+
+      .testimonial-video:hover .mini-play-icon {
+        transform: scale(1.1);
+      }
+
+      .mini-play-icon::after {
+        content: '';
+        width: 0;
+        height: 0;
+        border-left: 16px solid var(--navy);
+        border-top: 10px solid transparent;
+        border-bottom: 10px solid transparent;
+        margin-left: 4px;
+      }
+
+      .testimonial-card-content {
+        padding: 1.5rem;
+      }
+
+      .testimonial-stars {
+        color: var(--gold);
+        font-size: 1.1rem;
+        margin-bottom: 0.75rem;
+      }
+
+      .testimonial-text {
+        color: var(--navy);
+        margin-bottom: 1rem;
+        font-size: 0.95rem;
+      }
+
+      .testimonial-author {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .author-avatar {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: var(--navy);
+      }
+
+      .author-name {
+        font-weight: 600;
+        color: var(--navy);
+      }
+
+      .author-location {
+        font-size: 0.8rem;
+        color: var(--gray-500);
+      }
+
+      /* ==================== PRICING/FINANCING ==================== */
+      .pricing-section {
+        padding: 6rem 2rem;
+        background: var(--white);
+      }
+
+      .pricing-card {
+        max-width: 800px;
+        margin: 0 auto;
+        background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+        border-radius: 24px;
+        padding: 3rem;
+        color: var(--white);
+        text-align: center;
+        box-shadow: var(--shadow);
+      }
+
+      .pricing-badge {
+        display: inline-block;
+        background: var(--gold);
+        color: var(--navy);
+        padding: 0.5rem 1.5rem;
+        border-radius: 100px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+      }
+
+      .pricing-title {
+        font-size: 2rem;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
+      }
+
+      .pricing-subtitle {
+        color: var(--gray-500);
+        margin-bottom: 2rem;
+      }
+
+      .price-display {
+        margin-bottom: 2rem;
+      }
+
+      .price-original {
+        font-size: 1.5rem;
+        text-decoration: line-through;
+        color: var(--gray-500);
+      }
+
+      .price-current {
+        font-size: 4rem;
+        font-weight: 800;
+        color: var(--gold);
+      }
+
+      .price-note {
+        font-size: 0.9rem;
+        color: var(--gray-500);
+      }
+
+      .financing-calculator {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: var(--radius);
+        padding: 2rem;
+        margin: 2rem 0;
+      }
+
+      .calculator-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+      }
+
+      .calculator-label {
+        color: var(--gray-200);
+      }
+
+      .calculator-value {
+        font-weight: 700;
+        color: var(--gold);
+      }
+
+      .rate-slider {
+        width: 100%;
+        height: 8px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.1);
+        outline: none;
+        -webkit-appearance: none;
+        margin: 1rem 0;
+      }
+
+      .rate-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: var(--gold);
+        cursor: pointer;
+        box-shadow: var(--shadow-gold);
+      }
+
+      .monthly-result {
+        background: rgba(16, 185, 129, 0.2);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        border-radius: var(--radius);
+        padding: 1.5rem;
+        margin-top: 1rem;
+      }
+
+      .monthly-label {
+        color: var(--gray-200);
+        font-size: 0.9rem;
+      }
+
+      .monthly-amount {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: var(--success);
+      }
+
+      .pricing-features {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+        margin: 2rem 0;
+        text-align: left;
+      }
+
+      @media (max-width: 600px) {
+        .pricing-features {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .pricing-feature {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: var(--gray-200);
+        font-size: 0.95rem;
+      }
+
+      .feature-check {
+        width: 24px;
+        height: 24px;
+        background: rgba(16, 185, 129, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--success);
+        font-size: 0.8rem;
+        flex-shrink: 0;
+      }
+
+      /* ==================== LEAD FORM SECTION ==================== */
+      .form-section {
+        padding: 6rem 2rem;
+        background: linear-gradient(180deg, var(--gray-100) 0%, var(--white) 100%);
+      }
+
+      .form-container {
+        max-width: 600px;
+        margin: 0 auto;
+      }
+
+      .form-card {
+        background: var(--white);
+        border-radius: 24px;
+        padding: 3rem;
+        box-shadow: var(--shadow);
+      }
+
+      .form-header {
+        text-align: center;
+        margin-bottom: 2rem;
+      }
+
+      .form-title {
+        font-size: 1.75rem;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
+      }
+
+      .form-subtitle {
+        color: var(--gray-500);
+      }
+
+      .form-group {
+        margin-bottom: 1.5rem;
+      }
+
+      .form-label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: var(--navy);
+      }
+
+      .form-input {
+        width: 100%;
+        padding: 1rem 1.25rem;
+        border: 2px solid var(--gray-200);
+        border-radius: 12px;
+        font-size: 1rem;
+        font-family: inherit;
+        transition: all 0.3s ease;
+      }
+
+      .form-input:focus {
+        outline: none;
+        border-color: var(--gold);
+        box-shadow: 0 0 0 4px rgba(201, 169, 98, 0.1);
+      }
+
+      .form-select {
+        width: 100%;
+        padding: 1rem 1.25rem;
+        border: 2px solid var(--gray-200);
+        border-radius: 12px;
+        font-size: 1rem;
+        font-family: inherit;
+        background: var(--white);
+        cursor: pointer;
+      }
+
+      .form-checkbox-group {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+      }
+
+      .form-checkbox {
+        width: 20px;
+        height: 20px;
+        margin-top: 2px;
+        accent-color: var(--gold);
+      }
+
+      .form-checkbox-label {
+        font-size: 0.85rem;
+        color: var(--gray-500);
+      }
+
+      .form-submit {
+        width: 100%;
+        padding: 1.25rem;
+        background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
+        color: var(--navy);
+        font-size: 1.1rem;
+        font-weight: 700;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 1rem;
+      }
+
+      .form-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-gold);
+      }
+
+      .form-security {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-top: 1rem;
+        color: var(--gray-500);
+        font-size: 0.8rem;
+      }
+
+      /* ==================== DOCTOR/CLINIC SECTION ==================== */
+      .clinic-section {
+        padding: 6rem 2rem;
+        background: var(--white);
+      }
+
+      .clinic-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4rem;
+        align-items: center;
+      }
+
+      @media (max-width: 900px) {
+        .clinic-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .clinic-media {
+        position: relative;
+      }
+
+      .clinic-video-placeholder {
+        aspect-ratio: 16/10;
+        background: var(--gray-100);
+        border-radius: var(--radius);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: var(--gray-500);
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .clinic-video-placeholder:hover {
+        background: var(--gray-200);
+      }
+
+      .clinic-content h2 {
+        font-size: 2rem;
+        font-weight: 800;
+        margin-bottom: 1rem;
+      }
+
+      .clinic-content p {
+        color: var(--gray-500);
+        margin-bottom: 1.5rem;
+      }
+
+      .doctor-card {
+        background: var(--gray-100);
+        border-radius: var(--radius);
+        padding: 1.5rem;
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+      }
+
+      .doctor-photo {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: var(--gold);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: var(--navy);
+        flex-shrink: 0;
+      }
+
+      .doctor-name {
+        font-weight: 700;
+        font-size: 1.1rem;
+      }
+
+      .doctor-title {
+        color: var(--gold);
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+
+      .doctor-credentials {
+        font-size: 0.85rem;
+        color: var(--gray-500);
+        margin-top: 0.25rem;
+      }
+
+      /* ==================== FINAL CTA ==================== */
+      .final-cta {
+        padding: 6rem 2rem;
+        background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+        text-align: center;
+        color: var(--white);
+      }
+
+      .final-cta h2 {
+        font-size: clamp(2rem, 4vw, 3rem);
+        font-weight: 800;
+        margin-bottom: 1rem;
+      }
+
+      .final-cta p {
+        font-size: 1.2rem;
+        color: var(--gray-200);
+        margin-bottom: 2rem;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .cta-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .guarantee-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 1rem 1.5rem;
+        border-radius: 100px;
+        margin-top: 2rem;
+        color: var(--gray-200);
+        font-size: 0.9rem;
+      }
+
+      .guarantee-icon {
+        width: 32px;
+        height: 32px;
+        fill: var(--gold);
+      }
+
+      /* ==================== FLOATING ELEMENTS ==================== */
+      .whatsapp-float {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 60px;
+        height: 60px;
+        background: #25d366;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 5px 25px rgba(37, 211, 102, 0.4);
+        cursor: pointer;
+        z-index: 1000;
+        transition: transform 0.3s ease;
+      }
+
+      .whatsapp-float:hover {
+        transform: scale(1.1);
+      }
+
+      .whatsapp-float svg {
+        width: 32px;
+        height: 32px;
+        fill: white;
+      }
+
+      .mobile-cta {
+        display: none;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--white);
+        padding: 1rem;
+        box-shadow: 0 -5px 30px rgba(0, 0, 0, 0.1);
+        z-index: 999;
+      }
+
+      @media (max-width: 768px) {
+        .mobile-cta {
+          display: block;
+        }
+        .whatsapp-float {
+          bottom: 100px;
+        }
+      }
+
+      .mobile-cta-content {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        max-width: 500px;
+        margin: 0 auto;
+      }
+
+      .mobile-cta-text {
+        font-size: 0.85rem;
+        color: var(--gray-500);
+      }
+
+      .mobile-cta-text strong {
+        display: block;
+        font-size: 1.1rem;
+        color: var(--navy);
+      }
+
+      .mobile-cta-btn {
+        background: var(--gold);
+        color: var(--navy);
+        padding: 0.875rem 1.5rem;
+        font-weight: 700;
+        border-radius: 10px;
+        border: none;
+        cursor: pointer;
+      }
+
+      /* ==================== CONTENT PLACEHOLDERS ==================== */
+      .content-placeholder {
+        border: 2px dashed var(--gray-200);
+        border-radius: var(--radius);
+        padding: 2rem;
+        text-align: center;
+        color: var(--gray-500);
+        background: rgba(201, 169, 98, 0.05);
+      }
+
+      .placeholder-title {
+        font-weight: 700;
+        color: var(--navy);
+        margin-bottom: 0.5rem;
+      }
+
+      .placeholder-instructions {
+        font-size: 0.85rem;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ==================== HERO ==================== -->
+    <section class="hero">
+      <div class="hero-video-container">
+        <!-- ÎNLOCUIEȘTE: Video cu clinica/procedura -->
+        <video class="hero-video" autoplay muted loop playsinline>
+          <source src="YOUR_HERO_VIDEO.mp4" type="video/mp4" />
+        </video>
+        <div class="hero-gradient"></div>
+      </div>
+
+      <div class="hero-content">
+        <div class="hero-left">
+          <div class="hero-badge">
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z" />
+            </svg>
+            Clinica #1 All-on-X din România
+          </div>
+
+          <h1 class="hero-title">
+            Zâmbetul care îți schimbă <span class="highlight">viața</span>, în doar 24 de ore
+          </h1>
+
+          <p class="hero-subtitle">
+            Procedură completă All-on-X cu garanție 10 ani. Fără durere, fără proteze mobile, fără
+            compromisuri.
+          </p>
+
+          <div class="hero-stats">
+            <div class="hero-stat">
+              <div class="hero-stat-number">2,500+</div>
+              <div class="hero-stat-label">Pacienți fericiți</div>
+            </div>
+            <div class="hero-stat">
+              <div class="hero-stat-number">98.7%</div>
+              <div class="hero-stat-label">Rată de succes</div>
+            </div>
+            <div class="hero-stat">
+              <div class="hero-stat-number">15+</div>
+              <div class="hero-stat-label">Ani experiență</div>
+            </div>
+          </div>
+
+          <div class="hero-cta-group">
+            <a href="#form" class="btn btn-gold">Programează Consultația Gratuită</a>
+            <a href="tel:+40747099099" class="btn btn-outline">📞 0747 099 099</a>
+          </div>
+        </div>
+
+        <div class="hero-right">
+          <div class="hero-video-preview">
+            <!-- ÎNLOCUIEȘTE: Video testimonial principal -->
+            <div class="video-preview-placeholder" onclick="playMainTestimonial()">
+              <div class="play-icon"></div>
+              <div class="video-preview-text">Vezi povestea Mariei</div>
+              <div class="video-preview-subtext">2:34 min • Transformare completă</div>
+            </div>
+            <div class="video-testimonial-badge">
+              <div class="testimonial-avatar">M</div>
+              <div class="testimonial-info">
+                <div class="testimonial-name">Maria P., 58 ani</div>
+                <div class="testimonial-detail">București • All-on-4</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TRUST BAR ==================== -->
+    <div class="trust-bar">
+      <div class="trust-bar-content">
+        <div class="trust-item">
+          <svg class="trust-icon" viewBox="0 0 24 24">
+            <path
+              d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5zm-1 14.59l-3.29-3.29 1.41-1.41L11 13.17l5.88-5.88 1.41 1.41L11 16.59z"
+            />
+          </svg>
+          <span>Garanție 10 Ani</span>
+        </div>
+        <div class="trust-item">
+          <svg class="trust-icon" viewBox="0 0 24 24">
+            <path
+              d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
+            />
+          </svg>
+          <span>4.9★ Google Reviews</span>
+        </div>
+        <div class="trust-item">
+          <svg class="trust-icon" viewBox="0 0 24 24">
+            <path
+              d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"
+            />
+          </svg>
+          <span>Certificare ISO</span>
+        </div>
+        <div class="trust-item">
+          <svg class="trust-icon" viewBox="0 0 24 24">
+            <path
+              d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12z"
+            />
+          </svg>
+          <span>Finanțare 0% Avans</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== PROBLEM/AGITATION ==================== -->
+    <section class="problem-section">
+      <div class="section-container">
+        <div class="section-header">
+          <div class="section-badge">De ce All-on-X?</div>
+          <h2 class="section-title">Problemele pe care le rezolvăm</h2>
+          <p class="section-subtitle">
+            Înțelegem prin ce treci. Mii de pacienți au fost în locul tău.
+          </p>
+        </div>
+
+        <div class="problem-grid">
+          <div class="problem-card">
+            <div class="problem-icon">😔</div>
+            <h3 class="problem-title">Nu mai zâmbești în poze</h3>
+            <p class="problem-text">Evizi să arăți dinții în public. Acoperi gura când râzi.</p>
+          </div>
+          <div class="problem-card">
+            <div class="problem-icon">🍽️</div>
+            <h3 class="problem-title">Nu poți mânca ce îți place</h3>
+            <p class="problem-text">Protezele se mișcă. Mâncarea devine un stres, nu o plăcere.</p>
+          </div>
+          <div class="problem-card">
+            <div class="problem-icon">😰</div>
+            <h3 class="problem-title">Ai frică de dentist</h3>
+            <p class="problem-text">
+              Experiențe neplăcute din trecut te fac să amâni la nesfârșit.
+            </p>
+          </div>
+          <div class="problem-card solution">
+            <div class="problem-icon">✨</div>
+            <h3 class="problem-title">Soluția: All-on-X</h3>
+            <p class="problem-text">
+              Dinți ficși în 24h. Mănânci, zâmbești și trăiești normal din prima zi.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TRANSFORMATIONS ==================== -->
+    <section class="transformation-section">
+      <div class="section-container">
+        <div class="section-header">
+          <div
+            class="section-badge"
+            style="background: rgba(201, 169, 98, 0.2); color: var(--gold)"
+          >
+            Rezultate Reale
+          </div>
+          <h2 class="section-title" style="color: var(--white)">Transformări în 24 de Ore</h2>
+          <p class="section-subtitle" style="color: var(--gray-200)">
+            Acești pacienți au plecat acasă cu un zâmbet nou în aceeași zi.
+          </p>
+        </div>
+
+        <div class="transformation-grid">
+          <!-- CARD 1 -->
+          <div class="transformation-card">
+            <div class="transformation-media">
+              <!-- ÎNLOCUIEȘTE: Before/After real -->
+              <div class="transformation-placeholder">
+                <div class="placeholder-icon">📸</div>
+                <strong>Before/After #1</strong><br />
+                <small>Adaugă imagini reale ale pacientului</small>
+              </div>
+              <div class="transformation-labels">
+                <span class="label-before">Înainte</span>
+                <span class="label-after">După 24h</span>
+              </div>
+            </div>
+            <div class="transformation-content">
+              <p class="transformation-quote">
+                "După 20 de ani cu proteză mobilă, în sfârșit pot mânca un măr fără grijă!"
+              </p>
+              <div class="transformation-patient">
+                <div class="patient-avatar">I</div>
+                <div>
+                  <div class="patient-name">Ion M., 62 ani</div>
+                  <div class="patient-procedure">All-on-4 Maxilar</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD 2 -->
+          <div class="transformation-card">
+            <div class="transformation-media">
+              <div class="transformation-placeholder">
+                <div class="placeholder-icon">📸</div>
+                <strong>Before/After #2</strong><br />
+                <small>Adaugă imagini reale ale pacientului</small>
+              </div>
+              <div class="transformation-labels">
+                <span class="label-before">Înainte</span>
+                <span class="label-after">După 24h</span>
+              </div>
+            </div>
+            <div class="transformation-content">
+              <p class="transformation-quote">
+                "Nepoții mei nu mă mai recunosc când zâmbesc. Cea mai bună investiție!"
+              </p>
+              <div class="transformation-patient">
+                <div class="patient-avatar">E</div>
+                <div>
+                  <div class="patient-name">Elena D., 55 ani</div>
+                  <div class="patient-procedure">All-on-6 Complet</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD 3 -->
+          <div class="transformation-card">
+            <div class="transformation-media">
+              <div class="transformation-placeholder">
+                <div class="placeholder-icon">📸</div>
+                <strong>Before/After #3</strong><br />
+                <small>Adaugă imagini reale ale pacientului</small>
+              </div>
+              <div class="transformation-labels">
+                <span class="label-before">Înainte</span>
+                <span class="label-after">După 24h</span>
+              </div>
+            </div>
+            <div class="transformation-content">
+              <p class="transformation-quote">
+                "Eram sceptic, dar echipa MedicalCor m-a convins. Rezultatul e perfect!"
+              </p>
+              <div class="transformation-patient">
+                <div class="patient-avatar">A</div>
+                <div>
+                  <div class="patient-name">Alexandru T., 48 ani</div>
+                  <div class="patient-procedure">All-on-4 Mandibulă</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VIDEO TESTIMONIALS ==================== -->
+    <section class="testimonials-section">
+      <div class="section-container">
+        <div class="section-header">
+          <div class="section-badge">Povești Reale</div>
+          <h2 class="section-title">Ce Spun Pacienții Noștri</h2>
+          <p class="section-subtitle">
+            Ascultă direct de la oameni care au trecut prin aceeași experiență.
+          </p>
+        </div>
+
+        <div class="testimonials-grid">
+          <!-- TESTIMONIAL 1 -->
+          <div class="testimonial-card">
+            <div class="testimonial-video">
+              <!-- ÎNLOCUIEȘTE: Video testimonial real -->
+              <div class="testimonial-video-placeholder">
+                <div class="mini-play-icon"></div>
+                <small>Video Testimonial #1</small>
+              </div>
+            </div>
+            <div class="testimonial-card-content">
+              <div class="testimonial-stars">★★★★★</div>
+              <p class="testimonial-text">
+                "Am venit cu frică, am plecat cu cel mai frumos zâmbet din viața mea. Echipa este
+                incredibilă!"
+              </p>
+              <div class="testimonial-author">
+                <div class="author-avatar">M</div>
+                <div>
+                  <div class="author-name">Maria P.</div>
+                  <div class="author-location">București</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TESTIMONIAL 2 -->
+          <div class="testimonial-card">
+            <div class="testimonial-video">
+              <div class="testimonial-video-placeholder">
+                <div class="mini-play-icon"></div>
+                <small>Video Testimonial #2</small>
+              </div>
+            </div>
+            <div class="testimonial-card-content">
+              <div class="testimonial-stars">★★★★★</div>
+              <p class="testimonial-text">
+                "Finanțarea în rate a făcut posibilă această transformare. Nu credeam că îmi voi
+                permite."
+              </p>
+              <div class="testimonial-author">
+                <div class="author-avatar">G</div>
+                <div>
+                  <div class="author-name">George R.</div>
+                  <div class="author-location">Cluj-Napoca</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TESTIMONIAL 3 -->
+          <div class="testimonial-card">
+            <div class="testimonial-video">
+              <div class="testimonial-video-placeholder">
+                <div class="mini-play-icon"></div>
+                <small>Video Testimonial #3</small>
+              </div>
+            </div>
+            <div class="testimonial-card-content">
+              <div class="testimonial-stars">★★★★★</div>
+              <p class="testimonial-text">
+                "După 10 ani cu probleme dentare, în sfârșit pot zâmbi fără jenă. Mulțumesc,
+                MedicalCor!"
+              </p>
+              <div class="testimonial-author">
+                <div class="author-avatar">A</div>
+                <div>
+                  <div class="author-name">Ana S.</div>
+                  <div class="author-location">Timișoara</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== PRICING ==================== -->
+    <section class="pricing-section">
+      <div class="section-container">
+        <div class="section-header">
+          <div class="section-badge">Investiție Transparentă</div>
+          <h2 class="section-title">Prețuri Clare, Fără Surprize</h2>
+          <p class="section-subtitle">
+            Știm că bugetul contează. De aceea oferim opțiuni flexibile.
+          </p>
+        </div>
+
+        <div class="pricing-card">
+          <div class="pricing-badge">CEA MAI POPULARĂ OPȚIUNE</div>
+          <h3 class="pricing-title">All-on-4 Complet</h3>
+          <p class="pricing-subtitle">O arcadă completă cu 4 implanturi premium</p>
+
+          <div class="price-display">
+            <div class="price-original">€12,000</div>
+            <div class="price-current">€6,500</div>
+            <div class="price-note">Preț promoțional - valabil până la 31 Decembrie</div>
+          </div>
+
+          <div class="financing-calculator">
+            <div class="calculator-row">
+              <span class="calculator-label">Suma totală:</span>
+              <span class="calculator-value">€6,500</span>
+            </div>
+            <div class="calculator-row">
+              <span class="calculator-label">Perioada (luni):</span>
+              <span class="calculator-value" id="monthsValue">48</span>
+            </div>
+            <input
+              type="range"
+              class="rate-slider"
+              id="rateSlider"
+              min="12"
+              max="72"
+              value="48"
+              step="12"
+            />
+            <div class="monthly-result">
+              <div class="monthly-label">Rata ta lunară:</div>
+              <div class="monthly-amount" id="monthlyAmount">€135/lună</div>
+            </div>
+          </div>
+
+          <div class="pricing-features">
+            <div class="pricing-feature">
+              <span class="feature-check">✓</span>
+              <span>4 implanturi Straumann/Nobel</span>
+            </div>
+            <div class="pricing-feature">
+              <span class="feature-check">✓</span>
+              <span>Proteză provizorie în 24h</span>
+            </div>
+            <div class="pricing-feature">
+              <span class="feature-check">✓</span>
+              <span>CT Scan 3D inclus</span>
+            </div>
+            <div class="pricing-feature">
+              <span class="feature-check">✓</span>
+              <span>Garanție 10 ani</span>
+            </div>
+            <div class="pricing-feature">
+              <span class="feature-check">✓</span>
+              <span>Sedare conștientă inclusă</span>
+            </div>
+            <div class="pricing-feature">
+              <span class="feature-check">✓</span>
+              <span>Controale gratuite 1 an</span>
+            </div>
+          </div>
+
+          <a href="#form" class="btn btn-gold" style="width: 100%"
+            >Programează Consultația Gratuită</a
+          >
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== DOCTOR/CLINIC ==================== -->
+    <section class="clinic-section">
+      <div class="section-container">
+        <div class="clinic-grid">
+          <div class="clinic-media">
+            <!-- ÎNLOCUIEȘTE: Video tour clinică sau video cu doctorul -->
+            <div class="clinic-video-placeholder">
+              <div class="placeholder-icon" style="font-size: 3rem; margin-bottom: 1rem">🎥</div>
+              <strong>Video Prezentare Clinică</strong><br />
+              <small>Adaugă video tour sau prezentare doctor</small>
+            </div>
+          </div>
+          <div class="clinic-content">
+            <div class="section-badge">Despre Noi</div>
+            <h2>Clinică de Excelență în Implantologie</h2>
+            <p>
+              Cu peste 15 ani de experiență și mii de proceduri reușite, suntem lideri în România
+              pentru procedurile All-on-X. Tehnologie de ultimă generație, echipă dedicată și
+              rezultate garantate.
+            </p>
+
+            <div class="doctor-card">
+              <!-- ÎNLOCUIEȘTE: Poza și datele doctorului -->
+              <div class="doctor-photo">👨‍⚕️</div>
+              <div>
+                <div class="doctor-name">Dr. [Nume Doctor]</div>
+                <div class="doctor-title">Medic Primar Implantologie</div>
+                <div class="doctor-credentials">
+                  15+ ani experiență • 2,500+ proceduri • Certificat Straumann
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== LEAD FORM ==================== -->
+    <section class="form-section" id="form">
+      <div class="form-container">
+        <div class="form-card">
+          <div class="form-header">
+            <h2 class="form-title">Programează Consultația Gratuită</h2>
+            <p class="form-subtitle">Completează formularul și te contactăm în maxim 15 minute.</p>
+          </div>
+
+          <form id="leadForm" onsubmit="submitForm(event)">
+            <div class="form-group">
+              <label class="form-label">Numele tău complet *</label>
+              <input
+                type="text"
+                class="form-input"
+                name="name"
+                placeholder="ex: Ion Popescu"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Număr de telefon *</label>
+              <input
+                type="tel"
+                class="form-input"
+                name="phone"
+                placeholder="ex: 0747 099 099"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Situația ta actuală</label>
+              <select class="form-select" name="situation">
+                <option value="">Selectează...</option>
+                <option value="missing_few">Îmi lipsesc câțiva dinți</option>
+                <option value="missing_many">Îmi lipsesc mulți dinți</option>
+                <option value="dentures">Port proteză mobilă</option>
+                <option value="all_teeth">Trebuie să-mi extrag toți dinții</option>
+                <option value="info">Doar mă informez</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Când dorești să rezolvi?</label>
+              <select class="form-select" name="urgency">
+                <option value="">Selectează...</option>
+                <option value="urgent">Cât mai repede posibil</option>
+                <option value="1-2months">În următoarele 1-2 luni</option>
+                <option value="3-6months">În următoarele 3-6 luni</option>
+                <option value="later">Mai târziu</option>
+              </select>
+            </div>
+
+            <div class="form-checkbox-group">
+              <input type="checkbox" class="form-checkbox" id="consent" required />
+              <label for="consent" class="form-checkbox-label">
+                Sunt de acord cu prelucrarea datelor personale conform GDPR și accept să fiu
+                contactat pentru programarea consultației.
+              </label>
+            </div>
+
+            <button type="submit" class="form-submit">✓ Programează Consultația Gratuită</button>
+
+            <div class="form-security">
+              <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z" />
+              </svg>
+              <span>Datele tale sunt în siguranță. Nu facem spam.</span>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== FINAL CTA ==================== -->
+    <section class="final-cta">
+      <h2>Gata să-ți Transformi Viața?</h2>
+      <p>
+        Fă primul pas către zâmbetul pe care îl meriți. Consultația este gratuită și fără obligații.
+      </p>
+
+      <div class="cta-buttons">
+        <a href="#form" class="btn btn-gold">Programează Acum</a>
+        <a href="tel:+40747099099" class="btn btn-outline">📞 Sună Direct: 0747 099 099</a>
+      </div>
+
+      <div class="guarantee-badge">
+        <svg class="guarantee-icon" viewBox="0 0 24 24">
+          <path
+            d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5zm-1 14.59l-3.29-3.29 1.41-1.41L11 13.17l5.88-5.88 1.41 1.41L11 16.59z"
+          />
+        </svg>
+        <span>Garanție 10 ani pe implant și lucrare • Satisfacție garantată sau banii înapoi</span>
+      </div>
+    </section>
+
+    <!-- ==================== FLOATING ELEMENTS ==================== -->
+    <a
+      href="https://wa.me/40747099099?text=Bună! Doresc informații despre procedura All-on-X."
+      class="whatsapp-float"
+      target="_blank"
+    >
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"
+        />
+      </svg>
+    </a>
+
+    <div class="mobile-cta">
+      <div class="mobile-cta-content">
+        <div class="mobile-cta-text">
+          Rate de la
+          <strong>€89/lună</strong>
+        </div>
+        <a href="#form" class="mobile-cta-btn">Consultație Gratuită</a>
+      </div>
+    </div>
+
+    <script>
+      // Financing Calculator
+      const rateSlider = document.getElementById('rateSlider');
+      const monthsValue = document.getElementById('monthsValue');
+      const monthlyAmount = document.getElementById('monthlyAmount');
+      const totalPrice = 6500;
+      const interestRate = 0.099;
+
+      rateSlider.addEventListener('input', function () {
+        const months = parseInt(this.value);
+        monthsValue.textContent = months;
+        const totalWithInterest = totalPrice * (1 + (interestRate * months) / 12);
+        const monthly = Math.round(totalWithInterest / months);
+        monthlyAmount.textContent = `€${monthly}/lună`;
+      });
+
+      // Form Submission
+      function submitForm(e) {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData);
+
+        // În producție, trimite către /api/leads
+        console.log('Lead data:', data);
+
+        alert('Mulțumim! Te vom contacta în maxim 15 minute.');
+        e.target.reset();
+      }
+
+      // Video Play Functions (placeholder)
+      function playMainTestimonial() {
+        alert(
+          'Aici se va deschide video-ul testimonial principal.\n\nÎnlocuiește cu implementarea reală a player-ului video.'
+        );
+      }
+
+      // Smooth Scroll
+      document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+        anchor.addEventListener('click', function (e) {
+          e.preventDefault();
+          document.querySelector(this.getAttribute('href')).scrollIntoView({
+            behavior: 'smooth',
+          });
+        });
+      });
+
+      // Track scroll depth for analytics
+      let maxScroll = 0;
+      window.addEventListener('scroll', function () {
+        const scrollPercent = Math.round(
+          (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100
+        );
+        if (scrollPercent > maxScroll) {
+          maxScroll = scrollPercent;
+          // În producție, trimite către analytics
+          if (
+            scrollPercent === 25 ||
+            scrollPercent === 50 ||
+            scrollPercent === 75 ||
+            scrollPercent === 100
+          ) {
+            console.log('Scroll depth:', scrollPercent + '%');
+          }
+        }
+      });
+    </script>
+  </body>
 </html>

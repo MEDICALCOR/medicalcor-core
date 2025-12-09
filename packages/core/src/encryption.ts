@@ -94,8 +94,9 @@ export class AwsKmsProvider implements KmsProvider {
     if (!this.kmsClient) {
       // Dynamically import AWS SDK to avoid requiring it when not used
       try {
-        const { KMSClient, EncryptCommand, DecryptCommand, GenerateDataKeyCommand } =
-          await import('@aws-sdk/client-kms');
+        const { KMSClient, EncryptCommand, DecryptCommand, GenerateDataKeyCommand } = await import(
+          '@aws-sdk/client-kms'
+        );
 
         const region = process.env.AWS_REGION ?? 'eu-central-1';
         const client = new KMSClient({ region });

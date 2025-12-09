@@ -25,7 +25,8 @@ import type { Result } from '../../types/result.js';
  * Base repository interface with common operations
  */
 export interface Repository<TAggregate extends AggregateRoot<TId>, TId>
-  extends IRepository<TAggregate, TId>, DomainComponent {
+  extends IRepository<TAggregate, TId>,
+    DomainComponent {
   /**
    * Find by ID
    */
@@ -79,10 +80,8 @@ export interface Repository<TAggregate extends AggregateRoot<TId>, TId>
 /**
  * Repository with pagination support
  */
-export interface PaginatedRepository<TAggregate extends AggregateRoot<TId>, TId> extends Repository<
-  TAggregate,
-  TId
-> {
+export interface PaginatedRepository<TAggregate extends AggregateRoot<TId>, TId>
+  extends Repository<TAggregate, TId> {
   /**
    * Find with pagination
    */
@@ -156,10 +155,8 @@ export interface Subscription {
 /**
  * Repository with soft delete support
  */
-export interface SoftDeleteRepository<
-  TAggregate extends AggregateRoot<TId>,
-  TId,
-> extends Repository<TAggregate, TId> {
+export interface SoftDeleteRepository<TAggregate extends AggregateRoot<TId>, TId>
+  extends Repository<TAggregate, TId> {
   /**
    * Soft delete an aggregate
    */
@@ -189,10 +186,8 @@ export interface SoftDeleteRepository<
 /**
  * Repository with audit trail
  */
-export interface AuditedRepository<TAggregate extends AggregateRoot<TId>, TId> extends Repository<
-  TAggregate,
-  TId
-> {
+export interface AuditedRepository<TAggregate extends AggregateRoot<TId>, TId>
+  extends Repository<TAggregate, TId> {
   /**
    * Get audit history for an aggregate
    */
@@ -327,10 +322,8 @@ export async function withUnitOfWork<T>(
 /**
  * Repository with caching
  */
-export interface CachedRepository<TAggregate extends AggregateRoot<TId>, TId> extends Repository<
-  TAggregate,
-  TId
-> {
+export interface CachedRepository<TAggregate extends AggregateRoot<TId>, TId>
+  extends Repository<TAggregate, TId> {
   /**
    * Invalidate cache for an aggregate
    */
@@ -357,10 +350,8 @@ export interface CacheStats {
 /**
  * Repository with retry logic
  */
-export interface RetryableRepository<TAggregate extends AggregateRoot<TId>, TId> extends Repository<
-  TAggregate,
-  TId
-> {
+export interface RetryableRepository<TAggregate extends AggregateRoot<TId>, TId>
+  extends Repository<TAggregate, TId> {
   /**
    * Configure retry behavior
    */

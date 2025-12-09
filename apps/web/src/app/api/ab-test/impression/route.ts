@@ -39,10 +39,13 @@ interface ImpressionRecord {
 const impressionsStore: ImpressionRecord[] = [];
 
 // Aggregate stats
-const statsStore: Record<string, {
-  impressions: Record<string, number>;
-  uniqueVisitors: Record<string, Set<string>>;
-}> = {};
+const statsStore: Record<
+  string,
+  {
+    impressions: Record<string, number>;
+    uniqueVisitors: Record<string, Set<string>>;
+  }
+> = {};
 
 // ============================================================================
 // HANDLERS
@@ -55,7 +58,7 @@ const statsStore: Record<string, {
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
-    const body = await req.json() as unknown;
+    const body = (await req.json()) as unknown;
     const parseResult = ImpressionSchema.safeParse(body);
 
     if (!parseResult.success) {

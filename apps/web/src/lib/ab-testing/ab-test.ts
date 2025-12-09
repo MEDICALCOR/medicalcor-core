@@ -118,7 +118,7 @@ function getVisitorId(): string {
   const cookieName = `${COOKIE_PREFIX}visitor_id`;
   const existing = document.cookie
     .split('; ')
-    .find(row => row.startsWith(`${cookieName}=`))
+    .find((row) => row.startsWith(`${cookieName}=`))
     ?.split('=')[1];
 
   if (existing) return existing;
@@ -136,10 +136,12 @@ function getVariantFromCookie(testId: string): string | null {
   if (typeof document === 'undefined') return null;
 
   const cookieName = `${COOKIE_PREFIX}${testId}`;
-  return document.cookie
-    .split('; ')
-    .find(row => row.startsWith(`${cookieName}=`))
-    ?.split('=')[1] ?? null;
+  return (
+    document.cookie
+      .split('; ')
+      .find((row) => row.startsWith(`${cookieName}=`))
+      ?.split('=')[1] ?? null
+  );
 }
 
 /**
@@ -181,7 +183,7 @@ function simpleHash(str: string): number {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash; // Convert to 32-bit integer
   }
   return Math.abs(hash);
@@ -274,7 +276,7 @@ export function useABTest(testId: string): UseABTestResult {
     // Check for existing assignment
     const existingVariantId = getVariantFromCookie(testId);
     if (existingVariantId) {
-      const existingVariant = test.variants.find(v => v.id === existingVariantId);
+      const existingVariant = test.variants.find((v) => v.id === existingVariantId);
       if (existingVariant) {
         setVariant(existingVariant);
         setLoading(false);
@@ -329,15 +331,12 @@ export function useABTest(testId: string): UseABTestResult {
 /**
  * Get variant from request cookies (for server components)
  */
-export function getVariantFromRequest(
-  testId: string,
-  cookieHeader: string | null
-): string | null {
+export function getVariantFromRequest(testId: string, cookieHeader: string | null): string | null {
   if (!cookieHeader) return null;
 
   const cookieName = `${COOKIE_PREFIX}${testId}`;
   const cookies = cookieHeader.split('; ');
-  const cookie = cookies.find(c => c.startsWith(`${cookieName}=`));
+  const cookie = cookies.find((c) => c.startsWith(`${cookieName}=`));
   return cookie?.split('=')[1] ?? null;
 }
 
@@ -353,7 +352,7 @@ export function getServerVariant(
 
   const existingVariantId = getVariantFromRequest(testId, cookieHeader);
   if (existingVariantId) {
-    return test.variants.find(v => v.id === existingVariantId) ?? null;
+    return test.variants.find((v) => v.id === existingVariantId) ?? null;
   }
 
   return null;
@@ -363,8 +362,4 @@ export function getServerVariant(
 // EXPORTS
 // ============================================================================
 
-export {
-  getVisitorId,
-  trackImpression,
-  trackConversionEvent,
-};
+export { getVisitorId, trackImpression, trackConversionEvent };

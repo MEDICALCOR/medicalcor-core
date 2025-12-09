@@ -273,10 +273,9 @@ export class UseCasePipeline<TRequest, TResponse> {
 /**
  * Validation middleware
  */
-export class ValidationMiddleware<TRequest, TResponse> implements UseCaseMiddleware<
-  TRequest,
-  TResponse
-> {
+export class ValidationMiddleware<TRequest, TResponse>
+  implements UseCaseMiddleware<TRequest, TResponse>
+{
   constructor(private validator: (request: TRequest) => UseCaseError[]) {}
 
   async execute(
@@ -294,10 +293,9 @@ export class ValidationMiddleware<TRequest, TResponse> implements UseCaseMiddlew
 /**
  * Logging middleware
  */
-export class LoggingMiddleware<TRequest, TResponse> implements UseCaseMiddleware<
-  TRequest,
-  TResponse
-> {
+export class LoggingMiddleware<TRequest, TResponse>
+  implements UseCaseMiddleware<TRequest, TResponse>
+{
   constructor(
     private useCaseName: string,
     private logger: { info: (msg: string, data?: object) => void }
@@ -329,10 +327,9 @@ export class LoggingMiddleware<TRequest, TResponse> implements UseCaseMiddleware
 /**
  * Metrics middleware
  */
-export class MetricsMiddleware<TRequest, TResponse> implements UseCaseMiddleware<
-  TRequest,
-  TResponse
-> {
+export class MetricsMiddleware<TRequest, TResponse>
+  implements UseCaseMiddleware<TRequest, TResponse>
+{
   constructor(
     private useCaseName: string,
     private metrics: {
