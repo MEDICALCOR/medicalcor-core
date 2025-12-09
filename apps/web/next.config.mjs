@@ -29,6 +29,17 @@ const nextConfig = {
     '@medicalcor/types',
     '@medicalcor/integrations',
   ],
+  // Configure webpack to resolve .js imports to .ts files for transpiled packages
+  webpack: (config) => {
+    // This allows ESM-style .js imports to resolve to .ts source files
+    // when transpiling the monorepo packages
+    config.resolve.extensionAlias = {
+      '.js': ['.ts', '.tsx', '.js', '.jsx'],
+      '.mjs': ['.mts', '.mjs'],
+      '.cjs': ['.cts', '.cjs'],
+    };
+    return config;
+  },
   // External packages that should not be bundled (Node.js only)
   serverExternalPackages: [
     'ioredis',
