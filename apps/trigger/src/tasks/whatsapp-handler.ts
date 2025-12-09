@@ -2,6 +2,17 @@ import { task, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
 import { normalizeRomanianPhone, LeadContextBuilder } from '@medicalcor/core';
 import { createIntegrationClients } from '@medicalcor/integrations';
+import {
+  syncHubSpotContact,
+  logMessageToTimeline,
+  updateContactScore,
+  handleConsentFlow,
+  routeByScore,
+  emitMessageReceivedEvent,
+  emitStatusUpdatedEvent,
+  type HandlerContext,
+  type ScoreResult,
+} from './whatsapp/index.js';
 
 /**
  * WhatsApp Message Handler Task
@@ -49,6 +60,77 @@ function getClients() {
   });
 }
 
+/**
+ * Build LeadContext from WhatsApp message payload
+ */
+function buildLeadContext(payload: WhatsAppMessagePayload, hubspotContactId: string | undefined) {
+  const { message, metadata, contact, correlationId } = payload;
+
+  const waMessage: { id: string; body?: string; type?: string; timestamp?: string } = {
+    id: message.id,
+    type: message.type,
+    timestamp: message.timestamp,
+  };
+  if (message.text?.body) {
+    waMessage.body = message.text.body;
+  }
+
+  const waInput: Parameters<typeof LeadContextBuilder.fromWhatsApp>[0] = {
+    from: message.from,
+    message: waMessage,
+    metadata: {
+      phone_number_id: metadata.phone_number_id,
+      display_phone_number: metadata.display_phone_number,
+    },
+  };
+  if (contact) {
+    waInput.contact = { name: contact.profile.name, wa_id: contact.wa_id };
+  }
+
+  const builder = LeadContextBuilder.fromWhatsApp(waInput).withCorrelationId(correlationId);
+
+  if (hubspotContactId) {
+    builder.withHubSpotContact(hubspotContactId);
+  }
+
+  return builder.buildForScoring();
+}
+
+/**
+ * Score the lead message using AI or fallback to rule-based scoring
+ */
+async function scoreLeadMessage(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  scoring: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  leadContext: any,
+  correlationId: string
+) {
+  if (!scoring) {
+    logger.error('Scoring service not available', { correlationId });
+    throw new Error('Scoring service not configured');
+  }
+
+  try {
+    /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+    const scoreResult: ScoreResult = await scoring.scoreMessage(leadContext);
+    /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+    logger.info('Lead scored', {
+      score: scoreResult.score,
+      classification: scoreResult.classification,
+      confidence: scoreResult.confidence,
+      correlationId,
+    });
+    return scoreResult;
+  } catch (err) {
+    logger.error('Failed to score lead', { err, correlationId });
+    // Fallback to rule-based scoring
+    /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+    return scoring.ruleBasedScore(leadContext) as ScoreResult;
+    /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+  }
+}
+
 export const handleWhatsAppMessage = task({
   id: 'whatsapp-message-handler',
   retry: {
@@ -59,7 +141,8 @@ export const handleWhatsAppMessage = task({
   },
   run: async (payload: WhatsAppMessagePayload) => {
     const { message, metadata, contact, correlationId } = payload;
-    const { hubspot, whatsapp, openai, scoring, eventStore, consent } = getClients();
+    const clients = getClients();
+    const { hubspot, whatsapp, openai, scoring, eventStore, consent } = clients;
 
     logger.info('Processing WhatsApp message', {
       messageId: message.id,
@@ -67,288 +150,79 @@ export const handleWhatsAppMessage = task({
       correlationId,
     });
 
-    // Step 1: Build LeadContext with normalized phone
-    const waMessage: { id: string; body?: string; type?: string; timestamp?: string } = {
-      id: message.id,
-      type: message.type,
-      timestamp: message.timestamp,
-    };
-    if (message.text?.body) {
-      waMessage.body = message.text.body;
-    }
-
-    const waInput: Parameters<typeof LeadContextBuilder.fromWhatsApp>[0] = {
-      from: message.from,
-      message: waMessage,
-      metadata: {
-        phone_number_id: metadata.phone_number_id,
-        display_phone_number: metadata.display_phone_number,
-      },
-    };
-    if (contact) {
-      waInput.contact = { name: contact.profile.name, wa_id: contact.wa_id };
-    }
-
-    const leadContextBuilder =
-      LeadContextBuilder.fromWhatsApp(waInput).withCorrelationId(correlationId);
-
+    // Step 1: Normalize phone number
     const phoneResult = normalizeRomanianPhone(message.from);
     const normalizedPhone = phoneResult.normalized;
-    logger.info('Phone normalized', {
-      isValid: phoneResult.isValid,
-      correlationId,
-    });
+    logger.info('Phone normalized', { isValid: phoneResult.isValid, correlationId });
 
     // Step 2: Sync contact to HubSpot
-    let hubspotContactId: string | undefined;
-    if (hubspot) {
-      try {
-        const contactName = contact?.profile.name;
-        const hubspotContact = await hubspot.syncContact({
-          phone: normalizedPhone,
-          ...(contactName && { name: contactName }),
-        });
-        hubspotContactId = hubspotContact.id;
-        logger.info('HubSpot contact synced', { contactId: hubspotContactId, correlationId });
-      } catch (err) {
-        logger.error('Failed to sync HubSpot contact', { err, correlationId });
-      }
-    } else {
-      logger.warn('HubSpot client not configured, skipping CRM sync', { correlationId });
-    }
+    const { contactId: hubspotContactId } = await syncHubSpotContact(
+      hubspot,
+      normalizedPhone,
+      contact?.profile.name,
+      correlationId
+    );
 
     // Step 3: Log message to HubSpot timeline
-    if (hubspot && hubspotContactId) {
-      try {
-        await hubspot.logMessageToTimeline({
-          contactId: hubspotContactId,
-          message: message.text?.body ?? '[Media message]',
-          direction: 'IN',
-          channel: 'whatsapp',
-          messageId: message.id,
-        });
-        logger.info('Message logged to timeline', { contactId: hubspotContactId, correlationId });
-      } catch (err) {
-        logger.error('Failed to log message to timeline', { err, correlationId });
-      }
+    const messageBody = message.text?.body ?? '[Media message]';
+    await logMessageToTimeline(hubspot, hubspotContactId, messageBody, message.id, correlationId);
+
+    // Step 4: GDPR Consent Check & Recording
+    const consentResult = await handleConsentFlow(
+      consent,
+      whatsapp,
+      message.text?.body ?? '',
+      hubspotContactId,
+      normalizedPhone,
+      correlationId
+    );
+
+    if (consentResult.consentDenied) {
+      return {
+        success: true,
+        messageId: message.id,
+        normalizedPhone,
+        hubspotContactId,
+        consentDenied: true,
+      };
     }
 
-    // Step 3.5: GDPR Consent Check & Recording
-    // Check if this message is a consent response (da/nu/yes/no/stop)
-    const messageBody = message.text?.body ?? '';
-    const consentResponse = consent ? consent.parseConsentFromMessage(messageBody) : null;
+    // Step 5: AI Scoring
+    const leadContext = buildLeadContext(payload, hubspotContactId);
+    const scoreResult = await scoreLeadMessage(scoring, leadContext, correlationId);
 
-    if (consentResponse && hubspotContactId && consent) {
-      // User is responding to consent request - record their response
-      const consentStatus = consentResponse.granted ? 'granted' : 'denied';
-      try {
-        for (const consentType of consentResponse.consentTypes) {
-          await consent.recordConsent({
-            contactId: hubspotContactId,
-            phone: normalizedPhone,
-            consentType,
-            status: consentStatus,
-            source: {
-              channel: 'whatsapp',
-              method: 'explicit',
-              evidenceUrl: null,
-              witnessedBy: null,
-            },
-          });
-        }
-        logger.info('Consent recorded from message', {
-          status: consentStatus,
-          types: consentResponse.consentTypes,
-          correlationId,
-        });
+    // Build handler context for downstream operations
+    const handlerContext: HandlerContext = {
+      correlationId,
+      normalizedPhone,
+      hubspotContactId,
+      contactName: contact?.profile.name,
+      messageId: message.id,
+      messageBody: message.text?.body ?? '',
+    };
 
-        // Send confirmation message
-        if (whatsapp) {
-          const confirmationMsg = consentResponse.granted
-            ? 'Mulțumim! Consimțământul dumneavoastră a fost înregistrat. Putem continua conversația.'
-            : 'Am înregistrat preferința dumneavoastră. Nu vă vom mai trimite mesaje promoționale.';
-          await whatsapp.sendText({ to: normalizedPhone, text: confirmationMsg });
-        }
+    // Step 6: Route based on score
+    await routeByScore(scoreResult, leadContext, handlerContext, { hubspot, whatsapp, openai });
 
-        // If consent was denied, stop processing further
-        if (!consentResponse.granted) {
-          return {
-            success: true,
-            messageId: message.id,
-            normalizedPhone,
-            hubspotContactId,
-            consentDenied: true,
-          };
-        }
-      } catch (err) {
-        logger.error('Failed to record consent', { err, correlationId });
-      }
-    } else if (hubspotContactId && consent) {
-      // Check if we have valid consent for data processing
-      const hasValidConsent = await consent.hasValidConsent(hubspotContactId, 'data_processing');
+    // Step 7: Update HubSpot contact with score
+    await updateContactScore(
+      hubspot,
+      hubspotContactId,
+      scoreResult.score,
+      scoreResult.classification,
+      correlationId
+    );
 
-      if (!hasValidConsent) {
-        // Check if this is first contact - we need to request consent
-        const existingConsent = await consent.getConsent(hubspotContactId, 'data_processing');
-
-        if (!existingConsent || existingConsent.status === 'pending') {
-          // First contact or pending - send consent request
-          logger.info('No valid consent found, requesting consent', { correlationId });
-
-          if (whatsapp) {
-            const consentMessage = consent.generateConsentMessage('ro');
-            await whatsapp.sendText({ to: normalizedPhone, text: consentMessage });
-
-            // Record pending consent
-            await consent.recordConsent({
-              contactId: hubspotContactId,
-              phone: normalizedPhone,
-              consentType: 'data_processing',
-              status: 'pending',
-              source: {
-                channel: 'whatsapp',
-                method: 'explicit',
-                evidenceUrl: null,
-                witnessedBy: null,
-              },
-            });
-          }
-
-          // Continue processing for initial messages but log the consent status
-          logger.warn('Processing message without explicit consent - consent requested', {
-            correlationId,
-          });
-        }
-      }
-    }
-
-    // Step 4: AI Scoring - Build final LeadContext
-    if (hubspotContactId) {
-      leadContextBuilder.withHubSpotContact(hubspotContactId);
-    }
-    const leadContext = leadContextBuilder.buildForScoring();
-
-    let scoreResult;
-    if (!scoring) {
-      logger.error('Scoring service not available', { correlationId });
-      throw new Error('Scoring service not configured');
-    }
-
-    try {
-      scoreResult = await scoring.scoreMessage(leadContext);
-      logger.info('Lead scored', {
-        score: scoreResult.score,
-        classification: scoreResult.classification,
-        confidence: scoreResult.confidence,
-        correlationId,
-      });
-    } catch (err) {
-      logger.error('Failed to score lead', { err, correlationId });
-      // Fallback to rule-based scoring
-      scoreResult = scoring.ruleBasedScore(leadContext);
-    }
-
-    // Step 5: Route based on score
-    if (scoreResult.classification === 'HOT') {
-      // Create priority task in HubSpot
-      if (hubspot && hubspotContactId) {
-        try {
-          await hubspot.createTask({
-            contactId: hubspotContactId,
-            subject: `PRIORITY REQUEST: ${contact?.profile.name ?? normalizedPhone}`,
-            body: `Patient reported interest/discomfort. Wants quick appointment.\n\n${scoreResult.suggestedAction}`,
-            priority: 'HIGH',
-            dueDate: new Date(Date.now() + 30 * 60 * 1000), // Due in 30 minutes during business hours
-          });
-          logger.info('Created priority request task', {
-            contactId: hubspotContactId,
-            correlationId,
-          });
-        } catch (err) {
-          logger.error('Failed to create HubSpot task', { err, correlationId });
-        }
-      }
-
-      // Send acknowledgment template
-      if (whatsapp) {
-        try {
-          const templateOptions = {
-            to: normalizedPhone,
-            templateName: 'hot_lead_acknowledgment',
-            language: 'ro',
-            ...(contact?.profile.name && {
-              components: [
-                {
-                  type: 'body' as const,
-                  parameters: [{ type: 'text' as const, text: contact.profile.name }],
-                },
-              ],
-            }),
-          };
-          await whatsapp.sendTemplate(templateOptions);
-          logger.info('Sent HOT lead acknowledgment template', { correlationId });
-        } catch (err) {
-          logger.error('Failed to send WhatsApp template', { err, correlationId });
-        }
-      }
-    } else if (whatsapp && openai && message.text?.body) {
-      // Generate AI reply for WARM/COLD leads
-      try {
-        const reply = await openai.generateReply({
-          context: leadContext,
-          tone: scoreResult.classification === 'WARM' ? 'friendly' : 'professional',
-          language: 'ro',
-        });
-
-        await whatsapp.sendText({
-          to: normalizedPhone,
-          text: reply,
-        });
-        logger.info('Sent AI-generated reply', {
-          classification: scoreResult.classification,
-          correlationId,
-        });
-      } catch (err) {
-        logger.error('Failed to send AI reply', { err, correlationId });
-      }
-    }
-
-    // Step 6: Update HubSpot contact with score
-    if (hubspot && hubspotContactId) {
-      try {
-        await hubspot.updateContact(hubspotContactId, {
-          lead_score: String(scoreResult.score),
-          lead_status: scoreResult.classification,
-          last_message_timestamp: new Date().toISOString(),
-        });
-        logger.info('Updated contact with score', { contactId: hubspotContactId, correlationId });
-      } catch (err) {
-        logger.error('Failed to update contact score', { err, correlationId });
-      }
-    }
-
-    // Step 7: Emit domain event
-    try {
-      await eventStore.emit({
-        type: 'whatsapp.message.received',
-        correlationId,
-        aggregateId: normalizedPhone,
-        aggregateType: 'lead',
-        payload: {
-          messageId: message.id,
-          from: normalizedPhone,
-          phoneNumberId: metadata.phone_number_id,
-          messageType: message.type,
-          contactName: contact?.profile.name,
-          score: scoreResult.score,
-          classification: scoreResult.classification,
-          hubspotContactId,
-        },
-      });
-      logger.info('Domain event emitted', { type: 'whatsapp.message.received', correlationId });
-    } catch (err) {
-      logger.error('Failed to emit domain event', { err, correlationId });
-    }
+    // Step 8: Emit domain event
+    await emitMessageReceivedEvent(eventStore, correlationId, {
+      messageId: message.id,
+      normalizedPhone,
+      phoneNumberId: metadata.phone_number_id,
+      messageType: message.type,
+      contactName: contact?.profile.name,
+      scoreResult,
+      hubspotContactId,
+    });
 
     return {
       success: true,
@@ -411,23 +285,13 @@ export const handleWhatsAppStatus = task({
     }
 
     // Emit domain event for status tracking
-    try {
-      await eventStore.emit({
-        type: 'whatsapp.status.updated',
-        correlationId,
-        aggregateId: recipientId,
-        aggregateType: 'message',
-        payload: {
-          messageId,
-          status,
-          recipientId,
-          timestamp,
-          errors,
-        },
-      });
-    } catch (err) {
-      logger.error('Failed to emit status event', { err, correlationId });
-    }
+    await emitStatusUpdatedEvent(eventStore, correlationId, {
+      messageId,
+      status,
+      recipientId,
+      timestamp,
+      errors,
+    });
 
     return {
       success: true,
