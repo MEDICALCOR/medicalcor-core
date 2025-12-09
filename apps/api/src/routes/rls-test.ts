@@ -590,7 +590,6 @@ function registerRlsTestRoutes(fastify: Parameters<FastifyPluginAsync>[0]): void
 // PLUGIN EXPORT
 // =============================================================================
 
-// eslint-disable-next-line @typescript-eslint/require-await
 export const rlsTestRoutes: FastifyPluginAsync = async (fastify) => {
   if (!ENABLE_RLS_TESTS) {
     registerDisabledRoutes(fastify);

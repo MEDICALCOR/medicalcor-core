@@ -142,7 +142,7 @@ export const handleUrgentCase = task({
             priority: 'HIGH',
             dueDate,
           });
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Defensive check for API response
+
           taskId = task?.id;
           logger.info('Created urgent HubSpot task', { taskId, correlationId });
         } else {

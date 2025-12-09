@@ -444,7 +444,6 @@ export class FunctionExecutor {
         | undefined;
       let validatedArgs = args;
 
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- schema can be undefined at runtime
       if (schema !== null && schema !== undefined) {
         const validation = schema.safeParse(args);
         if (!validation.success) {

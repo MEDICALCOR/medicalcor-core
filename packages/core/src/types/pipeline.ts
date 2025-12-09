@@ -439,7 +439,7 @@ export function match<T, K extends string, R>(
   return (value) => {
     const key = getKey(value);
     const handler = handlers[key];
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- handler may be undefined at runtime
+
     if (handler) {
       return handler(value);
     }
@@ -537,7 +537,7 @@ export function groupBy<T, K extends string | number | symbol>(
     const result = {} as Record<K, T[]>;
     for (const item of arr) {
       const key = keyFn(item);
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- result[key] may be undefined at runtime
+
       if (!result[key]) {
         result[key] = [];
       }

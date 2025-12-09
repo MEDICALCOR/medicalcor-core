@@ -382,7 +382,6 @@ class TelemetryRegistry {
   }
 
   static getInstance(): TelemetryRegistry {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- singleton pattern: instance is undefined on first call
     if (!TelemetryRegistry.instance) {
       TelemetryRegistry.instance = new TelemetryRegistry();
     }

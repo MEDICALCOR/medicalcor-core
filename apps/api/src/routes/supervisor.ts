@@ -60,7 +60,6 @@ const FlagCallBodySchema = z.object({
 // Route Definitions
 // =============================================================================
 
-// eslint-disable-next-line @typescript-eslint/require-await -- Fastify plugin pattern
 export const supervisorRoutes: FastifyPluginAsync = async (fastify) => {
   const agent = getSupervisorAgent();
 
