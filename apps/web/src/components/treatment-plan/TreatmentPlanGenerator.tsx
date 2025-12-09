@@ -34,7 +34,6 @@ import {
   Shield,
   Award,
   Loader2,
-  ChevronRight,
   Sparkles,
   Phone,
 } from 'lucide-react';
@@ -96,7 +95,8 @@ interface TreatmentPlanGeneratorProps {
 const TREATMENT_TEMPLATES: Record<string, TreatmentPlan['treatment']> = {
   'all-on-4': {
     name: 'All-on-4® Smile Restoration',
-    description: 'Restaurare completă a arcadei dentare cu doar 4 implanturi premium, folosind tehnologia Nobel Biocare.',
+    description:
+      'Restaurare completă a arcadei dentare cu doar 4 implanturi premium, folosind tehnologia Nobel Biocare.',
     phases: [
       {
         id: 'consultation',
@@ -130,11 +130,7 @@ const TREATMENT_TEMPLATES: Record<string, TreatmentPlan['treatment']> = {
         description: 'Osteointegrare și controale regulate',
         duration: '3-4 luni',
         price: 0,
-        included: [
-          'Controale lunare',
-          'Ajustări provizorii',
-          'Suport 24/7',
-        ],
+        included: ['Controale lunare', 'Ajustări provizorii', 'Suport 24/7'],
       },
       {
         id: 'final',
@@ -142,11 +138,7 @@ const TREATMENT_TEMPLATES: Record<string, TreatmentPlan['treatment']> = {
         description: 'Proteze definitive din zirconiu',
         duration: '2 săptămâni',
         price: 2500,
-        included: [
-          'Proteze zirconiu premium',
-          'Potrivire perfectă',
-          'Garanție 10 ani',
-        ],
+        included: ['Proteze zirconiu premium', 'Potrivire perfectă', 'Garanție 10 ani'],
       },
     ],
     totalDuration: '4-5 luni',
@@ -155,7 +147,8 @@ const TREATMENT_TEMPLATES: Record<string, TreatmentPlan['treatment']> = {
   },
   'all-on-6': {
     name: 'All-on-6® Premium Restoration',
-    description: 'Restaurare premium cu 6 implanturi pentru stabilitate maximă și estetică superioară.',
+    description:
+      'Restaurare premium cu 6 implanturi pentru stabilitate maximă și estetică superioară.',
     phases: [
       {
         id: 'consultation',
@@ -189,11 +182,7 @@ const TREATMENT_TEMPLATES: Record<string, TreatmentPlan['treatment']> = {
         description: 'Osteointegrare optimă',
         duration: '3-4 luni',
         price: 0,
-        included: [
-          'Controale regulate',
-          'Terapie laser',
-          'Suport prioritar',
-        ],
+        included: ['Controale regulate', 'Terapie laser', 'Suport prioritar'],
       },
       {
         id: 'final',
@@ -201,11 +190,7 @@ const TREATMENT_TEMPLATES: Record<string, TreatmentPlan['treatment']> = {
         description: 'Proteze definitive full-zirconiu',
         duration: '2-3 săptămâni',
         price: 3500,
-        included: [
-          'Full-zirconiu monolitic',
-          'Estetică naturală',
-          'Garanție 15 ani',
-        ],
+        included: ['Full-zirconiu monolitic', 'Estetică naturală', 'Garanție 15 ani'],
       },
     ],
     totalDuration: '4-6 luni',
@@ -240,7 +225,7 @@ export function TreatmentPlanGenerator({
     setIsGenerating(true);
 
     // Simulate AI processing
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, 1500));
 
     const template = TREATMENT_TEMPLATES[selectedTreatment];
     if (!template) {
@@ -380,9 +365,15 @@ export function TreatmentPlanGenerator({
       </button>
 
       <div className="trust-row">
-        <span><Shield size={14} /> Confidențial</span>
-        <span><Clock size={14} /> Instant</span>
-        <span><Award size={14} /> Gratuit</span>
+        <span>
+          <Shield size={14} /> Confidențial
+        </span>
+        <span>
+          <Clock size={14} /> Instant
+        </span>
+        <span>
+          <Award size={14} /> Gratuit
+        </span>
       </div>
     </div>
   );
@@ -463,7 +454,8 @@ export function TreatmentPlanGenerator({
             <div className="price-card total">
               <span className="label">Preț Total</span>
               <span className="value">
-                €{plan.treatment.totalPrice.min.toLocaleString()} - €{plan.treatment.totalPrice.max.toLocaleString()}
+                €{plan.treatment.totalPrice.min.toLocaleString()} - €
+                {plan.treatment.totalPrice.max.toLocaleString()}
               </span>
             </div>
             <div className="price-card monthly">
@@ -589,18 +581,18 @@ export function TreatmentPlanGenerator({
 
       <style jsx>{`
         .treatment-plan-generator {
-          --gold: #C9A962;
-          --gold-light: #E8D5A3;
-          --navy: #0A1628;
+          --gold: #c9a962;
+          --gold-light: #e8d5a3;
+          --navy: #0a1628;
           --navy-light: #152238;
-          --success: #10B981;
-          --gray: #6B7A90;
+          --success: #10b981;
+          --gray: #6b7a90;
 
           background: white;
           border-radius: 24px;
           max-width: 700px;
           margin: 0 auto;
-          box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15);
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
           overflow: hidden;
         }
 
@@ -647,7 +639,7 @@ export function TreatmentPlanGenerator({
         .treatment-option {
           text-align: left;
           padding: 1.25rem;
-          background: #F7F8FA;
+          background: #f7f8fa;
           border: 2px solid transparent;
           border-radius: 16px;
           cursor: pointer;
@@ -659,7 +651,7 @@ export function TreatmentPlanGenerator({
         }
 
         .treatment-option.selected {
-          background: linear-gradient(135deg, rgba(201,169,98,0.1), rgba(201,169,98,0.05));
+          background: linear-gradient(135deg, rgba(201, 169, 98, 0.1), rgba(201, 169, 98, 0.05));
           border-color: var(--gold);
         }
 
@@ -721,7 +713,7 @@ export function TreatmentPlanGenerator({
 
         .generate-btn:not(:disabled):hover {
           transform: translateY(-2px);
-          box-shadow: 0 10px 30px rgba(201,169,98,0.3);
+          box-shadow: 0 10px 30px rgba(201, 169, 98, 0.3);
         }
 
         .generate-btn:disabled {
@@ -733,8 +725,12 @@ export function TreatmentPlanGenerator({
         }
 
         @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
         }
 
         .trust-row {
@@ -766,7 +762,7 @@ export function TreatmentPlanGenerator({
           align-items: flex-start;
           margin-bottom: 2rem;
           padding-bottom: 1.5rem;
-          border-bottom: 2px solid #E8ECF1;
+          border-bottom: 2px solid #e8ecf1;
         }
 
         .plan-title {
@@ -859,7 +855,7 @@ export function TreatmentPlanGenerator({
 
         .phase-content {
           flex: 1;
-          background: #F7F8FA;
+          background: #f7f8fa;
           padding: 1rem;
           border-radius: 12px;
         }
@@ -929,7 +925,7 @@ export function TreatmentPlanGenerator({
         }
 
         .price-card {
-          background: #F7F8FA;
+          background: #f7f8fa;
           padding: 1.25rem;
           border-radius: 12px;
           text-align: center;
@@ -1001,7 +997,7 @@ export function TreatmentPlanGenerator({
           justify-content: center;
           gap: 0.5rem;
           padding: 1rem;
-          background: linear-gradient(135deg, rgba(201,169,98,0.15), rgba(201,169,98,0.05));
+          background: linear-gradient(135deg, rgba(201, 169, 98, 0.15), rgba(201, 169, 98, 0.05));
           border: 2px solid var(--gold);
           border-radius: 12px;
           color: var(--navy);
@@ -1041,7 +1037,7 @@ export function TreatmentPlanGenerator({
           justify-content: center;
           gap: 0.5rem;
           padding: 1rem;
-          background: #F7F8FA;
+          background: #f7f8fa;
           color: var(--navy);
           border: none;
           border-radius: 12px;
@@ -1068,7 +1064,7 @@ export function TreatmentPlanGenerator({
         }
 
         .cta-content p {
-          color: rgba(255,255,255,0.7);
+          color: rgba(255, 255, 255, 0.7);
           font-size: 0.9rem;
         }
 
@@ -1089,7 +1085,7 @@ export function TreatmentPlanGenerator({
         .doctor-signature {
           text-align: center;
           padding-top: 1.5rem;
-          border-top: 2px solid #E8ECF1;
+          border-top: 2px solid #e8ecf1;
         }
 
         .signature-text p {
@@ -1115,7 +1111,7 @@ export function TreatmentPlanGenerator({
           left: 0;
           right: 0;
           bottom: 0;
-          background: rgba(0,0,0,0.5);
+          background: rgba(0, 0, 0, 0.5);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -1157,7 +1153,7 @@ export function TreatmentPlanGenerator({
         .form-group input {
           width: 100%;
           padding: 1rem;
-          border: 2px solid #E8ECF1;
+          border: 2px solid #e8ecf1;
           border-radius: 12px;
           font-size: 1rem;
         }
@@ -1176,7 +1172,7 @@ export function TreatmentPlanGenerator({
         .modal-cancel {
           flex: 1;
           padding: 1rem;
-          background: #F7F8FA;
+          background: #f7f8fa;
           border: none;
           border-radius: 12px;
           font-weight: 600;

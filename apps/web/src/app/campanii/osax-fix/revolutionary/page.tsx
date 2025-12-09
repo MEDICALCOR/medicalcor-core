@@ -29,7 +29,6 @@ import {
   Award,
   CheckCircle2,
   ChevronDown,
-  Play,
 } from 'lucide-react';
 
 // Import revolutionary components
@@ -59,21 +58,24 @@ function LandingPageContent() {
   const { addPoints, unlockAchievement } = useGamification();
 
   // Handle tool selection
-  const selectTool = useCallback((tool: ActiveTool) => {
-    setActiveTool(tool);
+  const selectTool = useCallback(
+    (tool: ActiveTool) => {
+      setActiveTool(tool);
 
-    // Award points and achievements
-    if (tool === 'simulator') {
-      addPoints(25, 'Opened Smile Simulator');
-      unlockAchievement('smile-simulator');
-    } else if (tool === 'quiz') {
-      addPoints(15, 'Started Quiz');
-      unlockAchievement('quiz-started');
-    } else if (tool === 'plan') {
-      addPoints(20, 'Opened Treatment Plan');
-      unlockAchievement('plan-generated');
-    }
-  }, [addPoints, unlockAchievement]);
+      // Award points and achievements
+      if (tool === 'simulator') {
+        addPoints(25, 'Opened Smile Simulator');
+        unlockAchievement('smile-simulator');
+      } else if (tool === 'quiz') {
+        addPoints(15, 'Started Quiz');
+        unlockAchievement('quiz-started');
+      } else if (tool === 'plan') {
+        addPoints(20, 'Opened Treatment Plan');
+        unlockAchievement('plan-generated');
+      }
+    },
+    [addPoints, unlockAchievement]
+  );
 
   // Handle simulator completion
   const handleSimulatorComplete = useCallback(() => {
@@ -164,7 +166,9 @@ function LandingPageContent() {
 
             {/* Scroll indicator */}
             <button
-              onClick={() => document.getElementById('tools')?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={() =>
+                document.getElementById('tools')?.scrollIntoView({ behavior: 'smooth' })
+              }
               className="inline-flex flex-col items-center gap-2 text-slate-400 hover:text-slate-600 transition-colors"
             >
               <span className="text-sm">Descoperă</span>
@@ -178,9 +182,7 @@ function LandingPageContent() {
       <section id="tools" className="py-16 px-4 bg-white">
         <div className="container mx-auto max-w-5xl">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-slate-900 mb-4">
-              Alege Experiența Ta
-            </h2>
+            <h2 className="text-3xl font-bold text-slate-900 mb-4">Alege Experiența Ta</h2>
             <p className="text-slate-600">
               Fiecare interacțiune îți aduce puncte și reduceri exclusive
             </p>
@@ -200,9 +202,7 @@ function LandingPageContent() {
               <div className="w-14 h-14 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center mb-4">
                 <Camera size={28} className="text-white" />
               </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2">
-                AI Smile Simulator
-              </h3>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">AI Smile Simulator</h3>
               <p className="text-slate-600 text-sm mb-3">
                 Încarcă o poză și vezi instant cum vei arăta cu un zâmbet nou
               </p>
@@ -224,9 +224,7 @@ function LandingPageContent() {
               <div className="w-14 h-14 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center mb-4">
                 <ClipboardList size={28} className="text-white" />
               </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2">
-                Quiz Personalizat
-              </h3>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Quiz Personalizat</h3>
               <p className="text-slate-600 text-sm mb-3">
                 Răspunde la câteva întrebări și află tratamentul ideal pentru tine
               </p>
@@ -248,9 +246,7 @@ function LandingPageContent() {
               <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center mb-4">
                 <FileText size={28} className="text-white" />
               </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2">
-                Plan de Tratament
-              </h3>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Plan de Tratament</h3>
               <p className="text-slate-600 text-sm mb-3">
                 Generează instant un plan detaliat cu prețuri și etape
               </p>
@@ -310,9 +306,7 @@ function LandingPageContent() {
       <section className="py-16 px-4 bg-white">
         <div className="container mx-auto max-w-5xl">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-slate-900 mb-4">
-              Povești de Succes
-            </h2>
+            <h2 className="text-3xl font-bold text-slate-900 mb-4">Povești de Succes</h2>
             <p className="text-slate-600">Rezultate reale de la pacienți reali</p>
           </div>
 
@@ -350,7 +344,9 @@ function LandingPageContent() {
                   </div>
                   <div>
                     <p className="font-semibold text-slate-900">{testimonial.name}</p>
-                    <p className="text-sm text-slate-500">{testimonial.age} ani • {testimonial.treatment}</p>
+                    <p className="text-sm text-slate-500">
+                      {testimonial.age} ani • {testimonial.treatment}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -362,9 +358,7 @@ function LandingPageContent() {
       {/* FINAL CTA */}
       <section className="py-20 px-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white">
         <div className="container mx-auto max-w-3xl text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold mb-6">
-            Gata Să Începi Transformarea?
-          </h2>
+          <h2 className="text-3xl sm:text-4xl font-bold mb-6">Gata Să Începi Transformarea?</h2>
           <p className="text-xl text-cyan-100 mb-8">
             Alătură-te celor peste 4.287 de pacienți fericiți
           </p>
@@ -435,12 +429,10 @@ function LandingPageContent() {
 export default function RevolutionaryLandingPage() {
   return (
     <GamificationProvider
-      onLevelUp={(level) => {
-        console.log('[Landing] Level up!', level);
+      onLevelUp={(_level) => {
         // Could show a toast notification here
       }}
-      onAchievementUnlocked={(achievement) => {
-        console.log('[Landing] Achievement unlocked!', achievement);
+      onAchievementUnlocked={(_achievement) => {
         // Could show a toast notification here
       }}
     >
