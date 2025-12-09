@@ -1,25 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  MessageSquare,
-  Check,
-  AlertCircle,
-  Send,
-  Phone,
-  Settings,
-  BarChart3,
-  Clock,
-  Zap,
-} from 'lucide-react';
+import { MessageSquare, Send, Phone, Settings, BarChart3, Clock, Zap } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  IntegrationPageHeader,
+  IntegrationStatCard,
+  IntegrationStatsGrid,
+  ProviderListItem,
+  HistoryLogItem,
+  createStatusConfig,
+} from '@/components/shared/integrations';
 
 interface SmsProvider {
   id: string;
@@ -75,11 +72,11 @@ const recentMessages = [
   },
 ];
 
-const statusConfig: Record<string, { label: string; color: string }> = {
+const statusConfig = createStatusConfig({
   delivered: { label: 'Livrat', color: 'bg-green-100 text-green-700' },
   pending: { label: 'În trimitere', color: 'bg-yellow-100 text-yellow-700' },
   failed: { label: 'Eșuat', color: 'bg-red-100 text-red-700' },
-};
+});
 
 export default function SmsGatewayPage() {
   const [selectedProvider, setSelectedProvider] = useState('twilio');
@@ -90,68 +87,44 @@ export default function SmsGatewayPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <MessageSquare className="h-6 w-6 text-primary" />
-            Gateway SMS
-          </h1>
-          <p className="text-muted-foreground mt-1">Configurare provideri SMS și mesaje automate</p>
-        </div>
-        <Button>
-          <Send className="h-4 w-4 mr-2" />
-          SMS de test
-        </Button>
-      </div>
+      <IntegrationPageHeader
+        icon={MessageSquare}
+        title="Gateway SMS"
+        description="Configurare provideri SMS și mesaje automate"
+        actionIcon={Send}
+        actionLabel="SMS de test"
+      />
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-              <Send className="h-5 w-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Trimise azi</p>
-              <p className="text-xl font-bold">{totalSentToday}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-              <BarChart3 className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Rată livrare</p>
-              <p className="text-xl font-bold">98.5%</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-              <Zap className="h-5 w-5 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Provideri activi</p>
-              <p className="text-xl font-bold">{activeProviders.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center">
-              <Clock className="h-5 w-5 text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">În coadă</p>
-              <p className="text-xl font-bold">
-                {recentMessages.filter((m) => m.status === 'pending').length}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <IntegrationStatsGrid>
+        <IntegrationStatCard
+          icon={Send}
+          iconBgColor="bg-green-100"
+          iconColor="text-green-600"
+          label="Trimise azi"
+          value={totalSentToday}
+        />
+        <IntegrationStatCard
+          icon={BarChart3}
+          iconBgColor="bg-blue-100"
+          iconColor="text-blue-600"
+          label="Rată livrare"
+          value="98.5%"
+        />
+        <IntegrationStatCard
+          icon={Zap}
+          iconBgColor="bg-purple-100"
+          iconColor="text-purple-600"
+          label="Provideri activi"
+          value={activeProviders.length}
+        />
+        <IntegrationStatCard
+          icon={Clock}
+          iconBgColor="bg-yellow-100"
+          iconColor="text-yellow-600"
+          label="În coadă"
+          value={recentMessages.filter((m) => m.status === 'pending').length}
+        />
+      </IntegrationStatsGrid>
 
       <Tabs defaultValue="providers" className="space-y-4">
         <TabsList>
@@ -169,53 +142,23 @@ export default function SmsGatewayPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {providers.map((provider) => (
-                <div
+                <ProviderListItem
                   key={provider.id}
-                  className="flex items-center justify-between p-4 border rounded-lg"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
-                      <Phone className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-medium">{provider.name}</h3>
-                        {provider.enabled && (
-                          <Badge
-                            className={
-                              provider.status === 'active'
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-red-100 text-red-700'
-                            }
-                          >
-                            {provider.status === 'active' ? (
-                              <Check className="h-3 w-3 mr-1" />
-                            ) : (
-                              <AlertCircle className="h-3 w-3 mr-1" />
-                            )}
-                            {provider.status === 'active' ? 'Activ' : 'Eroare'}
-                          </Badge>
-                        )}
-                      </div>
-                      {provider.balance !== undefined && (
-                        <p className="text-sm text-muted-foreground">
-                          Sold: {provider.balance} {provider.currency}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Switch checked={provider.enabled} />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedProvider(provider.id)}
-                    >
-                      <Settings className="h-4 w-4 mr-2" />
-                      Configurează
-                    </Button>
-                  </div>
-                </div>
+                  icon={Phone}
+                  name={provider.name}
+                  description={
+                    provider.balance !== undefined
+                      ? `Sold: ${provider.balance} ${provider.currency}`
+                      : undefined
+                  }
+                  enabled={provider.enabled}
+                  status={provider.status}
+                  onToggle={() => {
+                    /* Provider toggle handler */
+                  }}
+                  onConfigure={() => setSelectedProvider(provider.id)}
+                  configureIcon={Settings}
+                />
               ))}
             </CardContent>
           </Card>
@@ -334,29 +277,15 @@ export default function SmsGatewayPage() {
             <CardContent>
               <div className="space-y-3">
                 {recentMessages.map((msg) => (
-                  <div
+                  <HistoryLogItem
                     key={msg.id}
-                    className="flex items-center justify-between p-4 border rounded-lg"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                        <MessageSquare className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <p className="font-medium font-mono">{msg.to}</p>
-                        <p className="text-sm text-muted-foreground capitalize">
-                          {msg.type} •{' '}
-                          {msg.timestamp.toLocaleTimeString('ro-RO', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                    <Badge className={statusConfig[msg.status].color}>
-                      {statusConfig[msg.status].label}
-                    </Badge>
-                  </div>
+                    icon={MessageSquare}
+                    title={msg.to}
+                    subtitle={msg.type}
+                    status={msg.status}
+                    statusConfig={statusConfig}
+                    timestamp={msg.timestamp}
+                  />
                 ))}
               </div>
             </CardContent>

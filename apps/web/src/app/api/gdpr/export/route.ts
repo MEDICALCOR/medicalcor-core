@@ -12,8 +12,8 @@
  */
 
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { createDatabaseClient } from '@medicalcor/core';
+import { validateGdprSession, handleGdprError, GDPR_LEGAL_INFO } from '@/lib/api/gdpr-utils';
 
 /**
  * GET /api/gdpr/export
@@ -23,27 +23,19 @@ import { createDatabaseClient } from '@medicalcor/core';
  */
 export async function GET(): Promise<NextResponse> {
   try {
-    // Require authentication
-    const session = await auth();
-
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const userId = session.user.id;
-    const userEmail = session.user.email;
-
-    if (!userId || !userEmail) {
-      return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
-    }
+    // Validate session using shared utility
+    const { user, error } = await validateGdprSession();
+    if (error || !user)
+      return error ?? NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { id: userId, email: userEmail } = user;
 
     const db = createDatabaseClient();
 
     // Collect all user data from various tables
     const exportData: Record<string, unknown> = {
       exportedAt: new Date().toISOString(),
-      dataController: 'MedicalCor SRL',
-      dataProtectionOfficer: 'dpo@medicalcor.ro',
+      dataController: GDPR_LEGAL_INFO.controller,
+      dataProtectionOfficer: GDPR_LEGAL_INFO.dpo,
       exportFormat: 'GDPR Article 20 compliant JSON',
       user: {},
       sessions: [],
@@ -149,15 +141,7 @@ export async function GET(): Promise<NextResponse> {
       },
     });
   } catch (error) {
-    // Log error but don't expose details to client
-    if (process.env.NODE_ENV !== 'production') {
-      console.error('[GDPR Export] Error:', error);
-    }
-
-    return NextResponse.json(
-      { error: 'Failed to export data. Please contact support.' },
-      { status: 500 }
-    );
+    return handleGdprError('Export', error);
   }
 }
 
