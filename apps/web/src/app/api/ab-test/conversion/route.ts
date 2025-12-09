@@ -41,11 +41,14 @@ interface ConversionRecord {
 const conversionsStore: ConversionRecord[] = [];
 
 // Aggregate stats
-const conversionStatsStore: Record<string, {
-  conversions: Record<string, Record<string, number>>; // variantId -> eventType -> count
-  revenue: Record<string, number>; // variantId -> total value
-  uniqueConverters: Record<string, Set<string>>; // variantId -> visitor IDs
-}> = {};
+const conversionStatsStore: Record<
+  string,
+  {
+    conversions: Record<string, Record<string, number>>; // variantId -> eventType -> count
+    revenue: Record<string, number>; // variantId -> total value
+    uniqueConverters: Record<string, Set<string>>; // variantId -> visitor IDs
+  }
+> = {};
 
 // ============================================================================
 // HANDLERS
@@ -58,7 +61,7 @@ const conversionStatsStore: Record<string, {
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
-    const body = await req.json() as unknown;
+    const body = (await req.json()) as unknown;
     const parseResult = ConversionSchema.safeParse(body);
 
     if (!parseResult.success) {
@@ -146,10 +149,13 @@ export function GET(req: NextRequest): NextResponse {
       // Return all test conversion stats
       const allStats = Object.entries(conversionStatsStore).map(([id, stats]) => ({
         testId: id,
-        variants: Object.keys(stats.conversions).map(variantId => ({
+        variants: Object.keys(stats.conversions).map((variantId) => ({
           variantId,
           conversions: stats.conversions[variantId],
-          totalConversions: Object.values(stats.conversions[variantId] ?? {}).reduce((a, b) => a + b, 0),
+          totalConversions: Object.values(stats.conversions[variantId] ?? {}).reduce(
+            (a, b) => a + b,
+            0
+          ),
           revenue: stats.revenue[variantId] ?? 0,
           uniqueConverters: stats.uniqueConverters[variantId]?.size ?? 0,
         })),
@@ -166,10 +172,13 @@ export function GET(req: NextRequest): NextResponse {
       });
     }
 
-    const variants = Object.keys(testStats.conversions).map(variantId => ({
+    const variants = Object.keys(testStats.conversions).map((variantId) => ({
       variantId,
       conversions: testStats.conversions[variantId],
-      totalConversions: Object.values(testStats.conversions[variantId] ?? {}).reduce((a, b) => a + b, 0),
+      totalConversions: Object.values(testStats.conversions[variantId] ?? {}).reduce(
+        (a, b) => a + b,
+        0
+      ),
       revenue: testStats.revenue[variantId] ?? 0,
       uniqueConverters: testStats.uniqueConverters[variantId]?.size ?? 0,
     }));

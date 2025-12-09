@@ -128,8 +128,9 @@ vi.mock('ioredis', () => {
 
 // ============= Import after mocks =============
 
-const { SecureRedisClient, createSecureRedisClient, createRedisClientFromEnv } =
-  await import('../redis-client.js');
+const { SecureRedisClient, createSecureRedisClient, createRedisClientFromEnv } = await import(
+  '../redis-client.js'
+);
 
 // ============= Test Suite =============
 

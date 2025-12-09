@@ -30,7 +30,7 @@ const nextConfig = {
     '@medicalcor/integrations',
   ],
   // Configure webpack to resolve .js imports to .ts files for transpiled packages
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     // This allows ESM-style .js imports to resolve to .ts source files
     // when transpiling the monorepo packages
     config.resolve.extensionAlias = {
@@ -38,16 +38,96 @@ const nextConfig = {
       '.mjs': ['.mts', '.mjs'],
       '.cjs': ['.cts', '.cjs'],
     };
+
+    // Suppress build warnings that don't affect functionality
+    // These warnings come from:
+    // 1. OpenTelemetry/Sentry using dynamic requires for instrumentation
+    // 2. Node.js modules being statically analyzed in Edge Runtime context
+    //    (the code paths using these modules are never executed in Edge Runtime)
+    config.ignoreWarnings = [
+      ...(config.ignoreWarnings || []),
+      // OpenTelemetry uses dynamic requires for instrumentation
+      {
+        module: /@opentelemetry\/instrumentation/,
+        message: /Critical dependency/,
+      },
+      // require-in-the-middle is used by OpenTelemetry for module interception
+      {
+        module: /require-in-the-middle/,
+        message: /Critical dependency/,
+      },
+      // Prisma instrumentation dynamic requires
+      {
+        module: /@prisma\/instrumentation/,
+        message: /Critical dependency/,
+      },
+      // Sentry OpenTelemetry integration
+      {
+        module: /@sentry\/opentelemetry/,
+        message: /Critical dependency/,
+      },
+      // Node.js module warnings in Edge Runtime context
+      // These modules are only used in server-side code paths, never in Edge middleware
+      {
+        module: /@medicalcor\/core/,
+        message: /not supported in the Edge Runtime/,
+      },
+      {
+        module: /@aws-sdk/,
+        message: /not supported in the Edge Runtime/,
+      },
+      {
+        module: /ioredis/,
+        message: /not supported in the Edge Runtime/,
+      },
+      {
+        module: /pg-pool/,
+        message: /not supported in the Edge Runtime/,
+      },
+      {
+        module: /pgpass/,
+        message: /not supported in the Edge Runtime/,
+      },
+      {
+        module: /redis-errors/,
+        message: /not supported in the Edge Runtime/,
+      },
+      {
+        module: /pino/,
+        message: /not supported in the Edge Runtime/,
+      },
+    ];
+
     return config;
   },
   // External packages that should not be bundled (Node.js only)
+  // These packages contain Node.js-specific APIs incompatible with Edge Runtime
   serverExternalPackages: [
+    // Database clients
     'ioredis',
     'pg',
+    'pg-pool',
+    'pgpass',
+    // Authentication
     'bcryptjs',
+    // Logging
     'pino',
+    'pino-pretty',
+    // OpenTelemetry (instrumentation uses Node.js require hooks)
     '@opentelemetry/api',
     '@opentelemetry/sdk-node',
+    '@opentelemetry/instrumentation',
+    '@opentelemetry/instrumentation-http',
+    // Sentry server-side
+    '@sentry/node',
+    '@sentry/opentelemetry',
+    // AWS SDK (used for encryption)
+    '@aws-sdk/client-kms',
+    '@aws-sdk/core',
+    // Redis errors
+    'redis-errors',
+    // Module interception
+    'require-in-the-middle',
   ],
   experimental: {
     // Note: PPR (Partial Prerendering) requires Next.js canary version

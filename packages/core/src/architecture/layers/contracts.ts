@@ -180,10 +180,8 @@ export interface CommandMetadata {
 /**
  * Command Handler - Processes a command and returns a result
  */
-export interface CommandHandler<
-  TCommand extends Command,
-  TResult = void,
-> extends ApplicationComponent {
+export interface CommandHandler<TCommand extends Command, TResult = void>
+  extends ApplicationComponent {
   readonly commandType: string;
   handle(command: TCommand): Promise<Result<TResult, CommandError>>;
 }
