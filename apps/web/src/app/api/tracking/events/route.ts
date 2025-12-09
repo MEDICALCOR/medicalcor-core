@@ -46,10 +46,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const parseResult = TrackingEventSchema.safeParse(body);
 
     if (!parseResult.success) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid event data' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: 'Invalid event data' }, { status: 400 });
     }
 
     const { event, user, timestamp } = parseResult.data;
@@ -57,7 +54,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // In production, store to database and/or send to data warehouse
     // For now, we log for debugging and acknowledge receipt
     if (process.env.NODE_ENV !== 'production') {
-      console.log('[Tracking Event]', {
+      console.info('[Tracking Event]', {
         type: event.type,
         visitorId: user.visitorId,
         timestamp,
@@ -76,9 +73,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
   } catch (error) {
     console.error('[Tracking API] Error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Internal error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: 'Internal error' }, { status: 500 });
   }
 }

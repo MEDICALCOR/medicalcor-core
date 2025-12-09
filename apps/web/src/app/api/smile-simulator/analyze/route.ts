@@ -117,7 +117,8 @@ function generateSimulationId(): string {
  */
 function extractBase64Image(input: string): { base64: string; mimeType: string } | null {
   // Check if it's a data URL
-  const dataUrlMatch = input.match(/^data:image\/(jpeg|jpg|png|webp|gif);base64,(.+)$/i);
+  const dataUrlRegex = /^data:image\/(jpeg|jpg|png|webp|gif);base64,(.+)$/i;
+  const dataUrlMatch = dataUrlRegex.exec(input);
   if (dataUrlMatch) {
     return {
       mimeType: `image/${dataUrlMatch[1].toLowerCase()}`,
@@ -248,9 +249,14 @@ async function analyzeSmileWithVision(
       return {
         currentScore: typeof parsed.currentScore === 'number' ? parsed.currentScore : 6,
         potentialScore: typeof parsed.potentialScore === 'number' ? parsed.potentialScore : 9,
-        issues: Array.isArray(parsed.issues) ? parsed.issues.filter((i): i is string => typeof i === 'string') : [],
-        recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations.filter((r): r is string => typeof r === 'string') : [],
-        estimatedTreatment: typeof parsed.estimatedTreatment === 'string' ? parsed.estimatedTreatment : 'All-on-4',
+        issues: Array.isArray(parsed.issues)
+          ? parsed.issues.filter((i): i is string => typeof i === 'string')
+          : [],
+        recommendations: Array.isArray(parsed.recommendations)
+          ? parsed.recommendations.filter((r): r is string => typeof r === 'string')
+          : [],
+        estimatedTreatment:
+          typeof parsed.estimatedTreatment === 'string' ? parsed.estimatedTreatment : 'All-on-4',
         estimatedPrice: {
           min: typeof parsed.estimatedPriceMin === 'number' ? parsed.estimatedPriceMin : 4500,
           max: typeof parsed.estimatedPriceMax === 'number' ? parsed.estimatedPriceMax : 7500,
@@ -270,7 +276,10 @@ async function analyzeSmileWithVision(
       },
     };
   } catch (error) {
-    console.error('[SmileSimulator] OpenAI Vision error:', error instanceof Error ? error.message : 'Unknown error');
+    console.error(
+      '[SmileSimulator] OpenAI Vision error:',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
     return null;
   }
 }
@@ -337,7 +346,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   try {
     // Parse request body
-    const body = await req.json() as unknown;
+    const body = (await req.json()) as unknown;
     const parseResult = AnalyzeRequestSchema.safeParse(body);
 
     if (!parseResult.success) {
