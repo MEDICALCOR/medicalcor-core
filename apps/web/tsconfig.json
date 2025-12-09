@@ -18,10 +18,24 @@
         "name": "next"
       }
     ],
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
-    },
-    "baseUrl": "."
+      "@/*": ["./src/*"],
+      "@medicalcor/types": ["../../packages/types/src"],
+      "@medicalcor/types/*": ["../../packages/types/src/*"],
+      "@medicalcor/core": ["../../packages/core/src"],
+      "@medicalcor/core/*": ["../../packages/core/src/*"],
+      "@medicalcor/domain": ["../../packages/domain/src"],
+      "@medicalcor/domain/*": ["../../packages/domain/src/*"],
+      "@medicalcor/integrations": ["../../packages/integrations/src"],
+      "@medicalcor/integrations/*": ["../../packages/integrations/src/*"],
+      "@medicalcor/application": ["../../packages/application/src"],
+      "@medicalcor/application/*": ["../../packages/application/src/*"],
+      "@medicalcor/infrastructure": ["../../packages/infrastructure/src"],
+      "@medicalcor/infrastructure/*": ["../../packages/infrastructure/src/*"],
+      "@medicalcor/infra": ["../../packages/infra/src"],
+      "@medicalcor/infra/*": ["../../packages/infra/src/*"]
+    }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
