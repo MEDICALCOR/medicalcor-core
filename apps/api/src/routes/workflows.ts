@@ -105,7 +105,6 @@ const ErrorResponseSchema = {
   required: ['code', 'message'],
 } as const;
 
-// eslint-disable-next-line @typescript-eslint/require-await -- Fastify plugin pattern
 export const workflowRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * Trigger lead scoring workflow manually

@@ -170,7 +170,8 @@ export async function getTaskQueueItemsAction(options?: {
   limit?: number;
   offset?: number;
 }): Promise<{ items: TaskQueueItem[]; total: number }> {
-  let tasks = await getTasksAsync();
+  await Promise.resolve(); // Server Actions must be async
+  let tasks = getTasks();
 
   // Filter by status
   if (options?.status && options.status !== 'all') {

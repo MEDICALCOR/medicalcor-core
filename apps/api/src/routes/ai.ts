@@ -1,7 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unnecessary-condition */
-/* eslint-disable @typescript-eslint/require-await */
-/* eslint-disable @typescript-eslint/return-await */
+
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import crypto from 'crypto';
 import { z } from 'zod';

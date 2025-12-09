@@ -128,7 +128,7 @@ export function parseMigrationFiles(files: Record<string, string>): MigrationFil
  * const result = await migrations.run(files);
  * ```
  */
-// eslint-disable-next-line max-lines-per-function -- factory function with multiple related methods
+
 export function createMigrationManager(config: MigrationConfig) {
   const { client, tableName = 'schema_migrations', schema = 'public' } = config;
   const fullTableName = `${schema}.${tableName}`;

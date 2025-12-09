@@ -116,7 +116,7 @@ throw new NotFoundError('Lead');
 ### TypeScript Patterns
 
 ```typescript
-import type { ScoringOutput } from '@medicalcor/types';  // Use type imports
+import type { ScoringOutput } from '@medicalcor/types'; // Use type imports
 import { ScoringOutputSchema } from '@medicalcor/types';
 const result = ScoringOutputSchema.safeParse(data);
 
@@ -145,10 +145,12 @@ import fc from 'fast-check';
 
 describe('ScoringService', () => {
   it('should return valid score range', () => {
-    fc.assert(fc.property(fc.string(), (msg) => {
-      const result = service.scoreMessage({ message: msg });
-      return result.score >= 1 && result.score <= 5;
-    }));
+    fc.assert(
+      fc.property(fc.string(), (msg) => {
+        const result = service.scoreMessage({ message: msg });
+        return result.score >= 1 && result.score <= 5;
+      })
+    );
   });
 
   // Property-based test example
@@ -261,18 +263,21 @@ perf(rag): optimize embedding cache
 ## Common Tasks
 
 ### Adding a Domain Service
+
 1. Create in `packages/domain/src/{feature}/`
 2. Define port in `packages/application/src/ports/`
 3. Implement adapter in `packages/infrastructure/src/`
 4. Add tests in `__tests__/`
 
 ### Adding a Webhook
+
 1. Add route in `apps/api/src/routes/webhooks/`
 2. Create Zod schema in `packages/types/src/`
 3. Add HMAC signature verification
 4. Create Trigger.dev task in `apps/trigger/src/`
 
 ### Adding an Integration
+
 1. Create client in `packages/integrations/src/{service}.ts`
 2. Implement retry logic with circuit breaker
 3. Add to `clients-factory.ts`
@@ -312,14 +317,14 @@ See `.env.example` for full list.
 
 ## GitHub Workflows
 
-| Workflow | Purpose |
-|----------|---------|
-| `ci.yml` | Main CI (lint, typecheck, test, build, E2E) |
-| `deploy.yml` / `rollback.yml` | Deployment & rollback |
-| `security-ci.yml` | pnpm audit, gitleaks |
-| `oss-security.yml` | OSSF Scorecard |
-| `k6-load-tests.yml` | Load testing |
-| `lighthouse-ci.yml` | Web performance |
+| Workflow                      | Purpose                                     |
+| ----------------------------- | ------------------------------------------- |
+| `ci.yml`                      | Main CI (lint, typecheck, test, build, E2E) |
+| `deploy.yml` / `rollback.yml` | Deployment & rollback                       |
+| `security-ci.yml`             | pnpm audit, gitleaks                        |
+| `oss-security.yml`            | OSSF Scorecard                              |
+| `k6-load-tests.yml`           | Load testing                                |
+| `lighthouse-ci.yml`           | Web performance                             |
 
 ## Claude Code Integration (`.claude/`)
 

@@ -69,7 +69,6 @@ function getCorrelationId(request: FastifyRequest): string {
   return typeof header === 'string' ? header : generateCorrelationId();
 }
 
-// eslint-disable-next-line @typescript-eslint/require-await -- Fastify plugin pattern
 export const bookingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * Handle WhatsApp interactive callback (button/list selection)

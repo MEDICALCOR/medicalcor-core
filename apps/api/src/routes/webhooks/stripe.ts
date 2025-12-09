@@ -441,7 +441,7 @@ export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
               customerId: typeof subscription.customer === 'string' ? subscription.customer : '',
               customerEmail: null as string | null,
               status: subscription.status,
-              productName: firstItem?.price?.product as string | undefined,
+              productName: firstItem?.price?.product,
               amount: firstItem?.price?.unit_amount ?? undefined,
               currency: firstItem?.price?.currency,
               interval: firstItem?.price?.recurring?.interval,
@@ -546,7 +546,7 @@ export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
         case 'customer.subscription.trial_will_end': {
           const subscription = event.data.object;
           if ('trial_end' in subscription && subscription.trial_end) {
-            const trialEnd = subscription.trial_end as number;
+            const trialEnd = subscription.trial_end;
             const daysRemaining = Math.ceil((trialEnd * 1000 - Date.now()) / (24 * 60 * 60 * 1000));
 
             fastify.log.info(

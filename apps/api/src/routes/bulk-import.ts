@@ -21,7 +21,6 @@ import {
   BulkImportRowSchema,
   BulkImportOptionsSchema,
   type BulkImportRow,
-  type BulkImportOptions,
   type BulkImportSyncResponse,
   type BulkImportAsyncResponse,
   type BulkImportJobStatus,
@@ -107,7 +106,7 @@ export const bulkImportRoutes: FastifyPluginAsync = async (fastify) => {
 
         // Determine rows from input
         let rows: BulkImportRow[] = [];
-        let parseErrors: Array<{ line: number; error: string }> = [];
+        let parseErrors: { line: number; error: string }[] = [];
 
         if (providedRows && providedRows.length > 0) {
           rows = providedRows;
@@ -134,7 +133,7 @@ export const bulkImportRoutes: FastifyPluginAsync = async (fastify) => {
           }
         } else if (jsonContent) {
           try {
-            const parsed = JSON.parse(jsonContent);
+            const parsed: unknown = JSON.parse(jsonContent);
             if (!Array.isArray(parsed)) {
               return reply.status(400).send({
                 success: false,
@@ -275,7 +274,7 @@ export const bulkImportRoutes: FastifyPluginAsync = async (fastify) => {
 
         // Determine rows
         let rows: BulkImportRow[] = [];
-        let parseErrors: Array<{ line: number; error: string }> = [];
+        let parseErrors: { line: number; error: string }[] = [];
 
         if (providedRows && providedRows.length > 0) {
           rows = providedRows;
@@ -285,7 +284,7 @@ export const bulkImportRoutes: FastifyPluginAsync = async (fastify) => {
           parseErrors = parsed.errors;
         } else if (jsonContent) {
           try {
-            const parsed = JSON.parse(jsonContent);
+            const parsed: unknown = JSON.parse(jsonContent);
             if (Array.isArray(parsed)) {
               for (let i = 0; i < parsed.length; i++) {
                 const rowParsed = BulkImportRowSchema.safeParse(parsed[i]);

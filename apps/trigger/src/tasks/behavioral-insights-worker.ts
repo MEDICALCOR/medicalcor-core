@@ -152,7 +152,8 @@ function getCognitiveServices(db: DatabasePool, enableLLMPatterns: boolean) {
   });
 
   const cognitiveSystem = createCognitiveSystem({
-    pool: db as any, // pg.Pool compatible
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- pg.Pool type compatibility with different pg versions
+    pool: db as any,
     openai: openaiClient,
     embeddings: embeddingService,
     config: {

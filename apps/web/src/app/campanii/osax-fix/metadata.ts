@@ -89,8 +89,8 @@ export const osaxFixMetadata: Metadata = {
     'schema:type': 'MedicalBusiness',
     'schema:priceRange': '€€€',
     // Ad platform hints
-    'google-site-verification': process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
-    'facebook-domain-verification': process.env.NEXT_PUBLIC_FB_DOMAIN_VERIFICATION || '',
+    'google-site-verification': process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION ?? '',
+    'facebook-domain-verification': process.env.NEXT_PUBLIC_FB_DOMAIN_VERIFICATION ?? '',
   },
 };
 

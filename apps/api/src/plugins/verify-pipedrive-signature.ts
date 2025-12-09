@@ -66,7 +66,7 @@ function verifyPipedriveSignature(rawBody: string, signature: string, secret: st
  * await fastify.register(pipedriveSignaturePlugin);
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/require-await -- Fastify plugin must be async
+
 const verifyPipedriveSignaturePlugin: FastifyPluginAsync = async (fastify) => {
   const secret = process.env.PIPEDRIVE_WEBHOOK_SECRET;
   const isProduction = process.env.NODE_ENV === 'production';

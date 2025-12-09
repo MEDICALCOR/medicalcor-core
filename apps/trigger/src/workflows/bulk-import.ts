@@ -11,12 +11,10 @@
 
 import { task, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
-import crypto from 'crypto';
-import { processBulkImport, updateJobProgress, getBulkImportJob } from '@medicalcor/core';
+import { processBulkImport, updateJobProgress } from '@medicalcor/core';
 import {
   BulkImportRowSchema,
   BulkImportOptionsSchema,
-  type BulkImportRow,
   type BulkImportStatus,
   type BulkImportErrorCode,
 } from '@medicalcor/types';
