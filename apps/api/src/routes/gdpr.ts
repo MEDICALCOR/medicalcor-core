@@ -59,7 +59,6 @@ interface GdprDeletionRequest {
  *
  * Provides GDPR-compliant data export and deletion endpoints.
  */
-// eslint-disable-next-line max-lines-per-function
 export const gdprRoutes: FastifyPluginAsync = async (fastify): Promise<void> => {
   /**
    * POST /gdpr/export

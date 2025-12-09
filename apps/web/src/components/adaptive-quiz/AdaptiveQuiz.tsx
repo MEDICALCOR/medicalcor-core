@@ -676,7 +676,9 @@ export function AdaptiveQuiz({
             onPlay={() => setIsVideoPlaying(true)}
             onEnded={handleVideoEnd}
             className="response-video"
-          />
+          >
+            <track kind="captions" label="Română" srcLang="ro" default />
+          </video>
           <div className="video-controls">
             <button onClick={() => setIsVideoPlaying((v) => !v)}>
               {isVideoPlaying ? <Pause size={20} /> : <Play size={20} />}

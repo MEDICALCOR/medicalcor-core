@@ -5,7 +5,6 @@
  * REST API endpoints for accessing behavioral patterns, cognitive insights,
  * and episodic memory data for leads and patients.
  */
-/* eslint-disable max-lines-per-function */
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import type { Pool } from 'pg';

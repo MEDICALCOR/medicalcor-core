@@ -87,8 +87,10 @@ export class RingBuffer<T> {
     const result: T[] = [];
     for (let i = 0; i < this.count; i++) {
       const index = (this.head + i) % this.capacity;
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion, @typescript-eslint/no-unnecessary-type-assertion -- index is always valid within count bounds
-      result.push(this.buffer[index]!);
+      const item = this.buffer[index];
+      if (item !== undefined) {
+        result.push(item);
+      }
     }
     return result;
   }
@@ -106,9 +108,8 @@ export class RingBuffer<T> {
   find(predicate: (item: T) => boolean): T | undefined {
     for (let i = 0; i < this.count; i++) {
       const index = (this.head + i) % this.capacity;
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion, @typescript-eslint/no-unnecessary-type-assertion -- index is always valid within count bounds
-      const item = this.buffer[index]!;
-      if (predicate(item)) {
+      const item = this.buffer[index];
+      if (item !== undefined && predicate(item)) {
         return item;
       }
     }
@@ -151,9 +152,8 @@ export class RingBuffer<T> {
   update(predicate: (item: T) => boolean, updater: (item: T) => T): boolean {
     for (let i = 0; i < this.count; i++) {
       const index = (this.head + i) % this.capacity;
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion, @typescript-eslint/no-unnecessary-type-assertion -- index is always valid within count bounds
-      const item = this.buffer[index]!;
-      if (predicate(item)) {
+      const item = this.buffer[index];
+      if (item !== undefined && predicate(item)) {
         this.buffer[index] = updater(item);
         return true;
       }
@@ -205,8 +205,10 @@ export class RingBuffer<T> {
   *[Symbol.iterator](): Iterator<T> {
     for (let i = 0; i < this.count; i++) {
       const index = (this.head + i) % this.capacity;
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion, @typescript-eslint/no-unnecessary-type-assertion -- index is always valid within count bounds
-      yield this.buffer[index]!;
+      const item = this.buffer[index];
+      if (item !== undefined) {
+        yield item;
+      }
     }
   }
 

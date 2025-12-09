@@ -390,15 +390,13 @@ function getAllowedOrigin(requestOrigin: string | null): string | null {
 
         // Check if hostname ends with the wildcard domain AND is properly prefixed
         // This prevents bypasses like "attacker.com.medicalcor.ro" or "medicalcor.ro.evil.com"
-        if (
-          originHost === wildcardDomain || // Exact match (e.g., medicalcor.ro)
-          (originHost.endsWith(`.${wildcardDomain}`) && // Subdomain match (e.g., app.medicalcor.ro)
-            !originHost.includes('..')) // Prevent double-dot injection
-        ) {
-          // Additional validation: ensure protocol is HTTPS in production
-          if (process.env.NODE_ENV === 'production' && originUrl.protocol !== 'https:') {
-            continue; // Skip non-HTTPS origins in production
-          }
+        const isExactMatch = originHost === wildcardDomain;
+        const isValidSubdomain =
+          originHost.endsWith(`.${wildcardDomain}`) && !originHost.includes('..');
+        const isHttpsInProduction =
+          process.env.NODE_ENV !== 'production' || originUrl.protocol === 'https:';
+
+        if ((isExactMatch || isValidSubdomain) && isHttpsInProduction) {
           return requestOrigin;
         }
       } catch {

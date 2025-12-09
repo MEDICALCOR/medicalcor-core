@@ -84,8 +84,7 @@ interface RedisClientInterface {
 async function getClientId(): Promise<string> {
   // Try to get authenticated user
   const session = await auth();
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, @typescript-eslint/prefer-optional-chain
-  if (session && session.user && session.user.id) {
+  if (session?.user?.id) {
     return `user:${session.user.id}`;
   }
 

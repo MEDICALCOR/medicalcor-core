@@ -126,7 +126,6 @@ export function useSupervisorSSE(options: UseSupervisorSSEOptions) {
 
         const processStream = async () => {
           try {
-            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
             while (true) {
               const result = await reader.read();
               if (result.done) {
@@ -141,24 +140,24 @@ export function useSupervisorSSE(options: UseSupervisorSSEOptions) {
               buffer = lines.pop() ?? '';
 
               for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                  const data = line.slice(6);
-                  try {
-                    const event = JSON.parse(data) as SupervisorSSEEvent;
+                if (!line.startsWith('data: ')) continue;
 
-                    // Call global handler
-                    onEventRef.current?.(event);
+                const data = line.slice(6);
+                try {
+                  const event = JSON.parse(data) as SupervisorSSEEvent;
 
-                    // Call type-specific handlers
-                    const typeHandlers = handlersRef.current.get(event.eventType);
-                    typeHandlers?.forEach((handler) => handler(event));
+                  // Call global handler
+                  onEventRef.current?.(event);
 
-                    // Call wildcard handlers
-                    const wildcardHandlers = handlersRef.current.get('*');
-                    wildcardHandlers?.forEach((handler) => handler(event));
-                  } catch {
-                    // Invalid JSON, skip
-                  }
+                  // Call type-specific handlers
+                  const typeHandlers = handlersRef.current.get(event.eventType);
+                  typeHandlers?.forEach((handler) => handler(event));
+
+                  // Call wildcard handlers
+                  const wildcardHandlers = handlersRef.current.get('*');
+                  wildcardHandlers?.forEach((handler) => handler(event));
+                } catch {
+                  // Invalid JSON, skip
                 }
               }
             }

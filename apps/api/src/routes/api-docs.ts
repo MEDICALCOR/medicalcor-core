@@ -1,5 +1,3 @@
-/* eslint-disable max-lines-per-function */
-
 import type { FastifyPluginAsync, FastifyInstance } from 'fastify';
 
 /**

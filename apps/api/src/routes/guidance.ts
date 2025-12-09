@@ -5,7 +5,6 @@
  * REST API endpoints for managing call scripts, guidance, and
  * real-time coaching during calls.
  */
-/* eslint-disable max-lines-per-function */
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import {

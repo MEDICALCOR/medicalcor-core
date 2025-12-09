@@ -186,7 +186,6 @@ function registerDisabledRoutes(fastify: Parameters<FastifyPluginAsync>[0]): voi
 /**
  * Register RLS test routes
  */
-// eslint-disable-next-line max-lines-per-function
 function registerRlsTestRoutes(fastify: Parameters<FastifyPluginAsync>[0]): void {
   logger.info('RLS performance test routes enabled');
 

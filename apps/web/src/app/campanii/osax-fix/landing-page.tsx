@@ -444,6 +444,7 @@ export default function CortexFunnelV2() {
               src="https://cdn.coverr.co/videos/coverr-dentist-working-on-a-patient-2773/1080p.mp4"
               type="video/mp4"
             />
+            <track kind="captions" label="Română" srcLang="ro" default />
           </video>
 
           {/* Video Controls */}
