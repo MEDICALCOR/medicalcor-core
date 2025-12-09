@@ -35,6 +35,7 @@
     "db:schema:validate": "./scripts/validate-schema.sh",
     "db:seed": "tsx db/seed.ts",
     "db:ingest": "tsx scripts/ingest-knowledge.ts",
+    "db:sync": "tsx scripts/sync-supabase.ts",
     "xray-audit": "tsx tools/xray-audit.ts",
     "xray-audit:report": "tsx tools/xray-audit.ts --output XRAY_AUDIT_REPORT.md",
     "smoke-test": "bash scripts/smoke-tests/run-all.sh",
