@@ -13,7 +13,7 @@
  * Copy this template when creating new test files.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, vi } from 'vitest';
 import fc from 'fast-check';
 
 // =============================================================================
