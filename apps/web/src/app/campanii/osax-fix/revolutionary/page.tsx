@@ -430,10 +430,10 @@ export default function RevolutionaryLandingPage() {
   return (
     <GamificationProvider
       onLevelUp={(_level) => {
-        // Could show a toast notification here
+        // TODO: Show a toast notification for level up
       }}
       onAchievementUnlocked={(_achievement) => {
-        // Could show a toast notification here
+        // TODO: Show a toast notification for achievement
       }}
     >
       <LandingPageContent />
