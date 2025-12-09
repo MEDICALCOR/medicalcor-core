@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OSAX-FIX Demo | MedicalCor - Zâmbet Complet în 24 Ore</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary: #0066CC;
+      --primary-dark: #004C99;
+      --secondary: #00A86B;
+      --accent: #FFD700;
+      --danger: #DC2626;
+      --dark: #1A1A2E;
+      --light: #F8FAFC;
+      --gradient: linear-gradient(135deg, #0066CC 0%, #00A86B 100%);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--light);
+      color: var(--dark);
+      line-height: 1.6;
+    }
+
+    /* Hero Section */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background: linear-gradient(135deg, #1A1A2E 0%, #16213E 100%);
+    }
+
+    .hero-video-bg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.4;
+    }
+
+    .hero-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.7) 100%);
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+      padding: 2rem;
+      max-width: 1000px;
+    }
+
+    .urgency-banner {
+      background: linear-gradient(90deg, var(--danger), #EF4444);
+      color: white;
+      padding: 0.75rem 1.5rem;
+      border-radius: 50px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+      animation: pulse 2s infinite;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+
+    .hero h1 {
+      font-size: clamp(2.5rem, 6vw, 4.5rem);
+      font-weight: 900;
+      color: white;
+      margin-bottom: 1.5rem;
+      line-height: 1.1;
+      text-shadow: 0 4px 30px rgba(0,0,0,0.3);
+    }
+
+    .hero h1 span {
+      background: var(--gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-subtitle {
+      font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+      color: rgba(255,255,255,0.9);
+      margin-bottom: 2.5rem;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .cta-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+      margin-bottom: 3rem;
+    }
+
+    .btn {
+      padding: 1.25rem 2.5rem;
+      font-size: 1.1rem;
+      font-weight: 700;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary {
+      background: var(--gradient);
+      color: white;
+      box-shadow: 0 10px 40px rgba(0, 102, 204, 0.4);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 50px rgba(0, 102, 204, 0.5);
+    }
+
+    .btn-secondary {
+      background: rgba(255,255,255,0.1);
+      color: white;
+      border: 2px solid rgba(255,255,255,0.3);
+      backdrop-filter: blur(10px);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255,255,255,0.2);
+      border-color: rgba(255,255,255,0.5);
+    }
+
+    .trust-badges {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 2rem;
+      color: rgba(255,255,255,0.8);
+      font-size: 0.9rem;
+    }
+
+    .trust-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .trust-badge svg {
+      width: 20px;
+      height: 20px;
+      fill: var(--accent);
+    }
+
+    /* Stats Bar */
+    .stats-bar {
+      background: white;
+      padding: 2rem 0;
+      border-bottom: 1px solid #E5E7EB;
+    }
+
+    .stats-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 2rem;
+      padding: 0 2rem;
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 2.5rem;
+      font-weight: 900;
+      background: var(--gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .stat-label {
+      color: #6B7280;
+      font-size: 0.9rem;
+      margin-top: 0.25rem;
+    }
+
+    /* Before/After Section */
+    .before-after-section {
+      padding: 5rem 2rem;
+      background: var(--light);
+    }
+
+    .section-header {
+      text-align: center;
+      max-width: 800px;
+      margin: 0 auto 3rem;
+    }
+
+    .section-header h2 {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 800;
+      margin-bottom: 1rem;
+      color: var(--dark);
+    }
+
+    .section-header p {
+      font-size: 1.1rem;
+      color: #6B7280;
+    }
+
+    .before-after-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .before-after-card {
+      position: relative;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+      aspect-ratio: 4/3;
+      background: #ddd;
+    }
+
+    .before-after-slider {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .before-img, .after-img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .after-img {
+      clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%);
+    }
+
+    .slider-handle {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 4px;
+      height: 100%;
+      background: white;
+      cursor: ew-resize;
+      z-index: 10;
+    }
+
+    .slider-handle::after {
+      content: '⟷';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 50px;
+      height: 50px;
+      background: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+    }
+
+    .before-label, .after-label {
+      position: absolute;
+      bottom: 1rem;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      z-index: 5;
+    }
+
+    .before-label {
+      left: 1rem;
+      background: rgba(220, 38, 38, 0.9);
+      color: white;
+    }
+
+    .after-label {
+      right: 1rem;
+      background: rgba(0, 168, 107, 0.9);
+      color: white;
+    }
+
+    /* Video Testimonials */
+    .testimonials-section {
+      padding: 5rem 2rem;
+      background: white;
+    }
+
+    .testimonials-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .testimonial-card {
+      background: var(--light);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.05);
+      transition: transform 0.3s ease;
+    }
+
+    .testimonial-card:hover {
+      transform: translateY(-5px);
+    }
+
+    .video-thumbnail {
+      position: relative;
+      aspect-ratio: 16/9;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .play-button {
+      width: 80px;
+      height: 80px;
+      background: rgba(255,255,255,0.95);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.3s ease;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+
+    .video-thumbnail:hover .play-button {
+      transform: scale(1.1);
+    }
+
+    .play-button::after {
+      content: '▶';
+      font-size: 2rem;
+      color: var(--primary);
+      margin-left: 5px;
+    }
+
+    .testimonial-content {
+      padding: 1.5rem;
+    }
+
+    .testimonial-text {
+      font-size: 1rem;
+      color: #4B5563;
+      margin-bottom: 1rem;
+      font-style: italic;
+    }
+
+    .testimonial-author {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .author-avatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: var(--gradient);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 700;
+      font-size: 1.2rem;
+    }
+
+    .author-info h4 {
+      font-weight: 700;
+      color: var(--dark);
+    }
+
+    .author-info span {
+      font-size: 0.85rem;
+      color: #6B7280;
+    }
+
+    .stars {
+      color: var(--accent);
+      font-size: 1.1rem;
+      margin-top: 0.25rem;
+    }
+
+    /* Financing Section */
+    .financing-section {
+      padding: 5rem 2rem;
+      background: linear-gradient(135deg, #1A1A2E 0%, #16213E 100%);
+      color: white;
+    }
+
+    .financing-container {
+      max-width: 900px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .financing-section h2 {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 800;
+      margin-bottom: 1rem;
+    }
+
+    .financing-section h2 span {
+      background: var(--gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .financing-calculator {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 24px;
+      padding: 3rem;
+      margin-top: 3rem;
+      backdrop-filter: blur(10px);
+    }
+
+    .price-display {
+      margin-bottom: 2rem;
+    }
+
+    .original-price {
+      font-size: 1.5rem;
+      text-decoration: line-through;
+      color: rgba(255,255,255,0.5);
+    }
+
+    .current-price {
+      font-size: 4rem;
+      font-weight: 900;
+      background: var(--gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .monthly-payment {
+      margin-top: 1.5rem;
+      padding: 1.5rem;
+      background: rgba(0, 168, 107, 0.2);
+      border-radius: 16px;
+      border: 1px solid rgba(0, 168, 107, 0.3);
+    }
+
+    .monthly-label {
+      font-size: 1rem;
+      color: rgba(255,255,255,0.8);
+    }
+
+    .monthly-amount {
+      font-size: 3rem;
+      font-weight: 900;
+      color: var(--secondary);
+    }
+
+    .slider-container {
+      margin: 2rem 0;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+      color: rgba(255,255,255,0.7);
+    }
+
+    .financing-slider {
+      width: 100%;
+      height: 8px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.2);
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    .financing-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--gradient);
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(0, 102, 204, 0.5);
+    }
+
+    /* Quiz Section */
+    .quiz-section {
+      padding: 5rem 2rem;
+      background: var(--light);
+    }
+
+    .quiz-container {
+      max-width: 700px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .quiz-card {
+      background: white;
+      border-radius: 24px;
+      padding: 3rem;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.08);
+    }
+
+    .quiz-progress {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      margin-bottom: 2rem;
+    }
+
+    .progress-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #E5E7EB;
+      transition: all 0.3s ease;
+    }
+
+    .progress-dot.active {
+      background: var(--primary);
+      width: 30px;
+      border-radius: 6px;
+    }
+
+    .progress-dot.completed {
+      background: var(--secondary);
+    }
+
+    .quiz-question {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 2rem;
+      color: var(--dark);
+    }
+
+    .quiz-options {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .quiz-option {
+      padding: 1.25rem 1.5rem;
+      border: 2px solid #E5E7EB;
+      border-radius: 12px;
+      background: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-align: left;
+      font-size: 1rem;
+    }
+
+    .quiz-option:hover {
+      border-color: var(--primary);
+      background: rgba(0, 102, 204, 0.05);
+    }
+
+    .quiz-option.selected {
+      border-color: var(--primary);
+      background: rgba(0, 102, 204, 0.1);
+    }
+
+    /* CTA Section */
+    .final-cta {
+      padding: 5rem 2rem;
+      background: var(--gradient);
+      text-align: center;
+      color: white;
+    }
+
+    .final-cta h2 {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 800;
+      margin-bottom: 1.5rem;
+    }
+
+    .final-cta p {
+      font-size: 1.2rem;
+      opacity: 0.9;
+      margin-bottom: 2rem;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .btn-white {
+      background: white;
+      color: var(--primary);
+      padding: 1.25rem 3rem;
+      font-size: 1.2rem;
+      font-weight: 700;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+
+    .btn-white:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 50px rgba(0,0,0,0.3);
+    }
+
+    /* Mobile Sticky CTA */
+    .mobile-sticky-cta {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      padding: 1rem;
+      box-shadow: 0 -5px 30px rgba(0,0,0,0.1);
+      z-index: 1000;
+    }
+
+    @media (max-width: 768px) {
+      .mobile-sticky-cta {
+        display: block;
+      }
+
+      .cta-buttons {
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+
+    .sticky-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    .sticky-price {
+      font-size: 0.9rem;
+      color: #6B7280;
+    }
+
+    .sticky-price strong {
+      display: block;
+      font-size: 1.25rem;
+      color: var(--primary);
+    }
+
+    .btn-sticky {
+      background: var(--gradient);
+      color: white;
+      padding: 0.875rem 1.5rem;
+      font-weight: 700;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+    }
+
+    /* Quiz Modal */
+    .quiz-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .quiz-modal.active {
+      display: flex;
+    }
+
+    .quiz-modal-content {
+      background: white;
+      border-radius: 24px;
+      padding: 3rem;
+      max-width: 600px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .close-modal {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #F3F4F6;
+      border: none;
+      cursor: pointer;
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Floating WhatsApp */
+    .whatsapp-float {
+      position: fixed;
+      bottom: 100px;
+      right: 20px;
+      width: 60px;
+      height: 60px;
+      background: #25D366;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 5px 25px rgba(37, 211, 102, 0.4);
+      cursor: pointer;
+      z-index: 999;
+      transition: transform 0.3s ease;
+    }
+
+    .whatsapp-float:hover {
+      transform: scale(1.1);
+    }
+
+    .whatsapp-float svg {
+      width: 32px;
+      height: 32px;
+      fill: white;
+    }
+
+    @media (max-width: 768px) {
+      .whatsapp-float {
+        bottom: 80px;
+      }
+    }
+
+    /* Animations */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animate-in {
+      animation: fadeInUp 0.6s ease forwards;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <video class="hero-video-bg" autoplay muted loop playsinline>
+      <source src="https://assets.mixkit.co/videos/preview/mixkit-dentist-checking-a-patients-teeth-4628-large.mp4" type="video/mp4">
+    </video>
+    <div class="hero-overlay"></div>
+
+    <div class="hero-content">
+      <div class="urgency-banner">
+        <span>🔥</span>
+        <span>OFERTĂ LIMITATĂ: Mai sunt doar <strong id="spots-left">7</strong> locuri în Decembrie!</span>
+        <span id="countdown">23:59:45</span>
+      </div>
+
+      <h1>
+        Zâmbet Complet în <span>24 de Ore</span><br>
+        cu Tehnologia All-on-X
+      </h1>
+
+      <p class="hero-subtitle">
+        Procedura revoluționară care a transformat viețile a peste 2,500 de pacienți.
+        Fără durere, fără așteptare, rezultate garantate.
+      </p>
+
+      <div class="cta-buttons">
+        <button class="btn btn-primary" onclick="openQuiz()">
+          🎯 Evaluare Gratuită - 2 minute
+        </button>
+        <a href="tel:+40747099099" class="btn btn-secondary">
+          📞 Sună Acum: 0747 099 099
+        </a>
+      </div>
+
+      <div class="trust-badges">
+        <div class="trust-badge">
+          <svg viewBox="0 0 24 24"><path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5zm-1 14.59l-3.29-3.29 1.41-1.41L11 13.17l5.88-5.88 1.41 1.41L11 16.59z"/></svg>
+          <span>Garanție 10 Ani</span>
+        </div>
+        <div class="trust-badge">
+          <svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+          <span>4.9★ din 850+ Recenzii</span>
+        </div>
+        <div class="trust-badge">
+          <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+          <span>2,500+ Pacienți Fericiți</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats Bar -->
+  <div class="stats-bar">
+    <div class="stats-container">
+      <div class="stat-item">
+        <div class="stat-number">24h</div>
+        <div class="stat-label">De la Consultație la Zâmbet</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number">98.7%</div>
+        <div class="stat-label">Rată de Succes</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number">€89</div>
+        <div class="stat-label">Rate Lunare de la</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number">10 Ani</div>
+        <div class="stat-label">Garanție Completă</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Before/After Section -->
+  <section class="before-after-section">
+    <div class="section-header">
+      <h2>Transformări Reale, Rezultate Garantate</h2>
+      <p>Trageți slider-ul pentru a vedea diferența. Aceste transformări au avut loc în doar 24 de ore.</p>
+    </div>
+
+    <div class="before-after-grid">
+      <div class="before-after-card">
+        <div class="before-after-slider" id="slider1">
+          <img class="before-img" src="https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=800&h=600&fit=crop" alt="Înainte">
+          <img class="after-img" src="https://images.unsplash.com/photo-1581803118522-7b72a50f7e9f?w=800&h=600&fit=crop" alt="După">
+          <div class="slider-handle"></div>
+          <span class="before-label">ÎNAINTE</span>
+          <span class="after-label">DUPĂ 24H</span>
+        </div>
+      </div>
+
+      <div class="before-after-card">
+        <div class="before-after-slider" id="slider2">
+          <img class="before-img" src="https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=800&h=600&fit=crop" alt="Înainte">
+          <img class="after-img" src="https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=800&h=600&fit=crop" alt="După">
+          <div class="slider-handle"></div>
+          <span class="before-label">ÎNAINTE</span>
+          <span class="after-label">DUPĂ 24H</span>
+        </div>
+      </div>
+
+      <div class="before-after-card">
+        <div class="before-after-slider" id="slider3">
+          <img class="before-img" src="https://images.unsplash.com/photo-1609840114035-3c981b782dfe?w=800&h=600&fit=crop" alt="Înainte">
+          <img class="after-img" src="https://images.unsplash.com/photo-1606811971618-4486d14f3f99?w=800&h=600&fit=crop" alt="După">
+          <div class="slider-handle"></div>
+          <span class="before-label">ÎNAINTE</span>
+          <span class="after-label">DUPĂ 24H</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Video Testimonials -->
+  <section class="testimonials-section">
+    <div class="section-header">
+      <h2>Ce Spun Pacienții Noștri</h2>
+      <p>Peste 850 de recenzii cu 5 stele. Ascultați poveștile lor.</p>
+    </div>
+
+    <div class="testimonials-grid">
+      <div class="testimonial-card">
+        <div class="video-thumbnail" onclick="playVideo(1)">
+          <div class="play-button"></div>
+        </div>
+        <div class="testimonial-content">
+          <p class="testimonial-text">"După 15 ani în care nu am putut zâmbi în poze, acum nu mă mai opresc! Echipa MedicalCor mi-a schimbat viața în doar 24 de ore."</p>
+          <div class="testimonial-author">
+            <div class="author-avatar">M</div>
+            <div class="author-info">
+              <h4>Maria P.</h4>
+              <span>București</span>
+              <div class="stars">★★★★★</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="testimonial-card">
+        <div class="video-thumbnail" onclick="playVideo(2)">
+          <div class="play-button"></div>
+        </div>
+        <div class="testimonial-content">
+          <p class="testimonial-text">"Am amânat procedura ani de zile de frică. Acum regret că nu am venit mai devreme. Zero durere, rezultat perfect!"</p>
+          <div class="testimonial-author">
+            <div class="author-avatar">I</div>
+            <div class="author-info">
+              <h4>Ion D.</h4>
+              <span>Cluj-Napoca</span>
+              <div class="stars">★★★★★</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="testimonial-card">
+        <div class="video-thumbnail" onclick="playVideo(3)">
+          <div class="play-button"></div>
+        </div>
+        <div class="testimonial-content">
+          <p class="testimonial-text">"Finanțarea în rate mi-a permis să am zâmbetul pe care mi-l doream fără să-mi afecteze bugetul. Recomand cu încredere!"</p>
+          <div class="testimonial-author">
+            <div class="author-avatar">A</div>
+            <div class="author-info">
+              <h4>Ana M.</h4>
+              <span>Timișoara</span>
+              <div class="stars">★★★★★</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Financing Section -->
+  <section class="financing-section">
+    <div class="financing-container">
+      <h2>Zâmbetul Perfect la <span>Rate de la €89/lună</span></h2>
+      <p style="opacity: 0.8; font-size: 1.1rem;">Finanțare flexibilă în 12-72 de rate, fără avans. Aprobare în 15 minute.</p>
+
+      <div class="financing-calculator">
+        <div class="price-display">
+          <div class="original-price">€12,000</div>
+          <div class="current-price">€6,500</div>
+          <div style="color: var(--secondary); font-weight: 600; margin-top: 0.5rem;">
+            🎉 Economisești €5,500 - Ofertă Decembrie
+          </div>
+        </div>
+
+        <div class="slider-container">
+          <div class="slider-label">
+            <span>Perioada de Rate</span>
+            <span id="months-display">48 luni</span>
+          </div>
+          <input type="range" class="financing-slider" min="12" max="72" value="48" step="12" id="monthsSlider">
+        </div>
+
+        <div class="monthly-payment">
+          <div class="monthly-label">Rata ta lunară:</div>
+          <div class="monthly-amount" id="monthly-amount">€135/lună</div>
+          <div style="font-size: 0.85rem; opacity: 0.7; margin-top: 0.5rem;">
+            DAE 9.9% • Fără costuri ascunse
+          </div>
+        </div>
+
+        <button class="btn btn-primary" style="margin-top: 2rem; width: 100%;" onclick="openQuiz()">
+          🎯 Calculează Rata Ta Personalizată
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quiz Teaser Section -->
+  <section class="quiz-section">
+    <div class="quiz-container">
+      <div class="section-header">
+        <h2>Ești Candidat pentru All-on-X?</h2>
+        <p>Răspunde la 4 întrebări simple și află în 2 minute dacă procedura All-on-X este potrivită pentru tine.</p>
+      </div>
+
+      <div class="quiz-card">
+        <div class="quiz-progress">
+          <div class="progress-dot active"></div>
+          <div class="progress-dot"></div>
+          <div class="progress-dot"></div>
+          <div class="progress-dot"></div>
+        </div>
+
+        <h3 class="quiz-question">Câți dinți îți lipsesc sau trebuie extrași?</h3>
+
+        <div class="quiz-options">
+          <div class="quiz-option" onclick="selectOption(this)">1-3 dinți</div>
+          <div class="quiz-option" onclick="selectOption(this)">4-6 dinți</div>
+          <div class="quiz-option" onclick="selectOption(this)">Mai mult de 6 dinți</div>
+          <div class="quiz-option" onclick="selectOption(this)">Toți dinții sau aproape toți</div>
+        </div>
+
+        <button class="btn btn-primary" style="margin-top: 2rem; width: 100%;" onclick="openQuiz()">
+          Continuă Evaluarea →
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Final CTA -->
+  <section class="final-cta">
+    <h2>Gata să-ți Transformi Zâmbetul?</h2>
+    <p>Programează-ți consultația gratuită astăzi și fă primul pas către zâmbetul pe care îl meriți.</p>
+    <button class="btn-white" onclick="openQuiz()">
+      🎯 Programează Consultația Gratuită
+    </button>
+    <p style="margin-top: 1.5rem; font-size: 0.9rem; opacity: 0.8;">
+      ✓ Fără obligații &nbsp;&nbsp; ✓ CT Scan inclus &nbsp;&nbsp; ✓ Plan de tratament personalizat
+    </p>
+  </section>
+
+  <!-- Mobile Sticky CTA -->
+  <div class="mobile-sticky-cta">
+    <div class="sticky-content">
+      <div class="sticky-price">
+        Rate de la
+        <strong>€89/lună</strong>
+      </div>
+      <button class="btn-sticky" onclick="openQuiz()">
+        Evaluare Gratuită
+      </button>
+    </div>
+  </div>
+
+  <!-- WhatsApp Float Button -->
+  <a href="https://wa.me/40747099099?text=Bună! Doresc informații despre procedura All-on-X." class="whatsapp-float" target="_blank">
+    <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+  </a>
+
+  <!-- Quiz Modal -->
+  <div class="quiz-modal" id="quizModal">
+    <div class="quiz-modal-content">
+      <button class="close-modal" onclick="closeQuiz()">×</button>
+
+      <div id="quiz-step-1" class="quiz-step">
+        <div class="quiz-progress" style="margin-bottom: 2rem;">
+          <div class="progress-dot active"></div>
+          <div class="progress-dot"></div>
+          <div class="progress-dot"></div>
+          <div class="progress-dot"></div>
+        </div>
+
+        <h3 style="font-size: 1.5rem; margin-bottom: 0.5rem;">Pasul 1 din 4</h3>
+        <h2 style="font-size: 1.25rem; color: #6B7280; margin-bottom: 2rem;">Să vedem dacă ești candidat...</h2>
+
+        <h3 class="quiz-question">Câți dinți îți lipsesc sau trebuie extrași?</h3>
+
+        <div class="quiz-options">
+          <div class="quiz-option" onclick="nextQuizStep(1, '1-3 dinți')">1-3 dinți</div>
+          <div class="quiz-option" onclick="nextQuizStep(1, '4-6 dinți')">4-6 dinți</div>
+          <div class="quiz-option" onclick="nextQuizStep(1, 'Mai mult de 6')">Mai mult de 6 dinți</div>
+          <div class="quiz-option" onclick="nextQuizStep(1, 'Toți dinții')">Toți dinții sau aproape toți</div>
+        </div>
+      </div>
+
+      <div id="quiz-step-2" class="quiz-step" style="display: none;">
+        <div class="quiz-progress" style="margin-bottom: 2rem;">
+          <div class="progress-dot completed"></div>
+          <div class="progress-dot active"></div>
+          <div class="progress-dot"></div>
+          <div class="progress-dot"></div>
+        </div>
+
+        <h3 style="font-size: 1.5rem; margin-bottom: 0.5rem;">Pasul 2 din 4</h3>
+
+        <h3 class="quiz-question">Cât de repede dorești să rezolvi problema dentară?</h3>
+
+        <div class="quiz-options">
+          <div class="quiz-option" onclick="nextQuizStep(2, 'Urgent - cât mai repede')" style="border-color: #DC2626;">🔴 Urgent - cât mai repede posibil</div>
+          <div class="quiz-option" onclick="nextQuizStep(2, 'În următoarele 1-2 luni')">🟡 În următoarele 1-2 luni</div>
+          <div class="quiz-option" onclick="nextQuizStep(2, 'În următoarele 3-6 luni')">🟢 În următoarele 3-6 luni</div>
+          <div class="quiz-option" onclick="nextQuizStep(2, 'Doar mă informez')">ℹ️ Doar mă informez pentru moment</div>
+        </div>
+      </div>
+
+      <div id="quiz-step-3" class="quiz-step" style="display: none;">
+        <div class="quiz-progress" style="margin-bottom: 2rem;">
+          <div class="progress-dot completed"></div>
+          <div class="progress-dot completed"></div>
+          <div class="progress-dot active"></div>
+          <div class="progress-dot"></div>
+        </div>
+
+        <h3 style="font-size: 1.5rem; margin-bottom: 0.5rem;">Pasul 3 din 4</h3>
+
+        <h3 class="quiz-question">Ce metodă de finanțare preferi?</h3>
+
+        <div class="quiz-options">
+          <div class="quiz-option" onclick="nextQuizStep(3, 'Plată integrală')">💰 Plată integrală (discount 10%)</div>
+          <div class="quiz-option" onclick="nextQuizStep(3, 'Rate lunare')">📅 Rate lunare flexibile</div>
+          <div class="quiz-option" onclick="nextQuizStep(3, 'Vreau să aflu opțiunile')">❓ Vreau să aflu toate opțiunile</div>
+        </div>
+      </div>
+
+      <div id="quiz-step-4" class="quiz-step" style="display: none;">
+        <div class="quiz-progress" style="margin-bottom: 2rem;">
+          <div class="progress-dot completed"></div>
+          <div class="progress-dot completed"></div>
+          <div class="progress-dot completed"></div>
+          <div class="progress-dot active"></div>
+        </div>
+
+        <h3 style="font-size: 1.5rem; margin-bottom: 0.5rem;">Ultimul Pas!</h3>
+        <p style="color: #6B7280; margin-bottom: 2rem;">Completează datele pentru a primi evaluarea personalizată.</p>
+
+        <form id="leadForm" onsubmit="submitLead(event)">
+          <div style="margin-bottom: 1rem;">
+            <input type="text" placeholder="Numele tău" required style="width: 100%; padding: 1rem; border: 2px solid #E5E7EB; border-radius: 10px; font-size: 1rem;">
+          </div>
+          <div style="margin-bottom: 1rem;">
+            <input type="tel" placeholder="Număr de telefon" required style="width: 100%; padding: 1rem; border: 2px solid #E5E7EB; border-radius: 10px; font-size: 1rem;">
+          </div>
+          <div style="margin-bottom: 1.5rem;">
+            <label style="display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.85rem; color: #6B7280;">
+              <input type="checkbox" required style="margin-top: 4px;">
+              <span>Sunt de acord cu prelucrarea datelor conform GDPR și accept să fiu contactat pentru programarea consultației.</span>
+            </label>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width: 100%;">
+            ✅ Trimite și Programează Consultația
+          </button>
+        </form>
+      </div>
+
+      <div id="quiz-success" class="quiz-step" style="display: none; text-align: center;">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">🎉</div>
+        <h2 style="color: var(--secondary); margin-bottom: 1rem;">Felicitări!</h2>
+        <p style="font-size: 1.1rem; margin-bottom: 2rem;">
+          Ai făcut primul pas către zâmbetul perfect.<br>
+          Te vom contacta în maxim 15 minute.
+        </p>
+        <div style="background: #F0FDF4; border: 1px solid #86EFAC; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
+          <p style="font-weight: 600; color: #166534;">📞 Consultația ta gratuită include:</p>
+          <ul style="text-align: left; margin-top: 0.5rem; color: #166534; font-size: 0.9rem;">
+            <li>✓ CT Scan 3D (valoare €150)</li>
+            <li>✓ Plan de tratament personalizat</li>
+            <li>✓ Simulare digitală a zâmbetului</li>
+            <li>✓ Opțiuni de finanțare flexibile</li>
+          </ul>
+        </div>
+        <button class="btn btn-primary" onclick="closeQuiz()">Închide</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Countdown Timer
+    function updateCountdown() {
+      const now = new Date();
+      const endOfDay = new Date();
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const diff = endOfDay - now;
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      document.getElementById('countdown').textContent =
+        `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    setInterval(updateCountdown, 1000);
+    updateCountdown();
+
+    // Financing Calculator
+    const monthsSlider = document.getElementById('monthsSlider');
+    const monthsDisplay = document.getElementById('months-display');
+    const monthlyAmount = document.getElementById('monthly-amount');
+
+    const totalPrice = 6500;
+    const interestRate = 0.099;
+
+    monthsSlider.addEventListener('input', function() {
+      const months = parseInt(this.value);
+      monthsDisplay.textContent = `${months} luni`;
+
+      // Simple interest calculation
+      const totalWithInterest = totalPrice * (1 + (interestRate * months / 12));
+      const monthly = Math.round(totalWithInterest / months);
+      monthlyAmount.textContent = `€${monthly}/lună`;
+    });
+
+    // Quiz Functions
+    let quizAnswers = {};
+
+    function openQuiz() {
+      document.getElementById('quizModal').classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeQuiz() {
+      document.getElementById('quizModal').classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    function nextQuizStep(currentStep, answer) {
+      quizAnswers[`step${currentStep}`] = answer;
+
+      document.getElementById(`quiz-step-${currentStep}`).style.display = 'none';
+      document.getElementById(`quiz-step-${currentStep + 1}`).style.display = 'block';
+    }
+
+    function submitLead(e) {
+      e.preventDefault();
+
+      // Show success message
+      document.getElementById('quiz-step-4').style.display = 'none';
+      document.getElementById('quiz-success').style.display = 'block';
+
+      // In production, this would send to /api/leads
+      console.log('Lead submitted:', quizAnswers);
+    }
+
+    function selectOption(element) {
+      document.querySelectorAll('.quiz-option').forEach(opt => opt.classList.remove('selected'));
+      element.classList.add('selected');
+    }
+
+    function playVideo(id) {
+      alert('Video testimonial ' + id + ' ar fi redat aici.\n\nÎn producție, aceasta ar deschide un modal video cu testimonialul real al pacientului.');
+    }
+
+    // Before/After Slider Interaction
+    document.querySelectorAll('.before-after-slider').forEach(slider => {
+      let isDown = false;
+
+      slider.addEventListener('mousedown', () => isDown = true);
+      slider.addEventListener('mouseup', () => isDown = false);
+      slider.addEventListener('mouseleave', () => isDown = false);
+
+      slider.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+
+        const rect = slider.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+
+        const afterImg = slider.querySelector('.after-img');
+        const handle = slider.querySelector('.slider-handle');
+
+        afterImg.style.clipPath = `polygon(${percentage}% 0, 100% 0, 100% 100%, ${percentage}% 100%)`;
+        handle.style.left = `${percentage}%`;
+      });
+    });
+
+    // Exit Intent Detection
+    let exitIntentShown = false;
+    document.addEventListener('mouseleave', (e) => {
+      if (e.clientY < 0 && !exitIntentShown) {
+        exitIntentShown = true;
+        // Could show exit popup here
+        console.log('Exit intent detected - would show popup');
+      }
+    });
+  </script>
+
+</body>
+</html>

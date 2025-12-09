@@ -59,6 +59,39 @@ import {
 } from './lib/index.js';
 
 // =============================================================================
+// Repository Adapters
+// =============================================================================
+
+/**
+ * Adapts IConsentRepository (uses Result types) to ConsentRepository (uses plain types)
+ * This bridges the architectural difference between the core and domain layers
+ */
+function adaptConsentRepository(repo: IConsentRepository): ConsentRepository {
+  return {
+    async save(consent) {
+      const result = await repo.save(consent);
+      if (result._tag !== 'Ok') throw new Error('Failed to save consent record');
+      return result.value;
+    },
+    async upsert(consent) {
+      const result = await repo.upsert(consent);
+      if (result._tag !== 'Ok') throw new Error('Failed to upsert consent record');
+      return result.value;
+    },
+    findByContactAndType: (contactId, consentType) =>
+      repo.findByContactAndType(contactId, consentType),
+    findByContact: (contactId) => repo.findByContact(contactId),
+    delete: (consentId) => repo.delete(consentId),
+    deleteByContact: (contactId) => repo.deleteByContact(contactId),
+    findExpiringSoon: (withinDays) => repo.findExpiringSoon(withinDays),
+    findByStatus: (status) => repo.findByStatus(status),
+    appendAuditEntry: (entry) => repo.appendAuditEntry(entry),
+    getAuditTrail: (consentId) => repo.getAuditTrail(consentId),
+    getContactAuditTrail: (contactId) => repo.getContactAuditTrail(contactId),
+  };
+}
+
+// =============================================================================
 // Enhanced Configuration Types
 // =============================================================================
 
@@ -545,10 +578,10 @@ export function createEnhancedIntegrationClients(
 
   if (config.includeConsent !== false) {
     // Use in-memory repository for development/testing
-    // InMemoryConsentRepository implements IConsentRepository (Result-wrapped),
-    // so it needs adaptConsentRepository to convert to ConsentRepository
-    const inMemoryRepository = adaptConsentRepository(new InMemoryConsentRepository());
-    consent = createConsentService({ repository: inMemoryRepository });
+    // InMemoryConsentRepository returns Result-wrapped types, so we need to adapt it
+    const inMemoryRepository = new InMemoryConsentRepository();
+    const adaptedRepository = adaptConsentRepository(inMemoryRepository);
+    consent = createConsentService({ repository: adaptedRepository });
   }
 
   if (config.includeTemplateCatalog !== false && whatsapp) {
