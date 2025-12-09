@@ -466,7 +466,10 @@ describe('LTV Dashboard Server Actions', () => {
 
       expect(result).toHaveProperty('success');
       expect(result).toHaveProperty('message');
-      expect(result.message).toContain('CSV');
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('Report generated successfully');
+      expect(result).toHaveProperty('data');
+      expect(result).toHaveProperty('filename');
     });
 
     it('should return success status and message for XLSX', async () => {
@@ -488,15 +491,23 @@ describe('LTV Dashboard Server Actions', () => {
     it('should default to CSV format', async () => {
       const result = await exportLTVReportAction();
 
-      expect(result.message).toContain('CSV');
+      // Default format is CSV which is implemented
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('Report generated successfully');
+      expect(result).toHaveProperty('data');
+      expect(result).toHaveProperty('filename');
     });
 
-    it('should indicate not implemented status', async () => {
-      const result = await exportLTVReportAction();
+    it('should indicate not implemented status for non-CSV formats', async () => {
+      // XLSX format is not yet implemented
+      const xlsxResult = await exportLTVReportAction('xlsx');
+      expect(xlsxResult.success).toBe(false);
+      expect(xlsxResult.message).toContain('not yet implemented');
 
-      // Current implementation returns not implemented
-      expect(result.success).toBe(false);
-      expect(result.message).toContain('not yet implemented');
+      // PDF format is not yet implemented
+      const pdfResult = await exportLTVReportAction('pdf');
+      expect(pdfResult.success).toBe(false);
+      expect(pdfResult.message).toContain('not yet implemented');
     });
 
     it('should throw when permission denied', async () => {
