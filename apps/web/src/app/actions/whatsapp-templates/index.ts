@@ -1,7 +1,8 @@
 'use server';
 
 import { z } from 'zod';
-import { createDatabaseClient, type DatabasePool, createLogger } from '@medicalcor/core';
+import { createLogger } from '@medicalcor/core';
+import { getDatabase } from '@/lib/db';
 import { createWhatsAppClient, type TemplateComponent } from '@medicalcor/integrations';
 import { requirePermission, requireCurrentUser } from '@/lib/auth/server-action-auth';
 
@@ -13,14 +14,6 @@ const logger = createLogger({ name: 'whatsapp-templates-action' });
  * All actions require authentication and appropriate permissions.
  * Templates are synced with Meta/360dialog for approval.
  */
-
-// Lazy-initialized database connection
-let db: DatabasePool | null = null;
-
-function getDatabase(): DatabasePool {
-  db ??= createDatabaseClient();
-  return db;
-}
 
 // =============================================================================
 // Types

@@ -1,19 +1,12 @@
 'use server';
 
 import { z } from 'zod';
-import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
+import { getDatabase } from '@/lib/db';
 import { requirePermission, requireCurrentUser } from '@/lib/auth/server-action-auth';
 
 /**
  * Server Actions for Staff Schedule Management
  */
-
-let db: DatabasePool | null = null;
-
-function getDatabase(): DatabasePool {
-  db ??= createDatabaseClient();
-  return db;
-}
 
 // =============================================================================
 // Types
@@ -683,7 +676,7 @@ export async function getCapacityDashboardAction(
  */
 export async function detectShiftConflictsAction(
   startDate: string,
-  endDate: string
+  _endDate: string
 ): Promise<ShiftConflict[]> {
   try {
     await requirePermission('staff:read');
@@ -770,7 +763,7 @@ export async function getStaffingRecommendationsAction(
 /**
  * Get demand forecast for upcoming weeks
  */
-export async function getDemandForecastAction(weeksAhead: number = 2): Promise<DemandForecast[]> {
+export async function getDemandForecastAction(weeksAhead = 2): Promise<DemandForecast[]> {
   try {
     await requirePermission('staff:read');
 

@@ -284,7 +284,7 @@ export default function WebhookDetailPage() {
           });
           setRelatedEvents(related.webhooks.filter((w) => w.id !== webhookId));
         }
-      } catch (error) {
+      } catch (_error) {
         toast({
           title: 'Error',
           description: 'Failed to load webhook details',
@@ -299,7 +299,7 @@ export default function WebhookDetailPage() {
   );
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
 
   // ============================================================================
@@ -366,7 +366,7 @@ export default function WebhookDetailPage() {
   const sourceConfig = SOURCE_CONFIG[webhook.source];
   const statusConfig = STATUS_CONFIG[webhook.status];
   const StatusIcon = statusConfig.icon;
-  const SourceIcon = sourceConfig?.icon ?? Webhook;
+  const SourceIcon = sourceConfig.icon;
 
   return (
     <div className="space-y-6">
@@ -421,12 +421,12 @@ export default function WebhookDetailPage() {
               <div
                 className={cn(
                   'flex items-center gap-2 px-3 py-1.5 rounded-lg',
-                  sourceConfig?.bgColor ?? 'bg-gray-100'
+                  sourceConfig.bgColor
                 )}
               >
-                <SourceIcon className={cn('h-4 w-4', sourceConfig?.color ?? 'text-gray-600')} />
-                <span className={cn('text-sm font-medium', sourceConfig?.color ?? 'text-gray-600')}>
-                  {sourceConfig?.label ?? webhook.source}
+                <SourceIcon className={cn('h-4 w-4', sourceConfig.color)} />
+                <span className={cn('text-sm font-medium', sourceConfig.color)}>
+                  {sourceConfig.label}
                 </span>
               </div>
               <Badge variant="outline" className="font-mono">
@@ -647,13 +647,11 @@ export default function WebhookDetailPage() {
               <div
                 className={cn(
                   'flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium',
-                  sourceConfig?.bgColor ?? 'bg-gray-100'
+                  sourceConfig.bgColor
                 )}
               >
-                <SourceIcon className={cn('h-3 w-3', sourceConfig?.color ?? 'text-gray-600')} />
-                <span className={sourceConfig?.color ?? 'text-gray-600'}>
-                  {sourceConfig?.label ?? webhook.source}
-                </span>
+                <SourceIcon className={cn('h-3 w-3', sourceConfig.color)} />
+                <span className={sourceConfig.color}>{sourceConfig.label}</span>
               </div>
             </div>
             <div className="flex items-center justify-between">

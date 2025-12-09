@@ -1,6 +1,6 @@
 'use server';
 
-import { createDatabaseClient, type DatabasePool } from '@medicalcor/core';
+import { getDatabase } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth/server-action-auth';
 import type {
   EvaluatedFeatureFlag,
@@ -20,17 +20,6 @@ import type {
  *
  * @module actions/feature-flags
  */
-
-// =============================================================================
-// Database Connection
-// =============================================================================
-
-let db: DatabasePool | null = null;
-
-function getDatabase(): DatabasePool {
-  db ??= createDatabaseClient();
-  return db;
-}
 
 // =============================================================================
 // Types

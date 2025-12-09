@@ -260,8 +260,30 @@ function generateMockPayload(source: WebhookSource, eventType: string): Record<s
         service: 'Consultație stomatologică',
       };
 
-    default:
-      return basePayload;
+    case 'voice':
+      return {
+        ...basePayload,
+        call_id: `call_${Math.random().toString(36).substring(2, 12)}`,
+        from: '+40712345678',
+        to: '+40211234567',
+        duration: Math.floor(Math.random() * 300) + 30,
+      };
+
+    case 'hubspot':
+      return {
+        ...basePayload,
+        objectId: Math.floor(Math.random() * 100000),
+        propertyName: 'lifecyclestage',
+        propertyValue: 'lead',
+      };
+
+    case 'crm':
+      return {
+        ...basePayload,
+        entity_type: 'contact',
+        entity_id: `cnt_${Math.random().toString(36).substring(2, 10)}`,
+        action: eventType.split('.')[1] ?? 'updated',
+      };
   }
 }
 
@@ -269,9 +291,7 @@ function generateMockPayload(source: WebhookSource, eventType: string): Record<s
 let mockWebhooksCache: WebhookEvent[] | null = null;
 
 function getMockWebhooks(): WebhookEvent[] {
-  if (!mockWebhooksCache) {
-    mockWebhooksCache = generateMockWebhooks(150);
-  }
+  mockWebhooksCache ??= generateMockWebhooks(150);
   return mockWebhooksCache;
 }
 
@@ -348,7 +368,7 @@ export async function getWebhookListAction(
           w.id.toLowerCase().includes(searchLower) ||
           w.correlationId.toLowerCase().includes(searchLower) ||
           w.eventType.toLowerCase().includes(searchLower) ||
-          (w.error && w.error.toLowerCase().includes(searchLower))
+          w.error?.toLowerCase().includes(searchLower)
       );
     }
     if (filters.correlationId) {
@@ -453,7 +473,7 @@ export async function getWebhookByIdAction(webhookId: string): Promise<WebhookEv
  */
 export async function replayWebhookAction(webhookId: string): Promise<WebhookReplayResult> {
   try {
-    await requirePermission('system:admin' as any);
+    await requirePermission('system:admin');
 
     const apiUrl = getApiBaseUrl();
     const apiKey = getApiSecretKey();
@@ -532,7 +552,7 @@ export async function bulkReplayWebhooksAction(
   webhookIds: string[]
 ): Promise<{ results: WebhookReplayResult[]; successCount: number; failureCount: number }> {
   try {
-    await requirePermission('system:admin' as any);
+    await requirePermission('system:admin');
 
     const results: WebhookReplayResult[] = [];
     let successCount = 0;
@@ -654,7 +674,7 @@ export async function getWebhookEventTypesAction(source?: WebhookSource): Promis
     await requirePermission('VIEW_ANALYTICS');
 
     if (source) {
-      return EVENT_TYPES[source] ?? [];
+      return EVENT_TYPES[source];
     }
 
     // Return all event types

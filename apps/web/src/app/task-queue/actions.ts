@@ -1,5 +1,8 @@
 'use server';
 
+/* eslint-disable @typescript-eslint/require-await */
+// Server actions must be async for Next.js, but these mock implementations don't need await
+
 import { revalidatePath } from 'next/cache';
 
 /**

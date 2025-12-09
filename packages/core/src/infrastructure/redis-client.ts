@@ -876,7 +876,8 @@ export function createRedisClientFromEnv(): SecureRedisClient | null {
   let redisUrl = process.env.REDIS_URL;
   if (!redisUrl) return null;
 
-  const nodeEnv = process.env.NODE_ENV ?? 'development';
+  // Cast to string to allow 'staging' environment check (NODE_ENV types are limited)
+  const nodeEnv: string = process.env.NODE_ENV ?? 'development';
   const isProduction = nodeEnv === 'production';
   const isStaging = nodeEnv === 'staging';
   const requiresAuth = isProduction || isStaging;

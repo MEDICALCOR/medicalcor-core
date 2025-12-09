@@ -509,6 +509,12 @@ export {
   AppointmentScheduledEventSchema,
   AppointmentReminderSentEventSchema,
   ConsentRecordedEventSchema,
+  // Queue breach events
+  QueueBreachDetectedEventSchema,
+  QueueBreachResolvedEventSchema,
+  QueueBreachEscalatedEventSchema,
+  QueueBreachAcknowledgedEventSchema,
+  QueueBreachAlertSentEventSchema,
   DomainEventSchema,
   type EventBase,
   type WhatsAppMessageReceivedEvent,
@@ -526,6 +532,12 @@ export {
   type AppointmentScheduledEvent,
   type AppointmentReminderSentEvent,
   type ConsentRecordedEvent,
+  // Queue breach event types
+  type QueueBreachDetectedEvent,
+  type QueueBreachResolvedEvent,
+  type QueueBreachEscalatedEvent,
+  type QueueBreachAcknowledgedEvent,
+  type QueueBreachAlertSentEvent,
   type DomainEvent,
 } from './events.schema.js';
 
