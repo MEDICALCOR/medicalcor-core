@@ -29,7 +29,12 @@ export interface PatientRiskProfile {
   readonly oralHygieneScore: number; // 1-10
 
   // Medical factors
-  readonly diabetes: 'NONE' | 'TYPE1_CONTROLLED' | 'TYPE1_UNCONTROLLED' | 'TYPE2_CONTROLLED' | 'TYPE2_UNCONTROLLED';
+  readonly diabetes:
+    | 'NONE'
+    | 'TYPE1_CONTROLLED'
+    | 'TYPE1_UNCONTROLLED'
+    | 'TYPE2_CONTROLLED'
+    | 'TYPE2_UNCONTROLLED';
   readonly osteoporosis: boolean;
   readonly immunocompromised: boolean;
   readonly bisphosphonateHistory: boolean;
@@ -37,7 +42,12 @@ export interface PatientRiskProfile {
   readonly bruxism: boolean;
 
   // Periodontal factors
-  readonly periodontalStatus: 'HEALTHY' | 'GINGIVITIS' | 'MILD_PERIO' | 'MODERATE_PERIO' | 'SEVERE_PERIO';
+  readonly periodontalStatus:
+    | 'HEALTHY'
+    | 'GINGIVITIS'
+    | 'MILD_PERIO'
+    | 'MODERATE_PERIO'
+    | 'SEVERE_PERIO';
   readonly previousToothLoss: number;
   readonly pocketDepthMax: number; // mm
 
@@ -167,8 +177,14 @@ export function predictOutcome(
     adjustedRate += modifier.adjustment;
     riskFactors.push({
       factor: modifier.factor,
-      impact: modifier.adjustment > 0 ? 'POSITIVE' : modifier.adjustment < 0 ? 'NEGATIVE' : 'NEUTRAL',
-      magnitude: Math.abs(modifier.adjustment) > 10 ? 'HIGH' : Math.abs(modifier.adjustment) > 5 ? 'MEDIUM' : 'LOW',
+      impact:
+        modifier.adjustment > 0 ? 'POSITIVE' : modifier.adjustment < 0 ? 'NEGATIVE' : 'NEUTRAL',
+      magnitude:
+        Math.abs(modifier.adjustment) > 10
+          ? 'HIGH'
+          : Math.abs(modifier.adjustment) > 5
+            ? 'MEDIUM'
+            : 'LOW',
       modifiable: modifier.modifiable,
       recommendation: modifier.recommendation,
     });
@@ -223,7 +239,10 @@ function getBaseSuccessRates(treatmentType: TreatmentParameters['type']): {
   fiveYear: number;
   tenYear: number;
 } {
-  const rates: Record<TreatmentParameters['type'], { overall: number; oneYear: number; fiveYear: number; tenYear: number }> = {
+  const rates: Record<
+    TreatmentParameters['type'],
+    { overall: number; oneYear: number; fiveYear: number; tenYear: number }
+  > = {
     SINGLE_IMPLANT: { overall: 96, oneYear: 98, fiveYear: 95, tenYear: 90 },
     MULTIPLE_IMPLANTS: { overall: 94, oneYear: 97, fiveYear: 93, tenYear: 88 },
     ALL_ON_4: { overall: 95, oneYear: 98, fiveYear: 94, tenYear: 89 },
@@ -248,7 +267,12 @@ function calculateRiskModifiers(
   patient: PatientRiskProfile,
   treatment: TreatmentParameters
 ): readonly { factor: string; adjustment: number; modifiable: boolean; recommendation?: string }[] {
-  const modifiers: { factor: string; adjustment: number; modifiable: boolean; recommendation?: string }[] = [];
+  const modifiers: {
+    factor: string;
+    adjustment: number;
+    modifiable: boolean;
+    recommendation?: string;
+  }[] = [];
 
   // Age factor
   if (patient.age > 75) {
@@ -264,7 +288,8 @@ function calculateRiskModifiers(
         factor: 'Heavy smoking',
         adjustment: -15,
         modifiable: true,
-        recommendation: 'Smoking cessation 4-8 weeks before surgery significantly improves outcomes',
+        recommendation:
+          'Smoking cessation 4-8 weeks before surgery significantly improves outcomes',
       });
       break;
     case 'LIGHT':
@@ -315,7 +340,8 @@ function calculateRiskModifiers(
       factor: 'Poor oral hygiene',
       adjustment: -10,
       modifiable: true,
-      recommendation: 'Complete hygiene protocol and demonstrate improved home care before treatment',
+      recommendation:
+        'Complete hygiene protocol and demonstrate improved home care before treatment',
     });
   }
 
@@ -326,7 +352,8 @@ function calculateRiskModifiers(
         factor: 'Severe periodontal disease',
         adjustment: -15,
         modifiable: true,
-        recommendation: 'Complete periodontal treatment and achieve stability before restorative work',
+        recommendation:
+          'Complete periodontal treatment and achieve stability before restorative work',
       });
       break;
     case 'MODERATE_PERIO':
@@ -438,7 +465,11 @@ function calculateRiskModifiers(
 
   // Compliance
   if (patient.appointmentAttendanceRate >= 90) {
-    modifiers.push({ factor: 'Excellent appointment compliance', adjustment: 2, modifiable: false });
+    modifiers.push({
+      factor: 'Excellent appointment compliance',
+      adjustment: 2,
+      modifiable: false,
+    });
   } else if (patient.appointmentAttendanceRate < 70) {
     modifiers.push({
       factor: 'Poor appointment compliance history',
@@ -596,10 +627,7 @@ function calculateAestheticSatisfaction(
   return Math.round(Math.max(50, Math.min(99, rate)) * 10) / 10;
 }
 
-function calculateFunctionalRestoration(
-  treatment: TreatmentParameters,
-  baseRate: number
-): number {
+function calculateFunctionalRestoration(treatment: TreatmentParameters, baseRate: number): number {
   let rate = baseRate;
 
   // Full arch treatments generally restore more function
@@ -638,7 +666,9 @@ function generatePreOperativeRecommendations(
   }
 
   if (patient.oralHygieneScore < 6) {
-    recs.push('Implement improved oral hygiene routine: brush 2x daily, floss, use antimicrobial rinse');
+    recs.push(
+      'Implement improved oral hygiene routine: brush 2x daily, floss, use antimicrobial rinse'
+    );
   }
 
   if (isImplantTreatment(treatment.type)) {
@@ -769,8 +799,17 @@ function calculateQALY(prediction: OutcomePrediction): number {
 }
 
 function assessPatientBurden(treatment: TreatmentParameters): 'LOW' | 'MEDIUM' | 'HIGH' {
-  const highBurden: TreatmentParameters['type'][] = ['ALL_ON_4', 'ALL_ON_6', 'BONE_GRAFT', 'SINUS_LIFT'];
-  const mediumBurden: TreatmentParameters['type'][] = ['MULTIPLE_IMPLANTS', 'SINGLE_IMPLANT', 'ROOT_CANAL'];
+  const highBurden: TreatmentParameters['type'][] = [
+    'ALL_ON_4',
+    'ALL_ON_6',
+    'BONE_GRAFT',
+    'SINUS_LIFT',
+  ];
+  const mediumBurden: TreatmentParameters['type'][] = [
+    'MULTIPLE_IMPLANTS',
+    'SINGLE_IMPLANT',
+    'ROOT_CANAL',
+  ];
 
   if (highBurden.includes(treatment.type)) return 'HIGH';
   if (mediumBurden.includes(treatment.type)) return 'MEDIUM';

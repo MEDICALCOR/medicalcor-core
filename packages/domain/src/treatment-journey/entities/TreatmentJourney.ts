@@ -568,7 +568,14 @@ function determineNextMilestone(
   ];
 
   // Add implant-specific milestones for implant cases
-  const implantTypes = ['SINGLE_IMPLANT', 'MULTIPLE_IMPLANTS', 'ALL_ON_4', 'ALL_ON_6', 'ALL_ON_X', 'FULL_MOUTH_REHAB'];
+  const implantTypes = [
+    'SINGLE_IMPLANT',
+    'MULTIPLE_IMPLANTS',
+    'ALL_ON_4',
+    'ALL_ON_6',
+    'ALL_ON_X',
+    'FULL_MOUTH_REHAB',
+  ];
   if (implantTypes.includes(treatmentType)) {
     standardProgression.push(
       'PRE_OP_CLEARANCE',
@@ -776,9 +783,7 @@ export function recordPayment(
   const newTotalPaid = journey.financials.totalPaid + amount;
   const newOutstanding = journey.financials.totalEstimate - newTotalPaid;
 
-  const updatedInvoiceIds = invoiceId
-    ? [...journey.invoiceIds, invoiceId]
-    : journey.invoiceIds;
+  const updatedInvoiceIds = invoiceId ? [...journey.invoiceIds, invoiceId] : journey.invoiceIds;
 
   return {
     ...journey,

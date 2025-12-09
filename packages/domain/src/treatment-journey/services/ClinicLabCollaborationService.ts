@@ -30,7 +30,14 @@ export interface CollaborationMessage {
   };
 
   readonly content: string;
-  readonly messageType: 'TEXT' | 'DESIGN_FEEDBACK' | 'APPROVAL_REQUEST' | 'REVISION_REQUEST' | 'QUESTION' | 'URGENT' | 'STATUS_UPDATE';
+  readonly messageType:
+    | 'TEXT'
+    | 'DESIGN_FEEDBACK'
+    | 'APPROVAL_REQUEST'
+    | 'REVISION_REQUEST'
+    | 'QUESTION'
+    | 'URGENT'
+    | 'STATUS_UPDATE';
 
   readonly attachments: readonly MessageAttachment[];
   readonly references: readonly {
@@ -64,7 +71,13 @@ export interface DesignFeedback {
   readonly overallRating: 1 | 2 | 3 | 4 | 5;
 
   readonly criteriaScores: readonly {
-    readonly criterion: 'MARGINAL_FIT' | 'OCCLUSION' | 'CONTACTS' | 'AESTHETICS' | 'CONTOUR' | 'EMERGENCE';
+    readonly criterion:
+      | 'MARGINAL_FIT'
+      | 'OCCLUSION'
+      | 'CONTACTS'
+      | 'AESTHETICS'
+      | 'CONTOUR'
+      | 'EMERGENCE';
     readonly score: 1 | 2 | 3 | 4 | 5;
     readonly notes?: string;
   }[];
@@ -258,9 +271,7 @@ export function addMessageToThread(
   // Add sender to participants if not already present
   const participantExists = thread.participants.some((p) => p.userId === sender.id);
   const updatedParticipants = participantExists
-    ? thread.participants.map((p) =>
-        p.userId === sender.id ? { ...p, lastSeen: now } : p
-      )
+    ? thread.participants.map((p) => (p.userId === sender.id ? { ...p, lastSeen: now } : p))
     : [
         ...thread.participants,
         {
@@ -311,9 +322,7 @@ export function createDesignFeedback(
   };
 }
 
-function calculateOverallRating(
-  scores: DesignFeedback['criteriaScores']
-): 1 | 2 | 3 | 4 | 5 {
+function calculateOverallRating(scores: DesignFeedback['criteriaScores']): 1 | 2 | 3 | 4 | 5 {
   if (scores.length === 0) return 3;
 
   const avgScore = scores.reduce((sum, s) => sum + s.score, 0) / scores.length;
@@ -563,14 +572,16 @@ function determineStatus(
 /**
  * Generates daily case summary for clinician
  */
-export function generateClinicDailySummary(cases: readonly {
-  caseNumber: string;
-  patientName: string;
-  status: string;
-  slaStatus: 'ON_TRACK' | 'AT_RISK' | 'OVERDUE';
-  dueDate: Date;
-  pendingAction?: string;
-}[]): {
+export function generateClinicDailySummary(
+  cases: readonly {
+    caseNumber: string;
+    patientName: string;
+    status: string;
+    slaStatus: 'ON_TRACK' | 'AT_RISK' | 'OVERDUE';
+    dueDate: Date;
+    pendingAction?: string;
+  }[]
+): {
   summary: string;
   actionRequired: number;
   atRisk: number;
@@ -664,7 +675,9 @@ export function calculateLabPerformanceMetrics(
   const firstTimeQCPassRate = Math.round((qcPassedFirst / completedCases.length) * 100);
 
   const avgRevisions =
-    Math.round((completedCases.reduce((sum, c) => sum + c.revisionCount, 0) / completedCases.length) * 10) / 10;
+    Math.round(
+      (completedCases.reduce((sum, c) => sum + c.revisionCount, 0) / completedCases.length) * 10
+    ) / 10;
 
   const casesWithSatisfaction = completedCases.filter((c) => c.patientSatisfaction !== undefined);
   const avgPatientSatisfaction =
@@ -696,7 +709,9 @@ export function calculateLabPerformanceMetrics(
   }
 
   if (avgRevisions > 1.5) {
-    recommendations.push('Consider improving prescription clarity with clinicians to reduce revisions');
+    recommendations.push(
+      'Consider improving prescription clarity with clinicians to reduce revisions'
+    );
   }
 
   if (avgPatientSatisfaction > 0 && avgPatientSatisfaction < 8) {

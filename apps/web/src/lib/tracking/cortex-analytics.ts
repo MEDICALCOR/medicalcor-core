@@ -102,15 +102,15 @@ export interface ConversionEvent {
 
 declare global {
   interface Window {
-    dataLayer: (Record<string, unknown> | unknown[])[];
-    gtag: (...args: unknown[]) => void;
-    fbq: (...args: unknown[]) => void;
-    ttq: {
+    dataLayer?: (Record<string, unknown> | unknown[])[];
+    gtag?: (...args: unknown[]) => void;
+    fbq?: (...args: unknown[]) => void;
+    ttq?: {
       track: (...args: unknown[]) => void;
       identify: (...args: unknown[]) => void;
     };
-    _hsq: unknown[][];
-    cortexAnalytics: CortexAnalytics;
+    _hsq?: unknown[][];
+    cortexAnalytics?: CortexAnalytics;
   }
 }
 
@@ -275,12 +275,10 @@ export class CortexAnalytics {
   }
 
   private initDataLayer(): void {
-    window.dataLayer = window.dataLayer || [];
-    window.gtag =
-      window.gtag ||
-      function (...args: unknown[]) {
-        window.dataLayer.push(args);
-      };
+    window.dataLayer ??= [];
+    window.gtag ??= function (...args: unknown[]) {
+      window.dataLayer?.push(args);
+    };
   }
 
   private initScrollTracking(): void {
@@ -536,7 +534,7 @@ export class CortexAnalytics {
   private sendToHubSpot(event: ConversionEvent): void {
     if (!this.config.hubspotPortalId) return;
 
-    window._hsq = window._hsq || [];
+    window._hsq ??= [];
     window._hsq.push([
       'trackCustomBehavioralEvent',
       {

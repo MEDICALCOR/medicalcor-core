@@ -26,7 +26,12 @@ export interface ClinicalAssessmentInput {
   // Dental status
   readonly missingTeeth: readonly number[]; // FDI notation
   readonly decayedTeeth: readonly number[];
-  readonly periodontalStatus: 'HEALTHY' | 'GINGIVITIS' | 'MILD_PERIO' | 'MODERATE_PERIO' | 'SEVERE_PERIO';
+  readonly periodontalStatus:
+    | 'HEALTHY'
+    | 'GINGIVITIS'
+    | 'MILD_PERIO'
+    | 'MODERATE_PERIO'
+    | 'SEVERE_PERIO';
   readonly existingRestorations: readonly {
     readonly tooth: number;
     readonly type: string;
@@ -266,7 +271,8 @@ export function analyzeRestorationStrategy(
     if (boneQuality === 'D4' || boneQuality === 'D3') {
       return {
         strategy: 'ALL_ON_6',
-        reasoning: 'Full arch missing with compromised bone quality - All-on-6 provides better load distribution',
+        reasoning:
+          'Full arch missing with compromised bone quality - All-on-6 provides better load distribution',
       };
     }
     return {
@@ -382,7 +388,11 @@ export function calculatePredictedSuccessRate(
   }
 
   // Bone quality impact for implant treatments
-  if (treatmentType === 'IMPLANT' || treatmentType === 'ALL_ON_X' || treatmentType === 'FULL_MOUTH_REHAB') {
+  if (
+    treatmentType === 'IMPLANT' ||
+    treatmentType === 'ALL_ON_X' ||
+    treatmentType === 'FULL_MOUTH_REHAB'
+  ) {
     switch (assessment.boneQuality) {
       case 'D1':
         baseRate += 2;
@@ -477,7 +487,10 @@ export function estimateTreatmentCost(
   let maxTotal = 0;
 
   for (const proc of procedures) {
-    const costs = procedureCosts[proc.code] ?? { min: proc.estimatedCost * 0.8, max: proc.estimatedCost * 1.2 };
+    const costs = procedureCosts[proc.code] ?? {
+      min: proc.estimatedCost * 0.8,
+      max: proc.estimatedCost * 1.2,
+    };
     minTotal += costs.min;
     maxTotal += costs.max;
     breakdown.push({ procedure: proc.name, cost: (costs.min + costs.max) / 2 });
@@ -572,7 +585,8 @@ export function createPatientFriendlySummary(
   language: 'ro' | 'en' | 'de' = 'en'
 ): string {
   const summaries: Record<'ro' | 'en' | 'de', (opt: TreatmentOption) => string> = {
-    en: (opt) => `
+    en: (opt) =>
+      `
 Your Recommended Treatment: ${opt.name}
 
 What we'll do: ${opt.description}
@@ -589,7 +603,8 @@ ${opt.phases.map((p, i) => `${i + 1}. ${p.name}: ${p.description}`).join('\n')}
 Our team will guide you through each step, ensuring your comfort and answering all questions.
     `.trim(),
 
-    ro: (opt) => `
+    ro: (opt) =>
+      `
 Tratamentul Recomandat: ${opt.name}
 
 Ce vom face: ${opt.description}
@@ -606,7 +621,8 @@ ${opt.phases.map((p, i) => `${i + 1}. ${p.name}: ${p.description}`).join('\n')}
 Echipa noastră vă va ghida în fiecare etapă, asigurându-vă confortul și răspunzând la toate întrebările.
     `.trim(),
 
-    de: (opt) => `
+    de: (opt) =>
+      `
 Empfohlene Behandlung: ${opt.name}
 
 Was wir tun werden: ${opt.description}
@@ -662,7 +678,9 @@ export function validateTreatmentPlan(plan: AITreatmentPlan): {
 
   // Check contraindications
   if (plan.recommendedOption.contraindications.length > 0) {
-    warnings.push(`${plan.recommendedOption.contraindications.length} contraindication(s) identified - ensure patient eligibility`);
+    warnings.push(
+      `${plan.recommendedOption.contraindications.length} contraindication(s) identified - ensure patient eligibility`
+    );
   }
 
   return {
