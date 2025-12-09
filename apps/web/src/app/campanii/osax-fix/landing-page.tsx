@@ -906,11 +906,10 @@ export default function CortexFunnelV2() {
 
               <div className="mb-8">
                 <div className="flex justify-between items-center mb-2">
-                  <label htmlFor="financing-amount" className="text-sm text-slate-300">Valoare tratament</label>
+                  <label className="text-sm text-slate-300">Valoare tratament</label>
                   <span className="text-2xl font-bold text-cyan-400">{financingAmount.toLocaleString()}€</span>
                 </div>
                 <input
-                  id="financing-amount"
                   type="range"
                   min="3000"
                   max="25000"
@@ -1207,7 +1206,7 @@ export default function CortexFunnelV2() {
             <X className="w-6 h-6 text-white" />
           </button>
           <div className="w-full max-w-4xl aspect-video">
-            <iframe src={`${showVideoTestimonial.videoUrl}?autoplay=1`} className="w-full h-full rounded-2xl" allow="autoplay; encrypted-media" allowFullScreen title="Video Testimonial" />
+            <iframe src={`${showVideoTestimonial.videoUrl}?autoplay=1`} className="w-full h-full rounded-2xl" allow="autoplay; encrypted-media" allowFullScreen />
           </div>
         </div>
       )}
