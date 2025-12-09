@@ -102,14 +102,14 @@ export interface ConversionEvent {
 
 declare global {
   interface Window {
-    dataLayer: Array<Record<string, unknown>>;
+    dataLayer: Record<string, unknown>[];
     gtag: (...args: unknown[]) => void;
     fbq: (...args: unknown[]) => void;
     ttq: {
       track: (...args: unknown[]) => void;
       identify: (...args: unknown[]) => void;
     };
-    _hsq: Array<unknown[]>;
+    _hsq: unknown[][];
     cortexAnalytics: CortexAnalytics;
   }
 }
@@ -269,12 +269,12 @@ export class CortexAnalytics {
   }
 
   private initDataLayer(): void {
-    window.dataLayer = window.dataLayer || [];
-    window.gtag =
-      window.gtag ||
-      function (...args: unknown[]) {
-        window.dataLayer.push(args);
-      };
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime check for browser environments
+    window.dataLayer = window.dataLayer ?? [];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime check for browser environments
+    window.gtag = window.gtag ?? function (...args: unknown[]) {
+      window.dataLayer.push(args);
+    };
   }
 
   private initScrollTracking(): void {
@@ -365,7 +365,7 @@ export class CortexAnalytics {
     this.sendToFacebook(event);
     this.sendToTikTok(event);
     this.sendToHubSpot(event);
-    this.sendToInternalCRM(event);
+    void this.sendToInternalCRM(event);
   }
 
   trackPageView(): void {
@@ -507,7 +507,7 @@ export class CortexAnalytics {
   }
 
   private sendToTikTok(event: ConversionEvent): void {
-    if (!this.config.tiktokPixelId || !window.ttq) return;
+    if (!this.config.tiktokPixelId || typeof window.ttq === 'undefined') return;
 
     const ttEventMap: Partial<Record<ConversionType, string>> = {
       page_view: 'ViewContent',
@@ -530,7 +530,8 @@ export class CortexAnalytics {
   private sendToHubSpot(event: ConversionEvent): void {
     if (!this.config.hubspotPortalId) return;
 
-    window._hsq = window._hsq || [];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime check for browser environments
+    window._hsq = window._hsq ?? [];
     window._hsq.push([
       'trackCustomBehavioralEvent',
       {
@@ -633,7 +634,7 @@ export class CortexAnalytics {
 
   private log(message: string, data?: unknown): void {
     if (this.config.debug) {
-      console.log(`[CORTEX] ${message}`, data);
+      console.debug(`[CORTEX] ${message}`, data);
     }
   }
 
@@ -657,16 +658,12 @@ export class CortexAnalytics {
 let analyticsInstance: CortexAnalytics | null = null;
 
 export function getAnalytics(): CortexAnalytics {
-  if (!analyticsInstance) {
-    analyticsInstance = new CortexAnalytics();
-  }
+  analyticsInstance ??= new CortexAnalytics();
   return analyticsInstance;
 }
 
 export function initAnalytics(config?: TrackingConfig): CortexAnalytics {
-  if (!analyticsInstance) {
-    analyticsInstance = new CortexAnalytics(config);
-  }
+  analyticsInstance ??= new CortexAnalytics(config);
   analyticsInstance.init();
   return analyticsInstance;
 }

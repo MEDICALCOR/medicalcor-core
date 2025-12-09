@@ -57,7 +57,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // In production, store to database and/or send to data warehouse
     // For now, we log for debugging and acknowledge receipt
     if (process.env.NODE_ENV !== 'production') {
-      console.log('[Tracking Event]', {
+      console.debug('[Tracking Event]', {
         type: event.type,
         visitorId: user.visitorId,
         timestamp,
