@@ -38,11 +38,13 @@ import {
   Pause,
   Calendar,
   Sparkles,
-  Heart,
   X,
   MapPin,
   Gift,
-  Timer,
+  Volume2,
+  VolumeX,
+  BadgeCheck,
+  Flame,
 } from 'lucide-react';
 import { initAnalytics, type CortexAnalytics } from '@/lib/tracking/cortex-analytics';
 
@@ -93,7 +95,8 @@ const TESTIMONIALS: Testimonial[] = [
     quote:
       'După 20 de ani cu proteză mobilă, în sfârșit pot să mănânc ce vreau și să zâmbesc fără grijă. Echipa MedicalCor mi-a schimbat viața!',
     videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=400&h=300&fit=crop',
+    thumbnailUrl:
+      'https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=400&h=300&fit=crop',
     rating: 5,
     verifiedPatient: true,
   },
@@ -106,7 +109,8 @@ const TESTIMONIALS: Testimonial[] = [
     quote:
       'Am venit cu teamă, am plecat cu zâmbet. Sedarea conștientă a făcut totul fără durere. Recomand cu toată încrederea!',
     videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
+    thumbnailUrl:
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
     rating: 5,
     verifiedPatient: true,
   },
@@ -119,7 +123,8 @@ const TESTIMONIALS: Testimonial[] = [
     quote:
       'Zâmbetul meu Hollywood! Nu credeam că este posibil, dar acum râd fără să îmi acopăr gura. Cea mai bună investiție!',
     videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&h=300&fit=crop',
+    thumbnailUrl:
+      'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&h=300&fit=crop',
     rating: 5,
     verifiedPatient: true,
   },
@@ -131,7 +136,8 @@ const TESTIMONIALS: Testimonial[] = [
     procedure: 'Implanturi Dentare',
     quote:
       'De la 4 dinți lipsă la zâmbet complet în doar 3 luni. Prețul a fost corect, ratele m-au ajutat enorm.',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=300&fit=crop',
+    thumbnailUrl:
+      'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=300&fit=crop',
     rating: 5,
     verifiedPatient: true,
   },
@@ -141,7 +147,8 @@ const BEFORE_AFTER_CASES: BeforeAfterCase[] = [
   {
     id: 'case1',
     procedure: 'All-on-4 Complet',
-    beforeImage: 'https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=800&h=500&fit=crop',
+    beforeImage:
+      'https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=800&h=500&fit=crop',
     afterImage: 'https://images.unsplash.com/photo-1606811971618-4486d14f3f99?w=800&h=500&fit=crop',
     patientAge: 56,
     treatmentDuration: '24 ore',
@@ -150,7 +157,8 @@ const BEFORE_AFTER_CASES: BeforeAfterCase[] = [
   {
     id: 'case2',
     procedure: 'Fațete Premium',
-    beforeImage: 'https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=800&h=500&fit=crop',
+    beforeImage:
+      'https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=800&h=500&fit=crop',
     afterImage: 'https://images.unsplash.com/photo-1606811971618-4486d14f3f99?w=800&h=500&fit=crop',
     patientAge: 34,
     treatmentDuration: '2 săptămâni',
@@ -159,7 +167,8 @@ const BEFORE_AFTER_CASES: BeforeAfterCase[] = [
   {
     id: 'case3',
     procedure: 'Implanturi + Coroane',
-    beforeImage: 'https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=800&h=500&fit=crop',
+    beforeImage:
+      'https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=800&h=500&fit=crop',
     afterImage: 'https://images.unsplash.com/photo-1606811971618-4486d14f3f99?w=800&h=500&fit=crop',
     patientAge: 48,
     treatmentDuration: '3 luni',
@@ -211,44 +220,6 @@ const QUIZ_QUESTIONS = [
   },
 ];
 
-// ============================================================================
-// SOCIAL PROOF DATA
-// ============================================================================
-
-const TESTIMONIALS = [
-  {
-    name: 'Maria P.',
-    age: 54,
-    location: 'București',
-    procedure: 'All-on-4',
-    quote:
-      'După 20 de ani cu proteză, în sfârșit am dinți ficși. Mănânc orice, zâmbesc fără grijă!',
-    rating: 5,
-    image: '/testimonials/maria.jpg',
-    video: true,
-  },
-  {
-    name: 'Ion D.',
-    age: 62,
-    location: 'Cluj',
-    procedure: 'All-on-6',
-    quote: 'Echipa MedicalCor mi-a schimbat viața. Procedura a fost rapidă și fără durere.',
-    rating: 5,
-    image: '/testimonials/ion.jpg',
-    video: false,
-  },
-  {
-    name: 'Elena M.',
-    age: 45,
-    location: 'Timișoara',
-    procedure: 'Fațete dentare',
-    quote: 'Zâmbetul meu de vis! Investiția merită fiecare leu. Recomand cu încredere!',
-    rating: 5,
-    image: '/testimonials/elena.jpg',
-    video: true,
-  },
-];
-
 const LIVE_STATS = {
   patientsTotal: 4287,
   consultationsToday: 18,
@@ -277,10 +248,6 @@ export default function CortexFunnelV2() {
   const [formData, setFormData] = useState({ name: '', phone: '', email: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
-  const [livePatientCount, setLivePatientCount] = useState(LIVE_STATS.patientsThisMonth);
-  const [_showFinancing, _setShowFinancing] = useState(false);
-  const [_selectedProcedure, _setSelectedProcedure] = useState<string | null>(null);
-  const [countdownTime, setCountdownTime] = useState({ hours: 2, minutes: 47, seconds: 33 });
 
   // Hero Video
   const [videoMuted, setVideoMuted] = useState(true);
@@ -307,28 +274,18 @@ export default function CortexFunnelV2() {
 
   // Initialize Analytics
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (Math.random() > 0.7) {
-        setLivePatientCount((prev) => prev + 1);
+    analyticsRef.current = initAnalytics();
+
+    // Listen for exit intent
+    const handleExitIntent = (): void => {
+      if (!showQuiz && !showContactForm && !submitSuccess) {
+        setShowExitIntent(true);
       }
     };
 
-  // Countdown timer for urgency
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdownTime((prev) => {
-        if (prev.seconds > 0) {
-          return { ...prev, seconds: prev.seconds - 1 };
-        } else if (prev.minutes > 0) {
-          return { ...prev, minutes: prev.minutes - 1, seconds: 59 };
-        } else if (prev.hours > 0) {
-          return { hours: prev.hours - 1, minutes: 59, seconds: 59 };
-        }
-        return { hours: 23, minutes: 59, seconds: 59 }; // Reset
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+    window.addEventListener('cortex:exit_intent', handleExitIntent);
+    return () => window.removeEventListener('cortex:exit_intent', handleExitIntent);
+  }, [showQuiz, showContactForm, submitSuccess]);
 
   // Animate patient counter
   useEffect(() => {
@@ -353,12 +310,12 @@ export default function CortexFunnelV2() {
 
   // Countdown timer
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const utmParams: Record<string, string> = {};
-      ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'].forEach((param) => {
-        const value = params.get(param);
-        if (value) utmParams[param] = value;
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev.seconds > 0) return { ...prev, seconds: prev.seconds - 1 };
+        if (prev.minutes > 0) return { ...prev, minutes: prev.minutes - 1, seconds: 59 };
+        if (prev.hours > 0) return { hours: prev.hours - 1, minutes: 59, seconds: 59 };
+        return { hours: 23, minutes: 59, seconds: 59 };
       });
     }, 1000);
     return () => clearInterval(timer);
@@ -379,17 +336,21 @@ export default function CortexFunnelV2() {
         { questionId, answer, score },
       ]);
 
-      // Auto-advance to next question
+      analyticsRef.current?.trackQuizStep(questionId, answer);
+
       setTimeout(() => {
         if (currentQuestion < QUIZ_QUESTIONS.length - 1) {
           setCurrentQuestion((prev) => prev + 1);
         } else {
-          // Quiz complete - show contact form
+          analyticsRef.current?.trackQuizComplete(
+            quizAnswers.reduce((acc, a) => ({ ...acc, [a.questionId]: a.answer }), {}),
+            calculateUrgencyScore() + score
+          );
           setShowContactForm(true);
         }
       }, 300);
     },
-    [currentQuestion]
+    [currentQuestion, quizAnswers, calculateUrgencyScore]
   );
 
   const handleSubmit = useCallback(async () => {
@@ -399,67 +360,21 @@ export default function CortexFunnelV2() {
     analyticsRef.current?.trackFormStart('quiz_lead_form');
 
     try {
-      const utmParams = JSON.parse(sessionStorage.getItem('utmParams') ?? '{}') as Record<
-        string,
-        string
-      >;
-
-      const leadData: LeadData = {
-        name: formData.name || 'Lead din Landing Page',
+      const result = await analyticsRef.current?.submitLead({
         phone: formData.phone,
         name: formData.name,
         email: formData.email,
         procedureInterest: quizAnswers.find((a) => a.questionId === 3)?.answer,
         urgencyScore: calculateUrgencyScore(),
-        procedureInterest: quizAnswers
-          .filter((a) =>
-            QUIZ_QUESTIONS.find((q) => q.id === a.questionId)?.options.find(
-              (o) => o.text === a.answer && 'procedure' in o
-            )
-          )
-          .map((a) => {
-            const question = QUIZ_QUESTIONS.find((q) => q.id === a.questionId);
-            const option = question?.options.find((o) => o.text === a.answer);
-            return (option as { procedure?: string } | undefined)?.procedure ?? 'general';
-          }),
-        source: 'landing-osax-fix',
-        utmParams,
-      };
-
-      const response = await fetch('/api/leads', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: leadData.phone,
-          name: leadData.name,
-          email: leadData.email,
-          source: leadData.source,
-          urgency:
-            leadData.urgencyScore >= 16
-              ? 'emergency'
-              : leadData.urgencyScore >= 12
-                ? 'high'
-                : 'normal',
-          procedureInterest: leadData.procedureInterest[0] || 'consultation',
-          quizAnswers: leadData.quizAnswers,
-          gdprConsent: true,
-        }),
+        quizAnswers: quizAnswers.reduce(
+          (acc, a) => ({ ...acc, [`q${a.questionId}`]: a.answer }),
+          {}
+        ),
+        source: 'landing-cortex-v2',
       });
 
       if (result?.success) {
         setSubmitSuccess(true);
-        // Track conversion
-        if (typeof window !== 'undefined' && 'gtag' in window) {
-          (
-            window as unknown as {
-              gtag: (type: string, action: string, params: Record<string, unknown>) => void;
-            }
-          ).gtag('event', 'conversion', {
-            send_to: 'AW-CONVERSION_ID/CONVERSION_LABEL',
-            value: 1.0,
-            currency: 'EUR',
-          });
-        }
       }
     } catch (error) {
       console.error('Submission failed:', error);
@@ -537,7 +452,11 @@ export default function CortexFunnelV2() {
               onClick={() => setVideoMuted(!videoMuted)}
               className="p-3 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-colors"
             >
-              {videoMuted ? <VolumeX className="w-5 h-5 text-white" /> : <Volume2 className="w-5 h-5 text-white" />}
+              {videoMuted ? (
+                <VolumeX className="w-5 h-5 text-white" />
+              ) : (
+                <Volume2 className="w-5 h-5 text-white" />
+              )}
             </button>
             <button
               onClick={() => {
@@ -552,7 +471,11 @@ export default function CortexFunnelV2() {
               }}
               className="p-3 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-colors"
             >
-              {videoPaused ? <Play className="w-5 h-5 text-white" /> : <Pause className="w-5 h-5 text-white" />}
+              {videoPaused ? (
+                <Play className="w-5 h-5 text-white" />
+              ) : (
+                <Pause className="w-5 h-5 text-white" />
+              )}
             </button>
           </div>
         </div>
@@ -587,37 +510,39 @@ export default function CortexFunnelV2() {
                 Fără Durere. Fără Teamă. Garantat.
               </p>
 
-              {/* Subheadline */}
-              <p className="text-lg md:text-xl text-slate-300 max-w-xl">
-                Tehnologia <strong className="text-white">All-on-4</strong> îți oferă un zâmbet
-                complet într-o singură zi. Consultație gratuită + plan de tratament personalizat.
+              {/* Sub-headline */}
+              <p className="text-base sm:text-lg text-slate-400 max-w-xl">
+                Tehnologia <strong className="text-white">All-on-4</strong> îți oferă zâmbetul
+                perfect într-o singură zi. Peste{' '}
+                <strong className="text-cyan-400">{animatedCount.toLocaleString()}</strong> pacienți
+                fericiți.
               </p>
 
               {/* Social Proof */}
               <div className="flex items-center gap-4 py-4 border-y border-white/10">
                 <div className="flex -space-x-3">
-                  {[1, 2, 3, 4, 5].map((i) => (
+                  {TESTIMONIALS.slice(0, 5).map((t, i) => (
                     <div
                       key={t.id}
                       className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-slate-900 overflow-hidden"
                       style={{ zIndex: 5 - i }}
                     >
-                      <img src={t.thumbnailUrl} alt={t.name} className="w-full h-full object-cover" />
+                      <img
+                        src={t.thumbnailUrl}
+                        alt={t.name}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                   ))}
                 </div>
                 <div>
                   <p className="text-white font-semibold text-sm sm:text-base">
-                    <span className="text-emerald-400">{LIVE_STATS.consultationsToday}</span> consultații programate azi
+                    <span className="text-emerald-400">{LIVE_STATS.consultationsToday}</span>{' '}
+                    consultații programate azi
                   </p>
-                  <div className="flex items-center gap-1">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    ))}
-                    <span className="text-sm text-slate-400 ml-2">
-                      {LIVE_STATS.satisfactionRate}% rată de satisfacție
-                    </span>
-                  </div>
+                  <p className="text-slate-400 text-xs sm:text-sm">
+                    {LIVE_STATS.satisfactionRate}% rată de satisfacție
+                  </p>
                 </div>
               </div>
 
@@ -674,28 +599,28 @@ export default function CortexFunnelV2() {
 
                 <div className="space-y-4">
                   <div>
-                    <label htmlFor="contact-name" className="block text-sm text-slate-300 mb-1">
+                    <label htmlFor="hero-name" className="sr-only">
                       Numele tău
                     </label>
                     <input
-                      id="contact-name"
+                      id="hero-name"
                       type="text"
+                      placeholder="Numele tău"
                       value={formData.name}
                       onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                      placeholder="Ex: Maria Popescu"
                       className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                     />
                   </div>
                   <div>
-                    <label htmlFor="contact-phone" className="block text-sm text-slate-300 mb-1">
-                      Telefon *
+                    <label htmlFor="hero-phone" className="sr-only">
+                      Număr de telefon
                     </label>
                     <input
-                      id="contact-phone"
+                      id="hero-phone"
                       type="tel"
+                      placeholder="07XX XXX XXX"
                       value={formData.phone}
                       onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
-                      placeholder="07XX XXX XXX"
                       className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                     />
                   </div>
@@ -705,7 +630,14 @@ export default function CortexFunnelV2() {
                     disabled={isSubmitting || !formData.phone}
                     className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl text-white font-bold text-lg shadow-lg hover:shadow-cyan-500/40 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                   >
-                    {isSubmitting ? <span className="animate-spin">⏳</span> : <><Phone className="w-5 h-5" />Sună-mă GRATUIT</>}
+                    {isSubmitting ? (
+                      <span className="animate-spin">⏳</span>
+                    ) : (
+                      <>
+                        <Phone className="w-5 h-5" />
+                        Sună-mă GRATUIT
+                      </>
+                    )}
                   </button>
                 </div>
 
@@ -743,66 +675,66 @@ export default function CortexFunnelV2() {
             <p className="text-slate-600 mt-2">Glisează pentru a vedea transformarea</p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-            {[
-              {
-                icon: '😣',
-                title: 'Dureri constante',
-                desc: 'Mănânci cu grijă, eviți anumite alimente',
-              },
-              {
-                icon: '😔',
-                title: 'Rușine să zâmbești',
-                desc: 'Acoperi gura când râzi sau vorbești',
-              },
-              {
-                icon: '😤',
-                title: 'Proteză instabilă',
-                desc: 'Se mișcă, te jenează, îți afectează viața',
-              },
-              { icon: '😰', title: 'Teamă de dentist', desc: 'Amâni tratamentul de ani de zile' },
-            ].map((problem, idx) => (
+          {/* Before/After Slider */}
+          <div className="max-w-4xl mx-auto">
+            <div
+              className="relative aspect-[16/10] rounded-2xl overflow-hidden shadow-2xl cursor-col-resize select-none"
+              onMouseMove={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
+                setSliderPosition(percent);
+                analyticsRef.current?.trackBeforeAfterView(BEFORE_AFTER_CASES[activeCase].id);
+              }}
+              onTouchMove={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = e.touches[0].clientX - rect.left;
+                const percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
+                setSliderPosition(percent);
+              }}
+            >
+              <img
+                src={BEFORE_AFTER_CASES[activeCase].afterImage}
+                alt="După tratament"
+                className="absolute inset-0 w-full h-full object-cover"
+              />
               <div
-                key={idx}
-                className="bg-white rounded-2xl p-6 shadow-lg border border-slate-100 hover:shadow-xl transition-shadow"
+                className="absolute inset-0 overflow-hidden"
+                style={{ clipPath: `inset(0 ${100 - sliderPosition}% 0 0)` }}
               >
-                <div className="text-4xl mb-4">{problem.icon}</div>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">{problem.title}</h3>
-                <p className="text-slate-600">{problem.desc}</p>
+                <img
+                  src={BEFORE_AFTER_CASES[activeCase].beforeImage}
+                  alt="Înainte de tratament"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
               </div>
-              <div className="absolute top-0 bottom-0 w-1 bg-white shadow-lg z-10" style={{ left: `${sliderPosition}%` }}>
+              <div
+                className="absolute top-0 bottom-0 w-1 bg-white shadow-lg z-10"
+                style={{ left: `${sliderPosition}%` }}
+              >
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center">
                   <ChevronLeft className="w-4 h-4 text-slate-600" />
                   <ChevronRight className="w-4 h-4 text-slate-600" />
                 </div>
               </div>
-              <div className="absolute bottom-4 left-4 px-3 py-1.5 bg-black/60 backdrop-blur-sm rounded-full text-white text-sm font-medium">ÎNAINTE</div>
-              <div className="absolute bottom-4 right-4 px-3 py-1.5 bg-cyan-500/90 backdrop-blur-sm rounded-full text-white text-sm font-medium">DUPĂ</div>
+              <div className="absolute bottom-4 left-4 px-3 py-1.5 bg-black/60 backdrop-blur-sm rounded-full text-white text-sm font-medium">
+                ÎNAINTE
+              </div>
+              <div className="absolute bottom-4 right-4 px-3 py-1.5 bg-cyan-500/90 backdrop-blur-sm rounded-full text-white text-sm font-medium">
+                DUPĂ
+              </div>
             </div>
 
-          {/* Solution */}
-          <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-8 md:p-12 text-white">
-            <div className="grid lg:grid-cols-2 gap-8 items-center">
-              <div>
-                <h3 className="text-3xl font-bold mb-4">All-on-4: Dinți Ficși într-o Singură Zi</h3>
-                <p className="text-slate-300 mb-6">
-                  Tehnologia revoluționară care înlocuiește proteza mobilă cu dinți ficși, folosind
-                  doar 4 implanturi. Mănânci, zâmbești și trăiești normal - chiar din prima zi.
-                </p>
-
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  {[
-                    { value: '24h', label: 'Dinți ficși' },
-                    { value: '98%', label: 'Succes' },
-                    { value: '10 ani', label: 'Garanție' },
-                    { value: '0', label: 'Durere' },
-                  ].map((stat, idx) => (
-                    <div key={idx} className="bg-white/10 rounded-xl p-4 text-center">
-                      <p className="text-2xl font-bold text-cyan-400">{stat.value}</p>
-                      <p className="text-sm text-slate-400">{stat.label}</p>
-                    </div>
-                  ))}
-                </div>
+            {/* Case Info */}
+            <div className="mt-6 text-center">
+              <h3 className="text-xl font-bold text-slate-900">
+                {BEFORE_AFTER_CASES[activeCase].procedure}
+              </h3>
+              <p className="text-slate-600 mt-1">
+                Pacient {BEFORE_AFTER_CASES[activeCase].patientAge} ani •{' '}
+                {BEFORE_AFTER_CASES[activeCase].treatmentDuration}
+              </p>
+            </div>
 
             {/* Case Selector */}
             <div className="flex justify-center gap-3 mt-6">
@@ -824,62 +756,64 @@ export default function CortexFunnelV2() {
       <section className="py-16 sm:py-20 bg-white">
         <div className="container mx-auto px-4">
           <div className="text-center mb-10 sm:mb-12">
-            <span className="px-4 py-1.5 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium">Povești Reale</span>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 mt-4">Ce Spun Pacienții Noștri</h2>
+            <span className="px-4 py-1.5 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium">
+              Povești Reale
+            </span>
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 mt-4">
+              Ce Spun Pacienții Noștri
+            </h2>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {TESTIMONIALS.map((testimonial, idx) => (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {TESTIMONIALS.map((testimonial) => (
               <div
-                key={idx}
-                className="bg-slate-50 rounded-2xl p-6 border border-slate-100 hover:shadow-xl transition-shadow"
+                key={testimonial.id}
+                className="bg-slate-50 rounded-2xl overflow-hidden border border-slate-100 hover:shadow-xl transition-shadow group"
               >
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white text-xl font-bold">
-                    {testimonial.name.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900">{testimonial.name}</p>
-                    <p className="text-sm text-slate-500">
-                      {testimonial.age} ani • {testimonial.location}
-                    </p>
-                    <div className="flex gap-0.5 mt-1">
-                      {[1, 2, 3, 4, 5].map((i) => (
-                        <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <p className="text-slate-700 italic mb-4">"{testimonial.quote}"</p>
-
-                <div className="flex items-center justify-between">
-                  <span className="px-3 py-1 bg-cyan-100 text-cyan-700 rounded-full text-sm">
-                    {testimonial.procedure}
-                  </span>
-                  {testimonial.video && (
-                    <button className="flex items-center gap-1 text-sm text-slate-500 hover:text-cyan-600">
-                      <Play className="w-4 h-4" />
-                      Vezi video
+                <div className="relative aspect-[4/3]">
+                  <img
+                    src={testimonial.thumbnailUrl}
+                    alt={testimonial.name}
+                    className="w-full h-full object-cover"
+                  />
+                  {testimonial.videoUrl && (
+                    <button
+                      onClick={() => {
+                        setShowVideoTestimonial(testimonial);
+                        analyticsRef.current?.trackTestimonialVideoPlay(testimonial.id);
+                      }}
+                      className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors"
+                    >
+                      <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-lg">
+                        <Play className="w-6 h-6 text-cyan-600 ml-1" />
+                      </div>
                     </button>
                   )}
                   {testimonial.verifiedPatient && (
                     <div className="absolute top-3 right-3 px-2 py-1 bg-emerald-500 rounded-full text-white text-xs font-medium flex items-center gap-1">
-                      <BadgeCheck className="w-3 h-3" />Verificat
+                      <BadgeCheck className="w-3 h-3" />
+                      Verificat
                     </div>
                   )}
                 </div>
                 <div className="p-5">
                   <p className="font-bold text-slate-900">{testimonial.name}</p>
-                  <p className="text-xs text-slate-500">{testimonial.age} ani • {testimonial.location}</p>
+                  <p className="text-xs text-slate-500">
+                    {testimonial.age} ani • {testimonial.location}
+                  </p>
                   <div className="flex gap-0.5 my-3">
                     {[1, 2, 3, 4, 5].map((i) => (
-                      <Star key={i} className={`w-4 h-4 ${i <= testimonial.rating ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300'}`} />
+                      <Star
+                        key={i}
+                        className={`w-4 h-4 ${i <= testimonial.rating ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300'}`}
+                      />
                     ))}
                   </div>
                   <p className="text-slate-600 text-sm line-clamp-3">"{testimonial.quote}"</p>
                   <div className="mt-4 pt-4 border-t border-slate-100">
-                    <span className="px-3 py-1 bg-cyan-100 text-cyan-700 rounded-full text-xs font-medium">{testimonial.procedure}</span>
+                    <span className="px-3 py-1 bg-cyan-100 text-cyan-700 rounded-full text-xs font-medium">
+                      {testimonial.procedure}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -891,12 +825,17 @@ export default function CortexFunnelV2() {
       {/* FINANCING SECTION */}
       <section className="py-16 sm:py-20 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <span className="px-4 py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-sm font-medium">
-              Accesibil pentru toată lumea
+          <div className="text-center mb-10 sm:mb-12">
+            <span className="px-4 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-full text-sm font-medium">
+              Accesibil Pentru Toată Lumea
             </span>
-            <h2 className="text-3xl md:text-4xl font-bold mt-4">Rate de la 499 lei/lună</h2>
-            <p className="text-slate-400 mt-2">Fără avans • Aprobare în 15 minute • Dobândă 0%</p>
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mt-4">
+              Rate de la{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
+                399€/lună
+              </span>
+            </h2>
+            <p className="text-slate-400 mt-2">Fără avans • Aprobare în 15 minute • 0% dobândă</p>
           </div>
 
           {/* Calculator */}
@@ -906,10 +845,15 @@ export default function CortexFunnelV2() {
 
               <div className="mb-8">
                 <div className="flex justify-between items-center mb-2">
-                  <label className="text-sm text-slate-300">Valoare tratament</label>
-                  <span className="text-2xl font-bold text-cyan-400">{financingAmount.toLocaleString()}€</span>
+                  <label htmlFor="financing-amount" className="text-sm text-slate-300">
+                    Valoare tratament
+                  </label>
+                  <span className="text-2xl font-bold text-cyan-400">
+                    {financingAmount.toLocaleString()}€
+                  </span>
                 </div>
                 <input
+                  id="financing-amount"
                   type="range"
                   min="3000"
                   max="25000"
@@ -917,39 +861,41 @@ export default function CortexFunnelV2() {
                   value={financingAmount}
                   onChange={(e) => {
                     setFinancingAmount(Number(e.target.value));
-                    analyticsRef.current?.trackFinancingCalculatorUse(Number(e.target.value), financingMonths);
+                    analyticsRef.current?.trackFinancingCalculatorUse(
+                      Number(e.target.value),
+                      financingMonths
+                    );
                   }}
                   className="w-full h-2 bg-slate-700 rounded-full appearance-none cursor-pointer"
                 />
               </div>
 
-          <div className="grid md:grid-cols-4 gap-8">
-            {[
-              {
-                step: 1,
-                title: 'Consultație Gratuită',
-                desc: 'Evaluare completă + CT 3D gratuit',
-                icon: Calendar,
-              },
-              {
-                step: 2,
-                title: 'Plan Personalizat',
-                desc: 'Design digital al zâmbetului tău',
-                icon: Sparkles,
-              },
-              { step: 3, title: 'Procedura', desc: 'Sedare conștientă, fără durere', icon: Heart },
-              { step: 4, title: 'Zâmbet Nou!', desc: 'Pleci acasă cu dinți ficși', icon: Star },
-            ].map((item) => (
-              <div key={item.step} className="text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white">
-                  <item.icon className="w-8 h-8" />
+              <div className="mb-8" role="group" aria-labelledby="financing-period-label">
+                <span id="financing-period-label" className="text-sm text-slate-300 block mb-3">
+                  Perioada de rambursare
+                </span>
+                <div className="grid grid-cols-4 gap-2">
+                  {[12, 24, 36, 48].map((months) => (
+                    <button
+                      key={months}
+                      onClick={() => setFinancingMonths(months)}
+                      className={`py-3 rounded-xl text-sm font-medium transition-all ${financingMonths === months ? 'bg-cyan-500 text-white shadow-lg' : 'bg-white/10 text-slate-300 hover:bg-white/20'}`}
+                    >
+                      {months} luni
+                      {months <= 24 && (
+                        <span className="block text-xs mt-1 text-emerald-400">0% dobândă</span>
+                      )}
+                    </button>
+                  ))}
                 </div>
               </div>
 
               <div className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 rounded-2xl p-6 text-center">
                 <p className="text-slate-300 text-sm mb-2">Rata ta lunară</p>
                 <p className="text-5xl font-bold text-white">{calculateMonthlyPayment()}€</p>
-                <p className="text-slate-400 text-sm mt-2">{financingMonths <= 24 ? 'Fără dobândă!' : 'DAE 5.9%'}</p>
+                <p className="text-slate-400 text-sm mt-2">
+                  {financingMonths <= 24 ? 'Fără dobândă!' : 'DAE 5.9%'}
+                </p>
               </div>
 
               <button
@@ -969,10 +915,12 @@ export default function CortexFunnelV2() {
       {/* FINAL CTA */}
       <section className="py-16 sm:py-20 bg-gradient-to-r from-cyan-500 to-blue-600 text-white">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Ești gata să îți schimbi viața?</h2>
-          <p className="text-xl text-cyan-100 mb-8 max-w-2xl mx-auto">
-            Alătură-te celor peste {livePatientCount} de pacienți care au ales MedicalCor pentru
-            zâmbetul lor perfect.
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4">
+            Ești Gata Să Îți Schimbi Viața?
+          </h2>
+          <p className="text-lg sm:text-xl text-cyan-100 mb-8 max-w-2xl mx-auto">
+            Alătură-te celor peste {LIVE_STATS.patientsTotal.toLocaleString()} de pacienți care au
+            ales MedicalCor.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -987,7 +935,11 @@ export default function CortexFunnelV2() {
               Începe Evaluarea GRATUITĂ
             </button>
 
-            <a href="tel:+40770123456" onClick={handlePhoneClick} className="px-8 py-4 bg-white/20 backdrop-blur rounded-xl font-bold text-lg hover:bg-white/30 transition-all flex items-center justify-center gap-2">
+            <a
+              href="tel:+40770123456"
+              onClick={handlePhoneClick}
+              className="px-8 py-4 bg-white/20 backdrop-blur rounded-xl font-bold text-lg hover:bg-white/30 transition-all flex items-center justify-center gap-2"
+            >
               <Phone className="w-5 h-5" />
               0770 123 456
             </a>
@@ -1016,7 +968,11 @@ export default function CortexFunnelV2() {
           <button onClick={openWhatsApp} className="px-4 py-3 bg-emerald-500 rounded-xl text-white">
             <MessageCircle className="w-6 h-6" />
           </button>
-          <a href="tel:+40770123456" className="px-4 py-3 bg-slate-900 rounded-xl text-white">
+          <a
+            href="tel:+40770123456"
+            onClick={handlePhoneClick}
+            className="px-4 py-3 bg-slate-900 rounded-xl text-white"
+          >
             <Phone className="w-6 h-6" />
           </a>
         </div>
@@ -1030,13 +986,18 @@ export default function CortexFunnelV2() {
               <div className="flex-1">
                 <h3 className="text-lg font-bold text-slate-900">
                   {showContactForm
-                    ? 'Un ultim pas!'
+                    ? submitSuccess
+                      ? 'Perfect!'
+                      : 'Un ultim pas!'
                     : `Întrebarea ${currentQuestion + 1} din ${QUIZ_QUESTIONS.length}`}
                 </h3>
                 {!showContactForm && (
                   <div className="flex gap-1 mt-2">
                     {QUIZ_QUESTIONS.map((_, idx) => (
-                      <div key={idx} className={`h-1.5 flex-1 rounded-full transition-colors ${idx <= currentQuestion ? 'bg-cyan-500' : 'bg-slate-200'}`} />
+                      <div
+                        key={idx}
+                        className={`h-1.5 flex-1 rounded-full transition-colors ${idx <= currentQuestion ? 'bg-cyan-500' : 'bg-slate-200'}`}
+                      />
                     ))}
                   </div>
                 )}
@@ -1057,7 +1018,9 @@ export default function CortexFunnelV2() {
             <div className="p-6">
               {!showContactForm ? (
                 <div className="space-y-4">
-                  <h4 className="text-xl font-bold text-slate-900 text-center">{QUIZ_QUESTIONS[currentQuestion].question}</h4>
+                  <h4 className="text-xl font-bold text-slate-900 text-center">
+                    {QUIZ_QUESTIONS[currentQuestion].question}
+                  </h4>
                   <div className="space-y-3 mt-6">
                     {QUIZ_QUESTIONS[currentQuestion].options.map((option, idx) => (
                       <button
@@ -1069,15 +1032,7 @@ export default function CortexFunnelV2() {
                             option.score
                           )
                         }
-                        className={`w-full p-4 rounded-xl border-2 text-left transition-all hover:border-cyan-500 hover:bg-cyan-50 ${
-                          quizAnswers.find(
-                            (a) =>
-                              a.questionId === QUIZ_QUESTIONS[currentQuestion].id &&
-                              a.answer === option.text
-                          )
-                            ? 'border-cyan-500 bg-cyan-50'
-                            : 'border-slate-200'
-                        }`}
+                        className={`w-full p-4 rounded-xl border-2 text-left transition-all hover:border-cyan-500 hover:bg-cyan-50 ${quizAnswers.find((a) => a.questionId === QUIZ_QUESTIONS[currentQuestion].id && a.answer === option.text) ? 'border-cyan-500 bg-cyan-50' : 'border-slate-200'}`}
                       >
                         <div className="flex items-center gap-3">
                           <span className="text-2xl">{option.icon}</span>
@@ -1089,7 +1044,7 @@ export default function CortexFunnelV2() {
                   {currentQuestion > 0 && (
                     <button
                       onClick={() => setCurrentQuestion((prev) => prev - 1)}
-                      className="flex items-center gap-2 text-slate-500 hover:text-slate-700"
+                      className="flex items-center gap-2 text-slate-500 hover:text-slate-700 mt-4"
                     >
                       <ChevronLeft className="w-4 h-4" />
                       Înapoi
@@ -1115,83 +1070,58 @@ export default function CortexFunnelV2() {
                           : '👍'}
                     </div>
                     <h4 className="text-lg font-bold text-slate-900">
-                      {calculateUrgencyScore() >= 16 ? 'Ești candidat IDEAL!' : calculateUrgencyScore() >= 12 ? 'Foarte bun candidat!' : 'Nevoie de evaluare'}
+                      {calculateUrgencyScore() >= 16
+                        ? 'Ești candidat IDEAL!'
+                        : calculateUrgencyScore() >= 12
+                          ? 'Foarte bun candidat!'
+                          : 'Nevoie de evaluare'}
                     </h4>
                   </div>
-
-                  {/* Contact Form */}
-                  {!submitSuccess ? (
-                    <div className="space-y-4">
-                      <div>
-                        <label
-                          htmlFor="exit-intent-name"
-                          className="block text-sm font-medium text-slate-700 mb-1"
-                        >
-                          Numele tău
-                        </label>
-                        <input
-                          id="exit-intent-name"
-                          type="text"
-                          value={formData.name}
-                          onChange={(e) =>
-                            setFormData((prev) => ({ ...prev, name: e.target.value }))
-                          }
-                          placeholder="Ex: Maria Popescu"
-                          className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                        />
-                      </div>
-                      <div>
-                        <label
-                          htmlFor="exit-intent-phone"
-                          className="block text-sm font-medium text-slate-700 mb-1"
-                        >
-                          Telefon *
-                        </label>
-                        <input
-                          id="exit-intent-phone"
-                          type="tel"
-                          value={formData.phone}
-                          onChange={(e) =>
-                            setFormData((prev) => ({ ...prev, phone: e.target.value }))
-                          }
-                          placeholder="07XX XXX XXX"
-                          className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                        />
-                      </div>
-
-                      <button
-                        onClick={handlePhoneSubmit}
-                        disabled={isSubmitting || !formData.phone}
-                        className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl text-white font-bold text-lg shadow-lg hover:shadow-cyan-500/40 transition-all disabled:opacity-50"
-                      >
-                        {isSubmitting ? 'Se trimite...' : 'Vreau să fiu sunat GRATUIT'}
-                      </button>
-
-                      <div className="flex items-center justify-center gap-4">
-                        <span className="text-slate-400">sau</span>
-                      </div>
-
-                      <button
-                        onClick={openWhatsApp}
-                        className="w-full py-4 bg-emerald-500 rounded-xl text-white font-bold flex items-center justify-center gap-2"
-                      >
-                        <MessageCircle className="w-5 h-5" />
-                        Continuă pe WhatsApp
-                      </button>
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="quiz-name" className="sr-only">
+                        Numele tău
+                      </label>
+                      <input
+                        id="quiz-name"
+                        type="text"
+                        placeholder="Numele tău"
+                        value={formData.name}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
                     </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-100 flex items-center justify-center">
-                        <CheckCircle2 className="w-8 h-8 text-emerald-600" />
-                      </div>
-                      <h4 className="text-xl font-bold text-slate-900 mb-2">
-                        Perfect! Te sunăm imediat!
-                      </h4>
-                      <p className="text-slate-600">
-                        Un consultant medical te va contacta în maxim 15 minute.
-                      </p>
+                    <div>
+                      <label htmlFor="quiz-phone" className="sr-only">
+                        Număr de telefon
+                      </label>
+                      <input
+                        id="quiz-phone"
+                        type="tel"
+                        placeholder="07XX XXX XXX *"
+                        value={formData.phone}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, phone: e.target.value }))
+                        }
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
                     </div>
-                  )}
+                    <button
+                      onClick={handleSubmit}
+                      disabled={isSubmitting || !formData.phone}
+                      className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl text-white font-bold text-lg shadow-lg disabled:opacity-50"
+                    >
+                      {isSubmitting ? 'Se trimite...' : 'Vreau să fiu sunat GRATUIT'}
+                    </button>
+                    <div className="text-center text-slate-400 text-sm">sau</div>
+                    <button
+                      onClick={openWhatsApp}
+                      className="w-full py-4 bg-emerald-500 rounded-xl text-white font-bold flex items-center justify-center gap-2"
+                    >
+                      <MessageCircle className="w-5 h-5" />
+                      Continuă pe WhatsApp
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -1202,11 +1132,20 @@ export default function CortexFunnelV2() {
       {/* VIDEO TESTIMONIAL MODAL */}
       {showVideoTestimonial && (
         <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4">
-          <button onClick={() => setShowVideoTestimonial(null)} className="absolute top-4 right-4 p-2 bg-white/10 rounded-full hover:bg-white/20">
+          <button
+            onClick={() => setShowVideoTestimonial(null)}
+            className="absolute top-4 right-4 p-2 bg-white/10 rounded-full hover:bg-white/20"
+          >
             <X className="w-6 h-6 text-white" />
           </button>
           <div className="w-full max-w-4xl aspect-video">
-            <iframe src={`${showVideoTestimonial.videoUrl}?autoplay=1`} className="w-full h-full rounded-2xl" allow="autoplay; encrypted-media" allowFullScreen />
+            <iframe
+              src={`${showVideoTestimonial.videoUrl}?autoplay=1`}
+              title={`Testimonial video de la ${showVideoTestimonial.name}`}
+              className="w-full h-full rounded-2xl"
+              allow="autoplay; encrypted-media"
+              allowFullScreen
+            />
           </div>
         </div>
       )}
@@ -1215,16 +1154,19 @@ export default function CortexFunnelV2() {
       {showExitIntent && (
         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-md p-8 text-center relative">
-            <button onClick={() => setShowExitIntent(false)} className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full">
+            <button
+              onClick={() => setShowExitIntent(false)}
+              className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full"
+            >
               <X className="w-5 h-5" />
             </button>
             <div className="text-5xl mb-4">🎁</div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-2">Stai! Nu pleca încă!</h3>
+            <h3 className="text-2xl font-bold text-slate-900 mb-2">Stai! Ofertă Specială!</h3>
             <p className="text-slate-600 mb-6">
               Doar pentru tine: <strong>Consultație + CT 3D GRATUIT</strong>
-              (valoare 500 lei) dacă programezi acum.
+              <br />
+              <span className="text-sm">(valoare 500€)</span>
             </p>
-
             <button
               onClick={() => {
                 setShowExitIntent(false);
@@ -1235,7 +1177,12 @@ export default function CortexFunnelV2() {
             >
               Vreau Oferta Specială
             </button>
-            <button onClick={() => setShowExitIntent(false)} className="text-slate-500 text-sm hover:text-slate-700">Nu, mulțumesc</button>
+            <button
+              onClick={() => setShowExitIntent(false)}
+              className="text-slate-500 text-sm hover:text-slate-700"
+            >
+              Nu, mulțumesc
+            </button>
           </div>
         </div>
       )}
