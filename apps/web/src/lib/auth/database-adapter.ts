@@ -31,8 +31,9 @@ async function getTimingAttackDummyHash(): Promise<string> {
  */
 async function getAuthService(): Promise<AuthService> {
   if (!authServiceInstance) {
-    const { AuthService: AuthServiceClass, createDatabaseClient } =
-      await import('@medicalcor/core');
+    const { AuthService: AuthServiceClass, createDatabaseClient } = await import(
+      '@medicalcor/core'
+    );
     const db = createDatabaseClient();
     authServiceInstance = new AuthServiceClass(db);
   }

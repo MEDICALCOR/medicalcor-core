@@ -585,8 +585,9 @@ describe('createIdempotencyCacheFromEnv', () => {
 
 describe('Re-exports', () => {
   it('should re-export idempotency key utilities', async () => {
-    const { createIdempotencyKey, createNamespacedIdempotencyKey } =
-      await import('../idempotency-cache.js');
+    const { createIdempotencyKey, createNamespacedIdempotencyKey } = await import(
+      '../idempotency-cache.js'
+    );
 
     expect(typeof createIdempotencyKey).toBe('function');
     expect(typeof createNamespacedIdempotencyKey).toBe('function');

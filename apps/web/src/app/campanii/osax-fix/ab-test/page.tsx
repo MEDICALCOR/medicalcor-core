@@ -19,15 +19,13 @@ import { useABTest } from '@/lib/ab-testing';
 import dynamic from 'next/dynamic';
 
 // Dynamically import both landing page variants
-const ControlLandingPage = dynamic(
-  () => import('../landing-page'),
-  { loading: () => <LoadingState variant="control" /> }
-);
+const ControlLandingPage = dynamic(() => import('../landing-page'), {
+  loading: () => <LoadingState variant="control" />,
+});
 
-const RevolutionaryLandingPage = dynamic(
-  () => import('../revolutionary/page'),
-  { loading: () => <LoadingState variant="revolutionary" /> }
-);
+const RevolutionaryLandingPage = dynamic(() => import('../revolutionary/page'), {
+  loading: () => <LoadingState variant="revolutionary" />,
+});
 
 // ============================================================================
 // LOADING STATE
@@ -47,8 +45,12 @@ function LoadingState({ variant }: { variant: string }) {
 
       <style jsx>{`
         @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
         }
         .animate-spin {
           animation: spin 1s linear infinite;
@@ -68,12 +70,18 @@ function DebugPanel({ variantId, testId }: { variantId: string | null; testId: s
   return (
     <div className="fixed bottom-4 right-4 z-[9999] bg-slate-900/95 text-white p-4 rounded-xl shadow-2xl text-sm font-mono max-w-xs">
       <div className="flex items-center gap-2 mb-2">
-        <div className={`w-3 h-3 rounded-full ${variantId === 'control' ? 'bg-blue-500' : 'bg-emerald-500'}`} />
+        <div
+          className={`w-3 h-3 rounded-full ${variantId === 'control' ? 'bg-blue-500' : 'bg-emerald-500'}`}
+        />
         <span className="font-bold">A/B Test Active</span>
       </div>
       <div className="space-y-1 text-slate-300">
-        <div>Test: <span className="text-cyan-400">{testId}</span></div>
-        <div>Variant: <span className="text-amber-400">{variantId ?? 'loading...'}</span></div>
+        <div>
+          Test: <span className="text-cyan-400">{testId}</span>
+        </div>
+        <div>
+          Variant: <span className="text-amber-400">{variantId ?? 'loading...'}</span>
+        </div>
         <div className="text-xs text-slate-500 mt-2">
           {variantId === 'control' ? '📊 CORTEX Funnel V2' : '🚀 Revolutionary Page'}
         </div>
@@ -104,11 +112,7 @@ export default function ABTestLandingPage() {
   return (
     <>
       {/* Render appropriate variant */}
-      {isControl ? (
-        <ControlLandingPage />
-      ) : (
-        <RevolutionaryLandingPage />
-      )}
+      {isControl ? <ControlLandingPage /> : <RevolutionaryLandingPage />}
 
       {/* Debug panel for development */}
       <DebugPanel variantId={variantId} testId="landing_page_v3" />

@@ -536,7 +536,6 @@ pnpm test
 resources:
   limits:
     memory: 1Gi
-
 # Or optimize:
 # 1. Check for memory leaks
 # 2. Reduce concurrent processing

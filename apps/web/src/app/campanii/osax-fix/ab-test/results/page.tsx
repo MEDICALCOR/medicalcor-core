@@ -74,7 +74,8 @@ function calculateZScore(
 ): number {
   const p1 = controlConversions / (controlImpressions || 1);
   const p2 = treatmentConversions / (treatmentImpressions || 1);
-  const pPooled = (controlConversions + treatmentConversions) /
+  const pPooled =
+    (controlConversions + treatmentConversions) /
     ((controlImpressions || 1) + (treatmentImpressions || 1));
   const se = Math.sqrt(
     pPooled * (1 - pPooled) * (1 / (controlImpressions || 1) + 1 / (treatmentImpressions || 1))
@@ -112,8 +113,14 @@ export default function ABTestResultsPage() {
         fetch('/api/ab-test/conversion?testId=landing_page_v3'),
       ]);
 
-      const impressionsData = await impressionsRes.json() as { success: boolean; data: { variants: VariantStats[] } };
-      const conversionsData = await conversionsRes.json() as { success: boolean; data: { variants: ConversionStats[] } };
+      const impressionsData = (await impressionsRes.json()) as {
+        success: boolean;
+        data: { variants: VariantStats[] };
+      };
+      const conversionsData = (await conversionsRes.json()) as {
+        success: boolean;
+        data: { variants: ConversionStats[] };
+      };
 
       if (impressionsData.success && conversionsData.success) {
         setResults({
@@ -136,10 +143,10 @@ export default function ABTestResultsPage() {
   }, [fetchResults]);
 
   // Get variant data
-  const controlImpressions = results?.impressions.find(v => v.variantId === 'control');
-  const treatmentImpressions = results?.impressions.find(v => v.variantId === 'revolutionary');
-  const controlConversions = results?.conversions.find(v => v.variantId === 'control');
-  const treatmentConversions = results?.conversions.find(v => v.variantId === 'revolutionary');
+  const controlImpressions = results?.impressions.find((v) => v.variantId === 'control');
+  const treatmentImpressions = results?.impressions.find((v) => v.variantId === 'revolutionary');
+  const controlConversions = results?.conversions.find((v) => v.variantId === 'control');
+  const treatmentConversions = results?.conversions.find((v) => v.variantId === 'revolutionary');
 
   // Calculate metrics
   const controlCR = calculateConversionRate(
@@ -196,7 +203,9 @@ export default function ABTestResultsPage() {
               <span className="text-slate-600 text-sm">Total Impressions</span>
             </div>
             <p className="text-2xl font-bold text-slate-900">
-              {((controlImpressions?.impressions ?? 0) + (treatmentImpressions?.impressions ?? 0)).toLocaleString()}
+              {(
+                (controlImpressions?.impressions ?? 0) + (treatmentImpressions?.impressions ?? 0)
+              ).toLocaleString()}
             </p>
           </div>
 
@@ -209,16 +218,21 @@ export default function ABTestResultsPage() {
               <span className="text-slate-600 text-sm">Total Conversions</span>
             </div>
             <p className="text-2xl font-bold text-slate-900">
-              {((controlConversions?.totalConversions ?? 0) + (treatmentConversions?.totalConversions ?? 0)).toLocaleString()}
+              {(
+                (controlConversions?.totalConversions ?? 0) +
+                (treatmentConversions?.totalConversions ?? 0)
+              ).toLocaleString()}
             </p>
           </div>
 
           {/* Lift */}
           <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
             <div className="flex items-center gap-3 mb-3">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                lift >= 0 ? 'bg-emerald-100' : 'bg-red-100'
-              }`}>
+              <div
+                className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                  lift >= 0 ? 'bg-emerald-100' : 'bg-red-100'
+                }`}
+              >
                 {lift >= 0 ? (
                   <ArrowUpRight size={20} className="text-emerald-600" />
                 ) : (
@@ -228,14 +242,17 @@ export default function ABTestResultsPage() {
               <span className="text-slate-600 text-sm">Lift (Treatment vs Control)</span>
             </div>
             <p className={`text-2xl font-bold ${lift >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-              {lift >= 0 ? '+' : ''}{lift.toFixed(1)}%
+              {lift >= 0 ? '+' : ''}
+              {lift.toFixed(1)}%
             </p>
           </div>
 
           {/* Statistical Significance */}
           <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
             <div className="flex items-center gap-3 mb-3">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center bg-${significance.color}-100`}>
+              <div
+                className={`w-10 h-10 rounded-lg flex items-center justify-center bg-${significance.color}-100`}
+              >
                 {significance.level === 'not_significant' ? (
                   <AlertTriangle size={20} className="text-slate-600" />
                 ) : (
@@ -287,9 +304,7 @@ export default function ABTestResultsPage() {
               <div className="pt-4 border-t border-slate-100">
                 <div className="flex justify-between items-center">
                   <span className="text-slate-600 font-medium">Conversion Rate</span>
-                  <span className="text-xl font-bold text-blue-600">
-                    {controlCR.toFixed(2)}%
-                  </span>
+                  <span className="text-xl font-bold text-blue-600">{controlCR.toFixed(2)}%</span>
                 </div>
               </div>
             </div>
@@ -352,28 +367,41 @@ export default function ABTestResultsPage() {
             Recommendations
           </h3>
           <div className="space-y-3">
-            {((controlImpressions?.impressions ?? 0) + (treatmentImpressions?.impressions ?? 0)) < 100 && (
+            {(controlImpressions?.impressions ?? 0) + (treatmentImpressions?.impressions ?? 0) <
+              100 && (
               <p className="flex items-start gap-2">
                 <AlertTriangle size={18} className="text-amber-400 flex-shrink-0 mt-0.5" />
-                <span>Need more data. Continue running the test until at least 1,000 impressions per variant for reliable results.</span>
+                <span>
+                  Need more data. Continue running the test until at least 1,000 impressions per
+                  variant for reliable results.
+                </span>
               </p>
             )}
             {significance.level === 'not_significant' && (
               <p className="flex items-start gap-2">
                 <AlertTriangle size={18} className="text-amber-400 flex-shrink-0 mt-0.5" />
-                <span>Results are not statistically significant yet. Continue the test before making decisions.</span>
+                <span>
+                  Results are not statistically significant yet. Continue the test before making
+                  decisions.
+                </span>
               </p>
             )}
             {significance.level === 'high' && lift > 0 && (
               <p className="flex items-start gap-2">
                 <CheckCircle2 size={18} className="text-emerald-400 flex-shrink-0 mt-0.5" />
-                <span>Strong evidence that Revolutionary page outperforms Control. Consider deploying to 100% of traffic.</span>
+                <span>
+                  Strong evidence that Revolutionary page outperforms Control. Consider deploying to
+                  100% of traffic.
+                </span>
               </p>
             )}
             {significance.level === 'high' && lift < 0 && (
               <p className="flex items-start gap-2">
                 <AlertTriangle size={18} className="text-red-400 flex-shrink-0 mt-0.5" />
-                <span>Control page is performing better. Investigate Revolutionary page issues before continuing.</span>
+                <span>
+                  Control page is performing better. Investigate Revolutionary page issues before
+                  continuing.
+                </span>
               </p>
             )}
           </div>
