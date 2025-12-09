@@ -1,9 +1,21 @@
 import { task, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
-import { normalizeRomanianPhone, IdempotencyKeys } from '@medicalcor/core';
+import { normalizeRomanianPhone } from '@medicalcor/core';
 import { createIntegrationClients } from '@medicalcor/integrations';
-import { recordPaymentToCase } from '../workflows/ltv-orchestration.js';
-import { attributePaymentToLead } from './payment-attribution.js';
+import {
+  formatCurrency,
+  upsertPaymentContact,
+  logPaymentAndUpdateLifecycle,
+  findContactByEmailOrPhone,
+  handleFailedPayment,
+  logRefundToTimeline,
+  sendPaymentConfirmation,
+  triggerDirectLTV,
+  triggerPaymentAttribution,
+  emitPaymentReceivedEvent,
+  emitPaymentFailedEvent,
+  emitPaymentRefundedEvent,
+} from './payment/index.js';
 
 /**
  * Payment Handler Task
@@ -24,27 +36,6 @@ function getClients() {
     source: 'payment-handler',
     includeTemplateCatalog: true,
   });
-}
-
-/**
- * Format currency amount for display
- */
-function formatCurrency(
-  amountCents: number,
-  currency: string,
-  language: 'ro' | 'en' | 'de' = 'ro'
-): string {
-  const amount = amountCents / 100;
-  const locales: Record<string, string> = {
-    ro: 'ro-RO',
-    en: 'en-US',
-    de: 'de-DE',
-  };
-
-  return new Intl.NumberFormat(locales[language], {
-    style: 'currency',
-    currency: currency.toUpperCase(),
-  }).format(amount);
 }
 
 export const PaymentSucceededPayloadSchema = z.object({
@@ -100,200 +91,78 @@ export const handlePaymentSucceeded = task({
       correlationId,
     });
 
-    // Step 1: Find or create HubSpot contact (using atomic upsert to prevent race conditions)
-    // IMPORTANT: We use upsertContactByEmail/Phone which is atomic and prevents duplicate
-    // contacts when multiple webhook events arrive simultaneously (e.g., payment_intent.succeeded
-    // and charge.succeeded both trying to create the same contact)
-    let hubspotContactId: string | undefined;
+    // Step 1: Normalize phone if available
     let normalizedPhone: string | undefined;
-
-    if (hubspot) {
-      try {
-        // Normalize phone if available
-        if (metadata?.phone) {
-          const phoneResult = normalizeRomanianPhone(metadata.phone);
-          normalizedPhone = phoneResult.normalized;
-        }
-
-        // Use atomic upsert operations instead of check-then-act pattern
-        // This prevents race conditions when concurrent webhooks try to create contacts
-        if (customerEmail) {
-          // Prefer email-based upsert as email is more unique
-          const contact = await hubspot.upsertContactByEmail(customerEmail, {
-            ...(customerName ? { firstname: customerName } : {}),
-            ...(normalizedPhone ? { phone: normalizedPhone } : {}),
-            lead_source: 'stripe_payment',
-          });
-          hubspotContactId = contact.id;
-          logger.info('Upserted contact by email', { contactId: hubspotContactId, correlationId });
-        } else if (normalizedPhone) {
-          // Fallback to phone-based upsert
-          const contact = await hubspot.upsertContactByPhone(normalizedPhone, {
-            ...(customerName ? { firstname: customerName } : {}),
-            lead_source: 'stripe_payment',
-          });
-          hubspotContactId = contact.id;
-          logger.info('Upserted contact by phone', { contactId: hubspotContactId, correlationId });
-        }
-      } catch (err) {
-        logger.error('Failed to upsert HubSpot contact', { err, correlationId });
-      }
-    } else {
-      logger.warn('HubSpot client not configured', { correlationId });
+    if (metadata?.phone) {
+      const phoneResult = normalizeRomanianPhone(metadata.phone);
+      normalizedPhone = phoneResult.normalized;
     }
 
-    // Step 2: Log payment to timeline and update lifecycle
+    // Step 2: Find or create HubSpot contact
+    const hubspotContactId = await upsertPaymentContact(
+      hubspot,
+      { customerEmail, normalizedPhone, customerName },
+      correlationId
+    );
+
+    // Step 3: Log payment to timeline and update lifecycle
     if (hubspot && hubspotContactId) {
       try {
-        // Log payment to timeline
-        await hubspot.logPaymentToTimeline({
-          contactId: hubspotContactId,
-          paymentId,
-          amount,
-          currency,
-          status: 'succeeded',
-        });
-        logger.info('Payment logged to timeline', { contactId: hubspotContactId, correlationId });
-
-        // Update lifecycle stage to customer
-        await hubspot.updateContact(hubspotContactId, {
-          lifecyclestage: 'customer',
-          hs_lead_status: 'CONVERTED',
-          last_payment_date: new Date().toISOString(),
-          last_payment_amount: formatCurrency(amount, currency),
-          stripe_customer_id: customerId ?? undefined,
-        });
-        logger.info('Contact updated to customer lifecycle', {
-          contactId: hubspotContactId,
-          correlationId,
-        });
-      } catch (err) {
-        logger.error('Failed to update HubSpot contact', { err, correlationId });
-      }
-    }
-
-    // Step 3: Send WhatsApp confirmation if phone available
-    if (whatsapp && metadata?.phone && templateCatalog) {
-      try {
-        const phoneResult = normalizeRomanianPhone(metadata.phone);
-        normalizedPhone = phoneResult.normalized;
-
-        // Build template components
-        const components = templateCatalog.buildTemplateComponents('payment_confirmation', {
-          amount: formatCurrency(amount, currency),
-          date: templateCatalog.formatDateForTemplate(new Date()),
-        });
-
-        await whatsapp.sendTemplate({
-          to: normalizedPhone,
-          templateName: 'payment_confirmation',
-          language: 'ro',
-          components,
-        });
-        logger.info('Payment confirmation sent via WhatsApp', { correlationId });
-      } catch (err) {
-        logger.error('Failed to send WhatsApp confirmation', { err, correlationId });
-      }
-    }
-
-    // Step 4: Emit domain event
-    try {
-      await eventStore.emit({
-        type: 'payment.received',
-        correlationId,
-        aggregateId: hubspotContactId ?? normalizedPhone ?? paymentId,
-        aggregateType: 'payment',
-        payload: {
-          stripePaymentId: paymentId,
-          stripeCustomerId: customerId,
-          hubspotContactId,
-          amount,
-          currency,
-          formattedAmount: formatCurrency(amount, currency),
-          customerEmail,
-          phone: normalizedPhone,
-        },
-      });
-      logger.info('Domain event emitted', { type: 'payment.received', correlationId });
-    } catch (err) {
-      logger.error('Failed to emit domain event', { err, correlationId });
-    }
-
-    // Step 5: Trigger LTV orchestration
-    // If we have explicit lead/clinic IDs, use direct recording
-    // Otherwise, use payment attribution to find the lead (H8 fix)
-    let ltvOrchestrationTriggered = false;
-    if (leadId && clinicId) {
-      // Direct path: explicit IDs provided
-      try {
-        await recordPaymentToCase.trigger(
-          {
-            paymentId,
-            leadId,
-            clinicId,
-            caseId,
-            treatmentPlanId,
-            amount,
-            currency,
-            method: 'card',
-            type: 'payment',
-            processorName: 'stripe',
-            processorTransactionId: paymentId,
-            correlationId,
-          },
-          {
-            idempotencyKey: IdempotencyKeys.custom('ltv-payment', paymentId, correlationId),
-          }
+        await logPaymentAndUpdateLifecycle(
+          hubspot,
+          { contactId: hubspotContactId, paymentId, amount, currency, customerId },
+          correlationId
         );
-        ltvOrchestrationTriggered = true;
-        logger.info('LTV orchestration triggered (direct)', { leadId, clinicId, correlationId });
-      } catch (err) {
-        logger.error('Failed to trigger LTV orchestration', {
-          err,
-          leadId,
-          clinicId,
-          correlationId,
-        });
+      } catch {
+        // Error already logged in helper
       }
-    } else if (customerEmail || normalizedPhone || customerId) {
-      // Attribution path: resolve lead from customer identifiers (H8 fix)
-      try {
-        await attributePaymentToLead.trigger(
-          {
-            paymentId,
-            amount,
-            currency,
-            stripeCustomerId: customerId,
-            customerEmail,
-            customerPhone: normalizedPhone ?? metadata?.phone,
-            customerName,
-            method: 'card',
-            type: 'payment',
-            correlationId,
-          },
-          {
-            idempotencyKey: IdempotencyKeys.custom('ltv-attr', paymentId, correlationId),
-          }
-        );
-        ltvOrchestrationTriggered = true;
-        logger.info('Payment attribution triggered', {
-          hasEmail: !!customerEmail,
-          hasPhone: !!normalizedPhone,
-          hasCustomerId: !!customerId,
-          correlationId,
-        });
-      } catch (err) {
-        logger.error('Failed to trigger payment attribution', { err, correlationId });
-      }
-    } else {
-      logger.warn('LTV orchestration skipped - no identifiers available', {
-        hasLeadId: !!leadId,
-        hasClinicId: !!clinicId,
-        hasEmail: !!customerEmail,
-        hasPhone: !!normalizedPhone,
-        correlationId,
-      });
     }
+
+    // Step 4: Send WhatsApp confirmation if phone available
+    let confirmationSent = false;
+    if (metadata?.phone && normalizedPhone) {
+      confirmationSent = await sendPaymentConfirmation(
+        whatsapp,
+        templateCatalog,
+        { normalizedPhone, amount, currency },
+        correlationId
+      );
+    }
+
+    // Step 5: Emit domain event
+    await emitPaymentReceivedEvent(
+      eventStore,
+      correlationId,
+      hubspotContactId ?? normalizedPhone ?? paymentId,
+      {
+        stripePaymentId: paymentId,
+        stripeCustomerId: customerId,
+        hubspotContactId,
+        amount,
+        currency,
+        formattedAmount: formatCurrency(amount, currency),
+        customerEmail,
+        phone: normalizedPhone,
+      }
+    );
+
+    // Step 6: Trigger LTV orchestration
+    const ltvResult = await triggerLTVOrchestration(
+      {
+        paymentId,
+        amount,
+        currency,
+        customerId,
+        customerEmail,
+        customerPhone: normalizedPhone ?? metadata?.phone,
+        customerName,
+        leadId,
+        clinicId,
+        caseId,
+        treatmentPlanId,
+      },
+      correlationId
+    );
 
     return {
       success: true,
@@ -303,11 +172,79 @@ export const handlePaymentSucceeded = task({
       formattedAmount: formatCurrency(amount, currency),
       currency,
       lifecycleUpdated: !!hubspotContactId,
-      confirmationSent: !!(whatsapp && metadata?.phone),
-      ltvOrchestrationTriggered,
+      confirmationSent,
+      ltvOrchestrationTriggered: ltvResult,
     };
   },
 });
+
+/**
+ * Handle LTV orchestration triggering based on available identifiers
+ */
+async function triggerLTVOrchestration(
+  params: {
+    paymentId: string;
+    amount: number;
+    currency: string;
+    customerId: string | null;
+    customerEmail: string | null;
+    customerPhone?: string;
+    customerName?: string;
+    leadId?: string;
+    clinicId?: string;
+    caseId?: string;
+    treatmentPlanId?: string;
+  },
+  correlationId: string
+): Promise<boolean> {
+  const {
+    paymentId,
+    amount,
+    currency,
+    customerId,
+    customerEmail,
+    customerPhone,
+    customerName,
+    leadId,
+    clinicId,
+    caseId,
+    treatmentPlanId,
+  } = params;
+
+  // Direct path: explicit IDs provided
+  if (leadId && clinicId) {
+    return triggerDirectLTV(
+      { paymentId, leadId, clinicId, caseId, treatmentPlanId, amount, currency },
+      correlationId
+    );
+  }
+
+  // Attribution path: resolve lead from customer identifiers
+  if (customerEmail || customerPhone || customerId) {
+    return triggerPaymentAttribution(
+      {
+        paymentId,
+        amount,
+        currency,
+        stripeCustomerId: customerId,
+        customerEmail,
+        customerPhone,
+        customerName,
+      },
+      correlationId
+    );
+  }
+
+  // No identifiers available
+  logger.warn('LTV orchestration skipped - no identifiers available', {
+    hasLeadId: !!leadId,
+    hasClinicId: !!clinicId,
+    hasEmail: !!customerEmail,
+    hasPhone: !!customerPhone,
+    correlationId,
+  });
+  return false;
+}
 
 /**
  * Payment Failed Handler Task
@@ -357,80 +294,46 @@ export const handlePaymentFailed = task({
       correlationId,
     });
 
-    // Find HubSpot contact
+    // Find HubSpot contact and process failed payment
     let hubspotContactId: string | undefined;
     let normalizedPhone: string | undefined;
 
     if (hubspot) {
-      try {
-        // Try to find by email
-        if (customerEmail) {
-          const contact = await hubspot.findContactByEmail(customerEmail);
-          hubspotContactId = contact?.id;
-        }
+      // Normalize phone if available
+      if (metadata?.phone) {
+        const phoneResult = normalizeRomanianPhone(metadata.phone);
+        normalizedPhone = phoneResult.normalized;
+      }
 
-        // Try to find by phone
-        if (!hubspotContactId && metadata?.phone) {
-          const phoneResult = normalizeRomanianPhone(metadata.phone);
-          normalizedPhone = phoneResult.normalized;
-          const contacts = await hubspot.searchContactsByPhone(normalizedPhone);
-          const firstContact = contacts[0];
-          if (firstContact) {
-            hubspotContactId = firstContact.id;
-          }
-        }
+      const result = await findContactByEmailOrPhone(
+        hubspot,
+        customerEmail,
+        normalizedPhone,
+        correlationId
+      );
+      hubspotContactId = result.contactId;
 
-        // Log failed payment to timeline
-        if (hubspotContactId) {
-          await hubspot.logPaymentToTimeline({
-            contactId: hubspotContactId,
-            paymentId,
-            amount,
-            currency,
-            status: `failed: ${failureReason}`,
-          });
-
-          // Create follow-up task for staff
-          await hubspot.createTask({
-            contactId: hubspotContactId,
-            subject: `PAYMENT FAILED: ${formatCurrency(amount, currency)}`,
-            body: `Payment ID: ${paymentId}\nAmount: ${formatCurrency(amount, currency)}\nReason: ${failureReason}\nCode: ${failureCode ?? 'N/A'}\n\nPlease follow up with the customer to resolve the payment issue.`,
-            priority: 'HIGH',
-            dueDate: new Date(Date.now() + 4 * 60 * 60 * 1000), // Due in 4 hours
-          });
-          logger.info('Created follow-up task for failed payment', {
-            contactId: hubspotContactId,
-            correlationId,
-          });
-        }
-      } catch (err) {
-        logger.error('Failed to process failed payment in HubSpot', { err, correlationId });
+      if (hubspotContactId) {
+        await handleFailedPayment(
+          hubspot,
+          { contactId: hubspotContactId, paymentId, amount, currency, failureCode, failureReason },
+          correlationId
+        );
       }
     }
 
     // Emit domain event
-    try {
-      await eventStore.emit({
-        type: 'payment.failed',
-        correlationId,
-        aggregateId: hubspotContactId ?? paymentId,
-        aggregateType: 'payment',
-        payload: {
-          stripePaymentId: paymentId,
-          stripeCustomerId: customerId,
-          hubspotContactId,
-          amount,
-          currency,
-          failureCode,
-          failureReason,
-          customerEmail,
-          phone: normalizedPhone,
-        },
-      });
-      logger.info('Domain event emitted', { type: 'payment.failed', correlationId });
-    } catch (err) {
-      logger.error('Failed to emit domain event', { err, correlationId });
-    }
+    await emitPaymentFailedEvent(eventStore, correlationId, hubspotContactId ?? paymentId, {
+      stripePaymentId: paymentId,
+      stripeCustomerId: customerId,
+      hubspotContactId,
+      amount,
+      currency,
+      failureCode,
+      failureReason,
+      customerEmail,
+      phone: normalizedPhone,
+    });
 
     return {
       success: true,
@@ -465,16 +368,7 @@ export const handleRefund = task({
     maxAttempts: 3,
   },
   run: async (payload: RefundPayload) => {
-    const {
-      refundId,
-      paymentId,
-      amount,
-      currency,
-      reason,
-      customerEmail,
-      metadata: _metadata,
-      correlationId,
-    } = payload;
+    const { refundId, paymentId, amount, currency, reason, customerEmail, correlationId } = payload;
     const { hubspot, eventStore } = getClients();
 
     logger.info('Processing refund', {
@@ -485,7 +379,7 @@ export const handleRefund = task({
       correlationId,
     });
 
-    // Find HubSpot contact
+    // Find HubSpot contact and log refund
     let hubspotContactId: string | undefined;
 
     if (hubspot && customerEmail) {
@@ -494,15 +388,11 @@ export const handleRefund = task({
         hubspotContactId = contact?.id;
 
         if (hubspotContactId) {
-          // Log refund to timeline
-          await hubspot.logPaymentToTimeline({
-            contactId: hubspotContactId,
-            paymentId: refundId,
-            amount: -amount, // Negative to indicate refund
-            currency,
-            status: `refunded${reason ? `: ${reason}` : ''}`,
-          });
-          logger.info('Refund logged to timeline', { contactId: hubspotContactId, correlationId });
+          await logRefundToTimeline(
+            hubspot,
+            { contactId: hubspotContactId, refundId, amount, currency, reason },
+            correlationId
+          );
         }
       } catch (err) {
         logger.error('Failed to log refund to HubSpot', { err, correlationId });
@@ -510,24 +400,14 @@ export const handleRefund = task({
     }
 
     // Emit domain event
-    try {
-      await eventStore.emit({
-        type: 'payment.refunded',
-        correlationId,
-        aggregateId: hubspotContactId ?? refundId,
-        aggregateType: 'payment',
-        payload: {
-          refundId,
-          originalPaymentId: paymentId,
-          hubspotContactId,
-          amount,
-          currency,
-          reason,
-        },
-      });
-    } catch (err) {
-      logger.error('Failed to emit domain event', { err, correlationId });
-    }
+    await emitPaymentRefundedEvent(eventStore, correlationId, hubspotContactId ?? refundId, {
+      refundId,
+      originalPaymentId: paymentId,
+      hubspotContactId,
+      amount,
+      currency,
+      reason,
+    });
 
     return {
       success: true,

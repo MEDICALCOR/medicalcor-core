@@ -2,7 +2,18 @@ import { task, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
 import { normalizeRomanianPhone } from '@medicalcor/core';
 import { createIntegrationClients } from '@medicalcor/integrations';
-import type { AIScoringContext } from '@medicalcor/types';
+import {
+  syncVoiceContact,
+  logCallToTimeline,
+  updateContactWithScoring,
+  updateContactWithCallData,
+  createPriorityTask,
+  verifyVoiceConsent,
+  scoreVoiceLead,
+  analyzeVoiceSentiment,
+  emitVoiceCallEvent,
+  emitVoiceProcessedEvent,
+} from './voice/index.js';
 
 /**
  * Voice Call Handler Task
@@ -52,215 +63,54 @@ export const handleVoiceCall = task({
     const { callSid, from, to, direction, status, duration, transcript, correlationId } = payload;
     const { hubspot, openai, scoring, triage, consent, eventStore } = getClients();
 
-    logger.info('Processing voice call', {
-      callSid,
-      direction,
-      status,
-      correlationId,
-    });
+    logger.info('Processing voice call', { callSid, direction, status, correlationId });
 
     // Step 1: Normalize phone number
     const phoneResult = normalizeRomanianPhone(from);
     const normalizedPhone = phoneResult.normalized;
-    logger.info('Phone normalized', {
-      isValid: phoneResult.isValid,
-      correlationId,
-    });
+    logger.info('Phone normalized', { isValid: phoneResult.isValid, correlationId });
 
     // Step 2: Sync contact to HubSpot
-    let hubspotContactId: string | undefined;
-    if (hubspot) {
-      try {
-        const hubspotContact = await hubspot.syncContact({
-          phone: normalizedPhone,
-          properties: {
-            lead_source: 'voice',
-            last_call_date: new Date().toISOString(),
-          },
-        });
-        hubspotContactId = hubspotContact.id;
-        logger.info('HubSpot contact synced', { contactId: hubspotContactId, correlationId });
-      } catch (err) {
-        logger.error('Failed to sync HubSpot contact', { err, correlationId });
-      }
-    } else {
-      logger.warn('HubSpot client not configured, skipping CRM sync', { correlationId });
-    }
+    const hubspotContactId = await syncVoiceContact(hubspot, normalizedPhone, correlationId);
 
-    // Step 3: If call completed and we have transcript, process it
+    // Step 3: Process transcript if call completed
     let scoreResult;
     if (status === 'completed' && transcript && hubspot && hubspotContactId) {
-      // GDPR COMPLIANCE: Verify data processing consent before analyzing personal data
-      if (consent) {
-        try {
-          const consentCheck = await consent.hasRequiredConsents(hubspotContactId);
-          if (!consentCheck.valid) {
-            logger.warn('Missing GDPR consent for voice data processing', {
-              contactId: hubspotContactId,
-              missingConsents: consentCheck.missing,
-              correlationId,
-            });
-            // Skip AI processing but still log basic call metadata (legitimate interest)
-            await hubspot.logCallToTimeline({
-              contactId: hubspotContactId,
-              callSid,
-              duration: duration ? parseInt(duration, 10) : 0,
-              transcript: '[Transcript not processed - consent required]',
-            });
-            logger.info('Logged call without transcript processing due to missing consent', {
-              correlationId,
-            });
-            // Continue to emit event but skip scoring
-            return {
-              status: 'consent_required',
-              hubspotContactId,
-              missingConsents: consentCheck.missing,
-            };
-          }
-          logger.info('GDPR consent verified for voice processing', { correlationId });
-        } catch (err) {
-          logger.error('Failed to verify GDPR consent', { err, correlationId });
-          // CRITICAL: Fail safe - do not process without consent verification
-          // This applies in ALL environments to prevent accidental data processing
-          throw new Error('Cannot process voice data: consent verification failed');
-        }
-      } else {
-        // CRITICAL: Consent service is required for GDPR compliance
-        logger.error('Consent service not configured', { correlationId });
-        throw new Error('Consent service required for GDPR compliance');
+      const processingResult = await processCompletedCall(
+        { hubspot, openai, scoring, triage, consent },
+        { hubspotContactId, normalizedPhone, callSid, transcript, duration },
+        correlationId
+      );
+
+      if (processingResult.consentRequired) {
+        return {
+          status: 'consent_required',
+          hubspotContactId,
+          missingConsents: processingResult.missingConsents,
+        };
       }
 
-      try {
-        // Log call to HubSpot timeline
-        await hubspot.logCallToTimeline({
-          contactId: hubspotContactId,
-          callSid,
-          duration: duration ? parseInt(duration, 10) : 0,
-          transcript,
-        });
-        logger.info('Call logged to timeline', { contactId: hubspotContactId, correlationId });
-
-        // AI scoring on transcript
-        if (!scoring || !triage) {
-          logger.warn('Scoring or triage service not available', { correlationId });
-        } else {
-          const leadContext: AIScoringContext = {
-            phone: normalizedPhone,
-            channel: 'voice',
-            firstTouchTimestamp: new Date().toISOString(),
-            language: 'ro',
-            messageHistory: [
-              { role: 'user', content: transcript, timestamp: new Date().toISOString() },
-            ],
-            hubspotContactId,
-          };
-
-          scoreResult = await scoring.scoreMessage(leadContext);
-          logger.info('Voice lead scored', {
-            score: scoreResult.score,
-            classification: scoreResult.classification,
-            correlationId,
-          });
-
-          // Perform triage assessment
-          const triageResult = await triage.assess({
-            leadScore: scoreResult.classification,
-            channel: 'voice',
-            messageContent: transcript,
-            procedureInterest: scoreResult.procedureInterest ?? [],
-            hasExistingRelationship: false,
-          });
-
-          logger.info('Triage assessment completed', {
-            urgencyLevel: triageResult.urgencyLevel,
-            routing: triageResult.routingRecommendation,
-            correlationId,
-          });
-
-          // Analyze sentiment if OpenAI available
-          let sentiment: string | undefined;
-          if (openai) {
-            try {
-              const sentimentResult = await openai.analyzeSentiment(transcript);
-              sentiment = sentimentResult.sentiment;
-              logger.info('Sentiment analyzed', { sentiment, correlationId });
-            } catch (err) {
-              logger.warn('Failed to analyze sentiment', { err, correlationId });
-            }
-          }
-
-          // Update contact with score and sentiment
-          await hubspot.updateContact(hubspotContactId, {
-            lead_score: String(scoreResult.score),
-            lead_status: scoreResult.classification,
-            last_call_sentiment: sentiment,
-            urgency_level: triageResult.urgencyLevel,
-          });
-          logger.info('Contact updated with voice scoring', {
-            contactId: hubspotContactId,
-            correlationId,
-          });
-
-          // Create priority task for HOT leads or high_priority scheduling requests
-          if (
-            scoreResult.classification === 'HOT' ||
-            triageResult.urgencyLevel === 'high_priority' ||
-            triageResult.urgencyLevel === 'high'
-          ) {
-            // Get notification contacts for priority cases
-            const notificationContacts = triage.getNotificationContacts(triageResult.urgencyLevel);
-            const contactsInfo =
-              notificationContacts.length > 0
-                ? `\n\nNotify: ${notificationContacts.join(', ')}`
-                : '';
-
-            await hubspot.createTask({
-              contactId: hubspotContactId,
-              subject: `${triageResult.urgencyLevel === 'high_priority' ? 'PRIORITY REQUEST' : 'HIGH PRIORITY'} - Voice Lead: ${normalizedPhone}`,
-              body: `${triageResult.urgencyLevel === 'high_priority' ? 'Patient reported discomfort. Wants quick appointment.\n\n' : ''}${triageResult.notes}\n\nSuggested Action: ${scoreResult.suggestedAction}${contactsInfo}`,
-              priority: triageResult.urgencyLevel === 'high_priority' ? 'HIGH' : 'MEDIUM',
-              dueDate:
-                triageResult.routingRecommendation === 'next_available_slot'
-                  ? new Date(Date.now() + 30 * 60 * 1000) // 30 minutes during business hours
-                  : new Date(Date.now() + 60 * 60 * 1000), // 1 hour
-            });
-            logger.info('Priority task created for voice lead', {
-              notificationContacts,
-              correlationId,
-            });
-          }
-        }
-      } catch (err) {
-        logger.error('Failed to process voice call transcript', { err, correlationId });
-      }
+      scoreResult = processingResult.scoreResult;
     }
 
     // Step 4: Emit domain event
-    try {
-      await eventStore.emit({
-        type: status === 'completed' ? 'voice.call.completed' : 'voice.call.initiated',
-        correlationId,
-        aggregateId: normalizedPhone,
-        aggregateType: 'lead',
-        payload: {
-          callSid,
-          from: normalizedPhone,
-          to,
-          direction,
-          status,
-          duration: duration ? parseInt(duration, 10) : undefined,
-          hubspotContactId,
-          score: scoreResult?.score,
-          classification: scoreResult?.classification,
-        },
-      });
-      logger.info('Domain event emitted', {
-        type: status === 'completed' ? 'voice.call.completed' : 'voice.call.initiated',
-        correlationId,
-      });
-    } catch (err) {
-      logger.error('Failed to emit domain event', { err, correlationId });
-    }
+    await emitVoiceCallEvent(
+      eventStore,
+      status === 'completed' ? 'voice.call.completed' : 'voice.call.initiated',
+      correlationId,
+      normalizedPhone,
+      {
+        callSid,
+        from: normalizedPhone,
+        to,
+        direction,
+        status,
+        duration: duration ? parseInt(duration, 10) : undefined,
+        hubspotContactId,
+        score: scoreResult?.score,
+        classification: scoreResult?.classification,
+      }
+    );
 
     return {
       success: true,
@@ -273,6 +123,97 @@ export const handleVoiceCall = task({
     };
   },
 });
+
+/**
+ * Process completed call with consent verification and scoring
+ */
+async function processCompletedCall(
+  clients: {
+    hubspot: ReturnType<typeof getClients>['hubspot'];
+    openai: ReturnType<typeof getClients>['openai'];
+    scoring: ReturnType<typeof getClients>['scoring'];
+    triage: ReturnType<typeof getClients>['triage'];
+    consent: ReturnType<typeof getClients>['consent'];
+  },
+  params: {
+    hubspotContactId: string;
+    normalizedPhone: string;
+    callSid: string;
+    transcript: string;
+    duration?: string;
+  },
+  correlationId: string
+): Promise<{
+  consentRequired?: boolean;
+  missingConsents?: string[];
+  scoreResult?: { score: number; classification: string };
+}> {
+  const { hubspot, openai, scoring, triage, consent } = clients;
+  const { hubspotContactId, normalizedPhone, callSid, transcript, duration } = params;
+  const durationNum = duration ? parseInt(duration, 10) : 0;
+
+  // GDPR consent verification
+  const consentResult = await verifyVoiceConsent(
+    consent,
+    hubspot,
+    hubspotContactId,
+    callSid,
+    durationNum,
+    correlationId
+  );
+
+  if (!consentResult.hasConsent) {
+    return { consentRequired: true, missingConsents: consentResult.missingConsents };
+  }
+
+  try {
+    // Log call to timeline
+    await logCallToTimeline(
+      hubspot,
+      { contactId: hubspotContactId, callSid, duration: durationNum, transcript },
+      correlationId
+    );
+
+    // Score and triage
+    if (!scoring || !triage) {
+      logger.warn('Scoring or triage service not available', { correlationId });
+      return {};
+    }
+
+    const { scoreResult, triageResult } = await scoreVoiceLead(
+      scoring,
+      triage,
+      { normalizedPhone, hubspotContactId, transcript },
+      correlationId
+    );
+
+    // Analyze sentiment
+    const sentiment = await analyzeVoiceSentiment(openai, transcript, correlationId);
+
+    // Update contact
+    await updateContactWithScoring(
+      hubspot,
+      hubspotContactId,
+      scoreResult,
+      sentiment,
+      triageResult,
+      correlationId
+    );
+
+    // Create priority task if needed
+    await createPriorityTask(
+      hubspot,
+      triage,
+      { hubspotContactId, normalizedPhone, scoreResult, triageResult },
+      correlationId
+    );
+
+    return { scoreResult };
+  } catch (err) {
+    logger.error('Failed to process voice call transcript', { err, correlationId });
+    return {};
+  }
+}
 
 /**
  * Call Completed Handler Task
@@ -317,113 +258,36 @@ export const handleCallCompleted = task({
     const phoneResult = normalizeRomanianPhone(from);
     const normalizedPhone = phoneResult.normalized;
 
-    // Find/create HubSpot contact
-    let hubspotContactId: string | undefined;
-    if (hubspot) {
-      try {
-        const contact = await hubspot.syncContact({ phone: normalizedPhone });
-        hubspotContactId = contact.id;
-
-        // Log call to timeline with transcript
-        await hubspot.logCallToTimeline({
-          contactId: hubspotContactId,
-          callSid,
-          duration,
-          transcript: transcript ?? summary ?? 'No transcript available',
-          ...(sentiment && { sentiment }),
-        });
-
-        logger.info('Call logged to HubSpot', { contactId: hubspotContactId, correlationId });
-      } catch (err) {
-        logger.error('Failed to log call to HubSpot', { err, correlationId });
-      }
-    }
+    // Find/create HubSpot contact and log call
+    const hubspotContactId = await syncAndLogCompletedCall(
+      hubspot,
+      { normalizedPhone, callSid, duration, transcript, summary, sentiment },
+      correlationId
+    );
 
     // Score the lead if we have transcript content
     let scoreResult;
     if (transcript && hubspot && hubspotContactId && scoring && triage) {
-      try {
-        const leadContext: AIScoringContext = {
-          phone: normalizedPhone,
-          channel: 'voice',
-          firstTouchTimestamp: new Date().toISOString(),
-          language: 'ro',
-          messageHistory: [
-            { role: 'user', content: transcript, timestamp: new Date().toISOString() },
-          ],
-          hubspotContactId,
-        };
-
-        scoreResult = await scoring.scoreMessage(leadContext);
-
-        // Triage assessment
-        const triageResult = await triage.assess({
-          leadScore: scoreResult.classification,
-          channel: 'voice',
-          messageContent: transcript,
-          procedureInterest: scoreResult.procedureInterest ?? [],
-          hasExistingRelationship: false,
-        });
-
-        // Update contact
-        await hubspot.updateContact(hubspotContactId, {
-          lead_score: String(scoreResult.score),
-          lead_status: scoreResult.classification,
-          last_call_sentiment: sentiment,
-          last_call_summary: summary,
-        });
-
-        // Create task for HOT leads or priority scheduling requests
-        if (
-          scoreResult.classification === 'HOT' ||
-          triageResult.prioritySchedulingRequested ||
-          triageResult.urgencyLevel === 'high'
-        ) {
-          // Get notification contacts for priority cases
-          const notificationContacts = triage.getNotificationContacts(triageResult.urgencyLevel);
-          const contactsInfo =
-            notificationContacts.length > 0 ? `\n\nNotify: ${notificationContacts.join(', ')}` : '';
-
-          await hubspot.createTask({
-            contactId: hubspotContactId,
-            subject: `${triageResult.urgencyLevel === 'high_priority' ? 'PRIORITY REQUEST' : 'HIGH PRIORITY'} - Voice Lead: ${normalizedPhone}`,
-            body: `${triageResult.urgencyLevel === 'high_priority' ? 'Patient reported discomfort. Wants quick appointment.\n\n' : ''}Call Duration: ${duration}s\n\n${triageResult.notes}\n\nSummary: ${summary ?? 'N/A'}${contactsInfo}`,
-            priority: triageResult.urgencyLevel === 'high_priority' ? 'HIGH' : 'MEDIUM',
-          });
-        }
-
-        logger.info('Voice lead scored and updated', {
-          score: scoreResult.score,
-          classification: scoreResult.classification,
-          correlationId,
-        });
-      } catch (err) {
-        logger.error('Failed to score voice lead', { err, correlationId });
-      }
+      scoreResult = await scoreCompletedCall(
+        { hubspot, scoring, triage },
+        { hubspotContactId, normalizedPhone, transcript, summary, sentiment },
+        correlationId
+      );
     }
 
     // Emit domain event
-    try {
-      await eventStore.emit({
-        type: 'voice.call.processed',
-        correlationId,
-        aggregateId: normalizedPhone,
-        aggregateType: 'lead',
-        payload: {
-          callSid,
-          from: normalizedPhone,
-          duration,
-          hasTranscript: !!transcript,
-          hasRecording: !!recordingUrl,
-          hubspotContactId,
-          score: scoreResult?.score,
-          classification: scoreResult?.classification,
-          sentiment,
-        },
-      });
-    } catch (err) {
-      logger.error('Failed to emit domain event', { err, correlationId });
-    }
+    await emitVoiceProcessedEvent(eventStore, correlationId, normalizedPhone, {
+      callSid,
+      from: normalizedPhone,
+      status: 'processed',
+      duration,
+      hasTranscript: !!transcript,
+      hasRecording: !!recordingUrl,
+      hubspotContactId,
+      score: scoreResult?.score,
+      classification: scoreResult?.classification,
+      sentiment,
+    });
 
     return {
       success: true,
@@ -436,3 +300,114 @@ export const handleCallCompleted = task({
     };
   },
 });
+
+/**
+ * Sync contact and log completed call to HubSpot
+ */
+async function syncAndLogCompletedCall(
+  hubspot: ReturnType<typeof getClients>['hubspot'],
+  params: {
+    normalizedPhone: string;
+    callSid: string;
+    duration: number;
+    transcript?: string;
+    summary?: string;
+    sentiment?: string;
+  },
+  correlationId: string
+): Promise<string | undefined> {
+  if (!hubspot) {
+    return undefined;
+  }
+
+  const { normalizedPhone, callSid, duration, transcript, summary, sentiment } = params;
+
+  try {
+    const contact = await hubspot.syncContact({ phone: normalizedPhone });
+    const hubspotContactId = contact.id;
+
+    await logCallToTimeline(
+      hubspot,
+      {
+        contactId: hubspotContactId,
+        callSid,
+        duration,
+        transcript: transcript ?? summary ?? 'No transcript available',
+        sentiment,
+      },
+      correlationId
+    );
+
+    logger.info('Call logged to HubSpot', { contactId: hubspotContactId, correlationId });
+    return hubspotContactId;
+  } catch (err) {
+    logger.error('Failed to log call to HubSpot', { err, correlationId });
+    return undefined;
+  }
+}
+
+/**
+ * Score completed call and create priority task if needed
+ */
+async function scoreCompletedCall(
+  clients: {
+    hubspot: ReturnType<typeof getClients>['hubspot'];
+    scoring: ReturnType<typeof getClients>['scoring'];
+    triage: ReturnType<typeof getClients>['triage'];
+  },
+  params: {
+    hubspotContactId: string;
+    normalizedPhone: string;
+    transcript: string;
+    summary?: string;
+    sentiment?: string;
+  },
+  correlationId: string
+): Promise<{ score: number; classification: string } | undefined> {
+  const { hubspot, scoring, triage } = clients;
+  const { hubspotContactId, normalizedPhone, transcript, summary, sentiment } = params;
+
+  try {
+    const { scoreResult, triageResult } = await scoreVoiceLead(
+      scoring,
+      triage,
+      { normalizedPhone, hubspotContactId, transcript },
+      correlationId
+    );
+
+    // Update contact
+    await updateContactWithCallData(hubspot, hubspotContactId, scoreResult, sentiment, summary);
+
+    // Create task for HOT leads or priority scheduling requests
+    const shouldCreateTask =
+      scoreResult.classification === 'HOT' ||
+      triageResult.prioritySchedulingRequested === true ||
+      triageResult.urgencyLevel === 'high';
+
+    if (shouldCreateTask && triage) {
+      await createPriorityTask(
+        hubspot,
+        triage,
+        {
+          hubspotContactId,
+          normalizedPhone,
+          scoreResult,
+          triageResult,
+          additionalContext: `Call Duration: ${params.transcript ? 'available' : 'N/A'}\n\nSummary: ${summary ?? 'N/A'}`,
+        },
+        correlationId
+      );
+    }
+
+    logger.info('Voice lead scored and updated', {
+      score: scoreResult.score,
+      classification: scoreResult.classification,
+      correlationId,
+    });
+
+    return scoreResult;
+  } catch (err) {
+    logger.error('Failed to score voice lead', { err, correlationId });
+    return undefined;
+  }
+}

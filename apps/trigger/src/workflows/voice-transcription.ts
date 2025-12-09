@@ -1,15 +1,18 @@
 import { task, logger } from '@trigger.dev/sdk/v3';
 import { z } from 'zod';
 import { normalizeRomanianPhone, IdempotencyKeys } from '@medicalcor/core';
+import { createIntegrationClients } from '@medicalcor/integrations';
 import {
-  createIntegrationClients,
-  formatTranscriptForCRM,
-  extractLeadQualification,
-  type VapiTranscript,
-  type VapiCallSummary,
-} from '@medicalcor/integrations';
-import type { TriageResult } from '@medicalcor/domain';
-import type { AIScoringContext, ScoringOutput } from '@medicalcor/types';
+  verifyGdprConsent,
+  logMinimalCallData,
+  fetchAndAnalyzeTranscript,
+  generateAISummary,
+  scoreLeadFromTranscript,
+  syncContactAndLogCall,
+  updateContactWithScoring,
+  createPriorityTaskIfNeeded,
+  emitTranscriptProcessedEvent,
+} from './voice-transcription/index.js';
 
 /**
  * Voice Transcription Processing Workflow
@@ -104,307 +107,106 @@ export const processPostCall = task({
     const phoneResult = normalizeRomanianPhone(customerPhone);
     const normalizedPhone = phoneResult.normalized;
 
-    // SECURITY FIX: GDPR compliance - verify data processing consent before analyzing voice data
-    // This must happen BEFORE fetching/processing transcripts which contain personal data
-    let hubspotContactId: string | undefined;
-    let hasGdprConsent = false;
+    // Step 2: GDPR consent verification - must happen before processing personal data
+    const consentResult = await verifyGdprConsent(
+      hubspot,
+      consent,
+      normalizedPhone,
+      callId,
+      correlationId
+    );
 
-    if (hubspot) {
-      try {
-        // Look up contact by phone to check consent
-        const contact = await hubspot.findContactByPhone(normalizedPhone);
-        hubspotContactId = contact?.id;
-
-        if (hubspotContactId && consent) {
-          const consentCheck = await consent.hasRequiredConsents(hubspotContactId);
-          hasGdprConsent = consentCheck.valid;
-
-          if (!hasGdprConsent) {
-            logger.warn('Missing GDPR consent for voice data processing', {
-              callId,
-              contactId: hubspotContactId,
-              missingConsents: consentCheck.missing,
-              correlationId,
-            });
-
-            // Log minimal call metadata only (legitimate interest basis)
-            await hubspot.logCallToTimeline({
-              contactId: hubspotContactId,
-              callSid: callId,
-              duration: duration ?? 0,
-              transcript: '[Transcript not processed - consent required]',
-            });
-
-            return {
-              status: 'consent_required',
-              callId,
-              hubspotContactId,
-              missingConsents: consentCheck.missing,
-              message: 'Voice transcript processing skipped due to missing GDPR consent',
-            };
-          }
-
-          logger.info('GDPR consent verified for voice transcript processing', {
-            callId,
-            hubspotContactId,
-            correlationId,
-          });
-        } else if (!consent) {
-          // CRITICAL: Fail safe - if consent service unavailable, do not process personal data
-          logger.error('Consent service not available - cannot verify GDPR consent', {
-            callId,
-            correlationId,
-          });
-          return {
-            status: 'error',
-            callId,
-            message: 'Consent verification unavailable - transcript processing blocked',
-          };
-        }
-      } catch (err) {
-        logger.error('Failed to verify GDPR consent', { err, callId, correlationId });
-        // Fail safe: do not process without consent verification
-        return {
-          status: 'error',
-          callId,
-          message: 'Consent verification failed - transcript processing blocked',
-        };
-      }
+    // Handle consent-blocked scenarios
+    if (hubspot && consentResult.hubspotContactId && !consentResult.hasConsent) {
+      await logMinimalCallData(hubspot, consentResult.hubspotContactId, callId, duration ?? 0);
+      return {
+        status: 'consent_required',
+        callId,
+        hubspotContactId: consentResult.hubspotContactId,
+        missingConsents: consentResult.consentCheckResult?.missing,
+        message: 'Voice transcript processing skipped due to missing GDPR consent',
+      };
     }
 
-    // Step 2: Fetch transcript from Vapi (only after consent verified)
-    let transcript: VapiTranscript | null = null;
-    let analysis = null;
-    let summary: VapiCallSummary | null = null;
-
-    if (vapi) {
-      try {
-        transcript = await vapi.getTranscript(callId);
-        analysis = vapi.analyzeTranscript(transcript);
-        summary = vapi.generateCallSummary(transcript, analysis);
-
-        logger.info('Transcript fetched and analyzed', {
-          callId,
-          messageCount: transcript.messages.length,
-          procedureMentions: analysis.procedureMentions,
-          urgencyLevel: summary.urgencyLevel,
-          correlationId,
-        });
-      } catch (err) {
-        logger.error('Failed to fetch transcript from Vapi', { err, callId, correlationId });
-      }
-    } else {
-      logger.warn('Vapi client not configured, skipping transcript fetch', { correlationId });
+    if (hubspot && !consent) {
+      return {
+        status: 'error',
+        callId,
+        message: 'Consent verification unavailable - transcript processing blocked',
+      };
     }
 
-    // Step 3: Generate AI summary if transcript available
-    let aiSummary: string | null = null;
-    let sentiment: { sentiment: 'positive' | 'neutral' | 'negative'; confidence: number } | null =
-      null;
+    // Step 3: Fetch and analyze transcript
+    const transcriptResult = await fetchAndAnalyzeTranscript(vapi, callId, correlationId);
+    const { transcript, analysis, summary } = transcriptResult;
 
-    if (openai && analysis) {
-      try {
-        // Generate summary
-        aiSummary = await openai.summarize(analysis.fullTranscript, 'ro');
-        logger.info('AI summary generated', { callId, correlationId });
+    // Step 4: Generate AI summary and sentiment
+    const aiResult = await generateAISummary(
+      openai,
+      analysis?.fullTranscript ?? null,
+      callId,
+      correlationId
+    );
+    const { aiSummary, sentiment } = aiResult;
 
-        // Analyze sentiment
-        sentiment = await openai.analyzeSentiment(analysis.fullTranscript);
-        logger.info('Sentiment analyzed', { sentiment: sentiment.sentiment, correlationId });
-      } catch (err) {
-        logger.error('Failed to generate AI summary', { err, callId, correlationId });
-      }
-    }
+    // Step 5: Score the lead
+    const scoringResult = await scoreLeadFromTranscript(
+      scoring,
+      triage,
+      transcriptResult,
+      normalizedPhone,
+      callId,
+      correlationId
+    );
+    const { scoreResult, triageResult } = scoringResult;
 
-    // Step 4: Score the lead
-    let scoreResult = null;
-    let triageResult = null;
+    // Step 6: Sync to HubSpot
+    const hubspotContactId = await syncContactAndLogCall(hubspot, {
+      normalizedPhone,
+      customerName,
+      callId,
+      duration,
+      transcript,
+      sentiment,
+      correlationId,
+    });
 
-    if (analysis && scoring) {
-      try {
-        // Build lead context from transcript
-        const leadContext: AIScoringContext = {
-          phone: normalizedPhone,
-          channel: 'voice',
-          firstTouchTimestamp: transcript?.startedAt ?? new Date().toISOString(),
-          language: 'ro',
-          messageHistory: analysis.customerMessages.map((content) => ({
-            role: 'user' as const,
-            content,
-            timestamp: new Date().toISOString(),
-          })),
-          hubspotContactId: undefined,
-        };
+    // Step 7: Update contact with scoring data
+    await updateContactWithScoring(
+      hubspot,
+      hubspotContactId,
+      scoreResult,
+      sentiment,
+      aiSummary,
+      summary
+    );
 
-        // AI scoring
-        scoreResult = await scoring.scoreMessage(leadContext);
+    // Step 8: Create priority task if needed
+    await createPriorityTaskIfNeeded(hubspot, triage, {
+      hubspotContactId,
+      normalizedPhone,
+      customerName,
+      scoreResult,
+      triageResult,
+      summary,
+      aiSummary,
+      correlationId,
+    });
 
-        // Use rule-based extraction as fallback if score is low confidence
-        if (scoreResult.confidence < 0.5 && summary) {
-          const qualification = extractLeadQualification(summary);
-          scoreResult = {
-            score: qualification.score,
-            classification: qualification.classification,
-            confidence: 0.7,
-            reasoning: qualification.reason,
-            suggestedAction:
-              qualification.classification === 'HOT' ? 'Immediate callback' : 'Add to nurture',
-            procedureInterest: summary.procedureInterest,
-          };
-        }
-
-        logger.info('Lead scored from transcript', {
-          score: scoreResult.score,
-          classification: scoreResult.classification,
-          correlationId,
-        });
-
-        // Triage assessment
-        if (triage) {
-          triageResult = await triage.assess({
-            leadScore: scoreResult.classification,
-            channel: 'voice',
-            messageContent: analysis.fullTranscript,
-            procedureInterest: scoreResult.procedureInterest ?? [],
-            hasExistingRelationship: false,
-          });
-
-          logger.info('Triage completed', {
-            urgencyLevel: triageResult.urgencyLevel,
-            routing: triageResult.routingRecommendation,
-            correlationId,
-          });
-        } else {
-          logger.warn('Triage service not available', { correlationId });
-        }
-      } catch (err) {
-        logger.error('Failed to score lead', { err, callId, correlationId });
-      }
-    } else if (analysis && !scoring) {
-      logger.warn('Scoring service not available', { correlationId });
-    }
-
-    // Step 5: Sync to HubSpot
-    // hubspotContactId was already declared above - reuse it
-
-    if (hubspot) {
-      try {
-        // Find or create contact - build input conditionally
-        const syncInput: { phone: string; name?: string; properties?: Record<string, string> } = {
-          phone: normalizedPhone,
-          properties: {
-            lead_source: 'voice',
-            last_call_date: new Date().toISOString(),
-          },
-        };
-        if (customerName) {
-          syncInput.name = customerName;
-        }
-        const contact = await hubspot.syncContact(syncInput);
-        hubspotContactId = contact.id;
-
-        // Log call to timeline with formatted transcript
-        if (transcript) {
-          const formattedTranscript = formatTranscriptForCRM(transcript);
-          const callLogInput: {
-            contactId: string;
-            callSid: string;
-            duration: number;
-            transcript?: string;
-            sentiment?: string;
-          } = {
-            contactId: hubspotContactId,
-            callSid: callId,
-            duration: duration ?? transcript.duration,
-            transcript: formattedTranscript,
-          };
-          if (sentiment?.sentiment) {
-            callLogInput.sentiment = sentiment.sentiment;
-          }
-          await hubspot.logCallToTimeline(callLogInput);
-        }
-
-        // Update contact with scoring data
-        if (scoreResult) {
-          await hubspot.updateContact(hubspotContactId, {
-            lead_score: String(scoreResult.score),
-            lead_status: scoreResult.classification,
-            last_call_sentiment: sentiment?.sentiment,
-            last_call_summary: aiSummary ?? summary?.summary,
-            procedure_interest: scoreResult.procedureInterest?.join(', '),
-          });
-        }
-
-        // Create priority task for HOT leads or high_priority/high urgency
-        if (
-          (scoreResult?.classification === 'HOT' ||
-            summary?.urgencyLevel === 'critical' ||
-            summary?.urgencyLevel === 'high' ||
-            triageResult?.urgencyLevel === 'high_priority' ||
-            triageResult?.urgencyLevel === 'high') &&
-          triageResult &&
-          triage
-        ) {
-          // Get notification contacts for priority cases
-          const notificationContacts = triage.getNotificationContacts(triageResult.urgencyLevel);
-          const taskBody = buildTaskBody(summary, scoreResult, triageResult, aiSummary);
-          const contactsInfo =
-            notificationContacts.length > 0 ? `\n\nNotify: ${notificationContacts.join(', ')}` : '';
-
-          await hubspot.createTask({
-            contactId: hubspotContactId,
-            subject: `${triageResult.urgencyLevel === 'high_priority' ? 'PRIORITY REQUEST' : 'HIGH PRIORITY'} - Voice: ${customerName ?? normalizedPhone}`,
-            body: `${triageResult.urgencyLevel === 'high_priority' ? 'Patient reported discomfort. Wants quick appointment.\n\n' : ''}${taskBody}${contactsInfo}`,
-            priority: triageResult.urgencyLevel === 'high_priority' ? 'HIGH' : 'MEDIUM',
-            dueDate:
-              triageResult.routingRecommendation === 'next_available_slot'
-                ? new Date(Date.now() + 30 * 60 * 1000) // 30 minutes during business hours
-                : new Date(Date.now() + 60 * 60 * 1000), // 1 hour
-          });
-
-          logger.info('Priority task created', {
-            hubspotContactId,
-            notificationContacts,
-            correlationId,
-          });
-        }
-
-        logger.info('HubSpot updated', { hubspotContactId, correlationId });
-      } catch (err) {
-        logger.error('Failed to sync to HubSpot', { err, callId, correlationId });
-      }
-    }
-
-    // Step 6: Emit domain event
-    try {
-      await eventStore.emit({
-        type: 'voice.transcript.processed',
-        correlationId,
-        aggregateId: normalizedPhone,
-        aggregateType: 'lead',
-        payload: {
-          callId,
-          from: normalizedPhone,
-          callType,
-          duration: duration ?? transcript?.duration,
-          endedReason,
-          hubspotContactId,
-          score: scoreResult?.score,
-          classification: scoreResult?.classification,
-          sentiment: sentiment?.sentiment,
-          procedureInterest: scoreResult?.procedureInterest ?? summary?.procedureInterest,
-          urgencyLevel: summary?.urgencyLevel ?? triageResult?.urgencyLevel,
-          hasTranscript: !!transcript,
-        },
-      });
-
-      logger.info('Domain event emitted', {
-        type: 'voice.transcript.processed',
-        correlationId,
-      });
-    } catch (err) {
-      logger.error('Failed to emit domain event', { err, correlationId });
-    }
+    // Step 9: Emit domain event
+    await emitTranscriptProcessedEvent(eventStore, correlationId, {
+      callId,
+      normalizedPhone,
+      callType,
+      duration: duration ?? transcript?.duration,
+      endedReason,
+      hubspotContactId,
+      scoreResult,
+      sentiment,
+      summary,
+      triageResult,
+      hasTranscript: !!transcript,
+    });
 
     return {
       success: true,
@@ -682,44 +484,3 @@ export const extractKeywordsFromTranscript = task({
     };
   },
 });
-
-// =============================================================================
-// Helper Functions
-// =============================================================================
-
-function buildTaskBody(
-  summary: VapiCallSummary | null,
-  scoreResult: ScoringOutput | null,
-  triageResult: TriageResult | null,
-  aiSummary: string | null
-): string {
-  const parts: string[] = [];
-
-  if (aiSummary) {
-    parts.push(`Summary: ${aiSummary}`);
-  } else if (summary?.summary) {
-    parts.push(`Summary: ${summary.summary}`);
-  }
-
-  if (summary?.procedureInterest && summary.procedureInterest.length > 0) {
-    parts.push(`\nProcedure Interest: ${summary.procedureInterest.join(', ')}`);
-  }
-
-  if (summary?.urgencyLevel) {
-    parts.push(`Urgency: ${summary.urgencyLevel}`);
-  }
-
-  if (triageResult?.notes) {
-    parts.push(`\nTriage Notes: ${triageResult.notes}`);
-  }
-
-  if (scoreResult?.suggestedAction) {
-    parts.push(`\nSuggested Action: ${scoreResult.suggestedAction}`);
-  }
-
-  if (summary?.actionItems && summary.actionItems.length > 0) {
-    parts.push(`\nAction Items:\n${summary.actionItems.map((a) => `- ${a}`).join('\n')}`);
-  }
-
-  return parts.join('\n') || 'Voice call requires follow-up';
-}
