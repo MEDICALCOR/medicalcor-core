@@ -896,3 +896,544 @@ describe('getStripeFinancingCredentials', () => {
     expect(credentials.webhookSecret).toBeUndefined();
   });
 });
+
+describe('StripeFinancingClient listApplications', () => {
+  let client: StripeFinancingClient;
+  let originalFetch: typeof globalThis.fetch;
+
+  const config: StripeFinancingClientConfig = {
+    secretKey: 'sk_test_list_123',
+    timeoutMs: 5000,
+    retryConfig: {
+      maxRetries: 0,
+      baseDelayMs: 10,
+    },
+  };
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    client = createStripeFinancingClient(config);
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it('should list applications with status filter', async () => {
+    const now = Math.floor(Date.now() / 1000);
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({
+          object: 'list',
+          data: [
+            {
+              id: 'fin_app_1',
+              object: 'financing.application',
+              status: 'approved',
+              requested_amount: 250000,
+              currency: 'RON',
+              applicant: {
+                first_name: 'Maria',
+                last_name: 'Popescu',
+                email: 'maria@example.com',
+                phone: '+40712345678',
+              },
+              metadata: { case_id: 'case-1', clinic_id: 'clinic-123', lead_id: 'lead-1' },
+              created: now,
+              updated: now,
+            },
+          ],
+          has_more: false,
+        }),
+    });
+
+    const result = await client.listApplications('clinic-123', {
+      status: 'approved',
+      correlationId: 'corr-list',
+    });
+
+    expect(result.applications).toHaveLength(1);
+    expect(result.hasMore).toBe(false);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('status=approved'),
+      expect.any(Object)
+    );
+  });
+
+  it('should list applications with pagination', async () => {
+    const now = Math.floor(Date.now() / 1000);
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({
+          object: 'list',
+          data: [
+            {
+              id: 'fin_app_2',
+              object: 'financing.application',
+              status: 'pending',
+              requested_amount: 300000,
+              currency: 'RON',
+              applicant: {
+                first_name: 'Ion',
+                last_name: 'Ionescu',
+                email: 'ion@example.com',
+                phone: '+40787654321',
+              },
+              metadata: { case_id: 'case-2', clinic_id: 'clinic-123', lead_id: 'lead-2' },
+              created: now,
+              updated: now,
+            },
+          ],
+          has_more: true,
+        }),
+    });
+
+    const result = await client.listApplications('clinic-123', {
+      limit: 5,
+      startingAfter: 'fin_app_1',
+      correlationId: 'corr-list-page2',
+    });
+
+    expect(result.applications).toHaveLength(1);
+    expect(result.hasMore).toBe(true);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('starting_after=fin_app_1'),
+      expect.any(Object)
+    );
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('limit=5'),
+      expect.any(Object)
+    );
+  });
+
+  it('should use default limit when not specified', async () => {
+    const now = Math.floor(Date.now() / 1000);
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({
+          object: 'list',
+          data: [],
+          has_more: false,
+        }),
+    });
+
+    await client.listApplications('clinic-123', {
+      correlationId: 'corr-list-default',
+    });
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('limit=10'),
+      expect.any(Object)
+    );
+  });
+});
+
+describe('StripeFinancingClient retry logic', () => {
+  let originalFetch: typeof globalThis.fetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it('should retry on rate limit error', async () => {
+    const client = createStripeFinancingClient({
+      secretKey: 'sk_test_retry_123',
+      timeoutMs: 5000,
+      retryConfig: {
+        maxRetries: 2,
+        baseDelayMs: 10,
+      },
+    });
+
+    let callCount = 0;
+    const now = Math.floor(Date.now() / 1000);
+    globalThis.fetch = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve({
+          ok: false,
+          status: 429,
+          headers: new Map([['Retry-After', '1']]),
+          text: () => Promise.resolve('Rate limited'),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            id: 'chk_after_retry',
+            eligible: true,
+            valid_until: now + 3600,
+          }),
+      });
+    });
+
+    const result = await client.checkEligibility({
+      leadId: 'lead-123',
+      clinicId: 'clinic-456',
+      requestedAmountMin: 100000,
+      requestedAmountMax: 300000,
+      currency: 'RON',
+      applicant: {
+        leadId: 'lead-123',
+        firstName: 'Test',
+        lastName: 'User',
+        email: 'test@example.com',
+        phone: '+40712345678',
+        country: 'RO',
+      },
+      correlationId: 'corr-retry',
+    });
+
+    expect(callCount).toBe(2);
+    expect(result.checkId).toBe('chk_after_retry');
+  });
+
+  it('should retry on 502 error', async () => {
+    const client = createStripeFinancingClient({
+      secretKey: 'sk_test_502_123',
+      timeoutMs: 5000,
+      retryConfig: {
+        maxRetries: 2,
+        baseDelayMs: 10,
+      },
+    });
+
+    let callCount = 0;
+    const now = Math.floor(Date.now() / 1000);
+    globalThis.fetch = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve({
+          ok: false,
+          status: 502,
+          text: () => Promise.resolve('Bad Gateway'),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            id: 'chk_after_502',
+            eligible: true,
+            valid_until: now + 3600,
+          }),
+      });
+    });
+
+    const result = await client.checkEligibility({
+      leadId: 'lead-123',
+      clinicId: 'clinic-456',
+      requestedAmountMin: 100000,
+      requestedAmountMax: 300000,
+      currency: 'RON',
+      applicant: {
+        leadId: 'lead-123',
+        firstName: 'Test',
+        lastName: 'User',
+        email: 'test@example.com',
+        phone: '+40712345678',
+        country: 'RO',
+      },
+      correlationId: 'corr-502',
+    });
+
+    expect(callCount).toBe(2);
+    expect(result.checkId).toBe('chk_after_502');
+  });
+
+  it('should retry on 503 error', async () => {
+    const client = createStripeFinancingClient({
+      secretKey: 'sk_test_503_123',
+      timeoutMs: 5000,
+      retryConfig: {
+        maxRetries: 2,
+        baseDelayMs: 10,
+      },
+    });
+
+    let callCount = 0;
+    const now = Math.floor(Date.now() / 1000);
+    globalThis.fetch = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve({
+          ok: false,
+          status: 503,
+          text: () => Promise.resolve('Service Unavailable'),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            id: 'chk_after_503',
+            eligible: true,
+            valid_until: now + 3600,
+          }),
+      });
+    });
+
+    const result = await client.checkEligibility({
+      leadId: 'lead-123',
+      clinicId: 'clinic-456',
+      requestedAmountMin: 100000,
+      requestedAmountMax: 300000,
+      currency: 'RON',
+      applicant: {
+        leadId: 'lead-123',
+        firstName: 'Test',
+        lastName: 'User',
+        email: 'test@example.com',
+        phone: '+40712345678',
+        country: 'RO',
+      },
+      correlationId: 'corr-503',
+    });
+
+    expect(callCount).toBe(2);
+    expect(result.checkId).toBe('chk_after_503');
+  });
+
+  it('should handle connected account header', async () => {
+    const client = createStripeFinancingClient({
+      secretKey: 'sk_test_connected_123',
+      connectedAccountId: 'acct_connected_456',
+      timeoutMs: 5000,
+    });
+
+    const now = Math.floor(Date.now() / 1000);
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({
+          id: 'chk_connected',
+          eligible: true,
+          valid_until: now + 3600,
+        }),
+    });
+
+    await client.checkEligibility({
+      leadId: 'lead-123',
+      clinicId: 'clinic-456',
+      requestedAmountMin: 100000,
+      requestedAmountMax: 300000,
+      currency: 'RON',
+      applicant: {
+        leadId: 'lead-123',
+        firstName: 'Test',
+        lastName: 'User',
+        email: 'test@example.com',
+        phone: '+40712345678',
+        country: 'RO',
+      },
+      correlationId: 'corr-connected',
+    });
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'Stripe-Account': 'acct_connected_456',
+        }),
+      })
+    );
+  });
+});
+
+describe('StripeFinancingClient createApplication with optional fields', () => {
+  let client: StripeFinancingClient;
+  let originalFetch: typeof globalThis.fetch;
+
+  const config: StripeFinancingClientConfig = {
+    secretKey: 'sk_test_create_app_123',
+    timeoutMs: 5000,
+    retryConfig: {
+      maxRetries: 0,
+      baseDelayMs: 10,
+    },
+  };
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    client = createStripeFinancingClient(config);
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it('should include all optional applicant address fields', async () => {
+    const now = Math.floor(Date.now() / 1000);
+    let capturedBody = '';
+    globalThis.fetch = vi.fn().mockImplementation((_url, options) => {
+      capturedBody = options?.body?.toString() ?? '';
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            id: 'fin_app_full',
+            object: 'financing.application',
+            status: 'pending',
+            requested_amount: 250000,
+            currency: 'RON',
+            applicant: {
+              first_name: 'Maria',
+              last_name: 'Popescu',
+              email: 'maria@example.com',
+              phone: '+40712345678',
+              date_of_birth: '1990-01-15',
+              address: {
+                line1: 'Strada Victoriei 123',
+                line2: 'Ap. 45',
+                city: 'Bucharest',
+                state: 'Bucuresti',
+                postal_code: '010101',
+                country: 'RO',
+              },
+            },
+            metadata: { case_id: 'case-full', clinic_id: 'clinic-full', lead_id: 'lead-full' },
+            created: now,
+            updated: now,
+          }),
+      });
+    });
+
+    await client.createApplication({
+      caseId: 'case-full',
+      clinicId: 'clinic-full',
+      applicant: {
+        leadId: 'lead-full',
+        firstName: 'Maria',
+        lastName: 'Popescu',
+        email: 'maria@example.com',
+        phone: '+40712345678',
+        dateOfBirth: new Date('1990-01-15'),
+        addressLine1: 'Strada Victoriei 123',
+        addressLine2: 'Ap. 45',
+        city: 'Bucharest',
+        state: 'Bucuresti',
+        postalCode: '010101',
+        country: 'RO',
+      },
+      requestedAmount: 250000,
+      currency: 'RON',
+      treatmentDescription: 'Full-arch dental implants',
+      treatmentCategory: 'implants',
+      preferredPlanType: 'installment',
+      preferredTerm: '24',
+      metadata: { custom_field: 'custom_value' },
+      correlationId: 'corr-full-app',
+    });
+
+    // Verify all optional fields were included in the request
+    expect(capturedBody).toContain('applicant%5Bdate_of_birth%5D=1990-01-15');
+    expect(capturedBody).toContain('applicant%5Baddress%5D%5Bline1%5D');
+    expect(capturedBody).toContain('applicant%5Baddress%5D%5Bline2%5D');
+    expect(capturedBody).toContain('applicant%5Baddress%5D%5Bcity%5D');
+    expect(capturedBody).toContain('applicant%5Baddress%5D%5Bstate%5D');
+    expect(capturedBody).toContain('applicant%5Baddress%5D%5Bpostal_code%5D');
+    expect(capturedBody).toContain('applicant%5Baddress%5D%5Bcountry%5D');
+    expect(capturedBody).toContain('metadata%5Btreatment_description%5D');
+    expect(capturedBody).toContain('metadata%5Btreatment_category%5D');
+    expect(capturedBody).toContain('preferred_plan_type=installment');
+    expect(capturedBody).toContain('preferred_term=24');
+    expect(capturedBody).toContain('metadata%5Bcustom_field%5D');
+  });
+
+  it('should include optional eligibility check fields', async () => {
+    const now = Math.floor(Date.now() / 1000);
+    let capturedBody = '';
+    globalThis.fetch = vi.fn().mockImplementation((_url, options) => {
+      capturedBody = options?.body?.toString() ?? '';
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            id: 'chk_with_dob',
+            eligible: true,
+            valid_until: now + 3600,
+          }),
+      });
+    });
+
+    await client.checkEligibility({
+      leadId: 'lead-dob',
+      clinicId: 'clinic-dob',
+      requestedAmountMin: 100000,
+      requestedAmountMax: 300000,
+      currency: 'RON',
+      applicant: {
+        leadId: 'lead-dob',
+        firstName: 'Test',
+        lastName: 'User',
+        email: 'test@example.com',
+        phone: '+40712345678',
+        dateOfBirth: new Date('1985-06-20'),
+        postalCode: '020202',
+        country: 'RO',
+      },
+      correlationId: 'corr-dob',
+    });
+
+    expect(capturedBody).toContain('applicant%5Bdate_of_birth%5D=1985-06-20');
+    expect(capturedBody).toContain('applicant%5Baddress%5D%5Bpostal_code%5D=020202');
+    expect(capturedBody).toContain('applicant%5Baddress%5D%5Bcountry%5D=RO');
+  });
+
+  it('should include IP address in accept offer request', async () => {
+    const now = Math.floor(Date.now() / 1000);
+    let capturedBody = '';
+    globalThis.fetch = vi.fn().mockImplementation((_url, options) => {
+      capturedBody = options?.body?.toString() ?? '';
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            id: 'fin_app_accept',
+            object: 'financing.application',
+            status: 'accepted',
+            requested_amount: 250000,
+            currency: 'RON',
+            accepted_offer_id: 'off_123',
+            applicant: {
+              first_name: 'Test',
+              last_name: 'User',
+              email: 'test@example.com',
+              phone: '+40712345678',
+            },
+            metadata: { case_id: 'case-ip', clinic_id: 'clinic-ip', lead_id: 'lead-ip' },
+            created: now,
+            updated: now,
+          }),
+      });
+    });
+
+    await client.acceptOffer({
+      applicationId: 'app_with_ip',
+      offerId: 'off_123',
+      signatureConsent: true,
+      ipAddress: '192.168.1.100',
+      correlationId: 'corr-ip',
+    });
+
+    expect(capturedBody).toContain('ip_address=192.168.1.100');
+  });
+});
