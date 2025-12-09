@@ -1,17 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import {
-  CheckCircle2,
-  XCircle,
-  Clock,
-  RefreshCw,
-  Copy,
-  Check,
-  ExternalLink,
-  RotateCcw,
-  Loader2,
-} from 'lucide-react';
+import { ExternalLink, RotateCcw, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -23,7 +12,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import type { WebhookEvent, WebhookStatus, WebhookSource } from '../actions';
+import type { WebhookEvent } from '../actions';
+import {
+  webhookStatusConfig,
+  webhookSourceConfig,
+  formatWebhookDate,
+  CopyButton,
+} from '@/components/shared/webhooks';
 
 interface WebhookDetailsDialogProps {
   webhook: WebhookEvent | null;
@@ -31,72 +26,6 @@ interface WebhookDetailsDialogProps {
   onOpenChange: (open: boolean) => void;
   onReplay: (id: string) => void;
   isReplaying: boolean;
-}
-
-const statusConfig: Record<
-  WebhookStatus,
-  { label: string; icon: typeof CheckCircle2; color: string; bgColor: string }
-> = {
-  success: {
-    label: 'Success',
-    icon: CheckCircle2,
-    color: 'text-green-600',
-    bgColor: 'bg-green-100 dark:bg-green-900/30',
-  },
-  failed: {
-    label: 'Failed',
-    icon: XCircle,
-    color: 'text-red-600',
-    bgColor: 'bg-red-100 dark:bg-red-900/30',
-  },
-  pending: {
-    label: 'Pending',
-    icon: Clock,
-    color: 'text-yellow-600',
-    bgColor: 'bg-yellow-100 dark:bg-yellow-900/30',
-  },
-  retrying: {
-    label: 'Retrying',
-    icon: RefreshCw,
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-100 dark:bg-blue-900/30',
-  },
-};
-
-const sourceConfig: Record<WebhookSource, { label: string; color: string }> = {
-  whatsapp: { label: 'WhatsApp', color: 'bg-green-500' },
-  stripe: { label: 'Stripe', color: 'bg-purple-500' },
-  hubspot: { label: 'HubSpot', color: 'bg-orange-500' },
-  twilio: { label: 'Twilio', color: 'bg-red-500' },
-  vapi: { label: 'Vapi', color: 'bg-blue-500' },
-  custom: { label: 'Custom', color: 'bg-gray-500' },
-};
-
-function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat('ro-RO', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).format(date);
-}
-
-function CopyButton({ text, label }: { text: string; label: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopy} title={label}>
-      {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
-    </Button>
-  );
 }
 
 export function WebhookDetailsDialog({
@@ -108,8 +37,8 @@ export function WebhookDetailsDialog({
 }: WebhookDetailsDialogProps) {
   if (!webhook) return null;
 
-  const status = statusConfig[webhook.status];
-  const source = sourceConfig[webhook.source];
+  const status = webhookStatusConfig[webhook.status];
+  const source = webhookSourceConfig[webhook.source];
   const StatusIcon = status.icon;
 
   return (
@@ -196,12 +125,12 @@ export function WebhookDetailsDialog({
           </div>
           <div>
             <p className="text-xs text-muted-foreground mb-1">Created</p>
-            <span className="text-sm">{formatDate(webhook.createdAt)}</span>
+            <span className="text-sm">{formatWebhookDate(webhook.createdAt)}</span>
           </div>
           <div>
             <p className="text-xs text-muted-foreground mb-1">Processed</p>
             <span className="text-sm">
-              {webhook.processedAt ? formatDate(webhook.processedAt) : '-'}
+              {webhook.processedAt ? formatWebhookDate(webhook.processedAt) : '-'}
             </span>
           </div>
         </div>

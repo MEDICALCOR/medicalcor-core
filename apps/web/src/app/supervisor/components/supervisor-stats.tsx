@@ -21,49 +21,10 @@ import {
 } from 'lucide-react';
 import type { SupervisorDashboardStats } from '@medicalcor/types';
 import { cn } from '@/lib/utils';
+import { StatCard, StatsGrid, StatCardSkeleton } from '@/components/shared/stats';
 
 interface SupervisorStatsProps {
   stats: SupervisorDashboardStats;
-}
-
-interface StatCardProps {
-  label: string;
-  value: string | number;
-  icon: React.ElementType;
-  trend?: 'up' | 'down' | 'neutral';
-  alert?: boolean;
-  subtext?: string;
-}
-
-function StatCard({ label, value, icon: Icon, trend, alert, subtext }: StatCardProps) {
-  return (
-    <Card
-      className={cn(
-        'min-w-[140px] flex-shrink-0',
-        alert && 'border-destructive/50 bg-destructive/5'
-      )}
-    >
-      <CardContent className="p-3 sm:p-4">
-        <div className="flex items-center justify-between">
-          <Icon
-            className={cn(
-              'h-4 w-4 sm:h-5 sm:w-5',
-              alert ? 'text-destructive' : 'text-muted-foreground'
-            )}
-            aria-hidden="true"
-          />
-          {trend === 'up' && <TrendingUp className="h-3 w-3 text-emerald-500" aria-hidden="true" />}
-        </div>
-        <div className="mt-2">
-          <p className={cn('text-xl sm:text-2xl font-bold', alert && 'text-destructive')}>
-            {value}
-          </p>
-          <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{label}</p>
-          {subtext && <p className="text-[10px] text-muted-foreground/70 mt-0.5">{subtext}</p>}
-        </div>
-      </CardContent>
-    </Card>
-  );
 }
 
 export function SupervisorStats({ stats }: SupervisorStatsProps) {
@@ -75,7 +36,7 @@ export function SupervisorStats({ stats }: SupervisorStatsProps) {
   return (
     <div className="space-y-4">
       {/* Primary stats - horizontal scroll on mobile */}
-      <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 md:grid-cols-4 sm:overflow-visible scrollbar-hide">
+      <StatsGrid>
         <StatCard
           label="Apeluri Active"
           value={stats.activeCalls}
@@ -103,7 +64,7 @@ export function SupervisorStats({ stats }: SupervisorStatsProps) {
           icon={CheckCircle2}
           trend={stats.serviceLevelPercent >= 90 ? 'up' : 'neutral'}
         />
-      </div>
+      </StatsGrid>
 
       {/* Secondary stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -190,19 +151,9 @@ export function SupervisorStats({ stats }: SupervisorStatsProps) {
 export function SupervisorStatsSkeleton() {
   return (
     <div className="space-y-4">
-      <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 md:grid-cols-4 sm:overflow-visible">
-        {[1, 2, 3, 4].map((i) => (
-          <Card key={i} className="min-w-[140px] flex-shrink-0">
-            <CardContent className="p-3 sm:p-4">
-              <div className="h-4 w-4 bg-muted rounded animate-pulse" />
-              <div className="mt-2 space-y-2">
-                <div className="h-6 w-12 bg-muted rounded animate-pulse" />
-                <div className="h-3 w-16 bg-muted rounded animate-pulse" />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <StatsGrid>
+        <StatCardSkeleton count={4} />
+      </StatsGrid>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[1, 2, 3, 4].map((i) => (
           <Card key={i}>

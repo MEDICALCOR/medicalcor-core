@@ -14,8 +14,8 @@
 
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { auth } from '@/lib/auth';
 import { createDatabaseClient, withTransaction, type TransactionClient } from '@medicalcor/core';
+import { validateGdprSession, handleGdprError, GDPR_LEGAL_INFO } from '@/lib/api/gdpr-utils';
 
 /**
  * Deletion request schema
@@ -41,19 +41,11 @@ const DeletionRequestSchema = z.object({
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
-    // Require authentication
-    const session = await auth();
-
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const userId = session.user.id;
-    const userEmail = session.user.email;
-
-    if (!userId || !userEmail) {
-      return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
-    }
+    // Validate session using shared utility
+    const { user, error } = await validateGdprSession();
+    if (error || !user)
+      return error ?? NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { id: userId, email: userEmail } = user;
 
     // Parse and validate request body
     const body = (await req.json()) as unknown;
@@ -203,15 +195,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       },
     });
   } catch (error) {
-    // Log error but don't expose details to client
-    if (process.env.NODE_ENV !== 'production') {
-      console.error('[GDPR Deletion] Error:', error);
-    }
-
-    return NextResponse.json(
-      { error: 'Failed to process deletion request. Please contact support.' },
-      { status: 500 }
-    );
+    return handleGdprError('Deletion', error);
   }
 }
 
@@ -221,11 +205,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
  * Get information about the deletion process
  */
 export async function GET(): Promise<NextResponse> {
-  const session = await auth();
-
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const { error } = await validateGdprSession();
+  if (error) return error;
 
   return NextResponse.json({
     title: 'GDPR Data Deletion Request',
@@ -244,10 +225,8 @@ export async function GET(): Promise<NextResponse> {
       reason: 'optional - max 500 characters',
     },
     legalBasis: {
-      regulation: 'General Data Protection Regulation (GDPR)',
+      ...GDPR_LEGAL_INFO,
       article: 'Article 17 - Right to erasure',
-      controller: 'MedicalCor SRL',
-      dpo: 'dpo@medicalcor.ro',
     },
     warning: 'This action is irreversible. You will lose access to all your data and services.',
   });
