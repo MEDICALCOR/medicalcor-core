@@ -1,6 +1,5 @@
 'use server';
 
-/* eslint-disable @typescript-eslint/require-await */
 // Server actions must be async for Next.js, but these mock implementations don't need await
 
 import { revalidatePath } from 'next/cache';
@@ -170,8 +169,7 @@ export async function getTaskQueueItemsAction(options?: {
   limit?: number;
   offset?: number;
 }): Promise<{ items: TaskQueueItem[]; total: number }> {
-  await Promise.resolve(); // Server Actions must be async
-  let tasks = getTasks();
+  let tasks = await getTasksAsync();
 
   // Filter by status
   if (options?.status && options.status !== 'all') {
