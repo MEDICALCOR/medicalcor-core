@@ -24,6 +24,29 @@
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
 
+// ============================================================================
+// TEST CONFIGURATION
+// ============================================================================
+
+/**
+ * Property-based test configuration for reproducibility and CI stability.
+ * Use FC_SEED environment variable to reproduce specific test failures.
+ *
+ * @example
+ * # Reproduce a failing test with specific seed
+ * FC_SEED=12345 pnpm --filter @medicalcor/domain test allonx-scoring-engine-property-based
+ */
+const PBT_CONFIG = {
+  /** Number of runs for critical safety invariants (highest coverage) */
+  CRITICAL_RUNS: 200,
+  /** Number of runs for standard property tests */
+  STANDARD_RUNS: 300,
+  /** Number of runs for computationally expensive tests */
+  EXPENSIVE_RUNS: 100,
+  /** Number of runs for quick validation tests */
+  QUICK_RUNS: 100,
+} as const;
+
 import {
   AllOnXClinicalScore,
   InvalidAllOnXScoreError,
@@ -262,7 +285,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
           expect(score.isCandidate()).toBe(false);
           expect(score.treatmentRecommendation).toBe('NOT_RECOMMENDED');
         }),
-        { numRuns: 200 }
+        { numRuns: PBT_CONFIG.CRITICAL_RUNS }
       );
     });
 
@@ -285,7 +308,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
           expect(score.eligibility).toBe('CONTRAINDICATED');
           expect(score.isCandidate()).toBe(false);
         }),
-        { numRuns: 200 }
+        { numRuns: PBT_CONFIG.CRITICAL_RUNS }
       );
     });
 
@@ -311,7 +334,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
 
           expect(score.eligibility).toBe('CONTRAINDICATED');
         }),
-        { numRuns: 200 }
+        { numRuns: PBT_CONFIG.CRITICAL_RUNS }
       );
     });
 
@@ -341,7 +364,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
             expect(score.eligibility).toBe('CONTRAINDICATED');
           }
         ),
-        { numRuns: 200 }
+        { numRuns: PBT_CONFIG.CRITICAL_RUNS }
       );
     });
 
@@ -364,7 +387,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
           expect(score.eligibility).not.toBe('IDEAL');
           expect(score.hasSmokingRisk()).toBe(true);
         }),
-        { numRuns: 200 }
+        { numRuns: PBT_CONFIG.CRITICAL_RUNS }
       );
     });
 
@@ -387,7 +410,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
 
           expect(score.hasMRONJRisk()).toBe(true);
         }),
-        { numRuns: 200 }
+        { numRuns: PBT_CONFIG.CRITICAL_RUNS }
       );
     });
 
@@ -423,7 +446,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
             expect(score.requiresMedicalClearance()).toBe(true);
           }
         }),
-        { numRuns: 200 }
+        { numRuns: PBT_CONFIG.CRITICAL_RUNS }
       );
     });
   });
@@ -443,7 +466,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
           expect(Number.isFinite(score.compositeScore)).toBe(true);
           expect(Number.isNaN(score.compositeScore)).toBe(false);
         }),
-        { numRuns: 500 }
+        { numRuns: PBT_CONFIG.STANDARD_RUNS + 200 }
       );
     });
 
@@ -459,7 +482,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
             expect(score.confidence).toBeLessThanOrEqual(1);
           }
         ),
-        { numRuns: 300 }
+        { numRuns: PBT_CONFIG.STANDARD_RUNS }
       );
     });
 
@@ -483,7 +506,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
           expect(result.componentScores.patientFactorsComponent).toBeGreaterThanOrEqual(0);
           expect(result.componentScores.patientFactorsComponent).toBeLessThanOrEqual(100);
         }),
-        { numRuns: 300 }
+        { numRuns: PBT_CONFIG.STANDARD_RUNS }
       );
     });
 
@@ -499,7 +522,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
           expect(plan.successProbability).toBeGreaterThanOrEqual(0.7);
           expect(plan.successProbability).toBeLessThanOrEqual(1.0);
         }),
-        { numRuns: 200 }
+        { numRuns: PBT_CONFIG.CRITICAL_RUNS }
       );
     });
   });
@@ -530,7 +553,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
             expect(score.eligibility).toBe('CONTRAINDICATED');
           }
         }),
-        { numRuns: 300 }
+        { numRuns: PBT_CONFIG.STANDARD_RUNS }
       );
     });
 
@@ -545,7 +568,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
             expect(score.isCandidate()).toBe(true);
           }
         }),
-        { numRuns: 300 }
+        { numRuns: PBT_CONFIG.STANDARD_RUNS }
       );
     });
 
@@ -560,7 +583,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
             expect(score.isIdealCandidate()).toBe(false);
           }
         }),
-        { numRuns: 300 }
+        { numRuns: PBT_CONFIG.STANDARD_RUNS }
       );
     });
 
@@ -573,7 +596,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
 
           expect(validRiskLevels).toContain(score.riskLevel);
         }),
-        { numRuns: 300 }
+        { numRuns: PBT_CONFIG.STANDARD_RUNS }
       );
     });
 
@@ -591,7 +614,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
 
           expect(validEligibilities).toContain(score.eligibility);
         }),
-        { numRuns: 300 }
+        { numRuns: PBT_CONFIG.STANDARD_RUNS }
       );
     });
   });
@@ -614,7 +637,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
           expect(score1.riskLevel).toBe(score2.riskLevel);
           expect(score1.treatmentRecommendation).toBe(score2.treatmentRecommendation);
         }),
-        { numRuns: 200 }
+        { numRuns: PBT_CONFIG.CRITICAL_RUNS }
       );
     });
 
@@ -628,7 +651,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
           expect(result1.riskFlags).toEqual(result2.riskFlags);
           expect(result1.clinicalNotes).toEqual(result2.clinicalNotes);
         }),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
 
@@ -645,7 +668,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
           expect(reconstituted.complexity).toBe(original.complexity);
           expect(reconstituted.equals(original)).toBe(true);
         }),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
   });
@@ -666,7 +689,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
 
           expect(withSmoking.compositeScore).toBeLessThanOrEqual(baseScore.compositeScore);
         }),
-        { numRuns: 200 }
+        { numRuns: PBT_CONFIG.CRITICAL_RUNS }
       );
     });
 
@@ -685,7 +708,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
             expect(withDiabetes.compositeScore).toBeLessThanOrEqual(baseScore.compositeScore);
           }
         ),
-        { numRuns: 200 }
+        { numRuns: PBT_CONFIG.CRITICAL_RUNS }
       );
     });
 
@@ -701,7 +724,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
 
           expect(withBisphosphonates.compositeScore).toBeLessThanOrEqual(baseScore.compositeScore);
         }),
-        { numRuns: 200 }
+        { numRuns: PBT_CONFIG.CRITICAL_RUNS }
       );
     });
 
@@ -716,7 +739,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
 
           expect(withWorstBone.compositeScore).toBeLessThanOrEqual(baseScore.compositeScore);
         }),
-        { numRuns: 200 }
+        { numRuns: PBT_CONFIG.CRITICAL_RUNS }
       );
     });
 
@@ -735,7 +758,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
             expect(withPeriodontitis.compositeScore).toBeLessThanOrEqual(baseScore.compositeScore);
           }
         ),
-        { numRuns: 200 }
+        { numRuns: PBT_CONFIG.CRITICAL_RUNS }
       );
     });
 
@@ -750,7 +773,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
 
           expect(withBruxism.compositeScore).toBeLessThanOrEqual(baseScore.compositeScore);
         }),
-        { numRuns: 200 }
+        { numRuns: PBT_CONFIG.CRITICAL_RUNS }
       );
     });
 
@@ -765,7 +788,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
 
           expect(withHigherASA.compositeScore).toBeLessThanOrEqual(baseScore.compositeScore);
         }),
-        { numRuns: 200 }
+        { numRuns: PBT_CONFIG.CRITICAL_RUNS }
       );
     });
 
@@ -780,7 +803,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
 
           expect(withGrafting.compositeScore).toBeLessThanOrEqual(baseScore.compositeScore);
         }),
-        { numRuns: 200 }
+        { numRuns: PBT_CONFIG.CRITICAL_RUNS }
       );
     });
 
@@ -795,7 +818,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
 
           expect(withSinusLift.compositeScore).toBeLessThanOrEqual(baseScore.compositeScore);
         }),
-        { numRuns: 200 }
+        { numRuns: PBT_CONFIG.CRITICAL_RUNS }
       );
     });
   });
@@ -815,7 +838,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
             expect(plan.isFeasible).toBe(false);
           }
         }),
-        { numRuns: 200 }
+        { numRuns: PBT_CONFIG.CRITICAL_RUNS }
       );
     });
 
@@ -836,7 +859,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
             ).toBe(true);
           }
         ),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
 
@@ -855,7 +878,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
             )
           ).toBe(true);
         }),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
 
@@ -876,7 +899,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
 
           expect(complexPlan.estimatedDuration).toBeGreaterThan(simplePlan.estimatedDuration);
         }),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
   });
@@ -895,7 +918,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
           expect(comparison.scoreChange).toBe(0);
           expect(comparison.eligibilityChange).toBe('UNCHANGED');
         }),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
 
@@ -911,7 +934,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
             expect(comparison.scoreChange).toBeGreaterThan(0);
           }
         }),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
 
@@ -933,7 +956,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
             }
           }
         ),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
   });
@@ -952,7 +975,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
           expect(assessments.every((a) => a.site.includes('maxilla'))).toBe(true);
           expect(assessments.some((a) => a.site.includes('mandible'))).toBe(false);
         }),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
 
@@ -965,7 +988,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
           expect(assessments.every((a) => a.site.includes('mandible'))).toBe(true);
           expect(assessments.some((a) => a.site.includes('maxilla'))).toBe(false);
         }),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
 
@@ -981,7 +1004,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
           expect(assessments.some((a) => a.site === 'anterior_mandible')).toBe(true);
           expect(assessments.some((a) => a.site === 'posterior_mandible')).toBe(true);
         }),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
   });
@@ -1011,7 +1034,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
             expect(result.preliminaryEligibility).toBe('CONTRAINDICATED');
           }
         ),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
 
@@ -1035,7 +1058,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
             expect(['IDEAL', 'SUITABLE']).toContain(result.preliminaryEligibility);
           }
         ),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
   });
@@ -1052,7 +1075,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
 
           expect(Object.isFrozen(score)).toBe(true);
         }),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
 
@@ -1063,7 +1086,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
 
           expect(Object.isFrozen(score.indicators)).toBe(true);
         }),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
 
@@ -1076,7 +1099,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
           expect(original).not.toBe(updated);
           expect(original.indicators.smokingStatus).toBe(indicators.smokingStatus);
         }),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
 
@@ -1093,7 +1116,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
             expect(original.confidence).toBe(0.9);
           }
         ),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
   });
@@ -1116,7 +1139,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
             );
           }
         ),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
 
@@ -1133,7 +1156,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
             );
           }
         ),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
 
@@ -1150,7 +1173,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
             );
           }
         ),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
 
@@ -1170,7 +1193,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
             );
           }
         ),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
 
@@ -1187,7 +1210,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
             );
           }
         ),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
 
@@ -1205,7 +1228,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
             );
           }
         ),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
   });
@@ -1229,7 +1252,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
           expect(result).toHaveProperty('confidence');
           expect(result).toHaveProperty('scoringMethod');
         }),
-        { numRuns: 200 }
+        { numRuns: PBT_CONFIG.CRITICAL_RUNS }
       );
     });
 
@@ -1269,7 +1292,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
             expect(validRiskFlags).toContain(flag);
           });
         }),
-        { numRuns: 200 }
+        { numRuns: PBT_CONFIG.CRITICAL_RUNS }
       );
     });
 
@@ -1284,7 +1307,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
             expect(note.length).toBeGreaterThan(0);
           });
         }),
-        { numRuns: 200 }
+        { numRuns: PBT_CONFIG.CRITICAL_RUNS }
       );
     });
 
@@ -1302,7 +1325,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
           expect(parsed.eligibility).toBe(score.eligibility);
           expect(parsed.riskLevel).toBe(score.riskLevel);
         }),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
   });
@@ -1320,7 +1343,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
 
           expect(summary).toContain(score.eligibility);
         }),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
 
@@ -1333,7 +1356,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
 
           expect(riskFactors.some((f) => f.toLowerCase().includes('smoking'))).toBe(true);
         }),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
 
@@ -1346,7 +1369,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
 
           expect(riskFactors.some((f) => f.toLowerCase().includes('diabetes'))).toBe(true);
         }),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
 
@@ -1360,7 +1383,7 @@ describe('Clinical Scoring Engine - Property-Based Tests', () => {
           expect(str.length).toBeGreaterThan(0);
           expect(str).toContain('AllOnXClinicalScore');
         }),
-        { numRuns: 100 }
+        { numRuns: PBT_CONFIG.QUICK_RUNS }
       );
     });
   });
