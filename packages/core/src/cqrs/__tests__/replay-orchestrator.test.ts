@@ -1,11 +1,18 @@
 /**
- * Tests for ReplayOrchestrator
+ * Replay Orchestrator Tests
  *
- * Tests event sourcing replay operations including state reconstruction,
- * projection rebuild, and audit functionality.
+ * Comprehensive tests for the ReplayOrchestrator covering:
+ * - Aggregate registration
+ * - State reconstruction
+ * - Projection rebuild
+ * - State diff operations
+ * - Event timeline queries
+ * - State verification
+ * - Audit access
+ * - Health and status
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   ReplayOrchestrator,
   createReplayOrchestrator,
@@ -16,206 +23,296 @@ import {
   type EventTimelineRequest,
   type VerifyStateRequest,
 } from '../replay-orchestrator.js';
-import type { EventStore as EventStoreInterface } from '../../event-store.js';
-import type { ProjectionManager } from '../projections.js';
-import type { ReplayAuditStore, ReplayAuditEntry } from '../replay-audit.js';
-import type { CheckpointStore } from '../event-replay.js';
+import type { StoredEvent, EventStore as EventStoreInterface } from '../../event-store.js';
+import type { ProjectionManager, ProjectionDefinition } from '../projections.js';
 import type { AggregateRoot, AggregateState } from '../aggregate.js';
+import type { SnapshotManager } from '../snapshot-store.js';
+import type { CheckpointStore, ReplayConfig } from '../event-replay.js';
+import type { ReplayAuditStore, ReplayAuditEntry } from '../replay-audit.js';
 
-// Mock EventStore
-const createMockEventStore = (): EventStoreInterface =>
-  ({
-    append: vi.fn().mockResolvedValue(undefined),
-    getEvents: vi.fn().mockResolvedValue([]),
-    getEventsByAggregateId: vi.fn().mockResolvedValue([]),
-    getEventsByType: vi.fn().mockResolvedValue([]),
-    getAllEvents: vi.fn().mockResolvedValue([]),
-  }) as unknown as EventStoreInterface;
+// ============================================================================
+// TEST FIXTURES
+// ============================================================================
 
-// Mock ProjectionManager
-const createMockProjectionManager = (): ProjectionManager =>
-  ({
-    has: vi.fn().mockReturnValue(true),
-    get: vi.fn().mockReturnValue({
-      name: 'test-projection',
-      version: 1,
-      state: {},
-    }),
-    getAll: vi.fn().mockReturnValue([
-      { name: 'projection-1', version: 1 },
-      { name: 'projection-2', version: 1 },
-    ]),
-    register: vi.fn(),
-    unregister: vi.fn(),
-  }) as unknown as ProjectionManager;
-
-// Mock AuditStore - implements ReplayAuditStore interface
-const createMockAuditStore = (): ReplayAuditStore => ({
-  save: vi.fn().mockResolvedValue(undefined),
-  getById: vi.fn().mockResolvedValue(null),
-  getByCorrelationId: vi.fn().mockResolvedValue([]),
-  getByAggregateId: vi.fn().mockResolvedValue([]),
-  getByProjection: vi.fn().mockResolvedValue([]),
-  getByUser: vi.fn().mockResolvedValue([]),
-  getByTimeRange: vi.fn().mockResolvedValue([]),
-  getRecent: vi.fn().mockResolvedValue([]),
-  delete: vi.fn().mockResolvedValue(true),
-  cleanup: vi.fn().mockResolvedValue(5),
-});
-
-// Mock CheckpointStore
-const createMockCheckpointStore = (): CheckpointStore => ({
-  getCheckpoint: vi.fn().mockResolvedValue(null),
-  saveCheckpoint: vi.fn().mockResolvedValue(undefined),
-  deleteCheckpoint: vi.fn().mockResolvedValue(undefined),
-});
-
-// Mock Aggregate Factory
 interface TestState extends AggregateState {
-  id: string;
   name: string;
-  version: number;
+  score: number;
 }
 
-const createMockAggregateFactory = () => ({
-  create: vi.fn().mockReturnValue({
-    id: 'test-id',
-    state: { id: 'test-id', name: 'test', version: 1 },
-    getState: vi.fn().mockReturnValue({ id: 'test-id', name: 'test', version: 1 }),
-    applyEvent: vi.fn(),
-  } as unknown as AggregateRoot<TestState>),
-});
+class TestAggregate implements AggregateRoot<TestState> {
+  private _state: TestState = { name: '', score: 0, version: 0 };
+  private _uncommittedEvents: unknown[] = [];
+  readonly aggregateType = 'TestAggregate';
+
+  get id(): string {
+    return 'test-id';
+  }
+
+  get version(): number {
+    return this._state.version;
+  }
+
+  get uncommittedEvents(): unknown[] {
+    return this._uncommittedEvents;
+  }
+
+  clearUncommittedEvents(): void {
+    this._uncommittedEvents = [];
+  }
+
+  get state(): TestState {
+    return this._state;
+  }
+
+  applyEvent(event: StoredEvent): void {
+    if (event.type === 'TestCreated') {
+      this._state = {
+        ...this._state,
+        name: (event.payload as { name: string }).name,
+        version: event.version,
+      };
+    } else if (event.type === 'TestScored') {
+      this._state = {
+        ...this._state,
+        score: (event.payload as { score: number }).score,
+        version: event.version,
+      };
+    }
+  }
+}
+
+function createMockEventStore(): EventStoreInterface {
+  const events: StoredEvent[] = [
+    {
+      id: 'event-1',
+      type: 'TestCreated',
+      payload: { name: 'Test' },
+      aggregateId: 'agg-1',
+      aggregateType: 'TestAggregate',
+      version: 1,
+      metadata: { timestamp: new Date().toISOString() },
+    },
+    {
+      id: 'event-2',
+      type: 'TestScored',
+      payload: { score: 100 },
+      aggregateId: 'agg-1',
+      aggregateType: 'TestAggregate',
+      version: 2,
+      metadata: { timestamp: new Date().toISOString() },
+    },
+  ];
+
+  return {
+    append: vi.fn().mockResolvedValue(undefined),
+    getEvents: vi.fn().mockResolvedValue(events),
+    getEventsForAggregate: vi.fn().mockResolvedValue(events),
+    getEventsAfterVersion: vi.fn().mockResolvedValue(events),
+    getEventsByType: vi.fn().mockResolvedValue(events),
+    getEventsByTimestamp: vi.fn().mockResolvedValue(events),
+    getAllEvents: vi.fn().mockResolvedValue(events),
+  } as unknown as EventStoreInterface;
+}
+
+function createMockProjectionManager(): ProjectionManager {
+  const projections = new Map<string, { name: string; version: string }>();
+  projections.set('test-projection', { name: 'test-projection', version: '1.0.0' });
+
+  return {
+    has: vi.fn((name: string) => projections.has(name)),
+    get: vi.fn((name: string) => projections.get(name)),
+    getAll: vi.fn(() => Array.from(projections.values())),
+    register: vi.fn(),
+  } as unknown as ProjectionManager;
+}
+
+function createMockAuditStore(): ReplayAuditStore {
+  const entries: ReplayAuditEntry[] = [];
+
+  return {
+    save: vi.fn().mockImplementation(async (entry: ReplayAuditEntry) => {
+      entries.push(entry);
+    }),
+    getById: vi.fn().mockImplementation(async (id: string) => {
+      return entries.find((e) => e.id === id) ?? null;
+    }),
+    getByCorrelationId: vi.fn().mockImplementation(async (correlationId: string) => {
+      return entries.filter((e) => e.correlationId === correlationId);
+    }),
+    getByAggregateId: vi.fn().mockImplementation(async (aggregateId: string, _limit?: number) => {
+      return entries.filter((e) => e.aggregateId === aggregateId);
+    }),
+    getByProjection: vi.fn().mockImplementation(async (projectionName: string, _limit?: number) => {
+      return entries.filter((e) => e.projectionName === projectionName);
+    }),
+    getByUser: vi.fn().mockImplementation(async (userId: string, _limit?: number) => {
+      return entries.filter((e) => e.initiatedBy === userId);
+    }),
+    getByTimeRange: vi.fn().mockResolvedValue(entries),
+    getRecent: vi.fn().mockResolvedValue(entries),
+    delete: vi.fn().mockResolvedValue(true),
+    cleanup: vi.fn().mockResolvedValue(0),
+  } as unknown as ReplayAuditStore;
+}
+
+function createMockCheckpointStore(): CheckpointStore {
+  const checkpoints = new Map<string, { position: number; timestamp: Date }>();
+
+  return {
+    getCheckpoint: vi.fn().mockImplementation(async (name: string) => {
+      return checkpoints.get(name) ?? null;
+    }),
+    saveCheckpoint: vi.fn().mockImplementation(async (name: string, position: number) => {
+      checkpoints.set(name, { position, timestamp: new Date() });
+    }),
+    deleteCheckpoint: vi.fn().mockImplementation(async (name: string) => {
+      checkpoints.delete(name);
+    }),
+  } as unknown as CheckpointStore;
+}
+
+// ============================================================================
+// ORCHESTRATOR TESTS
+// ============================================================================
 
 describe('ReplayOrchestrator', () => {
+  let orchestrator: ReplayOrchestrator;
   let eventStore: EventStoreInterface;
   let projectionManager: ProjectionManager;
   let auditStore: ReplayAuditStore;
   let checkpointStore: CheckpointStore;
-  let orchestrator: ReplayOrchestrator;
 
   beforeEach(() => {
-    vi.clearAllMocks();
     eventStore = createMockEventStore();
     projectionManager = createMockProjectionManager();
     auditStore = createMockAuditStore();
     checkpointStore = createMockCheckpointStore();
+
     orchestrator = new ReplayOrchestrator(
       eventStore,
       projectionManager,
       auditStore,
-      checkpointStore
+      checkpointStore,
+      {
+        defaultBatchSize: 100,
+        maxConcurrentReplays: 3,
+      }
     );
   });
 
-  describe('constructor', () => {
-    it('should create instance with default config', () => {
-      const orch = new ReplayOrchestrator(
-        eventStore,
-        projectionManager,
-        auditStore,
-        checkpointStore
-      );
-      expect(orch).toBeInstanceOf(ReplayOrchestrator);
-    });
-
-    it('should create instance with custom config', () => {
-      const config: Partial<ReplayOrchestratorConfig> = {
-        defaultBatchSize: 500,
-        maxConcurrentReplays: 5,
-        enableProgressLogging: false,
-      };
-
-      const orch = new ReplayOrchestrator(
-        eventStore,
-        projectionManager,
-        auditStore,
-        checkpointStore,
-        config
-      );
-      expect(orch).toBeInstanceOf(ReplayOrchestrator);
-    });
-  });
+  // ============================================================================
+  // AGGREGATE REGISTRATION TESTS
+  // ============================================================================
 
   describe('registerAggregate', () => {
     it('should register an aggregate type', () => {
-      const factory = createMockAggregateFactory();
-      orchestrator.registerAggregate('TestAggregate', factory.create);
+      const factory = () => new TestAggregate();
+
+      orchestrator.registerAggregate('TestAggregate', factory);
 
       const status = orchestrator.getStatus();
       expect(status.registeredAggregates).toContain('TestAggregate');
     });
 
-    it('should register aggregate with snapshot manager', () => {
-      const factory = createMockAggregateFactory();
-      const snapshotManager = {
-        save: vi.fn(),
-        load: vi.fn(),
-        delete: vi.fn(),
-      };
+    it('should register an aggregate with snapshot manager', () => {
+      const factory = () => new TestAggregate();
+      const snapshotManager: SnapshotManager = {
+        getSnapshot: vi.fn().mockResolvedValue(null),
+        saveSnapshot: vi.fn().mockResolvedValue(undefined),
+        deleteSnapshot: vi.fn().mockResolvedValue(undefined),
+      } as unknown as SnapshotManager;
 
-      orchestrator.registerAggregate('SnapshotAggregate', factory.create, snapshotManager as never);
+      orchestrator.registerAggregate('TestAggregate', factory, snapshotManager);
 
       const status = orchestrator.getStatus();
-      expect(status.registeredAggregates).toContain('SnapshotAggregate');
+      expect(status.registeredAggregates).toContain('TestAggregate');
     });
   });
 
+  // ============================================================================
+  // STATE RECONSTRUCTION TESTS
+  // ============================================================================
+
   describe('reconstructState', () => {
     beforeEach(() => {
-      const factory = createMockAggregateFactory();
-      orchestrator.registerAggregate('TestAggregate', factory.create);
+      const factory = () => new TestAggregate();
+      orchestrator.registerAggregate('TestAggregate', factory);
     });
 
     it('should fail for unregistered aggregate type', async () => {
       const request: ReconstructStateRequest = {
-        aggregateId: 'agg-123',
+        aggregateId: 'agg-1',
         aggregateType: 'UnregisteredType',
-        initiatedBy: 'user-1',
+        initiatedBy: 'test-user',
       };
 
       const result = await orchestrator.reconstructState(request);
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('RECONSTRUCTION_FAILED');
+      expect(result.error?.message).toContain('not registered');
     });
 
-    it('should handle aggregate not found', async () => {
+    it('should include correlation ID in result', async () => {
       const request: ReconstructStateRequest = {
-        aggregateId: 'non-existent',
+        aggregateId: 'agg-1',
         aggregateType: 'TestAggregate',
-        initiatedBy: 'user-1',
+        initiatedBy: 'test-user',
+        correlationId: 'test-correlation',
       };
 
       const result = await orchestrator.reconstructState(request);
 
-      // May succeed or fail depending on mock behavior
-      expect(result.auditEntryId).toBeDefined();
+      expect(result.correlationId).toBe('test-correlation');
+    });
+
+    it('should generate correlation ID if not provided', async () => {
+      const request: ReconstructStateRequest = {
+        aggregateId: 'agg-1',
+        aggregateType: 'TestAggregate',
+        initiatedBy: 'test-user',
+      };
+
+      const result = await orchestrator.reconstructState(request);
+
       expect(result.correlationId).toBeDefined();
+      expect(result.correlationId.length).toBeGreaterThan(0);
     });
 
-    it('should use provided correlation ID', async () => {
+    it('should include audit entry ID in result', async () => {
       const request: ReconstructStateRequest = {
-        aggregateId: 'agg-123',
+        aggregateId: 'agg-1',
         aggregateType: 'TestAggregate',
-        initiatedBy: 'user-1',
-        correlationId: 'custom-correlation-id',
+        initiatedBy: 'test-user',
       };
 
       const result = await orchestrator.reconstructState(request);
 
-      expect(result.correlationId).toBe('custom-correlation-id');
+      expect(result.auditEntryId).toBeDefined();
     });
 
-    it('should include reconstruction options', async () => {
+    it('should include duration in result', async () => {
       const request: ReconstructStateRequest = {
-        aggregateId: 'agg-123',
+        aggregateId: 'agg-1',
         aggregateType: 'TestAggregate',
-        initiatedBy: 'user-1',
+        initiatedBy: 'test-user',
+      };
+
+      const result = await orchestrator.reconstructState(request);
+
+      expect(result.durationMs).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should pass options to reconstruction service', async () => {
+      const request: ReconstructStateRequest = {
+        aggregateId: 'agg-1',
+        aggregateType: 'TestAggregate',
+        initiatedBy: 'test-user',
         options: {
-          asOf: new Date(),
+          asOf: new Date('2024-01-01'),
           useSnapshots: true,
         },
-        reason: 'Audit investigation',
+        reason: 'Testing reconstruction',
       };
 
       const result = await orchestrator.reconstructState(request);
@@ -224,10 +321,14 @@ describe('ReplayOrchestrator', () => {
     });
   });
 
+  // ============================================================================
+  // PROJECTION REBUILD TESTS
+  // ============================================================================
+
   describe('rebuildProjection', () => {
     it('should fail when max concurrent replays exceeded', async () => {
-      // Fill up concurrent replays
-      const orch = new ReplayOrchestrator(
+      // Fill up active operations
+      const orchestratorWithLimit = new ReplayOrchestrator(
         eventStore,
         projectionManager,
         auditStore,
@@ -237,21 +338,21 @@ describe('ReplayOrchestrator', () => {
 
       const request: RebuildProjectionRequest = {
         projectionName: 'test-projection',
-        initiatedBy: 'user-1',
+        initiatedBy: 'test-user',
       };
 
-      const result = await orch.rebuildProjection(request);
+      const result = await orchestratorWithLimit.rebuildProjection(request);
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('MAX_CONCURRENT_REPLAYS');
     });
 
     it('should fail for non-existent projection', async () => {
-      vi.mocked(projectionManager.has).mockReturnValueOnce(false);
+      vi.mocked(projectionManager.has).mockReturnValue(false);
 
       const request: RebuildProjectionRequest = {
         projectionName: 'non-existent',
-        initiatedBy: 'user-1',
+        initiatedBy: 'test-user',
       };
 
       const result = await orchestrator.rebuildProjection(request);
@@ -260,36 +361,64 @@ describe('ReplayOrchestrator', () => {
       expect(result.error?.code).toBe('PROJECTION_REBUILD_FAILED');
     });
 
-    it('should rebuild projection with custom config', async () => {
+    it('should use default batch size from config', async () => {
       const request: RebuildProjectionRequest = {
         projectionName: 'test-projection',
-        initiatedBy: 'user-1',
-        config: {
-          batchSize: 100,
-          batchDelayMs: 50,
-        },
-        reason: 'Data migration',
+        initiatedBy: 'test-user',
       };
 
       const result = await orchestrator.rebuildProjection(request);
 
       expect(result.auditEntryId).toBeDefined();
     });
+
+    it('should accept custom replay config', async () => {
+      const request: RebuildProjectionRequest = {
+        projectionName: 'test-projection',
+        initiatedBy: 'test-user',
+        config: {
+          batchSize: 50,
+          batchDelayMs: 5,
+          continueOnError: false,
+        },
+        reason: 'Manual rebuild',
+      };
+
+      const result = await orchestrator.rebuildProjection(request);
+
+      expect(result.auditEntryId).toBeDefined();
+    });
+
+    it('should include correlation ID', async () => {
+      const request: RebuildProjectionRequest = {
+        projectionName: 'test-projection',
+        initiatedBy: 'test-user',
+        correlationId: 'custom-correlation',
+      };
+
+      const result = await orchestrator.rebuildProjection(request);
+
+      expect(result.correlationId).toBe('custom-correlation');
+    });
   });
+
+  // ============================================================================
+  // STATE DIFF TESTS
+  // ============================================================================
 
   describe('getStateDiff', () => {
     beforeEach(() => {
-      const factory = createMockAggregateFactory();
-      orchestrator.registerAggregate('TestAggregate', factory.create);
+      const factory = () => new TestAggregate();
+      orchestrator.registerAggregate('TestAggregate', factory);
     });
 
     it('should fail for unregistered aggregate type', async () => {
       const request: StateDiffRequest = {
-        aggregateId: 'agg-123',
+        aggregateId: 'agg-1',
         aggregateType: 'UnregisteredType',
         fromVersion: 1,
-        toVersion: 5,
-        initiatedBy: 'user-1',
+        toVersion: 2,
+        initiatedBy: 'test-user',
       };
 
       const result = await orchestrator.getStateDiff(request);
@@ -298,25 +427,27 @@ describe('ReplayOrchestrator', () => {
       expect(result.error?.code).toBe('STATE_DIFF_FAILED');
     });
 
-    it('should fail when neither version nor timestamp provided', async () => {
+    it('should fail when neither version nor timestamp range provided', async () => {
       const request: StateDiffRequest = {
-        aggregateId: 'agg-123',
+        aggregateId: 'agg-1',
         aggregateType: 'TestAggregate',
-        initiatedBy: 'user-1',
+        initiatedBy: 'test-user',
       };
 
       const result = await orchestrator.getStateDiff(request);
 
       expect(result.success).toBe(false);
+      expect(result.error?.message).toContain('version range or timestamp range');
     });
 
-    it('should get diff by version range', async () => {
+    it('should accept version range', async () => {
       const request: StateDiffRequest = {
-        aggregateId: 'agg-123',
+        aggregateId: 'agg-1',
         aggregateType: 'TestAggregate',
         fromVersion: 1,
-        toVersion: 5,
-        initiatedBy: 'user-1',
+        toVersion: 2,
+        initiatedBy: 'test-user',
+        correlationId: 'test-correlation',
       };
 
       const result = await orchestrator.getStateDiff(request);
@@ -324,13 +455,13 @@ describe('ReplayOrchestrator', () => {
       expect(result.auditEntryId).toBeDefined();
     });
 
-    it('should get diff by timestamp range', async () => {
+    it('should accept timestamp range', async () => {
       const request: StateDiffRequest = {
-        aggregateId: 'agg-123',
+        aggregateId: 'agg-1',
         aggregateType: 'TestAggregate',
         fromTimestamp: new Date('2024-01-01'),
-        toTimestamp: new Date('2024-06-01'),
-        initiatedBy: 'user-1',
+        toTimestamp: new Date('2024-01-02'),
+        initiatedBy: 'test-user',
       };
 
       const result = await orchestrator.getStateDiff(request);
@@ -339,17 +470,21 @@ describe('ReplayOrchestrator', () => {
     });
   });
 
+  // ============================================================================
+  // EVENT TIMELINE TESTS
+  // ============================================================================
+
   describe('getEventTimeline', () => {
     beforeEach(() => {
-      const factory = createMockAggregateFactory();
-      orchestrator.registerAggregate('TestAggregate', factory.create);
+      const factory = () => new TestAggregate();
+      orchestrator.registerAggregate('TestAggregate', factory);
     });
 
     it('should fail for unregistered aggregate type', async () => {
       const request: EventTimelineRequest = {
-        aggregateId: 'agg-123',
+        aggregateId: 'agg-1',
         aggregateType: 'UnregisteredType',
-        initiatedBy: 'user-1',
+        initiatedBy: 'test-user',
       };
 
       const result = await orchestrator.getEventTimeline(request);
@@ -358,27 +493,16 @@ describe('ReplayOrchestrator', () => {
       expect(result.error?.code).toBe('TIMELINE_QUERY_FAILED');
     });
 
-    it('should get timeline with default options', async () => {
+    it('should accept time range and pagination', async () => {
       const request: EventTimelineRequest = {
-        aggregateId: 'agg-123',
-        aggregateType: 'TestAggregate',
-        initiatedBy: 'user-1',
-      };
-
-      const result = await orchestrator.getEventTimeline(request);
-
-      expect(result.auditEntryId).toBeDefined();
-    });
-
-    it('should get timeline with time range', async () => {
-      const request: EventTimelineRequest = {
-        aggregateId: 'agg-123',
+        aggregateId: 'agg-1',
         aggregateType: 'TestAggregate',
         startTime: new Date('2024-01-01'),
-        endTime: new Date('2024-12-31'),
-        limit: 50,
-        offset: 10,
-        initiatedBy: 'user-1',
+        endTime: new Date('2024-01-02'),
+        limit: 10,
+        offset: 0,
+        initiatedBy: 'test-user',
+        correlationId: 'test-correlation',
       };
 
       const result = await orchestrator.getEventTimeline(request);
@@ -387,18 +511,22 @@ describe('ReplayOrchestrator', () => {
     });
   });
 
+  // ============================================================================
+  // STATE VERIFICATION TESTS
+  // ============================================================================
+
   describe('verifyState', () => {
     beforeEach(() => {
-      const factory = createMockAggregateFactory();
-      orchestrator.registerAggregate('TestAggregate', factory.create);
+      const factory = () => new TestAggregate();
+      orchestrator.registerAggregate('TestAggregate', factory);
     });
 
     it('should fail for unregistered aggregate type', async () => {
       const request: VerifyStateRequest<TestState> = {
-        aggregateId: 'agg-123',
+        aggregateId: 'agg-1',
         aggregateType: 'UnregisteredType',
-        currentState: { id: 'test', name: 'test', version: 1 },
-        initiatedBy: 'user-1',
+        currentState: { name: 'Test', score: 100, version: 2 },
+        initiatedBy: 'test-user',
       };
 
       const result = await orchestrator.verifyState(request);
@@ -407,88 +535,120 @@ describe('ReplayOrchestrator', () => {
       expect(result.error?.code).toBe('VERIFICATION_FAILED');
     });
 
-    it('should verify state consistency', async () => {
+    it('should include correlation ID', async () => {
       const request: VerifyStateRequest<TestState> = {
-        aggregateId: 'agg-123',
+        aggregateId: 'agg-1',
         aggregateType: 'TestAggregate',
-        currentState: { id: 'agg-123', name: 'Test', version: 5 },
-        initiatedBy: 'user-1',
+        currentState: { name: 'Test', score: 100, version: 2 },
+        initiatedBy: 'test-user',
+        correlationId: 'verify-correlation',
       };
 
       const result = await orchestrator.verifyState(request);
 
-      expect(result.auditEntryId).toBeDefined();
+      expect(result.correlationId).toBe('verify-correlation');
     });
   });
 
+  // ============================================================================
+  // AUDIT ACCESS TESTS
+  // ============================================================================
+
   describe('audit access methods', () => {
     it('should get aggregate audit history', async () => {
-      const history = await orchestrator.getAggregateAuditHistory('agg-123', 10);
+      const history = await orchestrator.getAggregateAuditHistory('agg-1', 10);
+
       expect(Array.isArray(history)).toBe(true);
     });
 
     it('should get projection audit history', async () => {
       const history = await orchestrator.getProjectionAuditHistory('test-projection', 10);
+
       expect(Array.isArray(history)).toBe(true);
     });
 
     it('should get recent audit entries', async () => {
-      const entries = await orchestrator.getRecentAuditEntries(20);
+      const entries = await orchestrator.getRecentAuditEntries(10);
+
       expect(Array.isArray(entries)).toBe(true);
     });
 
     it('should get specific audit entry', async () => {
-      const entry = await orchestrator.getAuditEntry('audit-123');
-      // May be null based on mock
-      expect(entry === null || typeof entry === 'object').toBe(true);
+      const entry = await orchestrator.getAuditEntry('entry-id');
+
+      expect(entry).toBe(null); // No entries in mock
     });
   });
 
+  // ============================================================================
+  // HEALTH AND STATUS TESTS
+  // ============================================================================
+
   describe('getStatus', () => {
     it('should return orchestrator status', () => {
-      const factory = createMockAggregateFactory();
-      orchestrator.registerAggregate('Agg1', factory.create);
-      orchestrator.registerAggregate('Agg2', factory.create);
+      const factory = () => new TestAggregate();
+      orchestrator.registerAggregate('TestAggregate', factory);
 
       const status = orchestrator.getStatus();
 
       expect(status.activeOperations).toBe(0);
-      expect(status.maxConcurrentReplays).toBeGreaterThan(0);
-      expect(status.registeredAggregates).toContain('Agg1');
-      expect(status.registeredAggregates).toContain('Agg2');
+      expect(status.maxConcurrentReplays).toBe(3);
+      expect(status.registeredAggregates).toContain('TestAggregate');
       expect(Array.isArray(status.registeredProjections)).toBe(true);
     });
   });
 
   describe('cleanupAudit', () => {
     it('should cleanup old audit entries', async () => {
-      const deleted = await orchestrator.cleanupAudit();
-      expect(typeof deleted).toBe('number');
+      const count = await orchestrator.cleanupAudit();
+
+      expect(count).toBeGreaterThanOrEqual(0);
     });
   });
+});
 
-  describe('createReplayOrchestrator factory', () => {
-    it('should create orchestrator instance', () => {
-      const orch = createReplayOrchestrator(
-        eventStore,
-        projectionManager,
-        auditStore,
-        checkpointStore
-      );
+// ============================================================================
+// FACTORY FUNCTION TESTS
+// ============================================================================
 
-      expect(orch).toBeInstanceOf(ReplayOrchestrator);
-    });
+describe('createReplayOrchestrator', () => {
+  it('should create orchestrator with default config', () => {
+    const eventStore = createMockEventStore();
+    const projectionManager = createMockProjectionManager();
+    const auditStore = createMockAuditStore();
+    const checkpointStore = createMockCheckpointStore();
 
-    it('should create orchestrator with config', () => {
-      const orch = createReplayOrchestrator(
-        eventStore,
-        projectionManager,
-        auditStore,
-        checkpointStore,
-        { defaultBatchSize: 2000 }
-      );
+    const orchestrator = createReplayOrchestrator(
+      eventStore,
+      projectionManager,
+      auditStore,
+      checkpointStore
+    );
 
-      expect(orch).toBeInstanceOf(ReplayOrchestrator);
-    });
+    expect(orchestrator).toBeInstanceOf(ReplayOrchestrator);
+  });
+
+  it('should create orchestrator with custom config', () => {
+    const eventStore = createMockEventStore();
+    const projectionManager = createMockProjectionManager();
+    const auditStore = createMockAuditStore();
+    const checkpointStore = createMockCheckpointStore();
+
+    const customConfig: Partial<ReplayOrchestratorConfig> = {
+      defaultBatchSize: 500,
+      maxConcurrentReplays: 5,
+      auditRetentionDays: 180,
+    };
+
+    const orchestrator = createReplayOrchestrator(
+      eventStore,
+      projectionManager,
+      auditStore,
+      checkpointStore,
+      customConfig
+    );
+
+    expect(orchestrator).toBeInstanceOf(ReplayOrchestrator);
+    expect(orchestrator.getStatus().maxConcurrentReplays).toBe(5);
   });
 });

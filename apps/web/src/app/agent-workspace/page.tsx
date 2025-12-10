@@ -13,6 +13,7 @@ import {
   CallPanelSkeleton,
   ScriptGuidance,
   ScriptGuidanceSkeleton,
+  SchedulingModal,
 } from './components';
 import {
   type AgentSession,
@@ -47,6 +48,10 @@ export default function AgentWorkspacePage() {
   const [callScript, setCallScript] = useState<CallScript | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+  // Scheduling modal state
+  const [schedulingModalOpen, setSchedulingModalOpen] = useState(false);
+  const [schedulingLeadId, setSchedulingLeadId] = useState<string | null>(null);
 
   // Initial data fetch
   useEffect(() => {
@@ -136,10 +141,16 @@ export default function AgentWorkspacePage() {
   }, []);
 
   // Handle schedule appointment
-  const handleScheduleAppointment = useCallback((_leadId: string) => {
-    // TODO: Open scheduling modal for the lead
-    // This would typically open a scheduling modal
+  const handleScheduleAppointment = useCallback((leadId: string) => {
+    setSchedulingLeadId(leadId);
+    setSchedulingModalOpen(true);
   }, []);
+
+  // Handle scheduling complete
+  const handleSchedulingComplete = useCallback(() => {
+    // Refresh data after scheduling
+    handleRefresh();
+  }, [handleRefresh]);
 
   if (isInitialLoading) {
     return (
@@ -222,6 +233,16 @@ export default function AgentWorkspacePage() {
             <ScriptGuidance script={callScript} activeStep={1} />
           </div>
         </div>
+
+        {/* Scheduling Modal */}
+        <SchedulingModal
+          leadId={schedulingLeadId}
+          leadName={activeCall?.leadName}
+          procedureInterest={activeCall?.procedureInterest}
+          open={schedulingModalOpen}
+          onOpenChange={setSchedulingModalOpen}
+          onSchedulingComplete={handleSchedulingComplete}
+        />
       </div>
     </PagePermissionGate>
   );

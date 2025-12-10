@@ -1,52 +1,90 @@
 /**
- * Tests for TriageRoutingIntegration
+ * Triage-Routing Integration Tests
  *
- * Tests the integration between triage assessment and skill-based routing.
+ * Comprehensive tests for the triage and routing integration:
+ * - Configuration
+ * - Triage-based routing flow
+ * - Skill requirements building
+ * - Context building
+ * - SLA calculation
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   TriageRoutingIntegration,
   createTriageRoutingIntegration,
   type TriageRoutingConfig,
 } from '../triage-integration.js';
-import type { TriageService, TriageInput, TriageResult } from '../../triage/triage-service.js';
+import type { TriageService, TriageResult, TriageInput } from '../../triage/triage-service.js';
 import type {
   SkillRoutingService,
   RoutingContext,
   RoutingDecision,
 } from '../skill-routing-service.js';
+import type { LeadChannel, LeadScore } from '@medicalcor/types';
 
-// Mock triage service
-const createMockTriageService = (): TriageService => ({
-  assess: vi.fn().mockResolvedValue({
+// ============================================================================
+// MOCK SETUP
+// ============================================================================
+
+function createMockTriageResult(overrides: Partial<TriageResult> = {}): TriageResult {
+  return {
     urgencyLevel: 'normal',
     routingRecommendation: 'same_day',
-    suggestedOwner: 'agent-1',
-    reasoning: 'Standard consultation request',
-  } as TriageResult),
-  isVIP: vi.fn().mockReturnValue(false),
-});
+    suggestedOwner: 'agent-123',
+    reason: 'Standard procedure interest',
+    score: 50,
+    factors: [],
+    ...overrides,
+  };
+}
 
-// Mock routing service
-const createMockRoutingService = (): SkillRoutingService => ({
-  route: vi.fn().mockResolvedValue({
+function createMockTriageInput(overrides: Partial<TriageInput> = {}): TriageInput {
+  return {
+    leadScore: 'WARM' as LeadScore,
+    channel: 'whatsapp' as LeadChannel,
+    messageContent: 'I am interested in dental implants',
+    procedureInterest: ['implant'],
+    hasExistingRelationship: false,
+    ...overrides,
+  };
+}
+
+function createMockRoutingDecision(overrides: Partial<RoutingDecision> = {}): RoutingDecision {
+  return {
     decisionId: 'decision-123',
     outcome: 'assigned',
-    selectedAgentId: 'agent-1',
-    score: 0.95,
-    reasoning: 'Best skill match',
-  } as RoutingDecision),
-  getAvailableAgents: vi.fn().mockResolvedValue([]),
-});
+    selectedAgentId: 'agent-456',
+    timestamp: new Date(),
+    reason: 'Best skill match',
+    matchScore: 85,
+    ...overrides,
+  };
+}
+
+function createMockTriageService(): TriageService {
+  return {
+    assess: vi.fn().mockResolvedValue(createMockTriageResult()),
+    isVIP: vi.fn().mockReturnValue(false),
+  } as unknown as TriageService;
+}
+
+function createMockRoutingService(): SkillRoutingService {
+  return {
+    route: vi.fn().mockResolvedValue(createMockRoutingDecision()),
+  } as unknown as SkillRoutingService;
+}
+
+// ============================================================================
+// INTEGRATION CLASS TESTS
+// ============================================================================
 
 describe('TriageRoutingIntegration', () => {
+  let integration: TriageRoutingIntegration;
   let mockTriageService: TriageService;
   let mockRoutingService: SkillRoutingService;
-  let integration: TriageRoutingIntegration;
 
   beforeEach(() => {
-    vi.clearAllMocks();
     mockTriageService = createMockTriageService();
     mockRoutingService = createMockRoutingService();
     integration = new TriageRoutingIntegration({
@@ -55,16 +93,21 @@ describe('TriageRoutingIntegration', () => {
     });
   });
 
+  // ============================================================================
+  // CONSTRUCTOR TESTS
+  // ============================================================================
+
   describe('constructor', () => {
-    it('should create instance with default config', () => {
+    it('should create with default config', () => {
       const int = new TriageRoutingIntegration({
         triageService: mockTriageService,
         routingService: mockRoutingService,
       });
+
       expect(int).toBeInstanceOf(TriageRoutingIntegration);
     });
 
-    it('should create instance with custom config', () => {
+    it('should create with custom config', () => {
       const customConfig: Partial<TriageRoutingConfig> = {
         useSuggestedOwnerAsPreference: false,
         urgencyPriorityMapping: {
@@ -76,307 +119,455 @@ describe('TriageRoutingIntegration', () => {
       };
 
       const int = new TriageRoutingIntegration({
-        config: customConfig,
         triageService: mockTriageService,
         routingService: mockRoutingService,
+        config: customConfig,
       });
-      expect(int).toBeInstanceOf(TriageRoutingIntegration);
+
+      const config = int.getConfig();
+      expect(config.useSuggestedOwnerAsPreference).toBe(false);
+      expect(config.urgencyPriorityMapping.low).toBe(30);
     });
   });
 
+  // ============================================================================
+  // TRIAGE AND ROUTE TESTS
+  // ============================================================================
+
   describe('triageAndRoute', () => {
-    const baseInput: TriageInput = {
-      leadScore: 'HOT',
-      channel: 'voice',
-      messageContent: 'I need an appointment for dental implants',
-      hasExistingRelationship: false,
-      procedureInterest: ['implant'],
-    };
+    it('should perform complete triage and routing flow', async () => {
+      const input = createMockTriageInput();
 
-    it('should complete triage and routing', async () => {
-      const result = await integration.triageAndRoute(baseInput);
+      const result = await integration.triageAndRoute(input);
 
-      expect(mockTriageService.assess).toHaveBeenCalledWith(baseInput);
-      expect(mockRoutingService.route).toHaveBeenCalled();
       expect(result.triageResult).toBeDefined();
       expect(result.routingDecision).toBeDefined();
       expect(result.skillRequirements).toBeDefined();
-    });
-
-    it('should handle high_priority urgency level', async () => {
-      vi.mocked(mockTriageService.assess).mockResolvedValueOnce({
-        urgencyLevel: 'high_priority',
-        routingRecommendation: 'next_available_slot',
-        suggestedOwner: 'senior-agent-1',
-        reasoning: 'Emergency case',
-      } as TriageResult);
-
-      const result = await integration.triageAndRoute(baseInput);
-
-      expect(result.triageResult.urgencyLevel).toBe('high_priority');
-      expect(result.skillRequirements.priority).toBeGreaterThan(50);
-    });
-
-    it('should handle high urgency level', async () => {
-      vi.mocked(mockTriageService.assess).mockResolvedValueOnce({
-        urgencyLevel: 'high',
-        routingRecommendation: 'same_day',
-        suggestedOwner: 'agent-2',
-        reasoning: 'Urgent consultation',
-      } as TriageResult);
-
-      const result = await integration.triageAndRoute(baseInput);
-
-      expect(result.triageResult.urgencyLevel).toBe('high');
-    });
-
-    it('should handle low urgency level', async () => {
-      vi.mocked(mockTriageService.assess).mockResolvedValueOnce({
-        urgencyLevel: 'low',
-        routingRecommendation: 'nurture_sequence',
-        suggestedOwner: null,
-        reasoning: 'General inquiry',
-      } as TriageResult);
-
-      const result = await integration.triageAndRoute({
-        ...baseInput,
-        leadScore: 'COLD',
-      });
-
-      expect(result.triageResult.urgencyLevel).toBe('low');
-    });
-
-    it('should include additional routing context', async () => {
-      const additionalContext: Partial<RoutingContext> = {
-        procedureType: 'All-on-X',
-        isExistingPatient: true,
-      };
-
-      const result = await integration.triageAndRoute(baseInput, additionalContext);
-
-      expect(result).toBeDefined();
+      expect(mockTriageService.assess).toHaveBeenCalledWith(input);
       expect(mockRoutingService.route).toHaveBeenCalled();
     });
 
-    it('should handle All-on-X procedure interest', async () => {
-      const result = await integration.triageAndRoute({
-        ...baseInput,
+    it('should pass additional context to routing', async () => {
+      const input = createMockTriageInput();
+      const additionalContext: Partial<RoutingContext> = {
+        procedureType: 'all-on-x',
+        urgencyLevel: 'critical',
+      };
+
+      await integration.triageAndRoute(input, additionalContext);
+
+      const routeCall = vi.mocked(mockRoutingService.route).mock.calls[0];
+      expect(routeCall?.[1]).toMatchObject(additionalContext);
+    });
+
+    it('should handle HOT lead score', async () => {
+      const input = createMockTriageInput({ leadScore: 'HOT' as LeadScore });
+
+      const result = await integration.triageAndRoute(input);
+
+      expect(result.skillRequirements.priority).toBeGreaterThan(50);
+    });
+
+    it('should handle COLD lead score', async () => {
+      const input = createMockTriageInput({ leadScore: 'COLD' as LeadScore });
+
+      const result = await integration.triageAndRoute(input);
+
+      expect(result.skillRequirements.priority).toBeDefined();
+    });
+
+    it('should handle UNQUALIFIED lead score', async () => {
+      const input = createMockTriageInput({ leadScore: 'UNQUALIFIED' as LeadScore });
+      vi.mocked(mockTriageService.assess).mockResolvedValue(
+        createMockTriageResult({ urgencyLevel: 'low' })
+      );
+
+      const result = await integration.triageAndRoute(input);
+
+      expect(result.skillRequirements.priority).toBeLessThan(50);
+    });
+  });
+
+  // ============================================================================
+  // SKILL REQUIREMENTS TESTS
+  // ============================================================================
+
+  describe('skill requirements building', () => {
+    it('should add procedure-based skills', async () => {
+      const input = createMockTriageInput({
+        procedureInterest: ['implant', 'cosmetic'],
+      });
+
+      const result = await integration.triageAndRoute(input);
+
+      const requiredSkillIds = result.skillRequirements.requiredSkills.map((s) => s.skillId);
+      expect(requiredSkillIds.length).toBeGreaterThan(0);
+    });
+
+    it('should add all-on-x skills', async () => {
+      const input = createMockTriageInput({
         procedureInterest: ['all-on-x'],
       });
 
-      expect(result.skillRequirements.requiredSkills.length).toBeGreaterThan(0);
-    });
-
-    it('should handle multiple procedure interests', async () => {
-      const result = await integration.triageAndRoute({
-        ...baseInput,
-        procedureInterest: ['implant', 'orthodontics', 'cosmetic'],
-      });
+      const result = await integration.triageAndRoute(input);
 
       expect(result.skillRequirements.requiredSkills.length).toBeGreaterThan(0);
     });
 
-    it('should handle VIP leads', async () => {
-      vi.mocked(mockTriageService.isVIP).mockReturnValueOnce(true);
-
-      const result = await integration.triageAndRoute({
-        ...baseInput,
-        messageContent: 'VIP patient referral',
+    it('should add All-on-X skills (case variant)', async () => {
+      const input = createMockTriageInput({
+        procedureInterest: ['All-on-X'],
       });
 
-      expect(result.skillRequirements.requiredSkills.some((s) => s.skillId.includes('vip'))).toBe(
-        true
+      const result = await integration.triageAndRoute(input);
+
+      expect(result.skillRequirements.requiredSkills.length).toBeGreaterThan(0);
+    });
+
+    it('should add general dentistry skills', async () => {
+      const input = createMockTriageInput({
+        procedureInterest: ['general'],
+      });
+
+      const result = await integration.triageAndRoute(input);
+
+      expect(result.skillRequirements.requiredSkills.length).toBeGreaterThan(0);
+    });
+
+    it('should add orthodontics skills', async () => {
+      const input = createMockTriageInput({
+        procedureInterest: ['orthodontics'],
+      });
+
+      const result = await integration.triageAndRoute(input);
+
+      expect(result.skillRequirements.requiredSkills.length).toBeGreaterThan(0);
+    });
+
+    it('should add pediatric skills', async () => {
+      const input = createMockTriageInput({
+        procedureInterest: ['pediatric'],
+      });
+
+      const result = await integration.triageAndRoute(input);
+
+      expect(result.skillRequirements.requiredSkills.length).toBeGreaterThan(0);
+    });
+
+    it('should handle unmapped procedures gracefully', async () => {
+      const input = createMockTriageInput({
+        procedureInterest: ['unknown-procedure'],
+      });
+
+      const result = await integration.triageAndRoute(input);
+
+      // Should still complete without error
+      expect(result.skillRequirements).toBeDefined();
+    });
+
+    it('should add VIP skill for VIP messages', async () => {
+      vi.mocked(mockTriageService.isVIP).mockReturnValue(true);
+
+      const input = createMockTriageInput({
+        messageContent: 'VIP patient requiring urgent care',
+      });
+
+      const result = await integration.triageAndRoute(input);
+
+      const vipSkills = result.skillRequirements.requiredSkills.filter((s) =>
+        s.skillId.includes('vip')
       );
-    });
-
-    it('should handle different lead scores', async () => {
-      for (const leadScore of ['HOT', 'WARM', 'COLD', 'UNQUALIFIED'] as const) {
-        const result = await integration.triageAndRoute({
-          ...baseInput,
-          leadScore,
-        });
-
-        expect(result.skillRequirements.priority).toBeDefined();
-      }
-    });
-
-    it('should handle different channels', async () => {
-      const channels = ['voice', 'whatsapp', 'web', 'referral'] as const;
-
-      for (const channel of channels) {
-        const result = await integration.triageAndRoute({
-          ...baseInput,
-          channel,
-        });
-
-        expect(result).toBeDefined();
-      }
-    });
-
-    it('should handle web_form channel', async () => {
-      const result = await integration.triageAndRoute({
-        ...baseInput,
-        channel: 'web_form',
-      });
-
-      expect(result).toBeDefined();
-    });
-
-    it('should handle hubspot channel', async () => {
-      const result = await integration.triageAndRoute({
-        ...baseInput,
-        channel: 'hubspot',
-      });
-
-      expect(result).toBeDefined();
-    });
-
-    it('should handle facebook channel', async () => {
-      const result = await integration.triageAndRoute({
-        ...baseInput,
-        channel: 'facebook',
-      });
-
-      expect(result).toBeDefined();
-    });
-
-    it('should handle google channel', async () => {
-      const result = await integration.triageAndRoute({
-        ...baseInput,
-        channel: 'google',
-      });
-
-      expect(result).toBeDefined();
-    });
-
-    it('should handle manual channel', async () => {
-      const result = await integration.triageAndRoute({
-        ...baseInput,
-        channel: 'manual',
-      });
-
-      expect(result).toBeDefined();
+      expect(vipSkills.length).toBeGreaterThan(0);
     });
 
     it('should add escalation skill for high priority', async () => {
-      vi.mocked(mockTriageService.assess).mockResolvedValueOnce({
-        urgencyLevel: 'high',
-        routingRecommendation: 'next_available_slot',
-        suggestedOwner: 'agent-1',
-        reasoning: 'Urgent case',
-      } as TriageResult);
+      vi.mocked(mockTriageService.assess).mockResolvedValue(
+        createMockTriageResult({ urgencyLevel: 'high_priority' })
+      );
 
-      const result = await integration.triageAndRoute(baseInput);
+      const input = createMockTriageInput();
+
+      const result = await integration.triageAndRoute(input);
 
       expect(result.skillRequirements.preferredSkills.length).toBeGreaterThan(0);
     });
 
-    it('should use suggested owner as preference when configured', async () => {
-      vi.mocked(mockTriageService.assess).mockResolvedValueOnce({
-        urgencyLevel: 'normal',
-        routingRecommendation: 'same_day',
-        suggestedOwner: 'preferred-agent',
-        reasoning: 'Previous relationship',
-      } as TriageResult);
+    it('should add escalation skill for high urgency', async () => {
+      vi.mocked(mockTriageService.assess).mockResolvedValue(
+        createMockTriageResult({ urgencyLevel: 'high' })
+      );
 
-      const result = await integration.triageAndRoute(baseInput);
+      const input = createMockTriageInput();
 
-      expect(result.skillRequirements.preferAgentIds).toContain('preferred-agent');
+      const result = await integration.triageAndRoute(input);
+
+      expect(result.skillRequirements.preferredSkills.length).toBeGreaterThan(0);
     });
-  });
 
-  describe('triageOnly', () => {
-    it('should perform triage without routing', async () => {
-      const input: TriageInput = {
-        leadScore: 'WARM',
-        channel: 'whatsapp',
-        messageContent: 'Interested in teeth whitening',
-        hasExistingRelationship: false,
-        procedureInterest: ['cosmetic'],
-      };
+    it('should require advanced proficiency for high priority procedures', async () => {
+      vi.mocked(mockTriageService.assess).mockResolvedValue(
+        createMockTriageResult({ urgencyLevel: 'high_priority' })
+      );
 
-      const result = await integration.triageOnly(input);
-
-      expect(mockTriageService.assess).toHaveBeenCalled();
-      expect(mockRoutingService.route).not.toHaveBeenCalled();
-      expect(result.triageResult).toBeDefined();
-      expect(result.skillRequirements).toBeDefined();
-    });
-  });
-
-  describe('getSlaFromRouting', () => {
-    it('should return correct SLA for next_available_slot', async () => {
-      vi.mocked(mockTriageService.assess).mockResolvedValueOnce({
-        urgencyLevel: 'high_priority',
-        routingRecommendation: 'next_available_slot',
-        suggestedOwner: null,
-        reasoning: 'Emergency',
-      } as TriageResult);
-
-      const result = await integration.triageAndRoute({
-        leadScore: 'HOT',
-        channel: 'voice',
-        messageContent: 'Emergency',
-        hasExistingRelationship: false,
+      const input = createMockTriageInput({
+        procedureInterest: ['implant'],
       });
+
+      const result = await integration.triageAndRoute(input);
+
+      const advancedSkills = result.skillRequirements.requiredSkills.filter(
+        (s) => s.minimumProficiency === 'advanced'
+      );
+      expect(advancedSkills.length).toBeGreaterThan(0);
+    });
+
+    it('should include suggested owner as preferred agent', async () => {
+      vi.mocked(mockTriageService.assess).mockResolvedValue(
+        createMockTriageResult({ suggestedOwner: 'preferred-agent-789' })
+      );
+
+      const input = createMockTriageInput();
+
+      const result = await integration.triageAndRoute(input);
+
+      expect(result.skillRequirements.preferAgentIds).toContain('preferred-agent-789');
+    });
+
+    it('should not include suggested owner when disabled', async () => {
+      const int = new TriageRoutingIntegration({
+        triageService: mockTriageService,
+        routingService: mockRoutingService,
+        config: { useSuggestedOwnerAsPreference: false },
+      });
+
+      vi.mocked(mockTriageService.assess).mockResolvedValue(
+        createMockTriageResult({ suggestedOwner: 'agent-123' })
+      );
+
+      const input = createMockTriageInput();
+
+      const result = await int.triageAndRoute(input);
+
+      expect(result.skillRequirements.preferAgentIds).not.toContain('agent-123');
+    });
+  });
+
+  // ============================================================================
+  // CHANNEL MAPPING TESTS
+  // ============================================================================
+
+  describe('channel mapping', () => {
+    it('should map whatsapp channel correctly', async () => {
+      const input = createMockTriageInput({ channel: 'whatsapp' as LeadChannel });
+
+      await integration.triageAndRoute(input);
+
+      const routeCall = vi.mocked(mockRoutingService.route).mock.calls[0];
+      expect(routeCall?.[1]?.channel).toBe('whatsapp');
+    });
+
+    it('should map voice channel correctly', async () => {
+      const input = createMockTriageInput({ channel: 'voice' as LeadChannel });
+
+      await integration.triageAndRoute(input);
+
+      const routeCall = vi.mocked(mockRoutingService.route).mock.calls[0];
+      expect(routeCall?.[1]?.channel).toBe('voice');
+    });
+
+    it('should map web channel correctly', async () => {
+      const input = createMockTriageInput({ channel: 'web' as LeadChannel });
+
+      await integration.triageAndRoute(input);
+
+      const routeCall = vi.mocked(mockRoutingService.route).mock.calls[0];
+      expect(routeCall?.[1]?.channel).toBe('web');
+    });
+
+    it('should map web_form to web channel', async () => {
+      const input = createMockTriageInput({ channel: 'web_form' as LeadChannel });
+
+      await integration.triageAndRoute(input);
+
+      const routeCall = vi.mocked(mockRoutingService.route).mock.calls[0];
+      expect(routeCall?.[1]?.channel).toBe('web');
+    });
+
+    it('should map hubspot to web channel', async () => {
+      const input = createMockTriageInput({ channel: 'hubspot' as LeadChannel });
+
+      await integration.triageAndRoute(input);
+
+      const routeCall = vi.mocked(mockRoutingService.route).mock.calls[0];
+      expect(routeCall?.[1]?.channel).toBe('web');
+    });
+
+    it('should map facebook to web channel', async () => {
+      const input = createMockTriageInput({ channel: 'facebook' as LeadChannel });
+
+      await integration.triageAndRoute(input);
+
+      const routeCall = vi.mocked(mockRoutingService.route).mock.calls[0];
+      expect(routeCall?.[1]?.channel).toBe('web');
+    });
+
+    it('should map google to web channel', async () => {
+      const input = createMockTriageInput({ channel: 'google' as LeadChannel });
+
+      await integration.triageAndRoute(input);
+
+      const routeCall = vi.mocked(mockRoutingService.route).mock.calls[0];
+      expect(routeCall?.[1]?.channel).toBe('web');
+    });
+
+    it('should map referral to web channel', async () => {
+      const input = createMockTriageInput({ channel: 'referral' as LeadChannel });
+
+      await integration.triageAndRoute(input);
+
+      const routeCall = vi.mocked(mockRoutingService.route).mock.calls[0];
+      expect(routeCall?.[1]?.channel).toBe('web');
+    });
+
+    it('should map manual to web channel', async () => {
+      const input = createMockTriageInput({ channel: 'manual' as LeadChannel });
+
+      await integration.triageAndRoute(input);
+
+      const routeCall = vi.mocked(mockRoutingService.route).mock.calls[0];
+      expect(routeCall?.[1]?.channel).toBe('web');
+    });
+  });
+
+  // ============================================================================
+  // URGENCY MAPPING TESTS
+  // ============================================================================
+
+  describe('urgency mapping', () => {
+    it('should map high_priority to critical', async () => {
+      vi.mocked(mockTriageService.assess).mockResolvedValue(
+        createMockTriageResult({ urgencyLevel: 'high_priority' })
+      );
+
+      const input = createMockTriageInput();
+
+      await integration.triageAndRoute(input);
+
+      const routeCall = vi.mocked(mockRoutingService.route).mock.calls[0];
+      expect(routeCall?.[1]?.urgencyLevel).toBe('critical');
+    });
+
+    it('should map high to high', async () => {
+      vi.mocked(mockTriageService.assess).mockResolvedValue(
+        createMockTriageResult({ urgencyLevel: 'high' })
+      );
+
+      const input = createMockTriageInput();
+
+      await integration.triageAndRoute(input);
+
+      const routeCall = vi.mocked(mockRoutingService.route).mock.calls[0];
+      expect(routeCall?.[1]?.urgencyLevel).toBe('high');
+    });
+
+    it('should map normal to normal', async () => {
+      vi.mocked(mockTriageService.assess).mockResolvedValue(
+        createMockTriageResult({ urgencyLevel: 'normal' })
+      );
+
+      const input = createMockTriageInput();
+
+      await integration.triageAndRoute(input);
+
+      const routeCall = vi.mocked(mockRoutingService.route).mock.calls[0];
+      expect(routeCall?.[1]?.urgencyLevel).toBe('normal');
+    });
+
+    it('should map low to low', async () => {
+      vi.mocked(mockTriageService.assess).mockResolvedValue(
+        createMockTriageResult({ urgencyLevel: 'low' })
+      );
+
+      const input = createMockTriageInput();
+
+      await integration.triageAndRoute(input);
+
+      const routeCall = vi.mocked(mockRoutingService.route).mock.calls[0];
+      expect(routeCall?.[1]?.urgencyLevel).toBe('low');
+    });
+  });
+
+  // ============================================================================
+  // SLA CALCULATION TESTS
+  // ============================================================================
+
+  describe('SLA calculation', () => {
+    it('should set 15 min SLA for next_available_slot', async () => {
+      vi.mocked(mockTriageService.assess).mockResolvedValue(
+        createMockTriageResult({ routingRecommendation: 'next_available_slot' })
+      );
+
+      const input = createMockTriageInput();
+
+      const result = await integration.triageAndRoute(input);
 
       expect(result.skillRequirements.slaDeadlineMinutes).toBe(15);
     });
 
-    it('should return correct SLA for same_day', async () => {
-      vi.mocked(mockTriageService.assess).mockResolvedValueOnce({
-        urgencyLevel: 'normal',
-        routingRecommendation: 'same_day',
-        suggestedOwner: null,
-        reasoning: 'Standard',
-      } as TriageResult);
+    it('should set 60 min SLA for same_day', async () => {
+      vi.mocked(mockTriageService.assess).mockResolvedValue(
+        createMockTriageResult({ routingRecommendation: 'same_day' })
+      );
 
-      const result = await integration.triageAndRoute({
-        leadScore: 'WARM',
-        channel: 'web',
-        messageContent: 'Inquiry',
-        hasExistingRelationship: false,
-      });
+      const input = createMockTriageInput();
+
+      const result = await integration.triageAndRoute(input);
 
       expect(result.skillRequirements.slaDeadlineMinutes).toBe(60);
     });
 
-    it('should return correct SLA for next_business_day', async () => {
-      vi.mocked(mockTriageService.assess).mockResolvedValueOnce({
-        urgencyLevel: 'low',
-        routingRecommendation: 'next_business_day',
-        suggestedOwner: null,
-        reasoning: 'Low priority',
-      } as TriageResult);
+    it('should set 480 min SLA for next_business_day', async () => {
+      vi.mocked(mockTriageService.assess).mockResolvedValue(
+        createMockTriageResult({ routingRecommendation: 'next_business_day' })
+      );
 
-      const result = await integration.triageAndRoute({
-        leadScore: 'COLD',
-        channel: 'web',
-        messageContent: 'General question',
-        hasExistingRelationship: false,
-      });
+      const input = createMockTriageInput();
+
+      const result = await integration.triageAndRoute(input);
 
       expect(result.skillRequirements.slaDeadlineMinutes).toBe(480);
     });
 
-    it('should return correct SLA for nurture_sequence', async () => {
-      vi.mocked(mockTriageService.assess).mockResolvedValueOnce({
-        urgencyLevel: 'low',
-        routingRecommendation: 'nurture_sequence',
-        suggestedOwner: null,
-        reasoning: 'Nurture lead',
-      } as TriageResult);
+    it('should set 1440 min SLA for nurture_sequence', async () => {
+      vi.mocked(mockTriageService.assess).mockResolvedValue(
+        createMockTriageResult({ routingRecommendation: 'nurture_sequence' })
+      );
 
-      const result = await integration.triageAndRoute({
-        leadScore: 'UNQUALIFIED',
-        channel: 'web',
-        messageContent: 'Just browsing',
-        hasExistingRelationship: false,
-      });
+      const input = createMockTriageInput();
+
+      const result = await integration.triageAndRoute(input);
 
       expect(result.skillRequirements.slaDeadlineMinutes).toBe(1440);
     });
+
+    it('should set default 60 min SLA for unknown recommendation', async () => {
+      vi.mocked(mockTriageService.assess).mockResolvedValue(
+        createMockTriageResult({
+          routingRecommendation: 'unknown' as TriageResult['routingRecommendation'],
+        })
+      );
+
+      const input = createMockTriageInput();
+
+      const result = await integration.triageAndRoute(input);
+
+      expect(result.skillRequirements.slaDeadlineMinutes).toBe(60);
+    });
   });
+
+  // ============================================================================
+  // CONFIGURATION MANAGEMENT TESTS
+  // ============================================================================
 
   describe('updateProcedureMapping', () => {
     it('should update procedure skill mapping', () => {
@@ -397,26 +588,54 @@ describe('TriageRoutingIntegration', () => {
     });
   });
 
-  describe('createTriageRoutingIntegration factory', () => {
-    it('should create integration instance', () => {
-      const int = createTriageRoutingIntegration({
-        triageService: mockTriageService,
-        routingService: mockRoutingService,
-      });
+  // ============================================================================
+  // TRIAGE ONLY TESTS
+  // ============================================================================
 
-      expect(int).toBeInstanceOf(TriageRoutingIntegration);
+  describe('triageOnly', () => {
+    it('should perform triage without routing', async () => {
+      const input = createMockTriageInput();
+
+      const result = await integration.triageOnly(input);
+
+      expect(result.triageResult).toBeDefined();
+      expect(result.skillRequirements).toBeDefined();
+      expect(mockTriageService.assess).toHaveBeenCalledWith(input);
+      expect(mockRoutingService.route).not.toHaveBeenCalled();
+    });
+  });
+});
+
+// ============================================================================
+// FACTORY FUNCTION TESTS
+// ============================================================================
+
+describe('createTriageRoutingIntegration', () => {
+  it('should create integration with required options', () => {
+    const mockTriageService = createMockTriageService();
+    const mockRoutingService = createMockRoutingService();
+
+    const integration = createTriageRoutingIntegration({
+      triageService: mockTriageService,
+      routingService: mockRoutingService,
     });
 
-    it('should create integration with custom config', () => {
-      const int = createTriageRoutingIntegration({
-        config: {
-          useSuggestedOwnerAsPreference: false,
-        },
-        triageService: mockTriageService,
-        routingService: mockRoutingService,
-      });
+    expect(integration).toBeInstanceOf(TriageRoutingIntegration);
+  });
 
-      expect(int).toBeInstanceOf(TriageRoutingIntegration);
+  it('should create integration with custom config', () => {
+    const mockTriageService = createMockTriageService();
+    const mockRoutingService = createMockRoutingService();
+
+    const integration = createTriageRoutingIntegration({
+      triageService: mockTriageService,
+      routingService: mockRoutingService,
+      config: {
+        useSuggestedOwnerAsPreference: false,
+      },
     });
+
+    expect(integration).toBeInstanceOf(TriageRoutingIntegration);
+    expect(integration.getConfig().useSuggestedOwnerAsPreference).toBe(false);
   });
 });

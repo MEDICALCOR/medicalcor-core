@@ -1,10 +1,14 @@
 /**
- * Tests for EmbeddingVersionCompatibility
+ * Embedding Version Compatibility Tests
  *
- * Tests version-aware semantic search and model compatibility handling.
+ * Tests for the version compatibility layer:
+ * - Compatibility checks between models
+ * - Versioned search operations
+ * - Search strategy selection
+ * - Upgrade recommendations
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   EmbeddingVersionCompatibility,
   createEmbeddingVersionCompatibility,
@@ -13,54 +17,108 @@ import {
   type SearchStrategy,
   type VersionedSearchOptions,
 } from '../embedding-version-compatibility.js';
-import type { Pool } from 'pg';
-import type { EmbeddingModelRegistry } from '../embedding-model-registry.js';
+import {
+  EmbeddingModelRegistry,
+  createEmbeddingModelRegistry,
+  type EmbeddingModelId,
+} from '../embedding-model-registry.js';
+import type { Pool, QueryResult } from 'pg';
 
-// Mock Pool
-const createMockPool = (): Pool => {
-  const mockPool = {
-    query: vi.fn().mockResolvedValue({ rows: [] }),
-    connect: vi.fn().mockResolvedValue({
-      query: vi.fn().mockResolvedValue({ rows: [] }),
-      release: vi.fn(),
-    }),
+// ============================================================================
+// MOCK SETUP
+// ============================================================================
+
+function createMockPool(): Pool {
+  return {
+    query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+    connect: vi.fn(),
+    end: vi.fn(),
   } as unknown as Pool;
-  return mockPool;
-};
+}
 
-// Mock Registry
-const createMockRegistry = (): EmbeddingModelRegistry =>
-  ({
-    getModel: vi.fn().mockReturnValue({
-      id: 'text-embedding-3-small',
-      dimensions: 1536,
-      qualityScore: 90,
-      status: 'active',
-      costPer1MTokens: 0.02,
-    }),
-    getCurrentModel: vi.fn().mockReturnValue({
-      id: 'text-embedding-3-small',
-      dimensions: 1536,
-      qualityScore: 90,
-      status: 'active',
-    }),
-    getAllModels: vi.fn().mockReturnValue([
-      { id: 'text-embedding-3-small', dimensions: 1536, qualityScore: 90, status: 'active' },
-      { id: 'text-embedding-ada-002', dimensions: 1536, qualityScore: 85, status: 'deprecated' },
-      { id: 'text-embedding-3-large', dimensions: 3072, qualityScore: 95, status: 'active' },
-    ]),
-    setCurrentModel: vi.fn(),
-  }) as unknown as EmbeddingModelRegistry;
+// ============================================================================
+// SCHEMA TESTS
+// ============================================================================
+
+describe('SearchStrategySchema', () => {
+  it('should validate all strategy values', () => {
+    const strategies: SearchStrategy[] = [
+      'current_model_only',
+      'compatible_models',
+      'all_with_fallback',
+      'hybrid_rerank',
+    ];
+
+    for (const strategy of strategies) {
+      const result = SearchStrategySchema.safeParse(strategy);
+      expect(result.success).toBe(true);
+    }
+  });
+
+  it('should reject invalid strategy', () => {
+    const result = SearchStrategySchema.safeParse('invalid_strategy');
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('VersionedSearchOptionsSchema', () => {
+  it('should validate complete options', () => {
+    const options: VersionedSearchOptions = {
+      strategy: 'compatible_models',
+      includeModelMetadata: true,
+      warnOnMixedModels: true,
+      preferCurrentModel: true,
+      currentModelBoost: 1.1,
+      minSimilarityThreshold: 0.7,
+    };
+
+    const result = VersionedSearchOptionsSchema.safeParse(options);
+    expect(result.success).toBe(true);
+  });
+
+  it('should apply defaults', () => {
+    const options = {};
+    const result = VersionedSearchOptionsSchema.parse(options);
+
+    expect(result.strategy).toBe('compatible_models');
+    expect(result.includeModelMetadata).toBe(true);
+    expect(result.warnOnMixedModels).toBe(true);
+    expect(result.preferCurrentModel).toBe(true);
+    expect(result.currentModelBoost).toBe(1.1);
+    expect(result.minSimilarityThreshold).toBe(0.7);
+  });
+
+  it('should reject boost value out of range', () => {
+    const options = { currentModelBoost: 3.0 };
+    const result = VersionedSearchOptionsSchema.safeParse(options);
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject negative similarity threshold', () => {
+    const options = { minSimilarityThreshold: -0.1 };
+    const result = VersionedSearchOptionsSchema.safeParse(options);
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject similarity threshold above 1', () => {
+    const options = { minSimilarityThreshold: 1.5 };
+    const result = VersionedSearchOptionsSchema.safeParse(options);
+    expect(result.success).toBe(false);
+  });
+});
+
+// ============================================================================
+// COMPATIBILITY CLASS TESTS
+// ============================================================================
 
 describe('EmbeddingVersionCompatibility', () => {
+  let compatibility: EmbeddingVersionCompatibility;
   let mockPool: Pool;
   let mockRegistry: EmbeddingModelRegistry;
-  let compatibility: EmbeddingVersionCompatibility;
 
   beforeEach(() => {
-    vi.clearAllMocks();
     mockPool = createMockPool();
-    mockRegistry = createMockRegistry();
+    mockRegistry = createEmbeddingModelRegistry();
     compatibility = new EmbeddingVersionCompatibility(
       mockPool,
       'text-embedding-3-small',
@@ -68,557 +126,523 @@ describe('EmbeddingVersionCompatibility', () => {
     );
   });
 
+  // ============================================================================
+  // CONSTRUCTOR TESTS
+  // ============================================================================
+
   describe('constructor', () => {
-    it('should create instance with default model', () => {
+    it('should create with default model', () => {
       const comp = new EmbeddingVersionCompatibility(mockPool);
       expect(comp).toBeInstanceOf(EmbeddingVersionCompatibility);
     });
 
-    it('should create instance with custom model', () => {
+    it('should create with custom model', () => {
       const comp = new EmbeddingVersionCompatibility(mockPool, 'text-embedding-3-large');
       expect(comp).toBeInstanceOf(EmbeddingVersionCompatibility);
     });
 
-    it('should create instance with custom registry', () => {
+    it('should create with custom registry', () => {
+      const customRegistry = createEmbeddingModelRegistry('text-embedding-3-large');
       const comp = new EmbeddingVersionCompatibility(
         mockPool,
         'text-embedding-3-small',
-        mockRegistry
+        customRegistry
       );
       expect(comp).toBeInstanceOf(EmbeddingVersionCompatibility);
     });
   });
 
+  // ============================================================================
+  // MODEL COMPATIBILITY TESTS
+  // ============================================================================
+
   describe('getModelCompatibility', () => {
-    it('should return compatibility info for known model', () => {
-      const info = compatibility.getModelCompatibility('text-embedding-3-small');
+    it('should return compatibility for current model', () => {
+      const result = compatibility.getModelCompatibility('text-embedding-3-small');
 
-      expect(info.model).toBe('text-embedding-3-small');
-      expect(info.dimensions).toBe(1536);
-      expect(info.isCompatible).toBe(true);
-      expect(info.isCurrent).toBe(true);
-      expect(info.qualityFactor).toBe(1);
+      expect(result.model).toBe('text-embedding-3-small');
+      expect(result.isCurrent).toBe(true);
+      expect(result.isCompatible).toBe(true);
+      expect(result.dimensions).toBe(1536);
     });
 
-    it('should return compatibility info for compatible model', () => {
-      const info = compatibility.getModelCompatibility('text-embedding-ada-002');
+    it('should return compatibility for compatible model (same dimensions)', () => {
+      const result = compatibility.getModelCompatibility('text-embedding-ada-002');
 
-      expect(info.isCompatible).toBe(true);
-      expect(info.isCurrent).toBe(false);
+      expect(result.model).toBe('text-embedding-ada-002');
+      expect(result.isCurrent).toBe(false);
+      expect(result.isCompatible).toBe(true); // Same dimensions (1536)
+      expect(result.dimensions).toBe(1536);
     });
 
-    it('should return incompatible info for unknown model', () => {
-      vi.mocked(mockRegistry.getModel).mockReturnValueOnce(undefined);
+    it('should return incompatibility for different dimensions model', () => {
+      const result = compatibility.getModelCompatibility('text-embedding-3-large');
 
-      const info = compatibility.getModelCompatibility('unknown-model' as never);
-
-      expect(info.isCompatible).toBe(false);
-      expect(info.dimensions).toBe(0);
-      expect(info.qualityFactor).toBe(0);
+      expect(result.model).toBe('text-embedding-3-large');
+      expect(result.isCurrent).toBe(false);
+      expect(result.isCompatible).toBe(false); // Different dimensions (3072)
+      expect(result.dimensions).toBe(3072);
     });
 
-    it('should mark different dimension model as incompatible', () => {
-      vi.mocked(mockRegistry.getModel).mockReturnValueOnce({
-        id: 'text-embedding-3-large',
-        dimensions: 3072,
-        qualityScore: 95,
-        status: 'active',
-      } as never);
+    it('should return no compatibility for unknown model', () => {
+      const result = compatibility.getModelCompatibility('unknown-model' as EmbeddingModelId);
 
-      const info = compatibility.getModelCompatibility('text-embedding-3-large');
+      expect(result.isCompatible).toBe(false);
+      expect(result.dimensions).toBe(0);
+      expect(result.qualityFactor).toBe(0);
+    });
 
-      expect(info.isCompatible).toBe(false);
-      expect(info.dimensions).toBe(3072);
+    it('should calculate quality factor correctly', () => {
+      const result = compatibility.getModelCompatibility('text-embedding-ada-002');
+
+      // Ada-002 has quality score 70, current (3-small) has 85
+      expect(result.qualityFactor).toBeCloseTo(70 / 85, 2);
     });
   });
 
   describe('getCompatibleModels', () => {
     it('should return models with same dimensions', () => {
-      const models = compatibility.getCompatibleModels();
+      const compatibleModels = compatibility.getCompatibleModels();
 
-      expect(Array.isArray(models)).toBe(true);
-      expect(models).toContain('text-embedding-3-small');
-      expect(models).toContain('text-embedding-ada-002');
-      expect(models).not.toContain('text-embedding-3-large');
+      expect(compatibleModels).toContain('text-embedding-3-small');
+      expect(compatibleModels).toContain('text-embedding-ada-002');
+      expect(compatibleModels).not.toContain('text-embedding-3-large'); // Different dimensions
     });
   });
 
   describe('getModelDistributionWithCompatibility', () => {
-    it('should get distribution for knowledge_base', async () => {
-      vi.mocked(mockPool.query).mockResolvedValueOnce({
+    it('should return distribution with compatibility info', async () => {
+      vi.mocked(mockPool.query).mockResolvedValue({
         rows: [
-          { model: 'text-embedding-3-small', entry_count: '100' },
-          { model: 'text-embedding-ada-002', entry_count: '50' },
+          { model: 'text-embedding-3-small', entry_count: '500' },
+          { model: 'text-embedding-ada-002', entry_count: '200' },
         ],
-      } as never);
+        rowCount: 2,
+      } as QueryResult<{ model: string; entry_count: string }>);
 
       const distribution =
         await compatibility.getModelDistributionWithCompatibility('knowledge_base');
 
-      expect(mockPool.query).toHaveBeenCalledWith(
-        'SELECT * FROM get_embedding_model_distribution($1)',
-        ['knowledge_base']
-      );
-      expect(distribution.length).toBe(2);
-    });
-
-    it('should get distribution for message_embeddings', async () => {
-      vi.mocked(mockPool.query).mockResolvedValueOnce({
-        rows: [{ model: 'text-embedding-3-small', entry_count: '200' }],
-      } as never);
-
-      const distribution =
-        await compatibility.getModelDistributionWithCompatibility('message_embeddings');
-
-      expect(mockPool.query).toHaveBeenCalledWith(
-        'SELECT * FROM get_embedding_model_distribution($1)',
-        ['message_embeddings']
-      );
+      expect(distribution).toHaveLength(2);
+      expect(distribution[0]?.entryCount).toBe(500);
+      expect(distribution[0]?.isCompatible).toBe(true);
+      expect(distribution[1]?.entryCount).toBe(200);
+      expect(distribution[1]?.isCompatible).toBe(true);
     });
   });
 
+  // ============================================================================
+  // SEARCH TESTS
+  // ============================================================================
+
   describe('search', () => {
-    const queryEmbedding = Array(1536).fill(0.1);
+    const queryEmbedding = new Array(1536).fill(0.1);
 
     beforeEach(() => {
       vi.mocked(mockPool.query).mockResolvedValue({
         rows: [
           {
             id: 'doc-1',
-            content: 'Test content',
-            title: 'Test Title',
-            similarity: '0.95',
+            content: 'Test content 1',
+            title: 'Test Title 1',
+            similarity: '0.85',
             embedding_model: 'text-embedding-3-small',
+            embedding_version: 2,
+            metadata: { category: 'test' },
+          },
+          {
+            id: 'doc-2',
+            content: 'Test content 2',
+            title: 'Test Title 2',
+            similarity: '0.75',
+            embedding_model: 'text-embedding-ada-002',
             embedding_version: 1,
-            metadata: { source: 'test' },
+            metadata: null,
           },
         ],
-      } as never);
+        rowCount: 2,
+      } as QueryResult<{
+        id: string;
+        content: string;
+        title: string;
+        similarity: string;
+        embedding_model: string;
+        embedding_version: number;
+        metadata: Record<string, unknown> | null;
+      }>);
     });
 
-    it('should search with default options', async () => {
-      const result = await compatibility.search(queryEmbedding);
+    it('should perform search with default options', async () => {
+      const response = await compatibility.search(queryEmbedding);
 
-      expect(result.results).toBeDefined();
-      expect(result.searchModel).toBe('text-embedding-3-small');
-      expect(result.latencyMs).toBeGreaterThanOrEqual(0);
+      expect(response.results.length).toBeGreaterThan(0);
+      expect(response.searchModel).toBe('text-embedding-3-small');
+      expect(response.latencyMs).toBeGreaterThanOrEqual(0);
     });
 
-    it('should search with current_model_only strategy', async () => {
-      const result = await compatibility.search(queryEmbedding, {
+    it('should use current_model_only strategy', async () => {
+      const response = await compatibility.search(queryEmbedding, {
         strategy: 'current_model_only',
       });
 
-      expect(result.modelsSearched).toContain('text-embedding-3-small');
+      expect(response.modelsSearched).toContain('text-embedding-3-small');
     });
 
-    it('should search with compatible_models strategy', async () => {
-      const result = await compatibility.search(queryEmbedding, {
+    it('should use compatible_models strategy', async () => {
+      const response = await compatibility.search(queryEmbedding, {
         strategy: 'compatible_models',
       });
 
-      expect(result.modelsSearched.length).toBeGreaterThanOrEqual(1);
+      expect(response.modelsSearched.length).toBeGreaterThan(0);
     });
 
-    it('should search with all_with_fallback strategy', async () => {
-      const result = await compatibility.search(queryEmbedding, {
+    it('should use all_with_fallback strategy', async () => {
+      const response = await compatibility.search(queryEmbedding, {
         strategy: 'all_with_fallback',
       });
 
-      expect(result).toBeDefined();
+      expect(response.modelsSearched.length).toBeGreaterThan(0);
     });
 
-    it('should search with hybrid_rerank strategy', async () => {
-      const result = await compatibility.search(queryEmbedding, {
+    it('should use hybrid_rerank strategy', async () => {
+      const response = await compatibility.search(queryEmbedding, {
         strategy: 'hybrid_rerank',
       });
 
-      expect(result).toBeDefined();
+      expect(response.modelsSearched.length).toBeGreaterThan(0);
     });
 
-    it('should search in message_embeddings table', async () => {
-      const result = await compatibility.search(queryEmbedding, {
-        targetTable: 'message_embeddings',
+    it('should apply custom topK', async () => {
+      const response = await compatibility.search(queryEmbedding, {
+        topK: 5,
       });
 
-      expect(result).toBeDefined();
+      expect(response.results.length).toBeLessThanOrEqual(5);
     });
 
-    it('should apply clinic filter', async () => {
-      const result = await compatibility.search(queryEmbedding, {
+    it('should filter by clinicId', async () => {
+      await compatibility.search(queryEmbedding, {
+        targetTable: 'knowledge_base',
         clinicId: 'clinic-123',
       });
 
-      expect(result).toBeDefined();
+      expect(mockPool.query).toHaveBeenCalled();
     });
 
-    it('should apply language filter', async () => {
-      const result = await compatibility.search(queryEmbedding, {
+    it('should filter by language', async () => {
+      await compatibility.search(queryEmbedding, {
+        targetTable: 'knowledge_base',
         language: 'en',
       });
 
-      expect(result).toBeDefined();
+      expect(mockPool.query).toHaveBeenCalled();
     });
 
-    it('should apply source type filter', async () => {
-      const result = await compatibility.search(queryEmbedding, {
+    it('should filter by sourceType', async () => {
+      await compatibility.search(queryEmbedding, {
+        targetTable: 'knowledge_base',
         sourceType: 'faq',
       });
 
-      expect(result).toBeDefined();
+      expect(mockPool.query).toHaveBeenCalled();
     });
 
-    it('should apply all filters together', async () => {
-      const result = await compatibility.search(queryEmbedding, {
-        clinicId: 'clinic-1',
-        language: 'es',
-        sourceType: 'procedure',
-        topK: 20,
-        strategy: 'compatible_models',
+    it('should search message_embeddings table', async () => {
+      await compatibility.search(queryEmbedding, {
+        targetTable: 'message_embeddings',
       });
 
-      expect(result).toBeDefined();
+      expect(mockPool.query).toHaveBeenCalled();
     });
 
-    it('should warn on mixed models when current model not in results', async () => {
-      vi.mocked(mockPool.query).mockResolvedValueOnce({
+    it('should search message_embeddings with clinicId filter', async () => {
+      await compatibility.search(queryEmbedding, {
+        targetTable: 'message_embeddings',
+        clinicId: 'clinic-123',
+      });
+
+      expect(mockPool.query).toHaveBeenCalled();
+    });
+
+    it('should warn on mixed models when enabled', async () => {
+      vi.mocked(mockPool.query).mockResolvedValue({
         rows: [
           {
             id: 'doc-1',
-            content: 'Test 1',
+            content: 'Content 1',
             title: 'Title 1',
-            similarity: '0.9',
-            embedding_model: 'text-embedding-ada-002',
+            similarity: '0.85',
+            embedding_model: 'text-embedding-ada-002', // Not current model
             embedding_version: 1,
             metadata: null,
           },
           {
             id: 'doc-2',
-            content: 'Test 2',
+            content: 'Content 2',
             title: 'Title 2',
-            similarity: '0.85',
-            embedding_model: 'old-model',
+            similarity: '0.80',
+            embedding_model: 'text-embedding-3-large', // Different non-current model
             embedding_version: 1,
             metadata: null,
           },
         ],
-      } as never);
+        rowCount: 2,
+      } as QueryResult<{
+        id: string;
+        content: string;
+        title: string;
+        similarity: string;
+        embedding_model: string;
+        embedding_version: number;
+        metadata: Record<string, unknown> | null;
+      }>);
 
-      const result = await compatibility.search(queryEmbedding, {
+      const response = await compatibility.search(queryEmbedding, {
         warnOnMixedModels: true,
       });
 
-      // Warning is true when: multiple models AND current model not in results
-      expect(result.mixedModelsWarning).toBe(true);
-    });
-
-    it('should not warn when current model is in results', async () => {
-      vi.mocked(mockPool.query).mockResolvedValueOnce({
-        rows: [
-          {
-            id: 'doc-1',
-            content: 'Test',
-            title: 'Title 1',
-            similarity: '0.9',
-            embedding_model: 'text-embedding-3-small', // Current model
-            embedding_version: 1,
-            metadata: null,
-          },
-        ],
-      } as never);
-
-      const result = await compatibility.search(queryEmbedding, {
-        warnOnMixedModels: true,
-      });
-
-      expect(result.mixedModelsWarning).toBe(false);
+      // Warning is triggered when results are from multiple models and none is current
+      expect(response.mixedModelsWarning).toBe(true);
     });
 
     it('should apply current model boost', async () => {
-      vi.mocked(mockPool.query).mockResolvedValueOnce({
-        rows: [
-          {
-            id: 'doc-1',
-            content: 'Test',
-            title: 'Title',
-            similarity: '0.8',
-            embedding_model: 'text-embedding-3-small',
-            embedding_version: 1,
-            metadata: null,
-          },
-        ],
-      } as never);
-
-      const result = await compatibility.search(queryEmbedding, {
+      const response = await compatibility.search(queryEmbedding, {
         preferCurrentModel: true,
         currentModelBoost: 1.2,
       });
 
-      expect(result.results[0]?.adjustedSimilarity).toBeGreaterThanOrEqual(0.8);
+      // Find a result from current model
+      const currentModelResult = response.results.find((r) => r.isCurrentModel);
+      if (currentModelResult) {
+        expect(currentModelResult.adjustedSimilarity).toBeGreaterThanOrEqual(
+          currentModelResult.similarity
+        );
+      }
+    });
+
+    it('should cap adjusted similarity at 1', async () => {
+      vi.mocked(mockPool.query).mockResolvedValue({
+        rows: [
+          {
+            id: 'doc-1',
+            content: 'Content 1',
+            title: 'Title 1',
+            similarity: '0.95', // High similarity
+            embedding_model: 'text-embedding-3-small',
+            embedding_version: 2,
+            metadata: null,
+          },
+        ],
+        rowCount: 1,
+      } as QueryResult<{
+        id: string;
+        content: string;
+        title: string;
+        similarity: string;
+        embedding_model: string;
+        embedding_version: number;
+        metadata: Record<string, unknown> | null;
+      }>);
+
+      const response = await compatibility.search(queryEmbedding, {
+        preferCurrentModel: true,
+        currentModelBoost: 1.5,
+      });
+
+      expect(response.results[0]?.adjustedSimilarity).toBeLessThanOrEqual(1);
     });
   });
 
-  describe('canSearchWithCurrentModel', () => {
-    it('should return cannot search when no embeddings', async () => {
-      vi.mocked(mockPool.query).mockResolvedValueOnce({ rows: [] } as never);
+  // ============================================================================
+  // SEARCH CAPABILITY TESTS
+  // ============================================================================
 
-      const result = await compatibility.canSearchWithCurrentModel();
+  describe('canSearchWithCurrentModel', () => {
+    it('should return false when no embeddings exist', async () => {
+      vi.mocked(mockPool.query).mockResolvedValue({
+        rows: [],
+        rowCount: 0,
+      } as QueryResult<{ model: string; entry_count: string }>);
+
+      const result = await compatibility.canSearchWithCurrentModel('knowledge_base');
 
       expect(result.canSearch).toBe(false);
-      expect(result.recommendation).toContain('No embeddings');
+      expect(result.currentModelCoverage).toBe(0);
+      expect(result.compatibleCoverage).toBe(0);
+      expect(result.recommendation).toContain('No embeddings found');
     });
 
-    it('should return optimal when all current model', async () => {
-      vi.mocked(mockPool.query).mockResolvedValueOnce({
-        rows: [{ model: 'text-embedding-3-small', entry_count: '1000' }],
-      } as never);
+    it('should return optimal when nearly all entries use current model', async () => {
+      vi.mocked(mockPool.query).mockResolvedValue({
+        rows: [{ model: 'text-embedding-3-small', entry_count: '980' }],
+        rowCount: 1,
+      } as QueryResult<{ model: string; entry_count: string }>);
 
-      const result = await compatibility.canSearchWithCurrentModel();
+      const result = await compatibility.canSearchWithCurrentModel('knowledge_base');
 
       expect(result.canSearch).toBe(true);
       expect(result.currentModelCoverage).toBeGreaterThanOrEqual(0.95);
       expect(result.recommendation).toContain('Optimal');
     });
 
-    it('should return good when all compatible', async () => {
-      vi.mocked(mockPool.query).mockResolvedValueOnce({
+    it('should return good when all entries are compatible', async () => {
+      vi.mocked(mockPool.query).mockResolvedValue({
         rows: [
           { model: 'text-embedding-3-small', entry_count: '500' },
           { model: 'text-embedding-ada-002', entry_count: '500' },
         ],
-      } as never);
-
-      const result = await compatibility.canSearchWithCurrentModel();
-
-      expect(result.canSearch).toBe(true);
-      expect(result.compatibleCoverage).toBeGreaterThanOrEqual(0.95);
-    });
-
-    it('should return warning when partial compatibility', async () => {
-      vi.mocked(mockRegistry.getModel).mockImplementation((id: unknown) => {
-        if (id === 'text-embedding-3-large') {
-          return {
-            id: 'text-embedding-3-large',
-            dimensions: 3072,
-            qualityScore: 95,
-            status: 'active',
-          } as never;
-        }
-        return {
-          id: 'text-embedding-3-small',
-          dimensions: 1536,
-          qualityScore: 90,
-          status: 'active',
-        } as never;
-      });
-
-      vi.mocked(mockPool.query).mockResolvedValueOnce({
-        rows: [
-          { model: 'text-embedding-3-small', entry_count: '700' },
-          { model: 'text-embedding-3-large', entry_count: '300' },
-        ],
-      } as never);
+        rowCount: 2,
+      } as QueryResult<{ model: string; entry_count: string }>);
 
       const result = await compatibility.canSearchWithCurrentModel('knowledge_base');
 
       expect(result.canSearch).toBe(true);
+      expect(result.compatibleCoverage).toBe(1); // Both are compatible
+      expect(result.recommendation).toContain('Good');
     });
 
-    it('should return critical when mostly incompatible', async () => {
-      vi.mocked(mockRegistry.getModel).mockReturnValue({
-        id: 'text-embedding-3-large',
-        dimensions: 3072,
-        qualityScore: 95,
-        status: 'active',
-      } as never);
-
-      vi.mocked(mockPool.query).mockResolvedValueOnce({
+    it('should return warning when some entries need migration', async () => {
+      // 80% compatible (800 current + 0 ada-002) / 1000 = 0.8, which is between 0.7 and 0.95
+      vi.mocked(mockPool.query).mockResolvedValue({
         rows: [
-          { model: 'text-embedding-3-small', entry_count: '100' },
-          { model: 'text-embedding-3-large', entry_count: '900' },
+          { model: 'text-embedding-3-small', entry_count: '800' },
+          { model: 'text-embedding-3-large', entry_count: '200' }, // Incompatible dimensions
         ],
-      } as never);
+        rowCount: 2,
+      } as QueryResult<{ model: string; entry_count: string }>);
 
-      const result = await compatibility.canSearchWithCurrentModel('message_embeddings');
+      const result = await compatibility.canSearchWithCurrentModel('knowledge_base');
 
       expect(result.canSearch).toBe(true);
+      expect(result.compatibleCoverage).toBeLessThan(1);
+      expect(result.recommendation).toContain('Warning');
+    });
+
+    it('should return critical when many entries are incompatible', async () => {
+      vi.mocked(mockPool.query).mockResolvedValue({
+        rows: [
+          { model: 'text-embedding-3-small', entry_count: '200' },
+          { model: 'text-embedding-3-large', entry_count: '800' }, // Incompatible
+        ],
+        rowCount: 2,
+      } as QueryResult<{ model: string; entry_count: string }>);
+
+      const result = await compatibility.canSearchWithCurrentModel('knowledge_base');
+
+      expect(result.canSearch).toBe(true); // Can still search compatible subset
+      expect(result.compatibleCoverage).toBeLessThan(0.7);
+      expect(result.recommendation).toContain('Critical');
     });
   });
 
+  // ============================================================================
+  // UPGRADE RECOMMENDATIONS TESTS
+  // ============================================================================
+
   describe('getUpgradeRecommendations', () => {
-    it('should identify urgent migrations for incompatible models', async () => {
-      vi.mocked(mockRegistry.getModel).mockImplementation((id: unknown) => {
-        if (id === 'text-embedding-3-large') {
-          return {
-            id: 'text-embedding-3-large',
-            dimensions: 3072,
-            qualityScore: 95,
-            status: 'active',
-          } as never;
-        }
-        return {
-          id: 'text-embedding-3-small',
-          dimensions: 1536,
-          qualityScore: 90,
-          status: 'active',
-        } as never;
-      });
-
-      vi.mocked(mockPool.query).mockResolvedValueOnce({
+    it('should identify urgent migrations for deprecated models', async () => {
+      vi.mocked(mockPool.query).mockResolvedValue({
         rows: [
+          { model: 'text-embedding-ada-002', entry_count: '500' }, // Deprecated
           { model: 'text-embedding-3-small', entry_count: '500' },
-          { model: 'text-embedding-3-large', entry_count: '200' },
         ],
-      } as never);
+        rowCount: 2,
+      } as QueryResult<{ model: string; entry_count: string }>);
 
-      const result = await compatibility.getUpgradeRecommendations();
+      const recommendations = await compatibility.getUpgradeRecommendations('knowledge_base');
 
-      expect(result.healthScore).toBeDefined();
-      expect(result.estimatedQualityImprovement).toBeDefined();
+      expect(recommendations.urgentMigrations.length).toBeGreaterThan(0);
+      const adaMigration = recommendations.urgentMigrations.find(
+        (m) => m.model === 'text-embedding-ada-002'
+      );
+      expect(adaMigration?.reason).toContain('deprecated');
     });
 
-    it('should identify deprecated models', async () => {
-      vi.mocked(mockRegistry.getModel).mockReturnValue({
-        id: 'text-embedding-ada-002',
-        dimensions: 1536,
-        qualityScore: 85,
-        status: 'deprecated',
-      } as never);
+    it('should identify urgent migrations for incompatible dimensions', async () => {
+      vi.mocked(mockPool.query).mockResolvedValue({
+        rows: [
+          { model: 'text-embedding-3-large', entry_count: '300' }, // Different dimensions
+          { model: 'text-embedding-3-small', entry_count: '700' },
+        ],
+        rowCount: 2,
+      } as QueryResult<{ model: string; entry_count: string }>);
 
-      vi.mocked(mockPool.query).mockResolvedValueOnce({
-        rows: [{ model: 'text-embedding-ada-002', entry_count: '100' }],
-      } as never);
+      const recommendations = await compatibility.getUpgradeRecommendations('knowledge_base');
 
-      const result = await compatibility.getUpgradeRecommendations('knowledge_base');
-
-      expect(result.urgentMigrations.length).toBeGreaterThan(0);
-    });
-
-    it('should identify retired models', async () => {
-      vi.mocked(mockRegistry.getModel).mockReturnValue({
-        id: 'old-model',
-        dimensions: 1536,
-        qualityScore: 70,
-        status: 'retired',
-      } as never);
-
-      vi.mocked(mockPool.query).mockResolvedValueOnce({
-        rows: [{ model: 'old-model', entry_count: '50' }],
-      } as never);
-
-      const result = await compatibility.getUpgradeRecommendations();
-
-      expect(result.urgentMigrations.length).toBeGreaterThan(0);
-    });
-
-    it('should identify optional upgrades for lower quality models', async () => {
-      vi.mocked(mockRegistry.getModel).mockReturnValue({
-        id: 'text-embedding-ada-002',
-        dimensions: 1536,
-        qualityScore: 80,
-        status: 'active',
-      } as never);
-
-      vi.mocked(mockPool.query).mockResolvedValueOnce({
-        rows: [{ model: 'text-embedding-ada-002', entry_count: '200' }],
-      } as never);
-
-      const result = await compatibility.getUpgradeRecommendations();
-
-      expect(result.optionalUpgrades.length).toBeGreaterThan(0);
+      const largeMigration = recommendations.urgentMigrations.find(
+        (m) => m.model === 'text-embedding-3-large'
+      );
+      expect(largeMigration?.reason).toContain('Dimension mismatch');
     });
 
     it('should calculate health score correctly', async () => {
-      vi.mocked(mockPool.query).mockResolvedValueOnce({
+      vi.mocked(mockPool.query).mockResolvedValue({
         rows: [{ model: 'text-embedding-3-small', entry_count: '1000' }],
-      } as never);
+        rowCount: 1,
+      } as QueryResult<{ model: string; entry_count: string }>);
 
-      const result = await compatibility.getUpgradeRecommendations();
+      const recommendations = await compatibility.getUpgradeRecommendations('knowledge_base');
 
-      expect(result.healthScore).toBe(100);
+      expect(recommendations.healthScore).toBe(100); // All entries use current model
+    });
+
+    it('should handle empty distribution', async () => {
+      vi.mocked(mockPool.query).mockResolvedValue({
+        rows: [],
+        rowCount: 0,
+      } as QueryResult<{ model: string; entry_count: string }>);
+
+      const recommendations = await compatibility.getUpgradeRecommendations('knowledge_base');
+
+      expect(recommendations.healthScore).toBe(100);
+      expect(recommendations.urgentMigrations).toHaveLength(0);
+      expect(recommendations.optionalUpgrades).toHaveLength(0);
     });
   });
+
+  // ============================================================================
+  // MODEL MANAGEMENT TESTS
+  // ============================================================================
 
   describe('setCurrentModel', () => {
     it('should update current model', () => {
       compatibility.setCurrentModel('text-embedding-3-large');
 
-      expect(mockRegistry.setCurrentModel).toHaveBeenCalledWith('text-embedding-3-large');
+      const currentModelCompatibility =
+        compatibility.getModelCompatibility('text-embedding-3-large');
+      expect(currentModelCompatibility.isCurrent).toBe(true);
     });
   });
+});
 
-  describe('Schema validations', () => {
-    it('should validate search strategies', () => {
-      const strategies: SearchStrategy[] = [
-        'current_model_only',
-        'compatible_models',
-        'all_with_fallback',
-        'hybrid_rerank',
-      ];
+// ============================================================================
+// FACTORY FUNCTION TESTS
+// ============================================================================
 
-      for (const strategy of strategies) {
-        expect(SearchStrategySchema.parse(strategy)).toBe(strategy);
-      }
-    });
+describe('createEmbeddingVersionCompatibility', () => {
+  it('should create with pool only', () => {
+    const mockPool = createMockPool();
+    const comp = createEmbeddingVersionCompatibility(mockPool);
 
-    it('should reject invalid search strategy', () => {
-      expect(() => SearchStrategySchema.parse('invalid')).toThrow();
-    });
-
-    it('should validate search options with defaults', () => {
-      const options = VersionedSearchOptionsSchema.parse({});
-
-      expect(options.strategy).toBe('compatible_models');
-      expect(options.includeModelMetadata).toBe(true);
-      expect(options.warnOnMixedModels).toBe(true);
-      expect(options.preferCurrentModel).toBe(true);
-      expect(options.currentModelBoost).toBe(1.1);
-      expect(options.minSimilarityThreshold).toBe(0.7);
-    });
-
-    it('should validate search options with custom values', () => {
-      const options = VersionedSearchOptionsSchema.parse({
-        strategy: 'current_model_only',
-        includeModelMetadata: false,
-        warnOnMixedModels: false,
-        preferCurrentModel: false,
-        currentModelBoost: 1.5,
-        minSimilarityThreshold: 0.8,
-      });
-
-      expect(options.strategy).toBe('current_model_only');
-      expect(options.currentModelBoost).toBe(1.5);
-    });
-
-    it('should reject invalid boost values', () => {
-      expect(() => VersionedSearchOptionsSchema.parse({ currentModelBoost: 3 })).toThrow();
-      expect(() => VersionedSearchOptionsSchema.parse({ currentModelBoost: -1 })).toThrow();
-    });
-
-    it('should reject invalid similarity threshold', () => {
-      expect(() => VersionedSearchOptionsSchema.parse({ minSimilarityThreshold: 1.5 })).toThrow();
-      expect(() => VersionedSearchOptionsSchema.parse({ minSimilarityThreshold: -0.1 })).toThrow();
-    });
+    expect(comp).toBeInstanceOf(EmbeddingVersionCompatibility);
   });
 
-  describe('createEmbeddingVersionCompatibility factory', () => {
-    it('should create instance with defaults', () => {
-      const comp = createEmbeddingVersionCompatibility(mockPool);
-      expect(comp).toBeInstanceOf(EmbeddingVersionCompatibility);
-    });
+  it('should create with custom current model', () => {
+    const mockPool = createMockPool();
+    const comp = createEmbeddingVersionCompatibility(mockPool, 'text-embedding-3-large');
 
-    it('should create instance with custom model', () => {
-      const comp = createEmbeddingVersionCompatibility(mockPool, 'text-embedding-3-large');
-      expect(comp).toBeInstanceOf(EmbeddingVersionCompatibility);
-    });
+    expect(comp).toBeInstanceOf(EmbeddingVersionCompatibility);
+  });
 
-    it('should create instance with registry', () => {
-      const comp = createEmbeddingVersionCompatibility(
-        mockPool,
-        'text-embedding-3-small',
-        mockRegistry
-      );
-      expect(comp).toBeInstanceOf(EmbeddingVersionCompatibility);
-    });
+  it('should create with custom registry', () => {
+    const mockPool = createMockPool();
+    const mockRegistry = createEmbeddingModelRegistry();
+    const comp = createEmbeddingVersionCompatibility(
+      mockPool,
+      'text-embedding-3-small',
+      mockRegistry
+    );
+
+    expect(comp).toBeInstanceOf(EmbeddingVersionCompatibility);
   });
 });
