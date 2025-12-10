@@ -170,6 +170,7 @@ export const GeoAnomalyConfigSchema = z.object({
   impossibilityFactorThreshold: z.number().default(1.5), // flag if 1.5x faster than max speed
 
   // Time-based settings
+  alertOnUnusualTime: z.boolean().default(false), // disabled by default to avoid flaky behavior
   unusualHoursStart: z.number().min(0).max(23).default(1), // 1 AM
   unusualHoursEnd: z.number().min(0).max(23).default(5), // 5 AM
 
