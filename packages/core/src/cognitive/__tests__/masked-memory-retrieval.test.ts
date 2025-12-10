@@ -1,7 +1,8 @@
 /**
- * Tests for MaskedMemoryRetrievalService
+ * Masked Memory Retrieval Service Tests
  *
- * Ensures PII masking is applied correctly during memory retrieval.
+ * Tests for MaskedMemoryRetrievalService which wraps MemoryRetrievalService
+ * with automatic PII masking based on user role.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -9,50 +10,109 @@ import {
   MaskedMemoryRetrievalService,
   createMaskedMemoryRetrievalService,
 } from '../masked-memory-retrieval.js';
-import type { Pool } from 'pg';
-import type { IEmbeddingService } from '../episode-builder.js';
 import type { MaskingContext } from '../types.js';
 
-// Mock dependencies
-const mockPool = {
-  query: vi.fn().mockResolvedValue({ rows: [] }),
-} as unknown as Pool;
+// Create mock implementations
+const mockQuery = vi.fn();
+const mockQueryPaginated = vi.fn();
+const mockGetSubjectSummary = vi.fn();
+const mockFindSimilarInteractions = vi.fn();
+const mockGetRecentEvents = vi.fn();
+const mockGetEventsByType = vi.fn();
+const mockMaskEvents = vi.fn();
+const mockMaskPaginatedResult = vi.fn();
+const mockMaskSubjectSummary = vi.fn();
 
-const mockEmbeddingService: IEmbeddingService = {
-  embed: vi.fn().mockResolvedValue([0.1, 0.2, 0.3]),
-  embedBatch: vi.fn().mockResolvedValue([[0.1, 0.2, 0.3]]),
-};
+// Mock the dependencies
+vi.mock('../memory-retrieval.js', () => ({
+  MemoryRetrievalService: class {
+    query = mockQuery;
+    queryPaginated = mockQueryPaginated;
+    getSubjectSummary = mockGetSubjectSummary;
+    findSimilarInteractions = mockFindSimilarInteractions;
+    getRecentEvents = mockGetRecentEvents;
+    getEventsByType = mockGetEventsByType;
+  },
+}));
+
+vi.mock('../pii-masking.js', () => ({
+  PiiMaskingService: class {
+    maskEvents = mockMaskEvents;
+    maskPaginatedResult = mockMaskPaginatedResult;
+    maskSubjectSummary = mockMaskSubjectSummary;
+  },
+}));
 
 describe('MaskedMemoryRetrievalService', () => {
   let service: MaskedMemoryRetrievalService;
+  const mockPool = { query: vi.fn() };
+  const mockEmbeddings = {
+    embed: vi.fn().mockResolvedValue({ embedding: new Array(1536).fill(0.1), contentHash: 'test' }),
+    embedBatch: vi.fn().mockResolvedValue([[0.1, 0.2, 0.3]]),
+  };
+
+  const testLeadId = '550e8400-e29b-41d4-a716-446655440000';
+
+  const mockMaskingContext: MaskingContext = {
+    userRole: 'analyst',
+    userId: 'user-123',
+    purpose: 'analysis',
+  };
+
+  const mockEvent = {
+    id: 'event-1',
+    subjectType: 'lead' as const,
+    subjectId: testLeadId,
+    eventType: 'message.received',
+    eventCategory: 'communication',
+    sourceChannel: 'whatsapp',
+    summary: 'Patient John Doe called',
+    keyEntities: [{ type: 'person', value: 'John Doe' }],
+    sentiment: 'positive',
+    occurredAt: new Date('2024-12-01'),
+    processedAt: new Date('2024-12-01'),
+  };
+
+  const mockMaskedEvent = {
+    ...mockEvent,
+    summary: 'Patient [REDACTED] called',
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    service = new MaskedMemoryRetrievalService(mockPool, mockEmbeddingService);
+    service = new MaskedMemoryRetrievalService(mockPool as unknown as never, mockEmbeddings);
   });
 
   describe('constructor', () => {
-    it('should create instance with default config', () => {
-      const svc = new MaskedMemoryRetrievalService(mockPool, mockEmbeddingService);
+    it('should create service with default config', () => {
+      const svc = new MaskedMemoryRetrievalService(mockPool as unknown as never, mockEmbeddings);
       expect(svc).toBeInstanceOf(MaskedMemoryRetrievalService);
     });
 
-    it('should create instance with custom cognitive config', () => {
-      const svc = new MaskedMemoryRetrievalService(mockPool, mockEmbeddingService, {
-        cognitiveConfig: { embeddingDimensions: 1536 },
-      });
-      expect(svc).toBeInstanceOf(MaskedMemoryRetrievalService);
-    });
-
-    it('should create instance with custom masking config', () => {
-      const svc = new MaskedMemoryRetrievalService(mockPool, mockEmbeddingService, {
+    it('should create service with custom config', () => {
+      const svc = new MaskedMemoryRetrievalService(mockPool as unknown as never, mockEmbeddings, {
+        cognitiveConfig: { minSimilarity: 0.9 },
         maskingConfig: { auditLogging: true },
       });
       expect(svc).toBeInstanceOf(MaskedMemoryRetrievalService);
     });
 
+    it('should create service with only cognitive config', () => {
+      const svc = new MaskedMemoryRetrievalService(mockPool as unknown as never, mockEmbeddings, {
+        cognitiveConfig: { defaultQueryLimit: 50 },
+      });
+      expect(svc).toBeInstanceOf(MaskedMemoryRetrievalService);
+    });
+
+    it('should create service with only masking config', () => {
+      const svc = new MaskedMemoryRetrievalService(mockPool as unknown as never, mockEmbeddings, {
+        maskingConfig: { redactionPattern: '***' },
+      });
+      expect(svc).toBeInstanceOf(MaskedMemoryRetrievalService);
+    });
+
     it('should create instance with both configs', () => {
-      const svc = new MaskedMemoryRetrievalService(mockPool, mockEmbeddingService, {
+      const svc = new MaskedMemoryRetrievalService(mockPool as unknown as never, mockEmbeddings, {
         cognitiveConfig: { embeddingDimensions: 1536 },
         maskingConfig: { auditLogging: true },
       });
@@ -61,175 +121,295 @@ describe('MaskedMemoryRetrievalService', () => {
   });
 
   describe('queryWithMasking', () => {
-    const mockContext: MaskingContext = {
-      userRole: 'analyst',
-      userId: 'user-123',
-    };
-
     it('should query and mask events', async () => {
-      const result = await service.queryWithMasking(
-        { subjectId: 'lead-1', semanticQuery: 'appointment' },
-        mockContext
-      );
+      mockQuery.mockResolvedValue([mockEvent]);
+      mockMaskEvents.mockResolvedValue({
+        data: [mockMaskedEvent],
+        auditInfo: { fieldsRedacted: 1, timestamp: new Date(), userRole: 'analyst' },
+      });
 
-      expect(result).toBeDefined();
-      expect(result.data).toBeDefined();
+      const result = await service.queryWithMasking({ subjectId: testLeadId }, mockMaskingContext);
+
+      expect(mockQuery).toHaveBeenCalledWith({ subjectId: testLeadId });
+      expect(mockMaskEvents).toHaveBeenCalledWith([mockEvent], { context: mockMaskingContext });
+      expect(result.data).toEqual([mockMaskedEvent]);
     });
 
-    it('should handle empty query results', async () => {
-      const result = await service.queryWithMasking(
-        { subjectId: 'non-existent', semanticQuery: 'test' },
-        mockContext
-      );
+    it('should handle empty results', async () => {
+      mockQuery.mockResolvedValue([]);
+      mockMaskEvents.mockResolvedValue({
+        data: [],
+        auditInfo: { fieldsRedacted: 0, timestamp: new Date(), userRole: 'analyst' },
+      });
 
-      expect(result).toBeDefined();
+      const result = await service.queryWithMasking({ subjectId: testLeadId }, mockMaskingContext);
+      expect(result.data).toEqual([]);
     });
   });
 
   describe('queryPaginatedWithMasking', () => {
-    const mockContext: MaskingContext = {
-      userRole: 'admin',
-      userId: 'admin-1',
-    };
-
     it('should query paginated and mask results', async () => {
+      const paginatedResult = { items: [mockEvent], hasMore: true, nextCursor: 'cursor-123' };
+      mockQueryPaginated.mockResolvedValue(paginatedResult);
+      mockMaskPaginatedResult.mockResolvedValue({
+        data: { items: [mockMaskedEvent], hasMore: true, nextCursor: 'cursor-123' },
+        auditInfo: { fieldsRedacted: 1, timestamp: new Date(), userRole: 'analyst' },
+      });
+
       const result = await service.queryPaginatedWithMasking(
-        { subjectId: 'patient-1', semanticQuery: 'treatment', page: 1, pageSize: 10 },
-        mockContext
+        { subjectId: testLeadId, pageSize: 10 },
+        mockMaskingContext
       );
 
-      expect(result).toBeDefined();
+      expect(mockQueryPaginated).toHaveBeenCalledWith({ subjectId: testLeadId, pageSize: 10 });
+      expect(mockMaskPaginatedResult).toHaveBeenCalledWith(paginatedResult, {
+        context: mockMaskingContext,
+      });
+      expect(result.data.items).toHaveLength(1);
     });
   });
 
   describe('getSubjectSummaryWithMasking', () => {
-    const mockContext: MaskingContext = {
-      userRole: 'doctor',
-      userId: 'doc-1',
-    };
+    it('should get subject summary and mask it', async () => {
+      const mockSummary = {
+        subjectType: 'lead' as const,
+        subjectId: testLeadId,
+        totalEvents: 10,
+        firstInteraction: new Date('2024-01-01'),
+        lastInteraction: new Date('2024-12-01'),
+        channelBreakdown: { whatsapp: 6 },
+        sentimentTrend: 'improving' as const,
+        sentimentCounts: { positive: 5, neutral: 3, negative: 2 },
+        patterns: [],
+        recentSummary: 'Test summary',
+      };
 
-    it('should get lead summary with masking', async () => {
-      const result = await service.getSubjectSummaryWithMasking('lead', 'lead-123', mockContext);
-      expect(result).toBeDefined();
+      mockGetSubjectSummary.mockResolvedValue(mockSummary);
+      mockMaskSubjectSummary.mockResolvedValue({
+        data: { ...mockSummary, recentSummary: '[REDACTED]' },
+        auditInfo: { fieldsRedacted: 1, timestamp: new Date(), userRole: 'analyst' },
+      });
+
+      const result = await service.getSubjectSummaryWithMasking(
+        'lead',
+        testLeadId,
+        mockMaskingContext
+      );
+
+      expect(mockGetSubjectSummary).toHaveBeenCalledWith('lead', testLeadId);
+      expect(mockMaskSubjectSummary).toHaveBeenCalled();
+      expect(result.data.recentSummary).toBe('[REDACTED]');
     });
 
-    it('should get patient summary with masking', async () => {
-      const result = await service.getSubjectSummaryWithMasking(
-        'patient',
-        'patient-123',
-        mockContext
-      );
-      expect(result).toBeDefined();
+    it('should handle patient subject type', async () => {
+      mockGetSubjectSummary.mockResolvedValue({
+        subjectType: 'patient',
+        subjectId: 'patient-123',
+        totalEvents: 5,
+        firstInteraction: null,
+        lastInteraction: null,
+        channelBreakdown: {},
+        sentimentTrend: 'stable',
+        sentimentCounts: { positive: 0, neutral: 0, negative: 0 },
+        patterns: [],
+        recentSummary: '',
+      });
+      mockMaskSubjectSummary.mockResolvedValue({
+        data: { subjectType: 'patient', subjectId: 'patient-123' },
+        auditInfo: { fieldsRedacted: 0, timestamp: new Date(), userRole: 'analyst' },
+      });
+
+      await service.getSubjectSummaryWithMasking('patient', 'patient-123', mockMaskingContext);
+      expect(mockGetSubjectSummary).toHaveBeenCalledWith('patient', 'patient-123');
     });
 
-    it('should get contact summary with masking', async () => {
-      const result = await service.getSubjectSummaryWithMasking(
-        'contact',
-        'contact-123',
-        mockContext
-      );
-      expect(result).toBeDefined();
+    it('should handle contact subject type', async () => {
+      mockGetSubjectSummary.mockResolvedValue({
+        subjectType: 'contact',
+        subjectId: 'contact-456',
+        totalEvents: 3,
+      });
+      mockMaskSubjectSummary.mockResolvedValue({
+        data: { subjectType: 'contact' },
+        auditInfo: { fieldsRedacted: 0, timestamp: new Date(), userRole: 'analyst' },
+      });
+
+      await service.getSubjectSummaryWithMasking('contact', 'contact-456', mockMaskingContext);
+      expect(mockGetSubjectSummary).toHaveBeenCalledWith('contact', 'contact-456');
     });
   });
 
   describe('findSimilarInteractionsWithMasking', () => {
-    const mockContext: MaskingContext = {
-      userRole: 'analyst',
-      userId: 'user-456',
-    };
+    it('should find similar interactions and mask them', async () => {
+      mockFindSimilarInteractions.mockResolvedValue([mockEvent]);
+      mockMaskEvents.mockResolvedValue({
+        data: [mockMaskedEvent],
+        auditInfo: { fieldsRedacted: 1, timestamp: new Date(), userRole: 'analyst' },
+      });
 
-    it('should find similar interactions with masking', async () => {
       const result = await service.findSimilarInteractionsWithMasking(
-        'dental implant consultation',
+        'dental implants',
         { limit: 5 },
-        mockContext
+        mockMaskingContext
       );
 
-      expect(result).toBeDefined();
+      expect(mockFindSimilarInteractions).toHaveBeenCalledWith('dental implants', { limit: 5 });
+      expect(result.data).toEqual([mockMaskedEvent]);
     });
 
-    it('should find similar interactions with subject filter', async () => {
-      const result = await service.findSimilarInteractionsWithMasking(
-        'follow-up appointment',
-        { subjectId: 'patient-1', subjectType: 'patient', limit: 10, minSimilarity: 0.7 },
-        mockContext
-      );
+    it('should filter by subjectId', async () => {
+      mockFindSimilarInteractions.mockResolvedValue([]);
+      mockMaskEvents.mockResolvedValue({ data: [], auditInfo: {} });
 
-      expect(result).toBeDefined();
+      await service.findSimilarInteractionsWithMasking(
+        'test',
+        { subjectId: testLeadId },
+        mockMaskingContext
+      );
+      expect(mockFindSimilarInteractions).toHaveBeenCalledWith('test', { subjectId: testLeadId });
+    });
+
+    it('should filter by subjectType', async () => {
+      mockFindSimilarInteractions.mockResolvedValue([]);
+      mockMaskEvents.mockResolvedValue({ data: [], auditInfo: {} });
+
+      await service.findSimilarInteractionsWithMasking(
+        'test',
+        { subjectType: 'patient' },
+        mockMaskingContext
+      );
+      expect(mockFindSimilarInteractions).toHaveBeenCalledWith('test', { subjectType: 'patient' });
+    });
+
+    it('should use minSimilarity option', async () => {
+      mockFindSimilarInteractions.mockResolvedValue([]);
+      mockMaskEvents.mockResolvedValue({ data: [], auditInfo: {} });
+
+      await service.findSimilarInteractionsWithMasking(
+        'test',
+        { minSimilarity: 0.9 },
+        mockMaskingContext
+      );
+      expect(mockFindSimilarInteractions).toHaveBeenCalledWith('test', { minSimilarity: 0.9 });
     });
 
     it('should handle various subject types', async () => {
+      mockFindSimilarInteractions.mockResolvedValue([]);
+      mockMaskEvents.mockResolvedValue({ data: [], auditInfo: {} });
+
       for (const subjectType of ['lead', 'patient', 'contact'] as const) {
-        const result = await service.findSimilarInteractionsWithMasking(
+        await service.findSimilarInteractionsWithMasking(
           'query text',
           { subjectType },
-          mockContext
+          mockMaskingContext
         );
-        expect(result).toBeDefined();
+        expect(mockFindSimilarInteractions).toHaveBeenCalledWith('query text', { subjectType });
       }
     });
   });
 
   describe('getRecentEventsWithMasking', () => {
-    const mockContext: MaskingContext = {
-      userRole: 'nurse',
-      userId: 'nurse-1',
-    };
+    it('should get recent events and mask them', async () => {
+      mockGetRecentEvents.mockResolvedValue([mockEvent]);
+      mockMaskEvents.mockResolvedValue({
+        data: [mockMaskedEvent],
+        auditInfo: { fieldsRedacted: 1, timestamp: new Date(), userRole: 'analyst' },
+      });
 
-    it('should get recent events with default parameters', async () => {
-      const result = await service.getRecentEventsWithMasking('lead', 'lead-1', mockContext);
-      expect(result).toBeDefined();
-    });
-
-    it('should get recent events with custom days', async () => {
       const result = await service.getRecentEventsWithMasking(
-        'patient',
-        'patient-1',
-        mockContext,
-        7
-      );
-      expect(result).toBeDefined();
-    });
-
-    it('should get recent events with custom limit', async () => {
-      const result = await service.getRecentEventsWithMasking(
-        'contact',
-        'contact-1',
-        mockContext,
+        'lead',
+        testLeadId,
+        mockMaskingContext,
         30,
-        50
+        20
       );
-      expect(result).toBeDefined();
+
+      expect(mockGetRecentEvents).toHaveBeenCalledWith('lead', testLeadId, 30, 20);
+      expect(result.data).toEqual([mockMaskedEvent]);
+    });
+
+    it('should use default days and limit', async () => {
+      mockGetRecentEvents.mockResolvedValue([]);
+      mockMaskEvents.mockResolvedValue({ data: [], auditInfo: {} });
+
+      await service.getRecentEventsWithMasking('lead', testLeadId, mockMaskingContext);
+      expect(mockGetRecentEvents).toHaveBeenCalledWith('lead', testLeadId, 30, 20);
+    });
+
+    it('should work with patient subject type', async () => {
+      mockGetRecentEvents.mockResolvedValue([]);
+      mockMaskEvents.mockResolvedValue({ data: [], auditInfo: {} });
+
+      await service.getRecentEventsWithMasking('patient', 'patient-123', mockMaskingContext, 7, 10);
+      expect(mockGetRecentEvents).toHaveBeenCalledWith('patient', 'patient-123', 7, 10);
+    });
+
+    it('should work with contact subject type', async () => {
+      mockGetRecentEvents.mockResolvedValue([]);
+      mockMaskEvents.mockResolvedValue({ data: [], auditInfo: {} });
+
+      await service.getRecentEventsWithMasking(
+        'contact',
+        'contact-456',
+        mockMaskingContext,
+        14,
+        15
+      );
+      expect(mockGetRecentEvents).toHaveBeenCalledWith('contact', 'contact-456', 14, 15);
     });
   });
 
   describe('getEventsByTypeWithMasking', () => {
-    const mockContext: MaskingContext = {
-      userRole: 'admin',
-      userId: 'admin-2',
-    };
+    it('should get events by type and mask them', async () => {
+      mockGetEventsByType.mockResolvedValue([mockEvent]);
+      mockMaskEvents.mockResolvedValue({
+        data: [mockMaskedEvent],
+        auditInfo: { fieldsRedacted: 1, timestamp: new Date(), userRole: 'analyst' },
+      });
 
-    it('should get events by type with default limit', async () => {
-      const result = await service.getEventsByTypeWithMasking(
-        'patient',
-        'patient-123',
-        ['appointment', 'consultation'],
-        mockContext
-      );
-
-      expect(result).toBeDefined();
-    });
-
-    it('should get events by type with custom limit', async () => {
       const result = await service.getEventsByTypeWithMasking(
         'lead',
-        'lead-123',
-        ['inbound_call', 'outbound_call'],
-        mockContext,
-        50
+        testLeadId,
+        ['message.received'],
+        mockMaskingContext,
+        15
       );
 
-      expect(result).toBeDefined();
+      expect(mockGetEventsByType).toHaveBeenCalledWith(
+        'lead',
+        testLeadId,
+        ['message.received'],
+        15
+      );
+      expect(result.data).toEqual([mockMaskedEvent]);
+    });
+
+    it('should use default limit', async () => {
+      mockGetEventsByType.mockResolvedValue([]);
+      mockMaskEvents.mockResolvedValue({ data: [], auditInfo: {} });
+
+      await service.getEventsByTypeWithMasking(
+        'lead',
+        testLeadId,
+        ['call.completed'],
+        mockMaskingContext
+      );
+      expect(mockGetEventsByType).toHaveBeenCalledWith('lead', testLeadId, ['call.completed'], 20);
+    });
+
+    it('should handle multiple event types', async () => {
+      mockGetEventsByType.mockResolvedValue([]);
+      mockMaskEvents.mockResolvedValue({ data: [], auditInfo: {} });
+
+      const eventTypes = ['message.received', 'message.sent', 'call.completed'];
+      await service.getEventsByTypeWithMasking(
+        'patient',
+        'patient-123',
+        eventTypes,
+        mockMaskingContext,
+        50
+      );
+      expect(mockGetEventsByType).toHaveBeenCalledWith('patient', 'patient-123', eventTypes, 50);
     });
   });
 
@@ -237,28 +417,77 @@ describe('MaskedMemoryRetrievalService', () => {
     it('should return the underlying retrieval service', () => {
       const unmaskedService = service.getUnmaskedService();
       expect(unmaskedService).toBeDefined();
+      expect(typeof unmaskedService.query).toBe('function');
     });
   });
 
   describe('getMaskingService', () => {
     it('should return the masking service', () => {
-      const maskingService = service.getMaskingService();
-      expect(maskingService).toBeDefined();
+      const maskingSvc = service.getMaskingService();
+      expect(maskingSvc).toBeDefined();
+      expect(typeof maskingSvc.maskEvents).toBe('function');
     });
   });
 
   describe('createMaskedMemoryRetrievalService factory', () => {
-    it('should create a service instance', () => {
-      const svc = createMaskedMemoryRetrievalService(mockPool, mockEmbeddingService);
+    it('should create service with default config', () => {
+      const svc = createMaskedMemoryRetrievalService(mockPool as unknown as never, mockEmbeddings);
       expect(svc).toBeInstanceOf(MaskedMemoryRetrievalService);
     });
 
-    it('should create a service with config', () => {
-      const svc = createMaskedMemoryRetrievalService(mockPool, mockEmbeddingService, {
-        cognitiveConfig: { embeddingDimensions: 3072 },
-        maskingConfig: { auditLogging: false },
+    it('should create service with custom config', () => {
+      const svc = createMaskedMemoryRetrievalService(mockPool as unknown as never, mockEmbeddings, {
+        cognitiveConfig: { minSimilarity: 0.85 },
+        maskingConfig: { auditLogging: true },
       });
       expect(svc).toBeInstanceOf(MaskedMemoryRetrievalService);
+    });
+
+    it('should create service with empty config', () => {
+      const svc = createMaskedMemoryRetrievalService(
+        mockPool as unknown as never,
+        mockEmbeddings,
+        {}
+      );
+      expect(svc).toBeInstanceOf(MaskedMemoryRetrievalService);
+    });
+  });
+
+  describe('different user roles', () => {
+    it('should handle admin context', async () => {
+      mockQuery.mockResolvedValue([mockEvent]);
+      mockMaskEvents.mockResolvedValue({
+        data: [mockEvent], // Admin sees unmasked
+        auditInfo: { fieldsRedacted: 0, timestamp: new Date(), userRole: 'admin' },
+      });
+
+      const adminContext: MaskingContext = {
+        userRole: 'admin',
+        userId: 'admin-user',
+        purpose: 'administration',
+      };
+
+      const result = await service.queryWithMasking({ subjectId: testLeadId }, adminContext);
+      expect(mockMaskEvents).toHaveBeenCalledWith([mockEvent], { context: adminContext });
+      expect(result.auditInfo.userRole).toBe('admin');
+    });
+
+    it('should handle support context', async () => {
+      mockQuery.mockResolvedValue([mockEvent]);
+      mockMaskEvents.mockResolvedValue({
+        data: [mockMaskedEvent],
+        auditInfo: { fieldsRedacted: 1, timestamp: new Date(), userRole: 'support' },
+      });
+
+      const supportContext: MaskingContext = {
+        userRole: 'support',
+        userId: 'support-user',
+        purpose: 'customer-support',
+      };
+
+      const result = await service.queryWithMasking({ subjectId: testLeadId }, supportContext);
+      expect(mockMaskEvents).toHaveBeenCalledWith([mockEvent], { context: supportContext });
+      expect(result.auditInfo.userRole).toBe('support');
     });
   });
 });
