@@ -1,6 +1,11 @@
 /**
- * NextAuth.js Configuration
+ * NextAuth.js Configuration (Full - Node.js Runtime)
  * Provides authentication for the MedicalCor Cortex web application
+ *
+ * This is the FULL auth config with Credentials provider and database adapter.
+ * Use this in API routes and server components where Node.js runtime is available.
+ *
+ * For Edge Runtime (middleware), use config.edge.ts instead.
  *
  * SECURITY NOTE: Authentication is configured via environment variables
  * or database (when DATABASE_URL is set). No hardcoded credentials allowed.
@@ -10,18 +15,13 @@ import type { NextAuthConfig } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { z } from 'zod';
 import { validateCredentials, logAuthEvent } from './database-adapter';
+import { authConfigEdge } from './config.edge';
 
-// User roles for RBAC
-export type UserRole = 'admin' | 'doctor' | 'receptionist' | 'staff';
+// Re-export types from Edge config for backwards compatibility
+export type { UserRole, AuthUser } from './config.edge';
 
-// Extended user type with role
-export interface AuthUser {
-  id: string;
-  email: string;
-  name: string;
-  role: UserRole;
-  clinicId?: string;
-}
+// Import AuthUser as a type for use in this file
+import type { AuthUser, UserRole } from './config.edge';
 
 // Credentials validation schema
 const CredentialsSchema = z.object({
@@ -89,98 +89,14 @@ function convertToAuthUser(userResult: unknown): AuthUser | null {
   };
 }
 
-// Auth configuration uses database if DATABASE_URL is set, otherwise environment variables
+// Auth configuration extends Edge config with Credentials provider
+// Database authentication is used if DATABASE_URL is set, otherwise environment variables
 
 export const authConfig: NextAuthConfig = {
-  pages: {
-    signIn: '/login',
-    error: '/login',
-  },
+  // Spread all settings from Edge config (pages, callbacks, session, cookies, trustHost)
+  ...authConfigEdge,
 
-  callbacks: {
-    /**
-     * Authorization callback - determines access to routes
-     * Uses explicit public paths allowlist for Platinum security standard
-     */
-    authorized({ auth, request: { nextUrl } }) {
-      const isLoggedIn = !!auth?.user;
-
-      // Explicit public paths allowlist (Platinum Standard: fail-closed with clear allowlist)
-      const publicPaths = [
-        '/login',
-        '/offline',
-        '/api/auth',
-        '/privacy',
-        '/terms',
-        '/health',
-        '/robots.txt',
-        '/sitemap.xml',
-        '/favicon.ico',
-        '/campanii', // Campaign landing pages (public)
-      ];
-
-      const pathname = nextUrl.pathname;
-      const isPublicPath = publicPaths.some(
-        (path) => pathname === path || pathname.startsWith(`${path}/`)
-      );
-
-      // Allow access to all public paths
-      if (isPublicPath) {
-        return true;
-      }
-
-      // All non-public paths require authentication (fail-closed)
-      if (!isLoggedIn) {
-        return false; // Redirect to login
-      }
-
-      // Logged-in users on login page should redirect to dashboard
-      if (pathname === '/login') {
-        return Response.redirect(new URL('/', nextUrl));
-      }
-
-      return true;
-    },
-
-    /**
-     * JWT callback - extends token with user data
-     *
-     * NOTE: The `user` check is required at runtime despite TypeScript types.
-     * NextAuth only passes `user` on initial sign-in (when JWT is created),
-     * not on subsequent token refreshes. The types don't reflect this behavior.
-     */
-    jwt({ token, user }) {
-      // Runtime guard: user is only defined during sign-in, not on subsequent requests
-      // Type assertion to handle NextAuth's runtime behavior where user may be undefined
-      const authUser = user as AuthUser | undefined;
-      if (authUser) {
-        token.id = authUser.id;
-        token.role = authUser.role;
-        token.clinicId = authUser.clinicId;
-      }
-      return token;
-    },
-
-    /**
-     * Session callback - extends session with token data
-     *
-     * NOTE: The `session.user && token.sub` check is a defensive guard.
-     * While types suggest these are always present, we verify at runtime
-     * for additional safety in a medical/HIPAA context.
-     */
-    session({ session, token }) {
-      // Runtime guard: defensive check for edge cases where session.user may be undefined
-      // Type assertions to handle potential undefined values at runtime (HIPAA safety)
-      const sessionUser = session.user as typeof session.user | undefined;
-      if (sessionUser && token.sub) {
-        sessionUser.id = token.id as string;
-        sessionUser.role = token.role as UserRole;
-        sessionUser.clinicId = token.clinicId as string | undefined;
-      }
-      return session;
-    },
-  },
-
+  // Add Credentials provider (requires Node.js runtime - not available in Edge)
   providers: [
     Credentials({
       name: 'credentials',
@@ -236,49 +152,5 @@ export const authConfig: NextAuthConfig = {
       },
     }),
   ],
-
-  session: {
-    strategy: 'jwt',
-    maxAge: 8 * 60 * 60, // 8 hours
-  },
-
-  /**
-   * SECURITY FIX: Cookie configuration for session security
-   * These flags protect against XSS, CSRF, and session hijacking
-   */
-  cookies: {
-    sessionToken: {
-      name: `__Secure-next-auth.session-token`,
-      options: {
-        httpOnly: true, // Prevents JavaScript access (XSS protection)
-        sameSite: 'lax', // CSRF protection while allowing OAuth redirects
-        path: '/',
-        secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-      },
-    },
-    callbackUrl: {
-      name: `__Secure-next-auth.callback-url`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-      },
-    },
-    csrfToken: {
-      name: `__Host-next-auth.csrf-token`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-      },
-    },
-  },
-
-  /**
-   * SECURITY FIX: Only trust host header in production if behind a trusted proxy
-   * This prevents host header injection attacks
-   */
-  trustHost: process.env.NODE_ENV === 'production' ? !!process.env.TRUSTED_PROXY : true,
+  // session, cookies, and trustHost are inherited from authConfigEdge
 };
