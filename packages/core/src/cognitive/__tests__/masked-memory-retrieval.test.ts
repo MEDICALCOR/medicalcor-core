@@ -5,7 +5,7 @@
  * with automatic PII masking based on user role.
  */
 
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   MaskedMemoryRetrievalService,
   createMaskedMemoryRetrievalService,
@@ -48,6 +48,7 @@ describe('MaskedMemoryRetrievalService', () => {
   const mockPool = { query: vi.fn() };
   const mockEmbeddings = {
     embed: vi.fn().mockResolvedValue({ embedding: new Array(1536).fill(0.1), contentHash: 'test' }),
+    embedBatch: vi.fn().mockResolvedValue([[0.1, 0.2, 0.3]]),
   };
 
   const testLeadId = '550e8400-e29b-41d4-a716-446655440000';
@@ -79,17 +80,17 @@ describe('MaskedMemoryRetrievalService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    service = new MaskedMemoryRetrievalService(mockPool as any, mockEmbeddings);
+    service = new MaskedMemoryRetrievalService(mockPool as unknown as never, mockEmbeddings);
   });
 
   describe('constructor', () => {
     it('should create service with default config', () => {
-      const svc = new MaskedMemoryRetrievalService(mockPool as any, mockEmbeddings);
+      const svc = new MaskedMemoryRetrievalService(mockPool as unknown as never, mockEmbeddings);
       expect(svc).toBeInstanceOf(MaskedMemoryRetrievalService);
     });
 
     it('should create service with custom config', () => {
-      const svc = new MaskedMemoryRetrievalService(mockPool as any, mockEmbeddings, {
+      const svc = new MaskedMemoryRetrievalService(mockPool as unknown as never, mockEmbeddings, {
         cognitiveConfig: { minSimilarity: 0.9 },
         maskingConfig: { auditLogging: true },
       });
@@ -97,15 +98,23 @@ describe('MaskedMemoryRetrievalService', () => {
     });
 
     it('should create service with only cognitive config', () => {
-      const svc = new MaskedMemoryRetrievalService(mockPool as any, mockEmbeddings, {
+      const svc = new MaskedMemoryRetrievalService(mockPool as unknown as never, mockEmbeddings, {
         cognitiveConfig: { defaultQueryLimit: 50 },
       });
       expect(svc).toBeInstanceOf(MaskedMemoryRetrievalService);
     });
 
     it('should create service with only masking config', () => {
-      const svc = new MaskedMemoryRetrievalService(mockPool as any, mockEmbeddings, {
+      const svc = new MaskedMemoryRetrievalService(mockPool as unknown as never, mockEmbeddings, {
         maskingConfig: { redactionPattern: '***' },
+      });
+      expect(svc).toBeInstanceOf(MaskedMemoryRetrievalService);
+    });
+
+    it('should create instance with both configs', () => {
+      const svc = new MaskedMemoryRetrievalService(mockPool as unknown as never, mockEmbeddings, {
+        cognitiveConfig: { embeddingDimensions: 1536 },
+        maskingConfig: { auditLogging: true },
       });
       expect(svc).toBeInstanceOf(MaskedMemoryRetrievalService);
     });
@@ -283,6 +292,20 @@ describe('MaskedMemoryRetrievalService', () => {
       );
       expect(mockFindSimilarInteractions).toHaveBeenCalledWith('test', { minSimilarity: 0.9 });
     });
+
+    it('should handle various subject types', async () => {
+      mockFindSimilarInteractions.mockResolvedValue([]);
+      mockMaskEvents.mockResolvedValue({ data: [], auditInfo: {} });
+
+      for (const subjectType of ['lead', 'patient', 'contact'] as const) {
+        await service.findSimilarInteractionsWithMasking(
+          'query text',
+          { subjectType },
+          mockMaskingContext
+        );
+        expect(mockFindSimilarInteractions).toHaveBeenCalledWith('query text', { subjectType });
+      }
+    });
   });
 
   describe('getRecentEventsWithMasking', () => {
@@ -408,12 +431,12 @@ describe('MaskedMemoryRetrievalService', () => {
 
   describe('createMaskedMemoryRetrievalService factory', () => {
     it('should create service with default config', () => {
-      const svc = createMaskedMemoryRetrievalService(mockPool as any, mockEmbeddings);
+      const svc = createMaskedMemoryRetrievalService(mockPool as unknown as never, mockEmbeddings);
       expect(svc).toBeInstanceOf(MaskedMemoryRetrievalService);
     });
 
     it('should create service with custom config', () => {
-      const svc = createMaskedMemoryRetrievalService(mockPool as any, mockEmbeddings, {
+      const svc = createMaskedMemoryRetrievalService(mockPool as unknown as never, mockEmbeddings, {
         cognitiveConfig: { minSimilarity: 0.85 },
         maskingConfig: { auditLogging: true },
       });
@@ -421,7 +444,11 @@ describe('MaskedMemoryRetrievalService', () => {
     });
 
     it('should create service with empty config', () => {
-      const svc = createMaskedMemoryRetrievalService(mockPool as any, mockEmbeddings, {});
+      const svc = createMaskedMemoryRetrievalService(
+        mockPool as unknown as never,
+        mockEmbeddings,
+        {}
+      );
       expect(svc).toBeInstanceOf(MaskedMemoryRetrievalService);
     });
   });

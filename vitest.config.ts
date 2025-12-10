@@ -34,6 +34,10 @@ export default defineConfig({
         '**/mocks/**',
         // Exclude files that are hard to test (infra/external deps)
         '**/index.ts',
+        // Exclude domain repository interfaces (pure TypeScript types, no executable code)
+        'packages/domain/**/repositories/*.ts',
+        // Exclude consent repository interface
+        '**/consent-repository.ts',
         '**/env.ts',
         '**/telemetry.ts',
       ],
