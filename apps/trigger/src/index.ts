@@ -131,6 +131,14 @@ export {
   dailyStaleEmbeddingCleanup,
 } from './jobs/embedding-refresh.js';
 export { queueSLAMonitor, dailySLAReport } from './jobs/queue-sla-monitor.js';
+export {
+  scheduledKeyRotation,
+  manualKeyRotation,
+  checkKeyRotationStatus,
+  ManualKeyRotationPayloadSchema,
+  type ManualKeyRotationPayload,
+  type KeyRotationResult,
+} from './jobs/key-rotation.js';
 
 // Breach Notification Workflow (GDPR Compliance)
 export {
