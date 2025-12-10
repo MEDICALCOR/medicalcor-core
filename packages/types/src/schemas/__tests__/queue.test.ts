@@ -63,6 +63,18 @@ const severityArbitrary = fc.constantFrom('warning', 'critical');
 
 const statusArbitrary = fc.constantFrom('pending', 'processing', 'completed', 'failed', 'skipped');
 
+/**
+ * Constrained date arbitrary to avoid edge cases with extreme dates.
+ * Uses a realistic date range (2020-2030) to ensure valid Date objects
+ * that won't cause NaN issues in calculations.
+ */
+const validDateArbitrary = fc
+  .integer({
+    min: new Date('2020-01-01').getTime(),
+    max: new Date('2030-12-31').getTime(),
+  })
+  .map((ts) => new Date(ts));
+
 const validQueueEventPayloadArbitrary = fc.record({
   id: uuidArbitrary,
   queueSid: fc.option(fc.string({ minLength: 1, maxLength: 50 }), { nil: undefined }),
@@ -72,8 +84,9 @@ const validQueueEventPayloadArbitrary = fc.record({
   // Use noNaN to exclude NaN values which fail Zod number validation
   thresholdValue: fc.option(fc.double({ min: 0, max: 10000, noNaN: true }), { nil: undefined }),
   currentValue: fc.option(fc.double({ min: 0, max: 10000, noNaN: true }), { nil: undefined }),
-  detectedAt: fc.option(fc.date(), { nil: undefined }),
-  resolvedAt: fc.option(fc.date(), { nil: undefined }),
+  // Use constrained date range to avoid edge cases with invalid dates
+  detectedAt: fc.option(validDateArbitrary, { nil: undefined }),
+  resolvedAt: fc.option(validDateArbitrary, { nil: undefined }),
   durationSeconds: fc.option(fc.nat({ max: 86400 }), { nil: undefined }),
   alertSent: fc.boolean(),
   escalated: fc.boolean(),
@@ -715,14 +728,7 @@ describe('calculateBreachDuration', () => {
   });
 
   it('should always return non-negative or undefined via property testing', () => {
-    // Use constrained date range to avoid edge cases with invalid dates
-    const validDateArbitrary = fc
-      .integer({
-        min: new Date('2020-01-01').getTime(),
-        max: new Date('2030-12-31').getTime(),
-      })
-      .map((ts) => new Date(ts));
-
+    // Uses shared validDateArbitrary with constrained date range (2020-2030)
     fc.assert(
       fc.property(
         fc.option(validDateArbitrary, { nil: undefined }),
