@@ -1618,7 +1618,7 @@ describe('Late Cancellation Detection', () => {
     vi.setSystemTime(now);
 
     // Create an appointment scheduled for tomorrow at noon (26 hours from now)
-    const appointment = await mockService.bookAppointment({
+    await mockService.bookAppointment({
       slotId: 'slot-tomorrow',
       patientPhone: '+40712345678',
       procedureType: 'implant',
