@@ -33,9 +33,18 @@ export const EmailSchema = z
 export const UUIDSchema = z.string().uuid('Invalid UUID format').describe('UUID v4 identifier');
 
 /**
- * ISO 8601 timestamp
+ * ISO 8601 timestamp with explicit Invalid Date rejection
+ *
+ * Uses z.coerce.date() for flexible input parsing, with an additional
+ * refinement to explicitly reject Invalid Date values (NaN timestamps).
+ * This ensures production safety against malformed date inputs.
  */
-export const TimestampSchema = z.coerce.date().describe('ISO 8601 timestamp');
+export const TimestampSchema = z.coerce
+  .date()
+  .refine((date) => !isNaN(date.getTime()), {
+    message: 'Invalid date value',
+  })
+  .describe('ISO 8601 timestamp');
 
 /**
  * Correlation ID for request tracing
