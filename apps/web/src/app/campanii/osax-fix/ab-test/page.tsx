@@ -31,7 +31,7 @@ const RevolutionaryLandingPage = dynamic(() => import('../revolutionary/page'), 
 // LOADING STATE
 // ============================================================================
 
-function LoadingState({ variant }: { variant: string }) {
+function LoadingState({ variant: _variant }: { variant: string }) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 flex items-center justify-center">
       <div className="text-center">
@@ -95,7 +95,13 @@ function DebugPanel({ variantId, testId }: { variantId: string | null; testId: s
 // ============================================================================
 
 export default function ABTestLandingPage() {
-  const { variant, variantId, isControl, trackConversion, loading } = useABTest('landing_page_v3');
+  const {
+    variant: _variant,
+    variantId,
+    isControl,
+    trackConversion,
+    loading,
+  } = useABTest('landing_page_v3');
 
   // Expose trackConversion globally for use by child components
   useEffect(() => {

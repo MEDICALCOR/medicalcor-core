@@ -15,11 +15,9 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import {
-  BarChart3,
   TrendingUp,
   Users,
   Target,
-  DollarSign,
   RefreshCw,
   Award,
   AlertTriangle,
