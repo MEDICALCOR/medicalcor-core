@@ -11,8 +11,15 @@
  */
 
 // Agent Performance Repository Interface (Port)
+// @deprecated Use `IAgentPerformanceRepositoryPort` from `@medicalcor/application` instead.
 export {
+  /**
+   * @deprecated Use `IAgentPerformanceRepositoryPort` from `@medicalcor/application` instead.
+   */
   type IAgentPerformanceRepository,
+  /**
+   * @deprecated Use `GetAgentsOptions` from `@medicalcor/application` instead.
+   */
   type GetAgentsOptions,
 } from './agent-performance-repository.js';
 

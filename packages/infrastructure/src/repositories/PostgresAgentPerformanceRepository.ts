@@ -6,8 +6,8 @@
  *
  * ## Hexagonal Architecture
  *
- * This is an **ADAPTER** - it implements the IAgentPerformanceRepository port
- * defined in the domain layer. The domain depends only on the interface.
+ * This is an **ADAPTER** - it implements the IAgentPerformanceRepositoryPort
+ * defined in the application layer. The domain depends only on the interface.
  *
  * @module @medicalcor/infrastructure/repositories/postgres-agent-performance-repository
  */
@@ -24,7 +24,7 @@ import type {
   AgentPerformanceTimeRange,
   AgentAvailability,
 } from '@medicalcor/types';
-import type { IAgentPerformanceRepository, GetAgentsOptions } from '@medicalcor/domain';
+import type { IAgentPerformanceRepositoryPort, GetAgentsOptions } from '@medicalcor/application';
 
 // ============================================================================
 // CONSTANTS
@@ -179,7 +179,7 @@ interface CountRow {
 /**
  * PostgreSQL implementation of the agent performance repository
  */
-export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepository {
+export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepositoryPort {
   constructor(private readonly pool: Pool) {}
 
   // ============================================================================
@@ -887,6 +887,6 @@ export class PostgresAgentPerformanceRepository implements IAgentPerformanceRepo
 /**
  * Create a PostgreSQL agent performance repository
  */
-export function createAgentPerformanceRepository(pool: Pool): IAgentPerformanceRepository {
+export function createAgentPerformanceRepository(pool: Pool): IAgentPerformanceRepositoryPort {
   return new PostgresAgentPerformanceRepository(pool);
 }
