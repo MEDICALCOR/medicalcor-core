@@ -1676,10 +1676,10 @@ describe('Encryption Security - Additional Edge Cases', () => {
 
       const { encryptedValue } = service.encrypt(ssn);
 
-      // SSN should not be visible in ciphertext
-      expect(encryptedValue).not.toContain('123');
-      expect(encryptedValue).not.toContain('45');
-      expect(encryptedValue).not.toContain('6789');
+      // Full SSN should not be visible in ciphertext
+      // Note: We only check the full SSN, not individual parts like '123'
+      // because short numeric patterns can randomly appear in base64 encoding
+      expect(encryptedValue).not.toContain(ssn);
 
       expect(service.decrypt(encryptedValue)).toBe(ssn);
     });
