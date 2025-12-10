@@ -10,12 +10,14 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import { tasks } from '@trigger.dev/sdk/v3';
 import {
   parseCSV,
   processBulkImport,
   createBulkImportJob,
   getBulkImportJob,
   generateCorrelationId,
+  IdempotencyKeys,
 } from '@medicalcor/core';
 import {
   BulkImportRowSchema,
@@ -194,8 +196,26 @@ export const bulkImportRoutes: FastifyPluginAsync = async (fastify) => {
             options,
           });
 
-          // TODO: Trigger async workflow via Trigger.dev
-          // For now, just return the job info
+          // Trigger async workflow via Trigger.dev
+          tasks
+            .trigger(
+              'bulk-import-workflow',
+              {
+                jobId: job.id,
+                rows,
+                options: options ?? {},
+                correlationId,
+              },
+              {
+                idempotencyKey: IdempotencyKeys.custom('bulk-import', job.id),
+              }
+            )
+            .catch((err: unknown) => {
+              request.log.error(
+                { err, jobId: job.id, correlationId },
+                'Failed to trigger bulk import workflow'
+              );
+            });
 
           const response: BulkImportAsyncResponse = {
             success: true,
