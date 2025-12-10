@@ -12,7 +12,7 @@
  * - Access to location history must be audited
  */
 
-/* eslint-disable max-lines-per-function, @typescript-eslint/require-await, @typescript-eslint/no-non-null-assertion, @typescript-eslint/no-unnecessary-condition */
+/* eslint-disable max-lines-per-function, @typescript-eslint/no-non-null-assertion */
 import type {
   LocationHistoryEntry,
   GeoLocation,
@@ -301,6 +301,7 @@ export function createInMemoryLocationHistoryRepository(): LocationHistoryReposi
     maxReasonableSpeedKmh: 900,
     minDistanceForTravelCheckKm: 100,
     impossibilityFactorThreshold: 1.5,
+    alertOnUnusualTime: false,
     unusualHoursStart: 1,
     unusualHoursEnd: 5,
     alertOnNewCountry: true,

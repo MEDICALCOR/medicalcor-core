@@ -198,7 +198,7 @@ export class GeoAnomalyDetectionService {
     const detectedAnomalies: { type: GeoAnomalyType; details?: ImpossibleTravelDetails }[] = [];
 
     // 1. Impossible Travel Detection
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+
     if (previousLocation && previousLocationEntry) {
       const impossibleTravel = this.checkImpossibleTravel(
         previousLocation,
@@ -269,7 +269,7 @@ export class GeoAnomalyDetectionService {
     }
 
     // 5. Unusual Time Detection (based on user's timezone)
-    if (currentLocation.timezone) {
+    if (config.alertOnUnusualTime && currentLocation.timezone) {
       const isUnusualTime = this.checkUnusualTime(currentLocation.timezone, config);
       if (isUnusualTime) {
         detectedAnomalies.push({ type: 'unusual_time' });
@@ -277,7 +277,7 @@ export class GeoAnomalyDetectionService {
     }
 
     // 6. Rapid Location Change Detection
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+
     if (previousLocation && previousLocationEntry) {
       const isRapidChange = this.checkRapidLocationChange(
         previousLocation,
@@ -549,6 +549,7 @@ export const DEFAULT_GEO_ANOMALY_CONFIG: GeoAnomalyConfig = {
   maxReasonableSpeedKmh: 900,
   minDistanceForTravelCheckKm: 100,
   impossibilityFactorThreshold: 1.5,
+  alertOnUnusualTime: false,
   unusualHoursStart: 1,
   unusualHoursEnd: 5,
   alertOnNewCountry: true,
