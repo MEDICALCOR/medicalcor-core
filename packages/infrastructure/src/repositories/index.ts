@@ -13,7 +13,7 @@
  * - CalendarSchedulingAdapter implements ISchedulingRepository (external calendar)
  * - CaseRepository implements ICaseRepository (cohort analysis)
  * - PostgresReadModelRepository implements IReadModelRepository (CQRS read models)
- * - PostgresAgentPerformanceRepository implements IAgentPerformanceRepository
+ * - PostgresAgentPerformanceRepository implements IAgentPerformanceRepositoryPort
  * - PostgresWrapUpTimeRepository implements IWrapUpTimeRepository
  *
  * @module @medicalcor/infrastructure/repositories

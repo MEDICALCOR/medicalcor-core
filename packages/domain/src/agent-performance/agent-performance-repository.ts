@@ -2,13 +2,18 @@
  * @fileoverview Agent Performance Repository Interface (Domain Layer)
  *
  * M7: Agent Performance Dashboard - Individual Metrics
- * Defines the repository interface (port) for agent performance data.
  *
  * ## Hexagonal Architecture
  *
- * This is a **PORT** interface that defines what the application needs
- * from the infrastructure layer. The concrete PostgreSQL implementation
- * lives in @medicalcor/infrastructure.
+ * @deprecated This interface has been moved to the application layer.
+ * Import from `@medicalcor/application` instead:
+ *
+ * ```typescript
+ * import type { IAgentPerformanceRepositoryPort } from '@medicalcor/application';
+ * ```
+ *
+ * This file is kept for backward compatibility only and will be removed
+ * in a future release.
  *
  * @module domain/agent-performance/agent-performance-repository
  */
@@ -27,11 +32,14 @@ import type {
 } from '@medicalcor/types';
 
 // ============================================================================
-// REPOSITORY INTERFACE
+// REPOSITORY INTERFACE (DEPRECATED)
 // ============================================================================
 
 /**
  * Repository interface for agent performance data
+ *
+ * @deprecated Use `IAgentPerformanceRepositoryPort` from `@medicalcor/application` instead.
+ * This interface is kept for backward compatibility only.
  */
 export interface IAgentPerformanceRepository {
   // Agent operations
@@ -89,6 +97,8 @@ export interface IAgentPerformanceRepository {
 
 /**
  * Options for getting agents
+ *
+ * @deprecated Use `GetAgentsOptions` from `@medicalcor/application` instead.
  */
 export interface GetAgentsOptions {
   agentType?: AgentType;
