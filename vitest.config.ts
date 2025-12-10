@@ -9,7 +9,8 @@ export default defineConfig({
     exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**', 'tools/**'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
+      reporter: ['text', 'json', 'json-summary', 'html'],
+      reportsDirectory: './coverage',
       // COVERAGE THRESHOLDS - Medical/Banking "Platinum" standard
       // Target: 85%+ coverage for HIPAA/GDPR compliance
       // See: https://owasp.org/www-project-web-security-testing-guide/
