@@ -109,7 +109,7 @@ export function useFocusManagement(options: UseFocusManagementOptions) {
     }
 
     const nextItem = enabledItems[nextIndex];
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive check for array bounds
+
     if (nextItem) {
       focusItem(nextItem.id);
     }
@@ -124,7 +124,7 @@ export function useFocusManagement(options: UseFocusManagementOptions) {
     }
 
     const prevItem = enabledItems[prevIndex];
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive check for array bounds
+
     if (prevItem) {
       focusItem(prevItem.id);
     }
@@ -132,7 +132,7 @@ export function useFocusManagement(options: UseFocusManagementOptions) {
 
   const focusFirst = useCallback(() => {
     const firstItem = enabledItems[0];
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive check for array bounds
+
     if (firstItem) {
       focusItem(firstItem.id);
     }
@@ -140,7 +140,7 @@ export function useFocusManagement(options: UseFocusManagementOptions) {
 
   const focusLast = useCallback(() => {
     const lastItem = enabledItems[enabledItems.length - 1];
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive check for array bounds
+
     if (lastItem) {
       focusItem(lastItem.id);
     }
@@ -316,7 +316,7 @@ export function useFocusTrap(containerRef: React.RefObject<HTMLElement>, isActiv
     // Focus first focusable element in container
     const container = containerRef.current;
     // Early return if container is not mounted yet
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+
     if (container === null) return;
 
     const focusableElements = getFocusableElements(container);
@@ -329,7 +329,7 @@ export function useFocusTrap(containerRef: React.RefObject<HTMLElement>, isActiv
 
       const container = containerRef.current;
       // Container might unmount during event handling
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+
       if (container === null) return;
 
       const focusableElements = getFocusableElements(container);

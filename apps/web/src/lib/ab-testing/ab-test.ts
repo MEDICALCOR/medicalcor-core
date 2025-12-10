@@ -268,7 +268,7 @@ export function useABTest(testId: string): UseABTestResult {
 
   useEffect(() => {
     const test = AB_TESTS[testId];
-    if (!test || test.status !== 'running') {
+    if (test?.status !== 'running') {
       setLoading(false);
       return;
     }
@@ -348,7 +348,7 @@ export function getServerVariant(
   cookieHeader: string | null
 ): ABTestVariant | null {
   const test = AB_TESTS[testId];
-  if (!test || test.status !== 'running') return null;
+  if (test?.status !== 'running') return null;
 
   const existingVariantId = getVariantFromRequest(testId, cookieHeader);
   if (existingVariantId) {

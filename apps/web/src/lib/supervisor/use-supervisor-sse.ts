@@ -126,7 +126,6 @@ export function useSupervisorSSE(options: UseSupervisorSSEOptions) {
 
         const processStream = async () => {
           try {
-            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
             while (true) {
               const result = await reader.read();
               if (result.done) {

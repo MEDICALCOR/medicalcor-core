@@ -110,10 +110,10 @@ export const RealtimeMemoryMonitor = {
     // @ts-expect-error - performance.memory is non-standard but available in Chrome
     if (typeof performance !== 'undefined' && performance.memory) {
       // @ts-expect-error - performance.memory is non-standard
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+
       heapUsed = performance.memory.usedJSHeapSize;
       // @ts-expect-error - performance.memory is non-standard
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+
       heapTotal = performance.memory.totalJSHeapSize;
     }
 
@@ -281,7 +281,7 @@ export const RealtimeMemoryMonitor = {
  */
 export function attachMemoryMonitorToWindow(): void {
   if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).__realtimeMemory = RealtimeMemoryMonitor;
     // eslint-disable-next-line no-console
     console.log(

@@ -324,7 +324,7 @@ export function SupervisorProvider({ children, apiUrl }: SupervisorProviderProps
   );
 
   // End a call (placeholder - would need Twilio integration)
-  // eslint-disable-next-line @typescript-eslint/require-await
+
   const endCall = useCallback(async (callSid: string): Promise<boolean> => {
     console.warn('End call not fully implemented:', callSid);
     // TODO: Implement call termination via Twilio
