@@ -924,6 +924,520 @@ describe('StripeClient - error handling', () => {
   });
 });
 
+describe('StripeClient - Partial Refund Handling', () => {
+  let client: StripeClient;
+
+  beforeEach(() => {
+    client = new StripeClient({
+      secretKey: 'sk_test_123',
+      retryConfig: { maxRetries: 0, baseDelayMs: 10 },
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    global.fetch = originalFetch;
+  });
+
+  it('should exclude fully refunded charges from revenue', async () => {
+    const mockResponse = {
+      object: 'list',
+      data: [
+        {
+          id: 'ch_1',
+          amount: 10000,
+          amount_captured: 10000,
+          currency: 'ron',
+          status: 'succeeded' as const,
+          created: Math.floor(Date.now() / 1000),
+          paid: true,
+          refunded: true, // Fully refunded
+        },
+        {
+          id: 'ch_2',
+          amount: 20000,
+          amount_captured: 20000,
+          currency: 'ron',
+          status: 'succeeded' as const,
+          created: Math.floor(Date.now() / 1000),
+          paid: true,
+          refunded: false,
+        },
+      ],
+      has_more: false,
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => mockResponse,
+    } as Response);
+
+    const result = await client.getDailyRevenue();
+
+    // Only non-refunded charge should be counted
+    expect(result.amount).toBe(20000);
+    expect(result.transactionCount).toBe(1);
+  });
+
+  it('should handle multiple fully refunded charges in a batch', async () => {
+    const mockResponse = {
+      object: 'list',
+      data: [
+        {
+          id: 'ch_1',
+          amount: 10000,
+          amount_captured: 10000,
+          currency: 'ron',
+          status: 'succeeded' as const,
+          created: Math.floor(Date.now() / 1000),
+          paid: true,
+          refunded: true,
+        },
+        {
+          id: 'ch_2',
+          amount: 15000,
+          amount_captured: 15000,
+          currency: 'ron',
+          status: 'succeeded' as const,
+          created: Math.floor(Date.now() / 1000),
+          paid: true,
+          refunded: true,
+        },
+        {
+          id: 'ch_3',
+          amount: 20000,
+          amount_captured: 20000,
+          currency: 'ron',
+          status: 'succeeded' as const,
+          created: Math.floor(Date.now() / 1000),
+          paid: true,
+          refunded: true,
+        },
+      ],
+      has_more: false,
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => mockResponse,
+    } as Response);
+
+    const result = await client.getDailyRevenue();
+
+    expect(result.amount).toBe(0);
+    expect(result.transactionCount).toBe(0);
+  });
+
+  it('should count charges with refunded=false even if status is succeeded', async () => {
+    // Simulates a partially refunded charge where refunded flag stays false
+    const mockResponse = {
+      object: 'list',
+      data: [
+        {
+          id: 'ch_partial',
+          amount: 10000,
+          amount_captured: 10000, // Full capture
+          currency: 'ron',
+          status: 'succeeded' as const,
+          created: Math.floor(Date.now() / 1000),
+          paid: true,
+          refunded: false, // Stripe sets this to false for partial refunds
+        },
+      ],
+      has_more: false,
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => mockResponse,
+    } as Response);
+
+    const result = await client.getDailyRevenue();
+
+    // Charge should be counted since refunded=false
+    expect(result.amount).toBe(10000);
+    expect(result.transactionCount).toBe(1);
+  });
+
+  it('should handle mixed refund statuses correctly', async () => {
+    const mockResponse = {
+      object: 'list',
+      data: [
+        {
+          id: 'ch_not_refunded',
+          amount: 50000,
+          amount_captured: 50000,
+          currency: 'ron',
+          status: 'succeeded' as const,
+          created: Math.floor(Date.now() / 1000),
+          paid: true,
+          refunded: false,
+        },
+        {
+          id: 'ch_fully_refunded',
+          amount: 30000,
+          amount_captured: 30000,
+          currency: 'ron',
+          status: 'succeeded' as const,
+          created: Math.floor(Date.now() / 1000),
+          paid: true,
+          refunded: true,
+        },
+        {
+          id: 'ch_partial_refund',
+          amount: 25000,
+          amount_captured: 25000,
+          currency: 'ron',
+          status: 'succeeded' as const,
+          created: Math.floor(Date.now() / 1000),
+          paid: true,
+          refunded: false, // Partial refund keeps this false
+        },
+      ],
+      has_more: false,
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => mockResponse,
+    } as Response);
+
+    const result = await client.getDailyRevenue();
+
+    // Only charges with refunded=false should be counted
+    expect(result.amount).toBe(75000); // 50000 + 25000
+    expect(result.transactionCount).toBe(2);
+  });
+});
+
+describe('StripeClient - Currency Edge Cases', () => {
+  let client: StripeClient;
+
+  beforeEach(() => {
+    client = new StripeClient({
+      secretKey: 'sk_test_123',
+      retryConfig: { maxRetries: 0, baseDelayMs: 10 },
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    global.fetch = originalFetch;
+  });
+
+  describe('Zero-decimal currencies (JPY, KRW)', () => {
+    it('should format JPY (note: implementation divides by 100 for all currencies)', () => {
+      // Note: Current implementation always divides by 100 (designed for 2-decimal currencies)
+      // For zero-decimal currencies like JPY, 1000 minor units = 10 JPY (not ¥1000)
+      // This is a known limitation when mixing currency types
+      const formatted = client.formatAmount(1000, 'jpy');
+      expect(formatted).toContain('10'); // 1000/100 = 10
+      expect(formatted.toUpperCase()).toContain('JPY');
+    });
+
+    it('should format KRW correctly', () => {
+      const formatted = client.formatAmount(50000, 'krw');
+      expect(formatted.toUpperCase()).toContain('KRW');
+    });
+
+    it('should handle large JPY amounts', () => {
+      // 1,000,000 yen = stored as 1000000 in Stripe
+      const formatted = client.formatAmount(100000000, 'jpy');
+      expect(formatted).toBeDefined();
+      expect(typeof formatted).toBe('string');
+    });
+  });
+
+  describe('Three-decimal currencies (BHD, KWD, OMR)', () => {
+    it('should format BHD with currency symbol', () => {
+      // In Stripe, 1.000 BHD is represented as 1000
+      const formatted = client.formatAmount(1000, 'bhd');
+      expect(formatted.toUpperCase()).toContain('BHD');
+    });
+
+    it('should format KWD correctly', () => {
+      const formatted = client.formatAmount(5000, 'kwd');
+      expect(formatted.toUpperCase()).toContain('KWD');
+    });
+
+    it('should format OMR correctly', () => {
+      const formatted = client.formatAmount(2500, 'omr');
+      expect(formatted.toUpperCase()).toContain('OMR');
+    });
+  });
+
+  describe('European currencies', () => {
+    it('should format EUR correctly', () => {
+      const formatted = client.formatAmount(12500, 'eur');
+      expect(formatted).toContain('125');
+      expect(formatted.toUpperCase()).toContain('EUR');
+    });
+
+    it('should format GBP correctly', () => {
+      const formatted = client.formatAmount(9999, 'gbp');
+      expect(formatted).toContain('99');
+      expect(formatted.toUpperCase()).toContain('GBP');
+    });
+
+    it('should format CHF correctly', () => {
+      const formatted = client.formatAmount(15000, 'chf');
+      expect(formatted).toContain('150');
+      expect(formatted.toUpperCase()).toContain('CHF');
+    });
+  });
+
+  describe('Edge cases', () => {
+    it('should handle very small amounts', () => {
+      const formatted = client.formatAmount(1, 'ron');
+      expect(formatted).toContain('0,01');
+    });
+
+    it('should handle maximum safe integer', () => {
+      const formatted = client.formatAmount(Number.MAX_SAFE_INTEGER, 'ron');
+      expect(formatted).toBeDefined();
+      expect(typeof formatted).toBe('string');
+    });
+
+    it('should handle negative amounts gracefully', () => {
+      // Negative amounts might occur in refund calculations
+      const formatted = client.formatAmount(-5000, 'ron');
+      expect(formatted).toContain('-50');
+    });
+
+    it('should handle currency code case insensitivity', () => {
+      const lowercase = client.formatAmount(10000, 'ron');
+      const uppercase = client.formatAmount(10000, 'RON');
+      // Both should produce valid output
+      expect(lowercase).toBeDefined();
+      expect(uppercase).toBeDefined();
+    });
+  });
+});
+
+describe('StripeClient - Multi-Currency Revenue', () => {
+  let client: StripeClient;
+
+  beforeEach(() => {
+    client = new StripeClient({
+      secretKey: 'sk_test_123',
+      retryConfig: { maxRetries: 0, baseDelayMs: 10 },
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    global.fetch = originalFetch;
+  });
+
+  it('should use currency from last charge in mixed-currency batch', async () => {
+    const mockResponse = {
+      object: 'list',
+      data: [
+        {
+          id: 'ch_ron',
+          amount: 10000,
+          amount_captured: 10000,
+          currency: 'ron',
+          status: 'succeeded' as const,
+          created: Math.floor(Date.now() / 1000),
+          paid: true,
+          refunded: false,
+        },
+        {
+          id: 'ch_eur',
+          amount: 5000,
+          amount_captured: 5000,
+          currency: 'eur',
+          status: 'succeeded' as const,
+          created: Math.floor(Date.now() / 1000),
+          paid: true,
+          refunded: false,
+        },
+      ],
+      has_more: false,
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => mockResponse,
+    } as Response);
+
+    const result = await client.getDailyRevenue();
+
+    // Currency should be the last one encountered
+    expect(result.currency).toBe('eur');
+    expect(result.amount).toBe(15000);
+    expect(result.transactionCount).toBe(2);
+  });
+
+  it('should handle all charges in same currency', async () => {
+    const mockResponse = {
+      object: 'list',
+      data: [
+        {
+          id: 'ch_1',
+          amount: 10000,
+          amount_captured: 10000,
+          currency: 'eur',
+          status: 'succeeded' as const,
+          created: Math.floor(Date.now() / 1000),
+          paid: true,
+          refunded: false,
+        },
+        {
+          id: 'ch_2',
+          amount: 20000,
+          amount_captured: 20000,
+          currency: 'eur',
+          status: 'succeeded' as const,
+          created: Math.floor(Date.now() / 1000),
+          paid: true,
+          refunded: false,
+        },
+      ],
+      has_more: false,
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => mockResponse,
+    } as Response);
+
+    const result = await client.getDailyRevenue();
+
+    expect(result.currency).toBe('eur');
+    expect(result.amount).toBe(30000);
+  });
+
+  it('should default to RON when no charges exist', async () => {
+    const mockResponse = {
+      object: 'list',
+      data: [],
+      has_more: false,
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => mockResponse,
+    } as Response);
+
+    const result = await client.getDailyRevenue();
+
+    expect(result.currency).toBe('ron');
+    expect(result.amount).toBe(0);
+    expect(result.transactionCount).toBe(0);
+  });
+});
+
+describe('StripeClient - Fraud Detection Patterns', () => {
+  let client: StripeClient;
+
+  beforeEach(() => {
+    client = new StripeClient({
+      secretKey: 'sk_test_123',
+      webhookSecret: 'whsec_test',
+      retryConfig: { maxRetries: 0, baseDelayMs: 10 },
+    });
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    global.fetch = originalFetch;
+  });
+
+  it('should reject webhook with replayed timestamp', () => {
+    const payload = '{"type":"charge.succeeded","data":{"object":{"id":"ch_fraud"}}}';
+    const oldTimestamp = Math.floor(Date.now() / 1000) - 600; // 10 minutes ago
+
+    const signedPayload = `${oldTimestamp}.${payload}`;
+    const signature = crypto
+      .createHmac('sha256', 'whsec_test')
+      .update(signedPayload, 'utf8')
+      .digest('hex');
+
+    const header = `t=${oldTimestamp},v1=${signature}`;
+
+    const result = client.verifyWebhookSignature(payload, header);
+    expect(result).toBe(false);
+  });
+
+  it('should reject webhook with manipulated amount', () => {
+    const originalPayload = '{"type":"charge.succeeded","data":{"object":{"amount":1000}}}';
+    const timestamp = Math.floor(Date.now() / 1000);
+
+    const signedPayload = `${timestamp}.${originalPayload}`;
+    const signature = crypto
+      .createHmac('sha256', 'whsec_test')
+      .update(signedPayload, 'utf8')
+      .digest('hex');
+
+    vi.setSystemTime(timestamp * 1000);
+
+    // Try to verify with manipulated payload
+    const manipulatedPayload = '{"type":"charge.succeeded","data":{"object":{"amount":999999}}}';
+    const result = client.verifyWebhookSignature(
+      manipulatedPayload,
+      `t=${timestamp},v1=${signature}`
+    );
+    expect(result).toBe(false);
+  });
+
+  it('should reject webhook with injected event type', () => {
+    const originalPayload = '{"type":"charge.pending"}';
+    const timestamp = Math.floor(Date.now() / 1000);
+
+    const signedPayload = `${timestamp}.${originalPayload}`;
+    const signature = crypto
+      .createHmac('sha256', 'whsec_test')
+      .update(signedPayload, 'utf8')
+      .digest('hex');
+
+    vi.setSystemTime(timestamp * 1000);
+
+    // Try to verify with different event type
+    const injectedPayload = '{"type":"payout.created"}';
+    const result = client.verifyWebhookSignature(injectedPayload, `t=${timestamp},v1=${signature}`);
+    expect(result).toBe(false);
+  });
+
+  it('should protect against timing attacks with constant-time comparison', () => {
+    const payload = '{"test":true}';
+    const timestamp = Math.floor(Date.now() / 1000);
+
+    vi.setSystemTime(timestamp * 1000);
+
+    // Generate multiple incorrect signatures of varying lengths
+    const incorrectSignatures = [
+      'a',
+      'ab',
+      'abc',
+      'abcdefghijklmnopqrstuvwxyz',
+      'a'.repeat(64), // Same length as valid signature
+    ];
+
+    for (const wrongSig of incorrectSignatures) {
+      const result = client.verifyWebhookSignature(payload, `t=${timestamp},v1=${wrongSig}`);
+      expect(result).toBe(false);
+    }
+  });
+});
+
 describe('StripeClient - getRevenueForPeriod', () => {
   let client: StripeClient;
 

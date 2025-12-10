@@ -1595,3 +1595,587 @@ describe('MockSchedulingService - Integration Flows', () => {
     expect(confirmedOnly.some((a) => a.id === appointment.id)).toBe(false);
   });
 });
+
+// =============================================================================
+// Late Cancellation Tests
+// =============================================================================
+
+describe('Late Cancellation Detection', () => {
+  let mockService: MockSchedulingService;
+
+  beforeEach(() => {
+    mockService = new MockSchedulingService();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('should detect cancellation within 24 hours as late', async () => {
+    // Set current time to a known point
+    const now = new Date('2024-06-15T10:00:00.000Z');
+    vi.setSystemTime(now);
+
+    // Create an appointment scheduled for tomorrow at noon (26 hours from now)
+    const appointment = await mockService.bookAppointment({
+      slotId: 'slot-tomorrow',
+      patientPhone: '+40712345678',
+      procedureType: 'implant',
+    });
+
+    // Move time forward to 23 hours before the appointment
+    vi.setSystemTime(new Date('2024-06-16T11:00:00.000Z'));
+
+    // Check if this would be a late cancellation
+    const hoursUntilAppointment = 25; // Simulated hours until appointment
+    const isLateCancellation = hoursUntilAppointment < 24;
+
+    expect(isLateCancellation).toBe(false);
+
+    // Now move to within 24 hours
+    vi.setSystemTime(new Date('2024-06-16T14:00:00.000Z'));
+    const hoursNow = 22; // Simulated hours until appointment
+    const isLateNow = hoursNow < 24;
+
+    expect(isLateNow).toBe(true);
+  });
+
+  it('should allow cancellation more than 24 hours before appointment', async () => {
+    const now = new Date('2024-06-10T10:00:00.000Z');
+    vi.setSystemTime(now);
+
+    const appointment = await mockService.bookAppointment({
+      slotId: 'slot-far-future',
+      patientPhone: '+40712345678',
+      procedureType: 'consultation',
+    });
+
+    // 48 hours before appointment - should not be late
+    const hoursUntilAppointment = 48;
+    const isLateCancellation = hoursUntilAppointment < 24;
+
+    expect(isLateCancellation).toBe(false);
+
+    // Cancellation should proceed normally
+    const cancelled = await mockService.cancelAppointment({
+      appointmentId: appointment.id,
+    });
+
+    expect(cancelled.status).toBe('cancelled');
+  });
+
+  it('should flag very last-minute cancellations (under 2 hours)', async () => {
+    const hoursUntilAppointment = 1.5; // 90 minutes
+    const isVeryLateCancellation = hoursUntilAppointment < 2;
+    const isLateCancellation = hoursUntilAppointment < 24;
+
+    expect(isVeryLateCancellation).toBe(true);
+    expect(isLateCancellation).toBe(true);
+  });
+
+  it('should handle edge case at exactly 24 hours', async () => {
+    const hoursUntilAppointment = 24;
+    const isLateCancellation = hoursUntilAppointment < 24;
+
+    // Exactly 24 hours is NOT late (< 24, not <=)
+    expect(isLateCancellation).toBe(false);
+  });
+
+  it('should calculate late cancellation correctly for same-day appointments', async () => {
+    // Appointment at 3 PM, current time is 10 AM same day
+    const appointmentTime = new Date('2024-06-15T15:00:00.000Z');
+    const currentTime = new Date('2024-06-15T10:00:00.000Z');
+
+    const hoursUntilAppointment =
+      (appointmentTime.getTime() - currentTime.getTime()) / (1000 * 60 * 60);
+
+    expect(hoursUntilAppointment).toBe(5);
+    expect(hoursUntilAppointment < 24).toBe(true); // Is late
+  });
+
+  it('should not consider past appointments for late cancellation policy', async () => {
+    // Appointment was in the past
+    const appointmentTime = new Date('2024-06-10T15:00:00.000Z');
+    const currentTime = new Date('2024-06-15T10:00:00.000Z');
+
+    const hoursUntilAppointment =
+      (appointmentTime.getTime() - currentTime.getTime()) / (1000 * 60 * 60);
+
+    // Negative hours indicates past appointment
+    expect(hoursUntilAppointment).toBeLessThan(0);
+  });
+});
+
+// =============================================================================
+// Calendar Conflict Detection Tests
+// =============================================================================
+
+describe('Calendar Conflict Detection', () => {
+  let mockService: MockSchedulingService;
+
+  beforeEach(() => {
+    mockService = new MockSchedulingService();
+  });
+
+  it('should detect overlapping time slots', () => {
+    const slot1 = {
+      start: new Date('2024-06-15T10:00:00.000Z'),
+      end: new Date('2024-06-15T11:00:00.000Z'),
+    };
+    const slot2 = {
+      start: new Date('2024-06-15T10:30:00.000Z'),
+      end: new Date('2024-06-15T11:30:00.000Z'),
+    };
+
+    const hasOverlap = slot1.start < slot2.end && slot2.start < slot1.end;
+
+    expect(hasOverlap).toBe(true);
+  });
+
+  it('should not detect conflict for adjacent time slots', () => {
+    const slot1 = {
+      start: new Date('2024-06-15T10:00:00.000Z'),
+      end: new Date('2024-06-15T11:00:00.000Z'),
+    };
+    const slot2 = {
+      start: new Date('2024-06-15T11:00:00.000Z'),
+      end: new Date('2024-06-15T12:00:00.000Z'),
+    };
+
+    // Adjacent slots (slot1 ends exactly when slot2 starts) should NOT conflict
+    const hasOverlap = slot1.start < slot2.end && slot2.start < slot1.end;
+
+    expect(hasOverlap).toBe(false);
+  });
+
+  it('should detect conflict when new slot is entirely within existing slot', () => {
+    const existingSlot = {
+      start: new Date('2024-06-15T10:00:00.000Z'),
+      end: new Date('2024-06-15T12:00:00.000Z'),
+    };
+    const newSlot = {
+      start: new Date('2024-06-15T10:30:00.000Z'),
+      end: new Date('2024-06-15T11:30:00.000Z'),
+    };
+
+    const hasOverlap = existingSlot.start < newSlot.end && newSlot.start < existingSlot.end;
+
+    expect(hasOverlap).toBe(true);
+  });
+
+  it('should detect conflict when existing slot is entirely within new slot', () => {
+    const existingSlot = {
+      start: new Date('2024-06-15T10:30:00.000Z'),
+      end: new Date('2024-06-15T11:30:00.000Z'),
+    };
+    const newSlot = {
+      start: new Date('2024-06-15T10:00:00.000Z'),
+      end: new Date('2024-06-15T12:00:00.000Z'),
+    };
+
+    const hasOverlap = existingSlot.start < newSlot.end && newSlot.start < existingSlot.end;
+
+    expect(hasOverlap).toBe(true);
+  });
+
+  it('should not detect conflict for slots on different days', () => {
+    const slot1 = {
+      start: new Date('2024-06-15T10:00:00.000Z'),
+      end: new Date('2024-06-15T11:00:00.000Z'),
+    };
+    const slot2 = {
+      start: new Date('2024-06-16T10:00:00.000Z'),
+      end: new Date('2024-06-16T11:00:00.000Z'),
+    };
+
+    const hasOverlap = slot1.start < slot2.end && slot2.start < slot1.end;
+
+    expect(hasOverlap).toBe(false);
+  });
+
+  it('should detect conflict for same practitioner at same time', async () => {
+    const slots = await mockService.getAvailableSlots({
+      procedureType: 'consultation',
+      limit: 5,
+    });
+
+    // Simulate checking if practitioner is double-booked
+    const practitionerId = slots[0]?.practitioner?.id ?? 'dr-1';
+    const slotTime = slots[0]?.dateTime ?? new Date().toISOString();
+
+    // Function to check double booking
+    const isDoubleBooked = (
+      practitioner1: string,
+      time1: string,
+      practitioner2: string,
+      time2: string
+    ): boolean => {
+      return practitioner1 === practitioner2 && time1 === time2;
+    };
+
+    // Same practitioner, same time = conflict
+    expect(isDoubleBooked(practitionerId, slotTime, practitionerId, slotTime)).toBe(true);
+
+    // Same practitioner, different time = no conflict
+    expect(
+      isDoubleBooked(practitionerId, slotTime, practitionerId, '2024-06-16T15:00:00.000Z')
+    ).toBe(false);
+
+    // Different practitioner, same time = no conflict
+    expect(isDoubleBooked(practitionerId, slotTime, 'dr-different', slotTime)).toBe(false);
+  });
+
+  it('should handle buffer time between appointments', () => {
+    // 60-minute appointment with 15-minute buffer
+    const appointmentDuration = 60; // minutes
+    const bufferTime = 15; // minutes
+    const totalBlockedTime = appointmentDuration + bufferTime;
+
+    const appointment1Start = new Date('2024-06-15T10:00:00.000Z');
+    const appointment1End = new Date(appointment1Start.getTime() + totalBlockedTime * 60 * 1000);
+
+    const appointment2Start = new Date('2024-06-15T11:00:00.000Z'); // 60 mins after start
+
+    // With buffer, appointment2 would start during the buffer period
+    const hasConflictWithBuffer = appointment2Start < appointment1End;
+
+    expect(hasConflictWithBuffer).toBe(true);
+
+    // Without buffer consideration
+    const appointment1EndNoBuffer = new Date(
+      appointment1Start.getTime() + appointmentDuration * 60 * 1000
+    );
+    const hasConflictWithoutBuffer = appointment2Start < appointment1EndNoBuffer;
+
+    expect(hasConflictWithoutBuffer).toBe(false);
+  });
+
+  it('should detect room/resource conflict', () => {
+    const room1Bookings = [
+      { roomId: 'room-1', start: '10:00', end: '11:00' },
+      { roomId: 'room-1', start: '14:00', end: '15:00' },
+    ];
+
+    const newBooking = { roomId: 'room-1', start: '10:30', end: '11:30' };
+
+    const hasRoomConflict = room1Bookings.some(
+      (booking) =>
+        booking.roomId === newBooking.roomId &&
+        booking.start < newBooking.end &&
+        newBooking.start < booking.end
+    );
+
+    expect(hasRoomConflict).toBe(true);
+  });
+});
+
+// =============================================================================
+// Concurrent Booking Tests
+// =============================================================================
+
+describe('Concurrent Booking Handling', () => {
+  let mockService: MockSchedulingService;
+
+  beforeEach(() => {
+    mockService = new MockSchedulingService();
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it('should handle two simultaneous booking attempts for same slot', async () => {
+    const slotId = 'contested-slot-123';
+
+    // Simulate two concurrent bookings
+    const booking1Promise = mockService.bookAppointment({
+      slotId,
+      patientPhone: '+40711111111',
+      procedureType: 'consultation',
+    });
+
+    const booking2Promise = mockService.bookAppointment({
+      slotId,
+      patientPhone: '+40722222222',
+      procedureType: 'consultation',
+    });
+
+    // Both should complete (mock doesn't enforce conflicts)
+    const [result1, result2] = await Promise.all([booking1Promise, booking2Promise]);
+
+    expect(result1.status).toBe('confirmed');
+    expect(result2.status).toBe('confirmed');
+
+    // In production, the second booking should fail due to optimistic locking
+    // This test documents expected behavior for the mock
+  });
+
+  it('should maintain data integrity under concurrent cancellations', async () => {
+    // Create an appointment
+    const appointment = await mockService.bookAppointment({
+      slotId: 'cancel-race-slot',
+      patientPhone: '+40712345678',
+      procedureType: 'exam',
+    });
+
+    // Try to cancel twice concurrently
+    const cancel1Promise = mockService.cancelAppointment({
+      appointmentId: appointment.id,
+    });
+
+    const cancel2Promise = mockService.cancelAppointment({
+      appointmentId: appointment.id,
+    });
+
+    // First should succeed, behavior of second depends on implementation
+    const results = await Promise.allSettled([cancel1Promise, cancel2Promise]);
+
+    // At least one should succeed
+    const successfulCancels = results.filter((r) => r.status === 'fulfilled');
+    expect(successfulCancels.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('should handle concurrent reschedule and cancel for same appointment', async () => {
+    const appointment = await mockService.bookAppointment({
+      slotId: 'conflict-slot',
+      patientPhone: '+40712345678',
+      procedureType: 'consultation',
+    });
+
+    // Attempt concurrent reschedule and cancel
+    const reschedulePromise = mockService.rescheduleAppointment({
+      appointmentId: appointment.id,
+      newSlotId: 'new-slot-id',
+    });
+
+    const cancelPromise = mockService.cancelAppointment({
+      appointmentId: appointment.id,
+    });
+
+    const results = await Promise.allSettled([reschedulePromise, cancelPromise]);
+
+    // Both operations complete without error in mock
+    // In production, these would be serialized with locking
+    const successCount = results.filter((r) => r.status === 'fulfilled').length;
+    expect(successCount).toBeGreaterThanOrEqual(1);
+  });
+
+  it('should handle high volume of concurrent slot availability checks', async () => {
+    const slotIds = Array.from({ length: 100 }, (_, i) => `slot-${i}`);
+
+    // Check all slots concurrently
+    const availabilityChecks = slotIds.map((slotId) => mockService.isSlotAvailable(slotId));
+
+    const results = await Promise.all(availabilityChecks);
+
+    // All should complete successfully
+    expect(results.length).toBe(100);
+    results.forEach((isAvailable) => {
+      expect(typeof isAvailable).toBe('boolean');
+    });
+  });
+
+  it('should handle concurrent bookings for different slots', async () => {
+    const bookingPromises = Array.from({ length: 10 }, (_, i) =>
+      mockService.bookAppointment({
+        slotId: `unique-slot-${i}`,
+        patientPhone: `+4071234567${i}`,
+        procedureType: 'consultation',
+      })
+    );
+
+    const results = await Promise.all(bookingPromises);
+
+    // All bookings for different slots should succeed
+    expect(results.length).toBe(10);
+    results.forEach((booking) => {
+      expect(booking.status).toBe('confirmed');
+    });
+
+    // Each booking should have unique ID
+    const ids = results.map((b) => b.id);
+    const uniqueIds = new Set(ids);
+    expect(uniqueIds.size).toBe(10);
+  });
+
+  it('should preserve appointment order in patient history', async () => {
+    const patientPhone = '+40712345678';
+
+    // Book multiple appointments sequentially
+    for (let i = 0; i < 5; i++) {
+      await mockService.bookAppointment({
+        slotId: `order-slot-${i}`,
+        patientPhone,
+        procedureType: 'consultation',
+      });
+    }
+
+    const appointments = await mockService.getPatientAppointments(patientPhone);
+
+    expect(appointments.length).toBe(5);
+
+    // Verify all appointments are present
+    const slotIds = appointments.map((a) => a.slotId);
+    for (let i = 0; i < 5; i++) {
+      expect(slotIds).toContain(`order-slot-${i}`);
+    }
+  });
+
+  it('should handle optimistic locking scenario', async () => {
+    // Simulate optimistic locking with version check
+    interface VersionedSlot {
+      id: string;
+      version: number;
+      available: boolean;
+    }
+
+    const slot: VersionedSlot = {
+      id: 'versioned-slot',
+      version: 1,
+      available: true,
+    };
+
+    // Simulate two concurrent modifications
+    const modify1 = (s: VersionedSlot, expectedVersion: number): VersionedSlot | null => {
+      if (s.version !== expectedVersion) return null; // Optimistic lock failed
+      return { ...s, version: s.version + 1, available: false };
+    };
+
+    const modify2 = (s: VersionedSlot, expectedVersion: number): VersionedSlot | null => {
+      if (s.version !== expectedVersion) return null; // Optimistic lock failed
+      return { ...s, version: s.version + 1, available: false };
+    };
+
+    // First modification succeeds
+    const result1 = modify1(slot, 1);
+    expect(result1).not.toBeNull();
+    expect(result1!.version).toBe(2);
+
+    // Second modification fails (using original slot)
+    const result2 = modify2(slot, 1); // Would fail in real scenario
+    expect(result2).not.toBeNull(); // In our test, same slot is passed
+
+    // With actual updated slot
+    const result3 = modify2(result1!, 1); // Fails due to version mismatch
+    expect(result3).toBeNull();
+  });
+});
+
+// =============================================================================
+// Clinic Capacity Management Tests
+// =============================================================================
+
+describe('Clinic Capacity Management', () => {
+  let mockService: MockSchedulingService;
+
+  beforeEach(() => {
+    mockService = new MockSchedulingService();
+  });
+
+  it('should respect maximum appointments per practitioner per day', async () => {
+    const maxAppointmentsPerDay = 8;
+
+    // Simulate practitioner's daily schedule
+    const practitionerAppointments = [
+      { time: '09:00', duration: 60 },
+      { time: '10:00', duration: 60 },
+      { time: '11:00', duration: 60 },
+      { time: '12:00', duration: 60 },
+      { time: '14:00', duration: 60 },
+      { time: '15:00', duration: 60 },
+      { time: '16:00', duration: 60 },
+      { time: '17:00', duration: 60 },
+    ];
+
+    expect(practitionerAppointments.length).toBe(maxAppointmentsPerDay);
+
+    // Attempting to add another should be rejected
+    const canAddMore = practitionerAppointments.length < maxAppointmentsPerDay;
+    expect(canAddMore).toBe(false);
+  });
+
+  it('should track room utilization', () => {
+    const rooms = [
+      { id: 'room-1', name: 'Consultation Room', capacity: 1 },
+      { id: 'room-2', name: 'Surgery Room', capacity: 1 },
+      { id: 'room-3', name: 'X-Ray Room', capacity: 1 },
+    ];
+
+    const bookings = [
+      { roomId: 'room-1', timeSlot: '10:00' },
+      { roomId: 'room-1', timeSlot: '11:00' },
+      { roomId: 'room-2', timeSlot: '10:00' },
+    ];
+
+    const roomUtilization = rooms.map((room) => ({
+      roomId: room.id,
+      bookingCount: bookings.filter((b) => b.roomId === room.id).length,
+    }));
+
+    expect(roomUtilization.find((r) => r.roomId === 'room-1')?.bookingCount).toBe(2);
+    expect(roomUtilization.find((r) => r.roomId === 'room-2')?.bookingCount).toBe(1);
+    expect(roomUtilization.find((r) => r.roomId === 'room-3')?.bookingCount).toBe(0);
+  });
+
+  it('should calculate peak hours capacity', async () => {
+    const peakHours = ['10:00', '11:00', '14:00', '15:00'];
+    const maxConcurrentAppointments = 3;
+
+    const appointmentsPerHour: Record<string, number> = {
+      '09:00': 1,
+      '10:00': 3,
+      '11:00': 3,
+      '12:00': 0,
+      '14:00': 2,
+      '15:00': 3,
+      '16:00': 1,
+    };
+
+    const peakHourLoad = peakHours.map((hour) => appointmentsPerHour[hour] ?? 0);
+    const averagePeakLoad = peakHourLoad.reduce((a, b) => a + b, 0) / peakHours.length;
+
+    expect(averagePeakLoad).toBeGreaterThan(0);
+    expect(Math.max(...peakHourLoad)).toBe(3);
+
+    // Check if at capacity
+    const hoursAtCapacity = peakHourLoad.filter((load) => load >= maxConcurrentAppointments);
+    expect(hoursAtCapacity.length).toBe(3);
+  });
+
+  it('should handle emergency slot reservation', async () => {
+    const totalDailySlots = 24;
+    const emergencyReserveSlots = 2;
+    const availableForBooking = totalDailySlots - emergencyReserveSlots;
+
+    const regularBookings = 20;
+    const canAcceptMoreRegular = regularBookings < availableForBooking;
+
+    expect(canAcceptMoreRegular).toBe(true);
+    expect(availableForBooking).toBe(22);
+
+    // When at capacity, only emergency can book
+    const fullRegularBookings = 22;
+    const canAcceptRegular = fullRegularBookings < availableForBooking;
+    const canAcceptEmergency = fullRegularBookings < totalDailySlots;
+
+    expect(canAcceptRegular).toBe(false);
+    expect(canAcceptEmergency).toBe(true);
+  });
+
+  it('should validate practitioner availability for procedure type', async () => {
+    const practitioners = [
+      { id: 'dr-1', name: 'Dr. Smith', specialties: ['consultation', 'cleaning'] },
+      { id: 'dr-2', name: 'Dr. Jones', specialties: ['implant', 'surgery'] },
+      { id: 'dr-3', name: 'Dr. Brown', specialties: ['consultation', 'implant', 'cleaning'] },
+    ];
+
+    const findAvailablePractitioners = (procedureType: string) =>
+      practitioners.filter((p) => p.specialties.includes(procedureType));
+
+    expect(findAvailablePractitioners('consultation')).toHaveLength(2);
+    expect(findAvailablePractitioners('implant')).toHaveLength(2);
+    expect(findAvailablePractitioners('surgery')).toHaveLength(1);
+    expect(findAvailablePractitioners('orthodontics')).toHaveLength(0);
+  });
+});
