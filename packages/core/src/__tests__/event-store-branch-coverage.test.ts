@@ -130,7 +130,8 @@ describe('InMemoryEventStore Branch Coverage', () => {
 
       await store.append(event1);
 
-      await expect(store.append(event2)).rejects.toThrow(ConcurrencyError);
+      // The append method throws synchronously on version conflict
+      expect(() => store.append(event2)).toThrow(ConcurrencyError);
     });
 
     it('should include aggregateId and version in ConcurrencyError', async () => {

@@ -52,7 +52,8 @@ describe('AuthService', () => {
     });
 
     it('should accept valid passwords', () => {
-      const result = authService.validatePassword('Password123');
+      // SECURITY FIX: Passwords now require special characters for HIPAA/GDPR compliance
+      const result = authService.validatePassword('Password123!');
       expect(result.valid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });

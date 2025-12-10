@@ -687,8 +687,9 @@ export class AuthService {
     }
 
     if (PASSWORD_POLICY.requireSpecial) {
+      // Must also escape '-' to prevent character range interpretation in regex
       const specialRegex = new RegExp(
-        `[${PASSWORD_POLICY.specialChars.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}]`
+        `[${PASSWORD_POLICY.specialChars.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&')}]`
       );
       if (!specialRegex.test(password)) {
         errors.push('Password must contain at least one special character');

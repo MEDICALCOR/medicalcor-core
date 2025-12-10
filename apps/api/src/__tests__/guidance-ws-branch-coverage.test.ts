@@ -11,18 +11,16 @@ import type { AgentGuidance, GuidanceStep, GuidanceSuggestion } from '@medicalco
 // Mock Dependencies
 // =============================================================================
 
-const mockLogger = {
-  info: vi.fn(),
-  debug: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-};
-
 vi.mock('@medicalcor/core', () => ({
   generateCorrelationId: () => 'test-correlation-id',
-  logger: mockLogger,
-  deepRedactObject: <T>(obj: T) => obj,
-  redactString: (str: string) => `[REDACTED:${str.slice(0, 3)}]`,
+  logger: {
+    info: vi.fn(),
+    debug: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
+  deepRedactObject: <T>(obj: T): T => obj,
+  redactString: (str: string): string => `[REDACTED:${str.slice(0, 3)}]`,
 }));
 
 vi.mock('crypto', () => ({
@@ -742,11 +740,13 @@ interface MockGuidanceService {
   getPendingSuggestions: ReturnType<typeof vi.fn>;
 }
 
-function createMockGuidanceService(options: {
-  guidance?: AgentGuidance | null;
-  currentStep?: GuidanceStep | null;
-  suggestions?: GuidanceSuggestion[];
-} = {}): MockGuidanceService {
+function createMockGuidanceService(
+  options: {
+    guidance?: AgentGuidance | null;
+    currentStep?: GuidanceStep | null;
+    suggestions?: GuidanceSuggestion[];
+  } = {}
+): MockGuidanceService {
   return {
     on: vi.fn(),
     getCallGuidance: vi.fn().mockReturnValue(options.guidance ?? null),
@@ -818,7 +818,8 @@ class TestableSSEManager {
     this.guidanceService.on(
       'guidance:suggestion',
       (callSid: string, suggestion: GuidanceSuggestion) => {
-        const { redactString } = require('@medicalcor/core');
+        // Use inline redaction for test - mimics @medicalcor/core redactString
+        const redactedContent = `[REDACTED:${suggestion.content.slice(0, 3)}]`;
         this.broadcastToCall(callSid, {
           eventId: 'uuid-event',
           eventType: 'guidance.suggestion',
@@ -826,7 +827,7 @@ class TestableSSEManager {
           callSid,
           suggestion: {
             ...suggestion,
-            content: redactString(suggestion.content),
+            content: redactedContent,
           },
         });
       }
@@ -835,13 +836,14 @@ class TestableSSEManager {
     this.guidanceService.on(
       'guidance:objection-detected',
       (callSid: string, objection: string, suggestedResponse: string) => {
-        const { redactString } = require('@medicalcor/core');
+        // Use inline redaction for test - mimics @medicalcor/core redactString
+        const redactedObjection = `[REDACTED:${objection.slice(0, 3)}]`;
         this.broadcastToCall(callSid, {
           eventId: 'uuid-event',
           eventType: 'guidance.objection-detected',
           timestamp: new Date(),
           callSid,
-          objection: redactString(objection),
+          objection: redactedObjection,
           suggestedResponse,
         });
       }
@@ -852,7 +854,12 @@ class TestableSSEManager {
       (
         callSid: string,
         guidanceId: string,
-        stats: { completedSteps: number; totalSteps: number; duration: number; skippedSteps: number }
+        stats: {
+          completedSteps: number;
+          totalSteps: number;
+          duration: number;
+          skippedSteps: number;
+        }
       ) => {
         this.broadcastToCall(callSid, {
           eventId: 'uuid-event',

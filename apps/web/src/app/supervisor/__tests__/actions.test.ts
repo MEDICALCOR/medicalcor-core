@@ -15,19 +15,70 @@ import {
 // Mock Setup
 // =============================================================================
 
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
+// Wrapper to convert simple mock objects to proper Response-like objects
+function wrapMockResponse(mockResult: {
+  ok?: boolean;
+  status?: number;
+  json?: () => Promise<unknown>;
+}) {
+  const ok = mockResult.ok ?? true;
+  const status = mockResult.status ?? (ok ? 200 : 500);
 
-const consoleMocks = {
-  error: vi.spyOn(console, 'error').mockImplementation(() => {}),
-};
+  return {
+    ok,
+    status,
+    statusText: ok ? 'OK' : 'Error',
+    headers: new Headers({ 'content-type': 'application/json' }),
+    json: mockResult.json ?? (async () => ({})),
+    text: async () => '{}',
+    clone: function () {
+      return wrapMockResponse(mockResult);
+    },
+    body: null,
+    bodyUsed: false,
+    arrayBuffer: async () => new ArrayBuffer(0),
+    blob: async () => new Blob(['{}'], { type: 'application/json' }),
+    formData: async () => new FormData(),
+    redirected: false,
+    type: 'basic' as ResponseType,
+    url: '',
+  };
+}
+
+// Create a fetch mock that wraps responses properly
+const mockFetch = vi.fn().mockImplementation(async () => {
+  throw new Error('Mock not configured');
+});
+
+// Store original fetch and override
+const originalFetch = globalThis.fetch;
+
+// Console mocks - must be set up in beforeEach to survive restoreAllMocks
+let consoleMocks: { error: ReturnType<typeof vi.spyOn> };
 
 beforeEach(() => {
   vi.clearAllMocks();
+
+  // Set up console mock
+  consoleMocks = {
+    error: vi.spyOn(console, 'error').mockImplementation(() => {}),
+  };
+
+  // Create wrapper that auto-converts mock responses
+  const wrappedMockFetch = vi.fn().mockImplementation(async (...args: Parameters<typeof fetch>) => {
+    const result = await mockFetch(...args);
+    // If result already has clone method, return as-is; otherwise wrap it
+    if (result && typeof result.clone === 'function') {
+      return result;
+    }
+    return wrapMockResponse(result);
+  });
+  globalThis.fetch = wrappedMockFetch as unknown as typeof fetch;
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  globalThis.fetch = originalFetch;
 });
 
 // =============================================================================
@@ -311,10 +362,7 @@ describe('getAgentStatusesAction', () => {
     const result = await getAgentStatusesAction();
 
     expect(result).toEqual([]);
-    expect(consoleMocks.error).toHaveBeenCalledWith(
-      'Failed to fetch calls for agent status:',
-      503
-    );
+    expect(consoleMocks.error).toHaveBeenCalledWith('Failed to fetch calls for agent status:', 503);
   });
 
   it('should return empty array when fetch throws error', async () => {
@@ -486,10 +534,7 @@ describe('getAlertsAction', () => {
     const result = await getAlertsAction();
 
     expect(result).toEqual([]);
-    expect(consoleMocks.error).toHaveBeenCalledWith(
-      'Error fetching alerts:',
-      expect.any(Error)
-    );
+    expect(consoleMocks.error).toHaveBeenCalledWith('Error fetching alerts:', expect.any(Error));
   });
 
   it('should handle undefined flags array', async () => {
