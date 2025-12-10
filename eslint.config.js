@@ -46,6 +46,7 @@ export default tseslint.config(
             'vitest.setup.ts',
             'packages/integrations/vitest.contract.config.ts',
             'packages/infrastructure/vitest.config.ts',
+            'packages/domain/vitest.config.ts',
           ],
         },
         tsconfigRootDir: import.meta.dirname,
