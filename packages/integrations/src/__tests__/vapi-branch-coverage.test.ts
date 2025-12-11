@@ -746,6 +746,64 @@ describe('VapiClient', () => {
       const buffered = client.getBufferedTranscript('call_destroy_test');
       expect(buffered).toHaveLength(0);
     });
+
+    it('should clean up stale buffers when cleanup interval fires', () => {
+      vi.useFakeTimers();
+
+      const cleanupClient = new VapiClient({ apiKey: 'test-key' });
+
+      // Buffer a message
+      cleanupClient.bufferTranscriptMessage('call_stale_test', {
+        role: 'user',
+        message: 'Old message',
+        timestamp: Date.now(),
+      });
+
+      // Verify message is buffered
+      expect(cleanupClient.getBufferedTranscript('call_stale_test')).toHaveLength(1);
+
+      // Start cleanup and advance time past TTL (2 hours) + cleanup interval (10 min)
+      cleanupClient.startBufferCleanup();
+
+      // Advance past TTL (2 hours = 7200000ms)
+      vi.advanceTimersByTime(2 * 60 * 60 * 1000 + 1);
+
+      // Trigger cleanup interval (10 minutes)
+      vi.advanceTimersByTime(10 * 60 * 1000);
+
+      // Buffer should be cleaned up
+      expect(cleanupClient.getBufferedTranscript('call_stale_test')).toHaveLength(0);
+
+      cleanupClient.destroy();
+      vi.useRealTimers();
+    });
+
+    it('should not clean up buffers within TTL', () => {
+      vi.useFakeTimers();
+
+      const freshClient = new VapiClient({ apiKey: 'test-key' });
+
+      // Buffer a message
+      freshClient.bufferTranscriptMessage('call_fresh_test', {
+        role: 'user',
+        message: 'Fresh message',
+        timestamp: Date.now(),
+      });
+
+      freshClient.startBufferCleanup();
+
+      // Advance only 1 hour (less than 2 hour TTL)
+      vi.advanceTimersByTime(1 * 60 * 60 * 1000);
+
+      // Trigger cleanup interval
+      vi.advanceTimersByTime(10 * 60 * 1000);
+
+      // Buffer should still exist
+      expect(freshClient.getBufferedTranscript('call_fresh_test')).toHaveLength(1);
+
+      freshClient.destroy();
+      vi.useRealTimers();
+    });
   });
 
   describe('error handling', () => {

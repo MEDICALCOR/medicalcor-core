@@ -366,6 +366,16 @@ describe('SchedulingService', () => {
       const appointment = await service.getAppointment('non_existent');
       expect(appointment).toBeNull();
     });
+
+    it('should rethrow non-404 errors (line 286)', async () => {
+      server.use(
+        http.get('https://scheduling.test.api/api/v1/appointments/:appointmentId', () => {
+          return new HttpResponse('Internal Server Error', { status: 500 });
+        })
+      );
+
+      await expect(service.getAppointment('apt_error')).rejects.toThrow('500');
+    });
   });
 
   describe('cancelAppointment', () => {
@@ -760,6 +770,28 @@ describe('SchedulingService', () => {
 
       expect(slots).toEqual([]);
       expect(callCount).toBeGreaterThan(1);
+    });
+
+    it('should convert AbortError to ExternalServiceError on timeout (line 458)', async () => {
+      // Create service with minimum valid timeout
+      const timeoutService = new SchedulingService({
+        apiUrl: 'https://scheduling.test.api',
+        apiKey: 'test-key',
+        timeoutMs: 1000, // Minimum valid timeout
+        retryConfig: { maxRetries: 0, baseDelayMs: 100 }, // No retries
+      });
+
+      server.use(
+        http.get('https://scheduling.test.api/api/v1/slots', async () => {
+          // Delay longer than the timeout
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          return HttpResponse.json({ slots: [] });
+        })
+      );
+
+      await expect(timeoutService.getAvailableSlots({ procedureType: 'implant' })).rejects.toThrow(
+        /timed out/i
+      );
     });
   });
 

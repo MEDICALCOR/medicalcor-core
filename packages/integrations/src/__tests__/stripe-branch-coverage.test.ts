@@ -454,6 +454,50 @@ describe('StripeClient', () => {
       expect(requestCount).toBe(2);
     });
 
+    it('should handle empty data array in period pagination (line 218)', async () => {
+      // This tests the else branch in getRevenueForPeriod when response.data is empty
+      let requestCount = 0;
+      server.use(
+        http.get('https://api.stripe.com/v1/charges', () => {
+          requestCount++;
+          if (requestCount === 1) {
+            // First page with data and has_more: true
+            return HttpResponse.json({
+              object: 'list',
+              data: [
+                {
+                  id: 'ch_period_first',
+                  amount: 50000,
+                  amount_captured: 50000,
+                  currency: 'ron',
+                  status: 'succeeded',
+                  created: Math.floor(Date.now() / 1000),
+                  paid: true,
+                  refunded: false,
+                },
+              ],
+              has_more: true,
+            });
+          }
+          // Second page returns empty data array - triggers line 218
+          return HttpResponse.json({
+            object: 'list',
+            data: [],
+            has_more: true, // Still says has_more but empty data should stop pagination
+          });
+        })
+      );
+
+      const result = await client.getRevenueForPeriod(
+        new Date('2024-01-01'),
+        new Date('2024-01-31')
+      );
+
+      expect(result.amount).toBe(50000);
+      expect(result.transactionCount).toBe(1);
+      expect(requestCount).toBe(2);
+    });
+
     it('should filter by charge status in period', async () => {
       server.use(
         http.get('https://api.stripe.com/v1/charges', () => {
@@ -722,6 +766,71 @@ describe('StripeClient', () => {
       );
 
       await expect(client.getDailyRevenue()).rejects.toThrow('Request failed with status 400');
+    });
+
+    it('should handle empty data array in pagination (line 218)', async () => {
+      // This tests the edge case where response.data is empty,
+      // triggering the else branch that sets hasMore = false
+      let requestCount = 0;
+      server.use(
+        http.get('https://api.stripe.com/v1/charges', () => {
+          requestCount++;
+          if (requestCount === 1) {
+            // First page with data and has_more: true
+            return HttpResponse.json({
+              object: 'list',
+              data: [
+                {
+                  id: 'ch_first',
+                  amount: 50000,
+                  amount_captured: 50000,
+                  currency: 'ron',
+                  status: 'succeeded',
+                  created: Math.floor(Date.now() / 1000),
+                  paid: true,
+                  refunded: false,
+                },
+              ],
+              has_more: true,
+            });
+          }
+          // Second page returns empty data array - triggers line 218
+          return HttpResponse.json({
+            object: 'list',
+            data: [],
+            has_more: true, // Still says has_more but empty data should stop pagination
+          });
+        })
+      );
+
+      const result = await client.getDailyRevenue();
+
+      expect(result.amount).toBe(50000);
+      expect(result.transactionCount).toBe(1);
+      expect(requestCount).toBe(2);
+    });
+
+    it('should convert AbortError to ExternalServiceError on timeout (line 352)', async () => {
+      // Create client with very short timeout
+      const timeoutClient = new StripeClient({
+        secretKey: 'sk_test_timeout',
+        timeoutMs: 1, // 1ms timeout - will definitely timeout
+        retryConfig: { maxRetries: 0, baseDelayMs: 0 }, // No retries
+      });
+
+      server.use(
+        http.get('https://api.stripe.com/v1/charges', async () => {
+          // Delay longer than the timeout
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          return HttpResponse.json({
+            object: 'list',
+            data: [],
+            has_more: false,
+          });
+        })
+      );
+
+      await expect(timeoutClient.getDailyRevenue()).rejects.toThrow(/timeout/i);
     });
   });
 

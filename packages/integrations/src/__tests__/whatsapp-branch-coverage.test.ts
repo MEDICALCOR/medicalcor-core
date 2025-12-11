@@ -776,6 +776,61 @@ describe('TemplateCatalogService', () => {
       expect(result.allowed).toBe(false);
       expect(result.waitMinutes).toBeDefined();
     });
+
+    it('should allow sending after cooldown expires (sync)', () => {
+      vi.useFakeTimers();
+
+      const cooldownService = new TemplateCatalogService();
+
+      // Record a send for a template with 60 minute cooldown
+      cooldownService.recordTemplateSendSync('contact_expired', 'hot_lead_acknowledgment');
+
+      // Verify blocked immediately
+      let result = cooldownService.canSendTemplateSync(
+        'contact_expired',
+        'hot_lead_acknowledgment'
+      );
+      expect(result.allowed).toBe(false);
+
+      // Advance time past cooldown (60 minutes + 1ms)
+      vi.advanceTimersByTime(60 * 60 * 1000 + 1);
+
+      // Should now be allowed
+      result = cooldownService.canSendTemplateSync('contact_expired', 'hot_lead_acknowledgment');
+      expect(result.allowed).toBe(true);
+
+      vi.useRealTimers();
+    });
+  });
+
+  describe('canSendTemplate async cooldown expiry', () => {
+    it('should allow sending after cooldown expires (async in-memory)', async () => {
+      vi.useFakeTimers();
+
+      const cooldownService = new TemplateCatalogService();
+
+      // Record a send
+      await cooldownService.recordTemplateSend('contact_async_expired', 'hot_lead_acknowledgment');
+
+      // Verify blocked immediately
+      let result = await cooldownService.canSendTemplate(
+        'contact_async_expired',
+        'hot_lead_acknowledgment'
+      );
+      expect(result.allowed).toBe(false);
+
+      // Advance time past cooldown (60 minutes + 1ms)
+      vi.advanceTimersByTime(60 * 60 * 1000 + 1);
+
+      // Should now be allowed (falls back to in-memory check)
+      result = await cooldownService.canSendTemplate(
+        'contact_async_expired',
+        'hot_lead_acknowledgment'
+      );
+      expect(result.allowed).toBe(true);
+
+      vi.useRealTimers();
+    });
   });
 
   describe('recordTemplateSend', () => {
