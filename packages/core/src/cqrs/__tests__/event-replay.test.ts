@@ -568,7 +568,8 @@ describe('LiveProjectionUpdater', () => {
         const interval = setInterval(() => {
           const event = events.shift();
           if (event) {
-            handler(event).catch(console.error);
+            // Swallow errors in test mock - errors are handled by individual test assertions
+            handler(event).catch(() => {});
           }
         }, 10);
 
