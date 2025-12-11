@@ -13,7 +13,6 @@
  * 4. IDEMPOTENT OPERATIONS - Safe for retries
  */
 
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-redundant-type-constituents */
 import { createLogger } from '@medicalcor/core';
 import type {
   ICrmGateway,
@@ -36,10 +35,7 @@ import type {
   LeadScore,
   PhoneNumber,
 } from '@medicalcor/domain';
-import {
-  PipedriveClient,
-  type PipedriveClientOptions,
-} from '@medicalcor/integrations';
+import { PipedriveClient, type PipedriveClientOptions } from '@medicalcor/integrations';
 import type {
   PipedrivePerson,
   PipedriveDeal,
@@ -59,7 +55,7 @@ const logger = createLogger({ name: 'pipedrive-crm-gateway' });
 /**
  * Extract primary phone from Pipedrive phone array
  */
-function extractPrimaryPhone(phones?: Array<{ value: string; primary?: boolean }>): string | undefined {
+function extractPrimaryPhone(phones?: { value: string; primary?: boolean }[]): string | undefined {
   if (!phones?.length) return undefined;
   const primary = phones.find((p) => p.primary);
   return primary?.value ?? phones[0]?.value;
@@ -68,7 +64,7 @@ function extractPrimaryPhone(phones?: Array<{ value: string; primary?: boolean }
 /**
  * Extract primary email from Pipedrive email array
  */
-function extractPrimaryEmail(emails?: Array<{ value: string; primary?: boolean }>): string | undefined {
+function extractPrimaryEmail(emails?: { value: string; primary?: boolean }[]): string | undefined {
   if (!emails?.length) return undefined;
   const primary = emails.find((e) => e.primary);
   return primary?.value ?? emails[0]?.value;
@@ -307,10 +303,7 @@ export class PipedriveCrmGateway implements ICrmGateway {
     this.config = config;
     this.client = new PipedriveClient(config);
 
-    logger.info(
-      { companyDomain: config.companyDomain },
-      'Pipedrive CRM Gateway initialized'
-    );
+    logger.info({ companyDomain: config.companyDomain }, 'Pipedrive CRM Gateway initialized');
   }
 
   // ===========================================================================
@@ -388,7 +381,7 @@ export class PipedriveCrmGateway implements ICrmGateway {
 
       // Map custom fields
       if (input.leadScore && this.config.leadScoreField) {
-        updateData[this.config.leadScoreField] = input.leadScore.getValue();
+        updateData[this.config.leadScoreField] = input.leadScore.numericValue;
       }
       if (input.leadStatus && this.config.leadStatusField) {
         updateData[this.config.leadStatusField] = input.leadStatus;
@@ -439,11 +432,11 @@ export class PipedriveCrmGateway implements ICrmGateway {
       const updateData: Record<string, unknown> = {};
 
       if (this.config.leadScoreField) {
-        updateData[this.config.leadScoreField] = score.getValue();
+        updateData[this.config.leadScoreField] = score.numericValue;
       }
 
       if (this.config.leadStatusField) {
-        updateData[this.config.leadStatusField] = score.getClassification();
+        updateData[this.config.leadStatusField] = score.classification;
       }
 
       if (metadata?.procedureInterest && this.config.procedureInterestField) {
@@ -455,7 +448,7 @@ export class PipedriveCrmGateway implements ICrmGateway {
       // Add note with scoring reasoning if provided
       if (metadata?.reasoning) {
         await this.client.createNote({
-          content: `[AI Scoring] Score: ${score.getValue()} (${score.getClassification()})\nMethod: ${metadata.method}\n\n${metadata.reasoning}`,
+          content: `[AI Scoring] Score: ${score.numericValue} (${score.classification})\nMethod: ${metadata.method}\n\n${metadata.reasoning}`,
           personId: parseInt(id, 10),
         });
       }
