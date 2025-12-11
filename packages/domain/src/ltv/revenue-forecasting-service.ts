@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 /**
  * @fileoverview Revenue Forecasting Service
  *
@@ -517,6 +516,9 @@ export class RevenueForecastingService {
 
   /**
    * Ensemble forecast combining all methods
+   *
+   * Combines moving average, exponential smoothing, and linear regression
+   * forecasts using weights based on each method's R-squared model fit.
    */
   private ensembleForecast(
     historicalData: HistoricalRevenuePoint[],
@@ -524,81 +526,39 @@ export class RevenueForecastingService {
     config: ForecastConfig
   ): { forecasts: ForecastedRevenuePoint[]; modelFit: ModelFitStatistics } {
     // Get forecasts from all methods
-    const maForecast = this.movingAverageForecast(historicalData, revenueValues, config);
-    const etsForecast = this.exponentialSmoothingForecast(historicalData, revenueValues, config);
-    const lrForecast = this.linearRegressionForecast(historicalData, revenueValues, config);
+    const methodForecasts = [
+      this.movingAverageForecast(historicalData, revenueValues, config),
+      this.exponentialSmoothingForecast(historicalData, revenueValues, config),
+      this.linearRegressionForecast(historicalData, revenueValues, config),
+    ];
 
     // Weight methods by their R-squared (model fit)
-    const weights = this.calculateEnsembleWeights([
-      maForecast.modelFit,
-      etsForecast.modelFit,
-      lrForecast.modelFit,
-    ]);
+    const weights = this.calculateEnsembleWeights(methodForecasts.map((f) => f.modelFit));
 
-    // Combine forecasts
+    // Combine forecasts for each period
     const forecasts: ForecastedRevenuePoint[] = [];
     for (let i = 0; i < config.forecastPeriods; i++) {
-      const ma = maForecast.forecasts[i];
-      const ets = etsForecast.forecasts[i];
-      const lr = lrForecast.forecasts[i];
+      const periodForecasts = methodForecasts.map((f) => f.forecasts[i]);
 
       // Skip if any forecast is missing
-      if (!ma || !ets || !lr) continue;
+      if (periodForecasts.some((f) => !f)) continue;
 
-      const w0 = weights[0] ?? 0.33;
-      const w1 = weights[1] ?? 0.33;
-      const w2 = weights[2] ?? 0.34;
-
-      const predicted = Math.round(w0 * ma.predicted + w1 * ets.predicted + w2 * lr.predicted);
-
-      const lower = Math.round(
-        w0 * ma.confidenceInterval.lower +
-          w1 * ets.confidenceInterval.lower +
-          w2 * lr.confidenceInterval.lower
+      forecasts.push(
+        this.combineEnsembleForecastPoint(
+          periodForecasts as ForecastedRevenuePoint[],
+          weights,
+          config,
+          i
+        )
       );
-
-      const upper = Math.round(
-        w0 * ma.confidenceInterval.upper +
-          w1 * ets.confidenceInterval.upper +
-          w2 * lr.confidenceInterval.upper
-      );
-
-      forecasts.push({
-        date: ma.date,
-        predicted,
-        confidenceInterval: {
-          lower: Math.max(0, lower),
-          upper,
-          level: config.confidenceLevel,
-        },
-        seasonalFactor: ma.seasonalFactor,
-        trendComponent: lr.trendComponent,
-        highUncertainty: i >= config.forecastPeriods / 2,
-      });
     }
 
-    // Ensemble model fit is weighted average
-    const w0 = weights[0] ?? 0.33;
-    const w1 = weights[1] ?? 0.33;
-    const w2 = weights[2] ?? 0.34;
-
-    const modelFit: ModelFitStatistics = {
-      rSquared:
-        w0 * maForecast.modelFit.rSquared +
-        w1 * etsForecast.modelFit.rSquared +
-        w2 * lrForecast.modelFit.rSquared,
-      mae:
-        w0 * maForecast.modelFit.mae + w1 * etsForecast.modelFit.mae + w2 * lrForecast.modelFit.mae,
-      mape:
-        w0 * maForecast.modelFit.mape +
-        w1 * etsForecast.modelFit.mape +
-        w2 * lrForecast.modelFit.mape,
-      rmse:
-        w0 * maForecast.modelFit.rmse +
-        w1 * etsForecast.modelFit.rmse +
-        w2 * lrForecast.modelFit.rmse,
-      dataPointsUsed: revenueValues.length,
-    };
+    // Combine model fit statistics
+    const modelFit = this.combineEnsembleModelFit(
+      methodForecasts.map((f) => f.modelFit),
+      weights,
+      revenueValues.length
+    );
 
     return { forecasts, modelFit };
   }
@@ -769,6 +729,90 @@ export class RevenueForecastingService {
     // Use R-squared as weight indicator
     const rSquaredSum = fits.reduce((sum, f) => sum + Math.max(0.1, f.rSquared), 0);
     return fits.map((f) => Math.max(0.1, f.rSquared) / rSquaredSum);
+  }
+
+  /**
+   * Calculate weighted average of values
+   */
+  private weightedAverage(values: number[], weights: number[]): number {
+    return values.reduce((sum, value, i) => sum + value * (weights[i] ?? 0), 0);
+  }
+
+  /**
+   * Combine model fit statistics from multiple forecasts using weighted average
+   */
+  private combineEnsembleModelFit(
+    fits: ModelFitStatistics[],
+    weights: number[],
+    dataPointsUsed: number
+  ): ModelFitStatistics {
+    return {
+      rSquared: this.weightedAverage(
+        fits.map((f) => f.rSquared),
+        weights
+      ),
+      mae: this.weightedAverage(
+        fits.map((f) => f.mae),
+        weights
+      ),
+      mape: this.weightedAverage(
+        fits.map((f) => f.mape),
+        weights
+      ),
+      rmse: this.weightedAverage(
+        fits.map((f) => f.rmse),
+        weights
+      ),
+      dataPointsUsed,
+    };
+  }
+
+  /**
+   * Combine individual forecast points into a single ensemble forecast point
+   */
+  private combineEnsembleForecastPoint(
+    forecastPoints: ForecastedRevenuePoint[],
+    weights: number[],
+    config: ForecastConfig,
+    periodIndex: number
+  ): ForecastedRevenuePoint {
+    const predicted = Math.round(
+      this.weightedAverage(
+        forecastPoints.map((f) => f.predicted),
+        weights
+      )
+    );
+
+    const lower = Math.round(
+      this.weightedAverage(
+        forecastPoints.map((f) => f.confidenceInterval.lower),
+        weights
+      )
+    );
+
+    const upper = Math.round(
+      this.weightedAverage(
+        forecastPoints.map((f) => f.confidenceInterval.upper),
+        weights
+      )
+    );
+
+    // Use moving average for seasonal factor, linear regression for trend
+    const maForecast = forecastPoints[0];
+    const lrForecast = forecastPoints[2];
+
+    return {
+      date: maForecast?.date ?? new Date(),
+      predicted,
+      confidenceInterval: {
+        lower: Math.max(0, lower),
+        upper,
+        level: config.confidenceLevel,
+      },
+      seasonalFactor: maForecast?.seasonalFactor,
+      trendComponent: lrForecast?.trendComponent,
+      highUncertainty: periodIndex >= config.forecastPeriods / 2,
+    };
   }
 
   /**
