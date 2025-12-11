@@ -434,6 +434,56 @@ export * from './breach-notification/index.js';
 // Compliance Matrix - Constraint compliance tracking across sprints
 export * from './compliance-matrix/index.js';
 
+// Inventory Prediction - Banking-grade inventory management with Strategy Pattern
+// The "Inventory Brain" for predictive demand forecasting
+export {
+  // Strategy Interface
+  type InventoryPredictionStrategy,
+
+  // Repository Interface
+  type IInventoryRepository,
+
+  // Configuration
+  type InventoryPredictionServiceConfig,
+  type InventoryPredictionServiceDeps,
+  DEFAULT_INVENTORY_CONFIG,
+
+  // Core Types
+  type UsageEvent,
+  type UsageReason,
+  type InventoryItem as DomainInventoryItem,
+  type InventoryCategory,
+
+  // Prediction Results
+  type ReorderPoint,
+  type StockoutPrediction,
+  type StockoutRisk,
+  type OrderRecommendation,
+  type ExpiryPrediction,
+  type ExpiryRecommendation,
+
+  // Strategies
+  EOQStrategy,
+  createEOQStrategy,
+  DEFAULT_EOQ_CONFIG,
+  type EOQStrategyConfig,
+  JITStrategy,
+  createJITStrategy,
+  DEFAULT_JIT_CONFIG,
+  type JITStrategyConfig,
+  SafetyStockStrategy,
+  createSafetyStockStrategy,
+  DEFAULT_SAFETY_STOCK_CONFIG,
+  type SafetyStockStrategyConfig,
+
+  // Service
+  InventoryPredictionService,
+  createInventoryPredictionService,
+  type InventoryAnalysis,
+  type InventoryHealthSummary,
+  type ReorderAlert,
+} from './inventory/index.js';
+
 // ============================================================================
 // SHARED TYPES & UTILITIES
 // ============================================================================
