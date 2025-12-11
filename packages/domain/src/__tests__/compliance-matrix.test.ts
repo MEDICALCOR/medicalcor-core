@@ -464,7 +464,7 @@ describe('ComplianceMatrixService', () => {
         isActive: true,
       });
 
-      const hipaaConstraints = await service.getConstraintsByCategory(matrixId, 'hipaa');
+      await service.getConstraintsByCategory(matrixId, 'hipaa');
 
       expect(mockRepository.findConstraintsByCategory).toHaveBeenCalledWith(matrixId, 'hipaa');
     });
@@ -507,7 +507,7 @@ describe('ComplianceMatrixService', () => {
     });
 
     it('should set current sprint', async () => {
-      const sprint1 = await service.addSprint(matrixId, {
+      await service.addSprint(matrixId, {
         name: 'Sprint 1',
         startDate: new Date('2024-01-01'),
         endDate: new Date('2024-01-14'),
@@ -683,13 +683,13 @@ describe('ComplianceMatrixService', () => {
         goals: [],
       });
 
-      await service.getSprintSummary(matrixId, sprint.id);
+      await service.getSprintSummary(matrixId, sprint.id);  // sprint.id needed for assertion
 
       expect(mockRepository.getSprintSummary).toHaveBeenCalledWith(matrixId, sprint.id);
     });
 
     it('should generate compliance report', async () => {
-      const sprint = await service.addSprint(matrixId, {
+      await service.addSprint(matrixId, {
         name: 'Sprint 1',
         startDate: new Date('2024-01-01'),
         endDate: new Date('2024-01-14'),
@@ -708,7 +708,7 @@ describe('ComplianceMatrixService', () => {
     });
 
     it('should check compliance health', async () => {
-      const sprint = await service.addSprint(matrixId, {
+      await service.addSprint(matrixId, {
         name: 'Sprint 1',
         startDate: new Date('2024-01-01'),
         endDate: new Date('2024-01-14'),
@@ -722,7 +722,7 @@ describe('ComplianceMatrixService', () => {
     });
 
     it('should generate display matrix', async () => {
-      const sprint = await service.addSprint(matrixId, {
+      await service.addSprint(matrixId, {
         name: 'Sprint 1',
         startDate: new Date('2024-01-01'),
         endDate: new Date('2024-01-14'),
