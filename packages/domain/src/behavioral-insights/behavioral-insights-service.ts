@@ -560,42 +560,102 @@ export class BehavioralInsightsService {
   // PRIVATE METHODS - CHURN ASSESSMENT
   // ============================================================================
 
+  /**
+   * Churn risk rules configuration.
+   * Each rule specifies conditions that indicate churn risk and the resulting risk level.
+   * Rules are evaluated in order - first matching rule determines the risk level.
+   */
+  private static readonly CHURN_RISK_RULES: readonly {
+    readonly name: string;
+    readonly riskLevel: 'high' | 'medium';
+    readonly evaluate: (ctx: {
+      patterns: BehavioralPattern[];
+      insights: CognitiveInsight[];
+      summary: SubjectMemorySummary;
+    }) => boolean;
+  }[] = [
+    {
+      name: 'explicit_churn_insight',
+      riskLevel: 'high',
+      evaluate: ({ insights }) => {
+        const churnInsight = insights.find((i) => i.type === 'churn_risk');
+        return churnInsight !== undefined && churnInsight.confidence >= 0.7;
+      },
+    },
+    {
+      name: 'declining_engagement_pattern',
+      riskLevel: 'high',
+      evaluate: ({ patterns }) => {
+        const pattern = patterns.find((p) => p.patternType === 'declining_engagement');
+        return pattern !== undefined && pattern.confidence >= 0.6;
+      },
+    },
+    {
+      name: 'appointment_rescheduler_pattern',
+      riskLevel: 'medium',
+      evaluate: ({ patterns }) => {
+        const pattern = patterns.find((p) => p.patternType === 'appointment_rescheduler');
+        return pattern !== undefined && pattern.confidence >= 0.5;
+      },
+    },
+    {
+      name: 'sentiment_decline',
+      riskLevel: 'medium',
+      evaluate: ({ summary }) => summary.sentimentTrend === 'declining',
+    },
+    {
+      name: 'reactivation_candidate',
+      riskLevel: 'medium',
+      evaluate: ({ insights }) => insights.some((i) => i.type === 'reactivation_candidate'),
+    },
+  ] as const;
+
+  /**
+   * Assess churn risk using a rule-based evaluation approach.
+   * Evaluates rules in priority order and returns the risk level of the first matching rule.
+   */
   private assessChurnRisk(
     patterns: BehavioralPattern[],
     insights: CognitiveInsight[],
     summary: SubjectMemorySummary
   ): 'low' | 'medium' | 'high' {
-    // Check for explicit churn risk insight
-    const churnInsight = insights.find((i) => i.type === 'churn_risk');
-    if (churnInsight && churnInsight.confidence >= 0.7) {
-      return 'high';
-    }
+    const context = { patterns, insights, summary };
 
-    // Check for declining engagement pattern
-    const decliningPattern = patterns.find((p) => p.patternType === 'declining_engagement');
-    if (decliningPattern && decliningPattern.confidence >= 0.6) {
-      return 'high';
-    }
-
-    // Check for appointment rescheduler pattern (moderate risk)
-    const reschedulerPattern = patterns.find((p) => p.patternType === 'appointment_rescheduler');
-    if (reschedulerPattern && reschedulerPattern.confidence >= 0.5) {
-      return 'medium';
-    }
-
-    // Check for sentiment decline
-    if (summary.sentimentTrend === 'declining') {
-      return 'medium';
-    }
-
-    // Check for reactivation candidate
-    const reactivationInsight = insights.find((i) => i.type === 'reactivation_candidate');
-    if (reactivationInsight) {
-      return 'medium';
+    for (const rule of BehavioralInsightsService.CHURN_RISK_RULES) {
+      if (rule.evaluate(context)) {
+        return rule.riskLevel;
+      }
     }
 
     return 'low';
   }
+
+  /**
+   * Pattern type to recommendation mapping.
+   * Maps behavioral patterns to appropriate engagement recommendations.
+   */
+  private static readonly PATTERN_RECOMMENDATIONS: ReadonlyMap<string, string> = new Map([
+    ['quick_responder', 'Use real-time communication channels for best engagement'],
+    ['slow_responder', 'Allow adequate response time before follow-ups'],
+    ['monday_avoider', 'Avoid scheduling appointments on Mondays'],
+    ['quality_focused', 'Emphasize credentials and success stories in communications'],
+  ]);
+
+  /**
+   * Risk level to recommendations mapping.
+   * Maps churn risk levels to appropriate intervention recommendations.
+   */
+  private static readonly RISK_RECOMMENDATIONS: ReadonlyMap<'high' | 'medium', readonly string[]> =
+    new Map([
+      [
+        'high',
+        [
+          'Prioritize immediate follow-up with personalized outreach',
+          'Consider offering special incentives or flexible options',
+        ],
+      ],
+      ['medium', ['Schedule proactive check-in within the next week']],
+    ]);
 
   private generateRecommendations(
     patterns: BehavioralPattern[],
@@ -605,38 +665,60 @@ export class BehavioralInsightsService {
     const recommendations: string[] = [];
 
     // Add insight-based recommendations
+    this.addInsightRecommendations(insights, recommendations);
+
+    // Add pattern-based recommendations
+    this.addPatternRecommendations(patterns, recommendations);
+
+    // Add risk-based recommendations
+    this.addRiskRecommendations(churnRisk, recommendations);
+
+    // Deduplicate and limit
+    return Array.from(new Set(recommendations)).slice(0, 5);
+  }
+
+  /**
+   * Extract recommendations from cognitive insights
+   */
+  private addInsightRecommendations(insights: CognitiveInsight[], recommendations: string[]): void {
     for (const insight of insights) {
       if (insight.recommendedAction) {
         recommendations.push(insight.recommendedAction);
       }
     }
+  }
 
-    // Add pattern-based recommendations
+  /**
+   * Add recommendations based on detected behavioral patterns
+   */
+  private addPatternRecommendations(
+    patterns: BehavioralPattern[],
+    recommendations: string[]
+  ): void {
     for (const pattern of patterns) {
-      if (pattern.patternType === 'quick_responder') {
-        recommendations.push('Use real-time communication channels for best engagement');
-      }
-      if (pattern.patternType === 'slow_responder') {
-        recommendations.push('Allow adequate response time before follow-ups');
-      }
-      if (pattern.patternType === 'monday_avoider') {
-        recommendations.push('Avoid scheduling appointments on Mondays');
-      }
-      if (pattern.patternType === 'quality_focused') {
-        recommendations.push('Emphasize credentials and success stories in communications');
+      const recommendation = BehavioralInsightsService.PATTERN_RECOMMENDATIONS.get(
+        pattern.patternType
+      );
+      if (recommendation) {
+        recommendations.push(recommendation);
       }
     }
+  }
 
-    // Add risk-based recommendations
-    if (churnRisk === 'high') {
-      recommendations.push('Prioritize immediate follow-up with personalized outreach');
-      recommendations.push('Consider offering special incentives or flexible options');
-    } else if (churnRisk === 'medium') {
-      recommendations.push('Schedule proactive check-in within the next week');
+  /**
+   * Add recommendations based on churn risk level
+   */
+  private addRiskRecommendations(
+    churnRisk: 'low' | 'medium' | 'high',
+    recommendations: string[]
+  ): void {
+    if (churnRisk === 'low') {
+      return;
     }
-
-    // Deduplicate and limit
-    return Array.from(new Set(recommendations)).slice(0, 5);
+    const riskRecommendations = BehavioralInsightsService.RISK_RECOMMENDATIONS.get(churnRisk);
+    if (riskRecommendations) {
+      recommendations.push(...riskRecommendations);
+    }
   }
 
   private getChurnReason(patternType: string): string {
