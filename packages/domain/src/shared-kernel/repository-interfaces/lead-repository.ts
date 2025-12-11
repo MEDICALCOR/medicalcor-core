@@ -413,7 +413,7 @@ export interface ILeadRepository {
    * @param updates - Array of ID and score pairs
    */
   bulkUpdateScores(
-    updates: Array<{ id: string; score: LeadScore }>
+    updates: { id: string; score: LeadScore }[]
   ): Promise<LeadRepositoryResult<number>>;
 
   // ============================================================================

@@ -118,7 +118,7 @@ export class LeadScore {
    * @returns LeadScore instance
    * @throws InvalidLeadScoreError if value is out of range
    */
-  public static fromNumeric(value: number, confidence: number = 0.8): LeadScore {
+  public static fromNumeric(value: number, confidence = 0.8): LeadScore {
     return new LeadScore(value, confidence);
   }
 
@@ -128,28 +128,28 @@ export class LeadScore {
    * @param isMaxQualified - If true, creates score 5 (max); otherwise 4
    * @param confidence - Confidence level, defaults to 0.85
    */
-  public static hot(isMaxQualified: boolean = false, confidence: number = 0.85): LeadScore {
+  public static hot(isMaxQualified = false, confidence = 0.85): LeadScore {
     return new LeadScore(isMaxQualified ? 5 : 4, confidence);
   }
 
   /**
    * Create WARM lead score (3)
    */
-  public static warm(confidence: number = 0.8): LeadScore {
+  public static warm(confidence = 0.8): LeadScore {
     return new LeadScore(3, confidence);
   }
 
   /**
    * Create COLD lead score (2)
    */
-  public static cold(confidence: number = 0.75): LeadScore {
+  public static cold(confidence = 0.75): LeadScore {
     return new LeadScore(2, confidence);
   }
 
   /**
    * Create UNQUALIFIED lead score (1)
    */
-  public static unqualified(confidence: number = 0.7): LeadScore {
+  public static unqualified(confidence = 0.7): LeadScore {
     return new LeadScore(1, confidence);
   }
 
@@ -166,8 +166,8 @@ export class LeadScore {
    */
   public static fromClassification(
     classification: LeadClassification,
-    confidence: number = 0.8,
-    isMaxQualified: boolean = false
+    confidence = 0.8,
+    isMaxQualified = false
   ): LeadScore {
     const numericMap: Record<LeadClassification, number> = {
       HOT: isMaxQualified ? 5 : 4, // HOT can be 4 or 5 based on qualification level
@@ -363,7 +363,7 @@ export class LeadScore {
    * @param amount - Amount to boost (1-4)
    * @param reason - Reason for boost (for audit)
    */
-  public boost(amount: number = 1): LeadScore {
+  public boost(amount = 1): LeadScore {
     const newValue = Math.min(this.numericValue + amount, 5);
     return new LeadScore(newValue, this.confidence);
   }
@@ -372,7 +372,7 @@ export class LeadScore {
    * Decrease the score by specified amount
    * Returns new LeadScore (immutability preserved)
    */
-  public decrease(amount: number = 1): LeadScore {
+  public decrease(amount = 1): LeadScore {
     const newValue = Math.max(this.numericValue - amount, 1);
     return new LeadScore(newValue, this.confidence);
   }

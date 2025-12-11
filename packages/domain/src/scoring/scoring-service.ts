@@ -22,7 +22,7 @@ export interface ScoringServiceDeps {
 interface OpenAIClient {
   chat: {
     completions: {
-      create: (params: unknown) => Promise<{ choices: Array<{ message: { content: string } }> }>;
+      create: (params: unknown) => Promise<{ choices: { message: { content: string } }[] }>;
     };
   };
 }
@@ -218,7 +218,7 @@ export class ScoringService {
       },
     };
 
-    return actions[classification][language ?? 'ro'] ?? actions[classification]['ro']!;
+    return actions[classification][language ?? 'ro'] ?? actions[classification].ro!;
   }
 
   /**
@@ -285,7 +285,7 @@ Provide your scoring analysis in JSON format.`;
   private parseAIResponse(content: string): ScoringOutput {
     try {
       // Extract JSON from response (may be wrapped in markdown)
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      const jsonMatch = /\{[\s\S]*\}/.exec(content);
       if (!jsonMatch) {
         throw new Error('No JSON found in response');
       }
