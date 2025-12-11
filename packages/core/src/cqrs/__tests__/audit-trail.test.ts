@@ -237,6 +237,64 @@ describe('InMemoryAuditStore', () => {
       expect(resultAsc.entries[0]?.eventType).toBe('LeadCreated');
       expect(resultDesc.entries[0]?.eventType).toBe('PatientCreated');
     });
+
+    it('should filter by aggregateId', async () => {
+      // Need to find a known aggregateId from setup
+      const allResult = await store.query({});
+      const targetAggregateId = allResult.entries[0]?.aggregateId;
+
+      const result = await store.query({ aggregateId: targetAggregateId });
+
+      expect(result.entries.every((e) => e.aggregateId === targetAggregateId)).toBe(true);
+    });
+
+    it('should filter by correlationId', async () => {
+      const allResult = await store.query({});
+      const targetCorrelationId = allResult.entries[0]?.correlationId;
+
+      const result = await store.query({ correlationId: targetCorrelationId });
+
+      expect(result.entries.every((e) => e.correlationId === targetCorrelationId)).toBe(true);
+    });
+
+    it('should filter by eventTypes array', async () => {
+      const result = await store.query({ eventTypes: ['LeadCreated', 'LeadScored'] });
+
+      expect(result.entries.length).toBe(2);
+      expect(result.entries.every((e) => ['LeadCreated', 'LeadScored'].includes(e.eventType))).toBe(
+        true
+      );
+    });
+
+    it('should filter by startTime only', async () => {
+      const result = await store.query({
+        startTime: new Date('2024-01-01T11:00:00Z'),
+      });
+
+      expect(result.entries.length).toBe(2);
+    });
+
+    it('should filter by endTime only', async () => {
+      const result = await store.query({
+        endTime: new Date('2024-01-01T11:00:00Z'),
+      });
+
+      expect(result.entries.length).toBe(2);
+    });
+
+    it('should handle offset pagination', async () => {
+      const result = await store.query({ limit: 2, offset: 1 });
+
+      expect(result.entries.length).toBe(2);
+      expect(result.total).toBe(3);
+    });
+
+    it('should return empty results when no matches', async () => {
+      const result = await store.query({ actorId: 'non-existent-user' });
+
+      expect(result.entries.length).toBe(0);
+      expect(result.hasMore).toBe(false);
+    });
   });
 
   describe('getSummary', () => {
@@ -337,6 +395,91 @@ describe('InMemoryAuditStore', () => {
 
       expect(trail.length).toBe(2);
     });
+
+    it('should return empty array for non-existent aggregate', async () => {
+      const trail = await store.getAggregateAuditTrail('non-existent', 'Lead');
+
+      expect(trail.length).toBe(0);
+    });
+  });
+
+  describe('getActorAuditTrail', () => {
+    it('should return audit trail for specific actor', async () => {
+      const actorId = 'test-actor-123';
+
+      await store.saveBatch([
+        {
+          id: crypto.randomUUID(),
+          timestamp: new Date().toISOString(),
+          eventType: 'LeadCreated',
+          eventId: crypto.randomUUID(),
+          aggregateId: crypto.randomUUID(),
+          aggregateType: 'Lead',
+          actor: createMockActor({ id: actorId }),
+          action: 'create',
+          correlationId: crypto.randomUUID(),
+          severity: 'low',
+        },
+        {
+          id: crypto.randomUUID(),
+          timestamp: new Date().toISOString(),
+          eventType: 'LeadScored',
+          eventId: crypto.randomUUID(),
+          aggregateId: crypto.randomUUID(),
+          aggregateType: 'Lead',
+          actor: createMockActor({ id: actorId }),
+          action: 'score',
+          correlationId: crypto.randomUUID(),
+          severity: 'low',
+        },
+        {
+          id: crypto.randomUUID(),
+          timestamp: new Date().toISOString(),
+          eventType: 'LeadCreated',
+          eventId: crypto.randomUUID(),
+          aggregateId: crypto.randomUUID(),
+          aggregateType: 'Lead',
+          actor: createMockActor({ id: 'other-actor' }),
+          action: 'create',
+          correlationId: crypto.randomUUID(),
+          severity: 'low',
+        },
+      ]);
+
+      const trail = await store.getActorAuditTrail(actorId);
+
+      expect(trail.length).toBe(2);
+      expect(trail.every((e) => e.actor.id === actorId)).toBe(true);
+    });
+
+    it('should return empty array for non-existent actor', async () => {
+      const trail = await store.getActorAuditTrail('non-existent-actor');
+
+      expect(trail.length).toBe(0);
+    });
+  });
+
+  describe('clear', () => {
+    it('should clear all entries', async () => {
+      await store.save({
+        id: crypto.randomUUID(),
+        timestamp: new Date().toISOString(),
+        eventType: 'LeadCreated',
+        eventId: crypto.randomUUID(),
+        aggregateId: crypto.randomUUID(),
+        aggregateType: 'Lead',
+        actor: createMockActor(),
+        action: 'create',
+        correlationId: crypto.randomUUID(),
+        severity: 'low',
+      });
+
+      expect(store.size()).toBe(1);
+
+      store.clear();
+
+      expect(store.size()).toBe(0);
+    });
   });
 
   describe('exportToJson', () => {
@@ -414,6 +557,68 @@ describe('AuditTrailService', () => {
       expect(createEntry.action).toBe('create');
       expect(scoreEntry.action).toBe('score');
       expect(consentEntry.action).toBe('consent');
+    });
+
+    it('should set correct action for all mapped event types', async () => {
+      const eventTypeMappings = [
+        { type: 'LeadQualified', expectedAction: 'update' },
+        { type: 'LeadAssigned', expectedAction: 'assign' },
+        { type: 'LeadConverted', expectedAction: 'update' },
+        { type: 'LeadLost', expectedAction: 'update' },
+        { type: 'PatientUpdated', expectedAction: 'update' },
+        { type: 'PatientMerged', expectedAction: 'update' },
+        { type: 'AppointmentScheduled', expectedAction: 'schedule' },
+        { type: 'AppointmentRescheduled', expectedAction: 'update' },
+        { type: 'AppointmentCancelled', expectedAction: 'cancel' },
+        { type: 'AppointmentCompleted', expectedAction: 'complete' },
+        { type: 'ConsentWithdrawn', expectedAction: 'consent' },
+        { type: 'MessageSent', expectedAction: 'create' },
+        { type: 'MessageReceived', expectedAction: 'create' },
+        { type: 'DataExported', expectedAction: 'export' },
+        { type: 'DataImported', expectedAction: 'import' },
+        { type: 'UserLoggedIn', expectedAction: 'authenticate' },
+        { type: 'UserLoggedOut', expectedAction: 'authenticate' },
+        { type: 'PermissionGranted', expectedAction: 'authorize' },
+        { type: 'PermissionRevoked', expectedAction: 'authorize' },
+      ];
+
+      for (const { type, expectedAction } of eventTypeMappings) {
+        const event = createMockStoredEvent({ type });
+        const entry = await service.recordFromEvent(event);
+        expect(entry.action).toBe(expectedAction);
+      }
+    });
+
+    it('should default to update action for unknown event types', async () => {
+      const unknownEvent = createMockStoredEvent({ type: 'UnknownEventType' });
+      const entry = await service.recordFromEvent(unknownEvent);
+      expect(entry.action).toBe('update');
+    });
+
+    it('should set correct severity for event types', async () => {
+      const patientMergedEvent = createMockStoredEvent({ type: 'PatientMerged' });
+      const consentWithdrawnEvent = createMockStoredEvent({ type: 'ConsentWithdrawn' });
+      const dataExportedEvent = createMockStoredEvent({ type: 'DataExported' });
+
+      const mergedEntry = await service.recordFromEvent(patientMergedEvent);
+      const consentEntry = await service.recordFromEvent(consentWithdrawnEvent);
+      const exportEntry = await service.recordFromEvent(dataExportedEvent);
+
+      expect(mergedEntry.severity).toBe('high');
+      expect(consentEntry.severity).toBe('critical');
+      expect(exportEntry.severity).toBe('high');
+    });
+
+    it('should handle events with empty aggregateId', async () => {
+      const event = createMockStoredEvent({ aggregateId: undefined });
+      const entry = await service.recordFromEvent(event);
+      expect(entry.aggregateId).toBe('');
+    });
+
+    it('should handle events with empty aggregateType', async () => {
+      const event = createMockStoredEvent({ aggregateType: undefined });
+      const entry = await service.recordFromEvent(event);
+      expect(entry.aggregateType).toBe('');
     });
 
     it('should set compliance tags for relevant events', async () => {
@@ -499,6 +704,97 @@ describe('AuditTrailService', () => {
       expect(report.entries.length).toBe(3);
       expect(report.summary.totals.totalEntries).toBe(3);
       expect(report.generatedAt).toBeDefined();
+    });
+
+    it('should filter by compliance tags', async () => {
+      const events = [
+        createMockStoredEvent({ type: 'PatientCreated' }), // HIPAA, GDPR
+        createMockStoredEvent({ type: 'LeadCreated' }), // No compliance tags
+      ];
+
+      await service.recordBatchFromEvents(events, createMockActor());
+
+      const report = await service.generateComplianceReport(
+        new Date(Date.now() - 3600000),
+        new Date(),
+        ['GDPR']
+      );
+
+      expect(report.entries.length).toBe(1);
+      expect(report.period.start).toBeDefined();
+      expect(report.period.end).toBeDefined();
+    });
+  });
+
+  describe('getSummary', () => {
+    it('should get summary through service', async () => {
+      const events = [
+        createMockStoredEvent({ type: 'LeadCreated' }),
+        createMockStoredEvent({ type: 'LeadScored' }),
+      ];
+
+      await service.recordBatchFromEvents(events, createMockActor());
+
+      const summary = await service.getSummary(new Date(Date.now() - 3600000), new Date());
+
+      expect(summary.totals.totalEntries).toBe(2);
+    });
+  });
+
+  describe('getAggregateAuditTrail', () => {
+    it('should get aggregate audit trail through service', async () => {
+      const aggregateId = crypto.randomUUID();
+      const event = createMockStoredEvent({ aggregateId, aggregateType: 'Lead' });
+
+      await service.recordFromEvent(event, createMockActor());
+
+      const trail = await service.getAggregateAuditTrail(aggregateId, 'Lead');
+
+      expect(trail.length).toBe(1);
+    });
+  });
+
+  describe('getActorAuditTrail', () => {
+    it('should get actor audit trail through service', async () => {
+      const actorId = 'specific-actor-456';
+      const actor = createMockActor({ id: actorId });
+
+      await service.recordFromEvent(createMockStoredEvent(), actor);
+
+      const trail = await service.getActorAuditTrail(actorId);
+
+      expect(trail.length).toBe(1);
+    });
+  });
+
+  describe('exportToJson', () => {
+    it('should export entries through service', async () => {
+      await service.recordFromEvent(createMockStoredEvent(), createMockActor());
+
+      const json = await service.exportToJson({});
+      const parsed = JSON.parse(json);
+
+      expect(parsed.entries.length).toBe(1);
+    });
+  });
+
+  describe('createEntryFromEvent', () => {
+    it('should create entry without saving', () => {
+      const event = createMockStoredEvent();
+      const actor = createMockActor();
+
+      const entry = service.createEntryFromEvent(event, actor);
+
+      expect(entry.eventId).toBe(event.id);
+      expect(store.size()).toBe(0); // Not saved
+    });
+
+    it('should use event payload as newState when not provided', () => {
+      const event = createMockStoredEvent({ payload: { testData: 'value' } });
+
+      const entry = service.createEntryFromEvent(event);
+
+      expect(entry.newState).toEqual({ testData: 'value' });
     });
   });
 });
