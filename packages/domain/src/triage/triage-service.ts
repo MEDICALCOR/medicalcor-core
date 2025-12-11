@@ -143,6 +143,18 @@ interface UrgencyDetectionResult {
   prioritySchedulingRequested: boolean;
 }
 
+/**
+ * Result from an individual urgency rule evaluation
+ */
+interface UrgencyRuleResult {
+  /** Flags to add to the result */
+  flags: string[];
+  /** New urgency level if rule wants to upgrade (undefined = no change) */
+  urgencyLevel?: TriageResult['urgencyLevel'];
+  /** Whether priority scheduling was requested */
+  priorityScheduling?: boolean;
+}
+
 export class TriageService {
   private config: TriageConfig;
   private configClient: TriageConfigClient | null = null;
@@ -271,9 +283,157 @@ export class TriageService {
     }
   }
 
+  // =========================================================================
+  // Keyword Matching Helpers
+  // =========================================================================
+
+  /**
+   * Check if content contains any of the given keywords
+   */
+  private containsAnyKeyword(content: string, keywords: string[]): boolean {
+    return keywords.some((keyword) => content.includes(keyword));
+  }
+
+  /**
+   * Find all matching keywords in content
+   */
+  private findMatchingKeywords(content: string, keywords: string[]): string[] {
+    return keywords.filter((keyword) => content.includes(keyword));
+  }
+
+  // =========================================================================
+  // Urgency Rule Evaluators
+  // Each rule is responsible for one aspect of urgency detection
+  // =========================================================================
+
+  /**
+   * Rule: Emergency keywords indicate potential medical emergency
+   * Action: Add flag to advise calling 112 (not a dental emergency, refer out)
+   */
+  private evaluateEmergencyKeywords(lowerContent: string): UrgencyRuleResult {
+    const hasEmergencyKeywords = this.containsAnyKeyword(
+      lowerContent,
+      this.config.medicalEmergencyKeywords
+    );
+
+    return {
+      flags: hasEmergencyKeywords ? ['potential_emergency_refer_112'] : [],
+    };
+  }
+
+  /**
+   * Rule: Priority symptoms (pain/discomfort) indicate high purchase intent
+   * Action: Set urgency to high_priority, request priority scheduling, add symptom flags
+   */
+  private evaluatePrioritySymptoms(lowerContent: string): UrgencyRuleResult {
+    const matchingSymptoms = this.findMatchingKeywords(lowerContent, this.config.priorityKeywords);
+
+    if (matchingSymptoms.length === 0) {
+      return { flags: [] };
+    }
+
+    const symptomFlags = matchingSymptoms.map((s) => `symptom:${s.replace(/\s+/g, '_')}`);
+
+    return {
+      flags: ['priority_scheduling_requested', ...symptomFlags],
+      urgencyLevel: 'high_priority',
+      priorityScheduling: true,
+    };
+  }
+
+  /**
+   * Rule: Explicit scheduling request keywords
+   * Action: Request priority scheduling, upgrade to high if currently normal
+   * Note: Only applies if priority scheduling not already requested by symptoms
+   */
+  private evaluateSchedulingKeywords(
+    lowerContent: string,
+    currentUrgency: TriageResult['urgencyLevel'],
+    alreadyRequestedPriority: boolean
+  ): UrgencyRuleResult {
+    if (alreadyRequestedPriority) {
+      return { flags: [] };
+    }
+
+    const hasSchedulingKeywords = this.containsAnyKeyword(
+      lowerContent,
+      this.config.prioritySchedulingKeywords
+    );
+
+    if (!hasSchedulingKeywords) {
+      return { flags: [] };
+    }
+
+    return {
+      flags: ['priority_scheduling_requested'],
+      urgencyLevel: currentUrgency === 'normal' ? 'high' : undefined,
+      priorityScheduling: true,
+    };
+  }
+
+  /**
+   * Rule: HOT leads get elevated urgency
+   * Action: Upgrade to high if currently normal
+   */
+  private evaluateLeadScore(
+    leadScore: LeadScore,
+    currentUrgency: TriageResult['urgencyLevel']
+  ): UrgencyRuleResult {
+    if (leadScore === 'HOT' && currentUrgency === 'normal') {
+      return { flags: [], urgencyLevel: 'high' };
+    }
+    return { flags: [] };
+  }
+
+  /**
+   * Rule: Existing patients with appointment history get priority
+   * Action: Add flag, upgrade to high if currently normal
+   */
+  private evaluateExistingPatient(
+    hasExistingRelationship: boolean,
+    previousAppointments: number | undefined,
+    currentUrgency: TriageResult['urgencyLevel']
+  ): UrgencyRuleResult {
+    const isExistingPatient =
+      hasExistingRelationship && previousAppointments !== undefined && previousAppointments > 0;
+
+    if (!isExistingPatient) {
+      return { flags: [] };
+    }
+
+    return {
+      flags: ['existing_patient'],
+      urgencyLevel: currentUrgency === 'normal' ? 'high' : undefined,
+    };
+  }
+
+  /**
+   * Rule: Long-dormant leads are re-engagement opportunities
+   * Action: Add flag (no urgency change)
+   */
+  private evaluateReEngagement(lastContactDays: number | undefined): UrgencyRuleResult {
+    const isReEngagementOpportunity = lastContactDays !== undefined && lastContactDays > 180;
+
+    return {
+      flags: isReEngagementOpportunity ? ['re_engagement_opportunity'] : [],
+    };
+  }
+
+  // =========================================================================
+  // Main Urgency Detection
+  // =========================================================================
+
   /**
    * Detect urgency level and collect medical flags from message content
    * This is the shared logic used by both assess() and assessSync()
+   *
+   * Rules are evaluated in priority order:
+   * 1. Emergency keywords (flags only, no urgency change)
+   * 2. Priority symptoms (pain/discomfort → high_priority)
+   * 3. Scheduling keywords (explicit request → high)
+   * 4. Lead score (HOT → high)
+   * 5. Existing patient (returning patient → high)
+   * 6. Re-engagement (dormant lead → flag only)
    */
   private detectUrgency(input: TriageInput): UrgencyDetectionResult {
     const {
@@ -285,56 +445,34 @@ export class TriageService {
     } = input;
 
     const lowerContent = messageContent.toLowerCase();
-    const medicalFlags: string[] = [];
+
+    // Initialize state
     let urgencyLevel: TriageResult['urgencyLevel'] = 'normal';
     let prioritySchedulingRequested = false;
+    const medicalFlags: string[] = [];
 
-    // Check for medical emergency keywords - advise calling 112
-    const hasEmergencyKeywords = this.config.medicalEmergencyKeywords.some((k) =>
-      lowerContent.includes(k)
-    );
-    if (hasEmergencyKeywords) {
-      medicalFlags.push('potential_emergency_refer_112');
-    }
-
-    // Check for priority keywords (pain/discomfort indicating high purchase intent)
-    const prioritySymptoms = this.config.priorityKeywords.filter((k) => lowerContent.includes(k));
-    if (prioritySymptoms.length > 0) {
-      urgencyLevel = 'high_priority';
-      prioritySchedulingRequested = true;
-      medicalFlags.push('priority_scheduling_requested');
-      medicalFlags.push(...prioritySymptoms.map((s) => `symptom:${s.replace(/\s+/g, '_')}`));
-    }
-
-    // Check for explicit priority scheduling request
-    const hasSchedulingKeywords = this.config.prioritySchedulingKeywords.some((k) =>
-      lowerContent.includes(k)
-    );
-    if (hasSchedulingKeywords && !prioritySchedulingRequested) {
-      prioritySchedulingRequested = true;
-      medicalFlags.push('priority_scheduling_requested');
-      if (urgencyLevel === 'normal') {
-        urgencyLevel = 'high';
+    // Helper to apply a rule result
+    const applyRule = (result: UrgencyRuleResult): void => {
+      medicalFlags.push(...result.flags);
+      if (result.urgencyLevel !== undefined) {
+        urgencyLevel = result.urgencyLevel;
       }
-    }
-
-    // Score-based urgency adjustment
-    if (leadScore === 'HOT' && urgencyLevel === 'normal') {
-      urgencyLevel = 'high';
-    }
-
-    // Existing patient priority
-    if (hasExistingRelationship && previousAppointments && previousAppointments > 0) {
-      medicalFlags.push('existing_patient');
-      if (urgencyLevel === 'normal') {
-        urgencyLevel = 'high';
+      if (result.priorityScheduling) {
+        prioritySchedulingRequested = true;
       }
-    }
+    };
 
-    // Re-engagement priority
-    if (lastContactDays && lastContactDays > 180) {
-      medicalFlags.push('re_engagement_opportunity');
-    }
+    // Apply rules in priority order
+    applyRule(this.evaluateEmergencyKeywords(lowerContent));
+    applyRule(this.evaluatePrioritySymptoms(lowerContent));
+    applyRule(
+      this.evaluateSchedulingKeywords(lowerContent, urgencyLevel, prioritySchedulingRequested)
+    );
+    applyRule(this.evaluateLeadScore(leadScore, urgencyLevel));
+    applyRule(
+      this.evaluateExistingPatient(hasExistingRelationship, previousAppointments, urgencyLevel)
+    );
+    applyRule(this.evaluateReEngagement(lastContactDays));
 
     return { urgencyLevel, medicalFlags, prioritySchedulingRequested };
   }
