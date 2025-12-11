@@ -398,59 +398,181 @@ function calculateBoneQualityScore(
   return Math.max(0, score);
 }
 
+// ============================================================================
+// MEDICAL RISK SCORE CALCULATION HELPERS
+// ============================================================================
+
+/** Penalty points for smoking status levels (per status unit) */
+const SMOKING_PENALTY_PER_STATUS = 8;
+
+/** Maximum years of cessation that contribute to former smoker bonus */
+const MAX_CESSATION_YEARS_FOR_BONUS = 5;
+
+/** Bonus points per year of smoking cessation (up to max) */
+const BONUS_PER_CESSATION_YEAR = 1.5;
+
+/** Penalty configuration for medical conditions */
+const MEDICAL_CONDITION_PENALTIES = {
+  osteoporosis: 15,
+  radiationHistory: 50,
+  uncontrolledCardiovascular: 40,
+  immunocompromised: 30,
+  anticoagulants: 10,
+} as const;
+
+/** Penalty configuration for ASA classification */
+const ASA_PENALTIES = {
+  class3: 20,
+  class4: 35,
+} as const;
+
+/** Penalty configuration for diabetes based on HbA1c levels */
+const DIABETES_PENALTIES = {
+  poorlyControlled: 35,
+  moderatelyControlled: 20,
+  controlled: 10,
+} as const;
+
+/** Penalty configuration for bisphosphonate therapy duration */
+const BISPHOSPHONATE_PENALTIES = {
+  highRisk: 40,
+  moderateRisk: 25,
+  lowRisk: 15,
+} as const;
+
+/**
+ * Calculate smoking-related penalty adjustment
+ *
+ * Applies a base penalty per smoking status level, with a bonus
+ * for former smokers based on years since quitting.
+ */
+function calculateSmokingPenalty(indicators: AllOnXClinicalIndicators): number {
+  const basePenalty = indicators.smokingStatus * SMOKING_PENALTY_PER_STATUS;
+
+  // Former smokers (status 1) get a bonus based on cessation duration
+  if (indicators.smokingStatus === 1 && indicators.yearsSinceQuitSmoking !== undefined) {
+    const cappedYears = Math.min(indicators.yearsSinceQuitSmoking, MAX_CESSATION_YEARS_FOR_BONUS);
+    const cessationBonus = cappedYears * BONUS_PER_CESSATION_YEAR;
+    return basePenalty - cessationBonus;
+  }
+
+  return basePenalty;
+}
+
+/**
+ * Calculate diabetes-related penalty based on HbA1c levels
+ *
+ * Higher HbA1c indicates poorer glycemic control and increased surgical risk.
+ */
+function calculateDiabetesPenalty(
+  indicators: AllOnXClinicalIndicators,
+  config: AllOnXScoringConfig
+): number {
+  if (indicators.hba1c === undefined) {
+    return 0;
+  }
+
+  if (indicators.hba1c > config.hba1cThresholds.poorlyControlled) {
+    return DIABETES_PENALTIES.poorlyControlled;
+  }
+  if (indicators.hba1c > config.hba1cThresholds.moderatelyControlled) {
+    return DIABETES_PENALTIES.moderatelyControlled;
+  }
+  if (indicators.hba1c > config.hba1cThresholds.controlled) {
+    return DIABETES_PENALTIES.controlled;
+  }
+
+  return 0;
+}
+
+/**
+ * Calculate bisphosphonate therapy penalty based on duration
+ *
+ * Longer duration increases risk of medication-related osteonecrosis
+ * of the jaw (MRONJ) per AAOMS guidelines.
+ */
+function calculateBisphosphonatePenalty(
+  indicators: AllOnXClinicalIndicators,
+  config: AllOnXScoringConfig
+): number {
+  if (!indicators.onBisphosphonates) {
+    return 0;
+  }
+
+  const years = indicators.bisphosphonateYears ?? 1;
+
+  if (years >= config.bisphosphonateThresholds.highRisk) {
+    return BISPHOSPHONATE_PENALTIES.highRisk;
+  }
+  if (years >= config.bisphosphonateThresholds.moderateRisk) {
+    return BISPHOSPHONATE_PENALTIES.moderateRisk;
+  }
+
+  return BISPHOSPHONATE_PENALTIES.lowRisk;
+}
+
+/**
+ * Calculate cumulative penalty for other medical conditions
+ *
+ * Each condition contributes independently to the overall risk score.
+ */
+function calculateOtherConditionsPenalty(indicators: AllOnXClinicalIndicators): number {
+  let penalty = 0;
+
+  if (indicators.hasOsteoporosis) {
+    penalty += MEDICAL_CONDITION_PENALTIES.osteoporosis;
+  }
+  if (indicators.hasRadiationHistory) {
+    penalty += MEDICAL_CONDITION_PENALTIES.radiationHistory;
+  }
+  if (indicators.hasUncontrolledCardiovascular) {
+    penalty += MEDICAL_CONDITION_PENALTIES.uncontrolledCardiovascular;
+  }
+  if (indicators.isImmunocompromised) {
+    penalty += MEDICAL_CONDITION_PENALTIES.immunocompromised;
+  }
+  if (indicators.onAnticoagulants) {
+    penalty += MEDICAL_CONDITION_PENALTIES.anticoagulants;
+  }
+
+  return penalty;
+}
+
+/**
+ * Calculate ASA classification penalty
+ *
+ * ASA class 3+ indicates significant systemic disease affecting surgery risk.
+ */
+function calculateASAPenalty(indicators: AllOnXClinicalIndicators): number {
+  if (indicators.asaClassification === 4) {
+    return ASA_PENALTIES.class4;
+  }
+  if (indicators.asaClassification === 3) {
+    return ASA_PENALTIES.class3;
+  }
+  return 0;
+}
+
 /**
  * Calculate medical risk score
+ *
+ * Orchestrates category-specific penalty calculations for a comprehensive
+ * medical risk assessment. Higher scores indicate lower risk (better candidates).
  */
 function calculateMedicalRiskScore(
   indicators: AllOnXClinicalIndicators,
   config: AllOnXScoringConfig
 ): number {
-  let score = 100;
+  const baseScore = 100;
 
-  // Smoking
-  score -= indicators.smokingStatus * 8;
+  const totalPenalty =
+    calculateSmokingPenalty(indicators) +
+    calculateDiabetesPenalty(indicators, config) +
+    calculateBisphosphonatePenalty(indicators, config) +
+    calculateOtherConditionsPenalty(indicators) +
+    calculateASAPenalty(indicators);
 
-  // Former smoker bonus
-  if (indicators.smokingStatus === 1 && indicators.yearsSinceQuitSmoking !== undefined) {
-    const yearsBonus = Math.min(indicators.yearsSinceQuitSmoking, 5) * 1.5;
-    score += yearsBonus;
-  }
-
-  // Diabetes
-  if (indicators.hba1c !== undefined) {
-    if (indicators.hba1c > config.hba1cThresholds.poorlyControlled) {
-      score -= 35;
-    } else if (indicators.hba1c > config.hba1cThresholds.moderatelyControlled) {
-      score -= 20;
-    } else if (indicators.hba1c > config.hba1cThresholds.controlled) {
-      score -= 10;
-    }
-  }
-
-  // Bisphosphonates
-  if (indicators.onBisphosphonates) {
-    const years = indicators.bisphosphonateYears ?? 1;
-    if (years >= config.bisphosphonateThresholds.highRisk) {
-      score -= 40;
-    } else if (years >= config.bisphosphonateThresholds.moderateRisk) {
-      score -= 25;
-    } else {
-      score -= 15;
-    }
-  }
-
-  // Other conditions
-  if (indicators.hasOsteoporosis) score -= 15;
-  if (indicators.hasRadiationHistory) score -= 50;
-  if (indicators.hasUncontrolledCardiovascular) score -= 40;
-  if (indicators.isImmunocompromised) score -= 30;
-  if (indicators.onAnticoagulants) score -= 10;
-
-  // ASA classification
-  if (indicators.asaClassification === 4) score -= 35;
-  else if (indicators.asaClassification === 3) score -= 20;
-
-  return Math.max(0, score);
+  return Math.max(0, baseScore - totalPenalty);
 }
 
 /**
