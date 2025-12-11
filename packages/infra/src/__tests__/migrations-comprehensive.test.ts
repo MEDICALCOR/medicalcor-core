@@ -91,7 +91,7 @@ describe('Migration CLI Logic', () => {
     });
 
     it('should allow SSL without verification in development with DATABASE_SSL=true', () => {
-      const nodeEnv = 'development';
+      const nodeEnv: string = 'development';
       const originalEnv = process.env.DATABASE_SSL;
       process.env.DATABASE_SSL = 'true';
 
@@ -109,7 +109,7 @@ describe('Migration CLI Logic', () => {
     });
 
     it('should disable SSL in development without DATABASE_SSL', () => {
-      const nodeEnv = 'development';
+      const nodeEnv: string = 'development';
       const originalEnv = process.env.DATABASE_SSL;
       delete process.env.DATABASE_SSL;
 
