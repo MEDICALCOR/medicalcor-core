@@ -75,7 +75,7 @@ describe('RevenueForecastingService', () => {
   describe('constructor', () => {
     it('should create service with default configuration', () => {
       const svc = new RevenueForecastingService();
-      expect(svc.getModelVersion()).toBe('1.0.0');
+      expect(svc.getModelVersion()).toBe('2.0.0'); // Strategy Pattern refactoring
     });
 
     it('should accept custom configuration', () => {
@@ -466,7 +466,7 @@ describe('RevenueForecastingService', () => {
       expect(result.trendAnalysis).toBeDefined();
       expect(result.summary).toBeDefined();
       expect(result.recommendedActions).toBeDefined();
-      expect(result.modelVersion).toBe('1.0.0');
+      expect(result.modelVersion).toBe('2.0.0'); // Strategy Pattern refactoring
       expect(result.calculatedAt).toBeDefined();
     });
 
