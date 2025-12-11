@@ -2,11 +2,15 @@
  * @fileoverview Revenue Forecasting Service
  *
  * ML-powered prediction of future clinic revenue based on historical payment data.
- * Implements multiple forecasting methods with configurable parameters.
+ * Implements the Strategy Pattern for extensible forecasting algorithms.
  *
  * @module domain/ltv/revenue-forecasting-service
  *
- * FORECASTING ALGORITHMS:
+ * ARCHITECTURE:
+ * This service follows the Strategy Pattern, allowing forecasting algorithms
+ * to be added or swapped without modifying the service itself (Open/Closed Principle).
+ *
+ * FORECASTING ALGORITHMS (via strategies):
  * 1. Simple Moving Average (SMA): Averages last N periods
  * 2. Exponential Smoothing (ETS): Holt-Winters with trend
  * 3. Linear Regression: OLS with confidence intervals
@@ -24,6 +28,9 @@ import type {
   RevenueTrend as RevenueTrendType,
   ForecastConfidenceLevel as ForecastConfidenceLevelType,
 } from '../shared-kernel/value-objects/revenue-projection.js';
+
+import type { IForecastingStrategy, ForecastingStrategyResult } from './strategies/index.js';
+import { createDefaultStrategies, getStrategyByName } from './strategies/index.js';
 
 // ============================================================================
 // TYPE ALIASES (Re-export from value objects)
@@ -185,25 +192,9 @@ export interface RevenueForecastingServiceConfig {
   defaultMovingAverageWindow?: number;
   defaultSmoothingAlpha?: number;
   modelVersion?: string;
+  /** Custom strategies to use instead of defaults */
+  strategies?: IForecastingStrategy[];
 }
-
-/**
- * Default seasonal factors for dental clinics
- */
-const DEFAULT_SEASONAL_FACTORS: SeasonalFactors = {
-  january: 0.85,
-  february: 0.95,
-  march: 1.05,
-  april: 1.15,
-  may: 1.1,
-  june: 0.9,
-  july: 0.85,
-  august: 0.8,
-  september: 1.1,
-  october: 1.15,
-  november: 1.0,
-  december: 0.9,
-};
 
 /**
  * Default configuration
@@ -227,11 +218,26 @@ const DEFAULT_CONFIG: ForecastConfig = {
  * Revenue Forecasting Service
  *
  * Predicts future clinic revenue using statistical methods on historical data.
- * Supports multiple forecasting algorithms with seasonal adjustments.
+ * Uses the Strategy Pattern for extensible forecasting algorithms.
+ *
+ * @example
+ * ```typescript
+ * // Use default strategies
+ * const service = createRevenueForecastingService();
+ *
+ * // Use custom strategies
+ * const service = createRevenueForecastingService({
+ *   strategies: [new MovingAverageStrategy(), new ARIMAStrategy()]
+ * });
+ *
+ * const result = service.forecast(input, { method: 'ensemble' });
+ * ```
  */
 export class RevenueForecastingService {
   private defaultConfig: ForecastConfig;
   private modelVersion: string;
+  private strategies: Map<string, IForecastingStrategy>;
+  private strategyList: IForecastingStrategy[];
 
   constructor(config: RevenueForecastingServiceConfig = {}) {
     this.defaultConfig = {
@@ -242,7 +248,11 @@ export class RevenueForecastingService {
       movingAverageWindow: config.defaultMovingAverageWindow ?? DEFAULT_CONFIG.movingAverageWindow,
       smoothingAlpha: config.defaultSmoothingAlpha ?? DEFAULT_CONFIG.smoothingAlpha,
     };
-    this.modelVersion = config.modelVersion ?? '1.0.0';
+    this.modelVersion = config.modelVersion ?? '2.0.0';
+
+    // Initialize strategies (use provided or create defaults)
+    this.strategyList = config.strategies ?? createDefaultStrategies();
+    this.strategies = new Map(this.strategyList.map((s) => [s.name, s]));
   }
 
   /**
@@ -267,36 +277,13 @@ export class RevenueForecastingService {
     let forecasts: ForecastedRevenuePoint[];
     let modelFit: ModelFitStatistics;
 
-    switch (finalConfig.method) {
-      case 'moving_average':
-        ({ forecasts, modelFit } = this.movingAverageForecast(
-          sortedData,
-          revenueValues,
-          finalConfig
-        ));
-        break;
-      case 'exponential_smoothing':
-        ({ forecasts, modelFit } = this.exponentialSmoothingForecast(
-          sortedData,
-          revenueValues,
-          finalConfig
-        ));
-        break;
-      case 'linear_regression':
-        ({ forecasts, modelFit } = this.linearRegressionForecast(
-          sortedData,
-          revenueValues,
-          finalConfig
-        ));
-        break;
-      case 'ensemble':
-        ({ forecasts, modelFit } = this.ensembleForecast(sortedData, revenueValues, finalConfig));
-        break;
-      default: {
-        // Exhaustive check - this should never happen
-        const _exhaustiveCheck: never = finalConfig.method;
-        return _exhaustiveCheck;
-      }
+    if (finalConfig.method === 'ensemble') {
+      // Use all available strategies for ensemble
+      ({ forecasts, modelFit } = this.ensembleForecast(sortedData, revenueValues, finalConfig));
+    } else {
+      // Use specific strategy
+      const strategy = this.getStrategy(finalConfig.method);
+      ({ forecasts, modelFit } = strategy.calculate(sortedData, revenueValues, finalConfig));
     }
 
     // Calculate trend analysis
@@ -342,203 +329,67 @@ export class RevenueForecastingService {
   }
 
   // ============================================================================
-  // FORECASTING METHODS
+  // STRATEGY MANAGEMENT
   // ============================================================================
 
   /**
-   * Simple Moving Average forecast
+   * Get a strategy by name
    */
-  private movingAverageForecast(
-    historicalData: HistoricalRevenuePoint[],
-    revenueValues: number[],
-    config: ForecastConfig
-  ): { forecasts: ForecastedRevenuePoint[]; modelFit: ModelFitStatistics } {
-    const window = Math.min(config.movingAverageWindow, revenueValues.length);
-    const lastN = revenueValues.slice(-window);
-    const avg = lastN.reduce((a, b) => a + b, 0) / window;
-
-    // Calculate standard deviation for confidence intervals
-    const variance = lastN.reduce((sum, v) => sum + Math.pow(v - avg, 2), 0) / window;
-    const stdDev = Math.sqrt(variance);
-    const zScore = this.getZScore(config.confidenceLevel);
-
-    // Generate forecasts
-    const forecasts = this.generateForecastPoints(historicalData, config, (periodIndex, date) => {
-      const seasonalFactor = config.applySeasonality
-        ? this.getSeasonalFactor(date, config.seasonalFactors)
-        : 1.0;
-      const predicted = avg * seasonalFactor;
-      const intervalWidth = zScore * stdDev * Math.sqrt(1 + periodIndex / window) * seasonalFactor;
-
-      return {
-        date,
-        predicted: Math.round(predicted),
-        confidenceInterval: {
-          lower: Math.max(0, Math.round(predicted - intervalWidth)),
-          upper: Math.round(predicted + intervalWidth),
-          level: config.confidenceLevel,
-        },
-        seasonalFactor,
-        highUncertainty: periodIndex >= config.forecastPeriods / 2,
-      };
-    });
-
-    // Calculate model fit using in-sample predictions
-    const modelFit = this.calculateModelFit(revenueValues, this.getMAFitted(revenueValues, window));
-
-    return { forecasts, modelFit };
-  }
-
-  /**
-   * Exponential Smoothing (Holt's method with trend)
-   */
-  private exponentialSmoothingForecast(
-    historicalData: HistoricalRevenuePoint[],
-    revenueValues: number[],
-    config: ForecastConfig
-  ): { forecasts: ForecastedRevenuePoint[]; modelFit: ModelFitStatistics } {
-    const alpha = config.smoothingAlpha;
-    const beta = 0.1; // Trend smoothing parameter
-
-    // Initialize with safe defaults
-    let level = revenueValues[0] ?? 0;
-    let trend = config.includeTrend ? (revenueValues[1] ?? 0) - (revenueValues[0] ?? 0) || 0 : 0;
-
-    const fitted: number[] = [level];
-
-    // Calculate smoothed values
-    for (let i = 1; i < revenueValues.length; i++) {
-      const prevLevel = level;
-      const currentValue = revenueValues[i] ?? 0;
-      level = alpha * currentValue + (1 - alpha) * (level + trend);
-      if (config.includeTrend) {
-        trend = beta * (level - prevLevel) + (1 - beta) * trend;
-      }
-      fitted.push(level + trend);
+  private getStrategy(name: string): IForecastingStrategy {
+    const strategy = this.strategies.get(name);
+    if (!strategy) {
+      // Try to get from global registry as fallback
+      return getStrategyByName(name);
     }
-
-    // Calculate residual standard error
-    const residuals = revenueValues.map((v, i) => v - (fitted[i] ?? 0));
-    const sse = residuals.reduce((sum, r) => sum + r * r, 0);
-    const stdError = Math.sqrt(sse / (revenueValues.length - 2));
-    const zScore = this.getZScore(config.confidenceLevel);
-
-    // Generate forecasts
-    const forecasts = this.generateForecastPoints(historicalData, config, (periodIndex, date) => {
-      const seasonalFactor = config.applySeasonality
-        ? this.getSeasonalFactor(date, config.seasonalFactors)
-        : 1.0;
-      const predicted = (level + trend * (periodIndex + 1)) * seasonalFactor;
-      const intervalWidth = zScore * stdError * Math.sqrt(1 + periodIndex * 0.1) * seasonalFactor;
-
-      return {
-        date,
-        predicted: Math.round(Math.max(0, predicted)),
-        confidenceInterval: {
-          lower: Math.max(0, Math.round(predicted - intervalWidth)),
-          upper: Math.round(predicted + intervalWidth),
-          level: config.confidenceLevel,
-        },
-        seasonalFactor,
-        trendComponent: Math.round(trend * (periodIndex + 1)),
-        highUncertainty: periodIndex >= config.forecastPeriods / 2,
-      };
-    });
-
-    const modelFit = this.calculateModelFit(revenueValues, fitted);
-
-    return { forecasts, modelFit };
+    return strategy;
   }
 
   /**
-   * Linear Regression forecast with trend
+   * Add a new strategy to the service
    */
-  private linearRegressionForecast(
-    historicalData: HistoricalRevenuePoint[],
-    revenueValues: number[],
-    config: ForecastConfig
-  ): { forecasts: ForecastedRevenuePoint[]; modelFit: ModelFitStatistics } {
-    const n = revenueValues.length;
-    const x = Array.from({ length: n }, (_, i) => i);
-
-    // Calculate regression coefficients
-    const sumX = x.reduce((a, b) => a + b, 0);
-    const sumY = revenueValues.reduce((a, b) => a + b, 0);
-    const sumXY = x.reduce((sum, xi, i) => sum + xi * (revenueValues[i] ?? 0), 0);
-    const sumX2 = x.reduce((sum, xi) => sum + xi * xi, 0);
-
-    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-    const intercept = (sumY - slope * sumX) / n;
-
-    // Calculate fitted values and residuals
-    const fitted = x.map((xi) => intercept + slope * xi);
-    const residuals = revenueValues.map((y, i) => y - (fitted[i] ?? 0));
-    const sse = residuals.reduce((sum, r) => sum + r * r, 0);
-    const mse = sse / (n - 2);
-    const stdError = Math.sqrt(mse);
-
-    // Standard error of prediction
-    const meanX = sumX / n;
-    const sxx = sumX2 - (sumX * sumX) / n;
-    const zScore = this.getZScore(config.confidenceLevel);
-
-    // Generate forecasts
-    const forecasts = this.generateForecastPoints(historicalData, config, (periodIndex, date) => {
-      const xForecast = n + periodIndex;
-      const seasonalFactor = config.applySeasonality
-        ? this.getSeasonalFactor(date, config.seasonalFactors)
-        : 1.0;
-
-      const predicted = (intercept + slope * xForecast) * seasonalFactor;
-
-      // Prediction interval widens for extrapolation
-      const sePredict = stdError * Math.sqrt(1 + 1 / n + Math.pow(xForecast - meanX, 2) / sxx);
-      const intervalWidth = zScore * sePredict * seasonalFactor;
-
-      return {
-        date,
-        predicted: Math.round(Math.max(0, predicted)),
-        confidenceInterval: {
-          lower: Math.max(0, Math.round(predicted - intervalWidth)),
-          upper: Math.round(predicted + intervalWidth),
-          level: config.confidenceLevel,
-        },
-        seasonalFactor,
-        trendComponent: Math.round(slope * (periodIndex + 1)),
-        highUncertainty: periodIndex >= config.forecastPeriods / 2,
-      };
-    });
-
-    const modelFit = this.calculateModelFit(revenueValues, fitted);
-
-    return { forecasts, modelFit };
+  public addStrategy(strategy: IForecastingStrategy): void {
+    this.strategies.set(strategy.name, strategy);
+    this.strategyList.push(strategy);
   }
 
   /**
-   * Ensemble forecast combining all methods
+   * Get list of available strategy names
+   */
+  public getAvailableStrategies(): string[] {
+    return Array.from(this.strategies.keys());
+  }
+
+  // ============================================================================
+  // ENSEMBLE FORECASTING (Strategy-Agnostic)
+  // ============================================================================
+
+  /**
+   * Ensemble forecast combining all available strategies
    *
-   * Combines moving average, exponential smoothing, and linear regression
-   * forecasts using weights based on each method's R-squared model fit.
+   * Combines forecasts from all registered strategies using weights
+   * based on each method's R-squared model fit.
+   *
+   * This method is now fully extensible - adding a new strategy
+   * automatically includes it in the ensemble without code changes.
    */
   private ensembleForecast(
     historicalData: HistoricalRevenuePoint[],
     revenueValues: number[],
     config: ForecastConfig
-  ): { forecasts: ForecastedRevenuePoint[]; modelFit: ModelFitStatistics } {
-    // Get forecasts from all methods
-    const methodForecasts = [
-      this.movingAverageForecast(historicalData, revenueValues, config),
-      this.exponentialSmoothingForecast(historicalData, revenueValues, config),
-      this.linearRegressionForecast(historicalData, revenueValues, config),
-    ];
+  ): ForecastingStrategyResult {
+    // Run ALL registered strategies dynamically
+    const results = this.strategyList.map((strategy) => ({
+      name: strategy.name,
+      result: strategy.calculate(historicalData, revenueValues, config),
+    }));
 
-    // Weight methods by their R-squared (model fit)
-    const weights = this.calculateEnsembleWeights(methodForecasts.map((f) => f.modelFit));
+    // Calculate weights based on R-squared (higher R² = higher weight)
+    const weights = this.calculateEnsembleWeights(results.map((r) => r.result.modelFit));
 
     // Combine forecasts for each period
     const forecasts: ForecastedRevenuePoint[] = [];
     for (let i = 0; i < config.forecastPeriods; i++) {
-      const periodForecasts = methodForecasts.map((f) => f.forecasts[i]);
+      const periodForecasts = results.map((r) => r.result.forecasts[i]);
 
       // Skip if any forecast is missing
       if (periodForecasts.some((f) => !f)) continue;
@@ -547,6 +398,7 @@ export class RevenueForecastingService {
         this.combineEnsembleForecastPoint(
           periodForecasts as ForecastedRevenuePoint[],
           weights,
+          results.map((r) => r.name),
           config,
           i
         )
@@ -555,7 +407,7 @@ export class RevenueForecastingService {
 
     // Combine model fit statistics
     const modelFit = this.combineEnsembleModelFit(
-      methodForecasts.map((f) => f.modelFit),
+      results.map((r) => r.result.modelFit),
       weights,
       revenueValues.length
     );
@@ -583,150 +435,10 @@ export class RevenueForecastingService {
   }
 
   /**
-   * Generate forecast points for future periods
-   */
-  private generateForecastPoints(
-    historicalData: HistoricalRevenuePoint[],
-    config: ForecastConfig,
-    calculator: (periodIndex: number, date: Date) => ForecastedRevenuePoint
-  ): ForecastedRevenuePoint[] {
-    const lastDataPoint = historicalData[historicalData.length - 1];
-    const lastDate = lastDataPoint?.date ?? new Date();
-    const forecasts: ForecastedRevenuePoint[] = [];
-
-    for (let i = 0; i < config.forecastPeriods; i++) {
-      const forecastDate = this.addPeriod(lastDate, i + 1, 'monthly');
-      forecasts.push(calculator(i, forecastDate));
-    }
-
-    return forecasts;
-  }
-
-  /**
-   * Add period to date based on granularity
-   */
-  private addPeriod(date: Date, periods: number, granularity: RevenueForecastGranularity): Date {
-    const result = new Date(date);
-    switch (granularity) {
-      case 'daily':
-        result.setDate(result.getDate() + periods);
-        break;
-      case 'weekly':
-        result.setDate(result.getDate() + periods * 7);
-        break;
-      case 'monthly':
-        result.setMonth(result.getMonth() + periods);
-        break;
-      case 'quarterly':
-        result.setMonth(result.getMonth() + periods * 3);
-        break;
-      default: {
-        // Exhaustive check - this should never happen
-        const _exhaustiveCheck: never = granularity;
-        return _exhaustiveCheck;
-      }
-    }
-    return result;
-  }
-
-  /**
-   * Get seasonal factor for a given date
-   */
-  private getSeasonalFactor(date: Date, customFactors?: SeasonalFactors): number {
-    const factors = customFactors ?? DEFAULT_SEASONAL_FACTORS;
-    const monthNames: (keyof SeasonalFactors)[] = [
-      'january',
-      'february',
-      'march',
-      'april',
-      'may',
-      'june',
-      'july',
-      'august',
-      'september',
-      'october',
-      'november',
-      'december',
-    ];
-    const monthKey = monthNames[date.getMonth()];
-    return monthKey !== undefined ? factors[monthKey] : 1.0;
-  }
-
-  /**
-   * Get z-score for confidence level
-   */
-  private getZScore(confidenceLevel: number): number {
-    // Common z-scores
-    if (confidenceLevel >= 0.99) return 2.576;
-    if (confidenceLevel >= 0.95) return 1.96;
-    if (confidenceLevel >= 0.9) return 1.645;
-    if (confidenceLevel >= 0.8) return 1.282;
-    return 1.0;
-  }
-
-  /**
-   * Get moving average fitted values
-   */
-  private getMAFitted(values: number[], window: number): number[] {
-    const fitted: number[] = [];
-    for (let i = 0; i < values.length; i++) {
-      if (i < window - 1) {
-        // Use available data for initial values
-        const slice = values.slice(0, i + 1);
-        fitted.push(slice.reduce((a, b) => a + b, 0) / slice.length);
-      } else {
-        const slice = values.slice(i - window + 1, i + 1);
-        fitted.push(slice.reduce((a, b) => a + b, 0) / window);
-      }
-    }
-    return fitted;
-  }
-
-  /**
-   * Calculate model fit statistics
-   */
-  private calculateModelFit(actual: number[], fitted: number[]): ModelFitStatistics {
-    const n = actual.length;
-    const mean = actual.reduce((a, b) => a + b, 0) / n;
-
-    // Sum of squared errors
-    let sse = 0;
-    let sst = 0;
-    let absoluteErrors = 0;
-    let percentageErrors = 0;
-
-    for (let i = 0; i < n; i++) {
-      const actualValue = actual[i] ?? 0;
-      const fittedValue = fitted[i] ?? 0;
-      const residual = actualValue - fittedValue;
-      sse += residual * residual;
-      sst += Math.pow(actualValue - mean, 2);
-      absoluteErrors += Math.abs(residual);
-      if (actualValue !== 0) {
-        percentageErrors += Math.abs(residual / actualValue);
-      }
-    }
-
-    const rSquared = sst > 0 ? Math.max(0, 1 - sse / sst) : 0;
-    const mae = absoluteErrors / n;
-    const mape = (percentageErrors / n) * 100;
-    const rmse = Math.sqrt(sse / n);
-
-    return {
-      rSquared: Math.round(rSquared * 1000) / 1000,
-      mae: Math.round(mae),
-      mape: Math.round(mape * 10) / 10,
-      rmse: Math.round(rmse),
-      dataPointsUsed: n,
-      degreesOfFreedom: n - 2,
-    };
-  }
-
-  /**
    * Calculate ensemble weights based on model fit
    */
   private calculateEnsembleWeights(fits: ModelFitStatistics[]): number[] {
-    // Use R-squared as weight indicator
+    // Use R-squared as weight indicator (minimum 0.1 to avoid zero weights)
     const rSquaredSum = fits.reduce((sum, f) => sum + Math.max(0.1, f.rSquared), 0);
     return fits.map((f) => Math.max(0.1, f.rSquared) / rSquaredSum);
   }
@@ -769,10 +481,14 @@ export class RevenueForecastingService {
 
   /**
    * Combine individual forecast points into a single ensemble forecast point
+   *
+   * Strategy-agnostic: uses strategy names to find seasonal/trend components
+   * instead of hardcoded array indices.
    */
   private combineEnsembleForecastPoint(
     forecastPoints: ForecastedRevenuePoint[],
     weights: number[],
+    strategyNames: string[],
     config: ForecastConfig,
     periodIndex: number
   ): ForecastedRevenuePoint {
@@ -797,20 +513,26 @@ export class RevenueForecastingService {
       )
     );
 
-    // Use moving average for seasonal factor, linear regression for trend
-    const maForecast = forecastPoints[0];
-    const lrForecast = forecastPoints[2];
+    // Find seasonal factor from moving_average strategy (if available)
+    const maIndex = strategyNames.indexOf('moving_average');
+    const seasonalFactor =
+      maIndex >= 0 ? forecastPoints[maIndex]?.seasonalFactor : forecastPoints[0]?.seasonalFactor;
+
+    // Find trend component from linear_regression strategy (if available)
+    const lrIndex = strategyNames.indexOf('linear_regression');
+    const trendComponent =
+      lrIndex >= 0 ? forecastPoints[lrIndex]?.trendComponent : forecastPoints[0]?.trendComponent;
 
     return {
-      date: maForecast?.date ?? new Date(),
+      date: forecastPoints[0]?.date ?? new Date(),
       predicted,
       confidenceInterval: {
         lower: Math.max(0, lower),
         upper,
         level: config.confidenceLevel,
       },
-      seasonalFactor: maForecast?.seasonalFactor,
-      trendComponent: lrForecast?.trendComponent,
+      seasonalFactor,
+      trendComponent,
       highUncertainty: periodIndex >= config.forecastPeriods / 2,
     };
   }
@@ -1032,6 +754,21 @@ export class InvalidRevenueDataError extends Error {
 
 /**
  * Create a revenue forecasting service instance
+ *
+ * @example
+ * ```typescript
+ * // Default strategies (MA, ES, LR)
+ * const service = createRevenueForecastingService();
+ *
+ * // Custom strategies
+ * const service = createRevenueForecastingService({
+ *   strategies: [
+ *     new MovingAverageStrategy(),
+ *     new ARIMAStrategy(),
+ *     new ProphetStrategy(),
+ *   ]
+ * });
+ * ```
  */
 export function createRevenueForecastingService(
   config: RevenueForecastingServiceConfig = {}
