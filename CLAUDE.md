@@ -400,6 +400,7 @@ This project includes Claude Code configuration in `.claude/`:
 | Document                | Path                                    |
 | ----------------------- | --------------------------------------- |
 | Architecture            | `docs/ARCHITECTURE.md`                  |
+| Risk Register           | `docs/RISK_REGISTER.md`                 |
 | Getting Started         | `docs/README/GETTING_STARTED.md`        |
 | API Reference           | `docs/README/API_REFERENCE.md`          |
 | Deployment              | `docs/README/DEPLOYMENT.md`             |
