@@ -26,6 +26,7 @@ export {
   LinearRegressionStrategy,
   createLinearRegressionStrategy,
 } from './linear-regression.strategy.js';
+export { ARIMAStrategy, createARIMAStrategy } from './arima.strategy.js';
 
 // ============================================================================
 // DEFAULT STRATEGIES
@@ -34,6 +35,7 @@ export {
 import { MovingAverageStrategy } from './moving-average.strategy.js';
 import { ExponentialSmoothingStrategy } from './exponential-smoothing.strategy.js';
 import { LinearRegressionStrategy } from './linear-regression.strategy.js';
+import { ARIMAStrategy } from './arima.strategy.js';
 import type { IForecastingStrategy } from './forecasting-strategy.js';
 
 /**
@@ -56,6 +58,7 @@ export const STRATEGY_REGISTRY: Record<string, () => IForecastingStrategy> = {
   moving_average: () => new MovingAverageStrategy(),
   exponential_smoothing: () => new ExponentialSmoothingStrategy(),
   linear_regression: () => new LinearRegressionStrategy(),
+  arima: () => new ARIMAStrategy(),
 };
 
 /**
