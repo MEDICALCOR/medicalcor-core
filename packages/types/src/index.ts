@@ -476,6 +476,82 @@ export {
 } from './hubspot.schema.js';
 
 // =============================================================================
+// Pipedrive CRM Schemas
+// =============================================================================
+export {
+  // Core Pipedrive types
+  PipedriveDealStatusSchema,
+  PipedriveActivityTypeSchema,
+  PipedriveVisibilitySchema,
+  // Phone/Email value objects
+  PipedrivePhoneSchema,
+  PipedriveEmailSchema,
+  // Person (Contact)
+  PipedrivePersonSchema,
+  PipedriveCreatePersonInputSchema,
+  PipedriveUpdatePersonInputSchema,
+  // Organization
+  PipedriveOrganizationSchema,
+  // Deal
+  PipedriveDealSchema,
+  PipedriveCreateDealInputSchema,
+  PipedriveUpdateDealInputSchema,
+  // Activity (Task)
+  PipedriveActivitySchema,
+  PipedriveCreateActivityInputSchema,
+  PipedriveUpdateActivityInputSchema,
+  // Note
+  PipedriveNoteSchema,
+  PipedriveCreateNoteInputSchema,
+  // Pipeline & Stages
+  PipedrivePipelineSchema,
+  PipedriveStageSchema,
+  // User (Owner)
+  PipedriveUserSchema,
+  // API Response wrappers
+  PipedriveApiResponseSchema,
+  PipedrivePaginatedResponseSchema,
+  // Webhook
+  PipedriveWebhookMetaSchema,
+  PipedriveWebhookPayloadSchema,
+  // Search
+  PipedriveSearchResultItemSchema,
+  PipedriveSearchResponseSchema,
+  // Config
+  PipedriveClientConfigSchema,
+  PipedriveFieldMappingSchema,
+  PipedriveHealthStatusSchema,
+  // Types
+  type PipedriveDealStatus,
+  type PipedriveActivityType,
+  type PipedriveVisibility,
+  type PipedrivePhone,
+  type PipedriveEmail,
+  type PipedrivePerson,
+  type PipedriveCreatePersonInput,
+  type PipedriveUpdatePersonInput,
+  type PipedriveOrganization,
+  type PipedriveDeal,
+  type PipedriveCreateDealInput,
+  type PipedriveUpdateDealInput,
+  type PipedriveActivity,
+  type PipedriveCreateActivityInput,
+  type PipedriveUpdateActivityInput,
+  type PipedriveNote,
+  type PipedriveCreateNoteInput,
+  type PipedrivePipeline,
+  type PipedriveStage,
+  type PipedriveUser,
+  type PipedriveWebhookMeta,
+  type PipedriveWebhookPayload,
+  type PipedriveSearchResultItem,
+  type PipedriveSearchResponse,
+  type PipedriveClientConfig,
+  type PipedriveFieldMapping,
+  type PipedriveHealthStatus,
+} from './pipedrive.schema.js';
+
+// =============================================================================
 // Patient/Dashboard Schemas
 // =============================================================================
 export {

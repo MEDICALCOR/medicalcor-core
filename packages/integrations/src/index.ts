@@ -36,6 +36,33 @@ export type {
 } from '@medicalcor/types';
 
 export {
+  PipedriveClient,
+  createPipedriveClient,
+  getPipedriveCredentials,
+  type PipedriveClientOptions,
+} from './pipedrive.js';
+
+// Re-export Pipedrive types from @medicalcor/types for convenience
+export type {
+  PipedrivePerson,
+  PipedriveCreatePersonInput,
+  PipedriveUpdatePersonInput,
+  PipedriveDeal,
+  PipedriveCreateDealInput,
+  PipedriveUpdateDealInput,
+  PipedriveActivity,
+  PipedriveCreateActivityInput,
+  PipedriveUpdateActivityInput,
+  PipedriveNote,
+  PipedriveCreateNoteInput,
+  PipedrivePipeline,
+  PipedriveStage,
+  PipedriveUser,
+  PipedriveHealthStatus,
+  PipedriveClientConfig,
+} from '@medicalcor/types';
+
+export {
   WhatsAppClient,
   createWhatsAppClient,
   TEMPLATE_CATALOG,
