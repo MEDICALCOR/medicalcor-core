@@ -31,6 +31,10 @@
     "./language": {
       "types": "./dist/language/index.d.ts",
       "import": "./dist/language/index.js"
+    },
+    "./inventory": {
+      "types": "./dist/inventory/index.d.ts",
+      "import": "./dist/inventory/index.js"
     }
   },
   "main": "./dist/index.js",
