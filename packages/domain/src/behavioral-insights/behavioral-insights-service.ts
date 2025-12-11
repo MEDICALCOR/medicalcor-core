@@ -159,51 +159,6 @@ export interface BehavioralInsightsServiceDependencies {
 }
 
 // ============================================================================
-// ENGAGEMENT SCORE CONFIGURATION
-// ============================================================================
-
-/**
- * Configuration for engagement score calculation
- * Each factor has a max contribution to the total score (0-100)
- */
-const ENGAGEMENT_SCORE_CONFIG = {
-  /** Points for interaction volume */
-  interactions: {
-    maxPoints: 30,
-    pointsPerEvent: 2,
-  },
-  /** Points for using multiple communication channels */
-  channelDiversity: {
-    maxPoints: 20,
-    pointsPerChannel: 5,
-  },
-  /** Points based on how recently the subject interacted */
-  recency: {
-    maxPoints: 20,
-    tiers: [
-      { maxDays: 7, points: 20 },
-      { maxDays: 30, points: 15 },
-      { maxDays: 60, points: 10 },
-      { maxDays: 90, points: 5 },
-    ] as const,
-  },
-  /** Points based on positive sentiment ratio */
-  sentiment: {
-    maxPoints: 15,
-  },
-  /** Bonus points for high engagement pattern */
-  highEngagementBonus: {
-    maxPoints: 15,
-  },
-  /** Penalty for declining engagement pattern */
-  decliningEngagementPenalty: {
-    maxPoints: 20,
-  },
-} as const;
-
-const MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24;
-
-// ============================================================================
 // SERVICE IMPLEMENTATION
 // ============================================================================
 
@@ -222,12 +177,19 @@ export class BehavioralInsightsService {
 
   constructor(private deps: BehavioralInsightsServiceDependencies) {
     // Cast pool to the expected type - the infrastructure layer is responsible for
-    // providing a pg.Pool-compatible object
+    // providing a pg.Pool-compatible object. Using Parameters<> to extract the expected
+    // type from the function signature maintains type safety while avoiding pg import.
+    type PatternDetectorPool = Parameters<typeof createPatternDetector>[0];
+    type MemoryRetrievalPool = Parameters<typeof createMemoryRetrievalService>[0];
 
-    this.patternDetector = createPatternDetector(deps.pool as unknown, deps.openai, deps.config);
+    this.patternDetector = createPatternDetector(
+      deps.pool as unknown as PatternDetectorPool,
+      deps.openai,
+      deps.config
+    );
 
     this.memoryRetrieval = createMemoryRetrievalService(
-      deps.pool as unknown,
+      deps.pool as unknown as MemoryRetrievalPool,
       deps.embeddings,
       deps.config
     );
