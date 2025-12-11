@@ -253,6 +253,11 @@ export {
   getMockCRMProvider,
   isMockCRMProvider,
   PipedriveAdapter,
+  // Pipedrive CRM Gateway
+  PipedriveCrmGateway,
+  createPipedriveCrmGateway,
+  createPipedriveCrmGatewayFromEnv,
+  type PipedriveCrmGatewayConfig,
   // Mock CRM Adapter
   MockCrmAdapter,
   MockCrmError,

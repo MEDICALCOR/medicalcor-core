@@ -9,9 +9,4 @@
 
 export { GeoIPAdapter, createGeoIPAdapter, createMockGeoIPAdapter } from './GeoIPAdapter.js';
 
-export {
-  PipedriveCrmGateway,
-  createPipedriveCrmGateway,
-  createPipedriveCrmGatewayFromEnv,
-  type PipedriveCrmGatewayConfig,
-} from './PipedriveCrmGateway.js';
+// Note: PipedriveCrmGateway moved to @medicalcor/integrations/crm to respect layer boundaries

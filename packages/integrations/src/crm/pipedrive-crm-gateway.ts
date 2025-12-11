@@ -1,10 +1,10 @@
 /**
  * @fileoverview Pipedrive CRM Gateway Adapter
  *
- * Infrastructure adapter implementing the ICrmGateway port from the domain layer.
+ * Integration adapter implementing the ICrmGateway port from the domain layer.
  * Provides a vendor-agnostic interface for CRM operations using Pipedrive as backend.
  *
- * @module @medicalcor/infrastructure/services/PipedriveCrmGateway
+ * @module @medicalcor/integrations/crm/pipedrive-crm-gateway
  *
  * DESIGN PRINCIPLES:
  * 1. ANTI-CORRUPTION LAYER - Translates Pipedrive models to domain models
@@ -35,7 +35,7 @@ import type {
   LeadScore,
   PhoneNumber,
 } from '@medicalcor/domain';
-import { PipedriveClient, type PipedriveClientOptions } from '@medicalcor/integrations';
+import { PipedriveClient, type PipedriveClientOptions } from '../pipedrive.js';
 import type {
   PipedrivePerson,
   PipedriveDeal,

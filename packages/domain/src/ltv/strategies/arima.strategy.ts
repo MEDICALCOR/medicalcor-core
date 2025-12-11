@@ -336,7 +336,10 @@ export class ARIMAStrategy implements IForecastingStrategy {
       Array.from({ length: p + 1 }, () => 0)
     );
 
-    phi[1][1] = r[0] ?? 0;
+    const phi1 = phi[1];
+    if (phi1) {
+      phi1[1] = r[0] ?? 0;
+    }
 
     for (let k = 2; k <= p; k++) {
       let num = r[k - 1] ?? 0;
@@ -347,10 +350,13 @@ export class ARIMAStrategy implements IForecastingStrategy {
         den -= (phi[k - 1]?.[j] ?? 0) * (r[j - 1] ?? 0);
       }
 
-      phi[k][k] = den !== 0 ? num / den : 0;
+      const phiK = phi[k];
+      if (phiK) {
+        phiK[k] = den !== 0 ? num / den : 0;
 
-      for (let j = 1; j < k; j++) {
-        phi[k][j] = (phi[k - 1]?.[j] ?? 0) - (phi[k]?.[k] ?? 0) * (phi[k - 1]?.[k - j] ?? 0);
+        for (let j = 1; j < k; j++) {
+          phiK[j] = (phi[k - 1]?.[j] ?? 0) - (phiK[k] ?? 0) * (phi[k - 1]?.[k - j] ?? 0);
+        }
       }
     }
 
@@ -447,12 +453,14 @@ export class ARIMAStrategy implements IForecastingStrategy {
     const XtX: number[][] = Array.from({ length: p }, () => Array.from({ length: p }, () => 0));
 
     for (let i = 0; i < p; i++) {
+      const XtXi = XtX[i];
+      if (!XtXi) continue;
       for (let j = 0; j < p; j++) {
         let sum = 0;
         for (let k = 0; k < m; k++) {
           sum += (X[k]?.[i] ?? 0) * (X[k]?.[j] ?? 0);
         }
-        XtX[i][j] = sum;
+        XtXi[j] = sum;
       }
     }
 
@@ -492,7 +500,12 @@ export class ARIMAStrategy implements IForecastingStrategy {
       // Find and swap pivot row
       const maxRow = this.findPivotRow(augmented, col, n);
       if (maxRow !== col) {
-        [augmented[col], augmented[maxRow]] = [augmented[maxRow], augmented[col]];
+        const colRow = augmented[col];
+        const maxRowRow = augmented[maxRow];
+        if (colRow && maxRowRow) {
+          augmented[col] = maxRowRow;
+          augmented[maxRow] = colRow;
+        }
       }
 
       // Eliminate below pivot
@@ -500,9 +513,11 @@ export class ARIMAStrategy implements IForecastingStrategy {
       if (Math.abs(pivot) < 1e-10) continue;
 
       for (let row = col + 1; row < n; row++) {
-        const factor = (augmented[row]?.[col] ?? 0) / pivot;
+        const augmentedRow = augmented[row];
+        if (!augmentedRow) continue;
+        const factor = (augmentedRow[col] ?? 0) / pivot;
         for (let j = col; j <= n; j++) {
-          augmented[row][j] = (augmented[row]?.[j] ?? 0) - factor * (augmented[col]?.[j] ?? 0);
+          augmentedRow[j] = (augmentedRow[j] ?? 0) - factor * (augmented[col]?.[j] ?? 0);
         }
       }
     }
@@ -535,7 +550,7 @@ export class ARIMAStrategy implements IForecastingStrategy {
     for (let i = n - 1; i >= 0; i--) {
       let sum = augmented[i]?.[n] ?? 0;
       for (let j = i + 1; j < n; j++) {
-        sum -= (augmented[i]?.[j] ?? 0) * x[j];
+        sum -= (augmented[i]?.[j] ?? 0) * (x[j] ?? 0);
       }
       const diag = augmented[i]?.[i] ?? 1;
       x[i] = Math.abs(diag) > 1e-10 ? sum / diag : 0;
