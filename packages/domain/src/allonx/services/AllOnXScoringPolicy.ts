@@ -890,115 +890,140 @@ function calculateConfidence(indicators: AllOnXClinicalIndicators): number {
 }
 
 // ============================================================================
-// TREATMENT PLANNING
+// TREATMENT PLANNING HELPERS
 // ============================================================================
 
 /**
- * Generate treatment plan based on clinical score
+ * Context for building treatment phases
  */
-export function generateTreatmentPlan(
-  score: AllOnXClinicalScore,
-  indicators: AllOnXClinicalIndicators
-): TreatmentPlanningResult {
-  const phases: TreatmentPhase[] = [];
-  const preTreatmentRequirements: string[] = [];
-  const keyRisks: string[] = [];
-  const reasons: string[] = [];
+interface TreatmentPlanContext {
+  phases: TreatmentPhase[];
+  preTreatmentRequirements: string[];
+  keyRisks: string[];
+  reasons: string[];
+  estimatedDuration: number;
+}
 
-  let estimatedDuration = 6; // Base duration in months
-
-  // Pre-treatment phase
-  const preTreatmentProcedures: string[] = [];
+/**
+ * Build pre-treatment optimization phase
+ */
+function buildPreTreatmentPhase(
+  indicators: AllOnXClinicalIndicators,
+  context: TreatmentPlanContext
+): void {
+  const procedures: string[] = [];
 
   if (indicators.periodontalDisease >= 2) {
-    preTreatmentRequirements.push('Complete periodontal treatment');
-    preTreatmentProcedures.push('Periodontal scaling and root planing');
-    estimatedDuration += 2;
+    context.preTreatmentRequirements.push('Complete periodontal treatment');
+    procedures.push('Periodontal scaling and root planing');
+    context.estimatedDuration += 2;
   }
 
   if (indicators.smokingStatus >= 2) {
-    preTreatmentRequirements.push('Smoking cessation counseling');
-    keyRisks.push('Smoking significantly increases implant failure risk');
+    context.preTreatmentRequirements.push('Smoking cessation counseling');
+    context.keyRisks.push('Smoking significantly increases implant failure risk');
   }
 
   if (indicators.hba1c !== undefined && indicators.hba1c > 7.5) {
-    preTreatmentRequirements.push('Optimize glycemic control (target HbA1c < 7.5%)');
-    keyRisks.push('Uncontrolled diabetes increases infection and healing complications');
+    context.preTreatmentRequirements.push('Optimize glycemic control (target HbA1c < 7.5%)');
+    context.keyRisks.push('Uncontrolled diabetes increases infection and healing complications');
   }
 
   if (indicators.asaClassification >= 3) {
-    preTreatmentRequirements.push('Medical clearance from physician');
+    context.preTreatmentRequirements.push('Medical clearance from physician');
   }
 
-  if (preTreatmentProcedures.length > 0 || preTreatmentRequirements.length > 0) {
-    phases.push({
+  if (procedures.length > 0 || context.preTreatmentRequirements.length > 0) {
+    context.phases.push({
       phase: 1,
       name: 'Pre-Treatment Optimization',
       description: 'Address modifiable risk factors before surgical intervention',
       estimatedDuration: '4-8 weeks',
-      procedures: preTreatmentProcedures,
+      procedures,
       prerequisites: [],
     });
   }
+}
 
-  // Bone augmentation phase if needed
-  if (indicators.needsBoneGrafting || indicators.needsSinusLift) {
-    const augmentationProcedures: string[] = [];
-
-    if (indicators.needsSinusLift) {
-      augmentationProcedures.push('Sinus floor elevation');
-      estimatedDuration += 6;
-    }
-
-    if (indicators.needsBoneGrafting) {
-      augmentationProcedures.push('Bone grafting procedure');
-      estimatedDuration += 4;
-    }
-
-    phases.push({
-      phase: phases.length + 1,
-      name: 'Bone Augmentation',
-      description: 'Enhance bone volume for optimal implant placement',
-      estimatedDuration: '4-6 months healing',
-      procedures: augmentationProcedures,
-      prerequisites: ['Complete pre-treatment requirements', 'CBCT imaging'],
-    });
-
-    keyRisks.push('Bone graft failure or partial resorption may occur');
+/**
+ * Build bone augmentation phase if needed
+ */
+function buildBoneAugmentationPhase(
+  indicators: AllOnXClinicalIndicators,
+  context: TreatmentPlanContext
+): void {
+  if (!indicators.needsBoneGrafting && !indicators.needsSinusLift) {
+    return;
   }
 
-  // Surgical phase
-  const surgicalProcedures: string[] = [];
+  const procedures: string[] = [];
+
+  if (indicators.needsSinusLift) {
+    procedures.push('Sinus floor elevation');
+    context.estimatedDuration += 6;
+  }
+
+  if (indicators.needsBoneGrafting) {
+    procedures.push('Bone grafting procedure');
+    context.estimatedDuration += 4;
+  }
+
+  context.phases.push({
+    phase: context.phases.length + 1,
+    name: 'Bone Augmentation',
+    description: 'Enhance bone volume for optimal implant placement',
+    estimatedDuration: '4-6 months healing',
+    procedures,
+    prerequisites: ['Complete pre-treatment requirements', 'CBCT imaging'],
+  });
+
+  context.keyRisks.push('Bone graft failure or partial resorption may occur');
+}
+
+/**
+ * Build surgical phase
+ */
+function buildSurgicalPhase(
+  score: AllOnXClinicalScore,
+  indicators: AllOnXClinicalIndicators,
+  context: TreatmentPlanContext
+): void {
+  const procedures: string[] = [];
 
   if (indicators.extractionsNeeded > 0) {
-    surgicalProcedures.push(`Extract ${indicators.extractionsNeeded} remaining teeth`);
+    procedures.push(`Extract ${indicators.extractionsNeeded} remaining teeth`);
   }
 
-  surgicalProcedures.push(`${score.recommendedProcedure.replace(/_/g, '-')} implant placement`);
+  procedures.push(`${score.recommendedProcedure.replace(/_/g, '-')} implant placement`);
 
   if (score.isImmediateLoadingFeasible()) {
-    surgicalProcedures.push('Immediate provisional prosthesis placement');
-    reasons.push('Patient eligible for immediate loading protocol');
+    procedures.push('Immediate provisional prosthesis placement');
+    context.reasons.push('Patient eligible for immediate loading protocol');
   } else {
-    estimatedDuration += 3;
-    reasons.push('Conventional loading protocol recommended for optimal healing');
+    context.estimatedDuration += 3;
+    context.reasons.push('Conventional loading protocol recommended for optimal healing');
   }
 
-  phases.push({
-    phase: phases.length + 1,
+  const hasPrerequisitePhases = context.phases.length > 0;
+
+  context.phases.push({
+    phase: context.phases.length + 1,
     name: 'Surgical Phase',
     description: 'Implant placement and initial prosthesis delivery',
     estimatedDuration: score.isImmediateLoadingFeasible() ? '1 day' : '3-4 months healing',
-    procedures: surgicalProcedures,
-    prerequisites:
-      phases.length > 0
-        ? ['Complete previous phase', 'Verify bone healing']
-        : ['CBCT imaging', 'Surgical guide fabrication'],
+    procedures,
+    prerequisites: hasPrerequisitePhases
+      ? ['Complete previous phase', 'Verify bone healing']
+      : ['CBCT imaging', 'Surgical guide fabrication'],
   });
+}
 
-  // Prosthetic phase
-  phases.push({
-    phase: phases.length + 1,
+/**
+ * Build final prosthetic phase
+ */
+function buildProstheticPhase(context: TreatmentPlanContext): void {
+  context.phases.push({
+    phase: context.phases.length + 1,
     name: 'Final Prosthesis',
     description: 'Definitive prosthesis fabrication and delivery',
     estimatedDuration: '4-6 weeks',
@@ -1010,19 +1035,48 @@ export function generateTreatmentPlan(
     ],
     prerequisites: ['Adequate osseointegration confirmed', 'Soft tissue maturation'],
   });
+}
 
-  // Calculate success probability
-  let successProbability = 0.95; // Base success rate for All-on-X
+/**
+ * Calculate success probability based on risk factors
+ */
+function calculateSuccessProbability(indicators: AllOnXClinicalIndicators): number {
+  let probability = 0.95; // Base success rate for All-on-X
 
-  if (indicators.smokingStatus >= 3) successProbability -= 0.1;
-  else if (indicators.smokingStatus >= 2) successProbability -= 0.05;
+  // Smoking impact
+  if (indicators.smokingStatus >= 3) {
+    probability -= 0.1;
+  } else if (indicators.smokingStatus >= 2) {
+    probability -= 0.05;
+  }
 
-  if (indicators.hba1c !== undefined && indicators.hba1c > 8) successProbability -= 0.08;
-  if (indicators.boneDensity >= 4) successProbability -= 0.05;
-  if (indicators.onBisphosphonates) successProbability -= 0.05;
-  if (indicators.hasBruxism) successProbability -= 0.03;
+  // Diabetes impact
+  if (indicators.hba1c !== undefined && indicators.hba1c > 8) {
+    probability -= 0.08;
+  }
 
-  // Standard risks
+  // Bone quality impact
+  if (indicators.boneDensity >= 4) {
+    probability -= 0.05;
+  }
+
+  // Medication impact
+  if (indicators.onBisphosphonates) {
+    probability -= 0.05;
+  }
+
+  // Bruxism impact
+  if (indicators.hasBruxism) {
+    probability -= 0.03;
+  }
+
+  return Math.max(0.7, Math.round(probability * 100) / 100);
+}
+
+/**
+ * Add standard and conditional key risks
+ */
+function addStandardKeyRisks(indicators: AllOnXClinicalIndicators, keyRisks: string[]): void {
   keyRisks.push('Implant failure requiring replacement');
   keyRisks.push('Temporary numbness or altered sensation');
   keyRisks.push('Prosthetic complications requiring adjustments');
@@ -1030,16 +1084,49 @@ export function generateTreatmentPlan(
   if (indicators.hasBruxism) {
     keyRisks.push('Prosthetic fracture risk due to bruxism');
   }
+}
+
+// ============================================================================
+// TREATMENT PLANNING
+// ============================================================================
+
+/**
+ * Generate treatment plan based on clinical score
+ *
+ * Orchestrates phase building through focused helper functions
+ * for improved readability and testability.
+ */
+export function generateTreatmentPlan(
+  score: AllOnXClinicalScore,
+  indicators: AllOnXClinicalIndicators
+): TreatmentPlanningResult {
+  const context: TreatmentPlanContext = {
+    phases: [],
+    preTreatmentRequirements: [],
+    keyRisks: [],
+    reasons: [],
+    estimatedDuration: 6, // Base duration in months
+  };
+
+  // Build treatment phases in sequence
+  buildPreTreatmentPhase(indicators, context);
+  buildBoneAugmentationPhase(indicators, context);
+  buildSurgicalPhase(score, indicators, context);
+  buildProstheticPhase(context);
+
+  // Calculate outcomes
+  const successProbability = calculateSuccessProbability(indicators);
+  addStandardKeyRisks(indicators, context.keyRisks);
 
   return {
     isFeasible: score.isCandidate(),
     recommendedProcedure: score.recommendedProcedure,
-    phases: Object.freeze(phases),
-    preTreatmentRequirements: Object.freeze(preTreatmentRequirements),
-    estimatedDuration,
-    successProbability: Math.max(0.7, Math.round(successProbability * 100) / 100),
-    keyRisks: Object.freeze(keyRisks),
-    reasons: Object.freeze(reasons),
+    phases: Object.freeze(context.phases),
+    preTreatmentRequirements: Object.freeze(context.preTreatmentRequirements),
+    estimatedDuration: context.estimatedDuration,
+    successProbability,
+    keyRisks: Object.freeze(context.keyRisks),
+    reasons: Object.freeze(context.reasons),
   };
 }
 
