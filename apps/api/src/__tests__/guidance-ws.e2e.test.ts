@@ -5,14 +5,14 @@
  * Tests real-time guidance event streaming for the agent dashboard
  * using Server-Sent Events (SSE).
  *
- * Note: SSE connections are long-lived and don't complete with a response.
- * Tests for actual SSE streaming are marked as skip and would require
- * integration tests with a real HTTP client.
+ * Uses real HTTP connections with timeout-based SSE testing to verify
+ * SSE connections work correctly.
  */
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi, beforeEach, afterEach } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { createGuidanceWSRoutes, getGuidanceSSEManager } from '../routes/guidance-ws.js';
 import type { AgentGuidance, ScriptStep } from '@medicalcor/types';
+import http from 'node:http';
 
 // Mock the domain module to avoid transitive dependency issues
 vi.mock('@medicalcor/domain', () => {
@@ -169,6 +169,77 @@ function parseSSEData(body: string): Record<string, unknown>[] {
   return events;
 }
 
+/**
+ * Creates a real SSE connection and collects events until timeout
+ */
+async function createSSEConnection(
+  port: number,
+  path: string,
+  headers: Record<string, string>,
+  timeoutMs = 200
+): Promise<{ events: Record<string, unknown>[]; headers: http.IncomingHttpHeaders }> {
+  return new Promise((resolve, reject) => {
+    const events: Record<string, unknown>[] = [];
+    let responseHeaders: http.IncomingHttpHeaders = {};
+    let buffer = '';
+
+    const req = http.request(
+      {
+        hostname: 'localhost',
+        port,
+        path,
+        method: 'GET',
+        headers: {
+          Accept: 'text/event-stream',
+          ...headers,
+        },
+      },
+      (res) => {
+        responseHeaders = res.headers;
+
+        res.on('data', (chunk: Buffer) => {
+          buffer += chunk.toString();
+          // Parse complete SSE events
+          const parts = buffer.split('\n\n');
+          buffer = parts.pop() ?? ''; // Keep incomplete part in buffer
+
+          for (const part of parts) {
+            if (part.trim()) {
+              const dataLine = part.split('\n').find((line) => line.startsWith('data: '));
+              if (dataLine) {
+                try {
+                  events.push(
+                    JSON.parse(dataLine.replace('data: ', '')) as Record<string, unknown>
+                  );
+                } catch {
+                  // Skip malformed JSON
+                }
+              }
+            }
+          }
+        });
+
+        // Timeout to collect events
+        setTimeout(() => {
+          req.destroy();
+          resolve({ events, headers: responseHeaders });
+        }, timeoutMs);
+      }
+    );
+
+    req.on('error', (err) => {
+      // ECONNRESET is expected when we abort the connection
+      if ((err as NodeJS.ErrnoException).code === 'ECONNRESET') {
+        resolve({ events, headers: responseHeaders });
+      } else {
+        reject(err);
+      }
+    });
+
+    req.end();
+  });
+}
+
 // =============================================================================
 // Test Suite
 // =============================================================================
@@ -188,6 +259,185 @@ describe('Guidance SSE Routes E2E', () => {
 
   afterAll(async () => {
     await app.close();
+  });
+
+  // Additional suite for real SSE connections
+  describe('Real SSE Connections', () => {
+    let sseApp: FastifyInstance;
+    let sseServerPort: number;
+
+    beforeEach(async () => {
+      sseApp = Fastify({ logger: false });
+      const routes = createGuidanceWSRoutes(createMockRepository());
+      await sseApp.register(routes);
+      await sseApp.ready();
+      // Listen on random available port
+      const address = await sseApp.listen({ port: 0, host: '127.0.0.1' });
+      const match = address.match(/:(\d+)$/);
+      sseServerPort = match ? parseInt(match[1], 10) : 0;
+    });
+
+    afterEach(async () => {
+      await sseApp.close();
+    });
+
+    it('should establish SSE connection with valid agent ID', async () => {
+      const { events, headers } = await createSSEConnection(
+        sseServerPort,
+        '/guidance/events',
+        { 'x-agent-id': 'agent-123' },
+        300
+      );
+
+      expect(headers['content-type']).toBe('text/event-stream');
+      expect(events.length).toBeGreaterThan(0);
+      // Should receive connection.established event
+      const connectionEvent = events.find((e) => e.eventType === 'connection.established');
+      expect(connectionEvent).toBeDefined();
+    });
+
+    it('should send connection.established event on connect', async () => {
+      const { events } = await createSSEConnection(
+        sseServerPort,
+        '/guidance/events',
+        { 'x-agent-id': 'agent-456' },
+        300
+      );
+
+      expect(events.length).toBeGreaterThanOrEqual(1);
+      const connectionEvent = events[0];
+      expect(connectionEvent.eventType).toBe('connection.established');
+      expect(connectionEvent.clientId).toBeDefined();
+      expect(connectionEvent.timestamp).toBeDefined();
+      expect(connectionEvent.eventId).toBeDefined();
+    });
+
+    it('should accept optional callSid query parameter', async () => {
+      const { events } = await createSSEConnection(
+        sseServerPort,
+        '/guidance/events?callSid=CA123',
+        { 'x-agent-id': 'agent-789' },
+        300
+      );
+
+      expect(events.length).toBeGreaterThan(0);
+      const connectionEvent = events.find((e) => e.eventType === 'connection.established');
+      expect(connectionEvent).toBeDefined();
+    });
+
+    it('should include X-Accel-Buffering header for nginx compatibility', async () => {
+      const { headers } = await createSSEConnection(
+        sseServerPort,
+        '/guidance/events',
+        { 'x-agent-id': 'agent-nginx' },
+        300
+      );
+
+      expect(headers['x-accel-buffering']).toBe('no');
+    });
+
+    it('should generate unique client IDs for each connection', async () => {
+      const [conn1, conn2] = await Promise.all([
+        createSSEConnection(sseServerPort, '/guidance/events', { 'x-agent-id': 'agent-a' }, 300),
+        createSSEConnection(sseServerPort, '/guidance/events', { 'x-agent-id': 'agent-b' }, 300),
+      ]);
+
+      const clientId1 = conn1.events.find((e) => e.eventType === 'connection.established')
+        ?.clientId as string | undefined;
+      const clientId2 = conn2.events.find((e) => e.eventType === 'connection.established')
+        ?.clientId as string | undefined;
+
+      expect(clientId1).toBeDefined();
+      expect(clientId2).toBeDefined();
+      expect(clientId1).not.toBe(clientId2);
+    });
+
+    it('should handle multiple concurrent SSE connections', async () => {
+      const connections = await Promise.all([
+        createSSEConnection(sseServerPort, '/guidance/events', { 'x-agent-id': 'agent-1' }, 300),
+        createSSEConnection(sseServerPort, '/guidance/events', { 'x-agent-id': 'agent-2' }, 300),
+        createSSEConnection(sseServerPort, '/guidance/events', { 'x-agent-id': 'agent-3' }, 300),
+      ]);
+
+      connections.forEach((conn) => {
+        expect(conn.events.length).toBeGreaterThan(0);
+        const connectionEvent = conn.events.find((e) => e.eventType === 'connection.established');
+        expect(connectionEvent).toBeDefined();
+      });
+    });
+
+    it('should handle very long agent IDs', async () => {
+      const longAgentId = 'agent-' + 'x'.repeat(500);
+      const { events } = await createSSEConnection(
+        sseServerPort,
+        '/guidance/events',
+        { 'x-agent-id': longAgentId },
+        300
+      );
+
+      // Should still establish connection
+      expect(events.length).toBeGreaterThan(0);
+      const connectionEvent = events.find((e) => e.eventType === 'connection.established');
+      expect(connectionEvent).toBeDefined();
+    });
+
+    describe('SSE Event Format', () => {
+      it('should include eventId in all events', async () => {
+        const { events } = await createSSEConnection(
+          sseServerPort,
+          '/guidance/events',
+          { 'x-agent-id': 'agent-format-1' },
+          300
+        );
+
+        events.forEach((event) => {
+          expect(event.eventId).toBeDefined();
+          expect(typeof event.eventId).toBe('string');
+        });
+      });
+
+      it('should include eventType in all events', async () => {
+        const { events } = await createSSEConnection(
+          sseServerPort,
+          '/guidance/events',
+          { 'x-agent-id': 'agent-format-2' },
+          300
+        );
+
+        events.forEach((event) => {
+          expect(event.eventType).toBeDefined();
+          expect(typeof event.eventType).toBe('string');
+        });
+      });
+
+      it('should include timestamp in all events', async () => {
+        const { events } = await createSSEConnection(
+          sseServerPort,
+          '/guidance/events',
+          { 'x-agent-id': 'agent-format-3' },
+          300
+        );
+
+        events.forEach((event) => {
+          expect(event.timestamp).toBeDefined();
+        });
+      });
+
+      it('should format SSE data correctly', async () => {
+        const { events } = await createSSEConnection(
+          sseServerPort,
+          '/guidance/events',
+          { 'x-agent-id': 'agent-format-4' },
+          300
+        );
+
+        // All parsed events should be valid objects
+        events.forEach((event) => {
+          expect(typeof event).toBe('object');
+          expect(event).not.toBeNull();
+        });
+      });
+    });
   });
 
   // ==========================================================================
@@ -219,25 +469,8 @@ describe('Guidance SSE Routes E2E', () => {
       expect(body.correlationId).toBeDefined();
     });
 
-    // Note: SSE connection tests are skipped because Fastify's inject() method
-    // waits for the response to complete, but SSE connections are long-lived.
-    // These tests would require a real HTTP client for integration testing.
-
-    it.skip('should establish SSE connection with valid agent ID', async () => {
-      // SSE connections don't complete - would require real HTTP client
-    });
-
-    it.skip('should send connection.established event on connect', async () => {
-      // SSE connections don't complete - would require real HTTP client
-    });
-
-    it.skip('should accept optional callSid query parameter', async () => {
-      // SSE connections don't complete - would require real HTTP client
-    });
-
-    it.skip('should include X-Accel-Buffering header for nginx compatibility', async () => {
-      // SSE connections don't complete - would require real HTTP client
-    });
+    // Note: Real SSE connection tests are in the 'Real SSE Connections' describe block above
+    // which uses actual HTTP connections with timeout-based testing
   });
 
   // ==========================================================================
@@ -366,12 +599,8 @@ describe('Guidance SSE Routes E2E', () => {
   // ==========================================================================
 
   describe('Integration', () => {
-    // Note: SSE connection tests are skipped because Fastify's inject() waits
-    // for response completion, but SSE connections are long-lived streams.
-
-    it.skip('should handle multiple concurrent SSE connections', async () => {
-      // SSE connections don't complete - would require real HTTP client
-    });
+    // Note: Real SSE connection tests are in the 'Real SSE Connections' describe block
+    // which uses actual HTTP connections with timeout-based testing
 
     it('should handle rapid sequential requests gracefully', async () => {
       const requests = Array.from({ length: 10 }, () =>
@@ -386,10 +615,6 @@ describe('Guidance SSE Routes E2E', () => {
       responses.forEach((response) => {
         expect(response.statusCode).toBe(200);
       });
-    });
-
-    it.skip('should generate unique client IDs for each connection', async () => {
-      // SSE connections don't complete - would require real HTTP client
     });
   });
 
@@ -437,28 +662,9 @@ describe('Guidance SSE Routes E2E', () => {
 
   // ==========================================================================
   // SSE Event Format Tests
+  // Note: Real SSE event format tests are in the 'Real SSE Connections' describe block
+  // which uses actual HTTP connections with timeout-based testing
   // ==========================================================================
-
-  describe('SSE Event Format', () => {
-    // Note: SSE connection tests are skipped because Fastify's inject() waits
-    // for response completion, but SSE connections are long-lived streams.
-
-    it.skip('should include eventId in all events', async () => {
-      // SSE connections don't complete - would require real HTTP client
-    });
-
-    it.skip('should include eventType in all events', async () => {
-      // SSE connections don't complete - would require real HTTP client
-    });
-
-    it.skip('should include timestamp in all events', async () => {
-      // SSE connections don't complete - would require real HTTP client
-    });
-
-    it.skip('should format SSE data correctly', async () => {
-      // SSE connections don't complete - would require real HTTP client
-    });
-  });
 
   // ==========================================================================
   // CORS and Security Tests
@@ -493,10 +699,7 @@ describe('Guidance SSE Routes E2E', () => {
       expect(response.statusCode).toBe(400);
     });
 
-    // Note: SSE connection tests are skipped - they time out with Fastify's inject()
-    it.skip('should handle very long agent IDs', async () => {
-      // SSE connections don't complete - would require real HTTP client
-    });
+    // Note: Real SSE connection test for long agent IDs is in the 'Real SSE Connections' block
   });
 
   // ==========================================================================
