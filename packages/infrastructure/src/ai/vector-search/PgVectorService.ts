@@ -280,7 +280,7 @@ export class PgVectorService {
   private computeEfSearch(limit: number, options?: VectorSearchOptions): number {
     // Direct ef_search override takes precedence
     if (options?.efSearch) {
-      return options.efSearch;
+      return this.validateEfSearch(options.efSearch);
     }
 
     // Use profile-based ef_search
@@ -289,6 +289,36 @@ export class PgVectorService {
 
     // ef_search should be at least 2x limit for good recall
     return Math.max(baseEfSearch, limit * 2);
+  }
+
+  /**
+   * Validate ef_search parameter is within safe bounds
+   * Prevents SQL injection for SET commands which don't support parameterized queries
+   */
+  private validateEfSearch(value: number): number {
+    if (!Number.isFinite(value) || !Number.isInteger(value)) {
+      throw new Error(`Invalid ef_search value: must be a finite integer, got ${value}`);
+    }
+    // ef_search must be positive and within reasonable bounds (pgvector max is ~32767)
+    if (value < 1 || value > 10000) {
+      throw new Error(`Invalid ef_search value: must be between 1 and 10000, got ${value}`);
+    }
+    return value;
+  }
+
+  /**
+   * Validate a JSON key for safe use in SQL jsonb operators
+   */
+  private validateJsonKey(key: string): string {
+    // JSON keys should be simple alphanumeric with underscores
+    const validKeyPattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+    if (!validKeyPattern.test(key)) {
+      throw new Error(`Invalid metadata key: ${key}`);
+    }
+    if (key.length > 100) {
+      throw new Error(`Metadata key too long: ${key}`);
+    }
+    return key;
   }
 
   /**
@@ -351,7 +381,9 @@ export class PgVectorService {
       // Add metadata filters
       if (filters?.metadata) {
         for (const [key, value] of Object.entries(filters.metadata)) {
-          query += ` AND metadata->>'${key}' = $${paramIndex}`;
+          // Validate key to prevent SQL injection in JSONB operator
+          const safeKey = this.validateJsonKey(key);
+          query += ` AND metadata->>'${safeKey}' = $${paramIndex}`;
           params.push(String(value));
           paramIndex++;
         }

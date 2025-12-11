@@ -103,7 +103,25 @@ export class HNSWOptimizer {
    * @param efSearch - Candidate list size during search (higher = more accurate, slower)
    */
   async setEfSearch(client: PoolClient, efSearch: number): Promise<void> {
-    await client.query(`SET hnsw.ef_search = ${efSearch}`);
+    // Validate efSearch is a safe integer to prevent SQL injection
+    // PostgreSQL SET doesn't support parameterized queries
+    const safeEfSearch = this.validateEfSearch(efSearch);
+    await client.query(`SET hnsw.ef_search = ${safeEfSearch}`);
+  }
+
+  /**
+   * Validate ef_search parameter is within safe bounds
+   * @throws Error if value is invalid
+   */
+  private validateEfSearch(value: number): number {
+    if (!Number.isFinite(value) || !Number.isInteger(value)) {
+      throw new Error(`Invalid ef_search value: must be a finite integer, got ${value}`);
+    }
+    // ef_search must be positive and within reasonable bounds (pgvector max is ~32767)
+    if (value < 1 || value > 10000) {
+      throw new Error(`Invalid ef_search value: must be between 1 and 10000, got ${value}`);
+    }
+    return value;
   }
 
   /**

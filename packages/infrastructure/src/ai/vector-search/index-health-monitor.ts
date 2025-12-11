@@ -13,6 +13,23 @@ import { pino } from 'pino';
 const logger = pino({ name: 'vector-index-health' });
 
 /**
+ * Validate a PostgreSQL identifier to prevent SQL injection
+ * Valid identifiers: start with letter/underscore, contain only letters/digits/underscores
+ */
+function validatePgIdentifier(identifier: string): string {
+  // PostgreSQL identifier pattern: starts with letter or underscore, followed by letters, digits, or underscores
+  const validIdentifierPattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+  if (!validIdentifierPattern.test(identifier)) {
+    throw new Error(`Invalid PostgreSQL identifier: ${identifier}`);
+  }
+  // Additional length check (PostgreSQL max identifier length is 63 bytes)
+  if (identifier.length > 63) {
+    throw new Error(`PostgreSQL identifier too long: ${identifier}`);
+  }
+  return identifier;
+}
+
+/**
  * Index health status
  */
 export type IndexHealthStatus = 'healthy' | 'degraded' | 'critical' | 'unused';
@@ -472,7 +489,9 @@ export class IndexHealthMonitor {
 
     for (const row of result.rows) {
       try {
-        await this.pool.query(`ANALYZE ${row.tablename}`);
+        // Validate identifier to prevent SQL injection (second-order attack prevention)
+        const safeTableName = validatePgIdentifier(row.tablename);
+        await this.pool.query(`ANALYZE ${safeTableName}`);
         tablesAnalyzed.push(row.tablename);
         logger.info({ table: row.tablename }, 'Analyzed table');
       } catch (error) {
