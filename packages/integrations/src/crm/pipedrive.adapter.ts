@@ -28,6 +28,14 @@ interface PipedriveFieldConfig {
   gdprConsent: string[];
   adCampaignId: string[];
   acquisitionChannel: string[];
+  /** Google Click ID for Google Ads attribution */
+  gclid: string[];
+  /** Facebook Click ID for Meta Ads attribution */
+  fbclid: string[];
+  /** Facebook Browser ID */
+  fbp: string[];
+  /** TikTok Click ID */
+  ttclid: string[];
 }
 
 /**
@@ -93,6 +101,38 @@ function getFieldConfig(): PipedriveFieldConfig {
       'acquisition_channel',
       'channel',
       'lead_channel',
+    ].filter((k): k is string => !!k),
+
+    // Google Click ID (gclid) for Google Ads offline conversions
+    gclid: [
+      process.env.PIPEDRIVE_FIELD_GCLID,
+      'gclid',
+      'google_click_id',
+      'google_ads_click_id',
+    ].filter((k): k is string => !!k),
+
+    // Facebook Click ID (fbclid) for Meta Conversions API
+    fbclid: [
+      process.env.PIPEDRIVE_FIELD_FBCLID,
+      'fbclid',
+      'facebook_click_id',
+      'fb_click_id',
+      'fbc',
+    ].filter((k): k is string => !!k),
+
+    // Facebook Browser ID (fbp)
+    fbp: [
+      process.env.PIPEDRIVE_FIELD_FBP,
+      'fbp',
+      'facebook_browser_id',
+      '_fbp',
+    ].filter((k): k is string => !!k),
+
+    // TikTok Click ID
+    ttclid: [
+      process.env.PIPEDRIVE_FIELD_TTCLID,
+      'ttclid',
+      'tiktok_click_id',
     ].filter((k): k is string => !!k),
   };
 }
@@ -244,6 +284,12 @@ export class PipedriveAdapter implements ICRMProvider {
     const acquisitionChannel = extractCustomField(person, fieldConfig.acquisitionChannel);
     const adCampaignId = extractCustomField(person, fieldConfig.adCampaignId);
 
+    // Ads click IDs for offline conversion tracking
+    const gclid = extractCustomField(person, fieldConfig.gclid);
+    const fbclid = extractCustomField(person, fieldConfig.fbclid);
+    const fbp = extractCustomField(person, fieldConfig.fbp);
+    const ttclid = extractCustomField(person, fieldConfig.ttclid);
+
     // GDPR consent
     const gdprConsentValue = extractCustomField(person, fieldConfig.gdprConsent);
     const gdprConsent = parseGdprConsent(gdprConsentValue);
@@ -278,6 +324,11 @@ export class PipedriveAdapter implements ICRMProvider {
           typeof personId === 'number' || typeof personId === 'string' ? String(personId) : '',
         ...(utmMedium && { utm_medium: utmMedium }),
         ...(utmCampaign && { utm_campaign: utmCampaign }),
+        // Ads click IDs for offline conversion tracking
+        ...(gclid && { gclid }),
+        ...(fbclid && { fbclid }),
+        ...(fbp && { fbp }),
+        ...(ttclid && { ttclid }),
       },
     };
 
@@ -354,5 +405,138 @@ export class PipedriveAdapter implements ICRMProvider {
     };
 
     return dto;
+  }
+
+  /**
+   * Extract conversion-relevant data from a deal webhook for ads tracking
+   * Returns null if the deal is not won or missing required data
+   */
+  extractDealConversionData(payload: unknown): {
+    dealId: string;
+    personId: string;
+    value: number;
+    currency: string;
+    wonAt: Date;
+    dealTitle?: string;
+  } | null {
+    const deal = getPayloadData(payload);
+    if (!deal) return null;
+
+    // Only process won deals
+    if (deal.status !== 'won') return null;
+
+    const dealId = deal.id;
+    if (dealId === undefined || dealId === null) return null;
+
+    // Extract person ID from deal
+    let personId: string | undefined;
+    const personIdField = deal.person_id;
+
+    if (typeof personIdField === 'object' && personIdField !== null) {
+      const personObj = personIdField as Record<string, unknown>;
+      const personValue = personObj.value;
+      if (personValue !== undefined && personValue !== null) {
+        personId = toSafeString(personValue);
+      }
+    } else if (personIdField !== undefined && personIdField !== null) {
+      personId = toSafeString(personIdField);
+    }
+
+    if (!personId) return null;
+
+    const dealValue = deal.value;
+    const dealCurrency = typeof deal.currency === 'string' ? deal.currency : 'EUR';
+    const wonTime = typeof deal.won_time === 'string' ? new Date(deal.won_time) : new Date();
+
+    return {
+      dealId: toSafeString(dealId),
+      personId,
+      value: dealValue !== null && dealValue !== undefined ? Number(dealValue) : 0,
+      currency: dealCurrency,
+      wonAt: wonTime,
+      dealTitle: typeof deal.title === 'string' ? deal.title : undefined,
+    };
+  }
+
+  /**
+   * Extract ads attribution data from a contact/person payload
+   * Used to get click IDs for conversion tracking
+   */
+  extractAdsAttributionData(payload: unknown): {
+    gclid?: string;
+    fbclid?: string;
+    fbp?: string;
+    ttclid?: string;
+    email?: string;
+    phone?: string;
+    firstName?: string;
+    lastName?: string;
+  } | null {
+    const person = getPayloadData(payload);
+    if (!person) return null;
+
+    const fieldConfig = getFieldConfig();
+
+    // Extract click IDs
+    const gclid = extractCustomField(person, fieldConfig.gclid);
+    const fbclid = extractCustomField(person, fieldConfig.fbclid);
+    const fbp = extractCustomField(person, fieldConfig.fbp);
+    const ttclid = extractCustomField(person, fieldConfig.ttclid);
+
+    // Extract contact info for enhanced matching
+    let email: string | undefined;
+    const emailField = person.email;
+    if (Array.isArray(emailField) && emailField.length > 0) {
+      const firstEmail: unknown = emailField[0];
+      if (firstEmail && typeof firstEmail === 'object') {
+        const emailObj = firstEmail as Record<string, unknown>;
+        email = toSafeString(emailObj.value) || undefined;
+      }
+    } else if (typeof emailField === 'string') {
+      email = emailField;
+    }
+
+    let phone: string | undefined;
+    const phoneField = person.phone;
+    if (Array.isArray(phoneField) && phoneField.length > 0) {
+      const firstPhone: unknown = phoneField[0];
+      if (firstPhone && typeof firstPhone === 'object') {
+        const phoneObj = firstPhone as Record<string, unknown>;
+        phone = toSafeString(phoneObj.value) || undefined;
+      }
+    } else if (typeof phoneField === 'string') {
+      phone = phoneField;
+    }
+
+    // Extract name parts
+    const fullName = typeof person.name === 'string' ? person.name : undefined;
+    let firstName: string | undefined;
+    let lastName: string | undefined;
+
+    if (fullName) {
+      const nameParts = fullName.trim().split(/\s+/);
+      if (nameParts.length >= 2) {
+        firstName = nameParts[0];
+        lastName = nameParts.slice(1).join(' ');
+      } else if (nameParts.length === 1) {
+        firstName = nameParts[0];
+      }
+    }
+
+    // Only return if we have at least some attribution data
+    if (!gclid && !fbclid && !fbp && !ttclid && !email && !phone) {
+      return null;
+    }
+
+    return {
+      gclid,
+      fbclid,
+      fbp,
+      ttclid,
+      email,
+      phone,
+      firstName,
+      lastName,
+    };
   }
 }

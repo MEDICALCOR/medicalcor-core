@@ -1555,6 +1555,71 @@ export {
 } from './schemas/queue.js';
 
 // =============================================================================
+// Ads Conversion Tracking Schemas (Pipedrive → Facebook/Google)
+// =============================================================================
+export {
+  // Platform & Event Types
+  AdsPlatformSchema,
+  ConversionEventTypeSchema,
+  ConversionStatusSchema,
+  // User Data
+  UserDataSchema,
+  // Conversion Event
+  ConversionEventSchema,
+  // Facebook Conversions API
+  FacebookConversionEventSchema,
+  FacebookConversionBatchSchema,
+  FacebookConversionResponseSchema,
+  // Google Ads Offline Conversions
+  GoogleConversionActionTypeSchema,
+  GoogleClickConversionSchema,
+  GoogleCallConversionSchema,
+  GoogleConversionUploadRequestSchema,
+  GoogleConversionUploadResponseSchema,
+  // Tracking Record
+  ConversionTrackingRecordSchema,
+  // Configuration
+  FacebookConversionConfigSchema,
+  GoogleConversionConfigSchema,
+  AdsConversionConfigSchema,
+  // Workflow Payloads
+  AdsConversionWorkflowPayloadSchema,
+  AdsConversionWorkflowResultSchema,
+  // Domain Events
+  AdsConversionSentEventSchema,
+  AdsConversionFailedEventSchema,
+  // Helper Functions
+  generateConversionEventId,
+  toGoogleAdsDateTime,
+  isGoogleClickId,
+  isFacebookClickId,
+  detectClickIdType,
+  mapDealStatusToConversionEvent,
+  // Types
+  type AdsPlatform,
+  type ConversionEventType,
+  type ConversionStatus,
+  type UserData,
+  type ConversionEvent,
+  type FacebookConversionEvent,
+  type FacebookConversionBatch,
+  type FacebookConversionResponse,
+  type GoogleConversionActionType,
+  type GoogleClickConversion,
+  type GoogleCallConversion,
+  type GoogleConversionUploadRequest,
+  type GoogleConversionUploadResponse,
+  type ConversionTrackingRecord,
+  type FacebookConversionConfig,
+  type GoogleConversionConfig,
+  type AdsConversionConfig,
+  type AdsConversionWorkflowPayload,
+  type AdsConversionWorkflowResult,
+  type AdsConversionSentEvent,
+  type AdsConversionFailedEvent,
+} from './ads-conversion.schema.js';
+
+// =============================================================================
 // Compliance Matrix Schemas
 // =============================================================================
 export {
