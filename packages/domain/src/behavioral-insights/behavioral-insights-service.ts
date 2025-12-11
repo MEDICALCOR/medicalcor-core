@@ -30,6 +30,51 @@ import {
 } from '@medicalcor/core';
 
 // ============================================================================
+// ENGAGEMENT SCORE CONFIGURATION
+// ============================================================================
+
+/**
+ * Configuration for engagement score calculation
+ * Each factor has a max contribution to the total score (0-100)
+ */
+const ENGAGEMENT_SCORE_CONFIG = {
+  /** Points for interaction volume */
+  interactions: {
+    maxPoints: 30,
+    pointsPerEvent: 2,
+  },
+  /** Points for using multiple communication channels */
+  channelDiversity: {
+    maxPoints: 20,
+    pointsPerChannel: 5,
+  },
+  /** Points based on how recently the subject interacted */
+  recency: {
+    maxPoints: 20,
+    tiers: [
+      { maxDays: 7, points: 20 },
+      { maxDays: 30, points: 15 },
+      { maxDays: 60, points: 10 },
+      { maxDays: 90, points: 5 },
+    ] as const,
+  },
+  /** Points based on positive sentiment ratio */
+  sentiment: {
+    maxPoints: 15,
+  },
+  /** Bonus points for high engagement pattern */
+  highEngagementBonus: {
+    maxPoints: 15,
+  },
+  /** Penalty for declining engagement pattern */
+  decliningEngagementPenalty: {
+    maxPoints: 20,
+  },
+} as const;
+
+const MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24;
+
+// ============================================================================
 // TYPES
 // ============================================================================
 
@@ -383,62 +428,129 @@ export class BehavioralInsightsService {
   }
 
   // ============================================================================
-  // PRIVATE METHODS
+  // PRIVATE METHODS - ENGAGEMENT SCORING
   // ============================================================================
 
+  /**
+   * Calculate engagement score from memory summary and behavioral patterns
+   * Score ranges from 0-100 based on multiple factors
+   */
   private calculateEngagementScore(
     summary: SubjectMemorySummary,
     patterns: BehavioralPattern[]
   ): number {
-    let score = 0;
+    const score =
+      this.scoreInteractionVolume(summary.totalEvents) +
+      this.scoreChannelDiversity(summary.channelBreakdown) +
+      this.scoreRecency(summary.lastInteraction) +
+      this.scoreSentiment(summary.sentimentCounts) +
+      this.scorePatternBonus(patterns) -
+      this.scorePatternPenalty(patterns);
 
-    // Base score from interaction count (max 30 points)
-    score += Math.min(summary.totalEvents * 2, 30);
+    return this.clampScore(score);
+  }
 
-    // Channel diversity (max 20 points)
-    const channelCount = Object.keys(summary.channelBreakdown).length;
-    score += Math.min(channelCount * 5, 20);
+  /**
+   * Score based on total interaction count
+   * More interactions indicate higher engagement
+   */
+  private scoreInteractionVolume(totalEvents: number): number {
+    const { maxPoints, pointsPerEvent } = ENGAGEMENT_SCORE_CONFIG.interactions;
+    return Math.min(totalEvents * pointsPerEvent, maxPoints);
+  }
 
-    // Recency (max 20 points)
-    if (summary.lastInteraction) {
-      const daysSinceInteraction = Math.floor(
-        (Date.now() - summary.lastInteraction.getTime()) / (1000 * 60 * 60 * 24)
-      );
-      if (daysSinceInteraction <= 7) {
-        score += 20;
-      } else if (daysSinceInteraction <= 30) {
-        score += 15;
-      } else if (daysSinceInteraction <= 60) {
-        score += 10;
-      } else if (daysSinceInteraction <= 90) {
-        score += 5;
+  /**
+   * Score based on number of communication channels used
+   * Using multiple channels indicates broader engagement
+   */
+  private scoreChannelDiversity(channelBreakdown: Record<string, number>): number {
+    const { maxPoints, pointsPerChannel } = ENGAGEMENT_SCORE_CONFIG.channelDiversity;
+    const channelCount = Object.keys(channelBreakdown).length;
+    return Math.min(channelCount * pointsPerChannel, maxPoints);
+  }
+
+  /**
+   * Score based on how recently the subject interacted
+   * More recent interactions score higher
+   */
+  private scoreRecency(lastInteraction: Date | null): number {
+    if (!lastInteraction) {
+      return 0;
+    }
+
+    const daysSinceInteraction = Math.floor(
+      (Date.now() - lastInteraction.getTime()) / MILLISECONDS_PER_DAY
+    );
+
+    for (const tier of ENGAGEMENT_SCORE_CONFIG.recency.tiers) {
+      if (daysSinceInteraction <= tier.maxDays) {
+        return tier.points;
       }
     }
 
-    // Sentiment (max 15 points)
+    return 0;
+  }
+
+  /**
+   * Score based on positive sentiment ratio
+   * Higher positive sentiment indicates better engagement
+   */
+  private scoreSentiment(sentimentCounts: {
+    positive: number;
+    neutral: number;
+    negative: number;
+  }): number {
     const totalSentiment =
-      summary.sentimentCounts.positive +
-      summary.sentimentCounts.neutral +
-      summary.sentimentCounts.negative;
-    if (totalSentiment > 0) {
-      const positiveRatio = summary.sentimentCounts.positive / totalSentiment;
-      score += Math.round(positiveRatio * 15);
+      sentimentCounts.positive + sentimentCounts.neutral + sentimentCounts.negative;
+
+    if (totalSentiment === 0) {
+      return 0;
     }
 
-    // Pattern bonus (max 15 points)
+    const positiveRatio = sentimentCounts.positive / totalSentiment;
+    return Math.round(positiveRatio * ENGAGEMENT_SCORE_CONFIG.sentiment.maxPoints);
+  }
+
+  /**
+   * Bonus points for high engagement behavioral pattern
+   */
+  private scorePatternBonus(patterns: BehavioralPattern[]): number {
     const highEngagementPattern = patterns.find((p) => p.patternType === 'high_engagement');
-    if (highEngagementPattern) {
-      score += Math.round(highEngagementPattern.confidence * 15);
+
+    if (!highEngagementPattern) {
+      return 0;
     }
 
-    // Deduction for negative patterns
+    return Math.round(
+      highEngagementPattern.confidence * ENGAGEMENT_SCORE_CONFIG.highEngagementBonus.maxPoints
+    );
+  }
+
+  /**
+   * Penalty for declining engagement behavioral pattern
+   */
+  private scorePatternPenalty(patterns: BehavioralPattern[]): number {
     const decliningPattern = patterns.find((p) => p.patternType === 'declining_engagement');
-    if (decliningPattern) {
-      score -= Math.round(decliningPattern.confidence * 20);
+
+    if (!decliningPattern) {
+      return 0;
     }
 
+    return Math.round(
+      decliningPattern.confidence * ENGAGEMENT_SCORE_CONFIG.decliningEngagementPenalty.maxPoints
+    );
+  }
+
+  /**
+   * Clamp score to valid range [0, 100]
+   */
+  private clampScore(score: number): number {
     return Math.max(0, Math.min(100, score));
   }
+
+  // ============================================================================
+  // PRIVATE METHODS - CHURN ASSESSMENT
+  // ============================================================================
 
   private assessChurnRisk(
     patterns: BehavioralPattern[],
