@@ -197,10 +197,15 @@ export function AggregateRootDecorator(aggregateType: string) {
 
 /**
  * Marks a class as a Value Object
+ *
+ * Note: This decorator uses type assertions due to TypeScript's limitations
+ * with class extension in decorators. The pattern is safe because:
+ * 1. We preserve the original constructor signature via generics
+ * 2. The extended class passes through all arguments unchanged
+ * 3. Object.freeze() only affects instance properties, not the prototype chain
  */
 export function ValueObjectDecorator(valueObjectType: string) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return function <T extends new (...args: any[]) => object>(constructor: T): T {
+  return function <T extends new (...args: unknown[]) => object>(constructor: T): T {
     Object.defineProperty(constructor.prototype, '__valueObjectType', {
       value: valueObjectType,
       writable: false,
@@ -208,17 +213,18 @@ export function ValueObjectDecorator(valueObjectType: string) {
     });
 
     // Freeze instances to ensure immutability
-    const original = constructor;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const decorated = class extends (original as any) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      constructor(...args: any[]) {
+    // TypeScript requires type assertions here because class extension in decorators
+    // cannot preserve the exact constructor signature through the extends clause
+    const OriginalClass = constructor as new (...args: unknown[]) => object;
+
+    const DecoratedClass = class extends OriginalClass {
+      constructor(...args: unknown[]) {
         super(...args);
         Object.freeze(this);
       }
     };
 
-    return DomainLayer(valueObjectType)(decorated as unknown as T);
+    return DomainLayer(valueObjectType)(DecoratedClass as T);
   };
 }
 

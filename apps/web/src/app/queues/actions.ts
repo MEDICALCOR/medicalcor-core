@@ -39,6 +39,23 @@ function getSupabaseClient() {
 // Types
 // =============================================================================
 
+/** Database row shape for SLA breach records */
+interface SLABreachRow {
+  id: string;
+  queue_sid: string;
+  queue_name: string;
+  breach_type: 'wait_time' | 'service_level' | 'abandon_rate';
+  severity: 'warning' | 'critical';
+  threshold_value: number;
+  current_value: number;
+  affected_calls?: number;
+  detected_at: string;
+  resolved_at?: string;
+  duration_seconds?: number;
+  alert_sent?: boolean;
+  escalated: boolean;
+}
+
 export interface QueueDashboardStats {
   totalQueues: number;
   activeQueues: number;
@@ -244,8 +261,7 @@ export async function getRecentBreachesAction(limit = 50): Promise<SLABreachEven
     }
 
     // Transform to match SLABreachEvent type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return data.map((row: any) => ({
+    return (data as SLABreachRow[]).map((row) => ({
       eventId: row.id,
       queueSid: row.queue_sid,
       queueName: row.queue_name,

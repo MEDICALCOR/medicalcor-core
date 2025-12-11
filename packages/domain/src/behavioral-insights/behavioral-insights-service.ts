@@ -4,9 +4,18 @@
  * M5: Pattern Detection for Cognitive Memory (Behavioral Insights)
  * High-level domain service for behavioral pattern analysis and insights.
  *
+ * Architecture Note:
+ * This domain service uses dependency injection for the database pool. The core package
+ * functions (createPatternDetector, createMemoryRetrievalService) currently expect `pg.Pool`,
+ * but the domain layer defines `IDatabasePool` to maintain architectural decoupling.
+ * Type assertions are used at the injection points - this is a documented trade-off
+ * that allows the domain layer to remain infrastructure-agnostic.
+ *
+ * TODO: Future improvement would be to update @medicalcor/core cognitive functions
+ * to accept the exported DatabasePool interface instead of pg.Pool directly.
+ *
  * @module domain/behavioral-insights/behavioral-insights-service
  */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
 
 import {
   createPatternDetector,
@@ -70,12 +79,12 @@ export interface BatchProcessingResult {
   failedSubjects: number;
   totalPatternsDetected: number;
   processingTimeMs: number;
-  results: Array<{
+  results: {
     subjectId: string;
     success: boolean;
     patternsDetected?: number;
     error?: string;
-  }>;
+  }[];
 }
 
 /**
@@ -122,13 +131,18 @@ export class BehavioralInsightsService {
   private memoryRetrieval: ReturnType<typeof createMemoryRetrievalService>;
 
   constructor(private deps: BehavioralInsightsServiceDependencies) {
-    // Cast pool to the expected type - the infrastructure layer is responsible for
-    // providing a pg.Pool-compatible object
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pool type abstraction for DI
-    this.patternDetector = createPatternDetector(deps.pool as any, deps.openai, deps.config);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pool type abstraction for DI
+    // Type assertion: IDatabasePool → pg.Pool
+    // The infrastructure layer injects a pg.Pool-compatible object that satisfies IDatabasePool.
+    // Core functions expect pg.Pool, but our interface is structurally compatible.
+    // Using Parameters<> utility type to extract the expected pool type without importing pg.
+    // See architecture note in file header for context on this design decision.
+    this.patternDetector = createPatternDetector(
+      deps.pool as unknown as Parameters<typeof createPatternDetector>[0],
+      deps.openai,
+      deps.config
+    );
     this.memoryRetrieval = createMemoryRetrievalService(
-      deps.pool as any,
+      deps.pool as unknown as Parameters<typeof createMemoryRetrievalService>[0],
       deps.embeddings,
       deps.config
     );
@@ -142,7 +156,7 @@ export class BehavioralInsightsService {
    * Generate a comprehensive behavioral profile for a subject
    */
   async generateProfile(subjectType: SubjectType, subjectId: string): Promise<BehavioralProfile> {
-    const startTime = Date.now();
+    const _startTime = Date.now(); // Reserved for future performance tracking
 
     // Gather all data in parallel
     const [memorySummary, patterns, insights] = await Promise.all([
@@ -226,7 +240,7 @@ export class BehavioralInsightsService {
    * Batch detect patterns for multiple subjects
    */
   async detectPatternsBatch(
-    subjects: Array<{ subjectType: SubjectType; subjectId: string }>
+    subjects: { subjectType: SubjectType; subjectId: string }[]
   ): Promise<BatchProcessingResult> {
     const startTime = Date.now();
     const results: BatchProcessingResult['results'] = [];
@@ -291,9 +305,7 @@ export class BehavioralInsightsService {
   async getChurnRiskSubjects(
     clinicId: string,
     limit = 20
-  ): Promise<
-    Array<{ subjectId: string; subjectType: SubjectType; riskLevel: string; reason: string }>
-  > {
+  ): Promise<{ subjectId: string; subjectType: SubjectType; riskLevel: string; reason: string }[]> {
     // Query for subjects with declining engagement or appointment_rescheduler patterns
     const result = await this.deps.pool.query(
       `
@@ -327,9 +339,7 @@ export class BehavioralInsightsService {
     clinicId: string,
     minDaysInactive = 60,
     limit = 20
-  ): Promise<
-    Array<{ subjectId: string; subjectType: SubjectType; daysSinceLastInteraction: number }>
-  > {
+  ): Promise<{ subjectId: string; subjectType: SubjectType; daysSinceLastInteraction: number }[]> {
     const result = await this.deps.pool.query(
       `
       SELECT
