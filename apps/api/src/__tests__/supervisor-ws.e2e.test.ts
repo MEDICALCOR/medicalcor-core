@@ -5,17 +5,17 @@
  * Tests real-time supervisor event streaming for the supervisor dashboard
  * using Server-Sent Events (SSE).
  *
- * Note: SSE connections are long-lived and don't complete with a response.
- * Tests for actual SSE streaming are marked as skip and would require
- * integration tests with a real HTTP client.
+ * Uses real HTTP connections with timeout-based SSE testing to verify
+ * SSE connections work correctly.
  */
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi, beforeEach, afterEach } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import {
   supervisorWSRoutes,
   emitSupervisorEvent,
   getSSEManagerInstance,
 } from '../routes/supervisor-ws.js';
+import http from 'node:http';
 
 // Mock the supervisor agent to isolate SSE testing
 vi.mock('@medicalcor/domain', () => {
@@ -116,6 +116,77 @@ function parseSSEData(body: string): Record<string, unknown>[] {
   return events;
 }
 
+/**
+ * Creates a real SSE connection and collects events until timeout
+ */
+async function createSSEConnection(
+  port: number,
+  path: string,
+  headers: Record<string, string>,
+  timeoutMs = 200
+): Promise<{ events: Record<string, unknown>[]; headers: http.IncomingHttpHeaders }> {
+  return new Promise((resolve, reject) => {
+    const events: Record<string, unknown>[] = [];
+    let responseHeaders: http.IncomingHttpHeaders = {};
+    let buffer = '';
+
+    const req = http.request(
+      {
+        hostname: 'localhost',
+        port,
+        path,
+        method: 'GET',
+        headers: {
+          Accept: 'text/event-stream',
+          ...headers,
+        },
+      },
+      (res) => {
+        responseHeaders = res.headers;
+
+        res.on('data', (chunk: Buffer) => {
+          buffer += chunk.toString();
+          // Parse complete SSE events
+          const parts = buffer.split('\n\n');
+          buffer = parts.pop() ?? ''; // Keep incomplete part in buffer
+
+          for (const part of parts) {
+            if (part.trim()) {
+              const dataLine = part.split('\n').find((line) => line.startsWith('data: '));
+              if (dataLine) {
+                try {
+                  events.push(
+                    JSON.parse(dataLine.replace('data: ', '')) as Record<string, unknown>
+                  );
+                } catch {
+                  // Skip malformed JSON
+                }
+              }
+            }
+          }
+        });
+
+        // Timeout to collect events
+        setTimeout(() => {
+          req.destroy();
+          resolve({ events, headers: responseHeaders });
+        }, timeoutMs);
+      }
+    );
+
+    req.on('error', (err) => {
+      // ECONNRESET is expected when we abort the connection
+      if ((err as NodeJS.ErrnoException).code === 'ECONNRESET') {
+        resolve({ events, headers: responseHeaders });
+      } else {
+        reject(err);
+      }
+    });
+
+    req.end();
+  });
+}
+
 // =============================================================================
 // Test Suite
 // =============================================================================
@@ -134,7 +205,280 @@ describe('Supervisor SSE Routes E2E', () => {
   });
 
   // ==========================================================================
-  // GET /supervisor/events - SSE Connection
+  // Real SSE Connections (using actual HTTP connections)
+  // ==========================================================================
+
+  describe('Real SSE Connections', () => {
+    let sseApp: FastifyInstance;
+    let sseServerPort: number;
+
+    beforeEach(async () => {
+      sseApp = Fastify({ logger: false });
+      await sseApp.register(supervisorWSRoutes);
+      await sseApp.ready();
+      // Listen on random available port
+      const address = await sseApp.listen({ port: 0, host: '127.0.0.1' });
+      const match = address.match(/:(\d+)$/);
+      sseServerPort = match ? parseInt(match[1], 10) : 0;
+    });
+
+    afterEach(async () => {
+      await sseApp.close();
+    });
+
+    it('should establish SSE connection with valid supervisor ID', async () => {
+      const { events, headers } = await createSSEConnection(
+        sseServerPort,
+        '/supervisor/events',
+        { 'x-supervisor-id': 'sup-123' },
+        300
+      );
+
+      expect(headers['content-type']).toBe('text/event-stream');
+      expect(events.length).toBeGreaterThan(0);
+      // Should receive connection.established event
+      const connectionEvent = events.find((e) => e.eventType === 'connection.established');
+      expect(connectionEvent).toBeDefined();
+    });
+
+    it('should send connection.established event on connect', async () => {
+      const { events } = await createSSEConnection(
+        sseServerPort,
+        '/supervisor/events',
+        { 'x-supervisor-id': 'sup-456' },
+        300
+      );
+
+      expect(events.length).toBeGreaterThanOrEqual(1);
+      const connectionEvent = events.find((e) => e.eventType === 'connection.established');
+      expect(connectionEvent).toBeDefined();
+      expect(connectionEvent?.clientId).toBeDefined();
+      expect(connectionEvent?.timestamp).toBeDefined();
+      expect(connectionEvent?.eventId).toBeDefined();
+    });
+
+    it('should include X-Accel-Buffering header for nginx compatibility', async () => {
+      const { headers } = await createSSEConnection(
+        sseServerPort,
+        '/supervisor/events',
+        { 'x-supervisor-id': 'sup-nginx' },
+        300
+      );
+
+      expect(headers['x-accel-buffering']).toBe('no');
+    });
+
+    it('should send initial call state on connect', async () => {
+      const { events } = await createSSEConnection(
+        sseServerPort,
+        '/supervisor/events',
+        { 'x-supervisor-id': 'sup-initial' },
+        300
+      );
+
+      // Should receive connection.established first, then call.started for active calls
+      const connectionEvent = events.find((e) => e.eventType === 'connection.established');
+      expect(connectionEvent).toBeDefined();
+
+      // Mock agent has one active call, so we should receive it
+      const callEvent = events.find((e) => e.eventType === 'call.started');
+      expect(callEvent).toBeDefined();
+      expect(callEvent?.callSid).toBe('CA123');
+    });
+
+    it('should generate unique client IDs for each connection', async () => {
+      const [conn1, conn2] = await Promise.all([
+        createSSEConnection(
+          sseServerPort,
+          '/supervisor/events',
+          { 'x-supervisor-id': 'sup-a' },
+          300
+        ),
+        createSSEConnection(
+          sseServerPort,
+          '/supervisor/events',
+          { 'x-supervisor-id': 'sup-b' },
+          300
+        ),
+      ]);
+
+      const clientId1 = conn1.events.find((e) => e.eventType === 'connection.established')
+        ?.clientId as string | undefined;
+      const clientId2 = conn2.events.find((e) => e.eventType === 'connection.established')
+        ?.clientId as string | undefined;
+
+      expect(clientId1).toBeDefined();
+      expect(clientId2).toBeDefined();
+      expect(clientId1).not.toBe(clientId2);
+    });
+
+    it('should handle multiple concurrent SSE connections', async () => {
+      const connections = await Promise.all([
+        createSSEConnection(
+          sseServerPort,
+          '/supervisor/events',
+          { 'x-supervisor-id': 'sup-1' },
+          300
+        ),
+        createSSEConnection(
+          sseServerPort,
+          '/supervisor/events',
+          { 'x-supervisor-id': 'sup-2' },
+          300
+        ),
+        createSSEConnection(
+          sseServerPort,
+          '/supervisor/events',
+          { 'x-supervisor-id': 'sup-3' },
+          300
+        ),
+      ]);
+
+      connections.forEach((conn) => {
+        expect(conn.events.length).toBeGreaterThan(0);
+        const connectionEvent = conn.events.find((e) => e.eventType === 'connection.established');
+        expect(connectionEvent).toBeDefined();
+      });
+    });
+
+    it('should allow same supervisor to have multiple connections', async () => {
+      const [conn1, conn2] = await Promise.all([
+        createSSEConnection(
+          sseServerPort,
+          '/supervisor/events',
+          { 'x-supervisor-id': 'sup-same' },
+          300
+        ),
+        createSSEConnection(
+          sseServerPort,
+          '/supervisor/events',
+          { 'x-supervisor-id': 'sup-same' },
+          300
+        ),
+      ]);
+
+      // Both connections should succeed
+      expect(conn1.events.length).toBeGreaterThan(0);
+      expect(conn2.events.length).toBeGreaterThan(0);
+
+      // Should have different client IDs even though same supervisor
+      const clientId1 = conn1.events.find((e) => e.eventType === 'connection.established')
+        ?.clientId as string | undefined;
+      const clientId2 = conn2.events.find((e) => e.eventType === 'connection.established')
+        ?.clientId as string | undefined;
+      expect(clientId1).not.toBe(clientId2);
+    });
+
+    it('should handle very long supervisor IDs', async () => {
+      const longSupervisorId = 'sup-' + 'x'.repeat(500);
+      const { events } = await createSSEConnection(
+        sseServerPort,
+        '/supervisor/events',
+        { 'x-supervisor-id': longSupervisorId },
+        300
+      );
+
+      // Should still establish connection
+      expect(events.length).toBeGreaterThan(0);
+      const connectionEvent = events.find((e) => e.eventType === 'connection.established');
+      expect(connectionEvent).toBeDefined();
+    });
+
+    it('should handle special characters in supervisor ID', async () => {
+      const specialId = 'sup-test@example.com/org#123';
+      const { events } = await createSSEConnection(
+        sseServerPort,
+        '/supervisor/events',
+        { 'x-supervisor-id': specialId },
+        300
+      );
+
+      expect(events.length).toBeGreaterThan(0);
+      const connectionEvent = events.find((e) => e.eventType === 'connection.established');
+      expect(connectionEvent).toBeDefined();
+    });
+
+    it('should protect customer phone numbers in call events (GDPR/HIPAA)', async () => {
+      const { events } = await createSSEConnection(
+        sseServerPort,
+        '/supervisor/events',
+        { 'x-supervisor-id': 'sup-privacy' },
+        300
+      );
+
+      const callEvent = events.find((e) => e.eventType === 'call.started') as
+        | { call?: { customerPhone?: string } }
+        | undefined;
+      if (callEvent?.call?.customerPhone) {
+        // Phone should be either masked with **** or fully redacted for GDPR/HIPAA compliance
+        const phone = callEvent.call.customerPhone;
+        const isProtected =
+          phone.includes('****') || phone.includes('[REDACTED') || !phone.match(/^\+?\d{10,15}$/);
+        expect(isProtected).toBe(true);
+      }
+    });
+
+    describe('SSE Event Format', () => {
+      it('should include eventId in all events', async () => {
+        const { events } = await createSSEConnection(
+          sseServerPort,
+          '/supervisor/events',
+          { 'x-supervisor-id': 'sup-format-1' },
+          300
+        );
+
+        events.forEach((event) => {
+          expect(event.eventId).toBeDefined();
+          expect(typeof event.eventId).toBe('string');
+        });
+      });
+
+      it('should include eventType in all events', async () => {
+        const { events } = await createSSEConnection(
+          sseServerPort,
+          '/supervisor/events',
+          { 'x-supervisor-id': 'sup-format-2' },
+          300
+        );
+
+        events.forEach((event) => {
+          expect(event.eventType).toBeDefined();
+          expect(typeof event.eventType).toBe('string');
+        });
+      });
+
+      it('should include timestamp in all events', async () => {
+        const { events } = await createSSEConnection(
+          sseServerPort,
+          '/supervisor/events',
+          { 'x-supervisor-id': 'sup-format-3' },
+          300
+        );
+
+        events.forEach((event) => {
+          expect(event.timestamp).toBeDefined();
+        });
+      });
+
+      it('should format SSE data correctly', async () => {
+        const { events } = await createSSEConnection(
+          sseServerPort,
+          '/supervisor/events',
+          { 'x-supervisor-id': 'sup-format-4' },
+          300
+        );
+
+        // All parsed events should be valid objects
+        events.forEach((event) => {
+          expect(typeof event).toBe('object');
+          expect(event).not.toBeNull();
+        });
+      });
+    });
+  });
+
+  // ==========================================================================
+  // GET /supervisor/events - SSE Connection (Fastify inject tests)
   // ==========================================================================
 
   describe('GET /supervisor/events', () => {
@@ -162,25 +506,8 @@ describe('Supervisor SSE Routes E2E', () => {
       expect(body.correlationId).toBeDefined();
     });
 
-    // Note: SSE connection tests are skipped because Fastify's inject() method
-    // waits for the response to complete, but SSE connections are long-lived.
-    // These tests would require a real HTTP client for integration testing.
-
-    it.skip('should establish SSE connection with valid supervisor ID', async () => {
-      // SSE connections don't complete - would require real HTTP client
-    });
-
-    it.skip('should send connection.established event on connect', async () => {
-      // SSE connections don't complete - would require real HTTP client
-    });
-
-    it.skip('should include X-Accel-Buffering header for nginx compatibility', async () => {
-      // SSE connections don't complete - would require real HTTP client
-    });
-
-    it.skip('should send initial call state on connect', async () => {
-      // SSE connections don't complete - would require real HTTP client
-    });
+    // Note: Real SSE connection tests are in the 'Real SSE Connections' describe block above
+    // which uses actual HTTP connections with timeout-based testing
   });
 
   // ==========================================================================
@@ -363,12 +690,8 @@ describe('Supervisor SSE Routes E2E', () => {
   // ==========================================================================
 
   describe('Integration', () => {
-    // Note: SSE connection tests are skipped because Fastify's inject() waits
-    // for response completion, but SSE connections are long-lived streams.
-
-    it.skip('should handle multiple concurrent SSE connections', async () => {
-      // SSE connections don't complete - would require real HTTP client
-    });
+    // Note: Real SSE connection tests are in the 'Real SSE Connections' describe block
+    // which uses actual HTTP connections with timeout-based testing
 
     it('should handle rapid sequential status requests', async () => {
       const requests = Array.from({ length: 10 }, () =>
@@ -383,14 +706,6 @@ describe('Supervisor SSE Routes E2E', () => {
       responses.forEach((response) => {
         expect(response.statusCode).toBe(200);
       });
-    });
-
-    it.skip('should generate unique client IDs for each connection', async () => {
-      // SSE connections don't complete - would require real HTTP client
-    });
-
-    it.skip('should allow same supervisor to have multiple connections', async () => {
-      // SSE connections don't complete - would require real HTTP client
     });
   });
 
@@ -431,51 +746,21 @@ describe('Supervisor SSE Routes E2E', () => {
       expect(response.statusCode).toBe(400);
     });
 
-    // Note: SSE connection tests are skipped - they time out with Fastify's inject()
-    it.skip('should handle very long supervisor IDs', async () => {
-      // SSE connections don't complete - would require real HTTP client
-    });
-
-    // Note: SSE connection tests are skipped - they time out with Fastify's inject()
-    it.skip('should handle special characters in supervisor ID', async () => {
-      // SSE connections don't complete - would require real HTTP client
-    });
+    // Note: Real SSE connection tests for long/special supervisor IDs are in 'Real SSE Connections' block
   });
 
   // ==========================================================================
   // SSE Event Format Tests
+  // Note: Real SSE event format tests are in the 'Real SSE Connections' describe block
+  // which uses actual HTTP connections with timeout-based testing
   // ==========================================================================
-
-  describe('SSE Event Format', () => {
-    // Note: SSE connection tests are skipped because Fastify's inject() waits
-    // for response completion, but SSE connections are long-lived streams.
-
-    it.skip('should include eventId in all events', async () => {
-      // SSE connections don't complete - would require real HTTP client
-    });
-
-    it.skip('should include eventType in all events', async () => {
-      // SSE connections don't complete - would require real HTTP client
-    });
-
-    it.skip('should include timestamp in all events', async () => {
-      // SSE connections don't complete - would require real HTTP client
-    });
-
-    it.skip('should format SSE data correctly', async () => {
-      // SSE connections don't complete - would require real HTTP client
-    });
-  });
 
   // ==========================================================================
   // Security Tests (GDPR/HIPAA)
   // ==========================================================================
 
   describe('Security & Privacy', () => {
-    // Note: SSE connection tests are skipped - they time out with Fastify's inject()
-    it.skip('should mask customer phone numbers in call events', async () => {
-      // SSE connections don't complete - would require real HTTP client
-    });
+    // Note: Real SSE privacy test for phone masking is in the 'Real SSE Connections' block
 
     it('should not expose internal error details', async () => {
       const response = await app.inject({
@@ -506,10 +791,7 @@ describe('Supervisor SSE Routes E2E', () => {
   // ==========================================================================
 
   describe('Event Types', () => {
-    // Note: SSE connection tests are skipped - they time out with Fastify's inject()
-    it.skip('should support call.started event type', async () => {
-      // SSE connections don't complete - would require real HTTP client
-    });
+    // Note: Real SSE event type tests are in the 'Real SSE Connections' block
 
     it('should handle transcript speaker types', () => {
       const speakers = ['customer', 'agent', 'assistant'];
