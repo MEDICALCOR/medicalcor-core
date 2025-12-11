@@ -9,7 +9,7 @@
  *
  *   // In development, attach to window for debugging
  *   if (process.env.NODE_ENV === 'development') {
- *     (window as any).__realtimeMonitor = RealtimeMemoryMonitor;
+ *     window.__realtimeMemory = RealtimeMemoryMonitor;
  *   }
  *
  *   // Check memory usage
@@ -21,6 +21,13 @@
 
 import type { RingBuffer, BoundedMap } from './ring-buffer';
 import { REALTIME_MEMORY_LIMITS } from './ring-buffer';
+
+/** Extend Window interface for development debugging */
+declare global {
+  interface Window {
+    __realtimeMemory?: typeof RealtimeMemoryMonitor;
+  }
+}
 
 export interface MemoryStats {
   timestamp: Date;
@@ -281,8 +288,7 @@ export const RealtimeMemoryMonitor = {
  */
 export function attachMemoryMonitorToWindow(): void {
   if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (window as any).__realtimeMemory = RealtimeMemoryMonitor;
+    window.__realtimeMemory = RealtimeMemoryMonitor;
     // eslint-disable-next-line no-console
     console.log(
       '🔧 RealtimeMemoryMonitor attached to window.__realtimeMemory\n' +

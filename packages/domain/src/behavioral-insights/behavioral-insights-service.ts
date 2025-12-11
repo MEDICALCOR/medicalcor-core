@@ -4,6 +4,16 @@
  * M5: Pattern Detection for Cognitive Memory (Behavioral Insights)
  * High-level domain service for behavioral pattern analysis and insights.
  *
+ * Architecture Note:
+ * This domain service uses dependency injection for the database pool. The core package
+ * functions (createPatternDetector, createMemoryRetrievalService) currently expect `pg.Pool`,
+ * but the domain layer defines `IDatabasePool` to maintain architectural decoupling.
+ * Type assertions are used at the injection points - this is a documented trade-off
+ * that allows the domain layer to remain infrastructure-agnostic.
+ *
+ * TODO: Future improvement would be to update @medicalcor/core cognitive functions
+ * to accept the exported DatabasePool interface instead of pg.Pool directly.
+ *
  * @module domain/behavioral-insights/behavioral-insights-service
  */
 

@@ -546,79 +546,150 @@ export function calculateCompositeScore(
   return Math.round(weighted * 10) / 10;
 }
 
+// ============================================================================
+// RISK FLAG IDENTIFICATION HELPERS
+// ============================================================================
+
 /**
- * Identify clinical risk flags
+ * Identify smoking-related risk flags
  */
-function identifyRiskFlags(
+function identifySmokingFlags(indicators: AllOnXClinicalIndicators): AllOnXRiskFlag[] {
+  if (indicators.smokingStatus >= 4) return ['HEAVY_SMOKER'];
+  if (indicators.smokingStatus >= 2) return ['ACTIVE_SMOKER'];
+  return [];
+}
+
+/**
+ * Identify diabetes-related risk flags
+ */
+function identifyDiabetesFlags(
   indicators: AllOnXClinicalIndicators,
   config: AllOnXScoringConfig
-): readonly AllOnXRiskFlag[] {
-  const flags: AllOnXRiskFlag[] = [];
-
-  // Smoking flags
-  if (indicators.smokingStatus >= 4) {
-    flags.push('HEAVY_SMOKER');
-  } else if (indicators.smokingStatus >= 2) {
-    flags.push('ACTIVE_SMOKER');
-  }
-
-  // Diabetes flags
+): AllOnXRiskFlag[] {
   if (
     indicators.hba1c !== undefined &&
     indicators.hba1c > config.hba1cThresholds.poorlyControlled
   ) {
-    flags.push('UNCONTROLLED_DIABETES');
+    return ['UNCONTROLLED_DIABETES'];
   }
+  return [];
+}
 
-  // Bisphosphonate flags
-  if (indicators.onBisphosphonates) {
-    flags.push('BISPHOSPHONATE_THERAPY');
-    if (
-      indicators.bisphosphonateYears !== undefined &&
-      indicators.bisphosphonateYears >= config.bisphosphonateThresholds.highRisk
-    ) {
-      flags.push('LONG_TERM_BISPHOSPHONATES');
-    }
+/**
+ * Identify bisphosphonate-related risk flags
+ */
+function identifyBisphosphonateFlags(
+  indicators: AllOnXClinicalIndicators,
+  config: AllOnXScoringConfig
+): AllOnXRiskFlag[] {
+  if (!indicators.onBisphosphonates) return [];
+
+  const flags: AllOnXRiskFlag[] = ['BISPHOSPHONATE_THERAPY'];
+  if (
+    indicators.bisphosphonateYears !== undefined &&
+    indicators.bisphosphonateYears >= config.bisphosphonateThresholds.highRisk
+  ) {
+    flags.push('LONG_TERM_BISPHOSPHONATES');
   }
+  return flags;
+}
 
-  // Medical condition flags
+/**
+ * Identify general medical condition risk flags
+ */
+function identifyMedicalConditionFlags(indicators: AllOnXClinicalIndicators): AllOnXRiskFlag[] {
+  const flags: AllOnXRiskFlag[] = [];
   if (indicators.hasOsteoporosis) flags.push('OSTEOPOROSIS');
   if (indicators.hasRadiationHistory) flags.push('RADIATION_HISTORY');
   if (indicators.isImmunocompromised) flags.push('IMMUNOCOMPROMISED');
   if (indicators.hasUncontrolledCardiovascular) flags.push('CARDIOVASCULAR_RISK');
   if (indicators.onAnticoagulants) flags.push('ANTICOAGULANT_THERAPY');
+  return flags;
+}
 
-  // Bone flags
+/**
+ * Identify bone quality and structure risk flags
+ */
+function identifyBoneFlags(
+  indicators: AllOnXClinicalIndicators,
+  config: AllOnXScoringConfig
+): AllOnXRiskFlag[] {
+  const flags: AllOnXRiskFlag[] = [];
+
   if (indicators.boneDensity >= 4) flags.push('POOR_BONE_QUALITY');
 
   const targetBoneHeight =
     indicators.targetArch === 2 ? indicators.mandibleBoneHeight : indicators.maxillaBoneHeight;
 
-  if (
+  const hasInsufficientBone =
     targetBoneHeight < config.boneHeightThresholds.minimum ||
-    indicators.boneWidth < config.boneWidthThresholds.minimum
-  ) {
-    flags.push('INSUFFICIENT_BONE');
-  }
+    indicators.boneWidth < config.boneWidthThresholds.minimum;
 
-  // Oral health flags
+  if (hasInsufficientBone) flags.push('INSUFFICIENT_BONE');
+
+  return flags;
+}
+
+/**
+ * Identify oral health risk flags
+ */
+function identifyOralHealthFlags(indicators: AllOnXClinicalIndicators): AllOnXRiskFlag[] {
+  const flags: AllOnXRiskFlag[] = [];
   if (indicators.periodontalDisease >= 2) flags.push('ACTIVE_PERIODONTAL_DISEASE');
   if (indicators.oralHygieneScore <= 1) flags.push('POOR_ORAL_HYGIENE');
   if (indicators.hasBruxism) flags.push('BRUXISM');
   if (indicators.previousFailedImplants !== undefined && indicators.previousFailedImplants > 0) {
     flags.push('PREVIOUS_IMPLANT_FAILURE');
   }
+  return flags;
+}
 
-  // Patient flags
+/**
+ * Identify patient-specific risk flags (age, ASA classification, compliance)
+ */
+function identifyPatientFlags(
+  indicators: AllOnXClinicalIndicators,
+  config: AllOnXScoringConfig
+): AllOnXRiskFlag[] {
+  const flags: AllOnXRiskFlag[] = [];
   if (indicators.patientAge >= config.ageThresholds.elderly) flags.push('GERIATRIC_PATIENT');
   if (indicators.asaClassification >= 3) flags.push('HIGH_ASA_CLASS');
   if (indicators.complianceScore <= 2) flags.push('LOW_COMPLIANCE');
+  return flags;
+}
 
-  // Procedural flags
+/**
+ * Identify procedural complexity risk flags
+ */
+function identifyProceduralFlags(indicators: AllOnXClinicalIndicators): AllOnXRiskFlag[] {
+  const flags: AllOnXRiskFlag[] = [];
   if (indicators.needsBoneGrafting) flags.push('BONE_AUGMENTATION_REQUIRED');
   if (indicators.needsSinusLift) flags.push('SINUS_LIFT_REQUIRED');
   if (indicators.targetArch === 3) flags.push('DUAL_ARCH_COMPLEXITY');
   if (indicators.estheticDemands >= 5) flags.push('HIGH_ESTHETIC_DEMANDS');
+  return flags;
+}
+
+/**
+ * Identify clinical risk flags
+ *
+ * Orchestrates category-specific flag identification for a comprehensive
+ * clinical risk assessment.
+ */
+function identifyRiskFlags(
+  indicators: AllOnXClinicalIndicators,
+  config: AllOnXScoringConfig
+): readonly AllOnXRiskFlag[] {
+  const flags: AllOnXRiskFlag[] = [
+    ...identifySmokingFlags(indicators),
+    ...identifyDiabetesFlags(indicators, config),
+    ...identifyBisphosphonateFlags(indicators, config),
+    ...identifyMedicalConditionFlags(indicators),
+    ...identifyBoneFlags(indicators, config),
+    ...identifyOralHealthFlags(indicators),
+    ...identifyPatientFlags(indicators, config),
+    ...identifyProceduralFlags(indicators),
+  ];
 
   return Object.freeze(flags);
 }
