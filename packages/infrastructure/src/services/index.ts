@@ -8,3 +8,10 @@
  */
 
 export { GeoIPAdapter, createGeoIPAdapter, createMockGeoIPAdapter } from './GeoIPAdapter.js';
+
+export {
+  PipedriveCrmGateway,
+  createPipedriveCrmGateway,
+  createPipedriveCrmGatewayFromEnv,
+  type PipedriveCrmGatewayConfig,
+} from './PipedriveCrmGateway.js';
