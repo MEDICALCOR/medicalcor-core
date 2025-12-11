@@ -853,109 +853,130 @@ export class LeadAggregateRoot {
   }
 
   /**
+   * Event handler type for state mutations
+   */
+  private readonly eventHandlers: Record<
+    string,
+    (payload: Record<string, unknown>, timestamp: Date) => void
+  > = {
+    'lead.created': (payload) => this.applyLeadCreated(payload),
+    'lead.scored': (payload) => this.applyLeadScored(payload),
+    'lead.qualified': (payload) => this.applyLeadQualified(payload),
+    'lead.assigned': (payload, timestamp) => this.applyLeadAssigned(payload, timestamp),
+    'lead.contacted': (_, timestamp) => this.applyLeadContacted(timestamp),
+    'lead.message_received': (_, timestamp) => this.applyMessageReceived(timestamp),
+    'lead.status_changed': (payload) => this.applyStatusChanged(payload),
+    'lead.appointment_scheduled': () => this.applyAppointmentScheduled(),
+    'lead.converted': () => this.applyLeadConverted(),
+    'lead.lost': () => this.applyLeadLost(),
+  };
+
+  /**
    * Apply an event to update state
    */
   private apply(event: LeadDomainEvent): void {
     const payload = event.payload as Record<string, unknown>;
+    const handler = this.eventHandlers[event.type];
 
-    switch (event.type) {
-      case 'lead.created':
-        this._state = {
-          ...this._state,
-          phone: PhoneNumber.create(payload.phone as string),
-          email: payload.email as string | undefined,
-          firstName: payload.firstName as string | undefined,
-          lastName: payload.lastName as string | undefined,
-          source: payload.source as LeadSource,
-          hubspotContactId: payload.hubspotContactId as string | undefined,
-          utmSource: payload.utmSource as string | undefined,
-          utmMedium: payload.utmMedium as string | undefined,
-          utmCampaign: payload.utmCampaign as string | undefined,
-          status: 'new',
-        };
-        break;
-
-      case 'lead.scored': {
-        const newProcedures = payload.procedureInterest as string[] | undefined;
-        this._state = {
-          ...this._state,
-          score: LeadScore.fromNumeric(payload.score as number, payload.confidence as number),
-          procedureInterest: newProcedures ?? this._state.procedureInterest,
-        };
-        break;
-      }
-
-      case 'lead.qualified': {
-        const qualifiedProcedures = payload.procedureInterest as string[] | undefined;
-        this._state = {
-          ...this._state,
-          status: 'qualified',
-          procedureInterest: qualifiedProcedures ?? this._state.procedureInterest,
-        };
-        break;
-      }
-
-      case 'lead.assigned':
-        this._state = {
-          ...this._state,
-          assignedTo: payload.assignedTo as string,
-          assignedAt: event.timestamp,
-          status: this._state.status === 'new' ? 'contacted' : this._state.status,
-        };
-        break;
-
-      case 'lead.contacted':
-        this._state = {
-          ...this._state,
-          lastContactAt: event.timestamp,
-          status: this._state.status === 'new' ? 'contacted' : this._state.status,
-        };
-        break;
-
-      case 'lead.message_received':
-        this._state = {
-          ...this._state,
-          lastContactAt: event.timestamp,
-        };
-        break;
-
-      case 'lead.status_changed':
-        this._state = {
-          ...this._state,
-          status: payload.newStatus as LeadStatus,
-        };
-        break;
-
-      case 'lead.appointment_scheduled':
-        this._state = {
-          ...this._state,
-          status: 'scheduled',
-        };
-        break;
-
-      case 'lead.converted':
-        this._state = {
-          ...this._state,
-          status: 'converted',
-        };
-        break;
-
-      case 'lead.lost':
-        this._state = {
-          ...this._state,
-          status: 'lost',
-        };
-        break;
-
-      default:
-        // Unknown event types are ignored during reconstitution
-        break;
+    if (handler) {
+      handler(payload, event.timestamp);
     }
+    // Unknown event types are ignored during reconstitution
 
     this._state = {
       ...this._state,
       version: event.version,
       updatedAt: event.timestamp,
+    };
+  }
+
+  // ============================================================================
+  // EVENT HANDLERS (State mutation methods)
+  // ============================================================================
+
+  private applyLeadCreated(payload: Record<string, unknown>): void {
+    this._state = {
+      ...this._state,
+      phone: PhoneNumber.create(payload.phone as string),
+      email: payload.email as string | undefined,
+      firstName: payload.firstName as string | undefined,
+      lastName: payload.lastName as string | undefined,
+      source: payload.source as LeadSource,
+      hubspotContactId: payload.hubspotContactId as string | undefined,
+      utmSource: payload.utmSource as string | undefined,
+      utmMedium: payload.utmMedium as string | undefined,
+      utmCampaign: payload.utmCampaign as string | undefined,
+      status: 'new',
+    };
+  }
+
+  private applyLeadScored(payload: Record<string, unknown>): void {
+    const newProcedures = payload.procedureInterest as string[] | undefined;
+    this._state = {
+      ...this._state,
+      score: LeadScore.fromNumeric(payload.score as number, payload.confidence as number),
+      procedureInterest: newProcedures ?? this._state.procedureInterest,
+    };
+  }
+
+  private applyLeadQualified(payload: Record<string, unknown>): void {
+    const qualifiedProcedures = payload.procedureInterest as string[] | undefined;
+    this._state = {
+      ...this._state,
+      status: 'qualified',
+      procedureInterest: qualifiedProcedures ?? this._state.procedureInterest,
+    };
+  }
+
+  private applyLeadAssigned(payload: Record<string, unknown>, timestamp: Date): void {
+    this._state = {
+      ...this._state,
+      assignedTo: payload.assignedTo as string,
+      assignedAt: timestamp,
+      status: this._state.status === 'new' ? 'contacted' : this._state.status,
+    };
+  }
+
+  private applyLeadContacted(timestamp: Date): void {
+    this._state = {
+      ...this._state,
+      lastContactAt: timestamp,
+      status: this._state.status === 'new' ? 'contacted' : this._state.status,
+    };
+  }
+
+  private applyMessageReceived(timestamp: Date): void {
+    this._state = {
+      ...this._state,
+      lastContactAt: timestamp,
+    };
+  }
+
+  private applyStatusChanged(payload: Record<string, unknown>): void {
+    this._state = {
+      ...this._state,
+      status: payload.newStatus as LeadStatus,
+    };
+  }
+
+  private applyAppointmentScheduled(): void {
+    this._state = {
+      ...this._state,
+      status: 'scheduled',
+    };
+  }
+
+  private applyLeadConverted(): void {
+    this._state = {
+      ...this._state,
+      status: 'converted',
+    };
+  }
+
+  private applyLeadLost(): void {
+    this._state = {
+      ...this._state,
+      status: 'lost',
     };
   }
 
