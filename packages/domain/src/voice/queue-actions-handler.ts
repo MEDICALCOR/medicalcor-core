@@ -39,6 +39,16 @@ export interface ActionHandlerResult {
 }
 
 /**
+ * Internal result type for batch event processing
+ */
+interface BatchEventProcessingResult {
+  index: number;
+  eventId: string | undefined;
+  result: QueueEventResult;
+  skipped: boolean;
+}
+
+/**
  * Port for queue event persistence
  */
 export interface IQueueEventPort {
@@ -292,97 +302,160 @@ export class QueueActionsHandler {
    */
   async handleBatch(request: BatchQueueEventRequest): Promise<BatchQueueEventResult> {
     const startTime = Date.now();
-    const results: BatchQueueEventResult['results'] = [];
+    const options = this.buildBatchOptions(request.options);
+    const chunks = this.chunkArray(request.events, options.concurrency);
+
+    const allResults = await this.processEventChunks(chunks, options);
+    const aggregated = this.aggregateBatchResults(allResults);
+
+    return {
+      total: request.events.length,
+      succeeded: aggregated.succeeded,
+      failed: aggregated.failed,
+      skipped: aggregated.skipped,
+      results: aggregated.results,
+      durationMs: Date.now() - startTime,
+    };
+  }
+
+  /**
+   * Build normalized batch processing options with defaults
+   */
+  private buildBatchOptions(options?: BatchQueueEventRequest['options']): {
+    failFast: boolean;
+    skipInvalid: boolean;
+    concurrency: number;
+  } {
+    return {
+      failFast: options?.failFast ?? false,
+      skipInvalid: options?.skipInvalid ?? true,
+      concurrency: options?.concurrency ?? 5,
+    };
+  }
+
+  /**
+   * Process all event chunks with concurrency control
+   */
+  private async processEventChunks(
+    chunks: unknown[][],
+    options: { failFast: boolean; skipInvalid: boolean; concurrency: number }
+  ): Promise<BatchEventProcessingResult[]> {
+    const allResults: BatchEventProcessingResult[] = [];
+
+    for (const chunk of chunks) {
+      const chunkStartIndex = chunks.indexOf(chunk) * options.concurrency;
+      const chunkResults = await Promise.all(
+        chunk.map((event, i) => this.processSingleBatchEvent(event, chunkStartIndex + i, options))
+      );
+      allResults.push(...chunkResults);
+    }
+
+    return allResults;
+  }
+
+  /**
+   * Process a single event within a batch operation
+   */
+  private async processSingleBatchEvent(
+    event: unknown,
+    index: number,
+    options: { failFast: boolean; skipInvalid: boolean }
+  ): Promise<BatchEventProcessingResult> {
+    // Validate event
+    const parseResult = QueueEventPayloadSchema.safeParse(event);
+    if (!parseResult.success) {
+      return this.handleBatchValidationFailure(index, parseResult.error.message, options);
+    }
+
+    const validEvent = parseResult.data;
+
+    // Save event
+    try {
+      await this.eventPort.saveEvent(validEvent);
+      return {
+        index,
+        eventId: validEvent.id,
+        result: createQueueEventSuccess(validEvent.id),
+        skipped: false,
+      };
+    } catch (error) {
+      return this.handleBatchProcessingError(index, validEvent.id, error, options);
+    }
+  }
+
+  /**
+   * Handle validation failure for a batch event
+   */
+  private handleBatchValidationFailure(
+    index: number,
+    errorMessage: string,
+    options: { failFast: boolean; skipInvalid: boolean }
+  ): BatchEventProcessingResult {
+    if (options.failFast) {
+      throw new Error(`Invalid payload at index ${index}: ${errorMessage}`);
+    }
+
+    return {
+      index,
+      eventId: undefined,
+      result: createQueueEventFailure('invalid-payload', errorMessage),
+      skipped: options.skipInvalid,
+    };
+  }
+
+  /**
+   * Handle processing error for a batch event
+   */
+  private handleBatchProcessingError(
+    index: number,
+    eventId: string,
+    error: unknown,
+    options: { failFast: boolean }
+  ): BatchEventProcessingResult {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+
+    if (options.failFast) {
+      throw new Error(`Processing failed at index ${index}: ${message}`);
+    }
+
+    return {
+      index,
+      eventId,
+      result: createQueueEventFailure('processing-error', message),
+      skipped: false,
+    };
+  }
+
+  /**
+   * Aggregate individual batch results into summary counts
+   */
+  private aggregateBatchResults(results: BatchEventProcessingResult[]): {
+    succeeded: number;
+    failed: number;
+    skipped: number;
+    results: BatchQueueEventResult['results'];
+  } {
     let succeeded = 0;
     let failed = 0;
     let skipped = 0;
 
-    const options = {
-      failFast: request.options?.failFast ?? false,
-      skipInvalid: request.options?.skipInvalid ?? true,
-      concurrency: request.options?.concurrency ?? 5,
-    };
-
-    // Process events with concurrency control
-    const chunks = this.chunkArray(request.events, options.concurrency);
-
-    for (const chunk of chunks) {
-      const chunkResults = await Promise.all(
-        chunk.map(async (event, chunkIndex) => {
-          const index = chunks.indexOf(chunk) * options.concurrency + chunkIndex;
-
-          // Validate event
-          const parseResult = QueueEventPayloadSchema.safeParse(event);
-          if (!parseResult.success) {
-            if (options.skipInvalid) {
-              return {
-                index,
-                eventId: undefined,
-                result: createQueueEventFailure('invalid-payload', parseResult.error.message),
-                skipped: true,
-              };
-            }
-            if (options.failFast) {
-              throw new Error(`Invalid payload at index ${index}: ${parseResult.error.message}`);
-            }
-            return {
-              index,
-              eventId: undefined,
-              result: createQueueEventFailure('invalid-payload', parseResult.error.message),
-              skipped: false,
-            };
-          }
-
-          const validEvent = parseResult.data;
-
-          try {
-            await this.eventPort.saveEvent(validEvent);
-            return {
-              index,
-              eventId: validEvent.id,
-              result: createQueueEventSuccess(validEvent.id),
-              skipped: false,
-            };
-          } catch (error) {
-            const message = error instanceof Error ? error.message : 'Unknown error';
-            if (options.failFast) {
-              throw new Error(`Processing failed at index ${index}: ${message}`);
-            }
-            return {
-              index,
-              eventId: validEvent.id,
-              result: createQueueEventFailure('processing-error', message),
-              skipped: false,
-            };
-          }
-        })
-      );
-
-      for (const result of chunkResults) {
-        results.push({
-          index: result.index,
-          eventId: result.eventId,
-          result: result.result,
-        });
-
-        if (result.skipped) {
-          skipped++;
-        } else if (result.result.ok) {
-          succeeded++;
-        } else {
-          failed++;
-        }
+    const formattedResults: BatchQueueEventResult['results'] = results.map((r) => {
+      if (r.skipped) {
+        skipped++;
+      } else if (r.result.ok) {
+        succeeded++;
+      } else {
+        failed++;
       }
-    }
 
-    return {
-      total: request.events.length,
-      succeeded,
-      failed,
-      skipped,
-      results,
-      durationMs: Date.now() - startTime,
-    };
+      return {
+        index: r.index,
+        eventId: r.eventId,
+        result: r.result,
+      };
+    });
+
+    return { succeeded, failed, skipped, results: formattedResults };
   }
 
   // ===========================================================================
