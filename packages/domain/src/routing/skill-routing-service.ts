@@ -12,7 +12,6 @@ import type {
   AgentMatchScore,
   RoutingDecision,
   RoutingRule,
-  SkillRequirement,
   TaskSkillRequirements,
   SkillRoutingConfig,
   ProficiencyLevel,
@@ -139,10 +138,10 @@ export class SkillRoutingService {
   private queue: RoutingQueue | null;
 
   // Skill inheritance cache (skillId -> parentSkillIds)
-  private skillHierarchy: Map<string, string[]> = new Map();
+  private skillHierarchy = new Map<string, string[]>();
 
   // Round-robin state: tracks last assigned agent index per team
-  private roundRobinIndex: Map<string, number> = new Map();
+  private roundRobinIndex = new Map<string, number>();
 
   constructor(options: {
     config?: Partial<SkillRoutingConfig>;
@@ -247,6 +246,64 @@ export class SkillRoutingService {
   // =============================================================================
 
   /**
+   * Check if rule array condition matches context value.
+   * Returns true if rule doesn't specify condition, context has no value,
+   * or context value is included in rule's allowed values.
+   */
+  private matchesArrayCondition<T>(
+    ruleValues: T[] | undefined,
+    contextValue: T | undefined
+  ): boolean {
+    if (!ruleValues || contextValue === undefined) return true;
+    return ruleValues.includes(contextValue);
+  }
+
+  /**
+   * Check if rule exact-match condition matches context value.
+   * Returns true if either value is undefined, or values match exactly.
+   */
+  private matchesExactCondition<T>(ruleValue: T | undefined, contextValue: T | undefined): boolean {
+    if (ruleValue === undefined || contextValue === undefined) return true;
+    return ruleValue === contextValue;
+  }
+
+  /**
+   * Check if current time falls within rule's time range.
+   * Returns true if no time range specified or current time is within range.
+   */
+  private matchesTimeRange(
+    timeRange: { startHour: number; endHour: number; daysOfWeek?: number[] } | undefined,
+    currentHour: number,
+    currentDay: number
+  ): boolean {
+    if (!timeRange) return true;
+    const { startHour, endHour, daysOfWeek } = timeRange;
+    if (currentHour < startHour || currentHour >= endHour) return false;
+    if (daysOfWeek && !daysOfWeek.includes(currentDay)) return false;
+    return true;
+  }
+
+  /**
+   * Check if all rule conditions match the routing context.
+   */
+  private ruleMatchesContext(
+    conditions: RoutingRule['conditions'],
+    context: RoutingContext,
+    currentHour: number,
+    currentDay: number
+  ): boolean {
+    return (
+      this.matchesArrayCondition(conditions.procedureTypes, context.procedureType) &&
+      this.matchesArrayCondition(conditions.urgencyLevels, context.urgencyLevel) &&
+      this.matchesArrayCondition(conditions.channels, context.channel) &&
+      this.matchesTimeRange(conditions.timeRange, currentHour, currentDay) &&
+      this.matchesExactCondition(conditions.isVIP, context.isVIP) &&
+      this.matchesExactCondition(conditions.isExistingPatient, context.isExistingPatient) &&
+      this.matchesExactCondition(conditions.leadScore, context.leadScore)
+    );
+  }
+
+  /**
    * Find the best matching routing rule for the context
    */
   private async findApplicableRule(context: RoutingContext): Promise<RoutingRule | null> {
@@ -259,68 +316,10 @@ export class SkillRoutingService {
     const currentHour = now.getHours();
     const currentDay = now.getDay();
 
-    // Filter rules by conditions
-    const matchingRules = rules.filter((rule) => {
-      const conditions = rule.conditions;
+    const matchingRules = rules
+      .filter((rule) => this.ruleMatchesContext(rule.conditions, context, currentHour, currentDay))
+      .sort((a, b) => b.priority - a.priority);
 
-      // Check procedure type
-      if (conditions.procedureTypes && context.procedureType) {
-        if (!conditions.procedureTypes.includes(context.procedureType)) {
-          return false;
-        }
-      }
-
-      // Check urgency level
-      if (conditions.urgencyLevels && context.urgencyLevel) {
-        if (!conditions.urgencyLevels.includes(context.urgencyLevel)) {
-          return false;
-        }
-      }
-
-      // Check channel
-      if (conditions.channels && context.channel) {
-        if (!conditions.channels.includes(context.channel)) {
-          return false;
-        }
-      }
-
-      // Check time range
-      if (conditions.timeRange) {
-        const { startHour, endHour, daysOfWeek } = conditions.timeRange;
-        if (currentHour < startHour || currentHour >= endHour) {
-          return false;
-        }
-        if (daysOfWeek && !daysOfWeek.includes(currentDay)) {
-          return false;
-        }
-      }
-
-      // Check VIP status
-      if (conditions.isVIP !== undefined && context.isVIP !== undefined) {
-        if (conditions.isVIP !== context.isVIP) {
-          return false;
-        }
-      }
-
-      // Check existing patient
-      if (conditions.isExistingPatient !== undefined && context.isExistingPatient !== undefined) {
-        if (conditions.isExistingPatient !== context.isExistingPatient) {
-          return false;
-        }
-      }
-
-      // Check lead score
-      if (conditions.leadScore && context.leadScore) {
-        if (conditions.leadScore !== context.leadScore) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-
-    // Sort by priority (highest first) and return the first
-    matchingRules.sort((a, b) => b.priority - a.priority);
     return matchingRules[0] ?? null;
   }
 
@@ -392,7 +391,7 @@ export class SkillRoutingService {
    * Calculate match score for a single agent
    */
   private scoreAgent(agent: AgentProfile, requirements: TaskSkillRequirements): AgentMatchScore {
-    const scoreAdjustments: Array<{ reason: string; adjustment: number }> = [];
+    const scoreAdjustments: { reason: string; adjustment: number }[] = [];
     const matchedSkills: AgentMatchScore['matchedSkills'] = [];
 
     // Calculate skill match score
@@ -739,9 +738,13 @@ export class SkillRoutingService {
           fallbacksAttempted: 1,
           processingTimeMs: Date.now() - startTime,
         };
+
+      case 'reject':
+        // Explicit reject - fall through to default reject behavior
+        break;
     }
 
-    // Default: reject
+    // Default: reject (handles 'reject' case and fallthrough from other cases)
     return {
       decisionId,
       timestamp: new Date(),
@@ -854,13 +857,13 @@ export class SkillRoutingService {
    * @returns Array of routing decisions for tasks assigned to this agent
    */
   async processQueueForAgent(agentId: string): Promise<RoutingDecision[]> {
-    if (!this.queue || !this.queue.getQueuedTasks || !this.queue.removeTask) {
+    if (!this.queue?.getQueuedTasks || !this.queue.removeTask) {
       logger.debug({ agentId }, 'Queue processing not available - missing queue methods');
       return [];
     }
 
     const agent = await this.agentRepo.getAgentById(agentId);
-    if (!agent || agent.availability !== 'available') {
+    if (agent?.availability !== 'available') {
       logger.debug({ agentId }, 'Agent not available for queue processing');
       return [];
     }
@@ -958,7 +961,7 @@ export class SkillRoutingService {
    * @returns Array of routing decisions for all assigned tasks
    */
   async rebalanceQueues(): Promise<RoutingDecision[]> {
-    if (!this.queue || !this.queue.getQueueIds) {
+    if (!this.queue?.getQueueIds) {
       logger.debug('Queue rebalancing not available - missing queue methods');
       return [];
     }
