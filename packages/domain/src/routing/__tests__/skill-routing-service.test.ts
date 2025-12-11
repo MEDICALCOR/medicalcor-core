@@ -787,4 +787,208 @@ describe('SkillRoutingService', () => {
       expect(['escalated', 'queued', 'rejected']).toContain(result.outcome);
     });
   });
+
+  describe('processQueueForAgent', () => {
+    const createTaskRequirements = () => ({
+      requiredSkills: [],
+      preferredSkills: [],
+      preferredLanguages: [],
+      excludeAgentIds: [],
+      preferAgentIds: [],
+      priority: 50,
+    });
+
+    it('should return empty array when queue methods are missing', async () => {
+      const serviceWithoutQueue = new SkillRoutingService({
+        agentRepository: agentRepo,
+      });
+
+      const result = await serviceWithoutQueue.processQueueForAgent('agent-001');
+
+      expect(result).toEqual([]);
+    });
+
+    it('should return empty array when agent is not available', async () => {
+      agentRepo.addAgent(createAgent({ agentId: 'agent-001', availability: 'busy' }));
+
+      const result = await service.processQueueForAgent('agent-001');
+
+      expect(result).toEqual([]);
+    });
+
+    it('should return empty array when agent does not exist', async () => {
+      const result = await service.processQueueForAgent('nonexistent-agent');
+
+      expect(result).toEqual([]);
+    });
+
+    it('should return empty array when agent is at capacity', async () => {
+      agentRepo.addAgent(
+        createAgent({
+          agentId: 'agent-001',
+          currentTaskCount: 5,
+          maxConcurrentTasks: 5,
+        })
+      );
+
+      const result = await service.processQueueForAgent('agent-001');
+
+      expect(result).toEqual([]);
+    });
+
+    it('should assign queued task to available agent', async () => {
+      agentRepo.addAgent(
+        createAgent({
+          agentId: 'agent-001',
+          availability: 'available',
+          currentTaskCount: 0,
+          maxConcurrentTasks: 5,
+        })
+      );
+
+      // Enqueue a task
+      await queue.enqueue('task-001', createTaskRequirements(), 50);
+
+      const result = await service.processQueueForAgent('agent-001');
+
+      expect(result.length).toBe(1);
+      expect(result[0]?.outcome).toBe('routed');
+      expect(result[0]?.selectedAgentId).toBe('agent-001');
+      expect(result[0]?.taskId).toBe('task-001');
+    });
+
+    it('should assign multiple tasks up to capacity', async () => {
+      agentRepo.addAgent(
+        createAgent({
+          agentId: 'agent-001',
+          availability: 'available',
+          currentTaskCount: 0,
+          maxConcurrentTasks: 5, // 80% threshold = 4 tasks max
+        })
+      );
+
+      // Enqueue multiple tasks
+      await queue.enqueue('task-001', createTaskRequirements(), 50);
+      await queue.enqueue('task-002', createTaskRequirements(), 50);
+      await queue.enqueue('task-003', createTaskRequirements(), 50);
+      await queue.enqueue('task-004', createTaskRequirements(), 50);
+      await queue.enqueue('task-005', createTaskRequirements(), 50);
+
+      const result = await service.processQueueForAgent('agent-001');
+
+      // Should assign up to capacity (4 tasks at 80% threshold)
+      expect(result.length).toBeLessThanOrEqual(4);
+      expect(result.every((d) => d.outcome === 'routed')).toBe(true);
+    });
+
+    it('should skip tasks that do not match agent skills', async () => {
+      agentRepo.addAgent(
+        createAgent({
+          agentId: 'agent-001',
+          availability: 'available',
+          currentTaskCount: 0,
+          skills: [{ skillId: 'billing', proficiency: 'expert', isActive: true }],
+        })
+      );
+
+      // Enqueue task requiring different skill
+      const requirementsWithSkill = {
+        ...createTaskRequirements(),
+        requiredSkills: [
+          {
+            skillId: 'surgery',
+            minimumProficiency: 'expert' as ProficiencyLevel,
+            matchType: 'required' as const,
+            weight: 100,
+          },
+        ],
+      };
+      await queue.enqueue('task-001', requirementsWithSkill, 50);
+
+      const result = await service.processQueueForAgent('agent-001');
+
+      // Task should not be assigned due to skill mismatch
+      expect(result.length).toBe(0);
+    });
+
+    it('should only process relevant queues for agent team', async () => {
+      agentRepo.addAgent(
+        createAgent({
+          agentId: 'agent-001',
+          availability: 'available',
+          currentTaskCount: 0,
+          teamId: 'team-a',
+        })
+      );
+
+      // Enqueue tasks to default queue
+      await queue.enqueue('task-001', createTaskRequirements(), 50);
+
+      const result = await service.processQueueForAgent('agent-001');
+
+      // Should process default queue for the agent
+      expect(result.length).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should include wait time in routing decision', async () => {
+      agentRepo.addAgent(
+        createAgent({
+          agentId: 'agent-001',
+          availability: 'available',
+          currentTaskCount: 0,
+        })
+      );
+
+      await queue.enqueue('task-001', createTaskRequirements(), 50);
+
+      // Small delay to have measurable wait time
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      const result = await service.processQueueForAgent('agent-001');
+
+      expect(result.length).toBe(1);
+      expect(result[0]?.waitTimeMs).toBeGreaterThanOrEqual(0);
+      expect(result[0]?.queuedAt).toBeDefined();
+    });
+  });
+
+  describe('rebalanceQueues', () => {
+    it('should return empty array when queue methods are missing', async () => {
+      const serviceWithoutQueue = new SkillRoutingService({
+        agentRepository: agentRepo,
+      });
+
+      const result = await serviceWithoutQueue.rebalanceQueues();
+
+      expect(result).toEqual([]);
+    });
+
+    it('should assign queued tasks to available agents', async () => {
+      agentRepo.addAgent(
+        createAgent({
+          agentId: 'agent-001',
+          availability: 'available',
+          currentTaskCount: 0,
+        })
+      );
+
+      await queue.enqueue(
+        'task-001',
+        {
+          requiredSkills: [],
+          preferredSkills: [],
+          preferredLanguages: [],
+          excludeAgentIds: [],
+          preferAgentIds: [],
+          priority: 50,
+        },
+        50
+      );
+
+      const result = await service.rebalanceQueues();
+
+      expect(result.length).toBe(1);
+      expect(result[0]?.outcome).toBe('routed');
+    });
+  });
 });

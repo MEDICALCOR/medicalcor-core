@@ -398,59 +398,181 @@ function calculateBoneQualityScore(
   return Math.max(0, score);
 }
 
+// ============================================================================
+// MEDICAL RISK SCORE CALCULATION HELPERS
+// ============================================================================
+
+/** Penalty points for smoking status levels (per status unit) */
+const SMOKING_PENALTY_PER_STATUS = 8;
+
+/** Maximum years of cessation that contribute to former smoker bonus */
+const MAX_CESSATION_YEARS_FOR_BONUS = 5;
+
+/** Bonus points per year of smoking cessation (up to max) */
+const BONUS_PER_CESSATION_YEAR = 1.5;
+
+/** Penalty configuration for medical conditions */
+const MEDICAL_CONDITION_PENALTIES = {
+  osteoporosis: 15,
+  radiationHistory: 50,
+  uncontrolledCardiovascular: 40,
+  immunocompromised: 30,
+  anticoagulants: 10,
+} as const;
+
+/** Penalty configuration for ASA classification */
+const ASA_PENALTIES = {
+  class3: 20,
+  class4: 35,
+} as const;
+
+/** Penalty configuration for diabetes based on HbA1c levels */
+const DIABETES_PENALTIES = {
+  poorlyControlled: 35,
+  moderatelyControlled: 20,
+  controlled: 10,
+} as const;
+
+/** Penalty configuration for bisphosphonate therapy duration */
+const BISPHOSPHONATE_PENALTIES = {
+  highRisk: 40,
+  moderateRisk: 25,
+  lowRisk: 15,
+} as const;
+
+/**
+ * Calculate smoking-related penalty adjustment
+ *
+ * Applies a base penalty per smoking status level, with a bonus
+ * for former smokers based on years since quitting.
+ */
+function calculateSmokingPenalty(indicators: AllOnXClinicalIndicators): number {
+  const basePenalty = indicators.smokingStatus * SMOKING_PENALTY_PER_STATUS;
+
+  // Former smokers (status 1) get a bonus based on cessation duration
+  if (indicators.smokingStatus === 1 && indicators.yearsSinceQuitSmoking !== undefined) {
+    const cappedYears = Math.min(indicators.yearsSinceQuitSmoking, MAX_CESSATION_YEARS_FOR_BONUS);
+    const cessationBonus = cappedYears * BONUS_PER_CESSATION_YEAR;
+    return basePenalty - cessationBonus;
+  }
+
+  return basePenalty;
+}
+
+/**
+ * Calculate diabetes-related penalty based on HbA1c levels
+ *
+ * Higher HbA1c indicates poorer glycemic control and increased surgical risk.
+ */
+function calculateDiabetesPenalty(
+  indicators: AllOnXClinicalIndicators,
+  config: AllOnXScoringConfig
+): number {
+  if (indicators.hba1c === undefined) {
+    return 0;
+  }
+
+  if (indicators.hba1c > config.hba1cThresholds.poorlyControlled) {
+    return DIABETES_PENALTIES.poorlyControlled;
+  }
+  if (indicators.hba1c > config.hba1cThresholds.moderatelyControlled) {
+    return DIABETES_PENALTIES.moderatelyControlled;
+  }
+  if (indicators.hba1c > config.hba1cThresholds.controlled) {
+    return DIABETES_PENALTIES.controlled;
+  }
+
+  return 0;
+}
+
+/**
+ * Calculate bisphosphonate therapy penalty based on duration
+ *
+ * Longer duration increases risk of medication-related osteonecrosis
+ * of the jaw (MRONJ) per AAOMS guidelines.
+ */
+function calculateBisphosphonatePenalty(
+  indicators: AllOnXClinicalIndicators,
+  config: AllOnXScoringConfig
+): number {
+  if (!indicators.onBisphosphonates) {
+    return 0;
+  }
+
+  const years = indicators.bisphosphonateYears ?? 1;
+
+  if (years >= config.bisphosphonateThresholds.highRisk) {
+    return BISPHOSPHONATE_PENALTIES.highRisk;
+  }
+  if (years >= config.bisphosphonateThresholds.moderateRisk) {
+    return BISPHOSPHONATE_PENALTIES.moderateRisk;
+  }
+
+  return BISPHOSPHONATE_PENALTIES.lowRisk;
+}
+
+/**
+ * Calculate cumulative penalty for other medical conditions
+ *
+ * Each condition contributes independently to the overall risk score.
+ */
+function calculateOtherConditionsPenalty(indicators: AllOnXClinicalIndicators): number {
+  let penalty = 0;
+
+  if (indicators.hasOsteoporosis) {
+    penalty += MEDICAL_CONDITION_PENALTIES.osteoporosis;
+  }
+  if (indicators.hasRadiationHistory) {
+    penalty += MEDICAL_CONDITION_PENALTIES.radiationHistory;
+  }
+  if (indicators.hasUncontrolledCardiovascular) {
+    penalty += MEDICAL_CONDITION_PENALTIES.uncontrolledCardiovascular;
+  }
+  if (indicators.isImmunocompromised) {
+    penalty += MEDICAL_CONDITION_PENALTIES.immunocompromised;
+  }
+  if (indicators.onAnticoagulants) {
+    penalty += MEDICAL_CONDITION_PENALTIES.anticoagulants;
+  }
+
+  return penalty;
+}
+
+/**
+ * Calculate ASA classification penalty
+ *
+ * ASA class 3+ indicates significant systemic disease affecting surgery risk.
+ */
+function calculateASAPenalty(indicators: AllOnXClinicalIndicators): number {
+  if (indicators.asaClassification === 4) {
+    return ASA_PENALTIES.class4;
+  }
+  if (indicators.asaClassification === 3) {
+    return ASA_PENALTIES.class3;
+  }
+  return 0;
+}
+
 /**
  * Calculate medical risk score
+ *
+ * Orchestrates category-specific penalty calculations for a comprehensive
+ * medical risk assessment. Higher scores indicate lower risk (better candidates).
  */
 function calculateMedicalRiskScore(
   indicators: AllOnXClinicalIndicators,
   config: AllOnXScoringConfig
 ): number {
-  let score = 100;
+  const baseScore = 100;
 
-  // Smoking
-  score -= indicators.smokingStatus * 8;
+  const totalPenalty =
+    calculateSmokingPenalty(indicators) +
+    calculateDiabetesPenalty(indicators, config) +
+    calculateBisphosphonatePenalty(indicators, config) +
+    calculateOtherConditionsPenalty(indicators) +
+    calculateASAPenalty(indicators);
 
-  // Former smoker bonus
-  if (indicators.smokingStatus === 1 && indicators.yearsSinceQuitSmoking !== undefined) {
-    const yearsBonus = Math.min(indicators.yearsSinceQuitSmoking, 5) * 1.5;
-    score += yearsBonus;
-  }
-
-  // Diabetes
-  if (indicators.hba1c !== undefined) {
-    if (indicators.hba1c > config.hba1cThresholds.poorlyControlled) {
-      score -= 35;
-    } else if (indicators.hba1c > config.hba1cThresholds.moderatelyControlled) {
-      score -= 20;
-    } else if (indicators.hba1c > config.hba1cThresholds.controlled) {
-      score -= 10;
-    }
-  }
-
-  // Bisphosphonates
-  if (indicators.onBisphosphonates) {
-    const years = indicators.bisphosphonateYears ?? 1;
-    if (years >= config.bisphosphonateThresholds.highRisk) {
-      score -= 40;
-    } else if (years >= config.bisphosphonateThresholds.moderateRisk) {
-      score -= 25;
-    } else {
-      score -= 15;
-    }
-  }
-
-  // Other conditions
-  if (indicators.hasOsteoporosis) score -= 15;
-  if (indicators.hasRadiationHistory) score -= 50;
-  if (indicators.hasUncontrolledCardiovascular) score -= 40;
-  if (indicators.isImmunocompromised) score -= 30;
-  if (indicators.onAnticoagulants) score -= 10;
-
-  // ASA classification
-  if (indicators.asaClassification === 4) score -= 35;
-  else if (indicators.asaClassification === 3) score -= 20;
-
-  return Math.max(0, score);
+  return Math.max(0, baseScore - totalPenalty);
 }
 
 /**
@@ -890,115 +1012,140 @@ function calculateConfidence(indicators: AllOnXClinicalIndicators): number {
 }
 
 // ============================================================================
-// TREATMENT PLANNING
+// TREATMENT PLANNING HELPERS
 // ============================================================================
 
 /**
- * Generate treatment plan based on clinical score
+ * Context for building treatment phases
  */
-export function generateTreatmentPlan(
-  score: AllOnXClinicalScore,
-  indicators: AllOnXClinicalIndicators
-): TreatmentPlanningResult {
-  const phases: TreatmentPhase[] = [];
-  const preTreatmentRequirements: string[] = [];
-  const keyRisks: string[] = [];
-  const reasons: string[] = [];
+interface TreatmentPlanContext {
+  phases: TreatmentPhase[];
+  preTreatmentRequirements: string[];
+  keyRisks: string[];
+  reasons: string[];
+  estimatedDuration: number;
+}
 
-  let estimatedDuration = 6; // Base duration in months
-
-  // Pre-treatment phase
-  const preTreatmentProcedures: string[] = [];
+/**
+ * Build pre-treatment optimization phase
+ */
+function buildPreTreatmentPhase(
+  indicators: AllOnXClinicalIndicators,
+  context: TreatmentPlanContext
+): void {
+  const procedures: string[] = [];
 
   if (indicators.periodontalDisease >= 2) {
-    preTreatmentRequirements.push('Complete periodontal treatment');
-    preTreatmentProcedures.push('Periodontal scaling and root planing');
-    estimatedDuration += 2;
+    context.preTreatmentRequirements.push('Complete periodontal treatment');
+    procedures.push('Periodontal scaling and root planing');
+    context.estimatedDuration += 2;
   }
 
   if (indicators.smokingStatus >= 2) {
-    preTreatmentRequirements.push('Smoking cessation counseling');
-    keyRisks.push('Smoking significantly increases implant failure risk');
+    context.preTreatmentRequirements.push('Smoking cessation counseling');
+    context.keyRisks.push('Smoking significantly increases implant failure risk');
   }
 
   if (indicators.hba1c !== undefined && indicators.hba1c > 7.5) {
-    preTreatmentRequirements.push('Optimize glycemic control (target HbA1c < 7.5%)');
-    keyRisks.push('Uncontrolled diabetes increases infection and healing complications');
+    context.preTreatmentRequirements.push('Optimize glycemic control (target HbA1c < 7.5%)');
+    context.keyRisks.push('Uncontrolled diabetes increases infection and healing complications');
   }
 
   if (indicators.asaClassification >= 3) {
-    preTreatmentRequirements.push('Medical clearance from physician');
+    context.preTreatmentRequirements.push('Medical clearance from physician');
   }
 
-  if (preTreatmentProcedures.length > 0 || preTreatmentRequirements.length > 0) {
-    phases.push({
+  if (procedures.length > 0 || context.preTreatmentRequirements.length > 0) {
+    context.phases.push({
       phase: 1,
       name: 'Pre-Treatment Optimization',
       description: 'Address modifiable risk factors before surgical intervention',
       estimatedDuration: '4-8 weeks',
-      procedures: preTreatmentProcedures,
+      procedures,
       prerequisites: [],
     });
   }
+}
 
-  // Bone augmentation phase if needed
-  if (indicators.needsBoneGrafting || indicators.needsSinusLift) {
-    const augmentationProcedures: string[] = [];
-
-    if (indicators.needsSinusLift) {
-      augmentationProcedures.push('Sinus floor elevation');
-      estimatedDuration += 6;
-    }
-
-    if (indicators.needsBoneGrafting) {
-      augmentationProcedures.push('Bone grafting procedure');
-      estimatedDuration += 4;
-    }
-
-    phases.push({
-      phase: phases.length + 1,
-      name: 'Bone Augmentation',
-      description: 'Enhance bone volume for optimal implant placement',
-      estimatedDuration: '4-6 months healing',
-      procedures: augmentationProcedures,
-      prerequisites: ['Complete pre-treatment requirements', 'CBCT imaging'],
-    });
-
-    keyRisks.push('Bone graft failure or partial resorption may occur');
+/**
+ * Build bone augmentation phase if needed
+ */
+function buildBoneAugmentationPhase(
+  indicators: AllOnXClinicalIndicators,
+  context: TreatmentPlanContext
+): void {
+  if (!indicators.needsBoneGrafting && !indicators.needsSinusLift) {
+    return;
   }
 
-  // Surgical phase
-  const surgicalProcedures: string[] = [];
+  const procedures: string[] = [];
+
+  if (indicators.needsSinusLift) {
+    procedures.push('Sinus floor elevation');
+    context.estimatedDuration += 6;
+  }
+
+  if (indicators.needsBoneGrafting) {
+    procedures.push('Bone grafting procedure');
+    context.estimatedDuration += 4;
+  }
+
+  context.phases.push({
+    phase: context.phases.length + 1,
+    name: 'Bone Augmentation',
+    description: 'Enhance bone volume for optimal implant placement',
+    estimatedDuration: '4-6 months healing',
+    procedures,
+    prerequisites: ['Complete pre-treatment requirements', 'CBCT imaging'],
+  });
+
+  context.keyRisks.push('Bone graft failure or partial resorption may occur');
+}
+
+/**
+ * Build surgical phase
+ */
+function buildSurgicalPhase(
+  score: AllOnXClinicalScore,
+  indicators: AllOnXClinicalIndicators,
+  context: TreatmentPlanContext
+): void {
+  const procedures: string[] = [];
 
   if (indicators.extractionsNeeded > 0) {
-    surgicalProcedures.push(`Extract ${indicators.extractionsNeeded} remaining teeth`);
+    procedures.push(`Extract ${indicators.extractionsNeeded} remaining teeth`);
   }
 
-  surgicalProcedures.push(`${score.recommendedProcedure.replace(/_/g, '-')} implant placement`);
+  procedures.push(`${score.recommendedProcedure.replace(/_/g, '-')} implant placement`);
 
   if (score.isImmediateLoadingFeasible()) {
-    surgicalProcedures.push('Immediate provisional prosthesis placement');
-    reasons.push('Patient eligible for immediate loading protocol');
+    procedures.push('Immediate provisional prosthesis placement');
+    context.reasons.push('Patient eligible for immediate loading protocol');
   } else {
-    estimatedDuration += 3;
-    reasons.push('Conventional loading protocol recommended for optimal healing');
+    context.estimatedDuration += 3;
+    context.reasons.push('Conventional loading protocol recommended for optimal healing');
   }
 
-  phases.push({
-    phase: phases.length + 1,
+  const hasPrerequisitePhases = context.phases.length > 0;
+
+  context.phases.push({
+    phase: context.phases.length + 1,
     name: 'Surgical Phase',
     description: 'Implant placement and initial prosthesis delivery',
     estimatedDuration: score.isImmediateLoadingFeasible() ? '1 day' : '3-4 months healing',
-    procedures: surgicalProcedures,
-    prerequisites:
-      phases.length > 0
-        ? ['Complete previous phase', 'Verify bone healing']
-        : ['CBCT imaging', 'Surgical guide fabrication'],
+    procedures,
+    prerequisites: hasPrerequisitePhases
+      ? ['Complete previous phase', 'Verify bone healing']
+      : ['CBCT imaging', 'Surgical guide fabrication'],
   });
+}
 
-  // Prosthetic phase
-  phases.push({
-    phase: phases.length + 1,
+/**
+ * Build final prosthetic phase
+ */
+function buildProstheticPhase(context: TreatmentPlanContext): void {
+  context.phases.push({
+    phase: context.phases.length + 1,
     name: 'Final Prosthesis',
     description: 'Definitive prosthesis fabrication and delivery',
     estimatedDuration: '4-6 weeks',
@@ -1010,19 +1157,48 @@ export function generateTreatmentPlan(
     ],
     prerequisites: ['Adequate osseointegration confirmed', 'Soft tissue maturation'],
   });
+}
 
-  // Calculate success probability
-  let successProbability = 0.95; // Base success rate for All-on-X
+/**
+ * Calculate success probability based on risk factors
+ */
+function calculateSuccessProbability(indicators: AllOnXClinicalIndicators): number {
+  let probability = 0.95; // Base success rate for All-on-X
 
-  if (indicators.smokingStatus >= 3) successProbability -= 0.1;
-  else if (indicators.smokingStatus >= 2) successProbability -= 0.05;
+  // Smoking impact
+  if (indicators.smokingStatus >= 3) {
+    probability -= 0.1;
+  } else if (indicators.smokingStatus >= 2) {
+    probability -= 0.05;
+  }
 
-  if (indicators.hba1c !== undefined && indicators.hba1c > 8) successProbability -= 0.08;
-  if (indicators.boneDensity >= 4) successProbability -= 0.05;
-  if (indicators.onBisphosphonates) successProbability -= 0.05;
-  if (indicators.hasBruxism) successProbability -= 0.03;
+  // Diabetes impact
+  if (indicators.hba1c !== undefined && indicators.hba1c > 8) {
+    probability -= 0.08;
+  }
 
-  // Standard risks
+  // Bone quality impact
+  if (indicators.boneDensity >= 4) {
+    probability -= 0.05;
+  }
+
+  // Medication impact
+  if (indicators.onBisphosphonates) {
+    probability -= 0.05;
+  }
+
+  // Bruxism impact
+  if (indicators.hasBruxism) {
+    probability -= 0.03;
+  }
+
+  return Math.max(0.7, Math.round(probability * 100) / 100);
+}
+
+/**
+ * Add standard and conditional key risks
+ */
+function addStandardKeyRisks(indicators: AllOnXClinicalIndicators, keyRisks: string[]): void {
   keyRisks.push('Implant failure requiring replacement');
   keyRisks.push('Temporary numbness or altered sensation');
   keyRisks.push('Prosthetic complications requiring adjustments');
@@ -1030,16 +1206,49 @@ export function generateTreatmentPlan(
   if (indicators.hasBruxism) {
     keyRisks.push('Prosthetic fracture risk due to bruxism');
   }
+}
+
+// ============================================================================
+// TREATMENT PLANNING
+// ============================================================================
+
+/**
+ * Generate treatment plan based on clinical score
+ *
+ * Orchestrates phase building through focused helper functions
+ * for improved readability and testability.
+ */
+export function generateTreatmentPlan(
+  score: AllOnXClinicalScore,
+  indicators: AllOnXClinicalIndicators
+): TreatmentPlanningResult {
+  const context: TreatmentPlanContext = {
+    phases: [],
+    preTreatmentRequirements: [],
+    keyRisks: [],
+    reasons: [],
+    estimatedDuration: 6, // Base duration in months
+  };
+
+  // Build treatment phases in sequence
+  buildPreTreatmentPhase(indicators, context);
+  buildBoneAugmentationPhase(indicators, context);
+  buildSurgicalPhase(score, indicators, context);
+  buildProstheticPhase(context);
+
+  // Calculate outcomes
+  const successProbability = calculateSuccessProbability(indicators);
+  addStandardKeyRisks(indicators, context.keyRisks);
 
   return {
     isFeasible: score.isCandidate(),
     recommendedProcedure: score.recommendedProcedure,
-    phases: Object.freeze(phases),
-    preTreatmentRequirements: Object.freeze(preTreatmentRequirements),
-    estimatedDuration,
-    successProbability: Math.max(0.7, Math.round(successProbability * 100) / 100),
-    keyRisks: Object.freeze(keyRisks),
-    reasons: Object.freeze(reasons),
+    phases: Object.freeze(context.phases),
+    preTreatmentRequirements: Object.freeze(context.preTreatmentRequirements),
+    estimatedDuration: context.estimatedDuration,
+    successProbability,
+    keyRisks: Object.freeze(context.keyRisks),
+    reasons: Object.freeze(context.reasons),
   };
 }
 

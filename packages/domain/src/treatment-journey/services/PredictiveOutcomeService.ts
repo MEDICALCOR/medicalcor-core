@@ -260,170 +260,172 @@ function getBaseSuccessRates(treatmentType: TreatmentParameters['type']): {
   return rates[treatmentType];
 }
 
+// ============================================================================
+// RISK MODIFIER TYPES AND HELPERS
+// ============================================================================
+
 /**
- * Calculate risk modifiers based on patient profile
+ * Risk modifier result from individual evaluators
  */
-function calculateRiskModifiers(
-  patient: PatientRiskProfile,
-  treatment: TreatmentParameters
-): readonly { factor: string; adjustment: number; modifiable: boolean; recommendation?: string }[] {
-  const modifiers: {
-    factor: string;
-    adjustment: number;
-    modifiable: boolean;
-    recommendation?: string;
-  }[] = [];
+interface RiskModifier {
+  factor: string;
+  adjustment: number;
+  modifiable: boolean;
+  recommendation?: string;
+}
 
-  // Age factor
-  if (patient.age > 75) {
-    modifiers.push({ factor: 'Age over 75', adjustment: -5, modifiable: false });
-  } else if (patient.age < 25 && isImplantTreatment(treatment.type)) {
-    modifiers.push({ factor: 'Young age (bone maturation)', adjustment: -3, modifiable: false });
+/**
+ * Evaluate age-related risk factors
+ */
+function evaluateAgeRisk(
+  age: number,
+  treatmentType: TreatmentParameters['type']
+): RiskModifier | null {
+  if (age > 75) {
+    return { factor: 'Age over 75', adjustment: -5, modifiable: false };
   }
-
-  // Smoking
-  switch (patient.smokingStatus) {
-    case 'HEAVY':
-      modifiers.push({
-        factor: 'Heavy smoking',
-        adjustment: -15,
-        modifiable: true,
-        recommendation:
-          'Smoking cessation 4-8 weeks before surgery significantly improves outcomes',
-      });
-      break;
-    case 'LIGHT':
-      modifiers.push({
-        factor: 'Light smoking',
-        adjustment: -8,
-        modifiable: true,
-        recommendation: 'Reduce or quit smoking to improve healing',
-      });
-      break;
-    case 'FORMER':
-      modifiers.push({ factor: 'Former smoker (quit)', adjustment: -2, modifiable: false });
-      break;
-    case 'NEVER':
-      modifiers.push({ factor: 'Non-smoker', adjustment: 2, modifiable: false });
-      break;
+  if (age < 25 && isImplantTreatment(treatmentType)) {
+    return { factor: 'Young age (bone maturation)', adjustment: -3, modifiable: false };
   }
+  return null;
+}
 
-  // Diabetes
-  switch (patient.diabetes) {
-    case 'TYPE1_UNCONTROLLED':
-    case 'TYPE2_UNCONTROLLED':
-      modifiers.push({
-        factor: 'Uncontrolled diabetes',
-        adjustment: -18,
-        modifiable: true,
-        recommendation: 'Achieve HbA1c < 7% before elective procedures',
-      });
-      break;
-    case 'TYPE1_CONTROLLED':
-    case 'TYPE2_CONTROLLED':
-      modifiers.push({
-        factor: 'Controlled diabetes',
-        adjustment: -5,
-        modifiable: false,
-        recommendation: 'Maintain good glycemic control throughout treatment',
-      });
-      break;
-    case 'NONE':
-      break;
+/**
+ * Smoking status risk configuration
+ */
+const SMOKING_RISK_MAP: Record<PatientRiskProfile['smokingStatus'], RiskModifier> = {
+  HEAVY: {
+    factor: 'Heavy smoking',
+    adjustment: -15,
+    modifiable: true,
+    recommendation: 'Smoking cessation 4-8 weeks before surgery significantly improves outcomes',
+  },
+  LIGHT: {
+    factor: 'Light smoking',
+    adjustment: -8,
+    modifiable: true,
+    recommendation: 'Reduce or quit smoking to improve healing',
+  },
+  FORMER: { factor: 'Former smoker (quit)', adjustment: -2, modifiable: false },
+  NEVER: { factor: 'Non-smoker', adjustment: 2, modifiable: false },
+};
+
+/**
+ * Diabetes risk configuration
+ */
+const DIABETES_RISK_MAP: Partial<Record<PatientRiskProfile['diabetes'], RiskModifier>> = {
+  TYPE1_UNCONTROLLED: {
+    factor: 'Uncontrolled diabetes',
+    adjustment: -18,
+    modifiable: true,
+    recommendation: 'Achieve HbA1c < 7% before elective procedures',
+  },
+  TYPE2_UNCONTROLLED: {
+    factor: 'Uncontrolled diabetes',
+    adjustment: -18,
+    modifiable: true,
+    recommendation: 'Achieve HbA1c < 7% before elective procedures',
+  },
+  TYPE1_CONTROLLED: {
+    factor: 'Controlled diabetes',
+    adjustment: -5,
+    modifiable: false,
+    recommendation: 'Maintain good glycemic control throughout treatment',
+  },
+  TYPE2_CONTROLLED: {
+    factor: 'Controlled diabetes',
+    adjustment: -5,
+    modifiable: false,
+    recommendation: 'Maintain good glycemic control throughout treatment',
+  },
+};
+
+/**
+ * Evaluate oral hygiene risk
+ */
+function evaluateOralHygieneRisk(score: number): RiskModifier | null {
+  if (score >= 8) {
+    return { factor: 'Excellent oral hygiene', adjustment: 3, modifiable: false };
   }
-
-  // Oral hygiene
-  if (patient.oralHygieneScore >= 8) {
-    modifiers.push({ factor: 'Excellent oral hygiene', adjustment: 3, modifiable: false });
-  } else if (patient.oralHygieneScore <= 4) {
-    modifiers.push({
+  if (score <= 4) {
+    return {
       factor: 'Poor oral hygiene',
       adjustment: -10,
       modifiable: true,
       recommendation:
         'Complete hygiene protocol and demonstrate improved home care before treatment',
-    });
+    };
   }
+  return null;
+}
 
-  // Periodontal status
-  switch (patient.periodontalStatus) {
-    case 'SEVERE_PERIO':
-      modifiers.push({
-        factor: 'Severe periodontal disease',
-        adjustment: -15,
-        modifiable: true,
-        recommendation:
-          'Complete periodontal treatment and achieve stability before restorative work',
-      });
-      break;
-    case 'MODERATE_PERIO':
-      modifiers.push({
-        factor: 'Moderate periodontal disease',
-        adjustment: -8,
-        modifiable: true,
-        recommendation: 'Periodontal scaling and root planing recommended',
-      });
-      break;
-    case 'MILD_PERIO':
-      modifiers.push({ factor: 'Mild periodontal disease', adjustment: -3, modifiable: true });
-      break;
-    case 'GINGIVITIS':
-      modifiers.push({
-        factor: 'Gingivitis',
-        adjustment: -1,
-        modifiable: true,
-        recommendation: 'Prophylaxis and improved home care',
-      });
-      break;
-    case 'HEALTHY':
-      modifiers.push({ factor: 'Healthy periodontium', adjustment: 2, modifiable: false });
-      break;
-  }
+/**
+ * Periodontal status risk configuration
+ */
+const PERIODONTAL_RISK_MAP: Record<PatientRiskProfile['periodontalStatus'], RiskModifier> = {
+  SEVERE_PERIO: {
+    factor: 'Severe periodontal disease',
+    adjustment: -15,
+    modifiable: true,
+    recommendation: 'Complete periodontal treatment and achieve stability before restorative work',
+  },
+  MODERATE_PERIO: {
+    factor: 'Moderate periodontal disease',
+    adjustment: -8,
+    modifiable: true,
+    recommendation: 'Periodontal scaling and root planing recommended',
+  },
+  MILD_PERIO: { factor: 'Mild periodontal disease', adjustment: -3, modifiable: true },
+  GINGIVITIS: {
+    factor: 'Gingivitis',
+    adjustment: -1,
+    modifiable: true,
+    recommendation: 'Prophylaxis and improved home care',
+  },
+  HEALTHY: { factor: 'Healthy periodontium', adjustment: 2, modifiable: false },
+};
 
-  // Bone quality for implants
-  if (isImplantTreatment(treatment.type) && patient.boneQuality) {
-    switch (patient.boneQuality) {
-      case 'D1':
-        modifiers.push({ factor: 'Excellent bone density (D1)', adjustment: 3, modifiable: false });
-        break;
-      case 'D2':
-        modifiers.push({ factor: 'Good bone density (D2)', adjustment: 1, modifiable: false });
-        break;
-      case 'D3':
-        modifiers.push({ factor: 'Fair bone density (D3)', adjustment: -3, modifiable: false });
-        break;
-      case 'D4':
-        modifiers.push({
-          factor: 'Poor bone density (D4)',
-          adjustment: -10,
-          modifiable: false,
-          recommendation: 'Consider bone augmentation or modified surgical protocol',
-        });
-        break;
-    }
-  }
+/**
+ * Bone quality risk configuration (for implants)
+ */
+const BONE_QUALITY_RISK_MAP: Record<
+  NonNullable<PatientRiskProfile['boneQuality']>,
+  RiskModifier
+> = {
+  D1: { factor: 'Excellent bone density (D1)', adjustment: 3, modifiable: false },
+  D2: { factor: 'Good bone density (D2)', adjustment: 1, modifiable: false },
+  D3: { factor: 'Fair bone density (D3)', adjustment: -3, modifiable: false },
+  D4: {
+    factor: 'Poor bone density (D4)',
+    adjustment: -10,
+    modifiable: false,
+    recommendation: 'Consider bone augmentation or modified surgical protocol',
+  },
+};
 
-  // Bone quantity
-  if (isImplantTreatment(treatment.type) && patient.boneQuantity) {
-    switch (patient.boneQuantity) {
-      case 'ADEQUATE':
-        modifiers.push({ factor: 'Adequate bone volume', adjustment: 1, modifiable: false });
-        break;
-      case 'LIMITED':
-        modifiers.push({ factor: 'Limited bone volume', adjustment: -5, modifiable: true });
-        break;
-      case 'DEFICIENT':
-        modifiers.push({
-          factor: 'Deficient bone volume',
-          adjustment: -12,
-          modifiable: true,
-          recommendation: 'Bone augmentation required before implant placement',
-        });
-        break;
-    }
-  }
+/**
+ * Bone quantity risk configuration (for implants)
+ */
+const BONE_QUANTITY_RISK_MAP: Record<
+  NonNullable<PatientRiskProfile['boneQuantity']>,
+  RiskModifier
+> = {
+  ADEQUATE: { factor: 'Adequate bone volume', adjustment: 1, modifiable: false },
+  LIMITED: { factor: 'Limited bone volume', adjustment: -5, modifiable: true },
+  DEFICIENT: {
+    factor: 'Deficient bone volume',
+    adjustment: -12,
+    modifiable: true,
+    recommendation: 'Bone augmentation required before implant placement',
+  },
+};
 
-  // Bruxism
+/**
+ * Evaluate medical condition risks (boolean flags)
+ */
+function evaluateMedicalConditionRisks(patient: PatientRiskProfile): RiskModifier[] {
+  const modifiers: RiskModifier[] = [];
+
   if (patient.bruxism) {
     modifiers.push({
       factor: 'Bruxism/clenching',
@@ -433,7 +435,6 @@ function calculateRiskModifiers(
     });
   }
 
-  // Osteoporosis
   if (patient.osteoporosis) {
     modifiers.push({
       factor: 'Osteoporosis',
@@ -443,7 +444,6 @@ function calculateRiskModifiers(
     });
   }
 
-  // Bisphosphonates
   if (patient.bisphosphonateHistory) {
     modifiers.push({
       factor: 'Bisphosphonate history',
@@ -453,7 +453,6 @@ function calculateRiskModifiers(
     });
   }
 
-  // Immunocompromised
   if (patient.immunocompromised) {
     modifiers.push({
       factor: 'Immunocompromised status',
@@ -463,23 +462,33 @@ function calculateRiskModifiers(
     });
   }
 
-  // Compliance
-  if (patient.appointmentAttendanceRate >= 90) {
-    modifiers.push({
-      factor: 'Excellent appointment compliance',
-      adjustment: 2,
-      modifiable: false,
-    });
-  } else if (patient.appointmentAttendanceRate < 70) {
-    modifiers.push({
+  return modifiers;
+}
+
+/**
+ * Evaluate patient compliance risk
+ */
+function evaluateComplianceRisk(attendanceRate: number): RiskModifier | null {
+  if (attendanceRate >= 90) {
+    return { factor: 'Excellent appointment compliance', adjustment: 2, modifiable: false };
+  }
+  if (attendanceRate < 70) {
+    return {
       factor: 'Poor appointment compliance history',
       adjustment: -8,
       modifiable: true,
       recommendation: 'Discuss importance of follow-up; consider deposit for appointments',
-    });
+    };
   }
+  return null;
+}
 
-  // Treatment-specific factors
+/**
+ * Evaluate treatment-specific risks
+ */
+function evaluateTreatmentRisks(treatment: TreatmentParameters): RiskModifier[] {
+  const modifiers: RiskModifier[] = [];
+
   if (treatment.immediateLoading) {
     modifiers.push({
       factor: 'Immediate loading protocol',
@@ -496,6 +505,60 @@ function calculateRiskModifiers(
   if (treatment.sinusLiftRequired) {
     modifiers.push({ factor: 'Sinus lift required', adjustment: -5, modifiable: false });
   }
+
+  return modifiers;
+}
+
+/**
+ * Calculate risk modifiers based on patient profile
+ *
+ * Composes individual risk evaluators for each factor category,
+ * then combines results into a unified modifier list.
+ */
+function calculateRiskModifiers(
+  patient: PatientRiskProfile,
+  treatment: TreatmentParameters
+): readonly RiskModifier[] {
+  const modifiers: RiskModifier[] = [];
+  const isImplant = isImplantTreatment(treatment.type);
+
+  // Age risk
+  const ageRisk = evaluateAgeRisk(patient.age, treatment.type);
+  if (ageRisk) modifiers.push(ageRisk);
+
+  // Smoking risk (always applies)
+  modifiers.push(SMOKING_RISK_MAP[patient.smokingStatus]);
+
+  // Diabetes risk
+  const diabetesRisk = DIABETES_RISK_MAP[patient.diabetes];
+  if (diabetesRisk) modifiers.push(diabetesRisk);
+
+  // Oral hygiene risk
+  const hygieneRisk = evaluateOralHygieneRisk(patient.oralHygieneScore);
+  if (hygieneRisk) modifiers.push(hygieneRisk);
+
+  // Periodontal risk (always applies)
+  modifiers.push(PERIODONTAL_RISK_MAP[patient.periodontalStatus]);
+
+  // Bone quality risk (implants only)
+  if (isImplant && patient.boneQuality) {
+    modifiers.push(BONE_QUALITY_RISK_MAP[patient.boneQuality]);
+  }
+
+  // Bone quantity risk (implants only)
+  if (isImplant && patient.boneQuantity) {
+    modifiers.push(BONE_QUANTITY_RISK_MAP[patient.boneQuantity]);
+  }
+
+  // Medical condition risks
+  modifiers.push(...evaluateMedicalConditionRisks(patient));
+
+  // Compliance risk
+  const complianceRisk = evaluateComplianceRisk(patient.appointmentAttendanceRate);
+  if (complianceRisk) modifiers.push(complianceRisk);
+
+  // Treatment-specific risks
+  modifiers.push(...evaluateTreatmentRisks(treatment));
 
   return modifiers;
 }

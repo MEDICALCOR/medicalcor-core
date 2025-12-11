@@ -620,9 +620,173 @@ export class AllOnXClinicalScore {
   }
 
   // ============================================================================
+  // VALIDATION SCHEMA & HELPERS
+  // ============================================================================
+
+  /**
+   * Validation rules for numeric indicator fields.
+   * Each rule defines the field name, valid range, whether it's required,
+   * whether it must be an integer, and a human-readable description.
+   */
+  private static readonly NUMERIC_FIELD_RULES: readonly {
+    readonly field: keyof AllOnXClinicalIndicators;
+    readonly min: number;
+    readonly max: number;
+    readonly required: boolean;
+    readonly integer: boolean;
+    readonly description: string;
+  }[] = [
+    {
+      field: 'boneDensity',
+      min: 1,
+      max: 4,
+      required: true,
+      integer: false,
+      description: 'Bone density (D1-D4)',
+    },
+    {
+      field: 'maxillaBoneHeight',
+      min: 0,
+      max: 30,
+      required: true,
+      integer: false,
+      description: 'Maxilla bone height (mm)',
+    },
+    {
+      field: 'mandibleBoneHeight',
+      min: 0,
+      max: 30,
+      required: true,
+      integer: false,
+      description: 'Mandible bone height (mm)',
+    },
+    {
+      field: 'boneWidth',
+      min: 0,
+      max: 15,
+      required: true,
+      integer: false,
+      description: 'Bone width (mm)',
+    },
+    {
+      field: 'smokingStatus',
+      min: 0,
+      max: 4,
+      required: true,
+      integer: true,
+      description: 'Smoking status',
+    },
+    { field: 'hba1c', min: 4, max: 15, required: false, integer: false, description: 'HbA1c (%)' },
+    {
+      field: 'patientAge',
+      min: 18,
+      max: 100,
+      required: true,
+      integer: true,
+      description: 'Patient age',
+    },
+    {
+      field: 'asaClassification',
+      min: 1,
+      max: 5,
+      required: true,
+      integer: true,
+      description: 'ASA classification',
+    },
+    {
+      field: 'oralHygieneScore',
+      min: 1,
+      max: 4,
+      required: true,
+      integer: true,
+      description: 'Oral hygiene score',
+    },
+    {
+      field: 'targetArch',
+      min: 1,
+      max: 3,
+      required: true,
+      integer: true,
+      description: 'Target arch (1=maxilla, 2=mandible, 3=both)',
+    },
+    {
+      field: 'complianceScore',
+      min: 1,
+      max: 5,
+      required: true,
+      integer: true,
+      description: 'Compliance score',
+    },
+    {
+      field: 'periodontalDisease',
+      min: 0,
+      max: 3,
+      required: true,
+      integer: true,
+      description: 'Periodontal disease severity',
+    },
+    {
+      field: 'immediateLoadingFeasibility',
+      min: 1,
+      max: 5,
+      required: true,
+      integer: true,
+      description: 'Immediate loading feasibility',
+    },
+  ] as const;
+
+  /**
+   * Validates a single numeric indicator field against its rules.
+   * @throws InvalidAllOnXScoreError if validation fails
+   */
+  private static validateNumericField(
+    value: unknown,
+    field: string,
+    min: number,
+    max: number,
+    required: boolean,
+    integer: boolean,
+    description: string
+  ): void {
+    // Skip optional fields that are undefined
+    if (!required && value === undefined) {
+      return;
+    }
+
+    // Type and NaN check
+    if (typeof value !== 'number' || Number.isNaN(value)) {
+      throw new InvalidAllOnXScoreError(`${description} must be a number, got: ${String(value)}`, {
+        field,
+        value,
+        range: [min, max],
+      });
+    }
+
+    // Integer check if required
+    if (integer && !Number.isInteger(value)) {
+      throw new InvalidAllOnXScoreError(
+        `${description} must be an integer between ${min} and ${max}, got: ${value}`,
+        { field, value, range: [min, max] }
+      );
+    }
+
+    // Range check
+    if (value < min || value > max) {
+      throw new InvalidAllOnXScoreError(
+        `${description} must be between ${min} and ${max}, got: ${value}`,
+        { field, value, range: [min, max] }
+      );
+    }
+  }
+
+  // ============================================================================
   // VALIDATION LOGIC
   // ============================================================================
 
+  /**
+   * Validates all clinical indicators.
+   * Uses a data-driven approach with NUMERIC_FIELD_RULES for consistent validation.
+   */
   private static validateIndicators(indicators: AllOnXClinicalIndicators): void {
     // Type guard for runtime safety when called with unknown data
     const indicatorsUnknown = indicators as unknown;
@@ -637,177 +801,16 @@ export class AllOnXClinicalScore {
       });
     }
 
-    // Bone density validation
-    if (
-      typeof indicators.boneDensity !== 'number' ||
-      Number.isNaN(indicators.boneDensity) ||
-      indicators.boneDensity < 1 ||
-      indicators.boneDensity > 4
-    ) {
-      throw new InvalidAllOnXScoreError(
-        `Bone density must be between 1 and 4 (D1-D4), got: ${indicators.boneDensity}`,
-        { field: 'boneDensity', value: indicators.boneDensity, range: [1, 4] }
-      );
-    }
-
-    // Maxilla bone height validation
-    if (
-      typeof indicators.maxillaBoneHeight !== 'number' ||
-      Number.isNaN(indicators.maxillaBoneHeight) ||
-      indicators.maxillaBoneHeight < 0 ||
-      indicators.maxillaBoneHeight > 30
-    ) {
-      throw new InvalidAllOnXScoreError(
-        `Maxilla bone height must be between 0 and 30 mm, got: ${indicators.maxillaBoneHeight}`,
-        { field: 'maxillaBoneHeight', value: indicators.maxillaBoneHeight, range: [0, 30] }
-      );
-    }
-
-    // Mandible bone height validation
-    if (
-      typeof indicators.mandibleBoneHeight !== 'number' ||
-      Number.isNaN(indicators.mandibleBoneHeight) ||
-      indicators.mandibleBoneHeight < 0 ||
-      indicators.mandibleBoneHeight > 30
-    ) {
-      throw new InvalidAllOnXScoreError(
-        `Mandible bone height must be between 0 and 30 mm, got: ${indicators.mandibleBoneHeight}`,
-        { field: 'mandibleBoneHeight', value: indicators.mandibleBoneHeight, range: [0, 30] }
-      );
-    }
-
-    // Bone width validation
-    if (
-      typeof indicators.boneWidth !== 'number' ||
-      Number.isNaN(indicators.boneWidth) ||
-      indicators.boneWidth < 0 ||
-      indicators.boneWidth > 15
-    ) {
-      throw new InvalidAllOnXScoreError(
-        `Bone width must be between 0 and 15 mm, got: ${indicators.boneWidth}`,
-        { field: 'boneWidth', value: indicators.boneWidth, range: [0, 15] }
-      );
-    }
-
-    // Smoking status validation
-    if (
-      typeof indicators.smokingStatus !== 'number' ||
-      !Number.isInteger(indicators.smokingStatus) ||
-      indicators.smokingStatus < 0 ||
-      indicators.smokingStatus > 4
-    ) {
-      throw new InvalidAllOnXScoreError(
-        `Smoking status must be an integer between 0 and 4, got: ${indicators.smokingStatus}`,
-        { field: 'smokingStatus', value: indicators.smokingStatus, range: [0, 4] }
-      );
-    }
-
-    // HbA1c validation (optional)
-    if (
-      indicators.hba1c !== undefined &&
-      (typeof indicators.hba1c !== 'number' ||
-        Number.isNaN(indicators.hba1c) ||
-        indicators.hba1c < 4 ||
-        indicators.hba1c > 15)
-    ) {
-      throw new InvalidAllOnXScoreError(
-        `HbA1c must be between 4 and 15%, got: ${indicators.hba1c}`,
-        { field: 'hba1c', value: indicators.hba1c, range: [4, 15] }
-      );
-    }
-
-    // Patient age validation
-    if (
-      typeof indicators.patientAge !== 'number' ||
-      !Number.isInteger(indicators.patientAge) ||
-      indicators.patientAge < 18 ||
-      indicators.patientAge > 100
-    ) {
-      throw new InvalidAllOnXScoreError(
-        `Patient age must be an integer between 18 and 100, got: ${indicators.patientAge}`,
-        { field: 'patientAge', value: indicators.patientAge, range: [18, 100] }
-      );
-    }
-
-    // ASA classification validation
-    if (
-      typeof indicators.asaClassification !== 'number' ||
-      !Number.isInteger(indicators.asaClassification) ||
-      indicators.asaClassification < 1 ||
-      indicators.asaClassification > 5
-    ) {
-      throw new InvalidAllOnXScoreError(
-        `ASA classification must be an integer between 1 and 5, got: ${indicators.asaClassification}`,
-        { field: 'asaClassification', value: indicators.asaClassification, range: [1, 5] }
-      );
-    }
-
-    // Oral hygiene score validation
-    if (
-      typeof indicators.oralHygieneScore !== 'number' ||
-      !Number.isInteger(indicators.oralHygieneScore) ||
-      indicators.oralHygieneScore < 1 ||
-      indicators.oralHygieneScore > 4
-    ) {
-      throw new InvalidAllOnXScoreError(
-        `Oral hygiene score must be an integer between 1 and 4, got: ${indicators.oralHygieneScore}`,
-        { field: 'oralHygieneScore', value: indicators.oralHygieneScore, range: [1, 4] }
-      );
-    }
-
-    // Target arch validation
-    if (
-      typeof indicators.targetArch !== 'number' ||
-      !Number.isInteger(indicators.targetArch) ||
-      indicators.targetArch < 1 ||
-      indicators.targetArch > 3
-    ) {
-      throw new InvalidAllOnXScoreError(
-        `Target arch must be 1 (maxilla), 2 (mandible), or 3 (both), got: ${indicators.targetArch}`,
-        { field: 'targetArch', value: indicators.targetArch, range: [1, 3] }
-      );
-    }
-
-    // Compliance score validation
-    if (
-      typeof indicators.complianceScore !== 'number' ||
-      !Number.isInteger(indicators.complianceScore) ||
-      indicators.complianceScore < 1 ||
-      indicators.complianceScore > 5
-    ) {
-      throw new InvalidAllOnXScoreError(
-        `Compliance score must be an integer between 1 and 5, got: ${indicators.complianceScore}`,
-        { field: 'complianceScore', value: indicators.complianceScore, range: [1, 5] }
-      );
-    }
-
-    // Periodontal disease validation
-    if (
-      typeof indicators.periodontalDisease !== 'number' ||
-      !Number.isInteger(indicators.periodontalDisease) ||
-      indicators.periodontalDisease < 0 ||
-      indicators.periodontalDisease > 3
-    ) {
-      throw new InvalidAllOnXScoreError(
-        `Periodontal disease must be an integer between 0 and 3, got: ${indicators.periodontalDisease}`,
-        { field: 'periodontalDisease', value: indicators.periodontalDisease, range: [0, 3] }
-      );
-    }
-
-    // Immediate loading feasibility validation
-    if (
-      typeof indicators.immediateLoadingFeasibility !== 'number' ||
-      !Number.isInteger(indicators.immediateLoadingFeasibility) ||
-      indicators.immediateLoadingFeasibility < 1 ||
-      indicators.immediateLoadingFeasibility > 5
-    ) {
-      throw new InvalidAllOnXScoreError(
-        `Immediate loading feasibility must be an integer between 1 and 5, got: ${indicators.immediateLoadingFeasibility}`,
-        {
-          field: 'immediateLoadingFeasibility',
-          value: indicators.immediateLoadingFeasibility,
-          range: [1, 5],
-        }
+    // Validate all numeric fields using the rules configuration
+    for (const rule of AllOnXClinicalScore.NUMERIC_FIELD_RULES) {
+      AllOnXClinicalScore.validateNumericField(
+        indicators[rule.field],
+        rule.field,
+        rule.min,
+        rule.max,
+        rule.required,
+        rule.integer,
+        rule.description
       );
     }
   }
