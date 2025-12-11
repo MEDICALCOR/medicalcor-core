@@ -42,6 +42,105 @@ import type {
 const logger = createLogger({ name: 'memory-enriched-guidance' });
 
 // =============================================================================
+// Pattern Suggestion Strategy Types
+// =============================================================================
+
+/**
+ * Configuration for a pattern-based suggestion
+ */
+interface PatternSuggestionConfig {
+  /** Suggestion type */
+  type: GuidanceSuggestion['type'];
+  /** English content */
+  content: string;
+  /** Romanian content */
+  contentRo: string;
+  /** Priority level */
+  priority: GuidanceSuggestion['priority'];
+  /** Keywords that trigger this suggestion (if empty, always triggers) */
+  triggerKeywords?: string[];
+}
+
+/**
+ * Registry of pattern suggestion configurations
+ * Each pattern type maps to its suggestion configuration
+ */
+const PATTERN_SUGGESTION_REGISTRY: Record<string, PatternSuggestionConfig> = {
+  price_sensitive: {
+    type: 'coaching-tip',
+    content:
+      'Known price-sensitive patient. Consider offering: payment plans, insurance options, or highlighting value vs. cost.',
+    contentRo:
+      'Pacient sensibil la preț. Considerați: planuri de plată, opțiuni de asigurare, sau evidențierea valorii vs. cost.',
+    priority: 'high',
+    triggerKeywords: ['cost', 'price', 'pret', 'scump'],
+  },
+  quality_focused: {
+    type: 'coaching-tip',
+    content:
+      'Quality-focused patient. Emphasize: expertise, technology, outcomes, and patient testimonials.',
+    contentRo:
+      'Pacient orientat spre calitate. Subliniați: expertiză, tehnologie, rezultate și mărturii ale pacienților.',
+    priority: 'medium',
+  },
+  appointment_rescheduler: {
+    type: 'coaching-tip',
+    content:
+      'Patient has history of rescheduling. Confirm commitment and send reminders. Consider flexible scheduling options.',
+    contentRo:
+      'Pacientul are istoric de reprogramări. Confirmați angajamentul și trimiteți memento-uri. Considerați opțiuni flexibile de programare.',
+    priority: 'medium',
+    triggerKeywords: ['schedule', 'appointment', 'programare'],
+  },
+  monday_avoider: {
+    type: 'coaching-tip',
+    content:
+      'Patient typically avoids Monday appointments. Suggest alternative days for better attendance.',
+    contentRo:
+      'Pacientul evită de obicei programările de luni. Sugerați zile alternative pentru o prezență mai bună.',
+    priority: 'low',
+    triggerKeywords: ['monday', 'luni', 'week'],
+  },
+  quick_responder: {
+    type: 'coaching-tip',
+    content: 'Fast-responding patient. They appreciate quick follow-ups and timely information.',
+    contentRo: 'Pacient care răspunde rapid. Apreciază urmăririle rapide și informațiile la timp.',
+    priority: 'low',
+  },
+  slow_responder: {
+    type: 'coaching-tip',
+    content:
+      'Patient typically takes time to respond. Be patient and avoid pressure. Consider scheduled follow-ups.',
+    contentRo:
+      'Pacientul de obicei ia timp să răspundă. Fiți răbdător și evitați presiunea. Considerați urmăriri programate.',
+    priority: 'low',
+  },
+  declining_engagement: {
+    type: 'warning',
+    content:
+      'Warning: Declining engagement detected. Focus on rebuilding rapport and addressing any dissatisfaction.',
+    contentRo:
+      'Atenție: Angajament în scădere detectat. Concentrați-vă pe refacerea raportului și abordarea oricărei nemulțumiri.',
+    priority: 'high',
+  },
+  high_engagement: {
+    type: 'coaching-tip',
+    content: 'Highly engaged patient. Great candidate for referral program or premium services.',
+    contentRo:
+      'Pacient foarte angajat. Candidat excelent pentru programul de recomandări sau servicii premium.',
+    priority: 'low',
+  },
+};
+
+/**
+ * Check if text contains any of the trigger keywords
+ */
+function textContainsKeywords(text: string, keywords: string[]): boolean {
+  const lowerText = text.toLowerCase();
+  return keywords.some((keyword) => lowerText.includes(keyword));
+}
+
+// =============================================================================
 // Memory Context Types
 // =============================================================================
 
@@ -613,135 +712,38 @@ export class MemoryEnrichedGuidanceService extends EventEmitter {
 
   /**
    * Create a suggestion based on a specific behavioral pattern
+   *
+   * Uses a registry-based approach for cleaner pattern handling.
+   * Each pattern type is mapped to a configuration that defines:
+   * - The suggestion content (English and Romanian)
+   * - Priority level
+   * - Optional trigger keywords (if empty, always triggers)
    */
   private createSuggestionForPattern(
     callSid: string,
     pattern: BehavioralPattern,
     text: string
   ): MemoryEnrichedSuggestion | null {
-    const lowerText = text.toLowerCase();
-
-    switch (pattern.patternType) {
-      case 'price_sensitive':
-        if (
-          lowerText.includes('cost') ||
-          lowerText.includes('price') ||
-          lowerText.includes('pret') ||
-          lowerText.includes('scump')
-        ) {
-          return this.createMemoryEnrichedSuggestion(callSid, {
-            type: 'coaching-tip',
-            content: `Known price-sensitive patient. Consider offering: payment plans, insurance options, or highlighting value vs. cost.`,
-            contentRo: `Pacient sensibil la preț. Considerați: planuri de plată, opțiuni de asigurare, sau evidențierea valorii vs. cost.`,
-            priority: 'high',
-            confidence: pattern.confidence,
-            memoryContext: {
-              basedOnPattern: `price_sensitive (confidence: ${(pattern.confidence * 100).toFixed(0)}%)`,
-            },
-          });
-        }
-        break;
-
-      case 'quality_focused':
-        return this.createMemoryEnrichedSuggestion(callSid, {
-          type: 'coaching-tip',
-          content: `Quality-focused patient. Emphasize: expertise, technology, outcomes, and patient testimonials.`,
-          contentRo: `Pacient orientat spre calitate. Subliniați: expertiză, tehnologie, rezultate și mărturii ale pacienților.`,
-          priority: 'medium',
-          confidence: pattern.confidence,
-          memoryContext: {
-            basedOnPattern: `quality_focused (confidence: ${(pattern.confidence * 100).toFixed(0)}%)`,
-          },
-        });
-
-      case 'appointment_rescheduler':
-        if (
-          lowerText.includes('schedule') ||
-          lowerText.includes('appointment') ||
-          lowerText.includes('programare')
-        ) {
-          return this.createMemoryEnrichedSuggestion(callSid, {
-            type: 'coaching-tip',
-            content: `Patient has history of rescheduling. Confirm commitment and send reminders. Consider flexible scheduling options.`,
-            contentRo: `Pacientul are istoric de reprogramări. Confirmați angajamentul și trimiteți memento-uri. Considerați opțiuni flexibile de programare.`,
-            priority: 'medium',
-            confidence: pattern.confidence,
-            memoryContext: {
-              basedOnPattern: `appointment_rescheduler (confidence: ${(pattern.confidence * 100).toFixed(0)}%)`,
-            },
-          });
-        }
-        break;
-
-      case 'monday_avoider':
-        if (
-          lowerText.includes('monday') ||
-          lowerText.includes('luni') ||
-          lowerText.includes('week')
-        ) {
-          return this.createMemoryEnrichedSuggestion(callSid, {
-            type: 'coaching-tip',
-            content: `Patient typically avoids Monday appointments. Suggest alternative days for better attendance.`,
-            contentRo: `Pacientul evită de obicei programările de luni. Sugerați zile alternative pentru o prezență mai bună.`,
-            priority: 'low',
-            confidence: pattern.confidence,
-            memoryContext: {
-              basedOnPattern: `monday_avoider (confidence: ${(pattern.confidence * 100).toFixed(0)}%)`,
-            },
-          });
-        }
-        break;
-
-      case 'quick_responder':
-        return this.createMemoryEnrichedSuggestion(callSid, {
-          type: 'coaching-tip',
-          content: `Fast-responding patient. They appreciate quick follow-ups and timely information.`,
-          contentRo: `Pacient care răspunde rapid. Apreciază urmăririle rapide și informațiile la timp.`,
-          priority: 'low',
-          confidence: pattern.confidence,
-          memoryContext: {
-            basedOnPattern: `quick_responder (confidence: ${(pattern.confidence * 100).toFixed(0)}%)`,
-          },
-        });
-
-      case 'slow_responder':
-        return this.createMemoryEnrichedSuggestion(callSid, {
-          type: 'coaching-tip',
-          content: `Patient typically takes time to respond. Be patient and avoid pressure. Consider scheduled follow-ups.`,
-          contentRo: `Pacientul de obicei ia timp să răspundă. Fiți răbdător și evitați presiunea. Considerați urmăriri programate.`,
-          priority: 'low',
-          confidence: pattern.confidence,
-          memoryContext: {
-            basedOnPattern: `slow_responder (confidence: ${(pattern.confidence * 100).toFixed(0)}%)`,
-          },
-        });
-
-      case 'declining_engagement':
-        return this.createMemoryEnrichedSuggestion(callSid, {
-          type: 'warning',
-          content: `Warning: Declining engagement detected. Focus on rebuilding rapport and addressing any dissatisfaction.`,
-          contentRo: `Atenție: Angajament în scădere detectat. Concentrați-vă pe refacerea raportului și abordarea oricărei nemulțumiri.`,
-          priority: 'high',
-          confidence: pattern.confidence,
-          memoryContext: {
-            basedOnPattern: `declining_engagement (confidence: ${(pattern.confidence * 100).toFixed(0)}%)`,
-          },
-        });
-
-      case 'high_engagement':
-        return this.createMemoryEnrichedSuggestion(callSid, {
-          type: 'coaching-tip',
-          content: `Highly engaged patient. Great candidate for referral program or premium services.`,
-          contentRo: `Pacient foarte angajat. Candidat excelent pentru programul de recomandări sau servicii premium.`,
-          priority: 'low',
-          confidence: pattern.confidence,
-          memoryContext: {
-            basedOnPattern: `high_engagement (confidence: ${(pattern.confidence * 100).toFixed(0)}%)`,
-          },
-        });
+    const config = PATTERN_SUGGESTION_REGISTRY[pattern.patternType];
+    if (!config) {
+      return null;
     }
 
-    return null;
+    // Check if suggestion requires keyword match
+    if (config.triggerKeywords && !textContainsKeywords(text, config.triggerKeywords)) {
+      return null;
+    }
+
+    return this.createMemoryEnrichedSuggestion(callSid, {
+      type: config.type,
+      content: config.content,
+      contentRo: config.contentRo,
+      priority: config.priority,
+      confidence: pattern.confidence,
+      memoryContext: {
+        basedOnPattern: `${pattern.patternType} (confidence: ${(pattern.confidence * 100).toFixed(0)}%)`,
+      },
+    });
   }
 
   /**

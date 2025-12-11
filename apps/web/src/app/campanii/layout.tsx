@@ -49,10 +49,20 @@ export const metadata: Metadata = {
 };
 
 export default function CampaniiLayout({ children }: { children: React.ReactNode }) {
+  // Validate analytics IDs to prevent XSS via env var injection
+  const GTM_ID_REGEX = /^GTM-[A-Z0-9]{6,8}$/;
+  const FB_PIXEL_REGEX = /^\d{15,16}$/;
+
+  const gtmId = process.env.NEXT_PUBLIC_GTM_ID;
+  const fbPixelId = process.env.NEXT_PUBLIC_FB_PIXEL_ID;
+
+  const isValidGtmId = gtmId && GTM_ID_REGEX.test(gtmId);
+  const isValidFbPixelId = fbPixelId && FB_PIXEL_REGEX.test(fbPixelId);
+
   return (
     <>
       {/* Google Tag Manager - Head */}
-      {process.env.NEXT_PUBLIC_GTM_ID && (
+      {isValidGtmId && (
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -60,14 +70,14 @@ export default function CampaniiLayout({ children }: { children: React.ReactNode
               new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
               j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
               'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-              })(window,document,'script','dataLayer','${process.env.NEXT_PUBLIC_GTM_ID}');
+              })(window,document,'script','dataLayer','${gtmId}');
             `,
           }}
         />
       )}
 
       {/* Facebook Pixel */}
-      {process.env.NEXT_PUBLIC_FB_PIXEL_ID && (
+      {isValidFbPixelId && (
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -79,7 +89,7 @@ export default function CampaniiLayout({ children }: { children: React.ReactNode
               t.src=v;s=b.getElementsByTagName(e)[0];
               s.parentNode.insertBefore(t,s)}(window, document,'script',
               'https://connect.facebook.net/en_US/fbevents.js');
-              fbq('init', '${process.env.NEXT_PUBLIC_FB_PIXEL_ID}');
+              fbq('init', '${fbPixelId}');
               fbq('track', 'PageView');
             `,
           }}
@@ -89,10 +99,10 @@ export default function CampaniiLayout({ children }: { children: React.ReactNode
       {children}
 
       {/* Google Tag Manager - Body (noscript) */}
-      {process.env.NEXT_PUBLIC_GTM_ID && (
+      {isValidGtmId && (
         <noscript>
           <iframe
-            src={`https://www.googletagmanager.com/ns.html?id=${process.env.NEXT_PUBLIC_GTM_ID}`}
+            src={`https://www.googletagmanager.com/ns.html?id=${gtmId}`}
             height="0"
             width="0"
             style={{ display: 'none', visibility: 'hidden' }}
