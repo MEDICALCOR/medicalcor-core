@@ -719,7 +719,163 @@ export class SkillRoutingService {
   // =============================================================================
 
   /**
-   * Handle case when no suitable agents are available
+   * Build base routing decision with common fields.
+   * Used by fallback handlers to reduce duplication.
+   */
+  private buildBaseDecision(params: {
+    decisionId: string;
+    requirements: TaskSkillRequirements;
+    rule?: RoutingRule | null;
+    outcome: RoutingDecision['outcome'];
+    selectionReason: string;
+    fallbacksAttempted: number;
+    processingTimeMs: number;
+    candidateAgents?: AgentMatchScore[];
+  }): RoutingDecision {
+    return {
+      decisionId: params.decisionId,
+      timestamp: new Date(),
+      requirements: params.requirements,
+      appliedRuleId: params.rule?.ruleId,
+      appliedRuleName: params.rule?.name,
+      outcome: params.outcome,
+      candidateAgents: params.candidateAgents ?? [],
+      selectionReason: params.selectionReason,
+      fallbacksAttempted: params.fallbacksAttempted,
+      processingTimeMs: params.processingTimeMs,
+    };
+  }
+
+  /**
+   * Handle queue fallback: enqueue task for later processing.
+   * Returns routing decision if queued, null if queue unavailable.
+   */
+  private async handleQueueFallback(
+    decisionId: string,
+    requirements: TaskSkillRequirements,
+    startTime: number,
+    rule?: RoutingRule | null
+  ): Promise<RoutingDecision | null> {
+    if (!this.queue) {
+      return null;
+    }
+
+    const queueResult = await this.queue.enqueue(decisionId, requirements, requirements.priority);
+    const waitTime = await this.queue.getEstimatedWaitTime(queueResult.queueId);
+
+    return {
+      ...this.buildBaseDecision({
+        decisionId,
+        requirements,
+        rule,
+        outcome: 'queued',
+        selectionReason: 'No available agents - task queued',
+        fallbacksAttempted: 1,
+        processingTimeMs: Date.now() - startTime,
+      }),
+      queueId: queueResult.queueId,
+      queuePosition: queueResult.position,
+      estimatedWaitTime: waitTime,
+    };
+  }
+
+  /**
+   * Handle expand team fallback: retry routing without team restriction.
+   * Returns routing decision if agent found, null otherwise.
+   */
+  private async handleExpandTeamFallback(
+    decisionId: string,
+    requirements: TaskSkillRequirements,
+    startTime: number,
+    rule?: RoutingRule | null
+  ): Promise<RoutingDecision | null> {
+    if (!this.config.features.enableCrossTeamRouting) {
+      return null;
+    }
+
+    const expandedRequirements = { ...requirements, teamId: undefined };
+    const agents = await this.agentRepo.getAvailableAgents();
+
+    if (agents.length === 0) {
+      return null;
+    }
+
+    const scored = await this.scoreAgents(agents, expandedRequirements);
+    const qualified = scored.filter(
+      (c) => c.totalScore >= this.config.thresholds.minimumMatchScore
+    );
+
+    if (qualified.length === 0) {
+      return null;
+    }
+
+    const selected = this.selectAgent(
+      qualified,
+      this.config.defaultStrategy,
+      expandedRequirements.teamId
+    );
+
+    return {
+      ...this.buildBaseDecision({
+        decisionId,
+        requirements: expandedRequirements,
+        rule,
+        outcome: 'fallback',
+        selectionReason: 'Cross-team routing fallback',
+        fallbacksAttempted: 1,
+        processingTimeMs: Date.now() - startTime,
+        candidateAgents: scored,
+      }),
+      selectedAgentId: selected.agentId,
+      selectedAgentName: selected.agentName,
+      selectedWorkerSid: selected.workerSid,
+      originalRuleId: rule?.ruleId,
+    };
+  }
+
+  /**
+   * Handle escalate fallback: escalate to supervisor.
+   */
+  private buildEscalateDecision(
+    decisionId: string,
+    requirements: TaskSkillRequirements,
+    startTime: number,
+    rule?: RoutingRule | null
+  ): RoutingDecision {
+    return this.buildBaseDecision({
+      decisionId,
+      requirements,
+      rule,
+      outcome: 'escalated',
+      selectionReason: 'No suitable agents - escalated to supervisor',
+      fallbacksAttempted: 1,
+      processingTimeMs: Date.now() - startTime,
+    });
+  }
+
+  /**
+   * Handle reject fallback: reject the routing request.
+   */
+  private buildRejectDecision(
+    decisionId: string,
+    requirements: TaskSkillRequirements,
+    startTime: number,
+    rule?: RoutingRule | null
+  ): RoutingDecision {
+    return this.buildBaseDecision({
+      decisionId,
+      requirements,
+      rule,
+      outcome: 'rejected',
+      selectionReason: 'No suitable agents and fallback exhausted',
+      fallbacksAttempted: 1,
+      processingTimeMs: Date.now() - startTime,
+    });
+  }
+
+  /**
+   * Handle case when no suitable agents are available.
+   * Delegates to specialized fallback handlers based on configured behavior.
    */
   private async handleNoAgents(
     decisionId: string,
@@ -728,109 +884,50 @@ export class SkillRoutingService {
     startTime: number,
     rule?: RoutingRule | null
   ): Promise<RoutingDecision> {
-    switch (fallbackBehavior) {
-      case 'queue':
-        if (this.queue) {
-          const queueResult = await this.queue.enqueue(
-            decisionId,
-            requirements,
-            requirements.priority
-          );
-          const waitTime = await this.queue.getEstimatedWaitTime(queueResult.queueId);
+    const fallbackResult = await this.tryFallbackStrategy(
+      fallbackBehavior,
+      decisionId,
+      requirements,
+      startTime,
+      rule
+    );
 
-          return {
-            decisionId,
-            timestamp: new Date(),
-            requirements,
-            appliedRuleId: rule?.ruleId,
-            appliedRuleName: rule?.name,
-            outcome: 'queued',
-            candidateAgents: [],
-            selectionReason: 'No available agents - task queued',
-            queueId: queueResult.queueId,
-            queuePosition: queueResult.position,
-            estimatedWaitTime: waitTime,
-            fallbacksAttempted: 1,
-            processingTimeMs: Date.now() - startTime,
-          };
-        }
-        // Fall through to reject if no queue
-        break;
-
-      case 'downgrade_proficiency':
-        // Could implement recursive retry with lower proficiency requirements
-        logger.info({ decisionId }, 'Proficiency downgrade not yet implemented');
-        break;
-
-      case 'expand_team':
-        if (this.config.features.enableCrossTeamRouting) {
-          // Retry without team restriction
-          const expandedRequirements = { ...requirements, teamId: undefined };
-          const agents = await this.agentRepo.getAvailableAgents();
-          if (agents.length > 0) {
-            const scored = await this.scoreAgents(agents, expandedRequirements);
-            const qualified = scored.filter(
-              (c) => c.totalScore >= this.config.thresholds.minimumMatchScore
-            );
-            if (qualified.length > 0) {
-              const selected = this.selectAgent(
-                qualified,
-                this.config.defaultStrategy,
-                expandedRequirements.teamId
-              );
-              return {
-                decisionId,
-                timestamp: new Date(),
-                requirements: expandedRequirements,
-                appliedRuleId: rule?.ruleId,
-                appliedRuleName: rule?.name,
-                outcome: 'fallback',
-                selectedAgentId: selected.agentId,
-                selectedAgentName: selected.agentName,
-                selectedWorkerSid: selected.workerSid,
-                candidateAgents: scored,
-                selectionReason: 'Cross-team routing fallback',
-                fallbacksAttempted: 1,
-                originalRuleId: rule?.ruleId,
-                processingTimeMs: Date.now() - startTime,
-              };
-            }
-          }
-        }
-        break;
-
-      case 'escalate':
-        return {
-          decisionId,
-          timestamp: new Date(),
-          requirements,
-          appliedRuleId: rule?.ruleId,
-          appliedRuleName: rule?.name,
-          outcome: 'escalated',
-          candidateAgents: [],
-          selectionReason: 'No suitable agents - escalated to supervisor',
-          fallbacksAttempted: 1,
-          processingTimeMs: Date.now() - startTime,
-        };
-
-      case 'reject':
-        // Explicit reject - fall through to default reject behavior
-        break;
+    if (fallbackResult) {
+      return fallbackResult;
     }
 
-    // Default: reject (handles 'reject' case and fallthrough from other cases)
-    return {
-      decisionId,
-      timestamp: new Date(),
-      requirements,
-      appliedRuleId: rule?.ruleId,
-      appliedRuleName: rule?.name,
-      outcome: 'rejected',
-      candidateAgents: [],
-      selectionReason: 'No suitable agents and fallback exhausted',
-      fallbacksAttempted: 1,
-      processingTimeMs: Date.now() - startTime,
-    };
+    // Default: reject (handles 'reject' case and fallthrough from other strategies)
+    return this.buildRejectDecision(decisionId, requirements, startTime, rule);
+  }
+
+  /**
+   * Try the specified fallback strategy.
+   * Returns routing decision if strategy succeeds, null if it should fall through to reject.
+   */
+  private async tryFallbackStrategy(
+    fallbackBehavior: FallbackBehavior,
+    decisionId: string,
+    requirements: TaskSkillRequirements,
+    startTime: number,
+    rule?: RoutingRule | null
+  ): Promise<RoutingDecision | null> {
+    switch (fallbackBehavior) {
+      case 'queue':
+        return this.handleQueueFallback(decisionId, requirements, startTime, rule);
+
+      case 'downgrade_proficiency':
+        logger.info({ decisionId }, 'Proficiency downgrade not yet implemented');
+        return null;
+
+      case 'expand_team':
+        return this.handleExpandTeamFallback(decisionId, requirements, startTime, rule);
+
+      case 'escalate':
+        return this.buildEscalateDecision(decisionId, requirements, startTime, rule);
+
+      case 'reject':
+        return null;
+    }
   }
 
   // =============================================================================
