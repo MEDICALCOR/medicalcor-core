@@ -250,9 +250,10 @@ describe('PostgresSupervisorStateRepository', () => {
       });
 
       it('should ignore unmapped fields', async () => {
+        // Intentionally passing unknown field to test runtime validation
         await repository.updateCall('CA123', {
           unknownField: 'value',
-        } as any);
+        } as unknown as Parameters<typeof repository.updateCall>[1]);
 
         expect(mockPool.query).not.toHaveBeenCalled();
       });

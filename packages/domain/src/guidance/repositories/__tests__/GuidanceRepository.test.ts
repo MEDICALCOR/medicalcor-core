@@ -143,7 +143,9 @@ describe('Guidance Repository Error Helpers', () => {
         },
       });
 
-      expect((error.details?.nested as any).level1.level2.value).toBe('deep');
+      expect(
+        (error.details?.nested as { level1: { level2: { value: string } } }).level1.level2.value
+      ).toBe('deep');
     });
   });
 

@@ -774,7 +774,10 @@ describe('Routing Commands', () => {
         correlationId: 'corr-001',
       };
 
-      const result = await routeTaskHandler(command as any, context as any);
+      const result = await routeTaskHandler(
+        command as Parameters<typeof routeTaskHandler>[0],
+        context as Parameters<typeof routeTaskHandler>[1]
+      );
 
       expect(result.success).toBe(true);
       expect(result.result.outcome).toBe('routed');
@@ -806,7 +809,10 @@ describe('Routing Commands', () => {
         correlationId: 'corr-002',
       };
 
-      const result = await routeTaskHandler(command as any, context as any);
+      const result = await routeTaskHandler(
+        command as Parameters<typeof routeTaskHandler>[0],
+        context as Parameters<typeof routeTaskHandler>[1]
+      );
 
       expect(result.success).toBe(true);
       expect(result.result.outcome).toBe('queued');
@@ -837,7 +843,10 @@ describe('Routing Commands', () => {
         correlationId: 'corr-003',
       };
 
-      const result = await routeTaskHandler(command as any, context as any);
+      const result = await routeTaskHandler(
+        command as Parameters<typeof routeTaskHandler>[0],
+        context as Parameters<typeof routeTaskHandler>[1]
+      );
 
       expect(result.success).toBe(false);
       expect(result.result.outcome).toBe('rejected');

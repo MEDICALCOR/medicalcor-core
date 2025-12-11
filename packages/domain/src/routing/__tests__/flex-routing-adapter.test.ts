@@ -15,6 +15,7 @@ import {
   type FlexRoutingTask,
   type FlexSkillMapping,
 } from '../flex-routing-adapter.js';
+import type { SkillRoutingService } from '../skill-routing-service.js';
 import type { FlexWorker } from '@medicalcor/types';
 
 // Mock logger
@@ -310,7 +311,7 @@ describe('FlexRoutingAdapter', () => {
 
     adapter = new FlexRoutingAdapter({
       flexClient: mockFlexClient,
-      routingService: mockRoutingService as any,
+      routingService: mockRoutingService as unknown as SkillRoutingService,
       workflowSid: 'WW123',
     });
   });
@@ -596,7 +597,7 @@ describe('Factory Functions', () => {
 
       const adapter = createFlexRoutingAdapter({
         flexClient: mockFlexClient,
-        routingService: mockRoutingService as any,
+        routingService: mockRoutingService as unknown as SkillRoutingService,
         workflowSid: 'WW123',
       });
 

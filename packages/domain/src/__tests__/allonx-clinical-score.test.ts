@@ -320,7 +320,8 @@ describe('AllOnXClinicalScore', () => {
       const score = AllOnXClinicalScore.fromIndicators(idealCandidateIndicators);
 
       expect(() => {
-        (score as any).compositeScore = 50;
+        // Intentionally bypassing readonly to test runtime freeze behavior
+        (score as { compositeScore: number }).compositeScore = 50;
       }).toThrow();
     });
 
@@ -328,7 +329,8 @@ describe('AllOnXClinicalScore', () => {
       const score = AllOnXClinicalScore.fromIndicators(idealCandidateIndicators);
 
       expect(() => {
-        (score.indicators as any).boneDensity = 1;
+        // Intentionally bypassing readonly to test runtime freeze behavior
+        (score.indicators as { boneDensity: number }).boneDensity = 1;
       }).toThrow();
     });
   });

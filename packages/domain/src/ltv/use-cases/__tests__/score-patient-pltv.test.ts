@@ -179,7 +179,8 @@ describe('ScorePatientPLTVUseCase', () => {
     });
 
     it('should return validation error for non-string leadId', async () => {
-      const input = { ...createMockInput(), leadId: null as any };
+      // Intentionally invalid input to test runtime validation
+      const input = { ...createMockInput(), leadId: null } as unknown as ScorePatientPLTVInput;
 
       const result = await useCase.execute(input);
 
@@ -190,7 +191,8 @@ describe('ScorePatientPLTVUseCase', () => {
     });
 
     it('should return validation error for non-string clinicId', async () => {
-      const input = { ...createMockInput(), clinicId: 123 as any };
+      // Intentionally invalid input to test runtime validation
+      const input = { ...createMockInput(), clinicId: 123 } as unknown as ScorePatientPLTVInput;
 
       const result = await useCase.execute(input);
 
@@ -201,7 +203,11 @@ describe('ScorePatientPLTVUseCase', () => {
     });
 
     it('should return validation error for non-string correlationId', async () => {
-      const input = { ...createMockInput(), correlationId: undefined as any };
+      // Intentionally invalid input to test runtime validation
+      const input = {
+        ...createMockInput(),
+        correlationId: undefined,
+      } as unknown as ScorePatientPLTVInput;
 
       const result = await useCase.execute(input);
 
@@ -218,7 +224,7 @@ describe('ScorePatientPLTVUseCase', () => {
 
   describe('Patient Not Found', () => {
     it('should return LEAD_NOT_FOUND error when patient does not exist', async () => {
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(null);
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(null);
 
       const result = await useCase.execute(createMockInput());
 
@@ -237,7 +243,7 @@ describe('ScorePatientPLTVUseCase', () => {
   describe('Successful Scoring', () => {
     it('should successfully score a patient', async () => {
       const patientData = createMockPatientData();
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(patientData);
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(patientData);
 
       const result = await useCase.execute(createMockInput());
 
@@ -259,7 +265,7 @@ describe('ScorePatientPLTVUseCase', () => {
 
     it('should save the score result', async () => {
       const patientData = createMockPatientData();
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(patientData);
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(patientData);
 
       await useCase.execute(createMockInput());
 
@@ -274,7 +280,7 @@ describe('ScorePatientPLTVUseCase', () => {
 
     it('should include breakdown when requested', async () => {
       const patientData = createMockPatientData();
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(patientData);
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(patientData);
 
       const result = await useCase.execute(createMockInput({ includeBreakdown: true }));
 
@@ -287,7 +293,7 @@ describe('ScorePatientPLTVUseCase', () => {
 
     it('should not include breakdown when not requested', async () => {
       const patientData = createMockPatientData();
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(patientData);
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(patientData);
 
       const result = await useCase.execute(createMockInput({ includeBreakdown: false }));
 
@@ -314,7 +320,7 @@ describe('ScorePatientPLTVUseCase', () => {
           scoredAt: recentDate,
         },
       });
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(patientData);
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(patientData);
 
       const result = await useCase.execute(createMockInput({ forceRecalculate: false }));
 
@@ -341,7 +347,7 @@ describe('ScorePatientPLTVUseCase', () => {
           scoredAt: recentDate,
         },
       });
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(patientData);
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(patientData);
 
       const result = await useCase.execute(createMockInput({ forceRecalculate: true }));
 
@@ -360,7 +366,7 @@ describe('ScorePatientPLTVUseCase', () => {
           scoredAt: oldDate,
         },
       });
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(patientData);
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(patientData);
 
       const result = await useCase.execute(createMockInput({ forceRecalculate: false }));
 
@@ -395,7 +401,7 @@ describe('ScorePatientPLTVUseCase', () => {
         },
         retentionScore: 95,
       });
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(patientData);
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(patientData);
 
       const result = await useCase.execute(createMockInput());
 
@@ -427,7 +433,7 @@ describe('ScorePatientPLTVUseCase', () => {
         },
         retentionScore: 85,
       });
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(patientData);
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(patientData);
 
       const result = await useCase.execute(createMockInput());
 
@@ -459,7 +465,7 @@ describe('ScorePatientPLTVUseCase', () => {
         },
         retentionScore: 40,
       });
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(patientData);
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(patientData);
 
       const result = await useCase.execute(createMockInput());
 
@@ -504,7 +510,7 @@ describe('ScorePatientPLTVUseCase', () => {
         },
         retentionScore: 85,
       });
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(patientData);
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(patientData);
 
       const result = await useCase.execute(createMockInput());
 
@@ -526,7 +532,7 @@ describe('ScorePatientPLTVUseCase', () => {
           scoredAt: new Date(Date.now() - 48 * 60 * 60 * 1000),
         },
       });
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(patientData);
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(patientData);
 
       const result = await useCase.execute(createMockInput());
 
@@ -542,7 +548,7 @@ describe('ScorePatientPLTVUseCase', () => {
       const patientData = createMockPatientData({
         lastPLTV: undefined,
       });
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(patientData);
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(patientData);
 
       const result = await useCase.execute(createMockInput());
 
@@ -561,7 +567,7 @@ describe('ScorePatientPLTVUseCase', () => {
   describe('Event Emission', () => {
     it('should emit PLTVScored event', async () => {
       const patientData = createMockPatientData();
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(patientData);
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(patientData);
 
       const result = await useCase.execute(createMockInput());
 
@@ -595,7 +601,7 @@ describe('ScorePatientPLTVUseCase', () => {
         },
         retentionScore: 90,
       });
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(patientData);
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(patientData);
 
       const result = await useCase.execute(createMockInput());
 
@@ -629,7 +635,7 @@ describe('ScorePatientPLTVUseCase', () => {
         },
         retentionScore: 85,
       });
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(patientData);
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(patientData);
 
       const result = await useCase.execute(createMockInput());
 
@@ -644,7 +650,7 @@ describe('ScorePatientPLTVUseCase', () => {
 
     it('should publish events to event publisher', async () => {
       const patientData = createMockPatientData();
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(patientData);
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(patientData);
 
       await useCase.execute(createMockInput());
 
@@ -656,7 +662,7 @@ describe('ScorePatientPLTVUseCase', () => {
         dataProvider: createMockDataProvider(),
         scoringService: new PLTVScoringService(),
       };
-      (depsWithoutPublisher.dataProvider.getPatientPLTVData as any).mockResolvedValue(
+      vi.mocked(depsWithoutPublisher.dataProvider.getPatientPLTVData).mockResolvedValue(
         createMockPatientData()
       );
 
@@ -674,8 +680,8 @@ describe('ScorePatientPLTVUseCase', () => {
   describe('Repository Error Handling', () => {
     it('should return REPOSITORY_ERROR when save fails', async () => {
       const patientData = createMockPatientData();
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(patientData);
-      (deps.dataProvider.savePLTVScore as any).mockResolvedValue({
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(patientData);
+      vi.mocked(deps.dataProvider.savePLTVScore).mockResolvedValue({
         success: false,
         error: 'Database connection failed',
       });
@@ -691,8 +697,8 @@ describe('ScorePatientPLTVUseCase', () => {
 
     it('should handle save failure with no error message', async () => {
       const patientData = createMockPatientData();
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(patientData);
-      (deps.dataProvider.savePLTVScore as any).mockResolvedValue({
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(patientData);
+      vi.mocked(deps.dataProvider.savePLTVScore).mockResolvedValue({
         success: false,
       });
 
@@ -712,7 +718,7 @@ describe('ScorePatientPLTVUseCase', () => {
 
   describe('Exception Handling', () => {
     it('should handle thrown errors', async () => {
-      (deps.dataProvider.getPatientPLTVData as any).mockRejectedValue(
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockRejectedValue(
         new Error('Unexpected database error')
       );
 
@@ -727,7 +733,7 @@ describe('ScorePatientPLTVUseCase', () => {
     });
 
     it('should handle non-Error exceptions', async () => {
-      (deps.dataProvider.getPatientPLTVData as any).mockRejectedValue('String error');
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockRejectedValue('String error');
 
       const result = await useCase.execute(createMockInput());
 
@@ -756,7 +762,7 @@ describe('ScorePatientPLTVUseCase', () => {
           scoredAt: recentDate,
         },
       });
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(patientData);
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(patientData);
 
       const result = await useCase.execute(createMockInput());
 
@@ -774,7 +780,7 @@ describe('ScorePatientPLTVUseCase', () => {
     it('should handle missing lastPLTV in skipped result path', async () => {
       // This scenario shouldn't happen in practice but tests defensive coding
       const patientData = createMockPatientData();
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(patientData);
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(patientData);
 
       const result = await useCase.execute(createMockInput());
 
@@ -808,7 +814,7 @@ describe('ScorePatientPLTVUseCase', () => {
         },
         retentionScore: 90,
       });
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(patientData);
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(patientData);
 
       const result = await useCase.execute(createMockInput());
 
@@ -847,7 +853,7 @@ describe('ScorePatientPLTVUseCase', () => {
         },
         retentionScore: 50,
       });
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(patientData);
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(patientData);
 
       const result = await useCase.execute(createMockInput());
 
@@ -868,7 +874,7 @@ describe('ScorePatientPLTVUseCase', () => {
   describe('Confidence Interval', () => {
     it('should include confidence interval in output', async () => {
       const patientData = createMockPatientData();
-      (deps.dataProvider.getPatientPLTVData as any).mockResolvedValue(patientData);
+      vi.mocked(deps.dataProvider.getPatientPLTVData).mockResolvedValue(patientData);
 
       const result = await useCase.execute(createMockInput());
 

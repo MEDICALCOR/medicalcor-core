@@ -10,13 +10,29 @@ import type {
   CognitiveInsight,
   SubjectMemorySummary,
   SubjectType,
+  IOpenAIClient,
+  IEmbeddingService,
 } from '@medicalcor/core';
+import * as coreMock from '@medicalcor/core';
 import {
   BehavioralInsightsService,
   createBehavioralInsightsService,
   type BehavioralInsightsServiceDependencies,
   type IDatabasePool,
 } from '../behavioral-insights-service.js';
+
+/** Mock interface for PatternDetector returned by createPatternDetector */
+interface MockPatternDetector {
+  detectPatterns: ReturnType<typeof vi.fn>;
+  getStoredPatterns: ReturnType<typeof vi.fn>;
+  generateInsights: ReturnType<typeof vi.fn>;
+  getPatternStats: ReturnType<typeof vi.fn>;
+}
+
+/** Mock interface for MemoryRetrieval returned by createMemoryRetrievalService */
+interface MockMemoryRetrieval {
+  getSubjectSummary: ReturnType<typeof vi.fn>;
+}
 
 // =============================================================================
 // Test Mocks
@@ -44,28 +60,23 @@ function createMockPool(): IDatabasePool {
   };
 }
 
-function createMockOpenAI() {
+function createMockOpenAI(): IOpenAIClient {
   return {
-    chat: {
-      completions: {
-        create: vi.fn(),
-      },
-    },
+    chatCompletion: vi.fn().mockResolvedValue('{}'),
   };
 }
 
-function createMockEmbeddings() {
+function createMockEmbeddings(): IEmbeddingService {
   return {
-    embed: vi.fn(),
-    embedBatch: vi.fn(),
+    embed: vi.fn().mockResolvedValue({ embedding: [], contentHash: '' }),
   };
 }
 
 function createMockDependencies(): BehavioralInsightsServiceDependencies {
   return {
     pool: createMockPool(),
-    openai: createMockOpenAI() as any,
-    embeddings: createMockEmbeddings() as any,
+    openai: createMockOpenAI(),
+    embeddings: createMockEmbeddings(),
     config: {},
   };
 }
@@ -133,14 +144,13 @@ function createMockInsight(overrides: Partial<CognitiveInsight> = {}): Cognitive
 describe('BehavioralInsightsService', () => {
   let service: BehavioralInsightsService;
   let deps: BehavioralInsightsServiceDependencies;
-  let mockPatternDetector: any;
-  let mockMemoryRetrieval: any;
+  let mockPatternDetector: MockPatternDetector;
+  let mockMemoryRetrieval: MockMemoryRetrieval;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.clearAllMocks();
 
-    // Get the mocked modules
-    const coreMock = await import('@medicalcor/core');
+    // Create mock instances with proper types
     mockPatternDetector = {
       detectPatterns: vi.fn(),
       getStoredPatterns: vi.fn(),
@@ -151,8 +161,8 @@ describe('BehavioralInsightsService', () => {
       getSubjectSummary: vi.fn(),
     };
 
-    (coreMock.createPatternDetector as any).mockReturnValue(mockPatternDetector);
-    (coreMock.createMemoryRetrievalService as any).mockReturnValue(mockMemoryRetrieval);
+    vi.mocked(coreMock.createPatternDetector).mockReturnValue(mockPatternDetector);
+    vi.mocked(coreMock.createMemoryRetrievalService).mockReturnValue(mockMemoryRetrieval);
 
     deps = createMockDependencies();
     service = new BehavioralInsightsService(deps);
@@ -674,7 +684,7 @@ describe('BehavioralInsightsService', () => {
         },
       ];
 
-      (deps.pool.query as any).mockResolvedValue({ rows: mockRows });
+      vi.mocked(deps.pool.query).mockResolvedValue({ rows: mockRows });
 
       const result = await service.getChurnRiskSubjects('clinic-123', 10);
 
@@ -688,7 +698,7 @@ describe('BehavioralInsightsService', () => {
     });
 
     it('should use default limit', async () => {
-      (deps.pool.query as any).mockResolvedValue({ rows: [] });
+      vi.mocked(deps.pool.query).mockResolvedValue({ rows: [] });
 
       await service.getChurnRiskSubjects('clinic-123');
 
@@ -705,7 +715,7 @@ describe('BehavioralInsightsService', () => {
         },
       ];
 
-      (deps.pool.query as any).mockResolvedValue({ rows: mockRows });
+      vi.mocked(deps.pool.query).mockResolvedValue({ rows: mockRows });
 
       const result = await service.getChurnRiskSubjects('clinic-123');
 
@@ -730,7 +740,7 @@ describe('BehavioralInsightsService', () => {
         },
       ];
 
-      (deps.pool.query as any).mockResolvedValue({ rows: mockRows });
+      vi.mocked(deps.pool.query).mockResolvedValue({ rows: mockRows });
 
       const result = await service.getReactivationCandidates('clinic-123', 60, 10);
 
@@ -740,7 +750,7 @@ describe('BehavioralInsightsService', () => {
     });
 
     it('should use default parameters', async () => {
-      (deps.pool.query as any).mockResolvedValue({ rows: [] });
+      vi.mocked(deps.pool.query).mockResolvedValue({ rows: [] });
 
       await service.getReactivationCandidates('clinic-123');
 

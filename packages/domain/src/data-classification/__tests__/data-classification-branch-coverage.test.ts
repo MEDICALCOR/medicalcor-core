@@ -836,7 +836,7 @@ describe('DataClassificationService - Branch Coverage', () => {
 
     it('should merge repository gaps with detected gaps', async () => {
       // Set up repository to return some gaps
-      (repository.getComplianceGaps as any).mockResolvedValueOnce([
+      vi.mocked(repository.getComplianceGaps).mockResolvedValueOnce([
         {
           tableName: 'external_gap',
           gapType: 'missing_encryption',

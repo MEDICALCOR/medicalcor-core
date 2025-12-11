@@ -431,7 +431,7 @@ describe('ScoringService - Property-Based Tests', () => {
             phone,
             channel: 'whatsapp' as const,
             firstTouchTimestamp: ts,
-            messageHistory: undefined as any, // Intentionally undefined
+            messageHistory: undefined as unknown as string[], // Intentionally undefined for edge case testing
           };
 
           // Should not throw

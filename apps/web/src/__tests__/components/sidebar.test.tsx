@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactNode } from 'react';
 import {
   Sidebar,
   MobileSidebar,
@@ -11,7 +12,15 @@ import {
 
 // Mock next/link
 vi.mock('next/link', () => ({
-  default: ({ children, href, ...props }: any) => (
+  default: ({
+    children,
+    href,
+    ...props
+  }: {
+    children: ReactNode;
+    href: string;
+    [key: string]: unknown;
+  }) => (
     <a href={href} {...props}>
       {children}
     </a>
@@ -33,12 +42,19 @@ vi.mock('@/components/auth/require-permission', () => ({
 
 // Mock Sheet component
 vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({ children, open, onOpenChange }: any) => (
+  Sheet: ({
+    children,
+    open,
+  }: {
+    children: ReactNode;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+  }) => (
     <div data-testid="sheet" data-open={open}>
       {children}
     </div>
   ),
-  SheetContent: ({ children, ...props }: any) => (
+  SheetContent: ({ children, ...props }: { children: ReactNode; [key: string]: unknown }) => (
     <div data-testid="sheet-content" {...props}>
       {children}
     </div>

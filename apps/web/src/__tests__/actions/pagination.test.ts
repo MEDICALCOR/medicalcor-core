@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import type { HubSpotClient } from '@medicalcor/integrations';
 
 // Mock server-only to allow importing server actions in tests
 vi.mock('server-only', () => ({}));
@@ -97,7 +98,7 @@ describe('Pagination Utilities', () => {
       };
 
       const result = await fetchAllContacts(
-        mockClient as any,
+        mockClient as unknown as HubSpotClient,
         { filterGroups: [], properties: ['firstname'] },
         { pageSize: 2 }
       );
@@ -126,7 +127,7 @@ describe('Pagination Utilities', () => {
       };
 
       const result = await fetchAllContacts(
-        mockClient as any,
+        mockClient as unknown as HubSpotClient,
         { filterGroups: [], properties: ['firstname'] },
         { maxResults: 7, pageSize: 5 }
       );
@@ -148,7 +149,7 @@ describe('Pagination Utilities', () => {
         }),
       };
 
-      const result = await fetchAllContacts(mockClient as any, {
+      const result = await fetchAllContacts(mockClient as unknown as HubSpotClient, {
         filterGroups: [],
         properties: ['firstname'],
       });
@@ -174,7 +175,7 @@ describe('Pagination Utilities', () => {
         }),
       };
 
-      await fetchAllContacts(mockClient as any, searchParams);
+      await fetchAllContacts(mockClient as unknown as HubSpotClient, searchParams);
 
       expect(mockClient.searchContacts).toHaveBeenCalledWith({
         ...searchParams,
@@ -197,7 +198,10 @@ describe('Pagination Utilities', () => {
           }),
       };
 
-      await fetchAllContacts(mockClient as any, { filterGroups: [], properties: ['firstname'] });
+      await fetchAllContacts(mockClient as unknown as HubSpotClient, {
+        filterGroups: [],
+        properties: ['firstname'],
+      });
 
       expect(mockClient.searchContacts).toHaveBeenNthCalledWith(
         1,
@@ -222,7 +226,7 @@ describe('Pagination Utilities', () => {
         }),
       };
 
-      const result = await fetchAllContacts(mockClient as any, {
+      const result = await fetchAllContacts(mockClient as unknown as HubSpotClient, {
         filterGroups: [],
         properties: ['firstname'],
       });
@@ -239,7 +243,10 @@ describe('Pagination Utilities', () => {
         }),
       };
 
-      await fetchAllContacts(mockClient as any, { filterGroups: [], properties: ['firstname'] });
+      await fetchAllContacts(mockClient as unknown as HubSpotClient, {
+        filterGroups: [],
+        properties: ['firstname'],
+      });
 
       expect(mockClient.searchContacts).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -257,7 +264,7 @@ describe('Pagination Utilities', () => {
       };
 
       await fetchAllContacts(
-        mockClient as any,
+        mockClient as unknown as HubSpotClient,
         { filterGroups: [], properties: ['firstname'] },
         { pageSize: 50 }
       );
@@ -297,7 +304,7 @@ describe('Pagination Utilities', () => {
           }),
       };
 
-      const result = await fetchAllContacts(mockClient as any, {
+      const result = await fetchAllContacts(mockClient as unknown as HubSpotClient, {
         filterGroups: [],
         properties: ['firstname'],
       });
