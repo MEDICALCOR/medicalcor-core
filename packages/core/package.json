@@ -37,6 +37,10 @@
       "types": "./dist/observability/otel-logs.d.ts",
       "import": "./dist/observability/otel-logs.js"
     },
+    "./observability/tracing": {
+      "types": "./dist/observability/tracing.d.ts",
+      "import": "./dist/observability/tracing.js"
+    },
     "./distributed-rate-limiter": {
       "types": "./dist/distributed-rate-limiter.d.ts",
       "import": "./dist/distributed-rate-limiter.js"
@@ -77,6 +81,7 @@
     "@medicalcor/types": "workspace:*",
     "@opentelemetry/api": "^1.7.0",
     "@opentelemetry/api-logs": "^0.208.0",
+    "@opentelemetry/core": "^2.2.0",
     "@opentelemetry/exporter-logs-otlp-http": "^0.208.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.208.0",
     "@opentelemetry/resources": "^2.2.0",

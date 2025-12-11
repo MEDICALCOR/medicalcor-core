@@ -14,6 +14,14 @@ import {
   IdempotencyKeys,
 } from '@medicalcor/core';
 import { tasks } from '@trigger.dev/sdk/v3';
+import {
+  createWebhookTraceContext,
+  getTracer,
+  createProducerSpan,
+  endSpan,
+  recordSpanError,
+} from '@medicalcor/core/observability/tracing';
+import { context, trace } from '@opentelemetry/api';
 
 /**
  * Timestamp validation configuration for replay attack prevention
@@ -296,8 +304,24 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
         }
       }
 
+      // Get tracer for webhook operations
+      const tracer = getTracer('whatsapp-webhook');
+
       // Trigger all message handlers in parallel using Promise.allSettled
+      // Include trace context for distributed tracing
       const messagePromises = messageTasks.map(({ message, metadata, contact }) => {
+        // Create a producer span for task triggering
+        const producerSpan = createProducerSpan(
+          tracer,
+          'trigger.dev',
+          'whatsapp-message-handler',
+          message.id,
+          { correlationId }
+        );
+
+        // Get trace context to propagate to the task
+        const traceContext = createWebhookTraceContext(correlationId);
+
         // CRITICAL FIX: Forward ALL message types, not just text
         // WhatsApp supports: text, image, audio, video, document, sticker, location, contacts, button, interactive
         const messagePayload = {
@@ -323,6 +347,8 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
             phone_number_id: metadata.phone_number_id,
           },
           correlationId,
+          // Include trace context for distributed tracing
+          ...traceContext,
           ...(contact && {
             contact: {
               profile: { name: contact.profile.name },
@@ -330,40 +356,69 @@ export const whatsappWebhookRoutes: FastifyPluginAsync = async (fastify) => {
             },
           }),
         };
-        return tasks
-          .trigger('whatsapp-message-handler', messagePayload, {
-            idempotencyKey: IdempotencyKeys.whatsAppMessage(message.id),
-          })
-          .catch((err: unknown) => {
+
+        return context.with(trace.setSpan(context.active(), producerSpan), async () => {
+          try {
+            const result = await tasks.trigger('whatsapp-message-handler', messagePayload, {
+              idempotencyKey: IdempotencyKeys.whatsAppMessage(message.id),
+            });
+            producerSpan.setAttribute('trigger.task.handle_id', result.id);
+            endSpan(producerSpan, 'ok');
+            return result;
+          } catch (err: unknown) {
+            recordSpanError(producerSpan, err);
             fastify.log.error(
               { err, messageId: message.id },
               'Failed to trigger WhatsApp message handler'
             );
             throw err; // Re-throw so Promise.allSettled captures it
-          });
+          }
+        });
       });
 
       // Trigger all status handlers in parallel using Promise.allSettled
+      // Include trace context for distributed tracing
       const statusPromises = statusTasks.map((status) => {
+        // Create a producer span for task triggering
+        const producerSpan = createProducerSpan(
+          tracer,
+          'trigger.dev',
+          'whatsapp-status-handler',
+          status.messageId,
+          { correlationId }
+        );
+
+        // Get trace context to propagate to the task
+        const traceContext = createWebhookTraceContext(correlationId);
+
         const statusPayload = {
           messageId: status.messageId,
           status: status.status,
           recipientId: status.recipientId,
           timestamp: status.timestamp,
           correlationId,
+          // Include trace context for distributed tracing
+          ...traceContext,
           ...(status.errors && { errors: status.errors }),
         };
-        return tasks
-          .trigger('whatsapp-status-handler', statusPayload, {
-            idempotencyKey: IdempotencyKeys.whatsAppStatus(status.messageId, status.status),
-          })
-          .catch((err: unknown) => {
+
+        return context.with(trace.setSpan(context.active(), producerSpan), async () => {
+          try {
+            const result = await tasks.trigger('whatsapp-status-handler', statusPayload, {
+              idempotencyKey: IdempotencyKeys.whatsAppStatus(status.messageId, status.status),
+            });
+            producerSpan.setAttribute('trigger.task.handle_id', result.id);
+            endSpan(producerSpan, 'ok');
+            return result;
+          } catch (err: unknown) {
+            recordSpanError(producerSpan, err);
             fastify.log.error(
               { err, messageId: status.messageId },
               'Failed to trigger WhatsApp status handler'
             );
             throw err; // Re-throw so Promise.allSettled captures it
-          });
+          }
+        });
       });
 
       // Execute all triggers in parallel (don't await - fire and forget for fast response)
