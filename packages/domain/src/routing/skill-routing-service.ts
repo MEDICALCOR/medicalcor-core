@@ -1021,6 +1021,130 @@ export class SkillRoutingService {
   // =============================================================================
 
   /**
+   * Check if queue has required methods for processing.
+   */
+  private hasQueueProcessingMethods(): boolean {
+    return (
+      this.queue !== null &&
+      typeof this.queue.getQueuedTasks === 'function' &&
+      typeof this.queue.removeTask === 'function'
+    );
+  }
+
+  /**
+   * Calculate agent's capacity threshold based on config.
+   */
+  private getAgentCapacityThreshold(agent: AgentProfile): number {
+    return agent.maxConcurrentTasks * this.config.thresholds.maxConcurrentTaskRatio;
+  }
+
+  /**
+   * Check if agent has remaining capacity for new tasks.
+   */
+  private agentHasCapacity(agent: AgentProfile, assignedCount: number): boolean {
+    const threshold = this.getAgentCapacityThreshold(agent);
+    return agent.currentTaskCount + assignedCount < threshold;
+  }
+
+  /**
+   * Check if a queue should be processed for this agent.
+   * Agent can process their team queue or the default queue.
+   */
+  private shouldProcessQueue(queueId: string, agentTeamId: string | undefined): boolean {
+    if (!agentTeamId) return true;
+    return queueId === agentTeamId || queueId === 'default';
+  }
+
+  /**
+   * Build routing decision for a task assigned from queue.
+   */
+  private buildQueueAssignmentDecision(
+    agent: AgentProfile,
+    task: QueuedTaskInfo,
+    scored: AgentMatchScore
+  ): RoutingDecision {
+    return {
+      decisionId: task.taskId,
+      timestamp: new Date(),
+      taskId: task.taskId,
+      requirements: task.requirements,
+      outcome: 'routed',
+      selectedAgentId: agent.agentId,
+      selectedAgentName: agent.name,
+      selectedWorkerSid: agent.workerSid,
+      candidateAgents: [scored],
+      selectionReason: `Assigned from queue after agent ${agent.agentId} became available`,
+      fallbacksAttempted: 0,
+      processingTimeMs: 0,
+      queuedAt: task.queuedAt,
+      waitTimeMs: Date.now() - task.queuedAt.getTime(),
+    };
+  }
+
+  /**
+   * Try to assign a single task to an agent.
+   * Returns routing decision if successful, null otherwise.
+   */
+  private async tryAssignTaskToAgent(
+    agent: AgentProfile,
+    task: QueuedTaskInfo,
+    queueId: string
+  ): Promise<RoutingDecision | null> {
+    // Check if agent matches task requirements
+    const { matches } = await this.checkAgentMatch(agent.agentId, task.requirements);
+    if (!matches) {
+      return null;
+    }
+
+    // Score the agent for this task
+    const [scored] = await this.scoreAgents([agent], task.requirements);
+    if (!scored || scored.totalScore < this.config.thresholds.minimumMatchScore) {
+      return null;
+    }
+
+    // Remove from queue
+    const removed = await this.queue!.removeTask!(task.taskId);
+    if (!removed) {
+      return null;
+    }
+
+    const decision = this.buildQueueAssignmentDecision(agent, task, scored);
+
+    logger.info(
+      { taskId: task.taskId, agentId: agent.agentId, queueId, waitTimeMs: decision.waitTimeMs },
+      'Queued task assigned to available agent'
+    );
+
+    return decision;
+  }
+
+  /**
+   * Process tasks from a single queue for an agent.
+   * Returns array of routing decisions for assigned tasks.
+   */
+  private async processTasksFromQueue(
+    agent: AgentProfile,
+    queueId: string,
+    currentAssignedCount: number
+  ): Promise<RoutingDecision[]> {
+    const decisions: RoutingDecision[] = [];
+    const queuedTasks = this.queue!.getQueuedTasks!(queueId);
+
+    for (const task of queuedTasks) {
+      if (!this.agentHasCapacity(agent, currentAssignedCount + decisions.length)) {
+        break;
+      }
+
+      const decision = await this.tryAssignTaskToAgent(agent, task, queueId);
+      if (decision) {
+        decisions.push(decision);
+      }
+    }
+
+    return decisions;
+  }
+
+  /**
    * Process queued tasks when an agent becomes available.
    * This should be called when an agent's availability changes to 'available'.
    *
@@ -1028,7 +1152,7 @@ export class SkillRoutingService {
    * @returns Array of routing decisions for tasks assigned to this agent
    */
   async processQueueForAgent(agentId: string): Promise<RoutingDecision[]> {
-    if (!this.queue?.getQueuedTasks || !this.queue.removeTask) {
+    if (!this.hasQueueProcessingMethods()) {
       logger.debug({ agentId }, 'Queue processing not available - missing queue methods');
       return [];
     }
@@ -1039,80 +1163,21 @@ export class SkillRoutingService {
       return [];
     }
 
-    // Check if agent has capacity
-    const capacityThreshold =
-      agent.maxConcurrentTasks * this.config.thresholds.maxConcurrentTaskRatio;
-    if (agent.currentTaskCount >= capacityThreshold) {
+    if (!this.agentHasCapacity(agent, 0)) {
       logger.debug({ agentId, currentTasks: agent.currentTaskCount }, 'Agent at capacity');
       return [];
     }
 
     const assignedDecisions: RoutingDecision[] = [];
-    const queueIds = this.queue.getQueueIds?.() ?? [agent.teamId ?? 'default'];
+    const queueIds = this.queue!.getQueueIds?.() ?? [agent.teamId ?? 'default'];
 
     for (const queueId of queueIds) {
-      // Only process team queue or default queue for this agent
-      if (agent.teamId && queueId !== agent.teamId && queueId !== 'default') {
+      if (!this.shouldProcessQueue(queueId, agent.teamId)) {
         continue;
       }
 
-      const queuedTasks = this.queue.getQueuedTasks(queueId);
-
-      // Process tasks in priority order (already sorted by queue)
-      for (const task of queuedTasks) {
-        // Check agent still has capacity
-        const currentCapacity = agent.currentTaskCount + assignedDecisions.length;
-        if (currentCapacity >= capacityThreshold) {
-          break;
-        }
-
-        // Check if agent matches task requirements
-        const { matches } = await this.checkAgentMatch(agentId, task.requirements);
-        if (!matches) {
-          continue;
-        }
-
-        // Score the agent for this task
-        const [scored] = await this.scoreAgents([agent], task.requirements);
-        if (!scored || scored.totalScore < this.config.thresholds.minimumMatchScore) {
-          continue;
-        }
-
-        // Remove from queue and create routing decision
-        const removed = await this.queue.removeTask(task.taskId);
-        if (!removed) {
-          continue;
-        }
-
-        const decision: RoutingDecision = {
-          decisionId: task.taskId,
-          timestamp: new Date(),
-          taskId: task.taskId,
-          requirements: task.requirements,
-          outcome: 'routed',
-          selectedAgentId: agent.agentId,
-          selectedAgentName: agent.name,
-          selectedWorkerSid: agent.workerSid,
-          candidateAgents: [scored],
-          selectionReason: `Assigned from queue after agent ${agentId} became available`,
-          fallbacksAttempted: 0,
-          processingTimeMs: 0,
-          queuedAt: task.queuedAt,
-          waitTimeMs: Date.now() - task.queuedAt.getTime(),
-        };
-
-        assignedDecisions.push(decision);
-
-        logger.info(
-          {
-            taskId: task.taskId,
-            agentId,
-            queueId,
-            waitTimeMs: decision.waitTimeMs,
-          },
-          'Queued task assigned to available agent'
-        );
-      }
+      const decisions = await this.processTasksFromQueue(agent, queueId, assignedDecisions.length);
+      assignedDecisions.push(...decisions);
     }
 
     if (assignedDecisions.length > 0) {
