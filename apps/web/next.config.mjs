@@ -23,6 +23,8 @@ const withPWA = withPWAInit({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Enable standalone output for Docker containerization
+  output: 'standalone',
   transpilePackages: [
     '@medicalcor/core',
     '@medicalcor/domain',
