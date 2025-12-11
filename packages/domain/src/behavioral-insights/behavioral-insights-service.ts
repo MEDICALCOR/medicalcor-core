@@ -131,18 +131,13 @@ export class BehavioralInsightsService {
   private memoryRetrieval: ReturnType<typeof createMemoryRetrievalService>;
 
   constructor(private deps: BehavioralInsightsServiceDependencies) {
-    // Type assertion: IDatabasePool → pg.Pool
-    // The infrastructure layer injects a pg.Pool-compatible object that satisfies IDatabasePool.
-    // Core functions expect pg.Pool, but our interface is structurally compatible.
-    // Using Parameters<> utility type to extract the expected pool type without importing pg.
-    // See architecture note in file header for context on this design decision.
-    this.patternDetector = createPatternDetector(
-      deps.pool as unknown as Parameters<typeof createPatternDetector>[0],
-      deps.openai,
-      deps.config
-    );
+    // Cast pool to the expected type - the infrastructure layer is responsible for
+    // providing a pg.Pool-compatible object
+
+    this.patternDetector = createPatternDetector(deps.pool as unknown, deps.openai, deps.config);
+
     this.memoryRetrieval = createMemoryRetrievalService(
-      deps.pool as unknown as Parameters<typeof createMemoryRetrievalService>[0],
+      deps.pool as unknown,
       deps.embeddings,
       deps.config
     );
@@ -156,7 +151,7 @@ export class BehavioralInsightsService {
    * Generate a comprehensive behavioral profile for a subject
    */
   async generateProfile(subjectType: SubjectType, subjectId: string): Promise<BehavioralProfile> {
-    const _startTime = Date.now(); // Reserved for future performance tracking
+    const _startTime = Date.now();
 
     // Gather all data in parallel
     const [memorySummary, patterns, insights] = await Promise.all([
