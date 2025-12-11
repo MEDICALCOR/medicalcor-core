@@ -50,6 +50,10 @@ import {
   type ConsentRepository,
 } from '@medicalcor/domain';
 import type { IConsentRepository } from '@medicalcor/core/repositories';
+import {
+  createAdsConversionServiceFromEnv,
+  type AdsConversionService,
+} from './ads-conversion-service.js';
 
 /**
  * Adapts IConsentRepository (uses Result types) to ConsentRepository (uses plain types)
@@ -136,6 +140,8 @@ export interface ClientsConfig {
   includeTemplateCatalog?: boolean;
   /** Include notifications service (real-time alerts) */
   includeNotifications?: boolean;
+  /** Include ads conversion service (Facebook CAPI, Google Ads) */
+  includeAdsConversion?: boolean;
   /** Circuit breaker configuration */
   circuitBreaker?: CircuitBreakerOptions;
 }
@@ -153,6 +159,7 @@ export type ClientName =
   | 'consent'
   | 'templateCatalog'
   | 'notifications'
+  | 'adsConversion'
   | 'eventStore';
 
 /**
@@ -170,6 +177,7 @@ export interface IntegrationClients {
   consent: ConsentService | null;
   templateCatalog: TemplateCatalogService | null;
   notifications: NotificationsService | null;
+  adsConversion: AdsConversionService | null;
   eventStore: EventStore;
   /** Returns true if all required clients are available */
   isConfigured: (required: ClientName[]) => boolean;
@@ -213,6 +221,7 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
     includeConsent = false,
     includeTemplateCatalog = false,
     includeNotifications = false,
+    includeAdsConversion = false,
     circuitBreaker = {},
   } = config;
   const cbEnabled = circuitBreaker.enabled !== false; // Default enabled
@@ -383,6 +392,14 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
     }
   }
 
+  // Ads Conversion Service (optional, for Facebook CAPI and Google Ads offline conversions)
+  let adsConversion: AdsConversionService | null = null;
+  if (includeAdsConversion) {
+    // Initialize from environment variables (FACEBOOK_PIXEL_ID, GOOGLE_ADS_CUSTOMER_ID, etc.)
+    adsConversion = createAdsConversionServiceFromEnv();
+    // Note: The service will gracefully handle missing credentials for individual platforms
+  }
+
   // Event store (always initialized)
   const eventStore: EventStore = databaseUrl
     ? createEventStore({ source, connectionString: databaseUrl })
@@ -424,6 +441,9 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
           break;
         case 'notifications':
           if (!notifications) return false;
+          break;
+        case 'adsConversion':
+          if (!adsConversion) return false;
           break;
         case 'eventStore':
           // eventStore is always initialized
@@ -471,6 +491,7 @@ export function createIntegrationClients(config: ClientsConfig): IntegrationClie
     consent,
     templateCatalog,
     notifications,
+    adsConversion,
     eventStore,
     isConfigured,
     getCircuitBreakerStats,

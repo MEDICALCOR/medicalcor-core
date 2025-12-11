@@ -183,6 +183,34 @@ export {
 } from './insurance.js';
 
 // =============================================================================
+// Ads Conversion Tracking (Pipedrive → Facebook/Google)
+// =============================================================================
+
+export {
+  FacebookConversionsClient,
+  createFacebookConversionsClient,
+  getFacebookConversionsCredentials,
+  type FacebookConversionsClientOptions,
+} from './facebook-conversions.js';
+
+export {
+  GoogleAdsConversionsClient,
+  createGoogleAdsConversionsClient,
+  getGoogleAdsConversionsCredentials,
+  type GoogleAdsConversionsClientOptions,
+} from './google-ads-conversions.js';
+
+export {
+  AdsConversionService,
+  createAdsConversionService,
+  createAdsConversionServiceFromEnv,
+  type AdsConversionServiceOptions,
+  type ConversionInput,
+  type PlatformResult,
+  type ConversionResult,
+} from './ads-conversion-service.js';
+
+// =============================================================================
 // Client Factory (Legacy)
 // =============================================================================
 
