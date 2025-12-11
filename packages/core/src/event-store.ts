@@ -87,10 +87,10 @@ export class InMemoryEventStore implements EventStoreRepository {
   private events: StoredEvent[] = [];
   private idempotencyKeys = new Set<string>();
 
-  append(event: StoredEvent): Promise<void> {
+  async append(event: StoredEvent): Promise<void> {
     // Check idempotency key - silently skip duplicate events (same as PostgreSQL ON CONFLICT DO NOTHING)
     if (this.idempotencyKeys.has(event.metadata.idempotencyKey)) {
-      return Promise.resolve();
+      return;
     }
 
     // CRITICAL: Version conflict checking for event sourcing integrity
@@ -112,7 +112,6 @@ export class InMemoryEventStore implements EventStoreRepository {
 
     this.events.push(event);
     this.idempotencyKeys.add(event.metadata.idempotencyKey);
-    return Promise.resolve();
   }
 
   getByCorrelationId(correlationId: string): Promise<StoredEvent[]> {

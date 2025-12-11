@@ -597,15 +597,7 @@ describe('PipedriveClient', () => {
     });
 
     it('should handle timeout', async () => {
-      fetchMock.mockImplementationOnce(() => new Promise(() => {})); // Never resolves
-
-      // Use a client with very short timeout - but since we can't easily
-      // modify the timeout, we'll test the AbortError path differently
-      client = new PipedriveClient({
-        apiToken: 'test-token',
-        retryConfig: { maxRetries: 0, baseDelayMs: 100 },
-      });
-
+      // Test the AbortError path by mocking fetch to reject with AbortError
       const abortError = new Error('Abort error');
       abortError.name = 'AbortError';
       fetchMock.mockRejectedValueOnce(abortError);
