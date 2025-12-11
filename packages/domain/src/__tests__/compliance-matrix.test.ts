@@ -311,20 +311,7 @@ const constraintArb = fc.record({
   isActive: fc.boolean(),
 });
 
-const sprintComplianceEntryArb = fc.record({
-  constraintId: fc.string({ minLength: 1, maxLength: 50 }),
-  sprintId: fc.string({ minLength: 1, maxLength: 50 }),
-  status: complianceStatusArb,
-  notes: fc.option(fc.string({ maxLength: 500 }), { nil: undefined }),
-  workItems: fc.array(
-    fc.record({
-      type: fc.constantFrom('issue', 'pull_request', 'task', 'ticket'),
-      referenceId: fc.string({ minLength: 1, maxLength: 50 }),
-    }),
-    { maxLength: 3 }
-  ),
-  assessedBy: fc.option(fc.string({ maxLength: 50 }), { nil: undefined }),
-});
+
 
 // =============================================================================
 // Unit Tests
