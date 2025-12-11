@@ -247,7 +247,6 @@ async function createSSEConnection(
 describe('Guidance SSE Routes E2E', () => {
   let app: FastifyInstance;
   let mockRepository: IGuidanceRepository;
-  let serverPort: number;
 
   beforeAll(async () => {
     mockRepository = createMockRepository();
