@@ -51,7 +51,8 @@ export interface TriageConfig {
  * Database client interface for loading triage rules
  */
 export interface TriageConfigClient {
-  query<T>(sql: string, params?: unknown[]): Promise<{ rows: T[] }>;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- T is needed for caller to specify expected row type
+  query<T extends object>(sql: string, params?: unknown[]): Promise<{ rows: T[] }>;
 }
 
 /**
@@ -63,13 +64,13 @@ export interface SchedulingServiceInterface {
     preferredDates?: string[];
     limit?: number;
   }): Promise<
-    Array<{
+    {
       id: string;
       date: string;
       startTime: string;
       practitioner?: string;
       procedureTypes: string[];
-    }>
+    }[]
   >;
 }
 
@@ -122,6 +123,15 @@ const DEFAULT_CONFIG: TriageConfig = {
     priority: 'scheduling-team',
   },
 };
+
+/**
+ * Intermediate result from urgency detection phase
+ */
+interface UrgencyDetectionResult {
+  urgencyLevel: TriageResult['urgencyLevel'];
+  medicalFlags: string[];
+  prioritySchedulingRequested: boolean;
+}
 
 export class TriageService {
   private config: TriageConfig;
@@ -226,20 +236,13 @@ export class TriageService {
   }
 
   /**
-   * Perform triage assessment on a lead
-   * Determines priority scheduling based on patient needs and purchase intent
+   * Detect urgency level and collect medical flags from message content
+   * This is the shared logic used by both assess() and assessSync()
    */
-  async assess(input: TriageInput): Promise<TriageResult> {
-    // Ensure config is loaded from database
-    if (!this.configLoaded && this.configClient) {
-      await this.loadConfigFromDatabase();
-    }
-
+  private detectUrgency(input: TriageInput): UrgencyDetectionResult {
     const {
       leadScore,
-      channel,
       messageContent,
-      procedureInterest,
       hasExistingRelationship,
       previousAppointments,
       lastContactDays,
@@ -297,46 +300,80 @@ export class TriageService {
       medicalFlags.push('re_engagement_opportunity');
     }
 
-    // Determine routing
-    let routingRecommendation = this.determineRouting(
+    return { urgencyLevel, medicalFlags, prioritySchedulingRequested };
+  }
+
+  /**
+   * Find available slot with fallback to less urgent routing if needed
+   * Returns the slot and potentially downgraded routing recommendation
+   */
+  private async findSlotWithFallback(
+    initialRouting: TriageResult['routingRecommendation'],
+    procedureInterest?: string[],
+    medicalFlags?: string[]
+  ): Promise<{
+    slot: TriageResult['availableSlot'] | undefined;
+    routing: TriageResult['routingRecommendation'];
+  }> {
+    if (!this.schedulingService) {
+      return { slot: undefined, routing: initialRouting };
+    }
+
+    // Only attempt slot validation for urgent routing
+    if (initialRouting !== 'next_available_slot' && initialRouting !== 'same_day') {
+      return { slot: undefined, routing: initialRouting };
+    }
+
+    // Define fallback chain: next_available_slot -> same_day -> next_business_day
+    const fallbackChain: TriageResult['routingRecommendation'][] =
+      initialRouting === 'next_available_slot'
+        ? ['next_available_slot', 'same_day', 'next_business_day']
+        : ['same_day', 'next_business_day'];
+
+    for (const routing of fallbackChain) {
+      const slot = await this.findAvailableSlot(routing, procedureInterest);
+      if (slot) {
+        return { slot, routing };
+      }
+    }
+
+    // No slots found at any level, mark flag and use last fallback routing
+    medicalFlags?.push('no_immediate_slot_available');
+    return { slot: undefined, routing: 'next_business_day' };
+  }
+
+  /**
+   * Perform triage assessment on a lead
+   * Determines priority scheduling based on patient needs and purchase intent
+   */
+  async assess(input: TriageInput): Promise<TriageResult> {
+    // Ensure config is loaded from database
+    if (!this.configLoaded && this.configClient) {
+      await this.loadConfigFromDatabase();
+    }
+
+    const { leadScore, channel, procedureInterest } = input;
+
+    // Phase 1: Detect urgency and collect medical flags
+    const { urgencyLevel, medicalFlags, prioritySchedulingRequested } = this.detectUrgency(input);
+
+    // Phase 2: Determine initial routing
+    const initialRouting = this.determineRouting(
       urgencyLevel,
       leadScore,
       channel,
       prioritySchedulingRequested
     );
 
-    // CRITICAL: Validate slot availability for urgent routing
-    let availableSlot: TriageResult['availableSlot'] | undefined;
-    if (
-      this.schedulingService &&
-      (routingRecommendation === 'next_available_slot' || routingRecommendation === 'same_day')
-    ) {
-      availableSlot = await this.findAvailableSlot(routingRecommendation, procedureInterest);
+    // Phase 3: Validate slot availability with fallback
+    const { slot: availableSlot, routing: routingRecommendation } = await this.findSlotWithFallback(
+      initialRouting,
+      procedureInterest,
+      medicalFlags
+    );
 
-      // If no slot available, downgrade routing recommendation
-      if (!availableSlot) {
-        medicalFlags.push('no_immediate_slot_available');
-        if (routingRecommendation === 'next_available_slot') {
-          routingRecommendation = 'same_day';
-          // Try again for same_day
-          availableSlot = await this.findAvailableSlot('same_day', procedureInterest);
-          // If still no slot, downgrade to next_business_day
-          if (!availableSlot) {
-            routingRecommendation = 'next_business_day';
-            availableSlot = await this.findAvailableSlot('next_business_day', procedureInterest);
-          }
-        } else if (routingRecommendation === 'same_day') {
-          // Original was same_day, downgrade to next_business_day
-          routingRecommendation = 'next_business_day';
-          availableSlot = await this.findAvailableSlot('next_business_day', procedureInterest);
-        }
-      }
-    }
-
-    // Determine owner
+    // Phase 4: Build result
     const suggestedOwner = this.determineSuggestedOwner(procedureInterest, urgencyLevel);
-
-    // Build notes (includes safety disclaimer)
     const notes = this.buildTriageNotes(
       input,
       medicalFlags,
@@ -345,18 +382,15 @@ export class TriageService {
       availableSlot
     );
 
-    // Build result with only defined optional properties (exactOptionalPropertyTypes compliance)
     const result: TriageResult = {
       urgencyLevel,
       routingRecommendation,
       medicalFlags,
       prioritySchedulingRequested,
       notes,
-      // suggestedOwner is always defined since determineSuggestedOwner always returns a string
       suggestedOwner,
     };
 
-    // Add availableSlot only if defined
     if (availableSlot !== undefined) {
       result.availableSlot = availableSlot;
     }
@@ -369,69 +403,12 @@ export class TriageService {
    * @deprecated Use async assess() method instead for slot validation
    */
   assessSync(input: TriageInput): Omit<TriageResult, 'availableSlot'> {
-    const {
-      leadScore,
-      channel,
-      messageContent,
-      procedureInterest,
-      hasExistingRelationship,
-      previousAppointments,
-      lastContactDays,
-    } = input;
+    const { leadScore, channel, procedureInterest } = input;
 
-    const lowerContent = messageContent.toLowerCase();
-    const medicalFlags: string[] = [];
-    let urgencyLevel: TriageResult['urgencyLevel'] = 'normal';
-    let prioritySchedulingRequested = false;
+    // Phase 1: Detect urgency and collect medical flags
+    const { urgencyLevel, medicalFlags, prioritySchedulingRequested } = this.detectUrgency(input);
 
-    // Check for medical emergency keywords - advise calling 112
-    const hasEmergencyKeywords = this.config.medicalEmergencyKeywords.some((k) =>
-      lowerContent.includes(k)
-    );
-    if (hasEmergencyKeywords) {
-      medicalFlags.push('potential_emergency_refer_112');
-    }
-
-    // Check for priority keywords (pain/discomfort indicating high purchase intent)
-    const prioritySymptoms = this.config.priorityKeywords.filter((k) => lowerContent.includes(k));
-    if (prioritySymptoms.length > 0) {
-      urgencyLevel = 'high_priority';
-      prioritySchedulingRequested = true;
-      medicalFlags.push('priority_scheduling_requested');
-      medicalFlags.push(...prioritySymptoms.map((s) => `symptom:${s.replace(/\s+/g, '_')}`));
-    }
-
-    // Check for explicit priority scheduling request
-    const hasSchedulingKeywords = this.config.prioritySchedulingKeywords.some((k) =>
-      lowerContent.includes(k)
-    );
-    if (hasSchedulingKeywords && !prioritySchedulingRequested) {
-      prioritySchedulingRequested = true;
-      medicalFlags.push('priority_scheduling_requested');
-      if (urgencyLevel === 'normal') {
-        urgencyLevel = 'high';
-      }
-    }
-
-    // Score-based urgency adjustment
-    if (leadScore === 'HOT' && urgencyLevel === 'normal') {
-      urgencyLevel = 'high';
-    }
-
-    // Existing patient priority
-    if (hasExistingRelationship && previousAppointments && previousAppointments > 0) {
-      medicalFlags.push('existing_patient');
-      if (urgencyLevel === 'normal') {
-        urgencyLevel = 'high';
-      }
-    }
-
-    // Re-engagement priority
-    if (lastContactDays && lastContactDays > 180) {
-      medicalFlags.push('re_engagement_opportunity');
-    }
-
-    // Determine routing
+    // Phase 2: Determine routing (no slot validation in sync version)
     const routingRecommendation = this.determineRouting(
       urgencyLevel,
       leadScore,
@@ -439,10 +416,8 @@ export class TriageService {
       prioritySchedulingRequested
     );
 
-    // Determine owner
+    // Phase 3: Build result
     const suggestedOwner = this.determineSuggestedOwner(procedureInterest, urgencyLevel);
-
-    // Build notes (includes safety disclaimer)
     const notes = this.buildTriageNotes(
       input,
       medicalFlags,
@@ -475,18 +450,23 @@ export class TriageService {
     const preferredDates: string[] = [];
 
     switch (routing) {
-      case 'next_available_slot':
+      case 'next_available_slot': {
         // Today only
-        preferredDates.push(today.toISOString().split('T')[0]!);
+        const todayStr = today.toISOString().split('T')[0] ?? '';
+        preferredDates.push(todayStr);
         break;
-      case 'same_day':
+      }
+      case 'same_day': {
         // Today and tomorrow
-        preferredDates.push(today.toISOString().split('T')[0]!);
+        const todayStr = today.toISOString().split('T')[0] ?? '';
+        preferredDates.push(todayStr);
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
-        preferredDates.push(tomorrow.toISOString().split('T')[0]!);
+        const tomorrowStr = tomorrow.toISOString().split('T')[0] ?? '';
+        preferredDates.push(tomorrowStr);
         break;
-      case 'next_business_day':
+      }
+      case 'next_business_day': {
         // Next 3 business days
         for (let i = 1; i <= 5; i++) {
           const date = new Date(today);
@@ -494,12 +474,15 @@ export class TriageService {
           const dayOfWeek = date.getDay();
           // Skip weekends (0 = Sunday, 6 = Saturday)
           if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-            preferredDates.push(date.toISOString().split('T')[0]!);
+            const dateStr = date.toISOString().split('T')[0] ?? '';
+            preferredDates.push(dateStr);
             if (preferredDates.length >= 3) break;
           }
         }
         break;
-      default:
+      }
+      case 'nurture_sequence':
+        // No slot needed for nurture sequence
         return undefined;
     }
 
