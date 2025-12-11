@@ -277,12 +277,7 @@ function createMockRepository(): ComplianceMatrixRepository {
 // Arbitraries for Property-Based Testing
 // =============================================================================
 
-const complianceStatusArb = fc.constantFrom<ComplianceStatus>(
-  'compliant',
-  'in_progress',
-  'non_compliant',
-  'not_applicable'
-);
+
 
 const constraintCategoryArb = fc.constantFrom<ConstraintCategory>(
   'hipaa',
