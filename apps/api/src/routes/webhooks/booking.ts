@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
+import crypto from 'crypto';
 import {
   ValidationError,
   toSafeErrorResponse,
@@ -12,7 +13,74 @@ import { tasks } from '@trigger.dev/sdk/v3';
 /**
  * Booking webhook routes
  * Handles WhatsApp interactive button/list selection callbacks for appointment booking
+ *
+ * SECURITY: All endpoints require BOOKING_WEBHOOK_SECRET for authentication
  */
+
+/**
+ * SECURITY: Timing-safe comparison for webhook secrets
+ * Prevents timing attacks by using constant-time comparison
+ */
+function verifySecretTimingSafe(
+  providedSecret: string | undefined,
+  expectedSecret: string | undefined
+): boolean {
+  if (!providedSecret || !expectedSecret) {
+    return false;
+  }
+
+  try {
+    const providedBuffer = Buffer.from(providedSecret);
+    const expectedBuffer = Buffer.from(expectedSecret);
+
+    if (providedBuffer.length !== expectedBuffer.length) {
+      // Perform a dummy comparison to maintain constant time
+      crypto.timingSafeEqual(expectedBuffer, expectedBuffer);
+      return false;
+    }
+
+    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Verify booking webhook authentication
+ * Returns error response if authentication fails, null if successful
+ */
+function verifyBookingAuth(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  correlationId: string,
+  fastify: {
+    log: { error: (obj: object, msg: string) => void; warn: (obj: object, msg: string) => void };
+  }
+): { status: number; body: object } | null {
+  const secretHeaderValue = request.headers['x-booking-webhook-secret'];
+  const secretHeader = typeof secretHeaderValue === 'string' ? secretHeaderValue : undefined;
+  const configuredSecret = process.env.BOOKING_WEBHOOK_SECRET;
+
+  // SECURITY: Always require authentication - no bypass allowed
+  // Even in development, authentication is mandatory to prevent security vulnerabilities
+  if (!configuredSecret) {
+    fastify.log.error(
+      { correlationId },
+      'BOOKING_WEBHOOK_SECRET not configured - rejecting request'
+    );
+    return {
+      status: 503,
+      body: { status: 'error', message: 'Webhook authentication not configured' },
+    };
+  }
+
+  if (!verifySecretTimingSafe(secretHeader, configuredSecret)) {
+    fastify.log.warn({ correlationId }, 'Invalid booking webhook secret');
+    return { status: 401, body: { status: 'unauthorized' } };
+  }
+
+  return null; // Authentication successful
+}
 
 /**
  * Normalize and validate phone number to E.164 format
@@ -78,6 +146,12 @@ export const bookingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
     '/webhooks/booking/interactive',
     async (request: FastifyRequest, reply: FastifyReply) => {
       const correlationId = getCorrelationId(request);
+
+      // SECURITY: Verify webhook authentication
+      const authError = verifyBookingAuth(request, reply, correlationId, fastify);
+      if (authError) {
+        return reply.status(authError.status).send(authError.body);
+      }
 
       try {
         const parseResult = InteractiveCallbackSchema.safeParse(request.body);
@@ -210,6 +284,12 @@ export const bookingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/webhooks/booking/direct', async (request: FastifyRequest, reply: FastifyReply) => {
     const correlationId = getCorrelationId(request);
 
+    // SECURITY: Verify webhook authentication
+    const authError = verifyBookingAuth(request, reply, correlationId, fastify);
+    if (authError) {
+      return reply.status(authError.status).send(authError.body);
+    }
+
     try {
       const parseResult = DirectBookingSchema.safeParse(request.body);
 
@@ -283,6 +363,12 @@ export const bookingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
     '/webhooks/booking/text-selection',
     async (request: FastifyRequest, reply: FastifyReply) => {
       const correlationId = getCorrelationId(request);
+
+      // SECURITY: Verify webhook authentication
+      const authError = verifyBookingAuth(request, reply, correlationId, fastify);
+      if (authError) {
+        return reply.status(authError.status).send(authError.body);
+      }
 
       try {
         const parseResult = TextSelectionSchema.safeParse(request.body);

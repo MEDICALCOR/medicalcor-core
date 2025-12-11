@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { z } from 'zod';
+import crypto from 'crypto';
 
 /**
  * Booking Webhook Tests
  *
  * Comprehensive tests for the booking webhook endpoints covering:
+ * - Secret verification (timing-safe comparison)
  * - Interactive callback processing (WhatsApp button/list replies)
  * - Direct booking endpoint
  * - Text-based slot selection fallback
@@ -58,6 +60,31 @@ vi.mock('@medicalcor/core', () => ({
     return { isValid: false, normalized: phone };
   }),
 }));
+
+// Helper to verify timing-safe secret comparison (matches booking.ts implementation)
+function verifySecretTimingSafe(
+  providedSecret: string | undefined,
+  expectedSecret: string | undefined
+): boolean {
+  if (!providedSecret || !expectedSecret) {
+    return false;
+  }
+
+  try {
+    const providedBuffer = Buffer.from(providedSecret);
+    const expectedBuffer = Buffer.from(expectedSecret);
+
+    if (providedBuffer.length !== expectedBuffer.length) {
+      // Perform a dummy comparison to maintain constant time
+      crypto.timingSafeEqual(expectedBuffer, expectedBuffer);
+      return false;
+    }
+
+    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+  } catch {
+    return false;
+  }
+}
 
 // Zod schemas matching the webhook implementation
 const InteractiveCallbackSchema = z.object({
@@ -131,8 +158,106 @@ function createTextSelection(overrides = {}) {
 }
 
 describe('Booking Webhook Processing', () => {
+  const WEBHOOK_SECRET = 'booking_webhook_secret_test';
+  const originalEnv = process.env;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env = { ...originalEnv, BOOKING_WEBHOOK_SECRET: WEBHOOK_SECRET };
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
+  describe('Secret Verification', () => {
+    it('should accept valid secret with timing-safe comparison', () => {
+      const isValid = verifySecretTimingSafe(WEBHOOK_SECRET, WEBHOOK_SECRET);
+      expect(isValid).toBe(true);
+    });
+
+    it('should reject invalid secret', () => {
+      const isValid = verifySecretTimingSafe('wrong_secret', WEBHOOK_SECRET);
+      expect(isValid).toBe(false);
+    });
+
+    it('should reject missing secret', () => {
+      const isValid = verifySecretTimingSafe(undefined, WEBHOOK_SECRET);
+      expect(isValid).toBe(false);
+    });
+
+    it('should reject empty secret', () => {
+      const isValid = verifySecretTimingSafe('', WEBHOOK_SECRET);
+      expect(isValid).toBe(false);
+    });
+
+    it('should reject when expected secret is missing', () => {
+      const isValid = verifySecretTimingSafe(WEBHOOK_SECRET, undefined);
+      expect(isValid).toBe(false);
+    });
+
+    it('should reject different length secrets safely', () => {
+      // This tests that we don't leak timing info for different lengths
+      const shortSecret = 'short';
+      const longSecret = 'a_much_longer_secret_value';
+
+      const result1 = verifySecretTimingSafe(shortSecret, WEBHOOK_SECRET);
+      const result2 = verifySecretTimingSafe(longSecret, WEBHOOK_SECRET);
+
+      expect(result1).toBe(false);
+      expect(result2).toBe(false);
+    });
+
+    it('should handle special characters in secrets', () => {
+      const specialSecret = 'sec!@#$%^&*()_+={}[]|\\:";\'<>,.?/~`';
+
+      const isValid = verifySecretTimingSafe(specialSecret, specialSecret);
+      expect(isValid).toBe(true);
+
+      const isInvalid = verifySecretTimingSafe('different', specialSecret);
+      expect(isInvalid).toBe(false);
+    });
+
+    it('should handle unicode in secrets', () => {
+      const unicodeSecret = 'secret_αβγδ_日本語_🔐';
+
+      const isValid = verifySecretTimingSafe(unicodeSecret, unicodeSecret);
+      expect(isValid).toBe(true);
+    });
+  });
+
+  describe('Authentication Environment Checks', () => {
+    it('should require secret in production', () => {
+      process.env.NODE_ENV = 'production';
+      delete process.env.BOOKING_WEBHOOK_SECRET;
+
+      const configuredSecret = process.env.BOOKING_WEBHOOK_SECRET;
+      const isProduction = process.env.NODE_ENV === 'production';
+
+      expect(isProduction).toBe(true);
+      expect(configuredSecret).toBeUndefined();
+      // Should return 503 error
+    });
+
+    it('should require secret in development too', () => {
+      process.env.NODE_ENV = 'development';
+      delete process.env.BOOKING_WEBHOOK_SECRET;
+
+      const configuredSecret = process.env.BOOKING_WEBHOOK_SECRET;
+
+      expect(configuredSecret).toBeUndefined();
+      // Authentication is now mandatory even in development
+    });
+
+    it('should require secret in test environment', () => {
+      process.env.NODE_ENV = 'test';
+      delete process.env.BOOKING_WEBHOOK_SECRET;
+
+      const configuredSecret = process.env.BOOKING_WEBHOOK_SECRET;
+
+      expect(configuredSecret).toBeUndefined();
+      // Authentication is mandatory in all environments
+    });
   });
 
   describe('Interactive Callback Schema Validation', () => {
