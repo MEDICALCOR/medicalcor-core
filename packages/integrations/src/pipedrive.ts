@@ -123,16 +123,16 @@ interface PipedriveApiResponse<T> {
 interface PipedriveSearchResponse {
   success: boolean;
   data: {
-    items: Array<{
+    items: {
       result_score: number;
       item: {
         id: number;
         type: string;
         name?: string;
-        phone?: Array<{ value: string }>;
-        email?: Array<{ value: string }>;
+        phone?: { value: string }[];
+        email?: { value: string }[];
       };
-    }>;
+    }[];
   };
   additional_data?: {
     pagination?: {
@@ -378,7 +378,7 @@ export class PipedriveClient {
     return this.createPerson({
       ...data,
       phone: [phone],
-    });
+    } as PipedriveCreatePersonInput);
   }
 
   // ===========================================================================
@@ -389,9 +389,7 @@ export class PipedriveClient {
    * Get deal by ID
    */
   async getDeal(dealId: number): Promise<PipedriveDeal | null> {
-    const response = await this.request<PipedriveApiResponse<PipedriveDeal>>(
-      `/v1/deals/${dealId}`
-    );
+    const response = await this.request<PipedriveApiResponse<PipedriveDeal>>(`/v1/deals/${dealId}`);
 
     if (!response.success || !response.data) {
       return null;
@@ -559,13 +557,10 @@ export class PipedriveClient {
       done: validated.done ?? false,
     };
 
-    const response = await this.request<PipedriveApiResponse<PipedriveActivity>>(
-      '/v1/activities',
-      {
-        method: 'POST',
-        body: JSON.stringify(activityInput),
-      }
-    );
+    const response = await this.request<PipedriveApiResponse<PipedriveActivity>>('/v1/activities', {
+      method: 'POST',
+      body: JSON.stringify(activityInput),
+    });
 
     if (!response.success || !response.data) {
       throw new ExternalServiceError(
@@ -716,8 +711,7 @@ export class PipedriveClient {
    * Get all pipelines
    */
   async getPipelines(): Promise<PipedrivePipeline[]> {
-    const response =
-      await this.request<PipedriveApiResponse<PipedrivePipeline[]>>('/v1/pipelines');
+    const response = await this.request<PipedriveApiResponse<PipedrivePipeline[]>>('/v1/pipelines');
 
     if (!response.success || !response.data) {
       return [];
@@ -792,9 +786,7 @@ export class PipedriveClient {
    * Get user by ID
    */
   async getUser(userId: number): Promise<PipedriveUser | null> {
-    const response = await this.request<PipedriveApiResponse<PipedriveUser>>(
-      `/v1/users/${userId}`
-    );
+    const response = await this.request<PipedriveApiResponse<PipedriveUser>>(`/v1/users/${userId}`);
 
     if (!response.success || !response.data) {
       return null;
@@ -897,7 +889,7 @@ export class PipedriveClient {
       if (options.headers instanceof Headers) {
         customHeaders = Object.fromEntries(options.headers.entries());
       } else if (Array.isArray(options.headers)) {
-        customHeaders = Object.fromEntries(options.headers as Array<[string, string]>);
+        customHeaders = Object.fromEntries(options.headers as [string, string][]);
       } else if (options.headers) {
         customHeaders = options.headers as Record<string, string>;
       }
