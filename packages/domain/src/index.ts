@@ -431,6 +431,9 @@ export * from './data-classification/index.js';
 // Breach Notification (L3 Milestone - GDPR Compliance)
 export * from './breach-notification/index.js';
 
+// Compliance Matrix - Constraint compliance tracking across sprints
+export * from './compliance-matrix/index.js';
+
 // ============================================================================
 // SHARED TYPES & UTILITIES
 // ============================================================================

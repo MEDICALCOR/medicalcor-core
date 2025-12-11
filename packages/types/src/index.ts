@@ -1553,3 +1553,70 @@ export {
   type BatchQueueEventResult,
   type QueueBreachStats,
 } from './schemas/queue.js';
+
+// =============================================================================
+// Compliance Matrix Schemas
+// =============================================================================
+export {
+  // Status & Category Enums
+  ComplianceStatusSchema,
+  ConstraintCategorySchema,
+  ConstraintSeveritySchema,
+  // Constraint Definition
+  ConstraintDefinitionSchema,
+  CreateConstraintDefinitionSchema,
+  UpdateConstraintDefinitionSchema,
+  // Work Items
+  ComplianceWorkItemSchema,
+  // Sprint Compliance
+  SprintComplianceEntrySchema,
+  CreateSprintComplianceEntrySchema,
+  UpdateSprintComplianceEntrySchema,
+  // Sprint Definition
+  SprintDefinitionSchema,
+  // Full Matrix
+  ComplianceMatrixSchema,
+  // Query
+  ComplianceQueryFiltersSchema,
+  // Reports
+  SprintComplianceSummarySchema,
+  CategoryComplianceSummarySchema,
+  ConstraintAttentionItemSchema,
+  ComplianceMatrixReportSchema,
+  // Events
+  ComplianceStatusChangedEventSchema,
+  CriticalViolationDetectedEventSchema,
+  ComplianceTargetMissedEventSchema,
+  // Constants
+  DEFAULT_MEDICALCOR_CONSTRAINTS,
+  COMPLIANCE_STATUS_DISPLAY,
+  CONSTRAINT_CATEGORY_DISPLAY,
+  // Helper Functions
+  calculateCompliancePercentage,
+  determineComplianceTrend,
+  requiresImmediateAttention,
+  calculateDaysFromTarget,
+  getSeverityWeight,
+  sortByPriority,
+  // Types
+  type ComplianceStatus,
+  type ConstraintCategory,
+  type ConstraintSeverity,
+  type ConstraintDefinition,
+  type CreateConstraintDefinition,
+  type UpdateConstraintDefinition,
+  type ComplianceWorkItem,
+  type SprintComplianceEntry,
+  type CreateSprintComplianceEntry,
+  type UpdateSprintComplianceEntry,
+  type SprintDefinition,
+  type ComplianceMatrix,
+  type ComplianceQueryFilters,
+  type SprintComplianceSummary,
+  type CategoryComplianceSummary,
+  type ConstraintAttentionItem,
+  type ComplianceMatrixReport,
+  type ComplianceStatusChangedEvent,
+  type CriticalViolationDetectedEvent,
+  type ComplianceTargetMissedEvent,
+} from './schemas/compliance-matrix.js';
