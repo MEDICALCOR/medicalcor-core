@@ -15,18 +15,43 @@ import {
 // Mock Setup
 // =============================================================================
 
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
+// Store original fetch to restore later
+const originalFetch = global.fetch;
 
-const consoleMocks = {
-  error: vi.spyOn(console, 'error').mockImplementation(() => {}),
-};
+// Create a mock fetch that returns Response-like objects
+const mockFetch = vi.fn();
+
+// Helper to create a proper Response-like mock
+function createMockResponse(ok: boolean, data: unknown, status = 200) {
+  const response = {
+    ok,
+    status,
+    json: vi.fn().mockResolvedValue(data),
+    clone: vi.fn().mockReturnThis(),
+    text: vi.fn().mockResolvedValue(JSON.stringify(data)),
+    headers: new Headers(),
+  };
+  response.clone.mockReturnValue(response);
+  return response;
+}
+
+// Store console mocks - will be set up in beforeEach
+let consoleMocks: { error: ReturnType<typeof vi.spyOn> };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Replace global fetch with our mock
+  global.fetch = mockFetch as unknown as typeof fetch;
+  // Set up console mocks fresh for each test
+  consoleMocks = {
+    error: vi.spyOn(console, 'error').mockImplementation(() => {}),
+  };
 });
 
 afterEach(() => {
+  // Restore original fetch
+  global.fetch = originalFetch;
+  // Restore console mocks
   vi.restoreAllMocks();
 });
 
@@ -101,10 +126,7 @@ function createMockCalls() {
 describe('getSupervisorStatsAction', () => {
   it('should return stats when fetch succeeds', async () => {
     const mockStats = createMockStats();
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockStats,
-    });
+    mockFetch.mockResolvedValueOnce(createMockResponse(true, mockStats));
 
     const result = await getSupervisorStatsAction();
 
@@ -123,10 +145,7 @@ describe('getSupervisorStatsAction', () => {
   });
 
   it('should return default stats when response is not ok', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-    });
+    mockFetch.mockResolvedValueOnce(createMockResponse(false, {}, 500));
 
     const result = await getSupervisorStatsAction();
 
@@ -164,10 +183,7 @@ describe('getSupervisorStatsAction', () => {
 
 describe('getActiveCallsAction', () => {
   it('should return transformed calls when fetch succeeds', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => createMockCalls(),
-    });
+    mockFetch.mockResolvedValueOnce(createMockResponse(true, createMockCalls()));
 
     const result = await getActiveCallsAction();
 
@@ -179,10 +195,7 @@ describe('getActiveCallsAction', () => {
   });
 
   it('should return empty array when response is not ok', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 404,
-    });
+    mockFetch.mockResolvedValueOnce(createMockResponse(false, {}, 404));
 
     const result = await getActiveCallsAction();
 
@@ -203,9 +216,8 @@ describe('getActiveCallsAction', () => {
   });
 
   it('should handle undefined recentTranscript in response', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA789',
@@ -219,8 +231,8 @@ describe('getActiveCallsAction', () => {
             flags: ['test'],
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getActiveCallsAction();
 
@@ -228,9 +240,8 @@ describe('getActiveCallsAction', () => {
   });
 
   it('should handle undefined flags in response', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA789',
@@ -244,8 +255,8 @@ describe('getActiveCallsAction', () => {
             flags: undefined,
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getActiveCallsAction();
 
@@ -254,9 +265,8 @@ describe('getActiveCallsAction', () => {
 
   it('should transform startedAt string to Date', async () => {
     const isoDate = '2024-01-15T12:30:45.000Z';
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-date',
@@ -270,8 +280,8 @@ describe('getActiveCallsAction', () => {
             flags: [],
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getActiveCallsAction();
 
@@ -286,10 +296,7 @@ describe('getActiveCallsAction', () => {
 
 describe('getAgentStatusesAction', () => {
   it('should return agent statuses derived from calls', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => createMockCalls(),
-    });
+    mockFetch.mockResolvedValueOnce(createMockResponse(true, createMockCalls()));
 
     const result = await getAgentStatusesAction();
 
@@ -303,18 +310,12 @@ describe('getAgentStatusesAction', () => {
   });
 
   it('should return empty array when response is not ok', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 503,
-    });
+    mockFetch.mockResolvedValueOnce(createMockResponse(false, {}, 503));
 
     const result = await getAgentStatusesAction();
 
     expect(result).toEqual([]);
-    expect(consoleMocks.error).toHaveBeenCalledWith(
-      'Failed to fetch calls for agent status:',
-      503
-    );
+    expect(consoleMocks.error).toHaveBeenCalledWith('Failed to fetch calls for agent status:', 503);
   });
 
   it('should return empty array when fetch throws error', async () => {
@@ -330,9 +331,8 @@ describe('getAgentStatusesAction', () => {
   });
 
   it('should skip calls without agentId', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-no-agent',
@@ -344,8 +344,8 @@ describe('getAgentStatusesAction', () => {
             startedAt: '2024-01-15T10:00:00Z',
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAgentStatusesAction();
 
@@ -353,9 +353,8 @@ describe('getAgentStatusesAction', () => {
   });
 
   it('should skip calls without agentName', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-no-name',
@@ -367,8 +366,8 @@ describe('getAgentStatusesAction', () => {
             startedAt: '2024-01-15T10:00:00Z',
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAgentStatusesAction();
 
@@ -376,9 +375,8 @@ describe('getAgentStatusesAction', () => {
   });
 
   it('should deduplicate agents by agentId', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-1',
@@ -399,8 +397,8 @@ describe('getAgentStatusesAction', () => {
             startedAt: '2024-01-15T10:05:00Z',
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAgentStatusesAction();
 
@@ -410,9 +408,8 @@ describe('getAgentStatusesAction', () => {
   });
 
   it('should set default skills and languages', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-skills',
@@ -424,8 +421,8 @@ describe('getAgentStatusesAction', () => {
             startedAt: '2024-01-15T10:00:00Z',
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAgentStatusesAction();
 
@@ -440,9 +437,8 @@ describe('getAgentStatusesAction', () => {
 
 describe('getAlertsAction', () => {
   it('should return alerts from flagged calls', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-alert',
@@ -455,8 +451,8 @@ describe('getAlertsAction', () => {
             flags: ['escalation-requested', 'high-value-lead'],
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAlertsAction();
 
@@ -469,10 +465,7 @@ describe('getAlertsAction', () => {
   });
 
   it('should return empty array when response is not ok', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-    });
+    mockFetch.mockResolvedValueOnce(createMockResponse(false, {}, 500));
 
     const result = await getAlertsAction();
 
@@ -486,16 +479,12 @@ describe('getAlertsAction', () => {
     const result = await getAlertsAction();
 
     expect(result).toEqual([]);
-    expect(consoleMocks.error).toHaveBeenCalledWith(
-      'Error fetching alerts:',
-      expect.any(Error)
-    );
+    expect(consoleMocks.error).toHaveBeenCalledWith('Error fetching alerts:', expect.any(Error));
   });
 
   it('should handle undefined flags array', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-no-flags',
@@ -508,8 +497,8 @@ describe('getAlertsAction', () => {
             flags: undefined,
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAlertsAction();
 
@@ -517,9 +506,8 @@ describe('getAlertsAction', () => {
   });
 
   it('should handle empty flags array', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-empty-flags',
@@ -532,8 +520,8 @@ describe('getAlertsAction', () => {
             flags: [],
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAlertsAction();
 
@@ -541,9 +529,8 @@ describe('getAlertsAction', () => {
   });
 
   it('should use current date when startedAt is undefined', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-no-date',
@@ -556,8 +543,8 @@ describe('getAlertsAction', () => {
             flags: ['escalation-requested'],
           },
         ],
-      }),
-    });
+      })
+    );
 
     const before = new Date();
     const result = await getAlertsAction();
@@ -568,9 +555,8 @@ describe('getAlertsAction', () => {
   });
 
   it('should sort alerts by severity then timestamp', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-1',
@@ -603,8 +589,8 @@ describe('getAlertsAction', () => {
             flags: ['complaint'], // critical
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAlertsAction();
 
@@ -618,9 +604,8 @@ describe('getAlertsAction', () => {
   });
 
   it('should sort by timestamp when severity is equal', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-older',
@@ -643,8 +628,8 @@ describe('getAlertsAction', () => {
             flags: ['silence-detected'],
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAlertsAction();
 
@@ -660,9 +645,8 @@ describe('getAlertsAction', () => {
 
 describe('mapFlagToAlertType - all cases', () => {
   it('should map escalation-requested to escalation', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-1',
@@ -672,17 +656,16 @@ describe('mapFlagToAlertType - all cases', () => {
             flags: ['escalation-requested'],
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAlertsAction();
     expect(result[0]?.type).toBe('escalation');
   });
 
   it('should map long-hold to long-hold', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-1',
@@ -692,17 +675,16 @@ describe('mapFlagToAlertType - all cases', () => {
             flags: ['long-hold'],
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAlertsAction();
     expect(result[0]?.type).toBe('long-hold');
   });
 
   it('should map silence-detected to silence', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-1',
@@ -712,17 +694,16 @@ describe('mapFlagToAlertType - all cases', () => {
             flags: ['silence-detected'],
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAlertsAction();
     expect(result[0]?.type).toBe('silence');
   });
 
   it('should map high-value-lead to high-value', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-1',
@@ -732,17 +713,16 @@ describe('mapFlagToAlertType - all cases', () => {
             flags: ['high-value-lead'],
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAlertsAction();
     expect(result[0]?.type).toBe('high-value');
   });
 
   it('should map ai-handoff-needed to ai-handoff', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-1',
@@ -752,17 +732,16 @@ describe('mapFlagToAlertType - all cases', () => {
             flags: ['ai-handoff-needed'],
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAlertsAction();
     expect(result[0]?.type).toBe('ai-handoff');
   });
 
   it('should map unknown flag to escalation (default)', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-1',
@@ -772,8 +751,8 @@ describe('mapFlagToAlertType - all cases', () => {
             flags: ['unknown-flag'],
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAlertsAction();
     expect(result[0]?.type).toBe('escalation');
@@ -786,9 +765,8 @@ describe('mapFlagToAlertType - all cases', () => {
 
 describe('mapFlagToSeverity - all cases', () => {
   it('should map escalation-requested to critical', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-1',
@@ -798,17 +776,16 @@ describe('mapFlagToSeverity - all cases', () => {
             flags: ['escalation-requested'],
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAlertsAction();
     expect(result[0]?.severity).toBe('critical');
   });
 
   it('should map complaint to critical', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-1',
@@ -818,17 +795,16 @@ describe('mapFlagToSeverity - all cases', () => {
             flags: ['complaint'],
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAlertsAction();
     expect(result[0]?.severity).toBe('critical');
   });
 
   it('should map long-hold to warning', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-1',
@@ -838,17 +814,16 @@ describe('mapFlagToSeverity - all cases', () => {
             flags: ['long-hold'],
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAlertsAction();
     expect(result[0]?.severity).toBe('warning');
   });
 
   it('should map ai-handoff-needed to warning', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-1',
@@ -858,17 +833,16 @@ describe('mapFlagToSeverity - all cases', () => {
             flags: ['ai-handoff-needed'],
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAlertsAction();
     expect(result[0]?.severity).toBe('warning');
   });
 
   it('should map unknown flags to info (default)', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-1',
@@ -878,8 +852,8 @@ describe('mapFlagToSeverity - all cases', () => {
             flags: ['high-value-lead'],
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAlertsAction();
     expect(result[0]?.severity).toBe('info');
@@ -892,9 +866,8 @@ describe('mapFlagToSeverity - all cases', () => {
 
 describe('getAlertMessage - all cases', () => {
   it('should return correct message for escalation-requested', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-1',
@@ -904,17 +877,16 @@ describe('getAlertMessage - all cases', () => {
             flags: ['escalation-requested'],
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAlertsAction();
     expect(result[0]?.message).toBe('Solicitare de escaladare de la client');
   });
 
   it('should return correct message for long-hold with duration', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-1',
@@ -924,17 +896,16 @@ describe('getAlertMessage - all cases', () => {
             flags: ['long-hold'],
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAlertsAction();
     expect(result[0]?.message).toBe('Client în așteptare de 5 minute');
   });
 
   it('should return correct message for silence-detected', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-1',
@@ -944,17 +915,16 @@ describe('getAlertMessage - all cases', () => {
             flags: ['silence-detected'],
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAlertsAction();
     expect(result[0]?.message).toBe('Tăcere prelungită detectată în apel');
   });
 
   it('should return correct message for high-value-lead', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-1',
@@ -964,17 +934,16 @@ describe('getAlertMessage - all cases', () => {
             flags: ['high-value-lead'],
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAlertsAction();
     expect(result[0]?.message).toBe('Lead cu potențial ridicat identificat');
   });
 
   it('should return correct message for ai-handoff-needed', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-1',
@@ -984,17 +953,16 @@ describe('getAlertMessage - all cases', () => {
             flags: ['ai-handoff-needed'],
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAlertsAction();
     expect(result[0]?.message).toBe('AI solicită transfer către agent uman');
   });
 
   it('should return correct message for complaint', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-1',
@@ -1004,17 +972,16 @@ describe('getAlertMessage - all cases', () => {
             flags: ['complaint'],
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAlertsAction();
     expect(result[0]?.message).toBe('Reclamație detectată în conversație');
   });
 
   it('should return default message for unknown flags', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    mockFetch.mockResolvedValueOnce(
+      createMockResponse(true, {
         calls: [
           {
             callSid: 'CA-1',
@@ -1024,8 +991,8 @@ describe('getAlertMessage - all cases', () => {
             flags: ['some-unknown-flag'],
           },
         ],
-      }),
-    });
+      })
+    );
 
     const result = await getAlertsAction();
     expect(result[0]?.message).toBe('Alertă activă');
