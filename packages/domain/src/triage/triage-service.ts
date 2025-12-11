@@ -88,6 +88,16 @@ interface TriageOwnerRow {
 }
 
 /**
+ * Categorized rules loaded from database
+ */
+interface CategorizedRules {
+  priorityKeywords: string[];
+  emergencyKeywords: string[];
+  schedulingKeywords: string[];
+  vipPhones: string[];
+}
+
+/**
  * Default configuration (fallback when database is not available)
  */
 const DEFAULT_CONFIG: TriageConfig = {
@@ -175,63 +185,89 @@ export class TriageService {
     if (!this.configClient) return;
 
     try {
-      // Load rules from database
-      const rulesResult = await this.configClient.query<TriageRuleRow>(
-        `SELECT rule_type, value FROM triage_rules WHERE active = true ORDER BY priority DESC`
-      );
+      const rules = await this.loadRulesFromDatabase();
+      const owners = await this.loadOwnersFromDatabase();
 
-      const priorityKeywords: string[] = [];
-      const emergencyKeywords: string[] = [];
-      const schedulingKeywords: string[] = [];
-      const vipPhones: string[] = [];
-
-      for (const row of rulesResult.rows) {
-        switch (row.rule_type) {
-          case 'priority_keyword':
-            priorityKeywords.push(row.value);
-            break;
-          case 'emergency_keyword':
-            emergencyKeywords.push(row.value);
-            break;
-          case 'scheduling_keyword':
-            schedulingKeywords.push(row.value);
-            break;
-          case 'vip_phone':
-            vipPhones.push(row.value);
-            break;
-        }
-      }
-
-      // Load owners from database
-      const ownersResult = await this.configClient.query<TriageOwnerRow>(
-        `SELECT owner_key, owner_value FROM triage_owners WHERE active = true`
-      );
-
-      const defaultOwners: Record<string, string> = {};
-      for (const row of ownersResult.rows) {
-        defaultOwners[row.owner_key] = row.owner_value;
-      }
-
-      // Update config only if we got data
-      if (priorityKeywords.length > 0) {
-        this.config.priorityKeywords = priorityKeywords;
-      }
-      if (emergencyKeywords.length > 0) {
-        this.config.medicalEmergencyKeywords = emergencyKeywords;
-      }
-      if (schedulingKeywords.length > 0) {
-        this.config.prioritySchedulingKeywords = schedulingKeywords;
-      }
-      if (vipPhones.length > 0) {
-        this.config.vipPhones = vipPhones;
-      }
-      if (Object.keys(defaultOwners).length > 0) {
-        this.config.defaultOwners = { ...this.config.defaultOwners, ...defaultOwners };
-      }
+      this.applyLoadedRules(rules);
+      this.applyLoadedOwners(owners);
 
       this.configLoaded = true;
     } catch (error) {
       logger.warn({ error }, 'Failed to load triage config from database - using default config');
+    }
+  }
+
+  /**
+   * Load and categorize rules from database
+   */
+  private async loadRulesFromDatabase(): Promise<CategorizedRules> {
+    const result = await this.configClient!.query<TriageRuleRow>(
+      `SELECT rule_type, value FROM triage_rules WHERE active = true ORDER BY priority DESC`
+    );
+
+    const rules: CategorizedRules = {
+      priorityKeywords: [],
+      emergencyKeywords: [],
+      schedulingKeywords: [],
+      vipPhones: [],
+    };
+
+    const ruleTypeToCategory: Record<string, keyof CategorizedRules> = {
+      priority_keyword: 'priorityKeywords',
+      emergency_keyword: 'emergencyKeywords',
+      scheduling_keyword: 'schedulingKeywords',
+      vip_phone: 'vipPhones',
+    };
+
+    for (const row of result.rows) {
+      const category = ruleTypeToCategory[row.rule_type];
+      if (category) {
+        rules[category].push(row.value);
+      }
+    }
+
+    return rules;
+  }
+
+  /**
+   * Load owners mapping from database
+   */
+  private async loadOwnersFromDatabase(): Promise<Record<string, string>> {
+    const result = await this.configClient!.query<TriageOwnerRow>(
+      `SELECT owner_key, owner_value FROM triage_owners WHERE active = true`
+    );
+
+    const owners: Record<string, string> = {};
+    for (const row of result.rows) {
+      owners[row.owner_key] = row.owner_value;
+    }
+    return owners;
+  }
+
+  /**
+   * Apply loaded rules to config (only if non-empty)
+   */
+  private applyLoadedRules(rules: CategorizedRules): void {
+    if (rules.priorityKeywords.length > 0) {
+      this.config.priorityKeywords = rules.priorityKeywords;
+    }
+    if (rules.emergencyKeywords.length > 0) {
+      this.config.medicalEmergencyKeywords = rules.emergencyKeywords;
+    }
+    if (rules.schedulingKeywords.length > 0) {
+      this.config.prioritySchedulingKeywords = rules.schedulingKeywords;
+    }
+    if (rules.vipPhones.length > 0) {
+      this.config.vipPhones = rules.vipPhones;
+    }
+  }
+
+  /**
+   * Apply loaded owners to config (merge with defaults)
+   */
+  private applyLoadedOwners(owners: Record<string, string>): void {
+    if (Object.keys(owners).length > 0) {
+      this.config.defaultOwners = { ...this.config.defaultOwners, ...owners };
     }
   }
 

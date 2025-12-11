@@ -198,74 +198,13 @@ export class TriageRoutingIntegration {
     const requiredSkills: SkillRequirement[] = [];
     const preferredSkills: SkillRequirement[] = [...this.config.defaultSkillRequirements];
 
-    // Add procedure-based skills
-    if (input.procedureInterest) {
-      for (const procedure of input.procedureInterest) {
-        const procedureLower = procedure.toLowerCase();
-        const skillIds =
-          this.config.procedureSkillMapping.get(procedureLower) ??
-          this.config.procedureSkillMapping.get(procedure);
+    this.addProcedureSkills(input.procedureInterest, triage.urgencyLevel, requiredSkills);
+    this.addChannelSkills(input.channel, preferredSkills);
+    this.addVipSkillIfApplicable(input.messageContent, requiredSkills);
+    this.addEscalationSkillIfHighPriority(triage.urgencyLevel, preferredSkills);
 
-        if (skillIds) {
-          for (const skillId of skillIds) {
-            requiredSkills.push({
-              skillId,
-              matchType: 'required',
-              minimumProficiency:
-                triage.urgencyLevel === 'high_priority' ? 'advanced' : 'intermediate',
-              weight: 50,
-            });
-          }
-        }
-      }
-    }
-
-    // Add channel-based skills
-    const channelSkills = this.config.channelSkillMapping.get(input.channel);
-    if (channelSkills) {
-      for (const skillId of channelSkills) {
-        preferredSkills.push({
-          skillId,
-          matchType: 'preferred',
-          minimumProficiency: 'intermediate',
-          weight: 25,
-        });
-      }
-    }
-
-    // Add VIP skill requirement if VIP
-    if (this.triageService.isVIP(input.messageContent) && this.config.vipSkillId) {
-      requiredSkills.push({
-        skillId: this.config.vipSkillId,
-        matchType: 'required',
-        minimumProficiency: 'advanced',
-        weight: 75,
-      });
-    }
-
-    // Add escalation skill for high priority
-    if (
-      (triage.urgencyLevel === 'high_priority' || triage.urgencyLevel === 'high') &&
-      this.config.escalationSkillId
-    ) {
-      preferredSkills.push({
-        skillId: this.config.escalationSkillId,
-        matchType: 'preferred',
-        minimumProficiency: 'intermediate',
-        weight: 40,
-      });
-    }
-
-    // Calculate priority
-    const basePriority = this.config.urgencyPriorityMapping[triage.urgencyLevel];
-    const scoreBoost = this.config.leadScorePriorityBoost[input.leadScore];
-    const priority = Math.min(100, Math.max(0, basePriority + scoreBoost));
-
-    // Build preferred agent list from suggested owner
-    const preferAgentIds: string[] = [];
-    if (this.config.useSuggestedOwnerAsPreference && triage.suggestedOwner) {
-      preferAgentIds.push(triage.suggestedOwner);
-    }
+    const priority = this.calculatePriority(triage.urgencyLevel, input.leadScore);
+    const preferAgentIds = this.buildPreferredAgentIds(triage.suggestedOwner);
 
     return {
       requiredSkills,
@@ -276,6 +215,116 @@ export class TriageRoutingIntegration {
       priority,
       slaDeadlineMinutes: this.getSlaFromRouting(triage.routingRecommendation),
     };
+  }
+
+  /**
+   * Add procedure-based skills to required skills list
+   */
+  private addProcedureSkills(
+    procedureInterest: string[] | undefined,
+    urgencyLevel: TriageResult['urgencyLevel'],
+    requiredSkills: SkillRequirement[]
+  ): void {
+    if (!procedureInterest) return;
+
+    const proficiency = urgencyLevel === 'high_priority' ? 'advanced' : 'intermediate';
+
+    for (const procedure of procedureInterest) {
+      const skillIds = this.lookupProcedureSkills(procedure);
+      for (const skillId of skillIds) {
+        requiredSkills.push({
+          skillId,
+          matchType: 'required',
+          minimumProficiency: proficiency,
+          weight: 50,
+        });
+      }
+    }
+  }
+
+  /**
+   * Look up skill IDs for a procedure (case-insensitive)
+   */
+  private lookupProcedureSkills(procedure: string): string[] {
+    return (
+      this.config.procedureSkillMapping.get(procedure.toLowerCase()) ??
+      this.config.procedureSkillMapping.get(procedure) ??
+      []
+    );
+  }
+
+  /**
+   * Add channel-based skills to preferred skills list
+   */
+  private addChannelSkills(channel: LeadChannel, preferredSkills: SkillRequirement[]): void {
+    const channelSkills = this.config.channelSkillMapping.get(channel);
+    if (!channelSkills) return;
+
+    for (const skillId of channelSkills) {
+      preferredSkills.push({
+        skillId,
+        matchType: 'preferred',
+        minimumProficiency: 'intermediate',
+        weight: 25,
+      });
+    }
+  }
+
+  /**
+   * Add VIP skill requirement if the message content indicates VIP status
+   */
+  private addVipSkillIfApplicable(
+    messageContent: string,
+    requiredSkills: SkillRequirement[]
+  ): void {
+    if (!this.triageService.isVIP(messageContent) || !this.config.vipSkillId) return;
+
+    requiredSkills.push({
+      skillId: this.config.vipSkillId,
+      matchType: 'required',
+      minimumProficiency: 'advanced',
+      weight: 75,
+    });
+  }
+
+  /**
+   * Add escalation skill for high priority cases
+   */
+  private addEscalationSkillIfHighPriority(
+    urgencyLevel: TriageResult['urgencyLevel'],
+    preferredSkills: SkillRequirement[]
+  ): void {
+    const isHighPriority = urgencyLevel === 'high_priority' || urgencyLevel === 'high';
+    if (!isHighPriority || !this.config.escalationSkillId) return;
+
+    preferredSkills.push({
+      skillId: this.config.escalationSkillId,
+      matchType: 'preferred',
+      minimumProficiency: 'intermediate',
+      weight: 40,
+    });
+  }
+
+  /**
+   * Calculate priority score from urgency level and lead score
+   */
+  private calculatePriority(
+    urgencyLevel: TriageResult['urgencyLevel'],
+    leadScore: LeadScore
+  ): number {
+    const basePriority = this.config.urgencyPriorityMapping[urgencyLevel];
+    const scoreBoost = this.config.leadScorePriorityBoost[leadScore];
+    return Math.min(100, Math.max(0, basePriority + scoreBoost));
+  }
+
+  /**
+   * Build preferred agent IDs list from suggested owner
+   */
+  private buildPreferredAgentIds(suggestedOwner: string | undefined): string[] {
+    if (!this.config.useSuggestedOwnerAsPreference || !suggestedOwner) {
+      return [];
+    }
+    return [suggestedOwner];
   }
 
   /**
