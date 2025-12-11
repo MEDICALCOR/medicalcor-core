@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 /**
  * @fileoverview Revenue Forecasting Service
  *

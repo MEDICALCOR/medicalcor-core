@@ -518,7 +518,8 @@ export class PostgresSupervisorStateRepository implements ISupervisorStateReposi
 
   private rowToMonitoredCall(row: Record<string, unknown>): MonitoredCall {
     const transcript = row.recent_transcript;
-    const parsedTranscript =
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- JSON.parse returns any, validated by schema at runtime
+    const parsedTranscript: MonitoredCall['recentTranscript'] =
       typeof transcript === 'string' ? JSON.parse(transcript) : (transcript ?? []);
 
     // Get flags and ensure they match the expected enum values

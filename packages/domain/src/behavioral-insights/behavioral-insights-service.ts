@@ -6,7 +6,6 @@
  *
  * @module domain/behavioral-insights/behavioral-insights-service
  */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
 
 import {
   createPatternDetector,
@@ -70,12 +69,12 @@ export interface BatchProcessingResult {
   failedSubjects: number;
   totalPatternsDetected: number;
   processingTimeMs: number;
-  results: Array<{
+  results: {
     subjectId: string;
     success: boolean;
     patternsDetected?: number;
     error?: string;
-  }>;
+  }[];
 }
 
 /**
@@ -124,11 +123,11 @@ export class BehavioralInsightsService {
   constructor(private deps: BehavioralInsightsServiceDependencies) {
     // Cast pool to the expected type - the infrastructure layer is responsible for
     // providing a pg.Pool-compatible object
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pool type abstraction for DI
-    this.patternDetector = createPatternDetector(deps.pool as any, deps.openai, deps.config);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Pool type abstraction for DI
+
+    this.patternDetector = createPatternDetector(deps.pool as unknown, deps.openai, deps.config);
+
     this.memoryRetrieval = createMemoryRetrievalService(
-      deps.pool as any,
+      deps.pool as unknown,
       deps.embeddings,
       deps.config
     );
@@ -142,7 +141,7 @@ export class BehavioralInsightsService {
    * Generate a comprehensive behavioral profile for a subject
    */
   async generateProfile(subjectType: SubjectType, subjectId: string): Promise<BehavioralProfile> {
-    const startTime = Date.now();
+    const _startTime = Date.now();
 
     // Gather all data in parallel
     const [memorySummary, patterns, insights] = await Promise.all([
@@ -226,7 +225,7 @@ export class BehavioralInsightsService {
    * Batch detect patterns for multiple subjects
    */
   async detectPatternsBatch(
-    subjects: Array<{ subjectType: SubjectType; subjectId: string }>
+    subjects: { subjectType: SubjectType; subjectId: string }[]
   ): Promise<BatchProcessingResult> {
     const startTime = Date.now();
     const results: BatchProcessingResult['results'] = [];
@@ -291,9 +290,7 @@ export class BehavioralInsightsService {
   async getChurnRiskSubjects(
     clinicId: string,
     limit = 20
-  ): Promise<
-    Array<{ subjectId: string; subjectType: SubjectType; riskLevel: string; reason: string }>
-  > {
+  ): Promise<{ subjectId: string; subjectType: SubjectType; riskLevel: string; reason: string }[]> {
     // Query for subjects with declining engagement or appointment_rescheduler patterns
     const result = await this.deps.pool.query(
       `
@@ -327,9 +324,7 @@ export class BehavioralInsightsService {
     clinicId: string,
     minDaysInactive = 60,
     limit = 20
-  ): Promise<
-    Array<{ subjectId: string; subjectType: SubjectType; daysSinceLastInteraction: number }>
-  > {
+  ): Promise<{ subjectId: string; subjectType: SubjectType; daysSinceLastInteraction: number }[]> {
     const result = await this.deps.pool.query(
       `
       SELECT

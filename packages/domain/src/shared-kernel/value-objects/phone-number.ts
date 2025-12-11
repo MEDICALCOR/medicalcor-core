@@ -126,7 +126,7 @@ export class PhoneNumber {
     }
 
     // Normalize input: remove spaces, dashes, parentheses
-    const normalized = input.replace(/[\s\-\(\)\.]/g, '');
+    const normalized = input.replace(/[\s\-().]/g, '');
 
     // Check for E.164 format
     if (normalized.startsWith('+')) {
@@ -337,7 +337,9 @@ export class PhoneNumber {
       case 'AT':
       case 'CH':
         return 'de';
-      default:
+      case 'UK':
+      case 'US':
+      case 'UNKNOWN':
         return 'en';
     }
   }

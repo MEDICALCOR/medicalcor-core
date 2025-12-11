@@ -298,6 +298,7 @@ export function validateWithResult<T extends z.ZodSchema>(
 ): { success: true; value: z.infer<T> } | { success: false; error: z.ZodError } {
   const result = schema.safeParse(data);
   if (result.success) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Zod safeParse returns properly typed data
     return { success: true, value: result.data };
   }
   return { success: false, error: result.error };
@@ -332,6 +333,7 @@ export function withValidation<TSchema extends z.ZodSchema, TReturn>(
     if (!result.success) {
       throw result.error;
     }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Zod safeParse returns properly typed data
     return fn(result.data);
   };
 }

@@ -25,7 +25,7 @@ import { PROFICIENCY_WEIGHTS } from '@medicalcor/types';
 // =============================================================================
 
 export class InMemoryAgentRepository implements AgentRepository {
-  private agents: Map<string, AgentProfile> = new Map();
+  private agents = new Map<string, AgentProfile>();
 
   /**
    * Add or update an agent
@@ -131,7 +131,7 @@ export class InMemoryAgentRepository implements AgentRepository {
 // =============================================================================
 
 export class InMemoryRoutingRuleRepository implements RoutingRuleRepository {
-  private rules: Map<string, RoutingRule> = new Map();
+  private rules = new Map<string, RoutingRule>();
 
   /**
    * Add or update a rule
@@ -216,8 +216,8 @@ export class InMemoryRoutingRuleRepository implements RoutingRuleRepository {
 type QueuedTask = QueuedTaskInfo;
 
 export class InMemoryRoutingQueue implements RoutingQueue {
-  private queues: Map<string, QueuedTask[]> = new Map();
-  private taskToQueue: Map<string, string> = new Map();
+  private queues = new Map<string, QueuedTask[]>();
+  private taskToQueue = new Map<string, string>();
   private defaultQueueId = 'default';
 
   constructor() {

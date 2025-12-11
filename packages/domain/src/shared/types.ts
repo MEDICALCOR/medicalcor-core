@@ -113,7 +113,7 @@ export function err<E>(error: E): Failure<E> {
  * @returns True if the result is a success
  */
 export function isOk<T, E>(result: Result<T, E>): result is Success<T> {
-  return result.success === true;
+  return result.success;
 }
 
 /**
@@ -123,7 +123,7 @@ export function isOk<T, E>(result: Result<T, E>): result is Success<T> {
  * @returns True if the result is a failure
  */
 export function isErr<T, E>(result: Result<T, E>): result is Failure<E> {
-  return result.success === false;
+  return !result.success;
 }
 
 /**
@@ -137,6 +137,7 @@ export function unwrap<T, E>(result: Result<T, E>): T {
   if (result.success) {
     return result.value;
   }
+  // eslint-disable-next-line @typescript-eslint/only-throw-error -- Result pattern: error E is thrown as-is by design
   throw result.error;
 }
 
@@ -430,5 +431,5 @@ export async function withRetry<T>(
     }
   }
 
-  throw lastError;
+  throw lastError ?? new Error('All retry attempts failed');
 }

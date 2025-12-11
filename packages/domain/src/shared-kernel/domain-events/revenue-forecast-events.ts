@@ -329,7 +329,6 @@ export type RevenueForecastEventType = RevenueForecastDomainEvent['type'];
  * Generate UUID v4 (browser and Node.js compatible)
  */
 function generateUUID(): string {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Required for older runtimes
   if (typeof globalThis !== 'undefined' && globalThis.crypto?.randomUUID) {
     return globalThis.crypto.randomUUID();
   }

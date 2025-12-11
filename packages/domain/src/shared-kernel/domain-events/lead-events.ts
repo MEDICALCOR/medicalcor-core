@@ -349,7 +349,7 @@ export type LeadEventType = LeadDomainEvent['type'];
  */
 function generateUUID(): string {
   // Use crypto.randomUUID if available (Node 19+, modern browsers)
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Required for older runtimes
+
   if (typeof globalThis !== 'undefined' && globalThis.crypto?.randomUUID) {
     return globalThis.crypto.randomUUID();
   }
