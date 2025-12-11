@@ -14,6 +14,13 @@ export {
 export { PipedriveAdapter } from './pipedrive.adapter.js';
 
 export {
+  PipedriveCrmGateway,
+  createPipedriveCrmGateway,
+  createPipedriveCrmGatewayFromEnv,
+  type PipedriveCrmGatewayConfig,
+} from './pipedrive-crm-gateway.js';
+
+export {
   MockCrmAdapter,
   MockCrmError,
   createMockCrmAdapter,
