@@ -388,18 +388,24 @@ export class SkillRoutingService {
   }
 
   /**
-   * Calculate match score for a single agent
+   * Score required skills for an agent against task requirements.
+   * Returns skill score points, max possible score, matched skills info, and adjustments.
    */
-  private scoreAgent(agent: AgentProfile, requirements: TaskSkillRequirements): AgentMatchScore {
-    const scoreAdjustments: { reason: string; adjustment: number }[] = [];
+  private scoreRequiredSkills(
+    agent: AgentProfile,
+    requiredSkills: TaskSkillRequirements['requiredSkills']
+  ): {
+    skillScore: number;
+    maxSkillScore: number;
+    matchedSkills: AgentMatchScore['matchedSkills'];
+    adjustments: { reason: string; adjustment: number }[];
+  } {
     const matchedSkills: AgentMatchScore['matchedSkills'] = [];
-
-    // Calculate skill match score
+    const adjustments: { reason: string; adjustment: number }[] = [];
     let skillScore = 0;
     let maxSkillScore = 0;
 
-    // Score required skills
-    for (const req of requirements.requiredSkills) {
+    for (const req of requiredSkills) {
       const agentSkill = this.findAgentSkill(agent, req.skillId);
       const weight = req.weight;
       maxSkillScore += weight;
@@ -421,17 +427,12 @@ export class SkillRoutingService {
           score: skillPoints,
         });
 
-        if (profMatch >= 1) {
-          scoreAdjustments.push({
-            reason: `Skill ${req.skillId} meets requirement`,
-            adjustment: skillPoints,
-          });
-        } else {
-          scoreAdjustments.push({
-            reason: `Skill ${req.skillId} below required proficiency`,
-            adjustment: skillPoints - weight,
-          });
-        }
+        const adjustmentReason =
+          profMatch >= 1
+            ? `Skill ${req.skillId} meets requirement`
+            : `Skill ${req.skillId} below required proficiency`;
+        const adjustmentValue = profMatch >= 1 ? skillPoints : skillPoints - weight;
+        adjustments.push({ reason: adjustmentReason, adjustment: adjustmentValue });
       } else {
         matchedSkills.push({
           skillId: req.skillId,
@@ -441,15 +442,33 @@ export class SkillRoutingService {
           matchType: req.matchType,
           score: 0,
         });
-        scoreAdjustments.push({
+        adjustments.push({
           reason: `Missing required skill: ${req.skillId}`,
           adjustment: -weight,
         });
       }
     }
 
-    // Score preferred skills
-    for (const pref of requirements.preferredSkills) {
+    return { skillScore, maxSkillScore, matchedSkills, adjustments };
+  }
+
+  /**
+   * Score preferred skills for an agent (worth 50% of required skills).
+   * Returns bonus score, max bonus possible, and adjustments.
+   */
+  private scorePreferredSkills(
+    agent: AgentProfile,
+    preferredSkills: TaskSkillRequirements['preferredSkills']
+  ): {
+    bonusScore: number;
+    maxBonusScore: number;
+    adjustments: { reason: string; adjustment: number }[];
+  } {
+    const adjustments: { reason: string; adjustment: number }[] = [];
+    let bonusScore = 0;
+    let maxBonusScore = 0;
+
+    for (const pref of preferredSkills) {
       const agentSkill = this.findAgentSkill(agent, pref.skillId);
       const bonusWeight = pref.weight * 0.5; // Preferred skills worth 50% of required
 
@@ -459,54 +478,109 @@ export class SkillRoutingService {
           pref.minimumProficiency
         );
         const bonus = bonusWeight * profMatch;
-        skillScore += bonus;
-        maxSkillScore += bonusWeight;
+        bonusScore += bonus;
+        maxBonusScore += bonusWeight;
 
-        scoreAdjustments.push({
+        adjustments.push({
           reason: `Preferred skill ${pref.skillId} bonus`,
           adjustment: bonus,
         });
       }
     }
 
-    // Normalize skill score to 0-100
-    const normalizedSkillScore = maxSkillScore > 0 ? (skillScore / maxSkillScore) * 100 : 0;
+    return { bonusScore, maxBonusScore, adjustments };
+  }
 
-    // Calculate availability score
+  /**
+   * Calculate availability score based on current task load.
+   * Returns 0-100 where 100 means fully available.
+   */
+  private calculateAvailabilityScore(agent: AgentProfile): number {
     const taskRatio = agent.currentTaskCount / agent.maxConcurrentTasks;
-    const availabilityScore = (1 - taskRatio) * 100;
+    return (1 - taskRatio) * 100;
+  }
 
-    // Calculate preference score
-    let preferenceScore = 50; // Base score
+  /**
+   * Calculate preference score including preferred agent and language bonuses.
+   * Base score is 50, with bonuses for preferred agents (+50) and languages (+10).
+   */
+  private calculatePreferenceScore(
+    agent: AgentProfile,
+    requirements: TaskSkillRequirements
+  ): {
+    score: number;
+    adjustments: { reason: string; adjustment: number }[];
+  } {
+    const adjustments: { reason: string; adjustment: number }[] = [];
+    let score = 50; // Base score
+
     if (requirements.preferAgentIds.includes(agent.agentId)) {
-      preferenceScore = 100;
-      scoreAdjustments.push({
-        reason: 'Preferred agent',
-        adjustment: 50,
-      });
+      score = 100;
+      adjustments.push({ reason: 'Preferred agent', adjustment: 50 });
     }
 
-    // Calculate language bonus
     if (requirements.preferredLanguages.length > 0) {
-      const hasPreferred = requirements.preferredLanguages.some(
-        (lang) => agent.primaryLanguages.includes(lang) || agent.secondaryLanguages.includes(lang)
+      const hasPreferredLanguage = requirements.preferredLanguages.some(
+        (lang: string) =>
+          agent.primaryLanguages.includes(lang) || agent.secondaryLanguages.includes(lang)
       );
-      if (hasPreferred) {
-        preferenceScore += 10;
-        scoreAdjustments.push({
-          reason: 'Preferred language match',
-          adjustment: 10,
-        });
+      if (hasPreferredLanguage) {
+        score += 10;
+        adjustments.push({ reason: 'Preferred language match', adjustment: 10 });
       }
     }
 
-    // Calculate total weighted score
+    return { score, adjustments };
+  }
+
+  /**
+   * Calculate weighted total score from individual score components.
+   */
+  private calculateWeightedTotal(
+    skillScore: number,
+    availabilityScore: number,
+    preferenceScore: number
+  ): number {
     const weights = this.config.weights;
-    const totalScore =
-      (normalizedSkillScore * weights.skillMatch +
+    return (
+      (skillScore * weights.skillMatch +
         availabilityScore * weights.availabilityScore +
         preferenceScore * weights.preferenceScore) /
-      (weights.skillMatch + weights.availabilityScore + weights.preferenceScore);
+      (weights.skillMatch + weights.availabilityScore + weights.preferenceScore)
+    );
+  }
+
+  /**
+   * Calculate match score for a single agent.
+   * Orchestrates scoring across skills, availability, and preferences.
+   */
+  private scoreAgent(agent: AgentProfile, requirements: TaskSkillRequirements): AgentMatchScore {
+    // Score required and preferred skills
+    const requiredResult = this.scoreRequiredSkills(agent, requirements.requiredSkills);
+    const preferredResult = this.scorePreferredSkills(agent, requirements.preferredSkills);
+
+    // Combine skill scores and normalize to 0-100
+    const totalSkillScore = requiredResult.skillScore + preferredResult.bonusScore;
+    const totalMaxScore = requiredResult.maxSkillScore + preferredResult.maxBonusScore;
+    const normalizedSkillScore = totalMaxScore > 0 ? (totalSkillScore / totalMaxScore) * 100 : 0;
+
+    // Calculate other score components
+    const availabilityScore = this.calculateAvailabilityScore(agent);
+    const preferenceResult = this.calculatePreferenceScore(agent, requirements);
+
+    // Calculate weighted total
+    const totalScore = this.calculateWeightedTotal(
+      normalizedSkillScore,
+      availabilityScore,
+      preferenceResult.score
+    );
+
+    // Aggregate all score adjustments
+    const scoreAdjustments = [
+      ...requiredResult.adjustments,
+      ...preferredResult.adjustments,
+      ...preferenceResult.adjustments,
+    ];
 
     return {
       agentId: agent.agentId,
@@ -515,8 +589,8 @@ export class SkillRoutingService {
       totalScore: Math.round(totalScore * 100) / 100,
       skillScore: Math.round(normalizedSkillScore * 100) / 100,
       availabilityScore: Math.round(availabilityScore * 100) / 100,
-      preferenceScore: Math.round(preferenceScore * 100) / 100,
-      matchedSkills,
+      preferenceScore: Math.round(preferenceResult.score * 100) / 100,
+      matchedSkills: requiredResult.matchedSkills,
       currentTaskCount: agent.currentTaskCount,
       availability: agent.availability,
       scoreAdjustments,
