@@ -54,6 +54,11 @@ import type {
   SLAOverallStatus,
 } from '@medicalcor/types';
 
+/**
+ * SLA Status type alias for backwards compatibility
+ */
+export type SLAStatus = SLAOverallStatus;
+
 // =============================================================================
 // LAB CASE STATISTICS TYPES
 // =============================================================================

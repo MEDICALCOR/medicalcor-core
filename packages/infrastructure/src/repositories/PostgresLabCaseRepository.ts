@@ -118,6 +118,7 @@ const DEFAULT_CONFIG: Required<Omit<PostgresLabCaseRepositoryConfig, 'connection
 // =============================================================================
 
 interface LabCaseRow {
+  [key: string]: unknown;
   id: string;
   case_number: string;
   clinic_id: string;
@@ -147,6 +148,7 @@ interface LabCaseRow {
 }
 
 interface DigitalScanRow {
+  [key: string]: unknown;
   id: string;
   lab_case_id: string;
   scan_type: string;
@@ -164,6 +166,7 @@ interface DigitalScanRow {
 }
 
 interface CADDesignRow {
+  [key: string]: unknown;
   id: string;
   lab_case_id: string;
   version: number;
@@ -184,6 +187,7 @@ interface CADDesignRow {
 }
 
 interface FabricationRecordRow {
+  [key: string]: unknown;
   id: string;
   lab_case_id: string;
   method: string;
@@ -200,6 +204,7 @@ interface FabricationRecordRow {
 }
 
 interface QCInspectionRow {
+  [key: string]: unknown;
   id: string;
   lab_case_id: string;
   inspection_type: string;
@@ -216,6 +221,7 @@ interface QCInspectionRow {
 }
 
 interface TryInRecordRow {
+  [key: string]: unknown;
   id: string;
   lab_case_id: string;
   scheduled_at: Date;
@@ -230,6 +236,7 @@ interface TryInRecordRow {
 }
 
 interface StatusHistoryRow {
+  [key: string]: unknown;
   id: string;
   lab_case_id: string;
   from_status: string | null;
@@ -241,6 +248,7 @@ interface StatusHistoryRow {
 }
 
 interface SLATrackingRow {
+  [key: string]: unknown;
   id: string;
   lab_case_id: string;
   sla_type: string;
@@ -258,6 +266,7 @@ interface SLATrackingRow {
 }
 
 interface CollaborationThreadRow {
+  [key: string]: unknown;
   id: string;
   lab_case_id: string;
   subject: string;
@@ -272,6 +281,7 @@ interface CollaborationThreadRow {
 }
 
 interface CollaborationMessageRow {
+  [key: string]: unknown;
   id: string;
   thread_id: string;
   sender_id: string;
@@ -283,6 +293,7 @@ interface CollaborationMessageRow {
 }
 
 interface DesignFeedbackRow {
+  [key: string]: unknown;
   id: string;
   lab_case_id: string;
   design_id: string;
@@ -845,11 +856,11 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
     if (filters.patientId) {
       builder.addCondition('patient_id = ?', filters.patientId);
     }
-    if (filters.statuses && filters.statuses.length > 0) {
-      builder.addArrayCondition('status', filters.statuses);
+    if (filters.status && filters.status.length > 0) {
+      builder.addArrayCondition('status', filters.status);
     }
-    if (filters.priorities && filters.priorities.length > 0) {
-      builder.addArrayCondition('priority', filters.priorities);
+    if (filters.priority && filters.priority.length > 0) {
+      builder.addArrayCondition('priority', filters.priority);
     }
     if (filters.assignedTechnician) {
       builder.addCondition('assigned_technician = ?', filters.assignedTechnician);
@@ -863,10 +874,10 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
     if (filters.receivedFrom || filters.receivedTo) {
       builder.addRangeCondition('received_at', filters.receivedFrom, filters.receivedTo);
     }
-    if (filters.searchText) {
+    if (filters.search) {
       builder.addSearchCondition(
         ['case_number', 'notes', 'special_instructions'],
-        filters.searchText
+        filters.search
       );
     }
 
@@ -893,10 +904,10 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
     `;
 
     const dataResult = await this.query<LabCaseRow>(dataSql, [...params, limit, offset]);
-    const data = dataResult.rows.map(LabCaseRowMapper.toLabCase);
+    const cases = dataResult.rows.map(LabCaseRowMapper.toLabCase);
 
     return {
-      data,
+      cases,
       total,
       page: pagination.page ?? 1,
       pageSize: limit,
