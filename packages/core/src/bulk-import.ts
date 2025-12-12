@@ -363,27 +363,62 @@ export interface BulkImportContext {
 }
 
 /**
- * Process a batch of import rows synchronously
+ * Resolved import options with all defaults applied
  */
-export async function processBulkImport(
-  rows: BulkImportRow[],
-  options: Partial<BulkImportOptions> = {}
-): Promise<BulkImportSyncResponse> {
-  const startTime = Date.now();
-  const correlationId = crypto.randomUUID();
+interface ResolvedImportOptions {
+  skipDuplicates: boolean;
+  updateExisting: boolean;
+  validateOnly: boolean;
+  defaultSource: string;
+  clinicId: string | undefined;
+  stopOnFirstError: boolean;
+  maxErrors: number;
+  batchSize: number;
+  actor: string;
+}
 
-  // Apply defaults with explicit type for required fields
-  const opts: {
-    skipDuplicates: boolean;
-    updateExisting: boolean;
-    validateOnly: boolean;
-    defaultSource: string;
-    clinicId: string | undefined;
-    stopOnFirstError: boolean;
-    maxErrors: number;
-    batchSize: number;
-    actor: string;
-  } = {
+/**
+ * Tracks import progress and accumulates results
+ */
+class ImportState {
+  readonly results: BulkImportRowResult[] = [];
+  readonly errors: BulkImportRowResult[] = [];
+  readonly errorSummary: Partial<Record<BulkImportErrorCode, number>> = {};
+  successCount = 0;
+  errorCount = 0;
+  skipCount = 0;
+
+  recordResult(result: BulkImportRowResult): void {
+    this.results.push(result);
+
+    if (result.success) {
+      if (result.action === 'skipped') {
+        this.skipCount++;
+      } else {
+        this.successCount++;
+      }
+    } else {
+      this.errorCount++;
+      this.errors.push(result);
+      if (result.errorCode) {
+        this.errorSummary[result.errorCode] = (this.errorSummary[result.errorCode] ?? 0) + 1;
+      }
+    }
+  }
+
+  shouldStopProcessing(opts: ResolvedImportOptions): boolean {
+    if (opts.stopOnFirstError && this.errorCount > 0) {
+      return true;
+    }
+    return this.errorCount >= opts.maxErrors;
+  }
+}
+
+/**
+ * Apply default values to partial options
+ */
+function resolveOptions(options: Partial<BulkImportOptions>): ResolvedImportOptions {
+  return {
     skipDuplicates: options.skipDuplicates ?? true,
     updateExisting: options.updateExisting ?? false,
     validateOnly: options.validateOnly ?? false,
@@ -394,13 +429,112 @@ export async function processBulkImport(
     batchSize: options.batchSize ?? 100,
     actor: options.actor ?? 'bulk-import',
   };
+}
 
-  const results: BulkImportRowResult[] = [];
-  const errors: BulkImportRowResult[] = [];
-  const errorSummary: Partial<Record<BulkImportErrorCode, number>> = {};
-  let successCount = 0;
-  let errorCount = 0;
-  let skipCount = 0;
+/**
+ * Pre-fetch existing phones for duplicate detection
+ */
+async function prefetchExistingPhones(
+  pool: DatabasePool,
+  rows: BulkImportRow[]
+): Promise<Map<string, { id: string; externalContactId: string }>> {
+  const phonesToCheck = rows.map((r) => r.phone);
+  const existingPhonesResult = await pool.query<{
+    phone: string;
+    id: string;
+    external_contact_id: string;
+  }>(CHECK_EXISTING_PHONES_SQL, [phonesToCheck]);
+
+  const existingPhones = new Map(
+    existingPhonesResult.rows.map((r) => [
+      r.phone,
+      { id: r.id, externalContactId: r.external_contact_id },
+    ])
+  );
+
+  // Also check normalized versions
+  for (const row of rows) {
+    const { normalized } = await validateAndNormalizePhone(row.phone);
+    if (normalized && normalized !== row.phone) {
+      const existing = existingPhonesResult.rows.find((r) => r.phone === normalized);
+      if (existing) {
+        existingPhones.set(row.phone, {
+          id: existing.id,
+          externalContactId: existing.external_contact_id,
+        });
+      }
+    }
+  }
+
+  return existingPhones;
+}
+
+/**
+ * Process a single batch of rows (either validate-only or with persistence)
+ */
+async function processBatch(
+  batch: BulkImportRow[],
+  batchStartIndex: number,
+  context: Omit<BulkImportContext, 'jobId'>,
+  opts: ResolvedImportOptions,
+  state: ImportState,
+  tx?: TransactionClient
+): Promise<void> {
+  for (let j = 0; j < batch.length; j++) {
+    const row = batch[j];
+    if (!row) continue;
+
+    const rowNumber = batchStartIndex + j + 1;
+
+    const result = tx
+      ? await processRow(row, rowNumber, context, tx)
+      : await validateRow(row, rowNumber, context);
+
+    state.recordResult(result);
+
+    if (!result.success && opts.stopOnFirstError && tx) {
+      throw new AppError(
+        `Import stopped at row ${rowNumber}: ${result.errorMessage}`,
+        'IMPORT_STOPPED',
+        400
+      );
+    }
+  }
+}
+
+/**
+ * Build the final response from import state
+ */
+function buildResponse(
+  state: ImportState,
+  totalRows: number,
+  validateOnly: boolean,
+  durationMs: number
+): BulkImportSyncResponse {
+  return {
+    success: state.errorCount === 0,
+    totalRows,
+    successCount: state.successCount,
+    errorCount: state.errorCount,
+    skipCount: state.skipCount,
+    results: state.results,
+    errors: state.errors.length > 0 ? state.errors : undefined,
+    validationOnly: validateOnly,
+    durationMs,
+  };
+}
+
+/**
+ * Process a batch of import rows synchronously
+ */
+export async function processBulkImport(
+  rows: BulkImportRow[],
+  options: Partial<BulkImportOptions> = {}
+): Promise<BulkImportSyncResponse> {
+  const startTime = Date.now();
+  const correlationId = crypto.randomUUID();
+  const opts = resolveOptions(options);
+  const state = new ImportState();
 
   logger.info(
     { correlationId, totalRows: rows.length, validateOnly: opts.validateOnly },
@@ -409,122 +543,34 @@ export async function processBulkImport(
 
   try {
     const pool = createDatabaseClient();
+    const existingPhones = await prefetchExistingPhones(pool, rows);
 
-    // Pre-fetch existing phones for duplicate detection
-    const phonesToCheck = rows.map((r) => r.phone);
-    const existingPhonesResult = await pool.query<{
-      phone: string;
-      id: string;
-      external_contact_id: string;
-    }>(CHECK_EXISTING_PHONES_SQL, [phonesToCheck]);
-
-    const existingPhones = new Map(
-      existingPhonesResult.rows.map((r) => [
-        r.phone,
-        { id: r.id, externalContactId: r.external_contact_id },
-      ])
-    );
-
-    // Also check normalized versions
-    for (const row of rows) {
-      const { normalized } = await validateAndNormalizePhone(row.phone);
-      if (normalized && normalized !== row.phone) {
-        const existing = existingPhonesResult.rows.find((r) => r.phone === normalized);
-        if (existing) {
-          existingPhones.set(row.phone, {
-            id: existing.id,
-            externalContactId: existing.external_contact_id,
-          });
-        }
-      }
-    }
+    const context: Omit<BulkImportContext, 'jobId'> = {
+      correlationId,
+      options: opts,
+      existingPhones,
+    };
 
     // Process rows in batches
     for (let i = 0; i < rows.length; i += opts.batchSize) {
+      if (state.shouldStopProcessing(opts)) {
+        if (state.errorCount >= opts.maxErrors) {
+          logger.warn(
+            { correlationId, errorCount: state.errorCount },
+            'Max errors reached, stopping import'
+          );
+        }
+        break;
+      }
+
       const batch = rows.slice(i, Math.min(i + opts.batchSize, rows.length));
 
-      // Check if we've hit max errors
-      if (opts.stopOnFirstError && errorCount > 0) {
-        break;
-      }
-      if (errorCount >= opts.maxErrors) {
-        logger.warn({ correlationId, errorCount }, 'Max errors reached, stopping import');
-        break;
-      }
-
-      // Process batch within transaction
-      if (!opts.validateOnly) {
-        await withTransaction(pool, async (tx) => {
-          for (let j = 0; j < batch.length; j++) {
-            const row = batch[j];
-            if (!row) continue;
-            const rowNumber = i + j + 1;
-
-            const result = await processRow(
-              row,
-              rowNumber,
-              {
-                correlationId,
-                options: opts,
-                existingPhones,
-              },
-              tx
-            );
-
-            results.push(result);
-
-            if (result.success) {
-              if (result.action === 'skipped') {
-                skipCount++;
-              } else {
-                successCount++;
-              }
-            } else {
-              errorCount++;
-              errors.push(result);
-              if (result.errorCode) {
-                errorSummary[result.errorCode] = (errorSummary[result.errorCode] ?? 0) + 1;
-              }
-
-              if (opts.stopOnFirstError) {
-                throw new AppError(
-                  `Import stopped at row ${rowNumber}: ${result.errorMessage}`,
-                  'IMPORT_STOPPED',
-                  400
-                );
-              }
-            }
-          }
-        });
+      if (opts.validateOnly) {
+        await processBatch(batch, i, context, opts, state);
       } else {
-        // Validate-only mode - don't write to database
-        for (let j = 0; j < batch.length; j++) {
-          const row = batch[j];
-          if (!row) continue;
-          const rowNumber = i + j + 1;
-
-          const result = await validateRow(row, rowNumber, {
-            correlationId,
-            options: opts,
-            existingPhones,
-          });
-
-          results.push(result);
-
-          if (result.success) {
-            if (result.action === 'skipped') {
-              skipCount++;
-            } else {
-              successCount++;
-            }
-          } else {
-            errorCount++;
-            errors.push(result);
-            if (result.errorCode) {
-              errorSummary[result.errorCode] = (errorSummary[result.errorCode] ?? 0) + 1;
-            }
-          }
-        }
+        await withTransaction(pool, async (tx) => {
+          await processBatch(batch, i, context, opts, state, tx);
+        });
       }
     }
 
@@ -532,25 +578,15 @@ export async function processBulkImport(
     logger.info(
       {
         correlationId,
-        successCount,
-        errorCount,
-        skipCount,
+        successCount: state.successCount,
+        errorCount: state.errorCount,
+        skipCount: state.skipCount,
         durationMs,
       },
       'Bulk import completed'
     );
 
-    return {
-      success: errorCount === 0,
-      totalRows: rows.length,
-      successCount,
-      errorCount,
-      skipCount,
-      results,
-      errors: errors.length > 0 ? errors : undefined,
-      validationOnly: opts.validateOnly,
-      durationMs,
-    };
+    return buildResponse(state, rows.length, opts.validateOnly, durationMs);
   } catch (error) {
     logger.error({ correlationId, error }, 'Bulk import failed');
 
