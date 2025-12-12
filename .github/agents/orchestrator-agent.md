@@ -91,7 +91,7 @@ Every task must pass these gates:
 | G2: Domain Purity | DOMAIN | No infra imports, pure business logic |
 | G3: Compliance | COMPLIANCE | HIPAA/GDPR checks passed |
 | G4: Security | SECURITY | No secrets exposed, encryption verified |
-| G5: Quality | QA | Tests pass, coverage >80% |
+| G5: Quality | QA | Tests pass, coverage >95% |
 | G6: Performance | QA | No regressions, k6 benchmarks pass |
 | G7: Deployment | DEVOPS | CI green, rollback plan ready |
 
@@ -215,7 +215,7 @@ Before any release, verify:
 
 ### Code Quality
 - [ ] All agents report GREEN status
-- [ ] Test coverage >80% per package
+- [ ] Test coverage >95% per package
 - [ ] No ESLint errors (zero tolerance)
 - [ ] TypeScript strict mode passes
 - [ ] No `any` types in codebase
