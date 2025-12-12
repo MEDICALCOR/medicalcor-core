@@ -8,6 +8,7 @@ import { batchAttributeUnlinkedPayments } from '../tasks/payment-attribution.js'
 // Import shared utilities from cron/shared
 import {
   type HubSpotContactResult,
+  type OverdueInstallment,
   getClients,
   getSupabaseClient,
   hasValidConsent,
@@ -20,9 +21,20 @@ import {
   almostTwoYearsAgo,
   isIn24Hours,
   isIn2Hours,
-  formatDate,
-  formatTime,
   emitJobEvent,
+  // Payment reminder helpers
+  REMINDER_CONFIG,
+  determineReminderLevel,
+  calculateDaysOverdue,
+  sendPaymentReminder,
+  createEscalatedPaymentTask,
+  updateHubSpotPaymentInfo,
+  // HubSpot query helpers
+  fetchWeeklyMetrics,
+  formatWeeklyReport,
+  // Appointment helpers
+  sendAppointmentReminder,
+  filterContactsForReminder,
 } from './cron/shared/index.js';
 
 /**
@@ -255,20 +267,9 @@ export const appointmentReminders = schedules.task({
         }
       );
 
-      // Separate contacts into 24h and 2h reminder groups
-      const contacts24h = validContacts.filter((contact) => {
-        return (
-          isIn24Hours(contact.properties.next_appointment_date!) &&
-          contact.properties.reminder_24h_sent !== 'true'
-        );
-      });
-
-      const contacts2h = validContacts.filter((contact) => {
-        return (
-          isIn2Hours(contact.properties.next_appointment_date!) &&
-          contact.properties.reminder_2h_sent !== 'true'
-        );
-      });
+      // Filter contacts into 24h and 2h reminder groups using helpers
+      const contacts24h = filterContactsForReminder(validContacts, '24h', isIn24Hours);
+      const contacts2h = filterContactsForReminder(validContacts, '2h', isIn2Hours);
 
       // Process 24h reminders in batches
       if (contacts24h.length > 0) {
@@ -276,31 +277,7 @@ export const appointmentReminders = schedules.task({
         const batch24hResult = await processBatch(
           contacts24h,
           async (contact) => {
-            const props = contact.properties;
-            const appointmentDate = props.next_appointment_date!;
-            const hsLang = props.hs_language;
-            const language: 'ro' | 'en' | 'de' =
-              hsLang === 'ro' || hsLang === 'en' || hsLang === 'de' ? hsLang : 'ro';
-
-            await whatsapp.sendTemplate({
-              to: props.phone!,
-              templateName: 'appointment_reminder_24h',
-              language: language === 'ro' ? 'ro' : language === 'de' ? 'de' : 'en',
-              components: [
-                {
-                  type: 'body',
-                  parameters: [
-                    { type: 'text', text: props.firstname ?? 'Pacient' },
-                    { type: 'text', text: formatDate(appointmentDate, language) },
-                    { type: 'text', text: formatTime(appointmentDate) },
-                  ],
-                },
-              ],
-            });
-
-            if (hubspot) {
-              await hubspot.updateContact(contact.id, { reminder_24h_sent: 'true' });
-            }
+            await sendAppointmentReminder(contact, '24h', { whatsapp, hubspot });
             logger.info('Sent 24h reminder', { contactId: contact.id, correlationId });
           },
           logger
@@ -309,8 +286,7 @@ export const appointmentReminders = schedules.task({
         errors += batch24hResult.errors.length;
 
         for (const { item, error } of batch24hResult.errors) {
-          const c = item;
-          logger.error('Failed to send 24h reminder', { contactId: c.id, error, correlationId });
+          logger.error('Failed to send 24h reminder', { contactId: item.id, error, correlationId });
         }
       }
 
@@ -320,27 +296,7 @@ export const appointmentReminders = schedules.task({
         const batch2hResult = await processBatch(
           contacts2h,
           async (contact) => {
-            const props = contact.properties;
-            const appointmentDate = props.next_appointment_date!;
-            const hsLang = props.hs_language;
-            const language: 'ro' | 'en' | 'de' =
-              hsLang === 'ro' || hsLang === 'en' || hsLang === 'de' ? hsLang : 'ro';
-
-            await whatsapp.sendTemplate({
-              to: props.phone!,
-              templateName: 'appointment_reminder_2h',
-              language: language === 'ro' ? 'ro' : language === 'de' ? 'de' : 'en',
-              components: [
-                {
-                  type: 'body',
-                  parameters: [{ type: 'text', text: formatTime(appointmentDate) }],
-                },
-              ],
-            });
-
-            if (hubspot) {
-              await hubspot.updateContact(contact.id, { reminder_2h_sent: 'true' });
-            }
+            await sendAppointmentReminder(contact, '2h', { whatsapp, hubspot });
             logger.info('Sent 2h reminder', { contactId: contact.id, correlationId });
           },
           logger
@@ -349,8 +305,7 @@ export const appointmentReminders = schedules.task({
         errors += batch2hResult.errors.length;
 
         for (const { item, error } of batch2hResult.errors) {
-          const c = item;
-          logger.error('Failed to send 2h reminder', { contactId: c.id, error, correlationId });
+          logger.error('Failed to send 2h reminder', { contactId: item.id, error, correlationId });
         }
       }
 
@@ -505,89 +460,18 @@ export const weeklyAnalyticsReport = schedules.task({
     const { hubspot, eventStore } = getClients();
 
     try {
-      // Calculate metrics from HubSpot
-      const metrics = {
-        newLeads: 0,
-        hotLeads: 0,
-        warmLeads: 0,
-        coldLeads: 0,
-        conversions: 0,
-        period: '7 days',
-        generatedAt: new Date().toISOString(),
-      };
-
-      if (hubspot) {
-        // Count new leads in the last 7 days
-        const newLeadsResult = await hubspot.searchContacts({
-          filterGroups: [
-            {
-              filters: [{ propertyName: 'createdate', operator: 'GTE', value: sevenDaysAgo() }],
-            },
-          ],
-          limit: 1,
-        });
-        metrics.newLeads = newLeadsResult.total;
-
-        // Count hot leads
-        const hotLeadsResult = await hubspot.searchContacts({
-          filterGroups: [
-            {
-              filters: [
-                { propertyName: 'lead_status', operator: 'EQ', value: 'hot' },
-                { propertyName: 'createdate', operator: 'GTE', value: sevenDaysAgo() },
-              ],
-            },
-          ],
-          limit: 1,
-        });
-        metrics.hotLeads = hotLeadsResult.total;
-
-        // Count warm leads
-        const warmLeadsResult = await hubspot.searchContacts({
-          filterGroups: [
-            {
-              filters: [
-                { propertyName: 'lead_status', operator: 'EQ', value: 'warm' },
-                { propertyName: 'createdate', operator: 'GTE', value: sevenDaysAgo() },
-              ],
-            },
-          ],
-          limit: 1,
-        });
-        metrics.warmLeads = warmLeadsResult.total;
-
-        // Count cold leads
-        const coldLeadsResult = await hubspot.searchContacts({
-          filterGroups: [
-            {
-              filters: [
-                { propertyName: 'lead_status', operator: 'EQ', value: 'cold' },
-                { propertyName: 'createdate', operator: 'GTE', value: sevenDaysAgo() },
-              ],
-            },
-          ],
-          limit: 1,
-        });
-        metrics.coldLeads = coldLeadsResult.total;
-
-        // Count conversions (leads that became customers)
-        const conversionsResult = await hubspot.searchContacts({
-          filterGroups: [
-            {
-              filters: [
-                { propertyName: 'lifecyclestage', operator: 'EQ', value: 'customer' },
-                {
-                  propertyName: 'hs_lifecyclestage_customer_date',
-                  operator: 'GTE',
-                  value: sevenDaysAgo(),
-                },
-              ],
-            },
-          ],
-          limit: 1,
-        });
-        metrics.conversions = conversionsResult.total;
-      }
+      // Fetch all metrics in parallel using helper
+      const metrics = hubspot
+        ? await fetchWeeklyMetrics(hubspot, sevenDaysAgo())
+        : {
+            newLeads: 0,
+            hotLeads: 0,
+            warmLeads: 0,
+            coldLeads: 0,
+            conversions: 0,
+            period: '7 days',
+            generatedAt: new Date().toISOString(),
+          };
 
       // Format report
       const report = formatWeeklyReport(metrics);
@@ -1713,37 +1597,8 @@ export const overduePaymentReminders = schedules.task({
         return { success: false, reason: 'Supabase not configured', remindersTriggered: 0 };
       }
 
-      // Configuration for reminder timing
-      const MIN_DAYS_BETWEEN_REMINDERS = 3;
-      const SECOND_REMINDER_DAYS = 7;
-      const FINAL_REMINDER_DAYS = 14;
-      const ESCALATION_DAYS = 21;
-      const MAX_REMINDERS = 3;
-
-      // Type for overdue installment query result
-      interface OverdueInstallmentRow {
-        id: string;
-        payment_plan_id: string;
-        installment_number: number;
-        amount: number;
-        due_date: string;
-        status: string;
-        reminder_sent_at: string | null;
-        reminder_count: number;
-        late_fee_applied: number;
-        case_id: string;
-        clinic_id: string;
-        lead_id: string;
-        lead_phone: string;
-        lead_full_name: string;
-        lead_email: string | null;
-        lead_language: string | null;
-        hubspot_contact_id: string | null;
-        case_outstanding_amount: number;
-        plan_frequency: string;
-        plan_total_installments: number;
-        plan_installments_paid: number;
-      }
+      // Use extracted configuration
+      const { MIN_DAYS_BETWEEN_REMINDERS, MAX_REMINDERS } = REMINDER_CONFIG;
 
       // Query for overdue installments eligible for reminders
       const now = new Date();
@@ -1816,7 +1671,7 @@ export const overduePaymentReminders = schedules.task({
         }
       }
 
-      const installments = overdueInstallments as OverdueInstallmentRow[] | null;
+      const installments = overdueInstallments as OverdueInstallment[] | null;
       if (!installments || installments.length === 0) {
         logger.info('No overdue installments found', { correlationId });
         return { success: true, remindersTriggered: 0, message: 'No overdue installments' };
@@ -1824,71 +1679,22 @@ export const overduePaymentReminders = schedules.task({
 
       logger.info(`Found ${installments.length} overdue installments`, { correlationId });
 
-      // Process each overdue installment
+      // Process each overdue installment using extracted helpers
       const batchResult = await processBatch(
         installments,
         async (inst) => {
-          // Calculate days overdue
-          const dueDate = new Date(inst.due_date);
-          const daysOverdue = Math.floor(
-            (now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)
+          const daysOverdue = calculateDaysOverdue(inst.due_date);
+          const { level: reminderLevel, templateName } = determineReminderLevel(
+            daysOverdue,
+            inst.reminder_count
           );
 
-          // Determine reminder level
-          let reminderLevel: 'first' | 'second' | 'final' | 'escalated';
-          let templateName: string;
-
-          if (inst.reminder_count >= MAX_REMINDERS || daysOverdue >= ESCALATION_DAYS) {
-            reminderLevel = 'escalated';
-            templateName = 'payment_reminder_final';
+          if (reminderLevel === 'escalated') {
             escalations++;
-          } else if (daysOverdue >= FINAL_REMINDER_DAYS) {
-            reminderLevel = 'final';
-            templateName = 'payment_reminder_final';
-          } else if (daysOverdue >= SECOND_REMINDER_DAYS) {
-            reminderLevel = 'second';
-            templateName = 'payment_reminder_second';
-          } else {
-            reminderLevel = 'first';
-            templateName = 'payment_reminder_first';
           }
 
-          const totalOwed = inst.amount + inst.late_fee_applied;
-          const language: 'ro' | 'en' | 'de' =
-            inst.lead_language === 'en' ? 'en' : inst.lead_language === 'de' ? 'de' : 'ro';
-          const whatsappLang = language === 'ro' ? 'ro' : language === 'de' ? 'de' : 'en';
-
-          // Format amount for display
-          const formattedAmount = new Intl.NumberFormat(
-            language === 'ro' ? 'ro-RO' : language === 'de' ? 'de-DE' : 'en-US',
-            { style: 'currency', currency: 'EUR' }
-          ).format(totalOwed);
-
-          // Format due date
-          const formattedDueDate = new Intl.DateTimeFormat(
-            language === 'ro' ? 'ro-RO' : language === 'de' ? 'de-DE' : 'en-US',
-            { year: 'numeric', month: 'long', day: 'numeric' }
-          ).format(dueDate);
-
-          // Send WhatsApp reminder
-          await whatsapp.sendTemplate({
-            to: inst.lead_phone,
-            templateName,
-            language: whatsappLang,
-            components: [
-              {
-                type: 'body' as const,
-                parameters: [
-                  { type: 'text' as const, text: inst.lead_full_name },
-                  { type: 'text' as const, text: formattedAmount },
-                  { type: 'text' as const, text: formattedDueDate },
-                  ...(reminderLevel !== 'first'
-                    ? [{ type: 'text' as const, text: String(daysOverdue) }]
-                    : []),
-                ],
-              },
-            ],
-          });
+          // Send WhatsApp reminder using helper
+          await sendPaymentReminder(whatsapp, inst, templateName, reminderLevel, daysOverdue);
 
           // Update reminder tracking in database
           await supabase
@@ -1902,24 +1708,11 @@ export const overduePaymentReminders = schedules.task({
 
           // Update HubSpot if contact exists
           if (hubspot && inst.hubspot_contact_id) {
-            await hubspot.updateContact(inst.hubspot_contact_id, {
-              payment_reminder_sent: now.toISOString(),
-              payment_reminder_count: String(inst.reminder_count + 1),
-              payment_overdue_amount: formattedAmount,
-              payment_overdue_days: String(daysOverdue),
-            });
+            await updateHubSpotPaymentInfo(hubspot, inst, daysOverdue);
 
             // Create task for escalated cases
             if (reminderLevel === 'escalated' || reminderLevel === 'final') {
-              await hubspot.createTask({
-                contactId: inst.hubspot_contact_id,
-                subject: `${reminderLevel === 'escalated' ? '🚨 URGENT' : '⚠️ FINAL'}: Overdue Payment - ${formattedAmount}`,
-                body: `Patient ${inst.lead_full_name} has an overdue payment.\n\nAmount: ${formattedAmount}\nDays Overdue: ${daysOverdue}\nReminders Sent: ${inst.reminder_count + 1}`,
-                priority: reminderLevel === 'escalated' ? 'HIGH' : 'MEDIUM',
-                dueDate: new Date(
-                  now.getTime() + (reminderLevel === 'escalated' ? 4 : 24) * 60 * 60 * 1000
-                ),
-              });
+              await createEscalatedPaymentTask(hubspot, inst, reminderLevel, daysOverdue);
             }
           }
 
@@ -1977,39 +1770,6 @@ export const overduePaymentReminders = schedules.task({
     return { success: true, remindersTriggered, escalations, errors };
   },
 });
-
-// ============================================
-// Helper Functions
-// ============================================
-
-/**
- * Format weekly report for notifications
- */
-function formatWeeklyReport(metrics: {
-  newLeads: number;
-  hotLeads: number;
-  warmLeads: number;
-  coldLeads: number;
-  conversions: number;
-  period: string;
-  generatedAt: string;
-}): string {
-  return `
-📊 Weekly Analytics Report
-Period: ${metrics.period}
-Generated: ${new Date(metrics.generatedAt).toLocaleString('ro-RO')}
-
-📈 Lead Activity:
-• New leads: ${metrics.newLeads}
-• Hot leads: ${metrics.hotLeads}
-• Warm leads: ${metrics.warmLeads}
-• Cold leads: ${metrics.coldLeads}
-
-🎯 Conversions: ${metrics.conversions}
-
-💡 Conversion Rate: ${metrics.newLeads > 0 ? ((metrics.conversions / metrics.newLeads) * 100).toFixed(1) : 0}%
-  `.trim();
-}
 
 /**
  * Database Partition Maintenance (Daily) - creates future partitions and cleans old ones

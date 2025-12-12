@@ -151,7 +151,7 @@ export {
   type FallbackResult,
 } from './adaptive-timeout.js';
 
-// Multi-Provider Gateway - OpenAI + Anthropic + Llama with failover
+// Multi-Provider Gateway - OpenAI + Anthropic + Gemini + Llama with failover
 export {
   MultiProviderGateway,
   createMultiProviderGateway,
@@ -170,6 +170,27 @@ export {
   type AIMetricsRecord,
   type AIMetricsRepository,
 } from './multi-provider-gateway.js';
+
+// AI Provider Strategies - Strategy Pattern for extensible providers (OCP compliant)
+export {
+  // Strategy interface and utilities
+  createDefaultAIStrategies,
+  getStrategyByProviderName,
+  type IAIProviderStrategy,
+  type AIProviderCallResult,
+  type AIProviderCallOptions,
+  // Concrete strategies
+  OpenAIStrategy,
+  createOpenAIStrategy,
+  AnthropicStrategy,
+  createAnthropicStrategy,
+  GeminiStrategy,
+  createGeminiStrategy,
+  LlamaStrategy,
+  createLlamaStrategy,
+  OllamaStrategy,
+  createOllamaStrategy,
+} from './strategies/index.js';
 
 // AI Metrics Repository - PostgreSQL persistence for AI metrics
 export {
