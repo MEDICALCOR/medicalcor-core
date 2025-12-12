@@ -15,6 +15,7 @@ export * from './external/AuditService.js';
 export * from './external/InsuranceVerificationGateway.js';
 export * from './external/FinancingService.js';
 export * from './external/GeoIPService.js';
+export * from './external/DigitalAssetStoragePort.js';
 
 // Persistence ports
 export * from './persistence/index.js';
