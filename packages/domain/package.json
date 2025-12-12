@@ -35,6 +35,14 @@
     "./inventory": {
       "types": "./dist/inventory/index.d.ts",
       "import": "./dist/inventory/index.js"
+    },
+    "./ltv": {
+      "types": "./dist/ltv/index.d.ts",
+      "import": "./dist/ltv/index.js"
+    },
+    "./ltv/*": {
+      "types": "./dist/ltv/*.d.ts",
+      "import": "./dist/ltv/*.js"
     }
   },
   "main": "./dist/index.js",

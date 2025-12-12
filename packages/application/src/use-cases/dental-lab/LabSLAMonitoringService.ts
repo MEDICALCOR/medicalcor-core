@@ -22,14 +22,17 @@ import type {
   LabSLATracking,
   LabCasePriority,
   LabEvent,
+  SLAOverallStatus,
 } from '@medicalcor/types';
 
 import type {
   ILabCaseRepository,
-  SLAStatus,
 } from '../../ports/secondary/persistence/LabCaseRepository.js';
 
-import type { IEventPublisher } from '../../ports/secondary/messaging/EventPublisher.js';
+import type { EventPublisher, DomainEvent } from '../../ports/secondary/messaging/EventPublisher.js';
+
+/** SLA Status alias for backwards compatibility */
+type SLAStatus = SLAOverallStatus;
 
 // =============================================================================
 // LOGGER
@@ -79,10 +82,10 @@ export interface SLAHealthReport {
     overdue: number;
   };
   breachesByPriority: {
-    STAT: number;
-    RUSH: number;
     STANDARD: number;
-    FLEXIBLE: number;
+    RUSH: number;
+    EMERGENCY: number;
+    VIP: number;
   };
   averageMilestoneCompletionRate: number;
   projectedBreachesNext24h: number;
@@ -153,7 +156,7 @@ export class LabSLAMonitoringService {
 
   constructor(
     private readonly labCaseRepository: ILabCaseRepository,
-    private readonly eventPublisher: IEventPublisher,
+    private readonly eventPublisher: EventPublisher,
     config?: Partial<SLAMonitoringConfig>
   ) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -179,11 +182,11 @@ export class LabSLAMonitoringService {
 
     // Get all active cases with SLA tracking
     const activeCases = await this.labCaseRepository.list(
-      { clinicId, statuses: this.getActiveStatuses() },
+      { clinicId, status: this.getActiveStatuses() },
       { page: 1, pageSize: 1000, sortBy: 'dueDate', sortOrder: 'asc' }
     );
 
-    for (const labCase of activeCases.data) {
+    for (const labCase of activeCases.cases) {
       const slaTracking = await this.labCaseRepository.getSLATracking(labCase.id);
       if (!slaTracking) continue;
 
@@ -205,12 +208,12 @@ export class LabSLAMonitoringService {
     }
 
     logger.info(
-      { clinicId, checked: activeCases.data.length, breaches: breachesDetected.length },
+      { clinicId, checked: activeCases.cases.length, breaches: breachesDetected.length },
       'SLA check completed'
     );
 
     return {
-      checked: activeCases.data.length,
+      checked: activeCases.cases.length,
       breachesDetected,
       notificationsSent,
     };
@@ -309,22 +312,22 @@ export class LabSLAMonitoringService {
    */
   async generateHealthReport(clinicId: string): Promise<SLAHealthReport> {
     const activeCases = await this.labCaseRepository.list(
-      { clinicId, statuses: this.getActiveStatuses() },
+      { clinicId, status: this.getActiveStatuses() },
       { page: 1, pageSize: 1000, sortBy: 'dueDate', sortOrder: 'asc' }
     );
 
     const slaDistribution = { onTrack: 0, atRisk: 0, overdue: 0 };
     const breachesByPriority: Record<LabCasePriority, number> = {
-      STAT: 0,
-      RUSH: 0,
       STANDARD: 0,
-      FLEXIBLE: 0,
+      RUSH: 0,
+      EMERGENCY: 0,
+      VIP: 0,
     };
 
     let totalCompletionRate = 0;
     let caseCount = 0;
 
-    for (const labCase of activeCases.data) {
+    for (const labCase of activeCases.cases) {
       const slaTracking = await this.labCaseRepository.getSLATracking(labCase.id);
       if (!slaTracking) continue;
 
@@ -353,7 +356,7 @@ export class LabSLAMonitoringService {
     const recommendations = await this.generateRecommendations(
       clinicId,
       slaDistribution,
-      activeCases.data
+      activeCases.cases
     );
 
     return {
@@ -386,17 +389,29 @@ export class LabSLAMonitoringService {
     breach.severity = 'ESCALATED';
 
     const event: LabEvent = {
-      eventType: 'SLA_BREACH_ESCALATED',
+      eventType: 'LAB_CASE_SLA_BREACH',
       labCaseId: breach.labCaseId,
       caseNumber: breach.caseNumber,
       clinicId: labCase.clinicId,
-      patientId: labCase.patientId,
-      breachSeverity: 'ESCALATED',
-      hoursOverdue: breach.hoursOverdue,
-      escalatedAt: breach.escalatedAt,
+      milestone: breach.milestoneName ?? 'OVERALL',
+      expectedBy: breach.expectedDeadline,
+      currentStatus: labCase.status,
+      priority: labCase.priority,
     };
 
-    await this.eventPublisher.publish('lab.sla.escalated', event);
+    const domainEvent: DomainEvent = {
+      eventType: event.eventType,
+      aggregateId: breach.labCaseId,
+      aggregateType: 'LabCase',
+      aggregateVersion: 1,
+      eventData: event,
+      correlationId: breach.labCaseId,
+      causationId: null,
+      actorId: 'system',
+      occurredAt: new Date(),
+    };
+
+    await this.eventPublisher.publishTo('lab.sla.escalated', domainEvent);
   }
 
   /**
@@ -406,11 +421,16 @@ export class LabSLAMonitoringService {
     logger.info({ breachId, resolvedBy }, 'SLA breach resolved');
 
     // In a full implementation, this would update the breach record in the database
-    await this.eventPublisher.publish('lab.sla.resolved', {
+    await this.eventPublisher.publishTo('lab.sla.resolved', {
       eventType: 'SLA_BREACH_RESOLVED',
-      breachId,
-      resolvedBy,
-      resolvedAt: new Date(),
+      aggregateId: breachId,
+      aggregateType: 'SLABreach',
+      aggregateVersion: 1,
+      eventData: { breachId, resolvedBy, resolvedAt: new Date() },
+      correlationId: breachId,
+      causationId: null,
+      actorId: resolvedBy,
+      occurredAt: new Date(),
     });
   }
 
@@ -459,21 +479,32 @@ export class LabSLAMonitoringService {
     userId: string,
     breach: SLABreach,
     labCase: LabCase,
-    channel: 'PUSH' | 'SMS' | 'EMAIL'
+    _channel: 'PUSH' | 'SMS' | 'EMAIL'
   ): Promise<void> {
     const event: LabEvent = {
-      eventType: 'SLA_NOTIFICATION',
+      eventType: 'LAB_CASE_SLA_BREACH',
       labCaseId: breach.labCaseId,
       caseNumber: breach.caseNumber,
       clinicId: labCase.clinicId,
-      userId,
-      channel,
-      severity: breach.severity,
-      breachType: breach.breachType,
-      hoursOverdue: breach.hoursOverdue,
+      milestone: breach.milestoneName ?? 'OVERALL',
+      expectedBy: breach.expectedDeadline,
+      currentStatus: labCase.status,
+      priority: labCase.priority,
     };
 
-    await this.eventPublisher.publish('lab.notification.sla', event);
+    const domainEvent: DomainEvent = {
+      eventType: event.eventType,
+      aggregateId: breach.labCaseId,
+      aggregateType: 'LabCase',
+      aggregateVersion: 1,
+      eventData: { ...event, userId, severity: breach.severity, breachType: breach.breachType },
+      correlationId: breach.labCaseId,
+      causationId: null,
+      actorId: 'system',
+      occurredAt: new Date(),
+    };
+
+    await this.eventPublisher.publishTo('lab.notification.sla', domainEvent);
   }
 
   private async getNotificationTargets(labCase: LabCase): Promise<NotificationTargets> {
@@ -609,7 +640,7 @@ export class LabSLAMonitoringService {
     }
 
     // Check priority vs progress
-    if (labCase.priority === 'STAT' && slaTracking.percentComplete < 50) {
+    if (labCase.priority === 'EMERGENCY' && slaTracking.percentComplete < 50) {
       risks.push('High-priority case with low progress');
     }
 
@@ -716,19 +747,22 @@ export class LabSLAMonitoringService {
     }
 
     // High priority case bottleneck
-    const statCases = activeCases.filter((c) => c.priority === 'STAT');
-    const statAtRisk = statCases.filter(async (c) => {
+    const emergencyCases = activeCases.filter((c) => c.priority === 'EMERGENCY');
+    const emergencyAtRiskCases: LabCase[] = [];
+    for (const c of emergencyCases) {
       const sla = await this.labCaseRepository.getSLATracking(c.id);
-      return sla?.overallStatus !== 'ON_TRACK';
-    });
-    if (statAtRisk.length > 0) {
+      if (sla?.overallStatus !== 'ON_TRACK') {
+        emergencyAtRiskCases.push(c);
+      }
+    }
+    if (emergencyAtRiskCases.length > 0) {
       recommendations.push({
         type: 'PRIORITIZATION',
         priority: 'HIGH',
-        title: 'STAT Cases At Risk',
-        description: `${statAtRisk.length} STAT priority cases are not on track.`,
-        affectedCaseCount: statAtRisk.length,
-        estimatedImpact: 'STAT cases should be prioritized to maintain clinic relationships',
+        title: 'Emergency Cases At Risk',
+        description: `${emergencyAtRiskCases.length} EMERGENCY priority cases are not on track.`,
+        affectedCaseCount: emergencyAtRiskCases.length,
+        estimatedImpact: 'EMERGENCY cases should be prioritized to maintain clinic relationships',
       });
     }
 

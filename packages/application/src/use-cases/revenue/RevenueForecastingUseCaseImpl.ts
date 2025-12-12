@@ -16,7 +16,7 @@ import { createLogger } from '@medicalcor/core';
 import {
   RevenueForecastingService,
   createRevenueForecastingService,
-} from '@medicalcor/domain/ltv/revenue-forecasting-service.js';
+} from '@medicalcor/domain/ltv';
 
 import type { Result } from '../../shared/Result.js';
 import { Ok, Err } from '../../shared/Result.js';
