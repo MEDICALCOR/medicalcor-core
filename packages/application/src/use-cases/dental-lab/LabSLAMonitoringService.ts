@@ -281,7 +281,7 @@ export class LabSLAMonitoringService {
       riskFactors: string[];
     }> = [];
 
-    for (const { labCase, deadline, milestone } of upcomingDeadlines) {
+    for (const { labCase, deadline } of upcomingDeadlines) {
       const slaTracking = await this.labCaseRepository.getSLATracking(labCase.id);
       if (!slaTracking) continue;
 
@@ -364,7 +364,7 @@ export class LabSLAMonitoringService {
       reportDate: new Date(),
       totalActiveCases: activeCases.total,
       slaDistribution,
-      breachesByPriority,
+      breachesByPriority: breachesByPriority as SLAHealthReport['breachesByPriority'],
       averageMilestoneCompletionRate: caseCount > 0 ? totalCompletionRate / caseCount : 0,
       projectedBreachesNext24h: projections24h.length,
       projectedBreachesNext48h: projections48h.length,
