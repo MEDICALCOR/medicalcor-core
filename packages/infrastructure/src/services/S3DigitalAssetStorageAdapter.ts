@@ -40,11 +40,51 @@ import type {
   PresignedUploadUrl,
   PresignedDownloadUrl,
   AssetMetadata,
-  AssetInfo,
-  AssetValidationResult,
-  ThumbnailRequest,
-  ThumbnailResult,
+  StoredAsset,
+  UploadOptions,
+  ThumbnailOptions,
+  ListAssetsOptions,
+  ListAssetsResult,
 } from '@medicalcor/application/ports/secondary/external/DigitalAssetStoragePort';
+
+import type { DigitalFileFormat } from '@medicalcor/types';
+
+/**
+ * Asset validation result (internal type)
+ */
+interface AssetValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
+
+/**
+ * Asset info (internal type for legacy methods)
+ */
+interface AssetInfo {
+  storagePath: string;
+  size: number;
+  contentType: string;
+  uploadedAt: Date;
+  metadata: AssetMetadata;
+}
+
+/**
+ * Thumbnail request (internal type)
+ */
+interface ThumbnailRequest {
+  sourcePath: string;
+  options: ThumbnailOptions;
+}
+
+/**
+ * Thumbnail result (internal type)
+ */
+interface ThumbnailResult {
+  thumbnailPath: string;
+  width: number;
+  height: number;
+  format: string;
+}
 
 // =============================================================================
 // LOGGER
@@ -286,9 +326,11 @@ export class S3DigitalAssetStorageAdapter implements IDigitalAssetStoragePort {
       logger.info({ storagePath, expiresAt }, 'Presigned upload URL generated');
 
       return {
-        url,
+        uploadUrl: url,
+        method: 'PUT' as const,
         storagePath,
         expiresAt,
+        maxFileSize: this.config.maxFileSizeBytes,
         headers: {
           'Content-Type': metadata.mimeType,
           ...(this.config.enableEncryption && {
@@ -330,10 +372,8 @@ export class S3DigitalAssetStorageAdapter implements IDigitalAssetStoragePort {
       logger.info({ storagePath, expiresAt }, 'Presigned download URL generated');
 
       return {
-        url,
+        downloadUrl: url,
         expiresAt,
-        contentType: headResponse.ContentType ?? 'application/octet-stream',
-        contentLength: headResponse.ContentLength ?? 0,
         filename: this.extractFilename(storagePath),
       };
     };
