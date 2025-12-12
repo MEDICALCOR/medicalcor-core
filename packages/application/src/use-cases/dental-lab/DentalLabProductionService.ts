@@ -83,8 +83,25 @@ import type {
   generateStoragePath,
 } from '../../ports/secondary/external/DigitalAssetStoragePort.js';
 
-import type { EventPublisher as IEventPublisher } from '../../ports/secondary/messaging/EventPublisher.js';
+import type { EventPublisher as IEventPublisher, DomainEvent } from '../../ports/secondary/messaging/EventPublisher.js';
 import { DomainError, BusinessRuleError, ErrorSeverity } from '../../shared/DomainError.js';
+
+/**
+ * Convert a LabEvent to a DomainEvent for publishing
+ */
+function toDomainEvent(event: LabEvent, actorId: string, correlationId?: string): DomainEvent {
+  return {
+    eventType: event.eventType,
+    aggregateId: event.labCaseId,
+    aggregateType: 'LabCase',
+    aggregateVersion: 1,
+    eventData: event,
+    correlationId: correlationId ?? crypto.randomUUID(),
+    causationId: null,
+    actorId,
+    occurredAt: new Date(),
+  };
+}
 
 // =============================================================================
 // LOGGER
@@ -200,10 +217,25 @@ export class DentalLabProductionService implements IDentalLabProductionUseCase {
     private readonly labCaseRepository: ILabCaseRepository,
     private readonly collaborationRepository: ILabCollaborationRepository,
     private readonly assetStorage: IDigitalAssetStoragePort,
-    private readonly eventPublisher: IEventPublisher,
+    private readonly eventPublisher: EventPublisher,
     config?: Partial<DentalLabProductionServiceConfig>
   ) {
     this.config = { ...DEFAULT_CONFIG, ...config };
+  }
+
+  /**
+   * Helper to convert LabEvent to DomainEvent for publishing
+   */
+  private toDomainEvent(event: LabEvent, labCaseId: string, actorId: string): DomainEvent {
+    return createDomainEvent(
+      event.eventType,
+      labCaseId,
+      'LabCase',
+      1,
+      event,
+      labCaseId, // correlationId
+      actorId
+    );
   }
 
   // ===========================================================================
@@ -239,7 +271,7 @@ export class DentalLabProductionService implements IDentalLabProductionUseCase {
       patientId: labCase.patientId,
     };
 
-    await this.eventPublisher.publish('lab.case.created', event);
+    await this.eventPublisher.publishTo('lab.case.created', toDomainEvent(event, createdBy));
 
     logger.info(
       { labCaseId: labCase.id, caseNumber: labCase.caseNumber },
@@ -298,7 +330,7 @@ export class DentalLabProductionService implements IDentalLabProductionUseCase {
     );
 
     // Emit event
-    await this.eventPublisher.publish('lab.case.cancelled', {
+    const cancelledEvent: LabEvent = {
       eventType: 'LAB_CASE_STATUS_CHANGED',
       labCaseId: id,
       caseNumber: updatedCase.caseNumber,
@@ -309,7 +341,8 @@ export class DentalLabProductionService implements IDentalLabProductionUseCase {
       reason,
       clinicId: updatedCase.clinicId,
       patientId: updatedCase.patientId,
-    });
+    };
+    await this.eventPublisher.publishTo('lab.case.cancelled', toDomainEvent(cancelledEvent, cancelledBy));
 
     logger.info({ labCaseId: id, reason }, 'Lab case cancelled');
 
@@ -362,7 +395,7 @@ export class DentalLabProductionService implements IDentalLabProductionUseCase {
       patientId: updatedCase.patientId,
     };
 
-    await this.eventPublisher.publish('lab.case.status_changed', event);
+    await this.eventPublisher.publishTo('lab.case.status_changed', toDomainEvent(event, changedBy));
 
     // Determine next actions
     const nextActions = this.getNextActionsForStatus(newStatus, updatedCase);
@@ -545,7 +578,7 @@ export class DentalLabProductionService implements IDentalLabProductionUseCase {
     };
 
     if (this.config.notificationsEnabled) {
-      await this.eventPublisher.publish('lab.design.review_required', event);
+      await this.eventPublisher.publishTo('lab.design.review_required', toDomainEvent(event, designedBy));
     }
 
     logger.info(
@@ -708,7 +741,7 @@ export class DentalLabProductionService implements IDentalLabProductionUseCase {
       clinicId: updatedCase.clinicId,
     };
 
-    await this.eventPublisher.publish('lab.qc.completed', event);
+    await this.eventPublisher.publishTo('lab.qc.completed', toDomainEvent(event, inspection.inspectedBy));
 
     logger.info(
       { labCaseId, passed, overallScore: qcInspection.overallScore },
@@ -823,7 +856,7 @@ export class DentalLabProductionService implements IDentalLabProductionUseCase {
       completedAt: new Date(),
     };
 
-    await this.eventPublisher.publish('lab.case.ready_for_pickup', event);
+    await this.eventPublisher.publishTo('lab.case.ready_for_pickup', toDomainEvent(event, preparedBy));
 
     logger.info({ labCaseId }, 'Case marked ready for pickup');
 
