@@ -81,3 +81,16 @@ export type {
   RevenueTrend,
   ForecastGranularity,
 } from './RevenueForecastingUseCase.js';
+
+// Dental Lab Production Use Case
+export type {
+  IDentalLabProductionUseCase,
+  CreateLabCaseResult,
+  TransitionStatusResult,
+  SubmitDesignResult,
+  PerformQCInspectionResult,
+  ApproveDesignResult,
+  UploadScanResult,
+  CaseSummary,
+  DailyLabReport,
+} from './DentalLabProductionUseCase.js';
