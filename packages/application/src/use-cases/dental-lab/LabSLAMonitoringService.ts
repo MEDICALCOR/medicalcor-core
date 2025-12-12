@@ -278,7 +278,7 @@ export class LabSLAMonitoringService {
       riskFactors: string[];
     }> = [];
 
-    for (const { labCase, deadline, milestone } of upcomingDeadlines) {
+    for (const { labCase, deadline } of upcomingDeadlines) {
       const slaTracking = await this.labCaseRepository.getSLATracking(labCase.id);
       if (!slaTracking) continue;
 
