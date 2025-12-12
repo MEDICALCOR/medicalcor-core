@@ -20,7 +20,7 @@ import {
 
 import type { Result } from '../../shared/Result.js';
 import { Ok, Err } from '../../shared/Result.js';
-import { DomainError, ErrorSeverity, BusinessRuleError } from '../../shared/DomainError.js';
+import { DomainError, BusinessRuleError } from '../../shared/DomainError.js';
 import type { SecurityContext } from '../../security/SecurityContext.js';
 import { Permission } from '../../security/SecurityContext.js';
 
