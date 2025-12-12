@@ -27,11 +27,28 @@ import type {
 
 import type { ILabCaseRepository } from '../../ports/secondary/persistence/LabCaseRepository.js';
 
-import type { EventPublisher } from '../../ports/secondary/messaging/EventPublisher.js';
+import type { EventPublisher, DomainEvent } from '../../ports/secondary/messaging/EventPublisher.js';
 
 // Re-export SLAOverallStatus as SLAStatus for backward compatibility within this file
 type SLAStatus = SLAOverallStatus;
 type IEventPublisher = EventPublisher;
+
+/**
+ * Convert a LabEvent to a DomainEvent for publishing
+ */
+function toDomainEvent(event: LabEvent, actorId: string, correlationId?: string): DomainEvent {
+  return {
+    eventType: event.eventType,
+    aggregateId: event.labCaseId,
+    aggregateType: 'LabCase',
+    aggregateVersion: 1,
+    eventData: event,
+    correlationId: correlationId ?? crypto.randomUUID(),
+    causationId: null,
+    actorId,
+    occurredAt: new Date(),
+  };
+}
 
 // =============================================================================
 // LOGGER
@@ -81,10 +98,10 @@ export interface SLAHealthReport {
     overdue: number;
   };
   breachesByPriority: {
-    STAT: number;
-    RUSH: number;
     STANDARD: number;
-    FLEXIBLE: number;
+    RUSH: number;
+    EMERGENCY: number;
+    VIP: number;
   };
   averageMilestoneCompletionRate: number;
   projectedBreachesNext24h: number;
@@ -363,7 +380,7 @@ export class LabSLAMonitoringService {
       reportDate: new Date(),
       totalActiveCases: activeCases.total,
       slaDistribution,
-      breachesByPriority: breachesByPriority as SLAHealthReport['breachesByPriority'],
+      breachesByPriority,
       averageMilestoneCompletionRate: caseCount > 0 ? totalCompletionRate / caseCount : 0,
       projectedBreachesNext24h: projections24h.length,
       projectedBreachesNext48h: projections48h.length,
@@ -392,15 +409,13 @@ export class LabSLAMonitoringService {
       labCaseId: breach.labCaseId,
       caseNumber: breach.caseNumber,
       clinicId: labCase.clinicId,
-      patientId: labCase.patientId,
-      breachType: breach.breachType,
-      milestoneName: breach.milestoneName,
-      hoursOverdue: breach.hoursOverdue,
-      severity: 'CRITICAL',
-      timestamp: breach.escalatedAt ?? new Date(),
+      milestone: breach.milestoneName ?? 'Overall Deadline',
+      expectedBy: breach.expectedDeadline,
+      currentStatus: labCase.status,
+      priority: labCase.priority,
     };
 
-    await this.eventPublisher.publish(event);
+    await this.eventPublisher.publishTo('lab.sla.breach', toDomainEvent(event, 'system'));
   }
 
   /**
@@ -465,15 +480,13 @@ export class LabSLAMonitoringService {
       labCaseId: breach.labCaseId,
       caseNumber: breach.caseNumber,
       clinicId: labCase.clinicId,
-      patientId: labCase.patientId,
-      breachType: breach.breachType,
-      milestoneName: breach.milestoneName,
-      hoursOverdue: breach.hoursOverdue,
-      severity: breach.severity === 'ESCALATED' ? 'CRITICAL' : breach.severity === 'CRITICAL' ? 'HIGH' : 'MEDIUM',
-      timestamp: new Date(),
+      milestone: breach.milestoneName ?? 'Overall Deadline',
+      expectedBy: breach.expectedDeadline,
+      currentStatus: labCase.status,
+      priority: labCase.priority,
     };
 
-    await this.eventPublisher.publish(event);
+    await this.eventPublisher.publishTo('lab.sla.notification', toDomainEvent(event, 'system'));
     logger.info({ userId, labCaseId: breach.labCaseId }, 'SLA notification sent');
   }
 
