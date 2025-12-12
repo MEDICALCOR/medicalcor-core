@@ -14,6 +14,7 @@ import {
   getStrategyByProviderName,
   OpenAIStrategy,
   AnthropicStrategy,
+  GeminiStrategy,
   LlamaStrategy,
   OllamaStrategy,
   type IAIProviderStrategy,
@@ -37,11 +38,12 @@ describe('AI Provider Strategies', () => {
   describe('createDefaultAIStrategies', () => {
     it('should create all default strategies', () => {
       const strategies = createDefaultAIStrategies();
-      expect(strategies).toHaveLength(4);
+      expect(strategies).toHaveLength(5);
 
       const providerNames = strategies.map((s) => s.providerName);
       expect(providerNames).toContain('openai');
       expect(providerNames).toContain('anthropic');
+      expect(providerNames).toContain('gemini');
       expect(providerNames).toContain('llama');
       expect(providerNames).toContain('ollama');
     });
@@ -242,6 +244,131 @@ describe('AI Provider Strategies', () => {
     });
   });
 
+  describe('GeminiStrategy', () => {
+    let strategy: GeminiStrategy;
+    let config: ProviderConfig;
+    let options: AIProviderCallOptions;
+
+    beforeEach(() => {
+      strategy = new GeminiStrategy();
+      config = {
+        provider: 'gemini',
+        enabled: true,
+        apiKey: 'test-gemini-key',
+        baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+        defaultModel: 'gemini-1.5-pro',
+        maxTokens: 8192,
+        costPer1kTokens: { input: 0.00125, output: 0.005 },
+      };
+      options = {
+        messages: [
+          { role: 'system', content: 'You are helpful.' },
+          { role: 'user', content: 'Hello' },
+        ],
+        model: 'gemini-1.5-pro',
+        maxTokens: 1000,
+        timeoutMs: 30000,
+      };
+    });
+
+    it('should have correct provider name', () => {
+      expect(strategy.providerName).toBe('gemini');
+    });
+
+    it('should handle Gemini config', () => {
+      expect(strategy.canHandle(config)).toBe(true);
+    });
+
+    it('should not handle disabled Gemini config', () => {
+      config.enabled = false;
+      expect(strategy.canHandle(config)).toBe(false);
+    });
+
+    it('should not handle other provider configs', () => {
+      config.provider = 'openai';
+      expect(strategy.canHandle(config)).toBe(false);
+    });
+
+    it('should execute Gemini API call successfully', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          candidates: [{ content: { parts: [{ text: 'Hello from Gemini!' }] } }],
+          usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 },
+        }),
+      });
+
+      const result = await strategy.execute(config, options);
+
+      expect(result.content).toBe('Hello from Gemini!');
+      expect(result.tokensUsed.prompt).toBe(10);
+      expect(result.tokensUsed.completion).toBe(5);
+      expect(result.tokensUsed.total).toBe(15);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('generativelanguage.googleapis.com'),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+          }),
+        })
+      );
+    });
+
+    it('should convert system message to systemInstruction', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          candidates: [{ content: { parts: [{ text: 'Response' }] } }],
+          usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 },
+        }),
+      });
+
+      await strategy.execute(config, options);
+
+      const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(callBody.systemInstruction).toBeDefined();
+      expect(callBody.systemInstruction.parts[0].text).toBe('You are helpful.');
+      expect(callBody.contents).toHaveLength(1); // System message extracted
+    });
+
+    it('should throw error when API key is missing', async () => {
+      config.apiKey = undefined;
+      await expect(strategy.execute(config, options)).rejects.toThrow(
+        'Google Gemini API key not configured'
+      );
+    });
+
+    it('should throw error on API failure', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        text: async () => 'Invalid request',
+      });
+
+      await expect(strategy.execute(config, options)).rejects.toThrow(
+        'Gemini API error: 400 - Invalid request'
+      );
+    });
+
+    it('should handle JSON mode', async () => {
+      options.jsonMode = true;
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          candidates: [{ content: { parts: [{ text: '{"key": "value"}' }] } }],
+          usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 10, totalTokenCount: 20 },
+        }),
+      });
+
+      await strategy.execute(config, options);
+
+      const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(callBody.generationConfig.responseMimeType).toBe('application/json');
+    });
+  });
+
   describe('LlamaStrategy', () => {
     let strategy: LlamaStrategy;
     let config: ProviderConfig;
@@ -346,13 +473,14 @@ describe('AI Provider Strategies', () => {
       const providers: Array<{ provider: string; expected: string }> = [
         { provider: 'openai', expected: 'openai' },
         { provider: 'anthropic', expected: 'anthropic' },
+        { provider: 'gemini', expected: 'gemini' },
         { provider: 'llama', expected: 'llama' },
         { provider: 'ollama', expected: 'ollama' },
       ];
 
       for (const { provider, expected } of providers) {
         const config: ProviderConfig = {
-          provider: provider as 'openai' | 'anthropic' | 'llama' | 'ollama',
+          provider: provider as 'openai' | 'anthropic' | 'gemini' | 'llama' | 'ollama',
           enabled: true,
           baseUrl: 'http://test',
           defaultModel: 'test',

@@ -4,7 +4,8 @@
  * Unified interface for multiple AI providers with automatic fallback:
  * - OpenAI (primary)
  * - Anthropic (secondary)
- * - Local Llama (backup/offline)
+ * - Google Gemini (tertiary)
+ * - Local Llama/Ollama (backup/offline)
  *
  * Features:
  * - Provider health monitoring
@@ -28,7 +29,7 @@ import {
 /**
  * Supported AI providers
  */
-export type AIProvider = 'openai' | 'anthropic' | 'llama' | 'ollama';
+export type AIProvider = 'openai' | 'anthropic' | 'gemini' | 'llama' | 'ollama';
 
 /**
  * Provider status
@@ -82,7 +83,7 @@ export interface CompletionResponse {
  */
 export const ProviderConfigSchema = z.object({
   /** Provider name */
-  provider: z.enum(['openai', 'anthropic', 'llama', 'ollama']),
+  provider: z.enum(['openai', 'anthropic', 'gemini', 'llama', 'ollama']),
   /** API key (not needed for local providers) */
   apiKey: z.string().optional(),
   /** API base URL */
@@ -149,6 +150,30 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<AIProvider, Omit<ProviderConfig, '
     weight: 10,
     maxRetries: 1,
   },
+  gemini: {
+    provider: 'gemini',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+    defaultModel: 'gemini-1.5-pro',
+    maxTokens: 8192,
+    costPer1kInput: 0.00125, // $1.25/1M input (under 128K context)
+    costPer1kOutput: 0.005, // $5/1M output
+    priority: 3,
+    enabled: false, // Disabled by default until API key is configured
+    weight: 25,
+    maxRetries: 2,
+  },
+  llama: {
+    provider: 'llama',
+    baseUrl: 'http://localhost:11434/v1',
+    defaultModel: 'llama3.1:8b',
+    maxTokens: 4096,
+    costPer1kInput: 0, // Free (local)
+    costPer1kOutput: 0,
+    priority: 4,
+    enabled: false, // Disabled by default
+    weight: 10,
+    maxRetries: 1,
+  },
   ollama: {
     provider: 'ollama',
     baseUrl: 'http://localhost:11434/api',
@@ -156,7 +181,7 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<AIProvider, Omit<ProviderConfig, '
     maxTokens: 4096,
     costPer1kInput: 0,
     costPer1kOutput: 0,
-    priority: 4,
+    priority: 5,
     enabled: false,
     weight: 10,
     maxRetries: 1,
@@ -171,8 +196,8 @@ export const MultiProviderGatewayConfigSchema = z.object({
   providers: z.record(ProviderConfigSchema).optional(),
   /** Fallback order (provider names) */
   fallbackOrder: z
-    .array(z.enum(['openai', 'anthropic', 'llama', 'ollama']))
-    .default(['openai', 'anthropic', 'llama']),
+    .array(z.enum(['openai', 'anthropic', 'gemini', 'llama', 'ollama']))
+    .default(['openai', 'anthropic', 'gemini', 'llama']),
   /** Enable automatic failover */
   enableFailover: z.boolean().default(true),
   /** Enable cost-aware routing (prefer cheaper providers when appropriate) */
@@ -290,10 +315,10 @@ export class MultiProviderGateway {
       fallbacksTriggered: 0,
       fallbackSuccesses: 0,
       fallbackFailures: 0,
-      providerUsage: { openai: 0, anthropic: 0, llama: 0, ollama: 0 },
-      avgLatencyByProvider: { openai: 0, anthropic: 0, llama: 0, ollama: 0 },
-      errorsByProvider: { openai: 0, anthropic: 0, llama: 0, ollama: 0 },
-      costByProvider: { openai: 0, anthropic: 0, llama: 0, ollama: 0 },
+      providerUsage: { openai: 0, anthropic: 0, gemini: 0, llama: 0, ollama: 0 },
+      avgLatencyByProvider: { openai: 0, anthropic: 0, gemini: 0, llama: 0, ollama: 0 },
+      errorsByProvider: { openai: 0, anthropic: 0, gemini: 0, llama: 0, ollama: 0 },
+      costByProvider: { openai: 0, anthropic: 0, gemini: 0, llama: 0, ollama: 0 },
     };
 
     // Start metrics flush interval if repository is configured
@@ -929,10 +954,10 @@ export class MultiProviderGateway {
       fallbacksTriggered: 0,
       fallbackSuccesses: 0,
       fallbackFailures: 0,
-      providerUsage: { openai: 0, anthropic: 0, llama: 0, ollama: 0 },
-      avgLatencyByProvider: { openai: 0, anthropic: 0, llama: 0, ollama: 0 },
-      errorsByProvider: { openai: 0, anthropic: 0, llama: 0, ollama: 0 },
-      costByProvider: { openai: 0, anthropic: 0, llama: 0, ollama: 0 },
+      providerUsage: { openai: 0, anthropic: 0, gemini: 0, llama: 0, ollama: 0 },
+      avgLatencyByProvider: { openai: 0, anthropic: 0, gemini: 0, llama: 0, ollama: 0 },
+      errorsByProvider: { openai: 0, anthropic: 0, gemini: 0, llama: 0, ollama: 0 },
+      costByProvider: { openai: 0, anthropic: 0, gemini: 0, llama: 0, ollama: 0 },
     };
   }
 
@@ -1004,6 +1029,14 @@ export function createMultiProviderGatewayFromEnv(): MultiProviderGateway {
   if (process.env.LLAMA_API_URL) {
     gateway.configureProvider('llama', {
       baseUrl: process.env.LLAMA_API_URL,
+      enabled: true,
+    });
+  }
+
+  // Configure Google Gemini from environment
+  if (process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY) {
+    gateway.configureProvider('gemini', {
+      apiKey: process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY,
       enabled: true,
     });
   }
