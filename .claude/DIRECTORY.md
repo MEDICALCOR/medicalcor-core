@@ -50,11 +50,11 @@ The `.claude` directory contains all Claude Code configuration, skills, commands
 
 Skills are auto-invoked when users mention specific keywords. Claude Code automatically activates relevant skills based on conversation context.
 
-### Total Skills: 46
+### Total Skills: 48
 
 **Organization:** Skills are grouped by domain into 9 top-level categories with sub-skills organized hierarchically:
 
-- **medicalcor/** - MedicalCor Medical CRM (6 skills) ⭐ NEW
+- **medicalcor/** - MedicalCor Medical CRM (8 skills) ⭐ NEW
 - **anthropic/** - AI & Claude Code tools (7 skills)
 - **aptos/** - Blockchain & Shelby Protocol (18 skills: 10 Aptos base + 8 Shelby)
 - **plaid/** - Banking API (5 skills)
@@ -68,7 +68,7 @@ Skills are auto-invoked when users mention specific keywords. Claude Code automa
 
 ---
 
-### MedicalCor Skills (6) ⭐
+### MedicalCor Skills (8) ⭐
 
 **Path:** `skills/medicalcor/`
 **Purpose:** Domain expertise for the MedicalCor AI-powered medical CRM platform
@@ -108,6 +108,18 @@ Skills are auto-invoked when users mention specific keywords. Claude Code automa
 **Path:** `skills/medicalcor/omnichannel/skill.md`
 **Triggers:** WhatsApp, voice, Vapi, messaging, SMS, communication channel, webhook, patient communication
 **Purpose:** Multi-channel patient communication (WhatsApp, Voice, Web)
+
+#### 7. Domain Agent
+
+**Path:** `skills/medicalcor/domain-agent/skill.md`
+**Triggers:** domain logic, business rules, entity, value object, aggregate, use case, domain service, DDD, scoring policy, pure function, All-on-X logic, medical rules
+**Purpose:** Pure business logic expert enforcing zero infrastructure dependencies in domain layer
+
+#### 8. DevOps Agent
+
+**Path:** `skills/medicalcor/devops-agent/skill.md`
+**Triggers:** CI/CD, GitHub Actions, deploy, deployment, rollback, Trigger.dev, workflow, cron job, health check, pipeline, staging, production
+**Purpose:** CI/CD pipelines, Trigger.dev orchestration, and operational reliability
 
 ---
 
@@ -932,7 +944,7 @@ Shows how to enable hooks and configure Claude Code features.
 
 ### Key Features
 
-**✅ Auto-invoked Skills (40)**
+**✅ Auto-invoked Skills (42)**
 
 - AI & Claude Code: 7 skills
 - Banking API: 5 skills (Plaid + sub-skills)
@@ -962,7 +974,7 @@ Shows how to enable hooks and configure Claude Code features.
 
 ## Statistics
 
-- **Total Skills:** 40
+- **Total Skills:** 42
 - **Total Commands:** 7
 - **Total Hooks:** 5 (disabled by default)
 - **Total Utils:** 1 (TOON format tools)
