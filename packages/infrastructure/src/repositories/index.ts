@@ -139,3 +139,15 @@ export {
   // Configuration types
   type PostgresDataClassificationRepositoryConfig,
 } from './PostgresDataClassificationRepository.js';
+
+// =============================================================================
+// REVENUE SNAPSHOT REPOSITORY (Revenue Intelligence)
+// =============================================================================
+
+export {
+  // Class and factory
+  PostgresRevenueSnapshotRepository,
+  createPostgresRevenueSnapshotRepository,
+  // Configuration types
+  type PostgresRevenueSnapshotRepositoryConfig,
+} from './PostgresRevenueSnapshotRepository.js';

@@ -11,4 +11,4 @@ export * from './AgentPerformanceRepositoryPort.js';
 export * from './CaseRepository.js';
 export * from './ReadModelRepository.js';
 export * from './LocationHistoryRepository.js';
-export * from './LabCaseRepository.js';
+export * from './RevenueSnapshotRepository.js';
