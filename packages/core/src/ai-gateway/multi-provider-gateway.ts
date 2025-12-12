@@ -21,10 +21,7 @@ import {
   createAdaptiveTimeoutManager,
   type AIOperationType,
 } from './adaptive-timeout.js';
-import {
-  type IAIProviderStrategy,
-  createDefaultAIStrategies,
-} from './strategies/index.js';
+import { type IAIProviderStrategy, createDefaultAIStrategies } from './strategies/index.js';
 
 /**
  * Supported AI providers
@@ -137,18 +134,6 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<AIProvider, Omit<ProviderConfig, '
     enabled: true,
     weight: 30,
     maxRetries: 2,
-  },
-  llama: {
-    provider: 'llama',
-    baseUrl: 'http://localhost:11434/v1',
-    defaultModel: 'llama3.1:8b',
-    maxTokens: 4096,
-    costPer1kInput: 0, // Free (local)
-    costPer1kOutput: 0,
-    priority: 3,
-    enabled: false, // Disabled by default
-    weight: 10,
-    maxRetries: 1,
   },
   gemini: {
     provider: 'gemini',
@@ -1034,9 +1019,9 @@ export function createMultiProviderGatewayFromEnv(): MultiProviderGateway {
   }
 
   // Configure Google Gemini from environment
-  if (process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY) {
+  if (process.env.GOOGLE_AI_API_KEY ?? process.env.GEMINI_API_KEY) {
     gateway.configureProvider('gemini', {
-      apiKey: process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY,
+      apiKey: process.env.GOOGLE_AI_API_KEY ?? process.env.GEMINI_API_KEY,
       enabled: true,
     });
   }
