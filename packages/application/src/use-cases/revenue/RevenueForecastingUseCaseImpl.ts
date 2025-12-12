@@ -16,7 +16,7 @@ import { createLogger } from '@medicalcor/core';
 import {
   RevenueForecastingService,
   createRevenueForecastingService,
-} from '@medicalcor/domain/ltv';
+} from '@medicalcor/domain';
 
 import type { Result } from '../../shared/Result.js';
 import { Ok, Err } from '../../shared/Result.js';
@@ -211,7 +211,14 @@ export class RevenueForecastingUseCaseImpl implements RevenueForecastingUseCase 
         clinicId: input.clinicId,
         method: forecastResult.method as ForecastMethod,
         confidenceLevel: forecastResult.confidenceLevel as ForecastConfidenceLevel,
-        forecasts: forecastResult.forecasts.map((f) => this.mapForecastPoint(f)),
+        forecasts: forecastResult.forecasts.map((f: {
+          date: Date;
+          predicted: number;
+          confidenceInterval: { lower: number; upper: number; level: number };
+          seasonalFactor?: number;
+          trendComponent?: number;
+          highUncertainty: boolean;
+        }) => this.mapForecastPoint(f)),
         totalPredictedRevenue: forecastResult.totalPredictedRevenue,
         totalConfidenceInterval: {
           lower: forecastResult.totalConfidenceInterval.lower,

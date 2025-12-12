@@ -147,6 +147,18 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<AIProvider, Omit<ProviderConfig, '
     weight: 25,
     maxRetries: 2,
   },
+  llama: {
+    provider: 'llama',
+    baseUrl: 'http://localhost:8080/v1',
+    defaultModel: 'llama3.1:70b',
+    maxTokens: 4096,
+    costPer1kInput: 0,
+    costPer1kOutput: 0,
+    priority: 4,
+    enabled: false,
+    weight: 15,
+    maxRetries: 1,
+  },
   ollama: {
     provider: 'ollama',
     baseUrl: 'http://localhost:11434/api',

@@ -34,6 +34,23 @@ import type { EventPublisher, DomainEvent } from '../../ports/secondary/messagin
 /** SLA Status alias for backwards compatibility */
 type SLAStatus = SLAOverallStatus;
 
+/**
+ * Convert a LabEvent to a DomainEvent for publishing
+ */
+function toDomainEvent(event: LabEvent, actorId: string, correlationId?: string): DomainEvent {
+  return {
+    eventType: event.eventType,
+    aggregateId: event.labCaseId,
+    aggregateType: 'LabCase',
+    aggregateVersion: 1,
+    eventData: event,
+    correlationId: correlationId ?? crypto.randomUUID(),
+    causationId: null,
+    actorId,
+    occurredAt: new Date(),
+  };
+}
+
 // =============================================================================
 // LOGGER
 // =============================================================================
@@ -364,7 +381,7 @@ export class LabSLAMonitoringService {
       reportDate: new Date(),
       totalActiveCases: activeCases.total,
       slaDistribution,
-      breachesByPriority: breachesByPriority as SLAHealthReport['breachesByPriority'],
+      breachesByPriority,
       averageMilestoneCompletionRate: caseCount > 0 ? totalCompletionRate / caseCount : 0,
       projectedBreachesNext24h: projections24h.length,
       projectedBreachesNext48h: projections48h.length,
@@ -393,25 +410,13 @@ export class LabSLAMonitoringService {
       labCaseId: breach.labCaseId,
       caseNumber: breach.caseNumber,
       clinicId: labCase.clinicId,
-      milestone: breach.milestoneName ?? 'OVERALL',
+      milestone: breach.milestoneName ?? 'Overall Deadline',
       expectedBy: breach.expectedDeadline,
       currentStatus: labCase.status,
       priority: labCase.priority,
     };
 
-    const domainEvent: DomainEvent = {
-      eventType: event.eventType,
-      aggregateId: breach.labCaseId,
-      aggregateType: 'LabCase',
-      aggregateVersion: 1,
-      eventData: event,
-      correlationId: breach.labCaseId,
-      causationId: null,
-      actorId: 'system',
-      occurredAt: new Date(),
-    };
-
-    await this.eventPublisher.publishTo('lab.sla.escalated', domainEvent);
+    await this.eventPublisher.publishTo('lab.sla.breach', toDomainEvent(event, 'system'));
   }
 
   /**
@@ -486,25 +491,14 @@ export class LabSLAMonitoringService {
       labCaseId: breach.labCaseId,
       caseNumber: breach.caseNumber,
       clinicId: labCase.clinicId,
-      milestone: breach.milestoneName ?? 'OVERALL',
+      milestone: breach.milestoneName ?? 'Overall Deadline',
       expectedBy: breach.expectedDeadline,
       currentStatus: labCase.status,
       priority: labCase.priority,
     };
 
-    const domainEvent: DomainEvent = {
-      eventType: event.eventType,
-      aggregateId: breach.labCaseId,
-      aggregateType: 'LabCase',
-      aggregateVersion: 1,
-      eventData: { ...event, userId, severity: breach.severity, breachType: breach.breachType },
-      correlationId: breach.labCaseId,
-      causationId: null,
-      actorId: 'system',
-      occurredAt: new Date(),
-    };
-
-    await this.eventPublisher.publishTo('lab.notification.sla', domainEvent);
+    await this.eventPublisher.publishTo('lab.sla.notification', toDomainEvent(event, 'system'));
+    logger.info({ userId, labCaseId: breach.labCaseId }, 'SLA notification sent');
   }
 
   private async getNotificationTargets(labCase: LabCase): Promise<NotificationTargets> {
