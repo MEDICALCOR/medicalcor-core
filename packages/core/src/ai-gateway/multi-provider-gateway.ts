@@ -20,6 +20,10 @@ import {
   createAdaptiveTimeoutManager,
   type AIOperationType,
 } from './adaptive-timeout.js';
+import {
+  type IAIProviderStrategy,
+  createDefaultAIStrategies,
+} from './strategies/index.js';
 
 /**
  * Supported AI providers
@@ -249,6 +253,9 @@ export interface AIMetricsRepository {
 
 /**
  * Multi-Provider AI Gateway
+ *
+ * Uses the Strategy Pattern for extensible provider support (OCP compliant).
+ * Add new providers by implementing IAIProviderStrategy.
  */
 export class MultiProviderGateway {
   private config: MultiProviderGatewayConfig;
@@ -259,14 +266,20 @@ export class MultiProviderGateway {
   private metricsRepository: AIMetricsRepository | null = null;
   private metricsBuffer: AIMetricsRecord[] = [];
   private metricsFlushInterval: ReturnType<typeof setInterval> | null = null;
+  /** Strategy instances for each provider (Strategy Pattern) */
+  private strategies: IAIProviderStrategy[];
 
   constructor(
     config: Partial<MultiProviderGatewayConfig> = {},
-    metricsRepository?: AIMetricsRepository
+    metricsRepository?: AIMetricsRepository,
+    /** Custom strategies (default: OpenAI, Anthropic, Llama, Ollama) */
+    strategies?: IAIProviderStrategy[]
   ) {
     this.config = MultiProviderGatewayConfigSchema.parse(config);
     this.timeoutManager = createAdaptiveTimeoutManager();
     this.metricsRepository = metricsRepository ?? null;
+    // Initialize strategies (use provided or create defaults)
+    this.strategies = strategies ?? createDefaultAIStrategies();
 
     // Initialize providers from config
     this.initializeProviders();
@@ -501,6 +514,9 @@ export class MultiProviderGateway {
 
   /**
    * Execute completion with a specific provider
+   *
+   * Uses Strategy Pattern to delegate to the appropriate provider strategy.
+   * This allows adding new providers without modifying this method (OCP compliant).
    */
   private async executeWithProvider(
     provider: AIProvider,
@@ -515,26 +531,22 @@ export class MultiProviderGateway {
     const timeoutConfig = this.timeoutManager.getTimeoutConfig(operation);
     const model = options.model ?? config.defaultModel;
 
-    // Execute based on provider type
-    let result: {
-      content: string;
-      tokensUsed: { prompt: number; completion: number; total: number };
-    };
+    // Find strategy that can handle this provider (Strategy Pattern)
+    const strategy = this.strategies.find((s) => s.canHandle(config));
 
-    switch (provider) {
-      case 'openai':
-        result = await this.callOpenAI(config, options, model, timeoutConfig.timeoutMs);
-        break;
-      case 'anthropic':
-        result = await this.callAnthropic(config, options, model, timeoutConfig.timeoutMs);
-        break;
-      case 'llama':
-      case 'ollama':
-        result = await this.callLocalLLM(config, options, model, timeoutConfig.timeoutMs);
-        break;
-      default:
-        throw new Error(`Unknown provider: ${provider as string}`);
+    if (!strategy) {
+      throw new Error(`No strategy found for provider: ${provider}`);
     }
+
+    // Execute using strategy
+    const result = await strategy.execute(config, {
+      messages: options.messages,
+      model,
+      maxTokens: options.maxTokens,
+      temperature: options.temperature,
+      jsonMode: options.jsonMode,
+      timeoutMs: timeoutConfig.timeoutMs,
+    });
 
     // Calculate cost
     const cost = this.calculateCost(config, result.tokensUsed);

@@ -151,3 +151,15 @@ export {
   // Configuration types
   type PostgresLabCaseRepositoryConfig,
 } from './PostgresLabCaseRepository.js';
+
+// =============================================================================
+// REVENUE SNAPSHOT REPOSITORY (Revenue Intelligence)
+// =============================================================================
+
+export {
+  // Class and factory
+  PostgresRevenueSnapshotRepository,
+  createPostgresRevenueSnapshotRepository,
+  // Configuration types
+  type PostgresRevenueSnapshotRepositoryConfig,
+} from './PostgresRevenueSnapshotRepository.js';
