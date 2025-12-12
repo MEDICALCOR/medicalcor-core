@@ -38,3 +38,41 @@ export {
 
 // Events
 export { emitJobEvent } from './events.js';
+
+// Payment Reminders
+export {
+  REMINDER_CONFIG,
+  determineReminderLevel,
+  getNormalizedLanguage,
+  formatCurrencyAmount,
+  formatDateForDisplay,
+  calculateDaysOverdue,
+  buildReminderTemplateParams,
+  sendPaymentReminder,
+  createEscalatedPaymentTask,
+  updateHubSpotPaymentInfo,
+  type ReminderLevel,
+  type OverdueInstallment,
+  type SupportedLanguage,
+} from './payment-reminders.js';
+
+// HubSpot Queries
+export {
+  countLeadsByStatus,
+  countNewLeads,
+  countConversions,
+  fetchWeeklyMetrics,
+  formatWeeklyReport,
+  type LeadStatus,
+  type WeeklyMetrics,
+} from './hubspot-queries.js';
+
+// Appointment Helpers
+export {
+  getContactLanguage,
+  getReminderConfig,
+  sendAppointmentReminder,
+  filterContactsForReminder,
+  type ReminderType,
+  type AppointmentLanguage,
+} from './appointment-helpers.js';
