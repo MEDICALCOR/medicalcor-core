@@ -1,4 +1,5 @@
-import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import type { FastifyPluginAsync, FastifyRequest, FastifyReply, FastifyInstance } from 'fastify';
+import type { StripeWebhookEvent } from '@medicalcor/types';
 import { StripeWebhookEventSchema } from '@medicalcor/types';
 import {
   ValidationError,
@@ -19,25 +20,104 @@ import crypto from 'crypto';
  * identifier to prevent double-processing.
  */
 
+// =============================================================================
+// Types
+// =============================================================================
+
+interface HandlerContext {
+  fastify: FastifyInstance;
+  correlationId: string;
+}
+
+interface PaymentEventData {
+  id: string;
+  amount: number;
+  currency: string;
+  customerId: string | null;
+  customerEmail: string | null;
+  metadata?: Record<string, unknown>;
+  paymentIntentId: string | null;
+}
+
+// =============================================================================
+// Data Extraction Utilities
+// =============================================================================
+
+/**
+ * Safely extract a typed value from an object with 'in' check
+ */
+function extractField<T>(obj: unknown, field: string, defaultValue: T): T {
+  if (obj && typeof obj === 'object' && field in obj) {
+    const value = (obj as Record<string, unknown>)[field];
+    if (typeof value === typeof defaultValue || (defaultValue === null && value === null)) {
+      return value as T;
+    }
+    if (defaultValue === null && typeof value === 'string') {
+      return value as T;
+    }
+  }
+  return defaultValue;
+}
+
+/**
+ * Extract common payment data from various Stripe event objects
+ */
+function extractPaymentData(eventData: unknown): PaymentEventData {
+  const obj = eventData as Record<string, unknown>;
+  return {
+    id: extractField(obj, 'id', ''),
+    amount:
+      extractField(obj, 'amount', 0) ||
+      extractField(obj, 'amount_total', 0) ||
+      extractField(obj, 'amount_paid', 0),
+    currency: extractField(obj, 'currency', 'eur'),
+    customerId: typeof obj.customer === 'string' ? obj.customer : null,
+    customerEmail:
+      extractField(obj, 'receipt_email', null as string | null) ??
+      extractField(obj, 'customer_email', null as string | null),
+    metadata:
+      typeof obj.metadata === 'object' && obj.metadata
+        ? (obj.metadata as Record<string, unknown>)
+        : undefined,
+    paymentIntentId: typeof obj.payment_intent === 'string' ? obj.payment_intent : null,
+  };
+}
+
 /**
  * Extract the canonical payment ID from a Stripe event object.
  * For charges, this extracts the payment_intent ID to prevent double-processing
  * when Stripe sends both payment_intent.succeeded and charge.succeeded events.
- *
- * @param eventType - The Stripe event type
- * @param paymentData - The event data object
- * @returns The canonical payment ID (payment_intent ID preferred)
  */
 function getCanonicalPaymentId(
   eventType: string,
-  paymentData: { id: string; payment_intent?: string | null }
+  paymentData: { id: string; paymentIntentId: string | null }
 ): string {
-  // For charge events, prefer the payment_intent ID if available
-  // This ensures the same idempotency key for both charge.succeeded and payment_intent.succeeded
-  if (eventType.startsWith('charge.') && paymentData.payment_intent) {
-    return paymentData.payment_intent;
+  if (eventType.startsWith('charge.') && paymentData.paymentIntentId) {
+    return paymentData.paymentIntentId;
   }
   return paymentData.id;
+}
+
+// =============================================================================
+// Trigger Utility
+// =============================================================================
+
+/**
+ * Trigger a task with consistent error handling and logging
+ */
+function triggerTask(
+  ctx: HandlerContext,
+  taskId: string,
+  payload: Record<string, unknown>,
+  idempotencyKey: string,
+  entityInfo: Record<string, unknown>
+): void {
+  tasks.trigger(taskId, payload, { idempotencyKey }).catch((err: unknown) => {
+    ctx.fastify.log.error(
+      { err, ...entityInfo, correlationId: ctx.correlationId },
+      `Failed to trigger ${taskId}`
+    );
+  });
 }
 
 /**
@@ -85,6 +165,453 @@ function verifyStripeSignature(payload: string, signature: string, secret: strin
     return false;
   }
 }
+
+// =============================================================================
+// Event Handlers
+// =============================================================================
+
+/**
+ * Handle payment success events (payment_intent.succeeded, charge.succeeded)
+ */
+function handlePaymentSucceeded(ctx: HandlerContext, event: StripeWebhookEvent): void {
+  const data = extractPaymentData(event.data.object);
+  const canonicalPaymentId = getCanonicalPaymentId(event.type, data);
+
+  ctx.fastify.log.info(
+    {
+      correlationId: ctx.correlationId,
+      eventType: event.type,
+      rawPaymentId: data.id,
+      canonicalPaymentId,
+      amount: data.amount,
+      customer: data.customerId,
+    },
+    'Payment succeeded'
+  );
+
+  triggerTask(
+    ctx,
+    'payment-succeeded-handler',
+    {
+      paymentId: canonicalPaymentId,
+      rawPaymentId: data.id,
+      eventType: event.type,
+      amount: data.amount,
+      currency: data.currency,
+      customerId: data.customerId,
+      customerEmail: data.customerEmail,
+      metadata: data.metadata,
+      correlationId: ctx.correlationId,
+    },
+    IdempotencyKeys.paymentSucceeded(canonicalPaymentId),
+    { paymentId: canonicalPaymentId }
+  );
+}
+
+/**
+ * Handle payment failure events (payment_intent.payment_failed, charge.failed)
+ */
+function handlePaymentFailed(ctx: HandlerContext, event: StripeWebhookEvent): void {
+  const data = extractPaymentData(event.data.object);
+  const canonicalPaymentId = getCanonicalPaymentId(event.type, data);
+  const eventData = event.data.object as Record<string, unknown>;
+
+  // Extract failure details
+  const lastPaymentError = extractField(eventData, 'last_payment_error', null as unknown);
+  const failureMessage = extractField(eventData, 'failure_message', null as string | null);
+
+  let failureCode: string | undefined;
+  let failureReason = 'Payment failed';
+
+  if (lastPaymentError && typeof lastPaymentError === 'object') {
+    const errorObj = lastPaymentError as Record<string, unknown>;
+    failureCode = typeof errorObj.code === 'string' ? errorObj.code : undefined;
+    failureReason = typeof errorObj.message === 'string' ? errorObj.message : 'Payment failed';
+  } else if (failureMessage) {
+    failureReason = failureMessage;
+  }
+
+  ctx.fastify.log.warn(
+    {
+      correlationId: ctx.correlationId,
+      eventType: event.type,
+      rawPaymentId: data.id,
+      canonicalPaymentId,
+      customer: data.customerId,
+    },
+    'Payment failed'
+  );
+
+  triggerTask(
+    ctx,
+    'payment-failed-handler',
+    {
+      paymentId: canonicalPaymentId,
+      rawPaymentId: data.id,
+      eventType: event.type,
+      amount: data.amount,
+      currency: data.currency,
+      customerId: data.customerId,
+      customerEmail: data.customerEmail,
+      failureCode,
+      failureReason,
+      metadata: data.metadata,
+      correlationId: ctx.correlationId,
+    },
+    IdempotencyKeys.paymentFailed(canonicalPaymentId),
+    { paymentId: canonicalPaymentId }
+  );
+}
+
+/**
+ * Handle checkout session completed events
+ */
+function handleCheckoutSessionCompleted(ctx: HandlerContext, event: StripeWebhookEvent): void {
+  const session = event.data.object as Record<string, unknown>;
+
+  if (!('mode' in session) || session.payment_status !== 'paid') {
+    return;
+  }
+
+  const data = extractPaymentData(session);
+
+  ctx.fastify.log.info(
+    {
+      correlationId: ctx.correlationId,
+      sessionId: data.id,
+      customer: data.customerId,
+      paymentStatus: session.payment_status,
+    },
+    'Checkout session completed'
+  );
+
+  triggerTask(
+    ctx,
+    'payment-succeeded-handler',
+    {
+      paymentId: data.id,
+      amount: data.amount,
+      currency: data.currency,
+      customerId: data.customerId,
+      customerEmail: data.customerEmail,
+      metadata: data.metadata,
+      correlationId: ctx.correlationId,
+    },
+    IdempotencyKeys.paymentSucceeded(data.id),
+    { sessionId: data.id }
+  );
+}
+
+/**
+ * Handle invoice paid events
+ */
+function handleInvoicePaid(ctx: HandlerContext, event: StripeWebhookEvent): void {
+  const invoice = event.data.object as Record<string, unknown>;
+
+  if (!('amount_paid' in invoice)) {
+    return;
+  }
+
+  const data = extractPaymentData(invoice);
+
+  ctx.fastify.log.info(
+    {
+      correlationId: ctx.correlationId,
+      invoiceId: data.id,
+      customer: data.customerId,
+      amountPaid: data.amount,
+    },
+    'Invoice paid'
+  );
+
+  triggerTask(
+    ctx,
+    'payment-succeeded-handler',
+    {
+      paymentId: data.id,
+      amount: data.amount,
+      currency: data.currency,
+      customerId: data.customerId,
+      customerEmail: data.customerEmail,
+      metadata: data.metadata,
+      correlationId: ctx.correlationId,
+    },
+    IdempotencyKeys.paymentSucceeded(data.id),
+    { invoiceId: data.id }
+  );
+}
+
+/**
+ * Handle charge refunded events
+ */
+function handleChargeRefunded(ctx: HandlerContext, event: StripeWebhookEvent): void {
+  const charge = event.data.object as Record<string, unknown>;
+
+  if (!('amount_refunded' in charge)) {
+    return;
+  }
+
+  const data = extractPaymentData(charge);
+  const canonicalPaymentId = getCanonicalPaymentId(event.type, data);
+  const amountRefunded = extractField(charge, 'amount_refunded', 0);
+  const refundReason = extractField(charge, 'refund', undefined as string | undefined);
+
+  ctx.fastify.log.info(
+    {
+      correlationId: ctx.correlationId,
+      chargeId: data.id,
+      canonicalPaymentId,
+      amountRefunded,
+    },
+    'Charge refunded'
+  );
+
+  triggerTask(
+    ctx,
+    'refund-handler',
+    {
+      refundId: `refund_${canonicalPaymentId}`,
+      paymentId: canonicalPaymentId,
+      chargeId: data.id,
+      amount: amountRefunded,
+      currency: data.currency,
+      reason: refundReason,
+      customerEmail: data.customerEmail,
+      metadata: data.metadata,
+      correlationId: ctx.correlationId,
+    },
+    IdempotencyKeys.refund(`refund_${canonicalPaymentId}`),
+    { chargeId: data.id, canonicalPaymentId }
+  );
+}
+
+/**
+ * Extract subscription data from event
+ */
+function extractSubscriptionData(subscription: Record<string, unknown>) {
+  const items = extractField(subscription, 'items', null as unknown);
+  const itemsData =
+    items && typeof items === 'object' && 'data' in items
+      ? (items as Record<string, unknown>).data
+      : null;
+  const firstItem = Array.isArray(itemsData)
+    ? (itemsData[0] as Record<string, unknown> | undefined)
+    : undefined;
+  const price = firstItem?.price as Record<string, unknown> | undefined;
+  const recurring = price?.recurring as Record<string, unknown> | undefined;
+
+  return {
+    id: extractField(subscription, 'id', ''),
+    customerId: typeof subscription.customer === 'string' ? subscription.customer : '',
+    status: extractField(subscription, 'status', ''),
+    productName: price?.product,
+    amount: price?.unit_amount,
+    currency: price?.currency,
+    interval: recurring?.interval,
+    trialEnd: extractField(subscription, 'trial_end', null as number | null),
+    currentPeriodEnd: extractField(subscription, 'current_period_end', Date.now() / 1000),
+    cancelAt: extractField(subscription, 'cancel_at', null as number | null),
+    canceledAt: extractField(subscription, 'canceled_at', null as number | null),
+    endedAt: extractField(subscription, 'ended_at', null as number | null),
+    metadata:
+      typeof subscription.metadata === 'object' && subscription.metadata
+        ? (subscription.metadata as Record<string, unknown>)
+        : undefined,
+  };
+}
+
+/**
+ * Handle subscription created events
+ */
+function handleSubscriptionCreated(ctx: HandlerContext, event: StripeWebhookEvent): void {
+  const subscription = event.data.object as Record<string, unknown>;
+
+  if (!('status' in subscription)) {
+    return;
+  }
+
+  const data = extractSubscriptionData(subscription);
+
+  ctx.fastify.log.info(
+    {
+      correlationId: ctx.correlationId,
+      subscriptionId: data.id,
+      status: data.status,
+    },
+    'Subscription created'
+  );
+
+  triggerTask(
+    ctx,
+    'subscription-created-handler',
+    {
+      subscriptionId: data.id,
+      customerId: data.customerId,
+      customerEmail: null,
+      status: data.status,
+      productName: data.productName,
+      amount: data.amount,
+      currency: data.currency,
+      interval: data.interval,
+      trialEnd: data.trialEnd,
+      currentPeriodEnd: data.currentPeriodEnd,
+      metadata: data.metadata,
+      correlationId: ctx.correlationId,
+    },
+    IdempotencyKeys.paymentSucceeded(`sub_created_${data.id}`),
+    { subscriptionId: data.id }
+  );
+}
+
+/**
+ * Handle subscription updated events
+ */
+function handleSubscriptionUpdated(ctx: HandlerContext, event: StripeWebhookEvent): void {
+  const subscription = event.data.object as Record<string, unknown>;
+
+  if (!('status' in subscription)) {
+    return;
+  }
+
+  const data = extractSubscriptionData(subscription);
+
+  ctx.fastify.log.info(
+    {
+      correlationId: ctx.correlationId,
+      subscriptionId: data.id,
+      status: data.status,
+    },
+    'Subscription updated'
+  );
+
+  triggerTask(
+    ctx,
+    'subscription-updated-handler',
+    {
+      subscriptionId: data.id,
+      customerId: data.customerId,
+      customerEmail: null,
+      newStatus: data.status,
+      cancelAt: data.cancelAt,
+      canceledAt: data.canceledAt,
+      endedAt: data.endedAt,
+      metadata: data.metadata,
+      correlationId: ctx.correlationId,
+    },
+    IdempotencyKeys.paymentSucceeded(`sub_updated_${data.id}_${Date.now()}`),
+    { subscriptionId: data.id }
+  );
+}
+
+/**
+ * Handle subscription deleted events
+ */
+function handleSubscriptionDeleted(ctx: HandlerContext, event: StripeWebhookEvent): void {
+  const subscription = event.data.object as Record<string, unknown>;
+  const data = extractSubscriptionData(subscription);
+
+  ctx.fastify.log.warn(
+    {
+      correlationId: ctx.correlationId,
+      subscriptionId: data.id,
+    },
+    'Subscription deleted'
+  );
+
+  triggerTask(
+    ctx,
+    'subscription-deleted-handler',
+    {
+      subscriptionId: data.id,
+      customerId: data.customerId,
+      customerEmail: null,
+      cancellationReason: undefined,
+      metadata: data.metadata,
+      correlationId: ctx.correlationId,
+    },
+    IdempotencyKeys.paymentSucceeded(`sub_deleted_${data.id}`),
+    { subscriptionId: data.id }
+  );
+}
+
+/**
+ * Handle trial will end events
+ */
+function handleTrialWillEnd(ctx: HandlerContext, event: StripeWebhookEvent): void {
+  const subscription = event.data.object as Record<string, unknown>;
+  const trialEnd = extractField(subscription, 'trial_end', null as number | null);
+
+  if (!trialEnd) {
+    return;
+  }
+
+  const data = extractSubscriptionData(subscription);
+  const daysRemaining = Math.ceil((trialEnd * 1000 - Date.now()) / (24 * 60 * 60 * 1000));
+
+  ctx.fastify.log.info(
+    {
+      correlationId: ctx.correlationId,
+      subscriptionId: data.id,
+      trialEnd,
+      daysRemaining,
+    },
+    'Trial ending soon'
+  );
+
+  triggerTask(
+    ctx,
+    'trial-ending-handler',
+    {
+      subscriptionId: data.id,
+      customerId: data.customerId,
+      customerEmail: null,
+      trialEnd,
+      daysRemaining,
+      metadata: data.metadata,
+      correlationId: ctx.correlationId,
+    },
+    IdempotencyKeys.paymentSucceeded(`trial_ending_${data.id}`),
+    { subscriptionId: data.id }
+  );
+}
+
+// =============================================================================
+// Handler Registry
+// =============================================================================
+
+type EventHandler = (ctx: HandlerContext, event: StripeWebhookEvent) => void;
+
+const eventHandlers: Record<string, EventHandler> = {
+  'payment_intent.succeeded': handlePaymentSucceeded,
+  'charge.succeeded': handlePaymentSucceeded,
+  'payment_intent.payment_failed': handlePaymentFailed,
+  'charge.failed': handlePaymentFailed,
+  'checkout.session.completed': handleCheckoutSessionCompleted,
+  'invoice.paid': handleInvoicePaid,
+  'charge.refunded': handleChargeRefunded,
+  'customer.subscription.created': handleSubscriptionCreated,
+  'customer.subscription.updated': handleSubscriptionUpdated,
+  'customer.subscription.deleted': handleSubscriptionDeleted,
+  'customer.subscription.trial_will_end': handleTrialWillEnd,
+};
+
+/** Event types that are known but intentionally not processed */
+const knownUnhandledEvents = new Set([
+  'payment_intent.canceled',
+  'customer.created',
+  'customer.updated',
+  'invoice.payment_failed',
+  'invoice.created',
+  'invoice.finalized',
+  'invoice.upcoming',
+  'checkout.session.expired',
+  'customer.subscription.paused',
+  'customer.subscription.resumed',
+]);
+
+// =============================================================================
+// Route Definition
+// =============================================================================
 
 export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
   // Store raw body for signature verification
@@ -146,456 +673,16 @@ export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
         'Stripe webhook received'
       );
 
-      // Handle different event types
-      switch (event.type) {
-        case 'payment_intent.succeeded':
-        case 'charge.succeeded': {
-          const paymentData = event.data.object;
-          const amount = 'amount' in paymentData ? paymentData.amount : 0;
-          const currency = 'currency' in paymentData ? paymentData.currency : 'eur';
-          const customer = 'customer' in paymentData ? paymentData.customer : null;
-          const receiptEmail = 'receipt_email' in paymentData ? paymentData.receipt_email : null;
-          const metadata = 'metadata' in paymentData ? paymentData.metadata : undefined;
+      // Dispatch to appropriate handler using the registry
+      const ctx: HandlerContext = { fastify, correlationId };
+      const handler = eventHandlers[event.type];
 
-          // CRITICAL: Use canonical payment ID to prevent double-processing
-          // Stripe sends BOTH payment_intent.succeeded AND charge.succeeded for the same payment
-          // By using the payment_intent ID as canonical, both events generate the same idempotency key
-          const paymentIntentId =
-            'payment_intent' in paymentData ? paymentData.payment_intent : null;
-          const canonicalPaymentId = getCanonicalPaymentId(event.type, {
-            id: paymentData.id,
-            payment_intent: typeof paymentIntentId === 'string' ? paymentIntentId : null,
-          });
-
-          fastify.log.info(
-            {
-              correlationId,
-              eventType: event.type,
-              rawPaymentId: paymentData.id,
-              canonicalPaymentId,
-              amount,
-              customer,
-            },
-            'Payment succeeded'
-          );
-
-          // Forward to Trigger.dev for processing
-          const successPayload = {
-            paymentId: canonicalPaymentId,
-            rawPaymentId: paymentData.id,
-            eventType: event.type,
-            amount: typeof amount === 'number' ? amount : 0,
-            currency: typeof currency === 'string' ? currency : 'eur',
-            customerId: typeof customer === 'string' ? customer : null,
-            customerEmail: typeof receiptEmail === 'string' ? receiptEmail : null,
-            metadata: metadata && typeof metadata === 'object' ? metadata : undefined,
-            correlationId,
-          };
-
-          // Use canonical payment ID for idempotency - ensures both payment_intent.succeeded
-          // and charge.succeeded events for the same payment use the same idempotency key
-          tasks
-            .trigger('payment-succeeded-handler', successPayload, {
-              idempotencyKey: IdempotencyKeys.paymentSucceeded(canonicalPaymentId),
-            })
-            .catch((err: unknown) => {
-              fastify.log.error(
-                { err, paymentId: canonicalPaymentId, correlationId },
-                'Failed to trigger payment succeeded handler'
-              );
-            });
-          break;
-        }
-
-        case 'payment_intent.payment_failed':
-        case 'charge.failed': {
-          const paymentData = event.data.object;
-          const amount = 'amount' in paymentData ? paymentData.amount : 0;
-          const currency = 'currency' in paymentData ? paymentData.currency : 'eur';
-          const customer = 'customer' in paymentData ? paymentData.customer : null;
-          const receiptEmail = 'receipt_email' in paymentData ? paymentData.receipt_email : null;
-          const lastPaymentError =
-            'last_payment_error' in paymentData ? paymentData.last_payment_error : null;
-          const failureMessage =
-            'failure_message' in paymentData ? paymentData.failure_message : null;
-          const metadata = 'metadata' in paymentData ? paymentData.metadata : undefined;
-
-          // CRITICAL: Use canonical payment ID to prevent double-processing
-          const paymentIntentId =
-            'payment_intent' in paymentData ? paymentData.payment_intent : null;
-          const canonicalPaymentId = getCanonicalPaymentId(event.type, {
-            id: paymentData.id,
-            payment_intent: typeof paymentIntentId === 'string' ? paymentIntentId : null,
-          });
-
-          fastify.log.warn(
-            {
-              correlationId,
-              eventType: event.type,
-              rawPaymentId: paymentData.id,
-              canonicalPaymentId,
-              customer,
-            },
-            'Payment failed'
-          );
-
-          // Extract failure details
-          let failureCode: string | undefined;
-          let failureReason = 'Payment failed';
-
-          if (lastPaymentError && typeof lastPaymentError === 'object') {
-            const errorObj = lastPaymentError as Record<string, unknown>;
-            failureCode = typeof errorObj.code === 'string' ? errorObj.code : undefined;
-            failureReason =
-              typeof errorObj.message === 'string' ? errorObj.message : 'Payment failed';
-          } else if (typeof failureMessage === 'string') {
-            failureReason = failureMessage;
-          }
-
-          // Forward to Trigger.dev for processing
-          const failedPayload = {
-            paymentId: canonicalPaymentId,
-            rawPaymentId: paymentData.id,
-            eventType: event.type,
-            amount: typeof amount === 'number' ? amount : 0,
-            currency: typeof currency === 'string' ? currency : 'eur',
-            customerId: typeof customer === 'string' ? customer : null,
-            customerEmail: typeof receiptEmail === 'string' ? receiptEmail : null,
-            failureCode,
-            failureReason,
-            metadata: metadata && typeof metadata === 'object' ? metadata : undefined,
-            correlationId,
-          };
-
-          // Use canonical payment ID for idempotency
-          tasks
-            .trigger('payment-failed-handler', failedPayload, {
-              idempotencyKey: IdempotencyKeys.paymentFailed(canonicalPaymentId),
-            })
-            .catch((err: unknown) => {
-              fastify.log.error(
-                { err, paymentId: canonicalPaymentId, correlationId },
-                'Failed to trigger payment failed handler'
-              );
-            });
-          break;
-        }
-
-        case 'checkout.session.completed': {
-          const session = event.data.object;
-          if ('mode' in session && session.payment_status === 'paid') {
-            const amount = 'amount_total' in session ? session.amount_total : 0;
-            const currency = 'currency' in session ? session.currency : 'eur';
-            const customer = session.customer;
-            const customerEmail = 'customer_email' in session ? session.customer_email : null;
-            const metadata = 'metadata' in session ? session.metadata : undefined;
-
-            fastify.log.info(
-              {
-                correlationId,
-                sessionId: session.id,
-                customer,
-                paymentStatus: session.payment_status,
-              },
-              'Checkout session completed'
-            );
-
-            // Forward to Trigger.dev for processing (treat as payment succeeded)
-            const checkoutPayload = {
-              paymentId: session.id,
-              amount: typeof amount === 'number' ? amount : 0,
-              currency: typeof currency === 'string' ? currency : 'eur',
-              customerId: typeof customer === 'string' ? customer : null,
-              customerEmail: typeof customerEmail === 'string' ? customerEmail : null,
-              metadata: metadata && typeof metadata === 'object' ? metadata : undefined,
-              correlationId,
-            };
-
-            tasks
-              .trigger('payment-succeeded-handler', checkoutPayload, {
-                idempotencyKey: IdempotencyKeys.paymentSucceeded(session.id),
-              })
-              .catch((err: unknown) => {
-                fastify.log.error(
-                  { err, sessionId: session.id, correlationId },
-                  'Failed to trigger payment handler for checkout session'
-                );
-              });
-          }
-          break;
-        }
-
-        case 'invoice.paid': {
-          const invoice = event.data.object;
-          if ('amount_paid' in invoice) {
-            const customer = invoice.customer;
-            const customerEmail = 'customer_email' in invoice ? invoice.customer_email : null;
-            const metadata = 'metadata' in invoice ? invoice.metadata : undefined;
-
-            fastify.log.info(
-              {
-                correlationId,
-                invoiceId: invoice.id,
-                customer,
-                amountPaid: invoice.amount_paid,
-              },
-              'Invoice paid'
-            );
-
-            // Forward to Trigger.dev for processing
-            const invoicePayload = {
-              paymentId: invoice.id,
-              amount: typeof invoice.amount_paid === 'number' ? invoice.amount_paid : 0,
-              currency: typeof invoice.currency === 'string' ? invoice.currency : 'eur',
-              customerId: typeof customer === 'string' ? customer : null,
-              customerEmail: typeof customerEmail === 'string' ? customerEmail : null,
-              metadata: metadata && typeof metadata === 'object' ? metadata : undefined,
-              correlationId,
-            };
-
-            tasks
-              .trigger('payment-succeeded-handler', invoicePayload, {
-                idempotencyKey: IdempotencyKeys.paymentSucceeded(invoice.id),
-              })
-              .catch((err: unknown) => {
-                fastify.log.error(
-                  { err, invoiceId: invoice.id, correlationId },
-                  'Failed to trigger payment handler for invoice'
-                );
-              });
-          }
-          break;
-        }
-
-        case 'charge.refunded': {
-          const charge = event.data.object;
-          if ('amount_refunded' in charge) {
-            const customerEmail = 'receipt_email' in charge ? charge.receipt_email : null;
-            const metadata = 'metadata' in charge ? charge.metadata : undefined;
-
-            // Use canonical payment ID (payment_intent if available)
-            const paymentIntentId = 'payment_intent' in charge ? charge.payment_intent : null;
-            const canonicalPaymentId = getCanonicalPaymentId(event.type, {
-              id: charge.id,
-              payment_intent: typeof paymentIntentId === 'string' ? paymentIntentId : null,
-            });
-
-            fastify.log.info(
-              {
-                correlationId,
-                chargeId: charge.id,
-                canonicalPaymentId,
-                amountRefunded: charge.amount_refunded,
-              },
-              'Charge refunded'
-            );
-
-            // Forward to Trigger.dev for processing
-            // Use canonical payment ID for the refund ID to link it to the original payment
-            const refundPayload = {
-              refundId: `refund_${canonicalPaymentId}`,
-              paymentId: canonicalPaymentId,
-              chargeId: charge.id,
-              amount: typeof charge.amount_refunded === 'number' ? charge.amount_refunded : 0,
-              currency: typeof charge.currency === 'string' ? charge.currency : 'eur',
-              reason:
-                'refund' in charge && typeof charge.refund === 'string' ? charge.refund : undefined,
-              customerEmail: typeof customerEmail === 'string' ? customerEmail : null,
-              metadata: metadata && typeof metadata === 'object' ? metadata : undefined,
-              correlationId,
-            };
-
-            tasks
-              .trigger('refund-handler', refundPayload, {
-                idempotencyKey: IdempotencyKeys.refund(`refund_${canonicalPaymentId}`),
-              })
-              .catch((err: unknown) => {
-                fastify.log.error(
-                  { err, chargeId: charge.id, canonicalPaymentId, correlationId },
-                  'Failed to trigger refund handler'
-                );
-              });
-          }
-          break;
-        }
-
-        // Subscription events
-        case 'customer.subscription.created': {
-          const subscription = event.data.object;
-          if ('status' in subscription) {
-            const items = 'items' in subscription ? subscription.items : null;
-            const firstItem =
-              items && 'data' in items && Array.isArray(items.data) ? items.data[0] : null;
-
-            fastify.log.info(
-              {
-                correlationId,
-                subscriptionId: subscription.id,
-                status: subscription.status,
-              },
-              'Subscription created'
-            );
-
-            const subscriptionPayload = {
-              subscriptionId: subscription.id,
-              customerId: typeof subscription.customer === 'string' ? subscription.customer : '',
-              customerEmail: null as string | null,
-              status: subscription.status,
-              productName: firstItem?.price?.product,
-              amount: firstItem?.price?.unit_amount ?? undefined,
-              currency: firstItem?.price?.currency,
-              interval: firstItem?.price?.recurring?.interval,
-              trialEnd: 'trial_end' in subscription ? subscription.trial_end : null,
-              currentPeriodEnd:
-                'current_period_end' in subscription
-                  ? subscription.current_period_end
-                  : Date.now() / 1000,
-              metadata: 'metadata' in subscription ? subscription.metadata : undefined,
-              correlationId,
-            };
-
-            tasks
-              .trigger('subscription-created-handler', subscriptionPayload, {
-                idempotencyKey: IdempotencyKeys.paymentSucceeded(`sub_created_${subscription.id}`),
-              })
-              .catch((err: unknown) => {
-                fastify.log.error(
-                  { err, subscriptionId: subscription.id, correlationId },
-                  'Failed to trigger subscription created handler'
-                );
-              });
-          }
-          break;
-        }
-
-        case 'customer.subscription.updated': {
-          const subscription = event.data.object;
-          if ('status' in subscription) {
-            fastify.log.info(
-              {
-                correlationId,
-                subscriptionId: subscription.id,
-                status: subscription.status,
-              },
-              'Subscription updated'
-            );
-
-            const updatePayload = {
-              subscriptionId: subscription.id,
-              customerId: typeof subscription.customer === 'string' ? subscription.customer : '',
-              customerEmail: null as string | null,
-              newStatus: subscription.status,
-              cancelAt: 'cancel_at' in subscription ? subscription.cancel_at : null,
-              canceledAt: 'canceled_at' in subscription ? subscription.canceled_at : null,
-              endedAt: 'ended_at' in subscription ? subscription.ended_at : null,
-              metadata: 'metadata' in subscription ? subscription.metadata : undefined,
-              correlationId,
-            };
-
-            tasks
-              .trigger('subscription-updated-handler', updatePayload, {
-                idempotencyKey: IdempotencyKeys.paymentSucceeded(
-                  `sub_updated_${subscription.id}_${Date.now()}`
-                ),
-              })
-              .catch((err: unknown) => {
-                fastify.log.error(
-                  { err, subscriptionId: subscription.id, correlationId },
-                  'Failed to trigger subscription updated handler'
-                );
-              });
-          }
-          break;
-        }
-
-        case 'customer.subscription.deleted': {
-          const subscription = event.data.object;
-          fastify.log.warn(
-            {
-              correlationId,
-              subscriptionId: subscription.id,
-            },
-            'Subscription deleted'
-          );
-
-          const deletePayload = {
-            subscriptionId: subscription.id,
-            customerId:
-              'customer' in subscription && typeof subscription.customer === 'string'
-                ? subscription.customer
-                : '',
-            customerEmail: null as string | null,
-            cancellationReason: undefined as string | undefined,
-            metadata: 'metadata' in subscription ? subscription.metadata : undefined,
-            correlationId,
-          };
-
-          tasks
-            .trigger('subscription-deleted-handler', deletePayload, {
-              idempotencyKey: IdempotencyKeys.paymentSucceeded(`sub_deleted_${subscription.id}`),
-            })
-            .catch((err: unknown) => {
-              fastify.log.error(
-                { err, subscriptionId: subscription.id, correlationId },
-                'Failed to trigger subscription deleted handler'
-              );
-            });
-          break;
-        }
-
-        case 'customer.subscription.trial_will_end': {
-          const subscription = event.data.object;
-          if ('trial_end' in subscription && subscription.trial_end) {
-            const trialEnd = subscription.trial_end;
-            const daysRemaining = Math.ceil((trialEnd * 1000 - Date.now()) / (24 * 60 * 60 * 1000));
-
-            fastify.log.info(
-              {
-                correlationId,
-                subscriptionId: subscription.id,
-                trialEnd,
-                daysRemaining,
-              },
-              'Trial ending soon'
-            );
-
-            const trialPayload = {
-              subscriptionId: subscription.id,
-              customerId: typeof subscription.customer === 'string' ? subscription.customer : '',
-              customerEmail: null as string | null,
-              trialEnd,
-              daysRemaining,
-              metadata: 'metadata' in subscription ? subscription.metadata : undefined,
-              correlationId,
-            };
-
-            tasks
-              .trigger('trial-ending-handler', trialPayload, {
-                idempotencyKey: IdempotencyKeys.paymentSucceeded(`trial_ending_${subscription.id}`),
-              })
-              .catch((err: unknown) => {
-                fastify.log.error(
-                  { err, subscriptionId: subscription.id, correlationId },
-                  'Failed to trigger trial ending handler'
-                );
-              });
-          }
-          break;
-        }
-
-        // Explicitly handle other expected event types (logged but not processed)
-        case 'payment_intent.canceled':
-        case 'customer.created':
-        case 'customer.updated':
-        case 'invoice.payment_failed':
-        case 'invoice.created':
-        case 'invoice.finalized':
-        case 'invoice.upcoming':
-        case 'checkout.session.expired':
-        case 'customer.subscription.paused':
-        case 'customer.subscription.resumed':
-        default:
-          fastify.log.info({ correlationId, eventType: event.type }, 'Unhandled Stripe event type');
+      if (handler) {
+        handler(ctx, event);
+      } else if (!knownUnhandledEvents.has(event.type)) {
+        fastify.log.info({ correlationId, eventType: event.type }, 'Unknown Stripe event type');
+      } else {
+        fastify.log.debug({ correlationId, eventType: event.type }, 'Ignored Stripe event type');
       }
 
       // Acknowledge receipt
