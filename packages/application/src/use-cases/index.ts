@@ -6,4 +6,5 @@
  * @module application/use-cases
  */
 
-// Use cases will be added as bounded contexts are implemented
+// Dental Lab use cases
+export * from './dental-lab/index.js';
