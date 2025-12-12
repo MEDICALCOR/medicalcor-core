@@ -94,3 +94,12 @@ export type {
   CaseSummary,
   DailyLabReport,
 } from './DentalLabProductionUseCase.js';
+
+// Orchestration Use Case (Multi-Agent Coordination)
+export type {
+  IOrchestrationUseCase,
+  IStreamingOrchestrationUseCase,
+  OrchestrationResult,
+  OrchestrationState,
+  OrchestrationProgressCallback,
+} from './OrchestrationUseCase.js';

@@ -1897,3 +1897,88 @@ export {
   type CalculatePerformanceMetricsPayload,
   type SendStatusNotificationPayload,
 } from './schemas/dental-lab.js';
+
+// =============================================================================
+// Orchestration Schemas (Multi-Agent Coordination)
+// =============================================================================
+export {
+  // Agent Codenames & Roles
+  AgentCodenameSchema,
+  // Task Complexity & Risk
+  TaskComplexitySchema,
+  RiskLevelSchema,
+  // Quality Gates
+  QualityGateSchema,
+  QualityGateStatusSchema,
+  QualityGateResultSchema,
+  // Task Analysis
+  TaskAnalysisSchema,
+  // Agent Directives & Reports
+  TaskPrioritySchema,
+  ReportingFrequencySchema,
+  AgentDirectiveSchema,
+  AgentTaskStatusSchema,
+  FindingSchema,
+  RecommendationSchema as OrchestrationRecommendationSchema,
+  BlockerSchema,
+  AgentReportSchema,
+  // Conflict Resolution
+  ConflictTypeSchema,
+  ConflictResolutionSchema,
+  // Orchestration Session
+  OrchestrationStatusSchema,
+  OrchestrationSessionSchema,
+  // Events
+  OrchestrationEventTypeSchema,
+  OrchestrationEventBaseSchema,
+  SessionStartedEventSchema,
+  TaskAnalyzedEventSchema,
+  AgentDispatchedEventSchema,
+  AgentCompletedEventSchema,
+  QualityGateCheckedEventSchema,
+  ConflictDetectedEventSchema,
+  SessionCompletedEventSchema,
+  // Request/Response
+  CreateOrchestrationSessionSchema,
+  OrchestrationReportSchema,
+  // Constants
+  AGENT_PRIORITY,
+  TASK_TYPE_QUALITY_GATES,
+  TASK_TYPE_ROUTING,
+  // Helper Functions
+  getConflictResolver,
+  hasHigherPriority,
+  allQualityGatesPassed,
+  getRequiredQualityGates,
+  getTaskRouting,
+  // Types
+  type AgentCodename,
+  type TaskComplexity,
+  type RiskLevel,
+  type QualityGate,
+  type QualityGateStatus,
+  type QualityGateResult,
+  type TaskAnalysis,
+  type TaskPriority,
+  type ReportingFrequency,
+  type AgentDirective,
+  type AgentTaskStatus,
+  type Finding,
+  type Recommendation as OrchestrationRecommendation,
+  type Blocker,
+  type AgentReport,
+  type ConflictType,
+  type ConflictResolution,
+  type OrchestrationStatus,
+  type OrchestrationSession,
+  type OrchestrationEventType,
+  type SessionStartedEvent,
+  type TaskAnalyzedEvent,
+  type AgentDispatchedEvent,
+  type AgentCompletedEvent,
+  type QualityGateCheckedEvent,
+  type ConflictDetectedEvent,
+  type SessionCompletedEvent,
+  type CreateOrchestrationSession,
+  type OrchestrationReport,
+} from './schemas/orchestration.js';
