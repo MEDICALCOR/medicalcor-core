@@ -83,7 +83,7 @@ import type {
   generateStoragePath,
 } from '../../ports/secondary/external/DigitalAssetStoragePort.js';
 
-import type { IEventPublisher } from '../../ports/secondary/messaging/EventPublisher.js';
+import type { EventPublisher as IEventPublisher } from '../../ports/secondary/messaging/EventPublisher.js';
 import { DomainError, BusinessRuleError, ErrorSeverity } from '../../shared/DomainError.js';
 
 // =============================================================================
