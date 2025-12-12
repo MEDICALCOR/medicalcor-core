@@ -149,13 +149,13 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<AIProvider, Omit<ProviderConfig, '
   },
   llama: {
     provider: 'llama',
-    baseUrl: 'http://localhost:8080/v1',
+    baseUrl: 'http://localhost:11434/v1',
     defaultModel: 'llama3.1:70b',
     maxTokens: 4096,
-    costPer1kInput: 0,
+    costPer1kInput: 0, // Local, no cost
     costPer1kOutput: 0,
     priority: 4,
-    enabled: false,
+    enabled: false, // Disabled by default until endpoint is configured
     weight: 15,
     maxRetries: 1,
   },
