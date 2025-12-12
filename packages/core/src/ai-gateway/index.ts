@@ -151,7 +151,7 @@ export {
   type FallbackResult,
 } from './adaptive-timeout.js';
 
-// Multi-Provider Gateway - OpenAI + Anthropic + Llama with failover
+// Multi-Provider Gateway - OpenAI + Anthropic + Gemini + Llama with failover
 export {
   MultiProviderGateway,
   createMultiProviderGateway,
@@ -184,6 +184,8 @@ export {
   createOpenAIStrategy,
   AnthropicStrategy,
   createAnthropicStrategy,
+  GeminiStrategy,
+  createGeminiStrategy,
   LlamaStrategy,
   createLlamaStrategy,
   OllamaStrategy,
