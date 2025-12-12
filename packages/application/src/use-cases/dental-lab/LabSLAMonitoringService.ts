@@ -25,13 +25,14 @@ import type {
   SLAOverallStatus,
 } from '@medicalcor/types';
 
-import type { ILabCaseRepository } from '../../ports/secondary/persistence/LabCaseRepository.js';
+import type {
+  ILabCaseRepository,
+} from '../../ports/secondary/persistence/LabCaseRepository.js';
 
 import type { EventPublisher, DomainEvent } from '../../ports/secondary/messaging/EventPublisher.js';
 
-// Re-export SLAOverallStatus as SLAStatus for backward compatibility within this file
+/** SLA Status alias for backwards compatibility */
 type SLAStatus = SLAOverallStatus;
-type IEventPublisher = EventPublisher;
 
 /**
  * Convert a LabEvent to a DomainEvent for publishing
@@ -172,7 +173,7 @@ export class LabSLAMonitoringService {
 
   constructor(
     private readonly labCaseRepository: ILabCaseRepository,
-    private readonly eventPublisher: IEventPublisher,
+    private readonly eventPublisher: EventPublisher,
     config?: Partial<SLAMonitoringConfig>
   ) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -425,7 +426,17 @@ export class LabSLAMonitoringService {
     logger.info({ breachId, resolvedBy }, 'SLA breach resolved');
 
     // In a full implementation, this would update the breach record in the database
-    // Event published for audit purposes - using status changed event as breach resolution
+    await this.eventPublisher.publishTo('lab.sla.resolved', {
+      eventType: 'SLA_BREACH_RESOLVED',
+      aggregateId: breachId,
+      aggregateType: 'SLABreach',
+      aggregateVersion: 1,
+      eventData: { breachId, resolvedBy, resolvedAt: new Date() },
+      correlationId: breachId,
+      causationId: null,
+      actorId: resolvedBy,
+      occurredAt: new Date(),
+    });
   }
 
   // ===========================================================================
@@ -730,22 +741,22 @@ export class LabSLAMonitoringService {
     }
 
     // High priority case bottleneck
-    const emergencyCases = activeCases.filter((c) => c.priority === 'EMERGENCY' || c.priority === 'VIP');
-    const emergencyAtRiskResults = await Promise.all(
-      emergencyCases.map(async (c) => {
-        const sla = await this.labCaseRepository.getSLATracking(c.id);
-        return { case: c, isAtRisk: sla?.overallStatus !== 'ON_TRACK' };
-      })
-    );
-    const emergencyAtRisk = emergencyAtRiskResults.filter((r) => r.isAtRisk);
-    if (emergencyAtRisk.length > 0) {
+    const emergencyCases = activeCases.filter((c) => c.priority === 'EMERGENCY');
+    const emergencyAtRiskCases: LabCase[] = [];
+    for (const c of emergencyCases) {
+      const sla = await this.labCaseRepository.getSLATracking(c.id);
+      if (sla?.overallStatus !== 'ON_TRACK') {
+        emergencyAtRiskCases.push(c);
+      }
+    }
+    if (emergencyAtRiskCases.length > 0) {
       recommendations.push({
         type: 'PRIORITIZATION',
         priority: 'HIGH',
-        title: 'Emergency/VIP Cases At Risk',
-        description: `${emergencyAtRisk.length} emergency/VIP priority cases are not on track.`,
-        affectedCaseCount: emergencyAtRisk.length,
-        estimatedImpact: 'Emergency/VIP cases should be prioritized to maintain clinic relationships',
+        title: 'Emergency Cases At Risk',
+        description: `${emergencyAtRiskCases.length} EMERGENCY priority cases are not on track.`,
+        affectedCaseCount: emergencyAtRiskCases.length,
+        estimatedImpact: 'EMERGENCY cases should be prioritized to maintain clinic relationships',
       });
     }
 
