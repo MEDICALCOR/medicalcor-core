@@ -6,5 +6,8 @@
  * @module application/use-cases
  */
 
+// Dental Lab use cases
+export * from './dental-lab/index.js';
+
 // Revenue forecasting use cases
 export * from './revenue/index.js';

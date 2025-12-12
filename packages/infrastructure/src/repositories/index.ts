@@ -141,6 +141,18 @@ export {
 } from './PostgresDataClassificationRepository.js';
 
 // =============================================================================
+// DENTAL LAB CASE REPOSITORY
+// =============================================================================
+
+export {
+  // Class and factory
+  PostgresLabCaseRepository,
+  createPostgresLabCaseRepository,
+  // Configuration types
+  type PostgresLabCaseRepositoryConfig,
+} from './PostgresLabCaseRepository.js';
+
+// =============================================================================
 // REVENUE SNAPSHOT REPOSITORY (Revenue Intelligence)
 // =============================================================================
 

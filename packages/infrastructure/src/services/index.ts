@@ -9,4 +9,11 @@
 
 export { GeoIPAdapter, createGeoIPAdapter, createMockGeoIPAdapter } from './GeoIPAdapter.js';
 
+// S3 Digital Asset Storage (Dental Lab)
+export {
+  S3DigitalAssetStorageAdapter,
+  createS3DigitalAssetStorageAdapter,
+  type S3DigitalAssetStorageConfig,
+} from './S3DigitalAssetStorageAdapter.js';
+
 // Note: PipedriveCrmGateway moved to @medicalcor/integrations/crm to respect layer boundaries
