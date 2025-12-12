@@ -6,4 +6,5 @@
  * @module application/use-cases
  */
 
-// Use cases will be added as bounded contexts are implemented
+// Revenue forecasting use cases
+export * from './revenue/index.js';

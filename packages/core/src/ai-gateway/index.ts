@@ -171,6 +171,25 @@ export {
   type AIMetricsRepository,
 } from './multi-provider-gateway.js';
 
+// AI Provider Strategies - Strategy Pattern for extensible providers (OCP compliant)
+export {
+  // Strategy interface and utilities
+  createDefaultAIStrategies,
+  getStrategyByProviderName,
+  type IAIProviderStrategy,
+  type AIProviderCallResult,
+  type AIProviderCallOptions,
+  // Concrete strategies
+  OpenAIStrategy,
+  createOpenAIStrategy,
+  AnthropicStrategy,
+  createAnthropicStrategy,
+  LlamaStrategy,
+  createLlamaStrategy,
+  OllamaStrategy,
+  createOllamaStrategy,
+} from './strategies/index.js';
+
 // AI Metrics Repository - PostgreSQL persistence for AI metrics
 export {
   PostgresAIMetricsRepository,
