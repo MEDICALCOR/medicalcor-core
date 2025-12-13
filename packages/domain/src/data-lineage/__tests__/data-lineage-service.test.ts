@@ -9,9 +9,12 @@
  * - Debugging operations
  * - Dashboard data retrieval
  * - Lifecycle methods
+ * - Property-based testing with fast-check
+ * - Error handling and edge cases
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import fc from 'fast-check';
 import {
   DataLineageService,
   createDataLineageService,
@@ -625,7 +628,7 @@ describe('DataLineageService', () => {
   // ============================================================================
 
   describe('Dashboard Data', () => {
-    it('should get dashboard data', async () => {
+    it('should get dashboard data with empty results', async () => {
       const result = await service.getDashboardData();
 
       expect(result).toBeDefined();
@@ -637,6 +640,276 @@ describe('DataLineageService', () => {
       expect(result.topTransformations).toEqual([]);
       expect(result.complianceSummary).toBeDefined();
       expect(result.generatedAt).toBeInstanceOf(Date);
+    });
+
+    it('should calculate dashboard data with entries', async () => {
+      // Import and get mock functions
+      const { createDataLineageSystem } = await import('@medicalcor/core');
+      const mockSystem = (createDataLineageSystem as ReturnType<typeof vi.fn>).mock
+        .results[0]?.value;
+
+      // Mock data with entries
+      const mockEntries = [
+        {
+          id: 'e1',
+          aggregateId: 'agg1',
+          aggregateType: 'Lead',
+          transformationType: 'scoring',
+          timestamp: new Date(),
+          sources: [],
+          quality: { confidence: 0.9 },
+          compliance: {
+            frameworks: ['HIPAA', 'GDPR'],
+            legalBasis: 'consent',
+            consentId: 'consent-1',
+          },
+        },
+        {
+          id: 'e2',
+          aggregateId: 'agg2',
+          aggregateType: 'Patient',
+          transformationType: 'enrichment',
+          timestamp: new Date(),
+          sources: [],
+          quality: { confidence: 0.85 },
+          compliance: {
+            frameworks: ['HIPAA'],
+            legalBasis: 'legitimate_interest',
+          },
+        },
+        {
+          id: 'e3',
+          aggregateId: 'agg3',
+          aggregateType: 'Lead',
+          transformationType: 'scoring',
+          timestamp: new Date(),
+          sources: [],
+          quality: undefined,
+          compliance: {
+            frameworks: ['GDPR'],
+          },
+        },
+      ];
+
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 10 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 50 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 100 });
+      mockSystem.store.query.mockResolvedValueOnce({
+        entries: mockEntries,
+        total: mockEntries.length,
+      });
+
+      const result = await service.getDashboardData();
+
+      expect(result.recentActivity.last24h).toBe(10);
+      expect(result.recentActivity.last7d).toBe(50);
+      expect(result.recentActivity.last30d).toBe(100);
+      expect(result.topTransformations).toHaveLength(2);
+      expect(result.topTransformations[0].type).toBe('scoring');
+      expect(result.topTransformations[0].count).toBe(2);
+      expect(result.complianceSummary.hipaaEntries).toBe(2);
+      expect(result.complianceSummary.gdprEntries).toBe(2);
+      expect(result.complianceSummary.withLegalBasis).toBe(2);
+      expect(result.complianceSummary.withConsent).toBe(1);
+    });
+
+    it('should handle entries without quality confidence', async () => {
+      const { createDataLineageSystem } = await import('@medicalcor/core');
+      const mockSystem = (createDataLineageSystem as ReturnType<typeof vi.fn>).mock
+        .results[0]?.value;
+
+      const mockEntries = [
+        {
+          id: 'e1',
+          aggregateId: 'agg1',
+          aggregateType: 'Lead',
+          transformationType: 'scoring',
+          timestamp: new Date(),
+          sources: [],
+          quality: undefined,
+          compliance: undefined,
+        },
+      ];
+
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({
+        entries: mockEntries,
+        total: mockEntries.length,
+      });
+
+      const result = await service.getDashboardData();
+
+      expect(result.topTransformations[0].avgQuality).toBe(0);
+      expect(result.complianceSummary.hipaaEntries).toBe(0);
+      expect(result.complianceSummary.gdprEntries).toBe(0);
+    });
+
+    it('should handle entries with missing compliance fields', async () => {
+      const { createDataLineageSystem } = await import('@medicalcor/core');
+      const mockSystem = (createDataLineageSystem as ReturnType<typeof vi.fn>).mock
+        .results[0]?.value;
+
+      const mockEntries = [
+        {
+          id: 'e1',
+          aggregateId: 'agg1',
+          aggregateType: 'Lead',
+          transformationType: 'scoring',
+          timestamp: new Date(),
+          sources: [],
+          quality: { confidence: 0.8 },
+          compliance: {
+            frameworks: undefined,
+            legalBasis: undefined,
+            consentId: undefined,
+          },
+        },
+      ];
+
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({
+        entries: mockEntries,
+        total: mockEntries.length,
+      });
+
+      const result = await service.getDashboardData();
+
+      expect(result.complianceSummary.hipaaEntries).toBe(0);
+      expect(result.complianceSummary.gdprEntries).toBe(0);
+      expect(result.complianceSummary.withLegalBasis).toBe(0);
+      expect(result.complianceSummary.withConsent).toBe(0);
+    });
+
+    it('should limit top transformations to 5', async () => {
+      const { createDataLineageSystem } = await import('@medicalcor/core');
+      const mockSystem = (createDataLineageSystem as ReturnType<typeof vi.fn>).mock
+        .results[0]?.value;
+
+      const mockEntries = Array.from({ length: 10 }, (_, i) => ({
+        id: `e${i}`,
+        aggregateId: `agg${i}`,
+        aggregateType: 'Lead',
+        transformationType: `type${i}`,
+        timestamp: new Date(),
+        sources: [],
+        quality: { confidence: 0.9 },
+        compliance: undefined,
+      }));
+
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({
+        entries: mockEntries,
+        total: mockEntries.length,
+      });
+
+      const result = await service.getDashboardData();
+
+      expect(result.topTransformations).toHaveLength(5);
+    });
+
+    it('should sort transformations by count descending', async () => {
+      const { createDataLineageSystem } = await import('@medicalcor/core');
+      const mockSystem = (createDataLineageSystem as ReturnType<typeof vi.fn>).mock
+        .results[0]?.value;
+
+      const mockEntries = [
+        {
+          id: 'e1',
+          aggregateId: 'agg1',
+          aggregateType: 'Lead',
+          transformationType: 'typeA',
+          timestamp: new Date(),
+          sources: [],
+          quality: { confidence: 0.9 },
+        },
+        {
+          id: 'e2',
+          aggregateId: 'agg2',
+          aggregateType: 'Lead',
+          transformationType: 'typeB',
+          timestamp: new Date(),
+          sources: [],
+          quality: { confidence: 0.8 },
+        },
+        {
+          id: 'e3',
+          aggregateId: 'agg3',
+          aggregateType: 'Lead',
+          transformationType: 'typeB',
+          timestamp: new Date(),
+          sources: [],
+          quality: { confidence: 0.85 },
+        },
+        {
+          id: 'e4',
+          aggregateId: 'agg4',
+          aggregateType: 'Lead',
+          transformationType: 'typeB',
+          timestamp: new Date(),
+          sources: [],
+          quality: { confidence: 0.9 },
+        },
+      ];
+
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({
+        entries: mockEntries,
+        total: mockEntries.length,
+      });
+
+      const result = await service.getDashboardData();
+
+      expect(result.topTransformations[0].type).toBe('typeB');
+      expect(result.topTransformations[0].count).toBe(3);
+      expect(result.topTransformations[1].type).toBe('typeA');
+      expect(result.topTransformations[1].count).toBe(1);
+    });
+
+    it('should calculate average quality correctly', async () => {
+      const { createDataLineageSystem } = await import('@medicalcor/core');
+      const mockSystem = (createDataLineageSystem as ReturnType<typeof vi.fn>).mock
+        .results[0]?.value;
+
+      const mockEntries = [
+        {
+          id: 'e1',
+          aggregateId: 'agg1',
+          aggregateType: 'Lead',
+          transformationType: 'scoring',
+          timestamp: new Date(),
+          sources: [],
+          quality: { confidence: 0.8 },
+        },
+        {
+          id: 'e2',
+          aggregateId: 'agg2',
+          aggregateType: 'Lead',
+          transformationType: 'scoring',
+          timestamp: new Date(),
+          sources: [],
+          quality: { confidence: 0.6 },
+        },
+      ];
+
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({
+        entries: mockEntries,
+        total: mockEntries.length,
+      });
+
+      const result = await service.getDashboardData();
+
+      expect(result.topTransformations[0].avgQuality).toBeCloseTo(0.7, 5);
     });
   });
 
@@ -651,6 +924,620 @@ describe('DataLineageService', () => {
 
     it('should shutdown service', async () => {
       await expect(service.shutdown()).resolves.toBeUndefined();
+    });
+
+    it('should handle flush errors gracefully', async () => {
+      const { createDataLineageSystem } = await import('@medicalcor/core');
+      const mockSystem = (createDataLineageSystem as ReturnType<typeof vi.fn>).mock
+        .results[0]?.value;
+
+      mockSystem.tracker.flushBatch.mockRejectedValueOnce(new Error('Flush failed'));
+
+      await expect(service.flush()).rejects.toThrow('Flush failed');
+    });
+
+    it('should handle shutdown errors gracefully', async () => {
+      const { createDataLineageSystem } = await import('@medicalcor/core');
+      const mockSystem = (createDataLineageSystem as ReturnType<typeof vi.fn>).mock
+        .results[0]?.value;
+
+      mockSystem.tracker.shutdown.mockRejectedValueOnce(new Error('Shutdown failed'));
+
+      await expect(service.shutdown()).rejects.toThrow('Shutdown failed');
+    });
+  });
+
+  // ============================================================================
+  // ERROR HANDLING
+  // ============================================================================
+
+  describe('Error Handling', () => {
+    it('should handle tracking errors', async () => {
+      const { createDataLineageSystem } = await import('@medicalcor/core');
+      const mockSystem = (createDataLineageSystem as ReturnType<typeof vi.fn>).mock
+        .results[0]?.value;
+
+      mockSystem.tracker.trackScoring.mockRejectedValueOnce(
+        new Error('Failed to track scoring')
+      );
+
+      await expect(
+        service.trackScoring(
+          testAggregate,
+          'event-123',
+          'LeadScored',
+          'corr-456',
+          [],
+          { userId: 'user-1' }
+        )
+      ).rejects.toThrow('Failed to track scoring');
+    });
+
+    it('should handle graph building errors', async () => {
+      const { createDataLineageSystem } = await import('@medicalcor/core');
+      const mockSystem = (createDataLineageSystem as ReturnType<typeof vi.fn>).mock
+        .results[0]?.value;
+
+      mockSystem.graphBuilder.buildUpstreamGraph.mockRejectedValueOnce(
+        new Error('Graph build failed')
+      );
+
+      await expect(service.getUpstreamLineage(testAggregate)).rejects.toThrow(
+        'Graph build failed'
+      );
+    });
+
+    it('should handle compliance report errors', async () => {
+      const { createDataLineageSystem } = await import('@medicalcor/core');
+      const mockSystem = (createDataLineageSystem as ReturnType<typeof vi.fn>).mock
+        .results[0]?.value;
+
+      mockSystem.compliance.generateComplianceReport.mockRejectedValueOnce(
+        new Error('Report generation failed')
+      );
+
+      await expect(service.generateComplianceReport(testAggregate, 'HIPAA')).rejects.toThrow(
+        'Report generation failed'
+      );
+    });
+
+    it('should handle debug operation errors', async () => {
+      const { createDataLineageSystem } = await import('@medicalcor/core');
+      const mockSystem = (createDataLineageSystem as ReturnType<typeof vi.fn>).mock
+        .results[0]?.value;
+
+      mockSystem.debug.investigateAggregate.mockRejectedValueOnce(
+        new Error('Investigation failed')
+      );
+
+      await expect(service.investigateAggregate(testAggregate)).rejects.toThrow(
+        'Investigation failed'
+      );
+    });
+
+    it('should handle dashboard data errors', async () => {
+      const { createDataLineageSystem } = await import('@medicalcor/core');
+      const mockSystem = (createDataLineageSystem as ReturnType<typeof vi.fn>).mock
+        .results[0]?.value;
+
+      mockSystem.debug.performHealthCheck.mockRejectedValueOnce(new Error('Health check failed'));
+
+      await expect(service.getDashboardData()).rejects.toThrow('Health check failed');
+    });
+
+    it('should handle store query errors in dashboard', async () => {
+      const { createDataLineageSystem } = await import('@medicalcor/core');
+      const mockSystem = (createDataLineageSystem as ReturnType<typeof vi.fn>).mock
+        .results[0]?.value;
+
+      mockSystem.store.query.mockRejectedValueOnce(new Error('Query failed'));
+
+      await expect(service.getDashboardData()).rejects.toThrow('Query failed');
+    });
+  });
+
+  // ============================================================================
+  // EDGE CASES
+  // ============================================================================
+
+  describe('Edge Cases', () => {
+    it('should handle empty sources array in tracking', async () => {
+      const result = await service.trackScoring(
+        testAggregate,
+        'event-123',
+        'LeadScored',
+        'corr-456',
+        [],
+        { userId: 'user-1' }
+      );
+
+      expect(result).toBeDefined();
+    });
+
+    it('should handle empty context in tracking', async () => {
+      const result = await service.trackEnrichment(
+        testAggregate,
+        'event-124',
+        'LeadEnriched',
+        'corr-456',
+        [],
+        {}
+      );
+
+      expect(result).toBeDefined();
+    });
+
+    it('should handle maxDepth of 0 in graph operations', async () => {
+      const result = await service.getUpstreamLineage(testAggregate, 0);
+      expect(result).toBeDefined();
+    });
+
+    it('should handle very large maxDepth in graph operations', async () => {
+      const result = await service.getDownstreamLineage(testAggregate, 1000);
+      expect(result).toBeDefined();
+    });
+
+    it('should handle negative maxDepth gracefully', async () => {
+      const result = await service.getFullLineage(testAggregate, -1);
+      expect(result).toBeDefined();
+    });
+
+    it('should handle empty period in HIPAA audit trail', async () => {
+      const phi: AggregateRef = {
+        aggregateId: 'phi-record-1',
+        aggregateType: 'Patient',
+      };
+
+      const result = await service.generateHIPAAAuditTrail(phi, undefined);
+      expect(result).toBeDefined();
+    });
+
+    it('should handle compliance report without period', async () => {
+      const result = await service.generateComplianceReport(testAggregate, 'GDPR', undefined);
+      expect(result).toBeDefined();
+    });
+  });
+
+  // ============================================================================
+  // INTEGRATION SCENARIOS
+  // ============================================================================
+
+  describe('Integration Scenarios', () => {
+    it('should handle full workflow: track, investigate, generate report', async () => {
+      // Track lineage
+      const lineageEntry = await service.trackScoring(
+        testAggregate,
+        'event-123',
+        'LeadScored',
+        'corr-456',
+        [{ type: 'internal', identifier: 'lead-data' }],
+        { userId: 'user-1' },
+        { scoreValue: 85, algorithm: 'ml-v2', factors: ['engagement', 'intent'] }
+      );
+
+      expect(lineageEntry).toBeDefined();
+
+      // Investigate
+      const investigation = await service.investigateAggregate(testAggregate);
+      expect(investigation).toBeDefined();
+
+      // Generate compliance report
+      const report = await service.generateComplianceReport(testAggregate, 'HIPAA');
+      expect(report).toBeDefined();
+    });
+
+    it('should handle concurrent tracking operations', async () => {
+      const trackingPromises = [
+        service.trackScoring(testAggregate, 'e1', 'LeadScored', 'c1', [], { userId: 'u1' }),
+        service.trackEnrichment(testAggregate, 'e2', 'LeadEnriched', 'c2', [], { userId: 'u2' }),
+        service.trackPatternDetection(
+          testAggregate,
+          'c3',
+          [],
+          { userId: 'u3' },
+          { patternType: 'churn', confidence: 0.8, supportingEventCount: 10 }
+        ),
+      ];
+
+      const results = await Promise.all(trackingPromises);
+      expect(results).toHaveLength(3);
+      results.forEach((result) => expect(result).toBeDefined());
+    });
+
+    it('should handle multiple graph operations in sequence', async () => {
+      const upstream = await service.getUpstreamLineage(testAggregate);
+      expect(upstream).toBeDefined();
+
+      const downstream = await service.getDownstreamLineage(testAggregate);
+      expect(downstream).toBeDefined();
+
+      const full = await service.getFullLineage(testAggregate);
+      expect(full).toBeDefined();
+
+      const impact = await service.analyzeImpact(testAggregate);
+      expect(impact).toBeDefined();
+    });
+
+    it('should handle GDPR erasure workflow', async () => {
+      const subject: AggregateRef = {
+        aggregateId: 'patient-erasure-1',
+        aggregateType: 'Patient',
+      };
+
+      // Get erasure scope
+      const scope = await service.getErasureScope(subject);
+      expect(scope).toBeDefined();
+
+      // Generate DSAR report
+      const dsar = await service.generateDSARReport(subject, 'erasure');
+      expect(dsar).toBeDefined();
+
+      // Delete lineage
+      const deletedCount = await service.deleteLineage(subject.aggregateId);
+      expect(deletedCount).toBe(5);
+    });
+  });
+
+  // ============================================================================
+  // PROPERTY-BASED TESTS
+  // ============================================================================
+
+  describe('Property-Based Tests', () => {
+    it('should handle any valid aggregate reference', () => {
+      fc.assert(
+        fc.asyncProperty(
+          fc.uuid(),
+          fc.constantFrom('Lead', 'Patient', 'Case', 'Episode'),
+          async (aggregateId, aggregateType) => {
+            const aggregate: AggregateRef = { aggregateId, aggregateType };
+            const result = await service.getUpstreamLineage(aggregate);
+            expect(result).toBeDefined();
+          }
+        ),
+        { numRuns: 20 }
+      );
+    });
+
+    it('should handle any valid event ID', () => {
+      fc.assert(
+        fc.asyncProperty(fc.uuid(), async (eventId) => {
+          const result = await service.investigateEvent(eventId);
+          expect(result).toBeDefined();
+        }),
+        { numRuns: 20 }
+      );
+    });
+
+    it('should handle any valid correlation ID', () => {
+      fc.assert(
+        fc.asyncProperty(fc.uuid(), async (correlationId) => {
+          const result = await service.investigateCorrelation(correlationId);
+          expect(result).toBeDefined();
+        }),
+        { numRuns: 20 }
+      );
+    });
+
+    it('should handle various maxDepth values', () => {
+      fc.assert(
+        fc.asyncProperty(fc.integer({ min: -10, max: 100 }), async (maxDepth) => {
+          const result = await service.getDownstreamLineage(testAggregate, maxDepth);
+          expect(result).toBeDefined();
+        }),
+        { numRuns: 20 }
+      );
+    });
+
+    it('should handle dashboard data with various entry counts', async () => {
+      const { createDataLineageSystem } = await import('@medicalcor/core');
+      const mockSystem = (createDataLineageSystem as ReturnType<typeof vi.fn>).mock
+        .results[0]?.value;
+
+      await fc.assert(
+        fc.asyncProperty(fc.integer({ min: 0, max: 100 }), async (entryCount) => {
+          const mockEntries = Array.from({ length: entryCount }, (_, i) => ({
+            id: `e${i}`,
+            aggregateId: `agg${i}`,
+            aggregateType: 'Lead',
+            transformationType: `type${i % 5}`,
+            timestamp: new Date(),
+            sources: [],
+            quality: { confidence: Math.random() },
+            compliance: {
+              frameworks: Math.random() > 0.5 ? ['HIPAA'] : undefined,
+            },
+          }));
+
+          mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+          mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+          mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+          mockSystem.store.query.mockResolvedValueOnce({
+            entries: mockEntries,
+            total: mockEntries.length,
+          });
+
+          const result = await service.getDashboardData();
+          expect(result).toBeDefined();
+          expect(result.generatedAt).toBeInstanceOf(Date);
+        }),
+        { numRuns: 10 }
+      );
+    });
+
+    it('should handle tracking with various source counts', () => {
+      fc.assert(
+        fc.asyncProperty(
+          fc.array(
+            fc.record({
+              type: fc.constantFrom('internal', 'external', 'api', 'database'),
+              identifier: fc.uuid(),
+            }),
+            { maxLength: 10 }
+          ),
+          async (sources) => {
+            const result = await service.trackScoring(
+              testAggregate,
+              'event-test',
+              'LeadScored',
+              'corr-test',
+              sources as any[],
+              { userId: 'test-user' }
+            );
+            expect(result).toBeDefined();
+          }
+        ),
+        { numRuns: 20 }
+      );
+    });
+  });
+
+  // ============================================================================
+  // BRANCH COVERAGE TESTS
+  // ============================================================================
+
+  describe('Branch Coverage Tests', () => {
+    it('should handle transformation map update for existing type', async () => {
+      const { createDataLineageSystem } = await import('@medicalcor/core');
+      const mockSystem = (createDataLineageSystem as ReturnType<typeof vi.fn>).mock
+        .results[0]?.value;
+
+      const mockEntries = [
+        {
+          id: 'e1',
+          aggregateId: 'agg1',
+          aggregateType: 'Lead',
+          transformationType: 'scoring',
+          timestamp: new Date(),
+          sources: [],
+          quality: { confidence: 0.8 },
+        },
+        {
+          id: 'e2',
+          aggregateId: 'agg2',
+          aggregateType: 'Lead',
+          transformationType: 'scoring',
+          timestamp: new Date(),
+          sources: [],
+          quality: { confidence: 0.9 },
+        },
+      ];
+
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({
+        entries: mockEntries,
+        total: mockEntries.length,
+      });
+
+      const result = await service.getDashboardData();
+
+      expect(result.topTransformations).toHaveLength(1);
+      expect(result.topTransformations[0].count).toBe(2);
+      expect(result.topTransformations[0].avgQuality).toBeCloseTo(0.85, 5);
+    });
+
+    it('should handle HIPAA framework check', async () => {
+      const { createDataLineageSystem } = await import('@medicalcor/core');
+      const mockSystem = (createDataLineageSystem as ReturnType<typeof vi.fn>).mock
+        .results[0]?.value;
+
+      const mockEntries = [
+        {
+          id: 'e1',
+          aggregateId: 'agg1',
+          aggregateType: 'Lead',
+          transformationType: 'scoring',
+          timestamp: new Date(),
+          sources: [],
+          compliance: {
+            frameworks: ['HIPAA'],
+          },
+        },
+      ];
+
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({
+        entries: mockEntries,
+        total: mockEntries.length,
+      });
+
+      const result = await service.getDashboardData();
+
+      expect(result.complianceSummary.hipaaEntries).toBe(1);
+    });
+
+    it('should handle GDPR framework check', async () => {
+      const { createDataLineageSystem } = await import('@medicalcor/core');
+      const mockSystem = (createDataLineageSystem as ReturnType<typeof vi.fn>).mock
+        .results[0]?.value;
+
+      const mockEntries = [
+        {
+          id: 'e1',
+          aggregateId: 'agg1',
+          aggregateType: 'Lead',
+          transformationType: 'scoring',
+          timestamp: new Date(),
+          sources: [],
+          compliance: {
+            frameworks: ['GDPR'],
+          },
+        },
+      ];
+
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({
+        entries: mockEntries,
+        total: mockEntries.length,
+      });
+
+      const result = await service.getDashboardData();
+
+      expect(result.complianceSummary.gdprEntries).toBe(1);
+    });
+
+    it('should handle legal basis check', async () => {
+      const { createDataLineageSystem } = await import('@medicalcor/core');
+      const mockSystem = (createDataLineageSystem as ReturnType<typeof vi.fn>).mock
+        .results[0]?.value;
+
+      const mockEntries = [
+        {
+          id: 'e1',
+          aggregateId: 'agg1',
+          aggregateType: 'Lead',
+          transformationType: 'scoring',
+          timestamp: new Date(),
+          sources: [],
+          compliance: {
+            legalBasis: 'consent',
+          },
+        },
+      ];
+
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({
+        entries: mockEntries,
+        total: mockEntries.length,
+      });
+
+      const result = await service.getDashboardData();
+
+      expect(result.complianceSummary.withLegalBasis).toBe(1);
+    });
+
+    it('should handle consent ID check', async () => {
+      const { createDataLineageSystem } = await import('@medicalcor/core');
+      const mockSystem = (createDataLineageSystem as ReturnType<typeof vi.fn>).mock
+        .results[0]?.value;
+
+      const mockEntries = [
+        {
+          id: 'e1',
+          aggregateId: 'agg1',
+          aggregateType: 'Lead',
+          transformationType: 'scoring',
+          timestamp: new Date(),
+          sources: [],
+          compliance: {
+            consentId: 'consent-123',
+          },
+        },
+      ];
+
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({
+        entries: mockEntries,
+        total: mockEntries.length,
+      });
+
+      const result = await service.getDashboardData();
+
+      expect(result.complianceSummary.withConsent).toBe(1);
+    });
+
+    it('should handle mixed compliance flags', async () => {
+      const { createDataLineageSystem } = await import('@medicalcor/core');
+      const mockSystem = (createDataLineageSystem as ReturnType<typeof vi.fn>).mock
+        .results[0]?.value;
+
+      const mockEntries = [
+        {
+          id: 'e1',
+          aggregateId: 'agg1',
+          aggregateType: 'Lead',
+          transformationType: 'scoring',
+          timestamp: new Date(),
+          sources: [],
+          compliance: {
+            frameworks: ['HIPAA', 'GDPR'],
+            legalBasis: 'consent',
+            consentId: 'consent-123',
+          },
+        },
+        {
+          id: 'e2',
+          aggregateId: 'agg2',
+          aggregateType: 'Lead',
+          transformationType: 'scoring',
+          timestamp: new Date(),
+          sources: [],
+          compliance: {
+            frameworks: ['HIPAA'],
+          },
+        },
+        {
+          id: 'e3',
+          aggregateId: 'agg3',
+          aggregateType: 'Lead',
+          transformationType: 'scoring',
+          timestamp: new Date(),
+          sources: [],
+          compliance: {
+            frameworks: ['GDPR'],
+            legalBasis: 'legitimate_interest',
+          },
+        },
+      ];
+
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({
+        entries: mockEntries,
+        total: mockEntries.length,
+      });
+
+      const result = await service.getDashboardData();
+
+      expect(result.complianceSummary.hipaaEntries).toBe(2);
+      expect(result.complianceSummary.gdprEntries).toBe(2);
+      expect(result.complianceSummary.withLegalBasis).toBe(2);
+      expect(result.complianceSummary.withConsent).toBe(1);
+    });
+
+    it('should handle transformation with zero count gracefully', async () => {
+      const { createDataLineageSystem } = await import('@medicalcor/core');
+      const mockSystem = (createDataLineageSystem as ReturnType<typeof vi.fn>).mock
+        .results[0]?.value;
+
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+      mockSystem.store.query.mockResolvedValueOnce({ entries: [], total: 0 });
+
+      const result = await service.getDashboardData();
+
+      expect(result.topTransformations).toEqual([]);
     });
   });
 });

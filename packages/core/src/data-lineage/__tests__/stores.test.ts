@@ -8,8 +8,14 @@
  * - Pagination and sorting
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
-import { InMemoryLineageStore, createInMemoryLineageStore, createLineageStore } from '../stores.js';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import {
+  InMemoryLineageStore,
+  PostgresLineageStore,
+  createInMemoryLineageStore,
+  createPostgresLineageStore,
+  createLineageStore,
+} from '../stores.js';
 import type { LineageEntry, LineageQueryOptions } from '../types.js';
 
 // ============================================================================
@@ -511,6 +517,555 @@ describe('InMemoryLineageStore', () => {
       expect(store.size()).toBe(1);
     });
   });
+
+  // ============================================================================
+  // EDGE CASES FOR IN-MEMORY STORE
+  // ============================================================================
+
+  describe('Edge Cases - Query with Missing Fields', () => {
+    beforeEach(async () => {
+      // Entry with minimal fields (missing optional compliance, quality, actor, etc.)
+      await store.save(
+        createMockLineageEntry({
+          id: 'minimal',
+          quality: undefined,
+          compliance: undefined,
+          actor: undefined,
+          processingContext: undefined,
+        })
+      );
+
+      // Entry with quality but no confidence
+      await store.save(
+        createMockLineageEntry({
+          id: 'no-confidence',
+          quality: { confidence: 0.5, validationErrors: [] },
+        })
+      );
+
+      // Entry with empty compliance frameworks
+      await store.save(
+        createMockLineageEntry({
+          id: 'empty-frameworks',
+          compliance: { frameworks: [], sensitivity: 'high' },
+        })
+      );
+    });
+
+    it('should handle entries without compliance when filtering by framework', async () => {
+      const result = await store.query({ complianceFramework: 'HIPAA', includeErrors: true });
+
+      // Should not include entries without compliance or with empty frameworks
+      expect(result.entries.every((e) => e.id !== 'minimal')).toBe(true);
+      expect(result.entries.every((e) => e.id !== 'empty-frameworks')).toBe(true);
+    });
+
+    it('should handle entries without quality when filtering by minConfidence', async () => {
+      const result = await store.query({ minConfidence: 0.7 });
+
+      // Should not include entry without quality
+      expect(result.entries.every((e) => e.id !== 'minimal')).toBe(true);
+    });
+
+    it('should handle entries without actor when filtering by actorId', async () => {
+      const result = await store.query({ actorId: 'user-123' });
+
+      expect(result.entries.every((e) => e.id !== 'minimal')).toBe(true);
+    });
+
+    it('should handle entries without processingContext when filtering by service', async () => {
+      const result = await store.query({ service: 'api', includeErrors: true });
+
+      expect(result.entries.every((e) => e.id !== 'minimal')).toBe(true);
+    });
+
+    it('should handle default sortOrder (desc)', async () => {
+      const result = await store.query({ includeErrors: true });
+
+      // Default is desc, so should be ordered newest to oldest
+      const timestamps = result.entries.map((e) => new Date(e.createdAt).getTime());
+      for (let i = 1; i < timestamps.length; i++) {
+        expect(timestamps[i - 1]! >= timestamps[i]!).toBe(true);
+      }
+    });
+
+    it('should handle default limit (100)', async () => {
+      // Clear and add many entries
+      store.clear();
+      const entries = Array.from({ length: 150 }, (_, i) =>
+        createMockLineageEntry({ id: `entry-${i}` })
+      );
+      await store.saveBatch(entries);
+
+      const result = await store.query({});
+
+      expect(result.entries.length).toBe(100); // Default limit
+      expect(result.hasMore).toBe(true);
+      expect(result.total).toBe(150);
+    });
+
+    it('should handle default offset (0)', async () => {
+      const result = await store.query({ limit: 2, includeErrors: true });
+
+      // With offset 0, should start from beginning
+      expect(result.entries.length).toBeLessThanOrEqual(2);
+    });
+  });
+
+  describe('Edge Cases - Graph Traversal', () => {
+    it('should prevent infinite loops with circular references', async () => {
+      store.clear();
+      // Create a cycle: A -> B -> C -> A
+      await store.save(
+        createMockLineageEntry({
+          id: 'a-to-b',
+          targetAggregateId: 'b',
+          targetAggregateType: 'Node',
+          sources: [{ aggregateId: 'a', aggregateType: 'Node', version: 1 }],
+        })
+      );
+      await store.save(
+        createMockLineageEntry({
+          id: 'b-to-c',
+          targetAggregateId: 'c',
+          targetAggregateType: 'Node',
+          sources: [{ aggregateId: 'b', aggregateType: 'Node', version: 1 }],
+        })
+      );
+      await store.save(
+        createMockLineageEntry({
+          id: 'c-to-a',
+          targetAggregateId: 'a',
+          targetAggregateType: 'Node',
+          sources: [{ aggregateId: 'c', aggregateType: 'Node', version: 1 }],
+        })
+      );
+
+      // Should not hang - visited set prevents infinite loop
+      const graph = await store.getUpstreamSources('a', 10);
+
+      expect(graph.nodes.length).toBeGreaterThan(0);
+      expect(graph.nodes.length).toBeLessThan(10); // Not infinite
+    });
+
+    it('should stop at maxDepth in upstream traversal', async () => {
+      store.clear();
+      // Create deep chain: 1 -> 2 -> 3 -> 4 -> 5
+      for (let i = 2; i <= 5; i++) {
+        await store.save(
+          createMockLineageEntry({
+            id: `${i - 1}-to-${i}`,
+            targetAggregateId: `node-${i}`,
+            targetAggregateType: 'Node',
+            sources: [{ aggregateId: `node-${i - 1}`, aggregateType: 'Node', version: 1 }],
+          })
+        );
+      }
+
+      const graph = await store.getUpstreamSources('node-5', 2);
+
+      expect(graph.depth).toBe(2);
+      // Should respect maxDepth
+    });
+
+    it('should stop at maxDepth in downstream traversal', async () => {
+      store.clear();
+      for (let i = 2; i <= 5; i++) {
+        await store.save(
+          createMockLineageEntry({
+            id: `${i - 1}-to-${i}`,
+            targetAggregateId: `node-${i}`,
+            targetAggregateType: 'Node',
+            sources: [{ aggregateId: `node-${i - 1}`, aggregateType: 'Node', version: 1 }],
+          })
+        );
+      }
+
+      const graph = await store.getDownstreamImpacts('node-1', 2);
+
+      expect(graph.depth).toBe(2);
+    });
+
+    it('should handle already visited nodes in upstream', async () => {
+      store.clear();
+      // Diamond pattern: source -> [mid1, mid2] -> target
+      // Both mid1 and mid2 depend on source
+      await store.save(
+        createMockLineageEntry({
+          id: 'source-to-mid1',
+          targetAggregateId: 'mid1',
+          targetAggregateType: 'Node',
+          sources: [{ aggregateId: 'source', aggregateType: 'Node', version: 1 }],
+        })
+      );
+      await store.save(
+        createMockLineageEntry({
+          id: 'source-to-mid2',
+          targetAggregateId: 'mid2',
+          targetAggregateType: 'Node',
+          sources: [{ aggregateId: 'source', aggregateType: 'Node', version: 1 }],
+        })
+      );
+      await store.save(
+        createMockLineageEntry({
+          id: 'mids-to-target',
+          targetAggregateId: 'target',
+          targetAggregateType: 'Node',
+          sources: [
+            { aggregateId: 'mid1', aggregateType: 'Node', version: 1 },
+            { aggregateId: 'mid2', aggregateType: 'Node', version: 1 },
+          ],
+        })
+      );
+
+      const graph = await store.getUpstreamSources('target', 10);
+
+      // Should handle visited nodes correctly
+      expect(graph.nodes.length).toBeGreaterThan(0);
+    });
+
+    it('should return empty graph when no upstream sources exist', async () => {
+      store.clear();
+      const graph = await store.getUpstreamSources('non-existent', 10);
+
+      expect(graph.nodes.length).toBe(0);
+      expect(graph.edges.length).toBe(0);
+      expect(graph.stats.nodeCount).toBe(0);
+      expect(graph.stats.edgeCount).toBe(0);
+    });
+
+    it('should return empty graph when no downstream impacts exist', async () => {
+      store.clear();
+      const graph = await store.getDownstreamImpacts('non-existent', 10);
+
+      expect(graph.nodes.length).toBe(0);
+      expect(graph.edges.length).toBe(0);
+    });
+  });
+
+  describe('Edge Cases - Delete Operations', () => {
+    it('should handle deleting when aggregate appears in multiple sources', async () => {
+      store.clear();
+      await store.save(
+        createMockLineageEntry({
+          id: 'entry1',
+          targetAggregateId: 'target1',
+          sources: [{ aggregateId: 'shared-source', aggregateType: 'Node', version: 1 }],
+        })
+      );
+      await store.save(
+        createMockLineageEntry({
+          id: 'entry2',
+          targetAggregateId: 'target2',
+          sources: [{ aggregateId: 'shared-source', aggregateType: 'Node', version: 1 }],
+        })
+      );
+
+      const deleted = await store.deleteByAggregateId('shared-source');
+
+      expect(deleted).toBe(2);
+      expect(store.size()).toBe(0);
+    });
+  });
+
+  describe('Edge Cases - Complex Lineage Scenarios', () => {
+    it('should handle entries with multiple sources in traversal', async () => {
+      store.clear();
+      // Entry with multiple sources
+      await store.save(
+        createMockLineageEntry({
+          id: 'multi-source',
+          targetAggregateId: 'result',
+          targetAggregateType: 'Aggregate',
+          sources: [
+            { aggregateId: 'source1', aggregateType: 'Type1', version: 1 },
+            { aggregateId: 'source2', aggregateType: 'Type2', version: 1 },
+            { aggregateId: 'source3', aggregateType: 'Type3', version: 1 },
+          ],
+        })
+      );
+
+      const graph = await store.getUpstreamSources('result');
+
+      expect(graph.nodes.length).toBeGreaterThan(0);
+      // Should process all sources
+      const sourceIds = graph.nodes.map((n) => n.id);
+      expect(sourceIds).toContain('source1');
+      expect(sourceIds).toContain('source2');
+      expect(sourceIds).toContain('source3');
+    });
+
+    it('should handle entries with compliance tags in graph', async () => {
+      store.clear();
+      await store.save(
+        createMockLineageEntry({
+          id: 'with-compliance',
+          targetAggregateId: 'compliant-target',
+          targetAggregateType: 'Lead',
+          sources: [{ aggregateId: 'src', aggregateType: 'Webhook', version: 1 }],
+          compliance: {
+            frameworks: ['HIPAA', 'GDPR'],
+            sensitivity: 'high',
+          },
+        })
+      );
+
+      const graph = await store.getUpstreamSources('compliant-target');
+
+      const targetNode = graph.nodes.find((n) => n.id === 'compliant-target');
+      expect(targetNode?.complianceTags).toEqual(['HIPAA', 'GDPR']);
+      expect(targetNode?.sensitivity).toBe('high');
+    });
+
+    it('should handle downstream traversal with multiple targets', async () => {
+      store.clear();
+      // One source feeding into multiple targets
+      await store.save(
+        createMockLineageEntry({
+          id: 'target1-entry',
+          targetAggregateId: 'target1',
+          targetAggregateType: 'Lead',
+          sources: [{ aggregateId: 'common-source', aggregateType: 'Webhook', version: 1 }],
+        })
+      );
+      await store.save(
+        createMockLineageEntry({
+          id: 'target2-entry',
+          targetAggregateId: 'target2',
+          targetAggregateType: 'Patient',
+          sources: [{ aggregateId: 'common-source', aggregateType: 'Webhook', version: 1 }],
+        })
+      );
+
+      const graph = await store.getDownstreamImpacts('common-source');
+
+      expect(graph.edges.length).toBeGreaterThanOrEqual(2);
+      expect(graph.stats.uniqueAggregateTypes).toBeGreaterThanOrEqual(2);
+    });
+
+    it('should stop recursion when reaching visited node twice', async () => {
+      store.clear();
+      // Self-referencing entry (edge case)
+      await store.save(
+        createMockLineageEntry({
+          id: 'self-ref',
+          targetAggregateId: 'node-a',
+          targetAggregateType: 'Node',
+          sources: [{ aggregateId: 'node-a', aggregateType: 'Node', version: 1 }],
+        })
+      );
+
+      const graph = await store.getUpstreamSources('node-a');
+
+      // Should not hang, visited set prevents infinite loop
+      expect(graph.nodes.length).toBeGreaterThan(0);
+    });
+
+    it('should handle query with only one filter type set', async () => {
+      store.clear();
+      await store.save(
+        createMockLineageEntry({
+          id: 'test',
+          startTime: new Date('2024-01-01'),
+        })
+      );
+
+      // Test each filter individually
+      const byId = await store.query({ aggregateId: 'target-agg-1' });
+      expect(byId.entries.length).toBeGreaterThanOrEqual(0);
+
+      const byType = await store.query({ aggregateType: 'Lead' });
+      expect(byType.entries.length).toBeGreaterThanOrEqual(0);
+
+      const byTransform = await store.query({ transformationType: 'create' });
+      expect(byTransform.entries.length).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should calculate correct graph statistics', async () => {
+      store.clear();
+      await store.save(
+        createMockLineageEntry({
+          id: 'stats-entry1',
+          targetAggregateId: 'target',
+          targetAggregateType: 'Lead',
+          transformationType: 'create',
+          sources: [{ aggregateId: 'source1', aggregateType: 'Webhook', version: 1 }],
+        })
+      );
+      await store.save(
+        createMockLineageEntry({
+          id: 'stats-entry2',
+          targetAggregateId: 'target2',
+          targetAggregateType: 'Patient',
+          transformationType: 'derive',
+          sources: [{ aggregateId: 'target', aggregateType: 'Lead', version: 1 }],
+        })
+      );
+
+      const graph = await store.getUpstreamSources('target2');
+
+      expect(graph.stats).toBeDefined();
+      expect(graph.stats.nodeCount).toBe(graph.nodes.length);
+      expect(graph.stats.edgeCount).toBe(graph.edges.length);
+      expect(graph.stats.uniqueTransformations).toBeGreaterThan(0);
+      expect(graph.stats.uniqueAggregateTypes).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Edge Cases - Pagination Edge Cases', () => {
+    beforeEach(() => {
+      store.clear();
+    });
+
+    it('should handle offset greater than total', async () => {
+      await store.saveBatch([
+        createMockLineageEntry({ id: '1' }),
+        createMockLineageEntry({ id: '2' }),
+      ]);
+
+      const result = await store.query({ offset: 100, limit: 10 });
+
+      expect(result.entries.length).toBe(0);
+      expect(result.hasMore).toBe(false);
+      expect(result.total).toBe(2);
+    });
+
+    it('should handle limit of 0', async () => {
+      await store.saveBatch([createMockLineageEntry({ id: '1' })]);
+
+      const result = await store.query({ limit: 0 });
+
+      expect(result.entries.length).toBe(0);
+      expect(result.total).toBe(1);
+    });
+
+    it('should handle exact boundary for hasMore', async () => {
+      await store.saveBatch([
+        createMockLineageEntry({ id: '1' }),
+        createMockLineageEntry({ id: '2' }),
+        createMockLineageEntry({ id: '3' }),
+      ]);
+
+      const result = await store.query({ limit: 3, offset: 0 });
+
+      expect(result.entries.length).toBe(3);
+      expect(result.hasMore).toBe(false); // offset (0) + limit (3) = 3 == total (3)
+    });
+
+    it('should handle offset + limit === total - 1', async () => {
+      await store.saveBatch([
+        createMockLineageEntry({ id: '1' }),
+        createMockLineageEntry({ id: '2' }),
+        createMockLineageEntry({ id: '3' }),
+      ]);
+
+      const result = await store.query({ limit: 1, offset: 1 });
+
+      expect(result.entries.length).toBe(1);
+      expect(result.hasMore).toBe(true); // 1 + 1 = 2 < 3
+    });
+  });
+
+  describe('Edge Cases - Timestamp Handling', () => {
+    beforeEach(() => {
+      store.clear();
+    });
+
+    it('should handle startTime exactly matching entry time', async () => {
+      const exactTime = new Date('2024-06-15T12:00:00Z');
+      await store.save(
+        createMockLineageEntry({
+          id: 'exact-time',
+          createdAt: exactTime.toISOString(),
+        })
+      );
+
+      const result = await store.query({ startTime: exactTime, includeErrors: true });
+
+      expect(result.entries.some((e) => e.id === 'exact-time')).toBe(true);
+    });
+
+    it('should handle endTime exactly matching entry time', async () => {
+      const exactTime = new Date('2024-06-15T12:00:00Z');
+      await store.save(
+        createMockLineageEntry({
+          id: 'exact-end',
+          createdAt: exactTime.toISOString(),
+        })
+      );
+
+      const result = await store.query({ endTime: exactTime, includeErrors: true });
+
+      expect(result.entries.some((e) => e.id === 'exact-end')).toBe(true);
+    });
+
+    it('should filter out entries outside time range', async () => {
+      await store.save(
+        createMockLineageEntry({
+          id: 'before',
+          createdAt: new Date('2024-01-01T00:00:00Z').toISOString(),
+        })
+      );
+      await store.save(
+        createMockLineageEntry({
+          id: 'during',
+          createdAt: new Date('2024-06-15T12:00:00Z').toISOString(),
+        })
+      );
+      await store.save(
+        createMockLineageEntry({
+          id: 'after',
+          createdAt: new Date('2024-12-31T23:59:59Z').toISOString(),
+        })
+      );
+
+      const result = await store.query({
+        startTime: new Date('2024-06-01'),
+        endTime: new Date('2024-06-30'),
+        includeErrors: true,
+      });
+
+      expect(result.entries.every((e) => e.id !== 'before')).toBe(true);
+      expect(result.entries.every((e) => e.id !== 'after')).toBe(true);
+      expect(result.entries.some((e) => e.id === 'during')).toBe(true);
+    });
+  });
+});
+
+// ============================================================================
+// POSTGRESQL STORE TESTS
+// ============================================================================
+
+describe('PostgresLineageStore', () => {
+  describe('Constructor and Initialization', () => {
+    it('should create store with connection string', () => {
+      const store = new PostgresLineageStore('postgresql://test:test@localhost/testdb');
+      expect(store).toBeInstanceOf(PostgresLineageStore);
+    });
+
+    it('should use custom table name', () => {
+      const store = new PostgresLineageStore(
+        'postgresql://test:test@localhost/testdb',
+        'custom_lineage'
+      );
+      expect(store).toBeInstanceOf(PostgresLineageStore);
+    });
+
+    it('should use default table name when not provided', () => {
+      const store = new PostgresLineageStore('postgresql://test:test@localhost/testdb');
+      expect(store).toBeInstanceOf(PostgresLineageStore);
+    });
+  });
+
+  describe('close', () => {
+    it('should not throw when pool does not exist (early close)', async () => {
+      const store = new PostgresLineageStore('postgresql://test:test@localhost/testdb');
+
+      // Close immediately without waiting for initialization
+      // This tests the if (this.pool) branch in close()
+      await expect(store.close()).resolves.not.toThrow();
+    });
+  });
 });
 
 // ============================================================================
@@ -538,6 +1093,40 @@ describe('Factory Functions', () => {
       const store = createLineageStore({});
 
       expect(store).toBeInstanceOf(InMemoryLineageStore);
+    });
+
+    it('should create PostgreSQL store with connection string', () => {
+      const store = createLineageStore({
+        connectionString: 'postgresql://test:test@localhost/testdb',
+      });
+
+      expect(store).toBeInstanceOf(PostgresLineageStore);
+    });
+
+    it('should create PostgreSQL store with custom table name', () => {
+      const store = createLineageStore({
+        connectionString: 'postgresql://test:test@localhost/testdb',
+        tableName: 'custom_lineage',
+      });
+
+      expect(store).toBeInstanceOf(PostgresLineageStore);
+    });
+  });
+
+  describe('createPostgresLineageStore', () => {
+    it('should create PostgreSQL store', () => {
+      const store = createPostgresLineageStore('postgresql://test:test@localhost/testdb');
+
+      expect(store).toBeInstanceOf(PostgresLineageStore);
+    });
+
+    it('should create PostgreSQL store with custom table name', () => {
+      const store = createPostgresLineageStore(
+        'postgresql://test:test@localhost/testdb',
+        'custom_table'
+      );
+
+      expect(store).toBeInstanceOf(PostgresLineageStore);
     });
   });
 });

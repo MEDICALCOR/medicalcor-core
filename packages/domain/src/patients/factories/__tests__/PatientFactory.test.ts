@@ -651,4 +651,1178 @@ describe('PatientFactory', () => {
       expect(patient.getState().id).toBe('patient-789');
     });
   });
+
+  // ============================================================================
+  // COMPREHENSIVE BRANCH COVERAGE TESTS
+  // ============================================================================
+
+  describe('Branch Coverage - fromSnapshot', () => {
+    it('should handle snapshot with empty events array', () => {
+      const snapshot = createPatientSnapshot();
+
+      const patient = factory.fromSnapshot(snapshot, []);
+
+      expect(patient).toBeDefined();
+      expect(patient.getState().id).toBe('patient-snap-123');
+    });
+
+    it('should handle snapshot with all optional dates undefined', () => {
+      const snapshot: PatientAggregateSnapshot = {
+        ...createPatientSnapshot(),
+        state: {
+          ...createPatientSnapshot().state,
+          dateOfBirth: undefined,
+          activatedAt: undefined,
+          deactivatedAt: undefined,
+          archivedAt: undefined,
+          lastContactAt: undefined,
+          lastAppointmentAt: undefined,
+          deletedAt: undefined,
+        },
+      };
+
+      const patient = factory.fromSnapshot(snapshot);
+
+      expect(patient.getState().dateOfBirth).toBeUndefined();
+      expect(patient.getState().activatedAt).toBeUndefined();
+      expect(patient.getState().deactivatedAt).toBeUndefined();
+      expect(patient.getState().archivedAt).toBeUndefined();
+      expect(patient.getState().lastContactAt).toBeUndefined();
+      expect(patient.getState().lastAppointmentAt).toBeUndefined();
+      expect(patient.getState().deletedAt).toBeUndefined();
+    });
+
+    it('should handle snapshot with all optional dates defined', () => {
+      const now = new Date();
+      const snapshot: PatientAggregateSnapshot = {
+        ...createPatientSnapshot(),
+        state: {
+          ...createPatientSnapshot().state,
+          dateOfBirth: now.toISOString(),
+          activatedAt: now.toISOString(),
+          deactivatedAt: now.toISOString(),
+          archivedAt: now.toISOString(),
+          lastContactAt: now.toISOString(),
+          lastAppointmentAt: now.toISOString(),
+          deletedAt: now.toISOString(),
+          deletionReason: 'Test deletion',
+        },
+      };
+
+      const patient = factory.fromSnapshot(snapshot);
+
+      expect(patient.getState().dateOfBirth).toBeInstanceOf(Date);
+      expect(patient.getState().activatedAt).toBeInstanceOf(Date);
+      expect(patient.getState().deactivatedAt).toBeInstanceOf(Date);
+      expect(patient.getState().archivedAt).toBeInstanceOf(Date);
+      expect(patient.getState().lastContactAt).toBeInstanceOf(Date);
+      expect(patient.getState().lastAppointmentAt).toBeInstanceOf(Date);
+      expect(patient.getState().deletedAt).toBeInstanceOf(Date);
+    });
+
+    it('should handle snapshot with medical history with undefined diagnosedAt', () => {
+      const now = new Date();
+      const snapshot: PatientAggregateSnapshot = {
+        ...createPatientSnapshot(),
+        state: {
+          ...createPatientSnapshot().state,
+          medicalHistory: [
+            {
+              id: 'mh-1',
+              conditionType: 'chronic',
+              description: 'Test condition',
+              diagnosedAt: undefined,
+              severity: 'moderate',
+              currentStatus: 'active',
+              addedAt: now.toISOString(),
+            },
+          ],
+        },
+      };
+
+      const patient = factory.fromSnapshot(snapshot);
+
+      expect(patient.getState().medicalHistory[0].diagnosedAt).toBeUndefined();
+      expect(patient.getState().medicalHistory[0].addedAt).toBeInstanceOf(Date);
+    });
+
+    it('should handle snapshot with medical history with defined diagnosedAt', () => {
+      const now = new Date();
+      const snapshot: PatientAggregateSnapshot = {
+        ...createPatientSnapshot(),
+        state: {
+          ...createPatientSnapshot().state,
+          medicalHistory: [
+            {
+              id: 'mh-1',
+              conditionType: 'acute',
+              description: 'Test condition',
+              diagnosedAt: now.toISOString(),
+              severity: 'severe',
+              currentStatus: 'resolved',
+              addedAt: now.toISOString(),
+            },
+          ],
+        },
+      };
+
+      const patient = factory.fromSnapshot(snapshot);
+
+      expect(patient.getState().medicalHistory[0].diagnosedAt).toBeInstanceOf(Date);
+    });
+
+    it('should handle snapshot with allergies with undefined verifiedAt', () => {
+      const snapshot: PatientAggregateSnapshot = {
+        ...createPatientSnapshot(),
+        state: {
+          ...createPatientSnapshot().state,
+          allergies: [
+            {
+              id: 'allergy-1',
+              allergen: 'Latex',
+              severity: 'mild',
+              reaction: 'Rash',
+              verifiedAt: undefined,
+            },
+          ],
+        },
+      };
+
+      const patient = factory.fromSnapshot(snapshot);
+
+      expect(patient.getState().allergies[0].verifiedAt).toBeUndefined();
+    });
+
+    it('should handle snapshot with allergies with defined verifiedAt', () => {
+      const now = new Date();
+      const snapshot: PatientAggregateSnapshot = {
+        ...createPatientSnapshot(),
+        state: {
+          ...createPatientSnapshot().state,
+          allergies: [
+            {
+              id: 'allergy-1',
+              allergen: 'Sulfa',
+              severity: 'moderate',
+              reaction: 'Hives',
+              verifiedAt: now.toISOString(),
+            },
+          ],
+        },
+      };
+
+      const patient = factory.fromSnapshot(snapshot);
+
+      expect(patient.getState().allergies[0].verifiedAt).toBeInstanceOf(Date);
+    });
+
+    it('should handle snapshot with treatment plans with undefined completedAt', () => {
+      const now = new Date();
+      const snapshot: PatientAggregateSnapshot = {
+        ...createPatientSnapshot(),
+        state: {
+          ...createPatientSnapshot().state,
+          treatmentPlans: [
+            {
+              id: 'tp-1',
+              procedureType: 'cleaning',
+              providerId: 'dr-456',
+              status: 'active',
+              startedAt: now.toISOString(),
+              completedAt: undefined,
+              outcome: undefined,
+            },
+          ],
+        },
+      };
+
+      const patient = factory.fromSnapshot(snapshot);
+
+      expect(patient.getState().treatmentPlans[0].completedAt).toBeUndefined();
+    });
+
+    it('should handle snapshot with treatment plans with defined completedAt', () => {
+      const now = new Date();
+      const snapshot: PatientAggregateSnapshot = {
+        ...createPatientSnapshot(),
+        state: {
+          ...createPatientSnapshot().state,
+          treatmentPlans: [
+            {
+              id: 'tp-1',
+              procedureType: 'root_canal',
+              providerId: 'dr-789',
+              status: 'completed',
+              startedAt: now.toISOString(),
+              completedAt: now.toISOString(),
+              outcome: 'successful',
+            },
+          ],
+        },
+      };
+
+      const patient = factory.fromSnapshot(snapshot);
+
+      expect(patient.getState().treatmentPlans[0].completedAt).toBeInstanceOf(Date);
+    });
+
+    it('should handle snapshot with undefined insuranceInfo', () => {
+      const snapshot: PatientAggregateSnapshot = {
+        ...createPatientSnapshot(),
+        state: {
+          ...createPatientSnapshot().state,
+          insuranceInfo: undefined,
+        },
+      };
+
+      const patient = factory.fromSnapshot(snapshot);
+
+      expect(patient.getState().insuranceInfo).toBeUndefined();
+    });
+
+    it('should handle snapshot with insuranceInfo with undefined effectiveUntil', () => {
+      const now = new Date();
+      const snapshot: PatientAggregateSnapshot = {
+        ...createPatientSnapshot(),
+        state: {
+          ...createPatientSnapshot().state,
+          insuranceInfo: {
+            id: 'ins-1',
+            providerId: 'provider-1',
+            providerName: 'TestInsurance',
+            policyNumber: 'POL123',
+            groupNumber: 'GRP456',
+            coverageType: 'partial',
+            effectiveFrom: now.toISOString(),
+            effectiveUntil: undefined,
+            status: 'verified',
+            verifiedAt: undefined,
+          },
+        },
+      };
+
+      const patient = factory.fromSnapshot(snapshot);
+
+      expect(patient.getState().insuranceInfo).toBeDefined();
+      expect(patient.getState().insuranceInfo?.effectiveUntil).toBeUndefined();
+      expect(patient.getState().insuranceInfo?.verifiedAt).toBeUndefined();
+    });
+
+    it('should handle snapshot with insuranceInfo with defined effectiveUntil and verifiedAt', () => {
+      const now = new Date();
+      const snapshot: PatientAggregateSnapshot = {
+        ...createPatientSnapshot(),
+        state: {
+          ...createPatientSnapshot().state,
+          insuranceInfo: {
+            id: 'ins-2',
+            providerId: 'provider-2',
+            providerName: 'AnotherInsurance',
+            policyNumber: 'POL789',
+            groupNumber: 'GRP123',
+            coverageType: 'full',
+            effectiveFrom: now.toISOString(),
+            effectiveUntil: now.toISOString(),
+            status: 'verified',
+            verifiedAt: now.toISOString(),
+          },
+        },
+      };
+
+      const patient = factory.fromSnapshot(snapshot);
+
+      expect(patient.getState().insuranceInfo?.effectiveUntil).toBeInstanceOf(Date);
+      expect(patient.getState().insuranceInfo?.verifiedAt).toBeInstanceOf(Date);
+    });
+
+    it('should handle snapshot with consents with all optional dates undefined', () => {
+      const snapshot: PatientAggregateSnapshot = {
+        ...createPatientSnapshot(),
+        state: {
+          ...createPatientSnapshot().state,
+          consents: {
+            treatment: {
+              type: 'treatment',
+              status: 'pending',
+              grantedAt: undefined,
+              revokedAt: undefined,
+              expiresAt: undefined,
+              method: undefined,
+            },
+          },
+        },
+      };
+
+      const patient = factory.fromSnapshot(snapshot);
+
+      expect(patient.getState().consents['treatment'].grantedAt).toBeUndefined();
+      expect(patient.getState().consents['treatment'].revokedAt).toBeUndefined();
+      expect(patient.getState().consents['treatment'].expiresAt).toBeUndefined();
+    });
+
+    it('should handle snapshot with consents with all optional dates defined', () => {
+      const now = new Date();
+      const snapshot: PatientAggregateSnapshot = {
+        ...createPatientSnapshot(),
+        state: {
+          ...createPatientSnapshot().state,
+          consents: {
+            marketing: {
+              type: 'marketing',
+              status: 'granted',
+              grantedAt: now.toISOString(),
+              revokedAt: now.toISOString(),
+              expiresAt: now.toISOString(),
+              method: 'electronic',
+            },
+          },
+        },
+      };
+
+      const patient = factory.fromSnapshot(snapshot);
+
+      expect(patient.getState().consents['marketing'].grantedAt).toBeInstanceOf(Date);
+      expect(patient.getState().consents['marketing'].revokedAt).toBeInstanceOf(Date);
+      expect(patient.getState().consents['marketing'].expiresAt).toBeInstanceOf(Date);
+    });
+  });
+
+  describe('Branch Coverage - createSnapshot', () => {
+    it('should create snapshot with all optional dates undefined', () => {
+      const record: PatientRecord = {
+        ...createPatientRecord(),
+        dateOfBirth: undefined,
+        activatedAt: undefined,
+        deactivatedAt: undefined,
+        archivedAt: undefined,
+        lastContactAt: undefined,
+        lastAppointmentAt: undefined,
+        deletedAt: undefined,
+      };
+      const patient = factory.fromDatabaseRecord(record);
+
+      const snapshot = factory.createSnapshot(patient);
+
+      expect(snapshot.state.dateOfBirth).toBeUndefined();
+      expect(snapshot.state.activatedAt).toBeUndefined();
+      expect(snapshot.state.deactivatedAt).toBeUndefined();
+      expect(snapshot.state.archivedAt).toBeUndefined();
+      expect(snapshot.state.lastContactAt).toBeUndefined();
+      expect(snapshot.state.lastAppointmentAt).toBeUndefined();
+      expect(snapshot.state.deletedAt).toBeUndefined();
+    });
+
+    it('should create snapshot with all optional dates defined', () => {
+      const now = new Date();
+      const record: PatientRecord = {
+        ...createPatientRecord(),
+        dateOfBirth: now,
+        activatedAt: now,
+        deactivatedAt: now,
+        archivedAt: now,
+        lastContactAt: now,
+        lastAppointmentAt: now,
+        deletedAt: now,
+        deletionReason: 'Test deletion',
+      };
+      const patient = factory.fromDatabaseRecord(record);
+
+      const snapshot = factory.createSnapshot(patient);
+
+      expect(snapshot.state.dateOfBirth).toBeDefined();
+      expect(snapshot.state.activatedAt).toBeDefined();
+      expect(snapshot.state.deactivatedAt).toBeDefined();
+      expect(snapshot.state.archivedAt).toBeDefined();
+      expect(snapshot.state.lastContactAt).toBeDefined();
+      expect(snapshot.state.lastAppointmentAt).toBeDefined();
+      expect(snapshot.state.deletedAt).toBeDefined();
+    });
+
+    it('should create snapshot with medical history with undefined diagnosedAt', () => {
+      const now = new Date();
+      const record: PatientRecord = {
+        ...createPatientRecord(),
+        medicalHistory: [
+          {
+            id: 'mh-1',
+            conditionType: 'medication',
+            description: 'Taking aspirin',
+            diagnosedAt: undefined,
+            severity: 'mild',
+            currentStatus: 'active',
+            addedAt: now,
+          },
+        ],
+      };
+      const patient = factory.fromDatabaseRecord(record);
+
+      const snapshot = factory.createSnapshot(patient);
+
+      expect(snapshot.state.medicalHistory[0].diagnosedAt).toBeUndefined();
+      expect(snapshot.state.medicalHistory[0].addedAt).toBeDefined();
+    });
+
+    it('should create snapshot with medical history with defined diagnosedAt', () => {
+      const now = new Date();
+      const record: PatientRecord = {
+        ...createPatientRecord(),
+        medicalHistory: [
+          {
+            id: 'mh-2',
+            conditionType: 'surgical',
+            description: 'Appendectomy',
+            diagnosedAt: now,
+            severity: undefined,
+            currentStatus: 'resolved',
+            addedAt: now,
+          },
+        ],
+      };
+      const patient = factory.fromDatabaseRecord(record);
+
+      const snapshot = factory.createSnapshot(patient);
+
+      expect(snapshot.state.medicalHistory[0].diagnosedAt).toBeDefined();
+    });
+
+    it('should create snapshot with allergies with undefined verifiedAt', () => {
+      const record: PatientRecord = {
+        ...createPatientRecord(),
+        allergies: [
+          {
+            id: 'allergy-1',
+            allergen: 'Iodine',
+            severity: 'life_threatening',
+            reaction: 'Anaphylactic shock',
+            verifiedAt: undefined,
+          },
+        ],
+      };
+      const patient = factory.fromDatabaseRecord(record);
+
+      const snapshot = factory.createSnapshot(patient);
+
+      expect(snapshot.state.allergies[0].verifiedAt).toBeUndefined();
+    });
+
+    it('should create snapshot with allergies with defined verifiedAt', () => {
+      const now = new Date();
+      const record: PatientRecord = {
+        ...createPatientRecord(),
+        allergies: [
+          {
+            id: 'allergy-2',
+            allergen: 'Amoxicillin',
+            severity: 'moderate',
+            reaction: 'Skin rash',
+            verifiedAt: now,
+          },
+        ],
+      };
+      const patient = factory.fromDatabaseRecord(record);
+
+      const snapshot = factory.createSnapshot(patient);
+
+      expect(snapshot.state.allergies[0].verifiedAt).toBeDefined();
+    });
+
+    it('should create snapshot with treatment plans with undefined completedAt', () => {
+      const now = new Date();
+      const record: PatientRecord = {
+        ...createPatientRecord(),
+        treatmentPlans: [
+          {
+            id: 'tp-1',
+            procedureType: 'braces',
+            providerId: 'ortho-123',
+            status: 'active',
+            startedAt: now,
+            completedAt: undefined,
+            outcome: undefined,
+          },
+        ],
+      };
+      const patient = factory.fromDatabaseRecord(record);
+
+      const snapshot = factory.createSnapshot(patient);
+
+      expect(snapshot.state.treatmentPlans[0].completedAt).toBeUndefined();
+    });
+
+    it('should create snapshot with treatment plans with defined completedAt', () => {
+      const now = new Date();
+      const record: PatientRecord = {
+        ...createPatientRecord(),
+        treatmentPlans: [
+          {
+            id: 'tp-2',
+            procedureType: 'filling',
+            providerId: 'dr-456',
+            status: 'completed',
+            startedAt: now,
+            completedAt: now,
+            outcome: 'partial',
+          },
+        ],
+      };
+      const patient = factory.fromDatabaseRecord(record);
+
+      const snapshot = factory.createSnapshot(patient);
+
+      expect(snapshot.state.treatmentPlans[0].completedAt).toBeDefined();
+    });
+
+    it('should create snapshot with undefined insuranceInfo', () => {
+      const record: PatientRecord = {
+        ...createPatientRecord(),
+        insuranceInfo: undefined,
+      };
+      const patient = factory.fromDatabaseRecord(record);
+
+      const snapshot = factory.createSnapshot(patient);
+
+      expect(snapshot.state.insuranceInfo).toBeUndefined();
+    });
+
+    it('should create snapshot with insuranceInfo with undefined effectiveUntil and verifiedAt', () => {
+      const now = new Date();
+      const record: PatientRecord = {
+        ...createPatientRecord(),
+        insuranceInfo: {
+          id: 'ins-1',
+          providerId: 'provider-1',
+          providerName: 'BasicInsurance',
+          policyNumber: 'BASIC123',
+          groupNumber: undefined,
+          coverageType: 'dental_only',
+          effectiveFrom: now,
+          effectiveUntil: undefined,
+          status: 'pending',
+          verifiedAt: undefined,
+        },
+      };
+      const patient = factory.fromDatabaseRecord(record);
+
+      const snapshot = factory.createSnapshot(patient);
+
+      expect(snapshot.state.insuranceInfo).toBeDefined();
+      expect(snapshot.state.insuranceInfo?.effectiveUntil).toBeUndefined();
+      expect(snapshot.state.insuranceInfo?.verifiedAt).toBeUndefined();
+    });
+
+    it('should create snapshot with insuranceInfo with defined effectiveUntil and verifiedAt', () => {
+      const now = new Date();
+      const record: PatientRecord = {
+        ...createPatientRecord(),
+        insuranceInfo: {
+          id: 'ins-2',
+          providerId: 'provider-2',
+          providerName: 'PremiumInsurance',
+          policyNumber: 'PREM456',
+          groupNumber: 'PGRP789',
+          coverageType: 'full',
+          effectiveFrom: now,
+          effectiveUntil: now,
+          status: 'verified',
+          verifiedAt: now,
+        },
+      };
+      const patient = factory.fromDatabaseRecord(record);
+
+      const snapshot = factory.createSnapshot(patient);
+
+      expect(snapshot.state.insuranceInfo?.effectiveUntil).toBeDefined();
+      expect(snapshot.state.insuranceInfo?.verifiedAt).toBeDefined();
+    });
+
+    it('should create snapshot with consents with undefined optional dates', () => {
+      const record: PatientRecord = {
+        ...createPatientRecord(),
+        consents: {
+          research: {
+            type: 'research',
+            status: 'denied',
+            grantedAt: undefined,
+            revokedAt: undefined,
+            expiresAt: undefined,
+            method: undefined,
+          },
+        },
+      };
+      const patient = factory.fromDatabaseRecord(record);
+
+      const snapshot = factory.createSnapshot(patient);
+
+      expect(snapshot.state.consents['research'].grantedAt).toBeUndefined();
+      expect(snapshot.state.consents['research'].revokedAt).toBeUndefined();
+      expect(snapshot.state.consents['research'].expiresAt).toBeUndefined();
+    });
+
+    it('should create snapshot with consents with defined optional dates', () => {
+      const now = new Date();
+      const record: PatientRecord = {
+        ...createPatientRecord(),
+        consents: {
+          data_sharing: {
+            type: 'data_sharing',
+            status: 'granted',
+            grantedAt: now,
+            revokedAt: now,
+            expiresAt: now,
+            method: 'written',
+          },
+        },
+      };
+      const patient = factory.fromDatabaseRecord(record);
+
+      const snapshot = factory.createSnapshot(patient);
+
+      expect(snapshot.state.consents['data_sharing'].grantedAt).toBeDefined();
+      expect(snapshot.state.consents['data_sharing'].revokedAt).toBeDefined();
+      expect(snapshot.state.consents['data_sharing'].expiresAt).toBeDefined();
+    });
+
+    it('should create snapshot with multiple medical history entries with mixed optional dates', () => {
+      const now = new Date();
+      const record: PatientRecord = {
+        ...createPatientRecord(),
+        medicalHistory: [
+          {
+            id: 'mh-1',
+            conditionType: 'chronic',
+            description: 'Diabetes',
+            diagnosedAt: now,
+            severity: 'severe',
+            currentStatus: 'managed',
+            addedAt: now,
+          },
+          {
+            id: 'mh-2',
+            conditionType: 'allergy',
+            description: 'Pollen allergy',
+            diagnosedAt: undefined,
+            severity: 'mild',
+            currentStatus: 'active',
+            addedAt: now,
+          },
+        ],
+      };
+      const patient = factory.fromDatabaseRecord(record);
+
+      const snapshot = factory.createSnapshot(patient);
+
+      expect(snapshot.state.medicalHistory).toHaveLength(2);
+      expect(snapshot.state.medicalHistory[0].diagnosedAt).toBeDefined();
+      expect(snapshot.state.medicalHistory[1].diagnosedAt).toBeUndefined();
+    });
+
+    it('should create snapshot with multiple allergies with mixed verifiedAt', () => {
+      const now = new Date();
+      const record: PatientRecord = {
+        ...createPatientRecord(),
+        allergies: [
+          {
+            id: 'allergy-1',
+            allergen: 'Nuts',
+            severity: 'severe',
+            reaction: 'Anaphylaxis',
+            verifiedAt: now,
+          },
+          {
+            id: 'allergy-2',
+            allergen: 'Shellfish',
+            severity: 'moderate',
+            reaction: 'Hives',
+            verifiedAt: undefined,
+          },
+        ],
+      };
+      const patient = factory.fromDatabaseRecord(record);
+
+      const snapshot = factory.createSnapshot(patient);
+
+      expect(snapshot.state.allergies).toHaveLength(2);
+      expect(snapshot.state.allergies[0].verifiedAt).toBeDefined();
+      expect(snapshot.state.allergies[1].verifiedAt).toBeUndefined();
+    });
+
+    it('should create snapshot with multiple treatment plans with mixed completedAt', () => {
+      const now = new Date();
+      const record: PatientRecord = {
+        ...createPatientRecord(),
+        treatmentPlans: [
+          {
+            id: 'tp-1',
+            procedureType: 'implant',
+            providerId: 'dr-123',
+            status: 'completed',
+            startedAt: now,
+            completedAt: now,
+            outcome: 'successful',
+          },
+          {
+            id: 'tp-2',
+            procedureType: 'whitening',
+            providerId: 'dr-456',
+            status: 'active',
+            startedAt: now,
+            completedAt: undefined,
+            outcome: undefined,
+          },
+        ],
+      };
+      const patient = factory.fromDatabaseRecord(record);
+
+      const snapshot = factory.createSnapshot(patient);
+
+      expect(snapshot.state.treatmentPlans).toHaveLength(2);
+      expect(snapshot.state.treatmentPlans[0].completedAt).toBeDefined();
+      expect(snapshot.state.treatmentPlans[1].completedAt).toBeUndefined();
+    });
+
+    it('should create snapshot with multiple consents with mixed optional dates', () => {
+      const now = new Date();
+      const record: PatientRecord = {
+        ...createPatientRecord(),
+        consents: {
+          treatment: {
+            type: 'treatment',
+            status: 'granted',
+            grantedAt: now,
+            revokedAt: undefined,
+            expiresAt: now,
+            method: 'electronic',
+          },
+          marketing: {
+            type: 'marketing',
+            status: 'expired',
+            grantedAt: now,
+            revokedAt: now,
+            expiresAt: now,
+            method: 'verbal',
+          },
+          communication: {
+            type: 'communication',
+            status: 'pending',
+            grantedAt: undefined,
+            revokedAt: undefined,
+            expiresAt: undefined,
+            method: undefined,
+          },
+        },
+      };
+      const patient = factory.fromDatabaseRecord(record);
+
+      const snapshot = factory.createSnapshot(patient);
+
+      expect(Object.keys(snapshot.state.consents)).toHaveLength(3);
+      expect(snapshot.state.consents['treatment'].grantedAt).toBeDefined();
+      expect(snapshot.state.consents['treatment'].revokedAt).toBeUndefined();
+      expect(snapshot.state.consents['marketing'].revokedAt).toBeDefined();
+      expect(snapshot.state.consents['communication'].grantedAt).toBeUndefined();
+    });
+  });
+
+  describe('Branch Coverage - fromDatabaseRecord', () => {
+    it('should handle record with isDeleted missing (not just undefined)', () => {
+      const record = createPatientRecord();
+      // Remove isDeleted property entirely using destructuring
+      const { isDeleted, ...recordWithoutIsDeleted } = record;
+
+      const patient = factory.fromDatabaseRecord(recordWithoutIsDeleted as PatientRecord);
+
+      expect(patient.getState().isDeleted).toBe(false);
+    });
+
+    it('should handle record with isDeleted explicitly false', () => {
+      const record: PatientRecord = {
+        ...createPatientRecord(),
+        isDeleted: false,
+      };
+
+      const patient = factory.fromDatabaseRecord(record);
+
+      expect(patient.getState().isDeleted).toBe(false);
+    });
+
+    it('should handle record with isDeleted explicitly true', () => {
+      const record: PatientRecord = {
+        ...createPatientRecord(),
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletionReason: 'Patient requested data deletion',
+      };
+
+      const patient = factory.fromDatabaseRecord(record);
+
+      expect(patient.getState().isDeleted).toBe(true);
+      expect(patient.getState().deletedAt).toBeInstanceOf(Date);
+      expect(patient.getState().deletionReason).toBe('Patient requested data deletion');
+    });
+
+    it('should handle record with all optional timestamps undefined', () => {
+      const now = new Date();
+      const record: PatientRecord = {
+        ...createPatientRecord(),
+        dateOfBirth: undefined,
+        activatedAt: undefined,
+        deactivatedAt: undefined,
+        archivedAt: undefined,
+        lastContactAt: undefined,
+        lastAppointmentAt: undefined,
+        deletedAt: undefined,
+      };
+
+      const patient = factory.fromDatabaseRecord(record);
+
+      expect(patient.getState().dateOfBirth).toBeUndefined();
+      expect(patient.getState().activatedAt).toBeUndefined();
+      expect(patient.getState().deactivatedAt).toBeUndefined();
+      expect(patient.getState().archivedAt).toBeUndefined();
+      expect(patient.getState().lastContactAt).toBeUndefined();
+      expect(patient.getState().lastAppointmentAt).toBeUndefined();
+      expect(patient.getState().deletedAt).toBeUndefined();
+    });
+
+    it('should handle record with empty collections', () => {
+      const record: PatientRecord = {
+        ...createPatientRecord(),
+        medicalHistory: [],
+        allergies: [],
+        treatmentPlans: [],
+        appointments: [],
+        assignedProviders: [],
+      };
+
+      const patient = factory.fromDatabaseRecord(record);
+
+      expect(patient.getState().medicalHistory).toHaveLength(0);
+      expect(patient.getState().allergies).toHaveLength(0);
+      expect(patient.getState().treatmentPlans).toHaveLength(0);
+      expect(patient.getState().appointments).toHaveLength(0);
+      expect(patient.getState().assignedProviders).toHaveLength(0);
+    });
+
+    it('should handle record with empty consents object', () => {
+      const record: PatientRecord = {
+        ...createPatientRecord(),
+        consents: {},
+      };
+
+      const patient = factory.fromDatabaseRecord(record);
+
+      expect(Object.keys(patient.getState().consents)).toHaveLength(0);
+    });
+
+    it('should handle record with multiple appointments', () => {
+      const now = new Date();
+      const record: PatientRecord = {
+        ...createPatientRecord(),
+        appointments: [
+          {
+            id: 'apt-1',
+            appointmentType: 'cleaning',
+            scheduledFor: now,
+            duration: 30,
+            providerId: 'hygienist-1',
+            status: 'completed',
+            isFollowUp: false,
+            treatmentPlanId: undefined,
+          },
+          {
+            id: 'apt-2',
+            appointmentType: 'checkup',
+            scheduledFor: new Date(now.getTime() + 86400000),
+            duration: 45,
+            providerId: 'dr-123',
+            status: 'scheduled',
+            isFollowUp: true,
+            treatmentPlanId: 'tp-1',
+          },
+        ],
+      };
+
+      const patient = factory.fromDatabaseRecord(record);
+
+      expect(patient.getState().appointments).toHaveLength(2);
+      expect(patient.getState().appointments[0].isFollowUp).toBe(false);
+      expect(patient.getState().appointments[1].isFollowUp).toBe(true);
+    });
+
+    it('should handle record with multiple assigned providers', () => {
+      const now = new Date();
+      const record: PatientRecord = {
+        ...createPatientRecord(),
+        assignedProviders: [
+          {
+            providerId: 'dr-primary',
+            role: 'primary',
+            assignedAt: now,
+          },
+          {
+            providerId: 'dr-specialist',
+            role: 'specialist',
+            assignedAt: now,
+          },
+          {
+            providerId: 'hygienist-1',
+            role: 'hygienist',
+            assignedAt: now,
+          },
+        ],
+      };
+
+      const patient = factory.fromDatabaseRecord(record);
+
+      expect(patient.getState().assignedProviders).toHaveLength(3);
+      expect(patient.getState().assignedProviders[0].role).toBe('primary');
+      expect(patient.getState().assignedProviders[1].role).toBe('specialist');
+      expect(patient.getState().assignedProviders[2].role).toBe('hygienist');
+    });
+
+    it('should handle record with all patient sources', () => {
+      const sources: Array<'lead_conversion' | 'direct_registration' | 'referral' | 'transfer'> = [
+        'lead_conversion',
+        'direct_registration',
+        'referral',
+        'transfer',
+      ];
+
+      sources.forEach((source) => {
+        const record: PatientRecord = {
+          ...createPatientRecord(),
+          source,
+        };
+
+        const patient = factory.fromDatabaseRecord(record);
+
+        expect(patient.getState().source).toBe(source);
+      });
+    });
+
+    it('should handle record with all patient statuses', () => {
+      const statuses: PatientStatus[] = ['active', 'inactive', 'archived'];
+
+      statuses.forEach((status) => {
+        const record: PatientRecord = {
+          ...createPatientRecord(),
+          status,
+        };
+
+        const patient = factory.fromDatabaseRecord(record);
+
+        expect(patient.getState().status).toBe(status);
+      });
+    });
+  });
+
+  describe('Branch Coverage - Edge Cases', () => {
+    it('should generate unique IDs on multiple calls', () => {
+      const params = {
+        phone: createTestPhoneNumber(),
+        firstName: 'Test',
+        lastName: 'User',
+        source: 'direct_registration' as const,
+      };
+
+      const patient1 = factory.createWithGeneratedId(params);
+      const patient2 = factory.createWithGeneratedId(params);
+      const patient3 = factory.createWithGeneratedId(params);
+
+      const id1 = patient1.getState().id;
+      const id2 = patient2.getState().id;
+      const id3 = patient3.getState().id;
+
+      expect(id1).not.toBe(id2);
+      expect(id2).not.toBe(id3);
+      expect(id1).not.toBe(id3);
+      expect(id1).toMatch(/^patient-\d+-[a-z0-9]+$/);
+      expect(id2).toMatch(/^patient-\d+-[a-z0-9]+$/);
+      expect(id3).toMatch(/^patient-\d+-[a-z0-9]+$/);
+    });
+
+    it('should handle round-trip with complex nested data', () => {
+      const now = new Date();
+      const record: PatientRecord = {
+        id: 'complex-patient',
+        version: 10,
+        leadId: 'complex-lead',
+        phone: createTestPhoneNumber(),
+        email: 'complex@example.com',
+        hubspotContactId: 'hubspot-complex',
+        firstName: 'Complex',
+        lastName: 'Patient',
+        dateOfBirth: new Date('1980-05-15'),
+        address: '123 Complex St',
+        city: 'Complexity',
+        county: 'Complex County',
+        status: 'active',
+        registeredAt: now,
+        activatedAt: now,
+        deactivatedAt: undefined,
+        archivedAt: undefined,
+        medicalHistory: [
+          {
+            id: 'mh-1',
+            conditionType: 'chronic',
+            description: 'Condition 1',
+            diagnosedAt: now,
+            severity: 'moderate',
+            currentStatus: 'managed',
+            addedAt: now,
+          },
+          {
+            id: 'mh-2',
+            conditionType: 'acute',
+            description: 'Condition 2',
+            diagnosedAt: undefined,
+            severity: undefined,
+            currentStatus: 'resolved',
+            addedAt: now,
+          },
+        ],
+        allergies: [
+          {
+            id: 'allergy-1',
+            allergen: 'Allergen 1',
+            severity: 'severe',
+            reaction: 'Reaction 1',
+            verifiedAt: now,
+          },
+          {
+            id: 'allergy-2',
+            allergen: 'Allergen 2',
+            severity: 'mild',
+            reaction: 'Reaction 2',
+            verifiedAt: undefined,
+          },
+        ],
+        treatmentPlans: [
+          {
+            id: 'tp-1',
+            procedureType: 'procedure-1',
+            providerId: 'provider-1',
+            status: 'completed',
+            startedAt: now,
+            completedAt: now,
+            outcome: 'successful',
+          },
+          {
+            id: 'tp-2',
+            procedureType: 'procedure-2',
+            providerId: 'provider-2',
+            status: 'active',
+            startedAt: now,
+            completedAt: undefined,
+            outcome: undefined,
+          },
+        ],
+        appointments: [
+          {
+            id: 'apt-1',
+            appointmentType: 'type-1',
+            scheduledFor: now,
+            duration: 60,
+            providerId: 'provider-1',
+            status: 'completed',
+            isFollowUp: true,
+            treatmentPlanId: 'tp-1',
+          },
+        ],
+        noShowCount: 2,
+        insuranceInfo: {
+          id: 'ins-complex',
+          providerId: 'ins-provider',
+          providerName: 'Insurance Co',
+          policyNumber: 'POLICY123',
+          groupNumber: 'GROUP456',
+          coverageType: 'full',
+          effectiveFrom: now,
+          effectiveUntil: now,
+          status: 'verified',
+          verifiedAt: now,
+        },
+        consents: {
+          treatment: {
+            type: 'treatment',
+            status: 'granted',
+            grantedAt: now,
+            revokedAt: undefined,
+            expiresAt: now,
+            method: 'electronic',
+          },
+          marketing: {
+            type: 'marketing',
+            status: 'denied',
+            grantedAt: undefined,
+            revokedAt: undefined,
+            expiresAt: undefined,
+            method: undefined,
+          },
+        },
+        assignedProviders: [
+          {
+            providerId: 'provider-1',
+            role: 'primary',
+            assignedAt: now,
+          },
+          {
+            providerId: 'provider-2',
+            role: 'specialist',
+            assignedAt: now,
+          },
+        ],
+        primaryProviderId: 'provider-1',
+        preferences: {
+          preferredLanguage: 'en',
+          preferredChannel: 'email',
+          preferredContactTime: 'evening',
+          doNotContact: false,
+          specialInstructions: 'Call after 6 PM',
+        },
+        source: 'lead_conversion',
+        conversionProcedure: 'all_on_4',
+        lastContactAt: now,
+        lastAppointmentAt: now,
+        createdAt: now,
+        updatedAt: now,
+        isDeleted: false,
+        deletedAt: undefined,
+        deletionReason: undefined,
+      };
+
+      // Database -> Aggregate
+      const patient = factory.fromDatabaseRecord(record);
+
+      // Aggregate -> Snapshot
+      const snapshot = factory.createSnapshot(patient);
+
+      // Snapshot -> Aggregate
+      const restored = factory.fromSnapshot(snapshot);
+
+      // Verify round-trip integrity
+      expect(restored.getState().id).toBe(record.id);
+      expect(restored.getState().firstName).toBe(record.firstName);
+      expect(restored.getState().medicalHistory).toHaveLength(2);
+      expect(restored.getState().allergies).toHaveLength(2);
+      expect(restored.getState().treatmentPlans).toHaveLength(2);
+      expect(restored.getState().insuranceInfo).toBeDefined();
+      expect(Object.keys(restored.getState().consents)).toHaveLength(2);
+    });
+
+    it('should handle snapshot with events applied after restoration', () => {
+      const snapshot = createPatientSnapshot();
+
+      // Create a temporary patient to generate some events
+      const tempPatient = factory.create(createPatientParams());
+      const events = tempPatient.getUncommittedEvents();
+
+      // Restore with events
+      const patient = factory.fromSnapshot(snapshot, events);
+
+      expect(patient).toBeDefined();
+      // The patient should have the snapshot's ID, not the temp patient's
+      expect(patient.getState().id).toBe('patient-snap-123');
+    });
+  });
 });

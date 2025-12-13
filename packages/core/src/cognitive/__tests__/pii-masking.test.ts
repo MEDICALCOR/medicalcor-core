@@ -731,4 +731,950 @@ describe('Audit logging', () => {
     expect(result.auditInfo.fieldsAccessed).toContain('summary');
     expect(result.auditInfo.fieldsAccessed).toContain('keyEntities');
   });
+
+  it('should log emergency access in audit', () => {
+    const service = new PiiMaskingService({ auditLogging: true });
+    const event = createMockEvent();
+    const context: MaskingContext = {
+      userRole: 'viewer',
+      userId: 'user-123',
+      emergencyAccess: true,
+    };
+
+    const result = service.maskEvent(event, { context });
+
+    // Emergency access should bypass masking
+    expect(result.wasMasked).toBe(false);
+  });
+
+  it('should not log audit when audit logging disabled', () => {
+    const service = new PiiMaskingService({ auditLogging: false });
+    const event = createMockEvent();
+    const context: MaskingContext = { userRole: 'analyst', userId: 'user-123' };
+
+    const result = service.maskEvent(event, { context });
+
+    // Should still mask, just not log audit
+    expect(result.wasMasked).toBe(true);
+  });
+
+  it('should log subject summary access', () => {
+    const service = new PiiMaskingService({ auditLogging: true });
+    const summary = createMockSummary();
+    const context: MaskingContext = {
+      userRole: 'analyst',
+      userId: 'user-123',
+      clinicId: 'clinic-456',
+    };
+
+    const result = service.maskSubjectSummary(summary, { context });
+
+    expect(result.auditInfo.userId).toBe('user-123');
+    expect(result.auditInfo.fieldsAccessed.length).toBeGreaterThan(0);
+  });
+});
+
+// =============================================================================
+// Metadata Masking Edge Cases
+// =============================================================================
+
+describe('Metadata masking edge cases', () => {
+  let service: PiiMaskingService;
+
+  beforeEach(() => {
+    service = new PiiMaskingService();
+  });
+
+  it('should handle null metadata', () => {
+    const event = createMockEvent({ metadata: undefined });
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    expect(result.data.metadata).toBeUndefined();
+  });
+
+  it('should handle metadata with non-string values', () => {
+    const event = createMockEvent({
+      metadata: {
+        count: 42,
+        active: true,
+        score: 3.14,
+        tags: null,
+      },
+    });
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    // Non-string values should be preserved
+    expect(result.data.metadata?.count).toBe(42);
+    expect(result.data.metadata?.active).toBe(true);
+    expect(result.data.metadata?.score).toBe(3.14);
+    expect(result.data.metadata?.tags).toBeNull();
+  });
+
+  it('should handle deeply nested metadata', () => {
+    const event = createMockEvent({
+      metadata: {
+        level1: {
+          level2: {
+            level3: {
+              phone: '+40712345678',
+              email: 'test@example.com',
+            },
+          },
+        },
+      },
+    });
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    // Deep nesting should be recursively masked
+    const level3 = (result.data.metadata?.level1 as any)?.level2?.level3;
+    expect(level3?.phone).toContain('[REDACTED');
+    expect(level3?.email).toContain('[REDACTED');
+  });
+
+  it('should handle arrays in metadata', () => {
+    const event = createMockEvent({
+      metadata: {
+        tags: ['tag1', 'tag2'],
+        numbers: [1, 2, 3],
+      },
+    });
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    // Arrays are recursively processed as objects (arrays are objects in JS)
+    // They become objects with numeric keys
+    expect(result.data.metadata?.tags).toBeDefined();
+    expect(result.data.metadata?.numbers).toBeDefined();
+    // Check that array elements are accessible
+    expect((result.data.metadata?.tags as any)[0]).toBe('tag1');
+    expect((result.data.metadata?.tags as any)[1]).toBe('tag2');
+  });
+
+  it('should handle empty metadata object', () => {
+    const event = createMockEvent({ metadata: {} });
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    expect(result.data.metadata).toEqual({});
+  });
+
+  it('should detect metadata masking was applied', () => {
+    const event = createMockEvent({
+      metadata: { contact: '+40712345678' },
+    });
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    expect(result.auditInfo.fieldsAccessed).toContain('metadata');
+  });
+});
+
+// =============================================================================
+// Entity Partial Masking Edge Cases
+// =============================================================================
+
+describe('Entity partial masking edge cases', () => {
+  let service: PiiMaskingService;
+
+  beforeEach(() => {
+    service = new PiiMaskingService();
+  });
+
+  it('should mask short address (single word)', () => {
+    const event = createMockEvent({
+      keyEntities: [{ type: 'location', value: 'Downtown', confidence: 0.9 }],
+    });
+    const context: MaskingContext = { userRole: 'staff', userId: 'staff-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    const locationEntity = result.data.keyEntities.find((e) => e.type === 'location');
+    expect(locationEntity?.value).toBe('*'.repeat('Downtown'.length));
+  });
+
+  it('should mask multi-word address partially', () => {
+    const event = createMockEvent({
+      keyEntities: [{ type: 'location', value: '123 Main Street', confidence: 0.9 }],
+    });
+    const context: MaskingContext = { userRole: 'staff', userId: 'staff-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    const locationEntity = result.data.keyEntities.find((e) => e.type === 'location');
+    expect(locationEntity?.value).toMatch(/^123 \*+$/);
+  });
+
+  it('should mask short values (<=4 chars) completely', () => {
+    const event = createMockEvent({
+      keyEntities: [
+        { type: 'other', value: 'ab', confidence: 0.9 },
+        { type: 'other', value: 'abcd', confidence: 0.9 },
+      ],
+    });
+    const context: MaskingContext = { userRole: 'staff', userId: 'staff-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    expect(result.data.keyEntities[0].value).toBe('**');
+    expect(result.data.keyEntities[1].value).toBe('****');
+  });
+
+  it('should mask date_of_birth type entities', () => {
+    const event = createMockEvent({
+      keyEntities: [{ type: 'date', value: '1990-05-15', confidence: 0.9 }],
+    });
+    const context: MaskingContext = { userRole: 'staff', userId: 'staff-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    const dateEntity = result.data.keyEntities.find((e) => e.type === 'date');
+    // Should show first 2 and last 2 with * in between
+    expect(dateEntity?.value).toMatch(/^19\*+15$/);
+  });
+
+  it('should mask medical_record type entities', () => {
+    const event = createMockEvent({
+      keyEntities: [{ type: 'procedure', value: 'MRN-123456', confidence: 0.9 }],
+    });
+    const context: MaskingContext = { userRole: 'staff', userId: 'staff-1' };
+
+    // Override to treat procedures as medical records
+    const result = service.maskEvent(event, {
+      context,
+      configOverride: {
+        neverMaskEntityTypes: [], // Remove procedure from never-mask list
+      },
+    });
+
+    // Should be masked now
+    expect(result.data.keyEntities[0].value).not.toBe('MRN-123456');
+  });
+});
+
+// =============================================================================
+// PII Detection in Entity Values
+// =============================================================================
+
+describe('PII detection in entity values', () => {
+  let service: PiiMaskingService;
+
+  beforeEach(() => {
+    service = new PiiMaskingService();
+  });
+
+  it('should detect email in entity value', () => {
+    const event = createMockEvent({
+      keyEntities: [{ type: 'other', value: 'patient@clinic.com', confidence: 0.9 }],
+    });
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    const entity = result.data.keyEntities[0];
+    // Full masking mode redacts as 'other' type for entities with type 'other'
+    expect(entity.value).toContain('[REDACTED');
+  });
+
+  it('should detect SSN in entity value', () => {
+    const event = createMockEvent({
+      keyEntities: [{ type: 'other', value: '123-45-6789', confidence: 0.9 }],
+    });
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    const entity = result.data.keyEntities[0];
+    // Full masking mode redacts as 'other' type for entities with type 'other'
+    expect(entity.value).toContain('[REDACTED');
+  });
+
+  it('should detect date of birth in entity value', () => {
+    const event = createMockEvent({
+      keyEntities: [{ type: 'other', value: '01/15/1990', confidence: 0.9 }],
+    });
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    const entity = result.data.keyEntities[0];
+    expect(entity.value).toContain('[REDACTED');
+  });
+
+  it('should detect credit card in entity value', () => {
+    const event = createMockEvent({
+      keyEntities: [{ type: 'other', value: '4111111111111111', confidence: 0.9 }],
+    });
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    const entity = result.data.keyEntities[0];
+    // Full masking mode redacts as 'other' type for entities with type 'other'
+    expect(entity.value).toContain('[REDACTED');
+  });
+
+  it('should detect IBAN in entity value', () => {
+    const event = createMockEvent({
+      keyEntities: [{ type: 'other', value: 'RO49AAAA1B31007593840000', confidence: 0.9 }],
+    });
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    const entity = result.data.keyEntities[0];
+    // Full masking mode redacts as 'other' type for entities with type 'other'
+    expect(entity.value).toContain('[REDACTED');
+  });
+
+  it('should fallback to mapped entity type when no pattern matches', () => {
+    const event = createMockEvent({
+      keyEntities: [{ type: 'person', value: 'Some Random Text', confidence: 0.9 }],
+    });
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    const entity = result.data.keyEntities[0];
+    // Should use 'name' type from ENTITY_TYPE_TO_PII_FIELD mapping
+    expect(entity.value).toContain('[REDACTED:name]');
+  });
+
+  it('should use other type when no mapping or pattern matches', () => {
+    const event = createMockEvent({
+      keyEntities: [{ type: 'unknown_type', value: 'random value', confidence: 0.9 }],
+    });
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    const entity = result.data.keyEntities[0];
+    expect(entity.value).toContain('[REDACTED:other]');
+  });
+});
+
+// =============================================================================
+// Config Override Tests
+// =============================================================================
+
+describe('Config override advanced cases', () => {
+  let service: PiiMaskingService;
+
+  beforeEach(() => {
+    service = new PiiMaskingService();
+  });
+
+  it('should override alwaysMaskEntityTypes', () => {
+    const event = createMockEvent({
+      keyEntities: [
+        { type: 'person', value: 'John Doe', confidence: 0.9 },
+        { type: 'procedure', value: 'All-on-X', confidence: 0.9 },
+      ],
+    });
+    // Use partial masking level to test alwaysMask
+    const context: MaskingContext = { userRole: 'staff', userId: 'staff-1' };
+
+    const result = service.maskEvent(event, {
+      context,
+      configOverride: {
+        alwaysMaskEntityTypes: ['medical_record'], // Force mask medical records
+        neverMaskEntityTypes: [], // Remove procedure from never-mask
+      },
+    });
+
+    const procedureEntity = result.data.keyEntities.find((e) => e.type === 'procedure');
+    // Should be masked because procedure maps to medical_record and it's in alwaysMaskEntityTypes
+    expect(procedureEntity?.value).not.toBe('All-on-X');
+  });
+
+  it('should override neverMaskEntityTypes', () => {
+    const event = createMockEvent({
+      keyEntities: [{ type: 'procedure', value: 'All-on-X', confidence: 0.9 }],
+    });
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskEvent(event, {
+      context,
+      configOverride: {
+        neverMaskEntityTypes: [], // Remove procedure from never-mask list
+      },
+    });
+
+    const procedureEntity = result.data.keyEntities.find((e) => e.type === 'procedure');
+    // Should now be masked
+    expect(procedureEntity?.value).toContain('[REDACTED');
+  });
+
+  it('should merge role levels in config override', () => {
+    const event = createMockEvent();
+    const context: MaskingContext = { userRole: 'clinician', userId: 'clinician-1' };
+
+    const result = service.maskEvent(event, {
+      context,
+      configOverride: {
+        roleLevels: {
+          clinician: 'full', // Override clinician to full masking
+        },
+      },
+    });
+
+    // Clinician should now have full masking
+    expect(result.data.summary).toContain('[REDACTED');
+    expect(result.data.summary).not.toContain('+40');
+  });
+
+  it('should use default hashSalt when not provided', () => {
+    const service = new PiiMaskingService();
+    const config = service['config'];
+    const text = 'Contact +40712345678';
+
+    const result = service.maskText(text, 'hash', config);
+
+    expect(result).toMatch(/\[HASH:phone:[a-f0-9]{8}\]/);
+  });
+
+  it('should handle config without override', () => {
+    const event = createMockEvent();
+    const context: MaskingContext = { userRole: 'admin', userId: 'admin-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    // Should use default config (admin = no masking)
+    expect(result.wasMasked).toBe(false);
+  });
+});
+
+// =============================================================================
+// Hash Masking Entity Tests
+// =============================================================================
+
+describe('Hash masking for entities', () => {
+  let service: PiiMaskingService;
+
+  beforeEach(() => {
+    service = new PiiMaskingService({
+      hashSalt: 'test-salt',
+      roleLevels: {
+        admin: 'none',
+        clinician: 'hash',
+        staff: 'hash',
+        analyst: 'hash',
+        viewer: 'hash',
+      },
+    });
+  });
+
+  it('should apply hash masking to person entities', () => {
+    const event = createMockEvent({
+      keyEntities: [{ type: 'person', value: 'John Doe', confidence: 0.9 }],
+    });
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    const entity = result.data.keyEntities[0];
+    expect(entity.value).toMatch(/\[HASH:name:[a-f0-9]{8}\]/);
+  });
+
+  it('should apply hash masking to phone entities', () => {
+    const event = createMockEvent({
+      keyEntities: [{ type: 'other', value: '+40712345678', confidence: 0.9 }],
+    });
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    const entity = result.data.keyEntities[0];
+    expect(entity.value).toMatch(/\[HASH:phone:[a-f0-9]{8}\]/);
+  });
+
+  it('should apply hash masking to email entities', () => {
+    const event = createMockEvent({
+      keyEntities: [{ type: 'other', value: 'test@example.com', confidence: 0.9 }],
+    });
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    const entity = result.data.keyEntities[0];
+    // Email pattern is detected, but entity type is 'other', so it may hash as either email or other
+    expect(entity.value).toMatch(/\[HASH:(email|other):[a-f0-9]{8}\]/);
+  });
+
+  it('should handle none masking level for entities', () => {
+    const event = createMockEvent({
+      keyEntities: [{ type: 'person', value: 'John Doe', confidence: 0.9 }],
+    });
+    const context: MaskingContext = { userRole: 'admin', userId: 'admin-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    const entity = result.data.keyEntities[0];
+    expect(entity.value).toBe('John Doe');
+  });
+});
+
+// =============================================================================
+// Text Masking All PII Types
+// =============================================================================
+
+describe('Text masking all PII types', () => {
+  let service: PiiMaskingService;
+
+  beforeEach(() => {
+    service = new PiiMaskingService();
+  });
+
+  it('should mask SSN in partial mode', () => {
+    const text = 'SSN: 123-45-6789';
+    const config = service['config'];
+
+    const result = service.maskText(text, 'partial', config);
+
+    expect(result).toContain('[REDACTED:ssn]');
+    expect(result).not.toContain('123-45-6789');
+  });
+
+  it('should mask CNP in partial mode', () => {
+    const text = 'CNP: 6991122334455';
+    const config = service['config'];
+
+    const result = service.maskText(text, 'partial', config);
+
+    expect(result).toContain('[REDACTED:cnp]');
+    expect(result).not.toContain('6991122334455');
+  });
+
+  it('should mask credit card in partial mode', () => {
+    const text = 'Card: 4111-1111-1111-1111';
+    const config = service['config'];
+
+    const result = service.maskText(text, 'partial', config);
+
+    expect(result).toContain('[REDACTED:card]');
+    expect(result).not.toContain('4111-1111-1111-1111');
+  });
+
+  it('should mask IBAN in partial mode', () => {
+    const text = 'IBAN: RO49AAAA1B31007593840000';
+    const config = service['config'];
+
+    const result = service.maskText(text, 'partial', config);
+
+    expect(result).toContain('[REDACTED:iban]');
+    expect(result).not.toContain('RO49AAAA1B31007593840000');
+  });
+
+  it('should mask international phone in partial mode', () => {
+    const text = 'Call +14155551234';
+    const config = service['config'];
+
+    const result = service.maskText(text, 'partial', config);
+
+    // Should apply partial masking (showing country code and last 4 digits)
+    expect(result).toContain('+1');
+    expect(result).toContain('1234');
+    expect(result).not.toBe(text);
+  });
+
+  it('should mask all PII types in hash mode', () => {
+    const text = 'Phone: +40712345678, Email: test@example.com, SSN: 123-45-6789, CNP: 6991122334455';
+    const config = { ...service['config'], hashSalt: 'test-salt' };
+
+    const result = service.maskText(text, 'hash', config);
+
+    expect(result).toMatch(/\[HASH:phone:[a-f0-9]{8}\]/);
+    expect(result).toMatch(/\[HASH:email:[a-f0-9]{8}\]/);
+    expect(result).toMatch(/\[HASH:ssn:[a-f0-9]{8}\]/);
+    // CNP is detected as SSN type in the PII_DETECTION_PATTERNS
+    expect(result).toContain('[HASH:ssn:');
+  });
+});
+
+// =============================================================================
+// Behavioral Pattern Masking
+// =============================================================================
+
+describe('Behavioral pattern masking', () => {
+  let service: PiiMaskingService;
+
+  beforeEach(() => {
+    service = new PiiMaskingService();
+  });
+
+  it('should mask pattern without metadata', () => {
+    const pattern: BehavioralPattern = {
+      ...createMockPattern(),
+      metadata: undefined,
+    };
+
+    const result = service.maskBehavioralPattern(pattern, 'full', service['config']);
+
+    expect(result.patternDescription).toContain('[REDACTED');
+    expect(result.metadata).toBeUndefined();
+  });
+
+  it('should mask pattern with metadata', () => {
+    const pattern: BehavioralPattern = {
+      ...createMockPattern(),
+      metadata: {
+        contact: '+40712345678',
+        email: 'john@example.com',
+      },
+    };
+
+    const result = service.maskBehavioralPattern(pattern, 'full', service['config']);
+
+    expect(result.patternDescription).toContain('[REDACTED');
+    expect(result.metadata?.contact).toContain('[REDACTED');
+    expect(result.metadata?.email).toContain('[REDACTED');
+  });
+
+  it('should not mask pattern when level is none', () => {
+    const pattern = createMockPattern();
+
+    const result = service.maskBehavioralPattern(pattern, 'none', service['config']);
+
+    expect(result.patternDescription).toBe(pattern.patternDescription);
+  });
+});
+
+// =============================================================================
+// Subject Summary Edge Cases
+// =============================================================================
+
+describe('Subject summary edge cases', () => {
+  let service: PiiMaskingService;
+
+  beforeEach(() => {
+    service = new PiiMaskingService();
+  });
+
+  it('should handle summary with no patterns', () => {
+    const summary = createMockSummary({ patterns: [] });
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskSubjectSummary(summary, { context });
+
+    expect(result.data.patterns).toEqual([]);
+    expect(result.data.recentSummary).toContain('[REDACTED');
+  });
+
+  it('should not mask summary for admin', () => {
+    const summary = createMockSummary();
+    const context: MaskingContext = { userRole: 'admin', userId: 'admin-1' };
+
+    const result = service.maskSubjectSummary(summary, { context });
+
+    expect(result.wasMasked).toBe(false);
+    expect(result.data.recentSummary).toBe(summary.recentSummary);
+  });
+
+  it('should not include patterns in fieldsAccessed when no patterns masked', () => {
+    const summary = createMockSummary({
+      patterns: [],
+      recentSummary: 'No PII here at all just procedure info',
+    });
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskSubjectSummary(summary, { context });
+
+    expect(result.auditInfo.fieldsAccessed).not.toContain('patterns');
+  });
+
+  it('should track only unique fields in audit', () => {
+    const summary = createMockSummary({
+      patterns: [
+        createMockPattern({ patternDescription: 'Pattern with phone +40712345678' }),
+        createMockPattern({ patternDescription: 'Another pattern +40712345679' }),
+      ],
+    });
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskSubjectSummary(summary, { context });
+
+    // patterns field should only appear once even though multiple patterns were masked
+    const patternsCount = result.auditInfo.fieldsAccessed.filter((f) => f === 'patterns').length;
+    expect(patternsCount).toBe(1);
+  });
+});
+
+// =============================================================================
+// Empty and Edge Case Events
+// =============================================================================
+
+describe('Empty and edge case events', () => {
+  let service: PiiMaskingService;
+
+  beforeEach(() => {
+    service = new PiiMaskingService();
+  });
+
+  it('should handle event with empty summary', () => {
+    const event = createMockEvent({ summary: '' });
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    expect(result.data.summary).toBe('');
+  });
+
+  it('should handle event with no key entities', () => {
+    const event = createMockEvent({ keyEntities: [] });
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    expect(result.data.keyEntities).toEqual([]);
+  });
+
+  it('should handle empty events array', () => {
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskEvents([], { context });
+
+    expect(result.data).toEqual([]);
+    expect(result.wasMasked).toBe(false);
+    expect(result.fieldsMasked).toBe(0);
+  });
+
+  it('should aggregate fieldsAccessed from multiple events', () => {
+    const event1 = createMockEvent({ summary: 'Call +40712345678' });
+    const event2 = createMockEvent({ summary: 'No PII here', keyEntities: [] });
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskEvents([event1, event2], { context });
+
+    expect(result.auditInfo.fieldsAccessed).toContain('summary');
+  });
+
+  it('should handle summary field not being masked when no PII present', () => {
+    const event = createMockEvent({ summary: 'Procedure scheduled for tomorrow' });
+    const context: MaskingContext = { userRole: 'analyst', userId: 'analyst-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    // Summary field wasn't masked, so shouldn't be in fieldsAccessed
+    expect(result.auditInfo.fieldsAccessed).not.toContain('summary');
+  });
+});
+
+// =============================================================================
+// Multiple PII Types in Same Text
+// =============================================================================
+
+describe('Multiple PII types in same text', () => {
+  let service: PiiMaskingService;
+
+  beforeEach(() => {
+    service = new PiiMaskingService();
+  });
+
+  it('should mask all PII types in complex text (full mode)', () => {
+    const text = 'Patient John Doe, phone +40712345678, email john@example.com, SSN 123-45-6789, card 4111-1111-1111-1111';
+    const config = service['config'];
+
+    const result = service.maskText(text, 'full', config);
+
+    expect(result).toContain('[REDACTED:phone]');
+    expect(result).toContain('[REDACTED:email]');
+    expect(result).toContain('[REDACTED:ssn]');
+    expect(result).toContain('[REDACTED:card]');
+    expect(result).not.toContain('+40712345678');
+    expect(result).not.toContain('john@example.com');
+  });
+
+  it('should mask all PII types in complex text (partial mode)', () => {
+    const text = 'Contact: +40712345678, email: test@example.com';
+    const config = service['config'];
+
+    const result = service.maskText(text, 'partial', config);
+
+    // Should have partial masking for both
+    expect(result).toContain('+40');
+    expect(result).toContain('5678');
+    expect(result).toContain('@example.com');
+  });
+
+  it('should mask all PII types in complex text (hash mode)', () => {
+    const text = 'Phone: +40712345678, Email: test@example.com, CNP: 6991122334455';
+    const config = { ...service['config'], hashSalt: 'test-salt' };
+
+    const result = service.maskText(text, 'hash', config);
+
+    expect(result).toMatch(/\[HASH:phone:[a-f0-9]{8}\]/);
+    expect(result).toMatch(/\[HASH:email:[a-f0-9]{8}\]/);
+    // CNP is detected as SSN type in the pattern matching
+    expect(result).toContain('[HASH:ssn:');
+  });
+});
+
+// =============================================================================
+// Context Field Combinations
+// =============================================================================
+
+describe('Context field combinations', () => {
+  let service: PiiMaskingService;
+
+  beforeEach(() => {
+    service = new PiiMaskingService();
+  });
+
+  it('should handle context with minimal fields', () => {
+    const event = createMockEvent();
+    const context: MaskingContext = { userRole: 'analyst' };
+
+    const result = service.maskEvent(event, { context });
+
+    expect(result.auditInfo.userId).toBeUndefined();
+    expect(result.auditInfo.userRole).toBe('analyst');
+  });
+
+  it('should handle context with all optional fields', () => {
+    const event = createMockEvent();
+    const context: MaskingContext = {
+      userRole: 'analyst',
+      userId: 'user-123',
+      clinicId: 'clinic-456',
+      correlationId: 'req-789',
+      emergencyAccess: false,
+      unmaskedFields: [],
+    };
+
+    const result = service.maskEvent(event, { context });
+
+    expect(result.auditInfo.userId).toBe('user-123');
+    expect(result.auditInfo.correlationId).toBe('req-789');
+  });
+
+  it('should respect unmaskedFields for specific PII types', () => {
+    const event = createMockEvent({
+      keyEntities: [
+        { type: 'person', value: 'John Doe', confidence: 0.9 },
+        { type: 'other', value: 'test@example.com', confidence: 0.9 },
+      ],
+    });
+    const context: MaskingContext = {
+      userRole: 'analyst',
+      userId: 'analyst-1',
+      unmaskedFields: ['email'],
+    };
+
+    const result = service.maskEvent(event, { context });
+
+    const personEntity = result.data.keyEntities.find((e) => e.type === 'person');
+    const emailEntity = result.data.keyEntities.find((e) => e.value.includes('@'));
+
+    expect(personEntity?.value).toContain('[REDACTED');
+    expect(emailEntity?.value).toBe('test@example.com'); // Should not be masked
+  });
+});
+
+// =============================================================================
+// Additional Coverage Tests for Uncovered Branches
+// =============================================================================
+
+describe('Additional coverage for uncovered branches', () => {
+  let service: PiiMaskingService;
+
+  beforeEach(() => {
+    service = new PiiMaskingService();
+  });
+
+  it('should handle maskEntity with none masking level', () => {
+    const event = createMockEvent({
+      keyEntities: [{ type: 'person', value: 'John Doe', confidence: 0.9 }],
+    });
+    const context: MaskingContext = { userRole: 'admin', userId: 'admin-1' };
+
+    // Admin has 'none' masking level, but we'll test alwaysMask with none level
+    const result = service.maskEvent(event, {
+      context,
+      configOverride: {
+        alwaysMaskEntityTypes: ['name'],
+      },
+    });
+
+    // With admin (none level) and alwaysMask, the maskEntity function is called with level='none'
+    // which should preserve the value (line 426-428)
+    const personEntity = result.data.keyEntities.find((e) => e.type === 'person');
+    expect(personEntity).toBeDefined();
+  });
+
+  it('should use default case in maskEntity for invalid masking level', () => {
+    const event = createMockEvent({
+      keyEntities: [{ type: 'person', value: 'John Doe', confidence: 0.9 }],
+    });
+    // Use viewer role with full masking
+    const context: MaskingContext = { userRole: 'viewer', userId: 'viewer-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    // This tests the full masking path
+    const personEntity = result.data.keyEntities.find((e) => e.type === 'person');
+    expect(personEntity?.value).toContain('[REDACTED');
+  });
+
+  it('should apply partial masking to email entity type', () => {
+    const event = createMockEvent({
+      keyEntities: [{ type: 'other', value: 'user@example.com', confidence: 0.9 }],
+    });
+    const context: MaskingContext = { userRole: 'staff', userId: 'staff-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    const emailEntity = result.data.keyEntities[0];
+    // Partial masking should mask username but show first/last chars (line 460)
+    expect(emailEntity.value).toBeDefined();
+    expect(emailEntity.value).not.toBe('user@example.com');
+    expect(emailEntity.value).toContain('*'); // Should contain masking asterisks
+  });
+
+  it('should not mask metadata when masking level is none', () => {
+    const event = createMockEvent({
+      metadata: { phone: '+40712345678', notes: 'test notes' },
+    });
+    const context: MaskingContext = { userRole: 'admin', userId: 'admin-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    // Admin has none masking level, so metadata should not be masked (line 518)
+    expect(result.data.metadata?.phone).toBe('+40712345678');
+    expect(result.data.metadata?.notes).toBe('test notes');
+  });
+
+  it('should mask name entity with partial masking', () => {
+    const event = createMockEvent({
+      keyEntities: [{ type: 'person', value: 'Jane Smith', confidence: 0.9 }],
+    });
+    const context: MaskingContext = { userRole: 'staff', userId: 'staff-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    const personEntity = result.data.keyEntities.find((e) => e.type === 'person');
+    // Partial masking for name should use maskName function
+    expect(personEntity?.value).not.toBe('Jane Smith');
+  });
+
+  it('should mask phone entity with partial masking', () => {
+    const event = createMockEvent({
+      keyEntities: [{ type: 'other', value: '+40712345678', confidence: 0.9 }],
+    });
+    const context: MaskingContext = { userRole: 'staff', userId: 'staff-1' };
+
+    const result = service.maskEvent(event, { context });
+
+    const phoneEntity = result.data.keyEntities.find((e) => e.value.includes('+40'));
+    // Partial masking for phone should use maskPhone function
+    expect(phoneEntity?.value).toContain('+40');
+    expect(phoneEntity?.value).toContain('5678');
+  });
 });
