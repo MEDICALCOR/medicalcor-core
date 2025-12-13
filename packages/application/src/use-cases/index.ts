@@ -9,7 +9,7 @@
 // Dental Lab use cases
 export * from './dental-lab/index.js';
 
-// Revenue Forecasting use cases
+// Revenue use cases
 export * from './revenue/index.js';
 
 // Orchestration use cases

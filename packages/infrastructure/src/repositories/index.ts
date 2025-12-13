@@ -153,7 +153,7 @@ export {
 } from './PostgresLabCaseRepository.js';
 
 // =============================================================================
-// REVENUE SNAPSHOT REPOSITORY
+// ORCHESTRATION REPOSITORY (Multi-Agent)
 // =============================================================================
 
 export {
