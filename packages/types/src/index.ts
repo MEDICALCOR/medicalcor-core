@@ -1952,7 +1952,7 @@ export {
   ORCHESTRATION_STATUSES,
   OrchestrationStatusSchema,
   VALID_STATUS_TRANSITIONS,
-  isValidStatusTransition,
+  isValidStatusTransition as isValidOrchestrationStatusTransition,
   OrchestrationCheckpointSchema,
   OrchestrationSessionSchema,
   // Events
@@ -1993,7 +1993,7 @@ export {
   type ConflictId,
   type TraceId,
   type IdempotencyKey,
-  type CorrelationId,
+  type CorrelationId as OrchestrationCorrelationId,
   // Agent Types
   type AgentCodename,
   type AgentMetadata,
