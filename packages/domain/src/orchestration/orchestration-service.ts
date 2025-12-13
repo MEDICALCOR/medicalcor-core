@@ -26,29 +26,16 @@ import type {
   QualityGateResult,
   ConflictResolution,
   OrchestrationSession,
-  OrchestrationCheckpoint,
   CreateOrchestrationSession,
   OrchestrationReport,
   TaskPriority,
-  ConflictType,
-  OrchestrationStatus,
-  CorrelationId,
 } from '@medicalcor/types';
 import {
   AGENT_PRIORITY,
-  AGENT_FLEET,
-  TASK_TYPE_QUALITY_GATES,
-  TASK_TYPE_ROUTING,
   getConflictResolver,
-  hasHigherPriority,
   allQualityGatesPassed,
-  getFailedQualityGates,
-  getRequiredQualityGates,
   getTaskRouting,
-  isValidStatusTransition,
-  generateSessionId,
-  generateCorrelationId,
-  IdempotencyKeys,
+  createIdempotencyKey,
 } from '@medicalcor/types';
 
 const logger = createLogger({ name: 'orchestration-service' });
@@ -137,7 +124,7 @@ const TASK_PATTERNS: Record<
 
 export class OrchestrationService {
   private config: OrchestrationServiceConfig;
-  private sessions: Map<string, OrchestrationSession> = new Map();
+  private sessions = new Map<string, OrchestrationSession>();
 
   constructor(config: Partial<OrchestrationServiceConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -162,27 +149,53 @@ export class OrchestrationService {
       }
     }
 
-    const pattern = TASK_PATTERNS[taskType];
+    // Use a definitive pattern - always exists since NEW_DOMAIN_SERVICE is guaranteed
+    const effectivePattern = TASK_PATTERNS[taskType] ?? {
+      keywords: ['domain service', 'business logic', 'aggregate', 'value object', 'entity'],
+      complexity: 'MODERATE' as TaskComplexity,
+      agents: ['DOMAIN', 'ARCHITECT', 'QA'] as AgentCodename[],
+    };
     const routing = getTaskRouting(taskType);
 
     // Determine if parallelizable based on agent dependencies
     const parallelizable = this.canExecuteInParallel(routing.support);
 
     // Assess risk level
-    const riskLevel = this.assessRisk(pattern.complexity, taskType);
+    const riskLevel = this.assessRisk(effectivePattern.complexity, taskType);
 
     // Check compliance requirements
     const complianceRequired = this.requiresCompliance(taskType, lowerRequest);
     const securityReview = this.requiresSecurityReview(taskType, lowerRequest);
 
+    // Extract keywords from pattern
+    const keywords = effectivePattern.keywords ?? [];
+
+    // Get required quality gates based on context
+    const requiredQualityGates = this.getRequiredQualityGatesForAnalysis({
+      complexity: effectivePattern.complexity,
+      requiredAgents: [routing.primary, ...routing.support],
+      complianceRequired,
+      securityReview,
+      estimatedRisk: riskLevel,
+      parallelizable,
+      dependencies: {},
+    } as TaskAnalysis);
+
     const analysis: TaskAnalysis = {
-      complexity: pattern.complexity,
+      id: crypto.randomUUID(),
+      complexity: effectivePattern.complexity,
       requiredAgents: [routing.primary, ...routing.support],
       parallelizable,
       dependencies: this.buildDependencyGraph([routing.primary, ...routing.support]),
       estimatedRisk: riskLevel,
       complianceRequired,
       securityReview,
+      affectedPackages: this.detectAffectedPackages(request),
+      affectedFiles: [],
+      requiredQualityGates,
+      taskType,
+      keywords,
+      analyzedAt: new Date().toISOString(),
     };
 
     logger.info({ taskType, analysis }, 'Task analysis complete');
@@ -192,17 +205,16 @@ export class OrchestrationService {
   /**
    * Create directives for each agent based on task analysis
    */
-  createDirectives(
-    sessionId: string,
-    request: string,
-    analysis: TaskAnalysis
-  ): AgentDirective[] {
+  createDirectives(sessionId: string, request: string, analysis: TaskAnalysis): AgentDirective[] {
     const directives: AgentDirective[] = [];
     const qualityGates = this.getRequiredQualityGatesForAnalysis(analysis);
 
+    const now = new Date().toISOString();
     for (const agent of analysis.requiredAgents) {
       const directive: AgentDirective = {
         id: crypto.randomUUID(),
+        sessionId,
+        idempotencyKey: createIdempotencyKey(`${sessionId}-${agent}-${Date.now()}`),
         target: agent,
         priority: this.getAgentPriority(agent, analysis),
         task: this.generateAgentTask(agent, request, analysis),
@@ -211,6 +223,7 @@ export class OrchestrationService {
         dependencies: this.getAgentDependencies(agent, analysis),
         reportingFrequency: analysis.estimatedRisk === 'CRITICAL' ? 'CONTINUOUS' : 'ON_COMPLETION',
         requiredQualityGates: qualityGates.filter((g) => this.isGateForAgent(g, agent)),
+        createdAt: now,
       };
       directives.push(directive);
     }
@@ -267,27 +280,61 @@ export class OrchestrationService {
       finalStatus = 'FAILED';
     } else if (conflicts.some((c) => !c.resolvedAt)) {
       finalStatus = 'BLOCKED';
-    } else if (allQualityGatesPassed(qualityGates) && reports.every((r) => r.status === 'COMPLETED')) {
+    } else if (
+      allQualityGatesPassed(qualityGates) &&
+      reports.every((r) => r.status === 'COMPLETED')
+    ) {
       finalStatus = 'APPROVED';
     }
 
+    // Calculate metrics
+    const completedAgents = reports.filter((r) => r.status === 'COMPLETED').length;
+    const failedAgents = reports.filter((r) => r.status === 'FAILED').length;
+    const passedGates = qualityGates.filter((g) => g.status === 'PASSED').length;
+    const failedGatesCount = qualityGates.filter((g) => g.status === 'FAILED').length;
+    const totalFindings = reports.reduce((sum, r) => sum + (r.findings?.length ?? 0), 0);
+    const criticalFindings = reports.reduce(
+      (sum, r) => sum + (r.findings?.filter((f) => f.severity === 'CRITICAL').length ?? 0),
+      0
+    );
+    const totalDurationMs = reports.reduce((sum, r) => sum + (r.durationMs ?? 0), 0);
+
     const report: OrchestrationReport = {
       sessionId: session.id,
+      correlationId: session.correlationId,
       status: session.status,
       request: session.request,
       complexity: analysis?.complexity ?? 'MODERATE',
       riskLevel: analysis?.estimatedRisk ?? 'MEDIUM',
-      agentAssignments: directives.map((d) => ({
-        agent: d.target,
-        task: d.task,
-        status: reports.find((r) => r.directiveId === d.id)?.status ?? 'PENDING',
-        notes: reports.find((r) => r.directiveId === d.id)?.findings[0]?.message,
-      })),
+      agentAssignments: directives.map((d) => {
+        const agentReport = reports.find((r) => r.directiveId === d.id);
+        return {
+          agent: d.target,
+          task: d.task,
+          status: agentReport?.status ?? 'PENDING',
+          findings: agentReport?.findings?.length ?? 0,
+          durationMs: agentReport?.durationMs,
+          notes: agentReport?.findings?.[0]?.message,
+        };
+      }),
       qualityGates,
       blockers: reports.flatMap((r) => r.blockers ?? []),
       recommendations: reports.flatMap((r) => r.recommendations),
+      conflicts: session.conflicts,
+      metrics: {
+        totalAgents: directives.length,
+        completedAgents,
+        failedAgents,
+        totalGates: qualityGates.length,
+        passedGates,
+        failedGates: failedGatesCount,
+        totalFindings,
+        criticalFindings,
+        totalDurationMs,
+      },
       finalStatus,
       summary: this.generateSummary(session, finalStatus),
+      generatedAt: new Date().toISOString(),
     };
 
     return report;
@@ -306,12 +353,21 @@ export class OrchestrationService {
       correlationId,
       status: 'ANALYZING',
       request: input.request,
+      priority: input.priority ?? 'MEDIUM',
       directives: [],
       reports: [],
       qualityGates: [],
       conflicts: [],
       createdAt: now,
       updatedAt: now,
+      auditTrail: [
+        {
+          timestamp: now,
+          actor: 'system',
+          action: 'SESSION_CREATED',
+          details: `Request: ${input.request.substring(0, 100)}`,
+        },
+      ],
     };
 
     this.sessions.set(id, session);
@@ -415,6 +471,31 @@ export class OrchestrationService {
   // Private Helpers
   // =============================================================================
 
+  private detectAffectedPackages(request: string): string[] {
+    const packages: string[] = [];
+    const lowerRequest = request.toLowerCase();
+
+    const packageKeywords: Record<string, string[]> = {
+      '@medicalcor/types': ['schema', 'type', 'zod', 'validation'],
+      '@medicalcor/core': ['logger', 'auth', 'encryption', 'cqrs', 'rag'],
+      '@medicalcor/domain': ['service', 'business logic', 'domain', 'entity'],
+      '@medicalcor/application': ['use case', 'port', 'application'],
+      '@medicalcor/infrastructure': ['repository', 'adapter', 'database', 'postgres'],
+      '@medicalcor/integrations': ['integration', 'hubspot', 'stripe', 'whatsapp', 'twilio'],
+      '@medicalcor/api': ['api', 'webhook', 'endpoint', 'route'],
+      '@medicalcor/web': ['dashboard', 'ui', 'component', 'page', 'frontend'],
+      '@medicalcor/trigger': ['workflow', 'job', 'cron', 'trigger'],
+    };
+
+    for (const [pkg, keywords] of Object.entries(packageKeywords)) {
+      if (keywords.some((kw) => lowerRequest.includes(kw))) {
+        packages.push(pkg);
+      }
+    }
+
+    return packages.length > 0 ? packages : ['@medicalcor/domain'];
+  }
+
   private canExecuteInParallel(agents: AgentCodename[]): boolean {
     // Agents that must run sequentially
     const sequentialPairs: [AgentCodename, AgentCodename][] = [
@@ -441,9 +522,7 @@ export class OrchestrationService {
 
   private requiresCompliance(taskType: string, request: string): boolean {
     const complianceKeywords = ['hipaa', 'gdpr', 'phi', 'pii', 'consent', 'patient data'];
-    return (
-      taskType === 'COMPLIANCE_AUDIT' || complianceKeywords.some((kw) => request.includes(kw))
-    );
+    return taskType === 'COMPLIANCE_AUDIT' || complianceKeywords.some((kw) => request.includes(kw));
   }
 
   private requiresSecurityReview(taskType: string, request: string): boolean {
@@ -455,29 +534,27 @@ export class OrchestrationService {
     );
   }
 
-  private buildDependencyGraph(
-    agents: AgentCodename[]
-  ): Record<AgentCodename, AgentCodename[]> {
+  private buildDependencyGraph(agents: AgentCodename[]): Record<AgentCodename, AgentCodename[]> {
     const graph: Partial<Record<AgentCodename, AgentCodename[]>> = {};
 
     // Define typical dependencies
     if (agents.includes('DOMAIN') && agents.includes('ARCHITECT')) {
-      graph['DOMAIN'] = ['ARCHITECT'];
+      graph.DOMAIN = ['ARCHITECT'];
     }
     if (agents.includes('INFRA') && agents.includes('DOMAIN')) {
-      graph['INFRA'] = ['DOMAIN'];
+      graph.INFRA = ['DOMAIN'];
     }
     if (agents.includes('INTEGRATIONS') && agents.includes('INFRA')) {
-      graph['INTEGRATIONS'] = ['INFRA'];
+      graph.INTEGRATIONS = ['INFRA'];
     }
     if (agents.includes('QA')) {
-      graph['QA'] = agents.filter((a) => a !== 'QA' && a !== 'SECURITY' && a !== 'DEVOPS');
+      graph.QA = agents.filter((a) => a !== 'QA' && a !== 'SECURITY' && a !== 'DEVOPS');
     }
     if (agents.includes('SECURITY')) {
-      graph['SECURITY'] = agents.filter((a) => a !== 'SECURITY' && a !== 'DEVOPS');
+      graph.SECURITY = agents.filter((a) => a !== 'SECURITY' && a !== 'DEVOPS');
     }
     if (agents.includes('DEVOPS')) {
-      graph['DEVOPS'] = agents.filter((a) => a !== 'DEVOPS');
+      graph.DEVOPS = agents.filter((a) => a !== 'DEVOPS');
     }
 
     return graph as Record<AgentCodename, AgentCodename[]>;
@@ -517,8 +594,8 @@ export class OrchestrationService {
 
   private generateAgentTask(
     agent: AgentCodename,
-    request: string,
-    analysis: TaskAnalysis
+    _request: string,
+    _analysis: TaskAnalysis
   ): string {
     const tasks: Record<AgentCodename, string> = {
       ORCHESTRATOR: 'Coordinate overall task execution',
