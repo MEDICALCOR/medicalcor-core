@@ -11,3 +11,6 @@ export * from './dental-lab/index.js';
 
 // Revenue Forecasting use cases
 export * from './revenue/index.js';
+
+// Orchestration use cases
+export * from './orchestration/index.js';
