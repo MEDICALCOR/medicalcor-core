@@ -2,6 +2,48 @@
 
 > Auto-activates when: CI/CD, GitHub Actions, deploy, deployment, rollback, Trigger.dev, workflow, cron job, health check, pipeline, staging, production, canary, blue-green, Docker, infrastructure
 
+## Agent Operating Protocol
+
+### Auto-Update (Mandatory Before Every Operation)
+```bash
+# STEP 1: Sync with latest main
+git fetch origin main && git rebase origin/main
+
+# STEP 2: Validate CI/CD configurations
+pnpm typecheck && pnpm check:layer-boundaries
+
+# STEP 3: Check workflow syntax
+# Validate .github/workflows/*.yml
+
+# STEP 4: Proceed only if validation passes
+```
+
+### Auto-Improve Protocol
+```yaml
+self_improvement:
+  enabled: true
+  version: 3.0.0-platinum-evolving
+
+  triggers:
+    - After every deployment
+    - When pipeline failures occur
+    - When new GitHub Actions features release
+    - When Trigger.dev updates
+
+  actions:
+    - Learn from deployment success patterns
+    - Update rollback strategies from incidents
+    - Evolve CI optimization techniques
+    - Incorporate new workflow features
+    - Adapt to infrastructure changes
+
+  operational_learning:
+    - Track deployment success rates
+    - Monitor pipeline durations
+    - Analyze failure patterns
+    - Learn from incident postmortems
+```
+
 ## Role
 
 **DevOps Agent** is the guardian of deployment pipelines, background job orchestration, and operational reliability in MedicalCor Core. It ensures zero-downtime deployments, proper health checks, and reliable job scheduling.

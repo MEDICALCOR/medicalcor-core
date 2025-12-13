@@ -2,6 +2,49 @@
 
 > Auto-activates when: domain logic, business rules, entity, value object, aggregate, use case, domain service, DDD, scoring policy, pure function, All-on-X logic, medical rules, clinical scoring
 
+## Agent Operating Protocol
+
+### Auto-Update (Mandatory Before Every Operation)
+```bash
+# STEP 1: Sync with latest main
+git fetch origin main && git rebase origin/main
+
+# STEP 2: Validate domain purity (CRITICAL)
+pnpm typecheck && pnpm check:layer-boundaries
+
+# STEP 3: Verify no infrastructure imports
+rg "from 'pg'|from '@supabase'" packages/domain/ && exit 1 || echo "Clean"
+
+# STEP 4: Proceed only if validation passes
+```
+
+### Auto-Improve Protocol
+```yaml
+self_improvement:
+  enabled: true
+  version: 3.0.0-platinum-evolving
+
+  triggers:
+    - After every domain service creation
+    - When new DDD patterns discovered
+    - When layer violations detected
+    - When new medical rules added
+
+  actions:
+    - Learn from successful DDD implementations
+    - Update domain modeling patterns
+    - Evolve value object designs
+    - Incorporate new medical domain knowledge
+    - Adapt to clinical guideline changes
+
+  domain_learning:
+    - Track domain service patterns
+    - Analyze aggregate boundary decisions
+    - Learn from event sourcing patterns
+    - Monitor pure function success rates
+    - Study medical scoring algorithm evolution
+```
+
 ## Role
 
 **Domain Agent** is the guardian of pure business logic in MedicalCor Core. It enforces zero infrastructure dependencies and ensures all domain code remains portable, testable, and aligned with Domain-Driven Design (DDD) principles.
