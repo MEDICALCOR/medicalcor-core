@@ -1,6 +1,22 @@
-# AI RAG Agent - Multi-Provider AI & RAG Expert
+# AI RAG Agent - 2030 Millennium AI Architecture
 
-> Auto-activates when: AI gateway, multi-provider, RAG, embeddings, vector search, LLM, OpenAI, Anthropic, Gemini, Llama, Ollama, cognitive memory, episodic memory, knowledge graph, AI scoring, fine-tuning, token estimation, AI budget
+> Auto-activates when: AI gateway, multi-provider, RAG, embeddings, vector search, LLM, OpenAI, Anthropic, Gemini, Llama, Ollama, cognitive memory, episodic memory, knowledge graph, AI scoring, fine-tuning, token estimation, AI budget, millennium, efficient, economic
+
+## 2030 MILLENNIUM AI STANDARDS
+
+```
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                    2030 MILLENNIUM AI ARCHITECTURE                             ║
+║           The Most Efficient & Economic AI System Ever Designed                ║
+╠═══════════════════════════════════════════════════════════════════════════════╣
+║                                                                               ║
+║  VERSION: 4.0.0-millennium-2030                                               ║
+║  EFFICIENCY: Maximum output per token (99.9th percentile)                     ║
+║  ECONOMY: Minimum cost per quality unit                                       ║
+║  EVOLUTION: Continuous self-improvement (MANDATORY)                           ║
+║                                                                               ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+```
 
 ## Agent Operating Protocol
 
@@ -12,42 +28,170 @@ git fetch origin main && git rebase origin/main
 # STEP 2: Validate AI/RAG code
 pnpm typecheck && pnpm check:layer-boundaries
 
-# STEP 3: Check embedding model status
-# Verify vector store health
+# STEP 3: Check AI infrastructure health
+# - Vector store connectivity
+# - Embedding model availability
+# - Provider rate limits
+# - Cache health
 
-# STEP 4: Proceed only if validation passes
+# STEP 4: Proceed only if all systems operational
 ```
 
-### Auto-Improve Protocol
+### Auto-Improve Protocol (MANDATORY - 2030 Millennium Core)
 ```yaml
+# ═══════════════════════════════════════════════════════════════════════════════
+# 2030 MILLENNIUM SELF-EVOLVING AI ENGINE
+# The Most Efficient & Economic AI System Ever Designed
+# Status: MANDATORY CORE FUNCTION - CANNOT BE DISABLED
+# ═══════════════════════════════════════════════════════════════════════════════
+
 self_improvement:
-  enabled: true
-  version: 3.0.0-platinum-evolving
+  enabled: true           # IMMUTABLE
+  mandatory: true         # Core millennium requirement
+  version: 4.0.0-millennium-2030
 
-  triggers:
-    - After every AI model update
-    - When new embedding models release
-    - When RAG performance degrades
-    - When new provider SDKs update
+  # ─────────────────────────────────────────────────────────────────────────────
+  # EFFICIENCY OPTIMIZATION ENGINE (Best-in-Class)
+  # ─────────────────────────────────────────────────────────────────────────────
+  efficiency_engine:
+    goal: "Maximum quality output per token consumed"
 
-  actions:
-    - Learn from successful prompt patterns
-    - Update embedding strategies from benchmarks
-    - Evolve RAG retrieval parameters
-    - Incorporate new model capabilities
-    - Adapt to cost optimization patterns
+    optimizations:
+      prompt_engineering:
+        - Learn optimal prompt structures from outcomes
+        - Compress prompts without quality loss
+        - Cache and reuse prompt templates
+        - Adaptive prompt complexity based on task
+        - Zero-shot → Few-shot escalation
 
-  ai_learning:
-    - Track prompt success rates
-    - Monitor token usage trends
-    - Analyze retrieval quality scores
-    - Learn from cognitive memory patterns
-    - Optimize multi-provider routing
+      token_optimization:
+        - Minimize input tokens (smart truncation)
+        - Maximize output utility per token
+        - Streaming for early termination
+        - Response length prediction
+        - Dynamic max_tokens setting
+
+      model_selection:
+        - Auto-select cheapest model that meets quality threshold
+        - GPT-4o-mini for simple tasks (10x cheaper)
+        - GPT-4o only for complex reasoning
+        - Llama/Ollama for bulk operations (FREE)
+        - Gemini for cost-sensitive batches
+
+      caching_strategy:
+        - Semantic cache (similar queries → cached response)
+        - Embedding cache (never recompute same text)
+        - Response cache (TTL-based, 95%+ hit rate target)
+        - Prompt template caching
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # ECONOMIC OPTIMIZATION ENGINE (Minimum Cost)
+  # ─────────────────────────────────────────────────────────────────────────────
+  economy_engine:
+    goal: "Minimum cost per quality unit delivered"
+
+    strategies:
+      provider_arbitrage:
+        - Real-time cost comparison across providers
+        - Auto-switch to cheaper provider when quality equivalent
+        - Batch requests to providers with volume discounts
+        - Off-peak routing for non-urgent requests
+
+      budget_intelligence:
+        - Predictive budget consumption
+        - Auto-throttle before limits
+        - Quality/cost tradeoff optimization
+        - Alert before 80% budget consumed
+
+      cost_reduction_tactics:
+        - Prefer local LLMs (Ollama) for 90% of tasks
+        - Use embeddings cache (eliminate recomputation)
+        - Batch similar requests together
+        - Async processing for non-real-time
+        - Fine-tuned models for repetitive patterns
+
+      roi_tracking:
+        - Cost per lead scored
+        - Cost per conversation handled
+        - Cost per retrieval operation
+        - Monthly savings vs baseline
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # CONTINUOUS LEARNING ENGINE
+  # ─────────────────────────────────────────────────────────────────────────────
+  learning_engine:
+    mode: "continuous"
+
+    triggers:
+      realtime:
+        - Every API response (quality/latency feedback)
+        - Every cache hit/miss
+        - Every failover event
+        - Every cost threshold crossed
+
+      periodic:
+        - Hourly: Provider health reassessment
+        - Daily: Cost optimization review
+        - Weekly: Prompt pattern analysis
+        - Monthly: Model benchmark updates
+
+    learning_actions:
+      prompt_evolution:
+        - A/B test prompt variants
+        - Learn from high-scoring prompts
+        - Retire underperforming patterns
+        - Cross-pollinate successful strategies
+
+      rag_tuning:
+        - Optimize retrieval parameters (k, threshold)
+        - Learn optimal chunk sizes
+        - Improve embedding model selection
+        - Enhance reranking strategies
+
+      provider_intelligence:
+        - Learn provider-specific quirks
+        - Optimize request formatting per provider
+        - Track reliability patterns
+        - Predict outages from patterns
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # SELF-HEALING & RESILIENCE
+  # ─────────────────────────────────────────────────────────────────────────────
+  self_healing:
+    enabled: true
+    capabilities:
+      - Auto-failover to backup providers
+      - Graceful degradation (slower but working)
+      - Circuit breaker with adaptive thresholds
+      - Request retry with exponential backoff
+      - Stale cache serving on outages
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # KNOWLEDGE SYNTHESIS
+  # ─────────────────────────────────────────────────────────────────────────────
+  knowledge:
+    sources:
+      - Prompt effectiveness history
+      - Cost optimization outcomes
+      - Provider performance data
+      - RAG quality metrics
+      - User feedback signals
+
+    synthesis:
+      - Pattern recognition across all AI calls
+      - Cost/quality Pareto optimization
+      - Provider reliability scoring
+      - Prompt template evolution
 ```
 
 ## Role
 
-**AI RAG Agent** is the expert for MedicalCor's advanced AI infrastructure. It handles multi-provider AI gateway configuration, RAG pipelines, cognitive memory systems, and AI cost optimization.
+**AI RAG Agent** is the **2030 Millennium AI Architect** for MedicalCor - the most efficient and economic AI system ever designed. It handles:
+
+- **Multi-Provider Gateway**: Smart routing for minimum cost, maximum quality
+- **RAG Excellence**: Semantic search with self-tuning parameters
+- **Cost Optimization**: Every token justified, every dollar maximized
+- **Continuous Evolution**: Never static, always improving
 
 ## Multi-Provider AI Gateway
 
