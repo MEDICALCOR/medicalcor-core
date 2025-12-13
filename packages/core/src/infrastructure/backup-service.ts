@@ -202,6 +202,94 @@ export interface BackupEvents {
 // ============= Implementation =============
 
 /**
+ * Build base backup metadata with common fields
+ */
+function buildBaseMetadata(
+  backupId: string,
+  type: BackupType,
+  startTime: number,
+  tags?: Record<string, string>
+): Omit<BackupMetadata, 'sizeBytes' | 'checksum' | 'tables' | 'rowCounts' | 'storageLocation'> {
+  const baseMetadata = {
+    id: backupId,
+    type,
+    status: 'pending' as BackupStatus,
+    createdAt: new Date(startTime),
+    completedAt: new Date(),
+    checksumAlgorithm: 'sha256' as const,
+    encrypted: false,
+    compressed: false,
+    durationMs: Date.now() - startTime,
+  };
+  return tags ? { ...baseMetadata, tags } : baseMetadata;
+}
+
+/**
+ * Build success metadata after backup completes
+ */
+function buildSuccessMetadata(params: {
+  baseMetadata: ReturnType<typeof buildBaseMetadata>;
+  status: BackupStatus;
+  sizeBytes: number;
+  compressedSizeBytes: number;
+  checksum: string;
+  encrypted: boolean;
+  compressed: boolean;
+  tables: string[];
+  rowCounts: Record<string, number>;
+  storageLocation: string;
+  walPosition?: string;
+  verificationStatus?: 'passed' | 'failed';
+}): BackupMetadata {
+  const metadata: BackupMetadata = {
+    ...params.baseMetadata,
+    status: params.status,
+    sizeBytes: params.sizeBytes,
+    compressedSizeBytes: params.compressedSizeBytes,
+    checksum: params.checksum,
+    encrypted: params.encrypted,
+    compressed: params.compressed,
+    compressionRatio: params.compressed ? params.sizeBytes / params.compressedSizeBytes : 1,
+    tables: params.tables,
+    rowCounts: params.rowCounts,
+    storageLocation: params.storageLocation,
+    completedAt: new Date(),
+    durationMs: Date.now() - params.baseMetadata.createdAt.getTime(),
+  };
+
+  if (params.walPosition) {
+    metadata.walPosition = params.walPosition;
+  }
+  if (params.verificationStatus) {
+    metadata.verifiedAt = new Date();
+    metadata.verificationStatus = params.verificationStatus;
+  }
+
+  return metadata;
+}
+
+/**
+ * Build failure metadata when backup fails
+ */
+function buildFailureMetadata(
+  baseMetadata: ReturnType<typeof buildBaseMetadata>,
+  errorMessage: string
+): BackupMetadata {
+  return {
+    ...baseMetadata,
+    status: 'failed',
+    sizeBytes: 0,
+    checksum: '',
+    tables: [],
+    rowCounts: {},
+    storageLocation: '',
+    errorMessage,
+    completedAt: new Date(),
+    durationMs: Date.now() - baseMetadata.createdAt.getTime(),
+  };
+}
+
+/**
  * Enterprise Backup Service
  */
 export class BackupService extends EventEmitter {
@@ -373,33 +461,22 @@ export class BackupService extends EventEmitter {
         verificationStatus = await this.verifyBackup(backupId, storageLocation);
       }
 
-      // Create metadata - build without undefined values for exactOptionalPropertyTypes
-      const baseMetadata: BackupMetadata = {
-        id: backupId,
-        type,
+      // Create metadata using helper function
+      const baseMetadata = buildBaseMetadata(backupId, type, startTime, tags);
+      const metadata = buildSuccessMetadata({
+        baseMetadata,
         status: verificationStatus === 'passed' ? 'verified' : 'completed',
-        createdAt: new Date(startTime),
-        completedAt: new Date(),
         sizeBytes: dumpResult.sizeBytes,
         compressedSizeBytes: compressedSize,
         checksum: this.calculateChecksum(finalData),
-        checksumAlgorithm: 'sha256',
         encrypted: this.config.encryption?.enabled ?? false,
         compressed: this.config.compression ?? false,
-        compressionRatio: this.config.compression ? dumpResult.sizeBytes / compressedSize : 1,
         tables: dbInfo.tables,
         rowCounts: dumpResult.rowCounts,
         storageLocation,
-        durationMs: Date.now() - startTime,
-      };
-
-      // Conditionally add optional fields
-      const metadata: BackupMetadata = {
-        ...baseMetadata,
-        ...(dumpResult.walPosition && { walPosition: dumpResult.walPosition }),
-        ...(verificationStatus && { verifiedAt: new Date(), verificationStatus }),
-        ...(tags && { tags }),
-      };
+        walPosition: dumpResult.walPosition,
+        verificationStatus,
+      });
 
       // Save metadata
       this.backups.set(backupId, metadata);
@@ -421,28 +498,9 @@ export class BackupService extends EventEmitter {
       this.emit('backup:progress', { ...progress });
       this.emit('backup:failed', error as Error, backupId);
 
-      // Save failed backup metadata - build without undefined values for exactOptionalPropertyTypes
-      const baseFailedMetadata: BackupMetadata = {
-        id: backupId,
-        type,
-        status: 'failed',
-        createdAt: new Date(startTime),
-        completedAt: new Date(),
-        sizeBytes: 0,
-        checksum: '',
-        checksumAlgorithm: 'sha256',
-        encrypted: false,
-        compressed: false,
-        tables: [],
-        rowCounts: {},
-        storageLocation: '',
-        errorMessage: progress.message,
-        durationMs: Date.now() - startTime,
-      };
-      const failedMetadata: BackupMetadata = {
-        ...baseFailedMetadata,
-        ...(tags && { tags }),
-      };
+      // Save failed backup metadata using helper function
+      const baseMetadata = buildBaseMetadata(backupId, type, startTime, tags);
+      const failedMetadata = buildFailureMetadata(baseMetadata, progress.message);
       this.backups.set(backupId, failedMetadata);
       await this.saveBackupCatalog();
 

@@ -414,6 +414,7 @@ export {
   type AgentMatchScore,
   type RoutingDecision,
   type SkillRoutingConfig,
+  // Note: Dental Lab types are exported directly from './schemas/dental-lab.js' below
 } from './schemas/index.js';
 
 // =============================================================================
