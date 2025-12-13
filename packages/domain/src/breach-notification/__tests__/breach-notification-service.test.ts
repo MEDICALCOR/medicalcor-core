@@ -604,3 +604,415 @@ describe('createBreachNotificationService', () => {
     expect(config.deadlineWarningHours).toBe(48);
   });
 });
+
+// ============================================================================
+// ADDITIONAL BRANCH COVERAGE TESTS
+// ============================================================================
+
+describe('BreachNotificationService - Additional Branch Coverage', () => {
+  describe('assessConsequences - Special Data Categories', () => {
+    it('should assess consequences for biometric data breach', async () => {
+      const { service } = createTestService();
+
+      const payload: ReportBreachPayload = {
+        correlationId: 'corr-bio',
+        clinicId: 'clinic-456',
+        reportedBy: 'admin@clinic.com',
+        detectionMethod: 'Security scan',
+        description: 'Biometric data exposed',
+        nature: ['confidentiality'],
+        dataCategories: ['biometric_data'],
+        estimatedAffectedCount: 50,
+      };
+
+      const result = await service.reportBreach(payload);
+
+      expect(result.breach.potentialConsequences).toContain(
+        'Permanent exposure of unchangeable identifiers'
+      );
+    });
+
+    it('should assess consequences for genetic data breach', async () => {
+      const { service } = createTestService();
+
+      const payload: ReportBreachPayload = {
+        correlationId: 'corr-gen',
+        clinicId: 'clinic-456',
+        reportedBy: 'admin@clinic.com',
+        detectionMethod: 'Audit',
+        description: 'Genetic data exposed',
+        nature: ['confidentiality'],
+        dataCategories: ['genetic_data'],
+        estimatedAffectedCount: 25,
+      };
+
+      const result = await service.reportBreach(payload);
+
+      expect(result.breach.potentialConsequences).toContain(
+        'Permanent exposure of genetic information'
+      );
+      expect(result.breach.potentialConsequences).toContain(
+        'Potential discrimination based on genetic data'
+      );
+    });
+
+    it('should assess generic consequences for unknown data category', async () => {
+      const { service } = createTestService();
+
+      // Using an empty data categories array to trigger fallback
+      const payload: ReportBreachPayload = {
+        correlationId: 'corr-unknown',
+        clinicId: 'clinic-456',
+        reportedBy: 'admin@clinic.com',
+        detectionMethod: 'Manual',
+        description: 'Unknown data type breach',
+        nature: ['availability'],
+        dataCategories: [] as unknown as ReportBreachPayload['dataCategories'],
+        estimatedAffectedCount: 10,
+      };
+
+      const result = await service.reportBreach(payload);
+
+      expect(result.breach.potentialConsequences).toContain('General privacy impact');
+    });
+  });
+
+  describe('getBreachesApproachingDeadline', () => {
+    it('should return breaches approaching deadline', async () => {
+      const { service, repository } = createTestService();
+
+      const mockBreaches: DataBreach[] = [
+        {
+          id: 'brch_approaching',
+          correlationId: 'corr-1',
+          clinicId: 'clinic-456',
+          detectedAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(), // 1 hour ago
+          detectedBy: 'admin',
+          detectionMethod: 'Alert',
+          nature: ['confidentiality'],
+          dataCategories: ['personal_data'],
+          severity: 'high',
+          status: 'detected',
+          description: 'Test breach',
+          affectedCount: 100,
+          highRiskToSubjects: true,
+          dpoNotified: false,
+          authorityNotificationRequired: true,
+          subjectNotificationRequired: true,
+          subjectsNotifiedCount: 0,
+          measuresTaken: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          updatedBy: 'admin',
+        },
+      ];
+
+      repository.findApproachingDeadline = vi.fn().mockResolvedValue(mockBreaches);
+
+      const result = await service.getBreachesApproachingDeadline();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('brch_approaching');
+      expect(repository.findApproachingDeadline).toHaveBeenCalledWith(48); // default deadlineWarningHours
+    });
+  });
+
+  describe('getBreachesPendingSubjectNotification', () => {
+    it('should return breaches pending subject notification', async () => {
+      const { service, repository } = createTestService();
+
+      const mockBreaches: DataBreach[] = [
+        {
+          id: 'brch_pending',
+          correlationId: 'corr-2',
+          clinicId: 'clinic-456',
+          detectedAt: new Date().toISOString(),
+          detectedBy: 'admin',
+          detectionMethod: 'Alert',
+          nature: ['confidentiality'],
+          dataCategories: ['health_data'],
+          severity: 'critical',
+          status: 'notifying_authority',
+          description: 'Critical breach',
+          affectedCount: 500,
+          highRiskToSubjects: true,
+          dpoNotified: true,
+          authorityNotificationRequired: true,
+          subjectNotificationRequired: true,
+          subjectsNotifiedCount: 0,
+          affectedSubjects: [
+            { contactId: 'contact-1', dataCategories: ['health_data'], notified: false },
+          ],
+          measuresTaken: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          updatedBy: 'admin',
+        },
+      ];
+
+      repository.findPendingSubjectNotifications = vi.fn().mockResolvedValue(mockBreaches);
+
+      const result = await service.getBreachesPendingSubjectNotification();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('brch_pending');
+      expect(repository.findPendingSubjectNotifications).toHaveBeenCalled();
+    });
+  });
+
+  describe('notifySubject - Error Handling', () => {
+    it('should handle notification failure gracefully', async () => {
+      const { service, repository, eventEmitter } = createTestService();
+
+      // Create a breach first
+      const { breach } = await service.reportBreach({
+        correlationId: 'corr-err',
+        clinicId: 'clinic-456',
+        reportedBy: 'admin@clinic.com',
+        detectionMethod: 'Alert',
+        description: 'Test breach',
+        nature: ['confidentiality'],
+        dataCategories: ['personal_data'],
+        estimatedAffectedCount: 1,
+        affectedContactIds: ['contact-error'],
+      });
+
+      // Mock updateSubjectNotification to throw
+      repository.updateSubjectNotification = vi
+        .fn()
+        .mockRejectedValue(new Error('Notification failed'));
+
+      const result = await service.notifySubject(breach.id, 'contact-error', 'email');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Notification failed');
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'breach.subject_notified',
+          payload: expect.objectContaining({
+            success: false,
+            errorReason: 'Notification failed',
+          }),
+        })
+      );
+    });
+
+    it('should handle non-Error exceptions in notification', async () => {
+      const { service, repository } = createTestService();
+
+      const { breach } = await service.reportBreach({
+        correlationId: 'corr-non-err',
+        clinicId: 'clinic-456',
+        reportedBy: 'admin@clinic.com',
+        detectionMethod: 'Alert',
+        description: 'Test breach',
+        nature: ['confidentiality'],
+        dataCategories: ['personal_data'],
+        estimatedAffectedCount: 1,
+        affectedContactIds: ['contact-non-error'],
+      });
+
+      // Mock updateSubjectNotification to throw non-Error
+      repository.updateSubjectNotification = vi.fn().mockRejectedValue('String error');
+
+      const result = await service.notifySubject(breach.id, 'contact-non-error', 'sms');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Unknown error');
+    });
+  });
+
+  describe('notifySubject - Status Update', () => {
+    it('should update status to notifying_subjects when coming from notifying_authority', async () => {
+      const { service, repository } = createTestService();
+
+      // Create a breach
+      const { breach } = await service.reportBreach({
+        correlationId: 'corr-status',
+        clinicId: 'clinic-456',
+        reportedBy: 'admin@clinic.com',
+        detectionMethod: 'Alert',
+        description: 'Test breach',
+        nature: ['confidentiality'],
+        dataCategories: ['health_data'],
+        estimatedAffectedCount: 1,
+        affectedContactIds: ['contact-status'],
+      });
+
+      // Manually update status to notifying_authority
+      const updatedBreach = { ...breach, status: 'notifying_authority' as const };
+      repository._data.set(breach.id, updatedBreach);
+
+      const result = await service.notifySubject(breach.id, 'contact-status', 'whatsapp');
+
+      expect(result.success).toBe(true);
+
+      // Verify update was called
+      expect(repository.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'notifying_subjects',
+        })
+      );
+    });
+
+    it('should keep current status when not notifying_authority', async () => {
+      const { service, repository } = createTestService();
+
+      const { breach } = await service.reportBreach({
+        correlationId: 'corr-keep-status',
+        clinicId: 'clinic-456',
+        reportedBy: 'admin@clinic.com',
+        detectionMethod: 'Alert',
+        description: 'Test breach',
+        nature: ['availability'],
+        dataCategories: ['personal_data'],
+        estimatedAffectedCount: 1,
+        affectedContactIds: ['contact-keep'],
+      });
+
+      // Breach status is 'detected', not 'notifying_authority'
+      const result = await service.notifySubject(breach.id, 'contact-keep', 'phone');
+
+      expect(result.success).toBe(true);
+
+      // Verify status was kept as detected
+      expect(repository.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'detected',
+        })
+      );
+    });
+  });
+
+  describe('notifyDPO - Error Handling', () => {
+    it('should throw error when breach not found for DPO notification', async () => {
+      const { service } = createTestService();
+
+      await expect(service.notifyDPO('nonexistent-breach')).rejects.toThrow(
+        'Breach not found: nonexistent-breach'
+      );
+    });
+  });
+
+  describe('notifyAuthority - Late Notification Warning', () => {
+    it('should log warning when notification exceeds 72-hour deadline', async () => {
+      const { service, logger } = createTestService();
+
+      // Create a breach detected 80 hours ago
+      const detectedAt = new Date(Date.now() - 80 * 60 * 60 * 1000).toISOString();
+
+      const payload: ReportBreachPayload = {
+        correlationId: 'corr-late',
+        clinicId: 'clinic-456',
+        reportedBy: 'admin@clinic.com',
+        detectionMethod: 'Alert',
+        description: 'Late notification test',
+        nature: ['confidentiality'],
+        dataCategories: ['health_data'],
+        estimatedAffectedCount: 100,
+        detectedAt: detectedAt,
+      };
+
+      const { breach } = await service.reportBreach(payload);
+
+      const result = await service.notifyAuthority(
+        breach.id,
+        'ANSPDCP',
+        'REF-LATE-001',
+        'DPO Contact'
+      );
+
+      expect(result.withinDeadline).toBe(false);
+      expect(result.hoursFromDetection).toBeGreaterThan(72);
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ breachId: breach.id }),
+        'Authority notification exceeded 72-hour deadline'
+      );
+    });
+
+    it('should throw error when breach not found for authority notification', async () => {
+      const { service } = createTestService();
+
+      await expect(service.notifyAuthority('nonexistent-breach', 'ANSPDCP')).rejects.toThrow(
+        'Breach not found: nonexistent-breach'
+      );
+    });
+  });
+
+  describe('resolveBreach - Error Handling', () => {
+    it('should throw error when breach not found for resolution', async () => {
+      const { service } = createTestService();
+
+      await expect(service.resolveBreach('nonexistent-breach', 'resolver')).rejects.toThrow(
+        'Breach not found: nonexistent-breach'
+      );
+    });
+  });
+
+  describe('getBreach', () => {
+    it('should return null for non-existent breach', async () => {
+      const { service } = createTestService();
+
+      const result = await service.getBreach('nonexistent-breach');
+
+      expect(result).toBeNull();
+    });
+
+    it('should return breach when found', async () => {
+      const { service } = createTestService();
+
+      const { breach } = await service.reportBreach({
+        correlationId: 'corr-get',
+        clinicId: 'clinic-456',
+        reportedBy: 'admin@clinic.com',
+        detectionMethod: 'Alert',
+        description: 'Test',
+        nature: ['integrity'],
+        dataCategories: ['personal_data'],
+        estimatedAffectedCount: 5,
+      });
+
+      const result = await service.getBreach(breach.id);
+
+      expect(result).not.toBeNull();
+      expect(result?.id).toBe(breach.id);
+    });
+  });
+
+  describe('Multiple Data Category Consequences', () => {
+    it('should combine consequences for multiple data categories', async () => {
+      const { service } = createTestService();
+
+      const payload: ReportBreachPayload = {
+        correlationId: 'corr-multi',
+        clinicId: 'clinic-456',
+        reportedBy: 'admin@clinic.com',
+        detectionMethod: 'Security audit',
+        description: 'Multi-category breach',
+        nature: ['confidentiality', 'integrity'],
+        dataCategories: ['health_data', 'financial_data', 'identification_data', 'personal_data'],
+        estimatedAffectedCount: 200,
+      };
+
+      const result = await service.reportBreach(payload);
+
+      const consequences = result.breach.potentialConsequences;
+
+      // Health data consequences
+      expect(consequences).toContain('Potential disclosure of sensitive medical information');
+      expect(consequences).toContain('Possible impact on medical treatment decisions');
+
+      // Financial data consequences
+      expect(consequences).toContain('Risk of financial fraud or identity theft');
+      expect(consequences).toContain('Potential unauthorized transactions');
+
+      // Identification data consequences
+      expect(consequences).toContain('Identity theft risk');
+      expect(consequences).toContain('Potential for fraudulent account creation');
+
+      // Personal data consequences
+      expect(consequences).toContain('Loss of privacy');
+      expect(consequences).toContain('Potential for targeted phishing or social engineering');
+    });
+  });
+});
