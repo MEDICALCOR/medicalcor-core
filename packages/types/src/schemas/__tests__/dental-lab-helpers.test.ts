@@ -585,7 +585,9 @@ describe('generateCaseSummary', () => {
   it('should generate summary for single prosthetic', () => {
     const labCase = {
       caseNumber: 'LC-2024-0001',
-      prosthetics: [{ type: 'CROWN' as const, toothNumbers: [14] }],
+      prosthetics: [
+        { type: 'CROWN' as const, material: 'ZIRCONIA' as const, toothNumbers: ['14' as const] },
+      ],
       status: 'IN_DESIGN' as const,
     };
     expect(generateCaseSummary(labCase)).toBe('LC-2024-0001: 1 unit(s) - CROWN [IN_DESIGN]');
@@ -594,7 +596,13 @@ describe('generateCaseSummary', () => {
   it('should generate summary for multiple teeth on one prosthetic', () => {
     const labCase = {
       caseNumber: 'LC-2024-0002',
-      prosthetics: [{ type: 'BRIDGE' as const, toothNumbers: [14, 15, 16] }],
+      prosthetics: [
+        {
+          type: 'BRIDGE' as const,
+          material: 'ZIRCONIA' as const,
+          toothNumbers: ['14' as const, '15' as const, '16' as const],
+        },
+      ],
       status: 'MILLING' as const,
     };
     expect(generateCaseSummary(labCase)).toBe('LC-2024-0002: 3 unit(s) - BRIDGE [MILLING]');
@@ -604,8 +612,12 @@ describe('generateCaseSummary', () => {
     const labCase = {
       caseNumber: 'LC-2024-0003',
       prosthetics: [
-        { type: 'CROWN' as const, toothNumbers: [14] },
-        { type: 'VENEER' as const, toothNumbers: [11, 12] },
+        { type: 'CROWN' as const, material: 'ZIRCONIA' as const, toothNumbers: ['14' as const] },
+        {
+          type: 'VENEER' as const,
+          material: 'EMAX' as const,
+          toothNumbers: ['11' as const, '12' as const],
+        },
       ],
       status: 'QC_INSPECTION' as const,
     };
@@ -627,8 +639,8 @@ describe('generateCaseSummary', () => {
     const labCase = {
       caseNumber: 'LC-2024-0005',
       prosthetics: [
-        { type: 'CROWN' as const, toothNumbers: [14] },
-        { type: 'CROWN' as const, toothNumbers: [24] },
+        { type: 'CROWN' as const, material: 'ZIRCONIA' as const, toothNumbers: ['14' as const] },
+        { type: 'CROWN' as const, material: 'EMAX' as const, toothNumbers: ['24' as const] },
       ],
       status: 'COMPLETED' as const,
     };

@@ -17,8 +17,9 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply, RouteHandlerMethod } from 'fastify';
 import { z } from 'zod';
 import { randomInt, createHash } from 'crypto';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const jsonwebtoken = require('jsonwebtoken') as {
+import jwt from 'jsonwebtoken';
+
+const jsonwebtoken = jwt as unknown as {
   sign: (payload: object, secret: string, options?: { expiresIn?: string }) => string;
   verify: (token: string, secret: string) => object;
 };

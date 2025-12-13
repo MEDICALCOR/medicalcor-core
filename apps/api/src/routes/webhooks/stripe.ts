@@ -614,7 +614,8 @@ const knownUnhandledEvents = new Set([
 // =============================================================================
 
 export const stripeWebhookRoutes: FastifyPluginAsync = (fastify) => {
-  // Store raw body for signature verification
+  // Store raw body for signature verification - remove existing parser first
+  fastify.removeContentTypeParser('application/json');
   fastify.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, payload, done) => {
     done(null, payload);
   });

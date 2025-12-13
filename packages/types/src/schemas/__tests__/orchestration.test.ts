@@ -1150,12 +1150,13 @@ describe('Helper Functions', () => {
         'DEPLOYMENT',
         'COMPLIANCE_AUDIT',
         'ARCHITECTURE_REFACTOR',
-      ];
+      ] as const;
 
       for (const taskType of taskTypes) {
-        expect(TASK_TYPE_QUALITY_GATES[taskType]).toBeDefined();
-        expect(Array.isArray(TASK_TYPE_QUALITY_GATES[taskType])).toBe(true);
-        expect(TASK_TYPE_QUALITY_GATES[taskType].length).toBeGreaterThan(0);
+        const gates = TASK_TYPE_QUALITY_GATES[taskType];
+        expect(gates).toBeDefined();
+        expect(Array.isArray(gates)).toBe(true);
+        expect(gates!.length).toBeGreaterThan(0);
       }
     });
   });
@@ -1173,12 +1174,13 @@ describe('Helper Functions', () => {
         'DEPLOYMENT',
         'COMPLIANCE_AUDIT',
         'ARCHITECTURE_REFACTOR',
-      ];
+      ] as const;
 
       for (const taskType of taskTypes) {
-        expect(TASK_TYPE_ROUTING[taskType]).toBeDefined();
-        expect(TASK_TYPE_ROUTING[taskType].primary).toBeDefined();
-        expect(Array.isArray(TASK_TYPE_ROUTING[taskType].support)).toBe(true);
+        const routing = TASK_TYPE_ROUTING[taskType];
+        expect(routing).toBeDefined();
+        expect(routing!.primary).toBeDefined();
+        expect(Array.isArray(routing!.support)).toBe(true);
       }
     });
   });

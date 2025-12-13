@@ -163,3 +163,13 @@ export {
   // Configuration types
   type PostgresRevenueSnapshotRepositoryConfig,
 } from './PostgresRevenueSnapshotRepository.js';
+
+// =============================================================================
+// ORCHESTRATION REPOSITORY (In-Memory)
+// =============================================================================
+
+export {
+  // Class and factory
+  InMemoryOrchestrationRepository,
+  createInMemoryOrchestrationRepository,
+} from './InMemoryOrchestrationRepository.js';
