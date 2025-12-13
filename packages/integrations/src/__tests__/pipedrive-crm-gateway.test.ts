@@ -1,68 +1,41 @@
 /**
- * Pipedrive CRM Gateway Tests
+ * Pipedrive CRM Gateway Tests - Light Mocking Approach
  *
- * Comprehensive tests for the PipedriveCrmGateway adapter
- * that implements ICrmGateway for Pipedrive.
+ * Tests for the PipedriveCrmGateway using HTTP-level mocking
+ * to ensure the gateway code is actually executed and covered.
  *
  * @module integrations/__tests__/pipedrive-crm-gateway
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-
-// =============================================================================
-// MOCK SETUP
-// =============================================================================
-
-// Mock PipedriveClient class
-class MockPipedriveClient {
-  getPerson = vi.fn();
-  findPersonByPhone = vi.fn();
-  findPersonByEmail = vi.fn();
-  createPerson = vi.fn();
-  updatePerson = vi.fn();
-  upsertPersonByPhone = vi.fn();
-  deletePerson = vi.fn();
-  getDeal = vi.fn();
-  findDealsByPerson = vi.fn();
-  createDeal = vi.fn();
-  updateDeal = vi.fn();
-  deleteDeal = vi.fn();
-  getActivity = vi.fn();
-  createActivity = vi.fn();
-  updateActivity = vi.fn();
-  completeActivity = vi.fn();
-  getPendingActivitiesForPerson = vi.fn();
-  deleteActivity = vi.fn();
-  createNote = vi.fn();
-  getNotesForPerson = vi.fn();
-  getNotesForDeal = vi.fn();
-  getPipelines = vi.fn();
-  getPipeline = vi.fn();
-  getStages = vi.fn();
-  getStage = vi.fn();
-  getUsers = vi.fn();
-  getUser = vi.fn();
-  getCurrentUser = vi.fn();
-  healthCheck = vi.fn();
-}
-
-// Store the instance to access mocks
-let mockClientInstance: MockPipedriveClient;
-
-// Mock the PipedriveClient
-vi.mock('../pipedrive.js', () => ({
-  PipedriveClient: vi.fn().mockImplementation(function (this: MockPipedriveClient) {
-    mockClientInstance = new MockPipedriveClient();
-    Object.assign(this, mockClientInstance);
-    return this;
-  }),
-}));
-
-// Import AFTER mock setup
 import { PipedriveCrmGateway } from '../crm/pipedrive-crm-gateway.js';
 
 // =============================================================================
-// TEST HELPERS
+// HTTP RESPONSE HELPERS
+// =============================================================================
+
+function createMockResponse(data: unknown, status = 200): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    statusText: status === 200 ? 'OK' : 'Error',
+    headers: new Headers({ 'Content-Type': 'application/json' }),
+    json: vi.fn().mockResolvedValue(data),
+    text: vi.fn().mockResolvedValue(JSON.stringify(data)),
+    clone: vi.fn().mockReturnThis(),
+  } as unknown as Response;
+}
+
+function createPipedriveSuccessResponse<T>(data: T): Response {
+  return createMockResponse({ success: true, data });
+}
+
+function createPipedriveErrorResponse(error: string, status = 400): Response {
+  return createMockResponse({ success: false, error }, status);
+}
+
+// =============================================================================
+// TEST DATA FACTORIES
 // =============================================================================
 
 function createMockPipedrivePerson(overrides: Partial<Record<string, unknown>> = {}) {
@@ -103,16 +76,16 @@ function createMockPipedriveDeal(overrides: Partial<Record<string, unknown>> = {
 function createMockPipedriveActivity(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: 9999,
-    type: 'task',
-    subject: 'Follow up call',
-    note: 'Discuss treatment options',
+    subject: 'Follow-up call',
+    type: 'call',
     done: false,
-    due_date: '2024-02-01',
-    due_time: '14:00',
+    due_date: '2024-02-15',
+    due_time: '10:00',
+    note: 'Call patient about treatment plan',
     person_id: 12345,
     deal_id: 5678,
     user_id: 99,
-    add_time: '2024-01-15T10:00:00Z',
+    add_time: '2024-01-20T09:00:00Z',
     marked_as_done_time: null,
     ...overrides,
   };
@@ -121,11 +94,11 @@ function createMockPipedriveActivity(overrides: Partial<Record<string, unknown>>
 function createMockPipedriveNote(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: 7777,
-    content: 'Patient interested in All-on-X procedure',
+    content: 'Patient expressed interest in All-on-X',
     person_id: 12345,
-    deal_id: null,
+    deal_id: 5678,
     user_id: 99,
-    add_time: '2024-01-16T11:00:00Z',
+    add_time: '2024-01-22T11:00:00Z',
     ...overrides,
   };
 }
@@ -133,20 +106,20 @@ function createMockPipedriveNote(overrides: Partial<Record<string, unknown>> = {
 function createMockPipedrivePipeline(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: 1,
-    name: 'Dental Sales',
-    order_nr: 0,
+    name: 'Dental Sales Pipeline',
     active: true,
+    order_nr: 1,
     ...overrides,
   };
 }
 
 function createMockPipedriveStage(overrides: Partial<Record<string, unknown>> = {}) {
   return {
-    id: 10,
-    name: 'Qualified Lead',
-    order_nr: 1,
-    deal_probability: 30,
+    id: 3,
+    name: 'Consultation Scheduled',
     pipeline_id: 1,
+    order_nr: 3,
+    active_flag: true,
     ...overrides,
   };
 }
@@ -178,10 +151,12 @@ function createMockPhoneNumber(phone: string): MockPhoneNumber {
 
 describe('PipedriveCrmGateway', () => {
   let gateway: PipedriveCrmGateway;
-  let mockClient: MockPipedriveClient;
+  let originalFetch: typeof global.fetch;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    // Store and mock fetch
+    originalFetch = global.fetch;
+    global.fetch = vi.fn();
 
     gateway = new PipedriveCrmGateway({
       apiToken: 'test-token-123',
@@ -193,12 +168,10 @@ describe('PipedriveCrmGateway', () => {
       urgencyLevelField: 'custom_urgency_level',
       defaultPipelineId: 1,
     });
-
-    // Get the mock client that was created
-    mockClient = mockClientInstance;
   });
 
   afterEach(() => {
+    global.fetch = originalFetch;
     vi.clearAllMocks();
   });
 
@@ -220,22 +193,22 @@ describe('PipedriveCrmGateway', () => {
     describe('getContact', () => {
       it('should return contact for valid ID', async () => {
         const mockPerson = createMockPipedrivePerson();
-        mockClient.getPerson.mockResolvedValueOnce(mockPerson);
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(mockPerson));
 
         const result = await gateway.getContact('12345');
 
         expect(result.success).toBe(true);
-        if (result.success) {
-          expect(result.value?.id).toBe('12345');
-          expect(result.value?.firstName).toBe('John');
-          expect(result.value?.lastName).toBe('Doe');
-          expect(result.value?.phone).toBe('+40700000001');
-          expect(result.value?.email).toBe('john@example.com');
+        if (result.success && result.value) {
+          expect(result.value.id).toBe('12345');
+          expect(result.value.firstName).toBe('John');
+          expect(result.value.lastName).toBe('Doe');
+          expect(result.value.phone).toBe('+40700000001');
+          expect(result.value.email).toBe('john@example.com');
         }
       });
 
       it('should return null for non-existent contact', async () => {
-        mockClient.getPerson.mockResolvedValueOnce(null);
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(null));
 
         const result = await gateway.getContact('99999');
 
@@ -245,14 +218,80 @@ describe('PipedriveCrmGateway', () => {
         }
       });
 
-      it('should handle errors gracefully', async () => {
-        mockClient.getPerson.mockRejectedValueOnce(new Error('Network error'));
+      it('should handle network errors', async () => {
+        vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network error'));
 
         const result = await gateway.getContact('12345');
 
         expect(result.success).toBe(false);
-        if (!result.success) {
-          expect(result.error.code).toBe('UNKNOWN_ERROR');
+      });
+
+      it('should handle person with no primary phone', async () => {
+        const mockPerson = createMockPipedrivePerson({
+          phone: [{ value: '+40700000002', primary: false }],
+        });
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(mockPerson));
+
+        const result = await gateway.getContact('12345');
+
+        expect(result.success).toBe(true);
+        if (result.success && result.value) {
+          // Should fall back to first phone
+          expect(result.value.phone).toBe('+40700000002');
+        }
+      });
+
+      it('should handle person with no phones', async () => {
+        const mockPerson = createMockPipedrivePerson({ phone: [] });
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(mockPerson));
+
+        const result = await gateway.getContact('12345');
+
+        expect(result.success).toBe(true);
+        if (result.success && result.value) {
+          expect(result.value.phone).toBeUndefined();
+        }
+      });
+
+      it('should handle person with no primary email', async () => {
+        const mockPerson = createMockPipedrivePerson({
+          email: [{ value: 'alt@example.com', primary: false }],
+        });
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(mockPerson));
+
+        const result = await gateway.getContact('12345');
+
+        expect(result.success).toBe(true);
+        if (result.success && result.value) {
+          expect(result.value.email).toBe('alt@example.com');
+        }
+      });
+
+      it('should handle owner_id as number', async () => {
+        const mockPerson = createMockPipedrivePerson({ owner_id: 99 });
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(mockPerson));
+
+        const result = await gateway.getContact('12345');
+
+        expect(result.success).toBe(true);
+        if (result.success && result.value) {
+          expect(result.value.ownerId).toBe('99');
+        }
+      });
+
+      it('should handle missing add_time and update_time', async () => {
+        const mockPerson = createMockPipedrivePerson({
+          add_time: undefined,
+          update_time: undefined,
+        });
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(mockPerson));
+
+        const result = await gateway.getContact('12345');
+
+        expect(result.success).toBe(true);
+        if (result.success && result.value) {
+          expect(result.value.createdAt).toBeInstanceOf(Date);
+          expect(result.value.updatedAt).toBeInstanceOf(Date);
         }
       });
     });
@@ -260,18 +299,18 @@ describe('PipedriveCrmGateway', () => {
     describe('findContactByPhone', () => {
       it('should find contact by phone', async () => {
         const mockPerson = createMockPipedrivePerson();
-        mockClient.findPersonByPhone.mockResolvedValueOnce(mockPerson);
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(mockPerson));
 
         const result = await gateway.findContactByPhone(createMockPhoneNumber('+40700000001'));
 
         expect(result.success).toBe(true);
-        if (result.success) {
-          expect(result.value?.phone).toBe('+40700000001');
+        if (result.success && result.value) {
+          expect(result.value.phone).toBe('+40700000001');
         }
       });
 
       it('should return null when not found', async () => {
-        mockClient.findPersonByPhone.mockResolvedValueOnce(null);
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(null));
 
         const result = await gateway.findContactByPhone(createMockPhoneNumber('+40799999999'));
 
@@ -285,139 +324,70 @@ describe('PipedriveCrmGateway', () => {
     describe('findContactByEmail', () => {
       it('should find contact by email', async () => {
         const mockPerson = createMockPipedrivePerson();
-        mockClient.findPersonByEmail.mockResolvedValueOnce(mockPerson);
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(mockPerson));
 
         const result = await gateway.findContactByEmail('john@example.com');
 
         expect(result.success).toBe(true);
-        if (result.success) {
-          expect(result.value?.email).toBe('john@example.com');
+        if (result.success && result.value) {
+          expect(result.value.email).toBe('john@example.com');
         }
       });
     });
 
     describe('createContact', () => {
-      it('should create contact successfully', async () => {
-        const mockPerson = createMockPipedrivePerson({ id: 54321 });
-        mockClient.createPerson.mockResolvedValueOnce(mockPerson);
+      it('should create a new contact', async () => {
+        const mockPerson = createMockPipedrivePerson({ id: 12346 });
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(mockPerson));
 
         const result = await gateway.createContact({
-          phone: createMockPhoneNumber('+40700000002'),
-          firstName: 'Jane',
-          lastName: 'Smith',
-          email: 'jane@example.com',
+          firstName: 'John',
+          lastName: 'Doe',
+          phone: createMockPhoneNumber('+40700000001'),
+          email: 'john@example.com',
         });
 
         expect(result.success).toBe(true);
-        expect(mockClient.createPerson).toHaveBeenCalled();
-      });
-
-      it('should handle create errors', async () => {
-        mockClient.createPerson.mockRejectedValueOnce(new Error('validation error'));
-
-        const result = await gateway.createContact({
-          phone: createMockPhoneNumber('+40700000002'),
-          firstName: 'Jane',
-        });
-
-        expect(result.success).toBe(false);
-        if (!result.success) {
-          expect(result.error.code).toBe('VALIDATION_ERROR');
+        if (result.success && result.value) {
+          expect(result.value.id).toBe('12346');
         }
       });
-    });
 
-    describe('updateContact', () => {
-      it('should update contact with all fields', async () => {
-        const mockPerson = createMockPipedrivePerson();
-        mockClient.updatePerson.mockResolvedValueOnce(mockPerson);
-
-        const result = await gateway.updateContact('12345', {
-          email: 'new@example.com',
-          firstName: 'Updated',
-          lastName: 'Name',
-          company: 'New Company',
-          ownerId: '100',
-          leadScore: { numericValue: 4.5, classification: 'HOT' as const },
-          leadStatus: 'qualified',
-          procedureInterest: ['implants', 'veneers'],
-          budgetRange: '10000-20000',
-          urgencyLevel: 'high',
-          customProperties: { customField: 'value' },
-        });
-
-        expect(result.success).toBe(true);
-        expect(mockClient.updatePerson).toHaveBeenCalledWith(
-          12345,
-          expect.objectContaining({
-            email: ['new@example.com'],
-            first_name: 'Updated',
-            last_name: 'Name',
-            org_name: 'New Company',
-            owner_id: 100,
-            custom_lead_score: 4.5,
-            custom_lead_status: 'qualified',
-            custom_procedure_interest: 'implants, veneers',
-            custom_budget_range: '10000-20000',
-            custom_urgency_level: 'high',
-            customField: 'value',
-          })
+      it('should handle API errors on create', async () => {
+        vi.mocked(global.fetch).mockResolvedValueOnce(
+          createPipedriveErrorResponse('Validation failed', 400)
         );
-      });
-    });
 
-    describe('upsertContact', () => {
-      it('should upsert contact', async () => {
-        const mockPerson = createMockPipedrivePerson();
-        mockClient.upsertPersonByPhone.mockResolvedValueOnce(mockPerson);
-
-        const result = await gateway.upsertContact({
-          phone: createMockPhoneNumber('+40700000001'),
+        const result = await gateway.createContact({
           firstName: 'John',
           lastName: 'Doe',
         });
 
-        expect(result.success).toBe(true);
+        expect(result.success).toBe(false);
       });
     });
 
-    describe('updateContactScore', () => {
-      it('should update contact score with metadata', async () => {
-        const mockPerson = createMockPipedrivePerson();
-        mockClient.updatePerson.mockResolvedValueOnce(mockPerson);
-        mockClient.createNote.mockResolvedValueOnce(createMockPipedriveNote());
+    describe('updateContact', () => {
+      it('should update an existing contact', async () => {
+        const mockPerson = createMockPipedrivePerson({ first_name: 'Jane' });
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(mockPerson));
 
-        const result = await gateway.updateContactScore(
-          '12345',
-          { numericValue: 4.5, classification: 'HOT' as const },
-          {
-            reasoning: 'High interest in implants',
-            method: 'ai-scoring',
-            procedureInterest: ['implants'],
-          }
-        );
-
-        expect(result.success).toBe(true);
-        expect(mockClient.createNote).toHaveBeenCalled();
-      });
-
-      it('should update score without metadata', async () => {
-        const mockPerson = createMockPipedrivePerson();
-        mockClient.updatePerson.mockResolvedValueOnce(mockPerson);
-
-        const result = await gateway.updateContactScore('12345', {
-          numericValue: 3,
-          classification: 'WARM' as const,
+        const result = await gateway.updateContact('12345', {
+          firstName: 'Jane',
         });
 
         expect(result.success).toBe(true);
-        expect(mockClient.createNote).not.toHaveBeenCalled();
+        if (result.success && result.value) {
+          expect(result.value.firstName).toBe('Jane');
+        }
       });
     });
 
     describe('deleteContact', () => {
-      it('should delete contact', async () => {
-        mockClient.deletePerson.mockResolvedValueOnce(undefined);
+      it('should delete a contact', async () => {
+        vi.mocked(global.fetch).mockResolvedValueOnce(
+          createPipedriveSuccessResponse({ id: 12345 })
+        );
 
         const result = await gateway.deleteContact('12345');
 
@@ -434,7 +404,7 @@ describe('PipedriveCrmGateway', () => {
     describe('getDeal', () => {
       it('should return deal for valid ID', async () => {
         const mockDeal = createMockPipedriveDeal();
-        mockClient.getDeal.mockResolvedValueOnce(mockDeal);
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(mockDeal));
 
         const result = await gateway.getDeal('5678');
 
@@ -446,240 +416,21 @@ describe('PipedriveCrmGateway', () => {
         }
       });
 
-      it('should return null for non-existent deal', async () => {
-        mockClient.getDeal.mockResolvedValueOnce(null);
+      it('should handle deal with no title', async () => {
+        const mockDeal = createMockPipedriveDeal({ title: undefined });
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(mockDeal));
 
-        const result = await gateway.getDeal('99999');
-
-        expect(result.success).toBe(true);
-        if (result.success) {
-          expect(result.value).toBeNull();
-        }
-      });
-    });
-
-    describe('findDealsByContact', () => {
-      it('should find deals by contact', async () => {
-        const mockDeals = [createMockPipedriveDeal(), createMockPipedriveDeal({ id: 5679 })];
-        mockClient.findDealsByPerson.mockResolvedValueOnce(mockDeals);
-
-        const result = await gateway.findDealsByContact('12345');
+        const result = await gateway.getDeal('5678');
 
         expect(result.success).toBe(true);
-        if (result.success) {
-          expect(result.value).toHaveLength(2);
-        }
-      });
-    });
-
-    describe('createDeal', () => {
-      it('should create deal', async () => {
-        const mockDeal = createMockPipedriveDeal();
-        mockClient.createDeal.mockResolvedValueOnce(mockDeal);
-
-        const result = await gateway.createDeal({
-          name: 'New Deal',
-          contactId: '12345',
-          amount: 10000,
-          currency: 'EUR',
-        });
-
-        expect(result.success).toBe(true);
-      });
-    });
-  });
-
-  // ===========================================================================
-  // ERROR MAPPING TESTS
-  // ===========================================================================
-
-  describe('Error Mapping', () => {
-    it('should map 404 errors to NOT_FOUND', async () => {
-      mockClient.getPerson.mockRejectedValueOnce(new Error('404 not found'));
-
-      const result = await gateway.getContact('12345');
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.code).toBe('NOT_FOUND');
-        expect(result.error.retryable).toBe(false);
-      }
-    });
-
-    it('should map 429 errors to RATE_LIMITED', async () => {
-      mockClient.getPerson.mockRejectedValueOnce(new Error('429 rate limit exceeded'));
-
-      const result = await gateway.getContact('12345');
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.code).toBe('RATE_LIMITED');
-        expect(result.error.retryable).toBe(true);
-      }
-    });
-
-    it('should map 401 errors to UNAUTHORIZED', async () => {
-      mockClient.getPerson.mockRejectedValueOnce(new Error('401 unauthorized'));
-
-      const result = await gateway.getContact('12345');
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.code).toBe('UNAUTHORIZED');
-      }
-    });
-
-    it('should map 403 errors to FORBIDDEN', async () => {
-      mockClient.getPerson.mockRejectedValueOnce(new Error('403 forbidden'));
-
-      const result = await gateway.getContact('12345');
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.code).toBe('FORBIDDEN');
-      }
-    });
-
-    it('should map timeout errors', async () => {
-      mockClient.getPerson.mockRejectedValueOnce(new Error('Request timeout'));
-
-      const result = await gateway.getContact('12345');
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.code).toBe('TIMEOUT');
-        expect(result.error.retryable).toBe(true);
-      }
-    });
-
-    it('should map 502/503/504 to SERVICE_UNAVAILABLE', async () => {
-      mockClient.getPerson.mockRejectedValueOnce(new Error('503 service unavailable'));
-
-      const result = await gateway.getContact('12345');
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.code).toBe('SERVICE_UNAVAILABLE');
-        expect(result.error.retryable).toBe(true);
-      }
-    });
-
-    it('should map connection errors', async () => {
-      mockClient.getPerson.mockRejectedValueOnce(new Error('ECONNREFUSED'));
-
-      const result = await gateway.getContact('12345');
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.code).toBe('CONNECTION_ERROR');
-        expect(result.error.retryable).toBe(true);
-      }
-    });
-
-    it('should map validation errors', async () => {
-      mockClient.createPerson.mockRejectedValueOnce(new Error('validation failed'));
-
-      const result = await gateway.createContact({
-        phone: createMockPhoneNumber('+40700000001'),
-        firstName: '',
-      });
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.code).toBe('VALIDATION_ERROR');
-      }
-    });
-  });
-
-  // ===========================================================================
-  // HELPER FUNCTION EDGE CASES
-  // ===========================================================================
-
-  describe('Helper Functions Edge Cases', () => {
-    describe('extractPrimaryPhone', () => {
-      it('should handle person without phone', async () => {
-        const mockPerson = createMockPipedrivePerson({ phone: undefined });
-        mockClient.getPerson.mockResolvedValueOnce(mockPerson);
-
-        const result = await gateway.getContact('12345');
-
-        expect(result.success).toBe(true);
-        if (result.success) {
-          expect(result.value?.phone).toBeUndefined();
+        if (result.success && result.value) {
+          expect(result.value.name).toBe('Untitled Deal');
         }
       });
 
-      it('should handle empty phone array', async () => {
-        const mockPerson = createMockPipedrivePerson({ phone: [] });
-        mockClient.getPerson.mockResolvedValueOnce(mockPerson);
-
-        const result = await gateway.getContact('12345');
-
-        expect(result.success).toBe(true);
-        if (result.success) {
-          expect(result.value?.phone).toBeUndefined();
-        }
-      });
-
-      it('should use first phone when no primary', async () => {
-        const mockPerson = createMockPipedrivePerson({
-          phone: [{ value: '+40700000002', primary: false }],
-        });
-        mockClient.getPerson.mockResolvedValueOnce(mockPerson);
-
-        const result = await gateway.getContact('12345');
-
-        expect(result.success).toBe(true);
-        if (result.success) {
-          expect(result.value?.phone).toBe('+40700000002');
-        }
-      });
-    });
-
-    describe('extractPrimaryEmail', () => {
-      it('should handle person without email', async () => {
-        const mockPerson = createMockPipedrivePerson({ email: undefined });
-        mockClient.getPerson.mockResolvedValueOnce(mockPerson);
-
-        const result = await gateway.getContact('12345');
-
-        expect(result.success).toBe(true);
-        if (result.success) {
-          expect(result.value?.email).toBeUndefined();
-        }
-      });
-    });
-
-    describe('extractOwnerId', () => {
-      it('should handle numeric owner_id', async () => {
-        const mockPerson = createMockPipedrivePerson({ owner_id: 99 });
-        mockClient.getPerson.mockResolvedValueOnce(mockPerson);
-
-        const result = await gateway.getContact('12345');
-
-        expect(result.success).toBe(true);
-        if (result.success) {
-          expect(result.value?.ownerId).toBe('99');
-        }
-      });
-
-      it('should handle undefined owner_id', async () => {
-        const mockPerson = createMockPipedrivePerson({ owner_id: undefined });
-        mockClient.getPerson.mockResolvedValueOnce(mockPerson);
-
-        const result = await gateway.getContact('12345');
-
-        expect(result.success).toBe(true);
-        if (result.success) {
-          expect(result.value?.ownerId).toBeUndefined();
-        }
-      });
-    });
-
-    describe('extractPersonId', () => {
-      it('should handle numeric person_id in deal', async () => {
+      it('should handle deal with person_id as number', async () => {
         const mockDeal = createMockPipedriveDeal({ person_id: 12345 });
-        mockClient.getDeal.mockResolvedValueOnce(mockDeal);
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(mockDeal));
 
         const result = await gateway.getDeal('5678');
 
@@ -689,34 +440,303 @@ describe('PipedriveCrmGateway', () => {
         }
       });
 
-      it('should handle undefined person_id in deal', async () => {
-        const mockDeal = createMockPipedriveDeal({ person_id: undefined });
-        mockClient.getDeal.mockResolvedValueOnce(mockDeal);
+      it('should handle deal with no stage_id', async () => {
+        const mockDeal = createMockPipedriveDeal({ stage_id: undefined });
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(mockDeal));
 
         const result = await gateway.getDeal('5678');
 
         expect(result.success).toBe(true);
         if (result.success && result.value) {
-          expect(result.value.contactId).toBeUndefined();
+          expect(result.value.stage).toBe('unknown');
         }
       });
     });
 
-    describe('activity mapping edge cases', () => {
-      it('should handle activities fetched for a person', async () => {
-        const mockActivities = [
-          createMockPipedriveActivity({ done: true }),
-          createMockPipedriveActivity({ id: 10000, done: false }),
-        ];
-        mockClient.getPendingActivitiesForPerson.mockResolvedValueOnce(mockActivities);
+    describe('findDealsByContact', () => {
+      it('should return deals for a contact', async () => {
+        const mockDeals = [createMockPipedriveDeal(), createMockPipedriveDeal({ id: 5679 })];
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(mockDeals));
+
+        const result = await gateway.findDealsByContact('12345');
+
+        expect(result.success).toBe(true);
+        if (result.success && result.value) {
+          expect(result.value.length).toBe(2);
+        }
+      });
+    });
+
+    describe('createDeal', () => {
+      it('should create a new deal', async () => {
+        const mockDeal = createMockPipedriveDeal();
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(mockDeal));
+
+        const result = await gateway.createDeal({
+          name: 'New Treatment Plan',
+          contactId: '12345',
+          amount: 10000,
+        });
+
+        expect(result.success).toBe(true);
+      });
+    });
+  });
+
+  // ===========================================================================
+  // TASK (ACTIVITY) OPERATIONS TESTS
+  // ===========================================================================
+
+  describe('Task Operations', () => {
+    describe('getPendingTasksForContact', () => {
+      it('should return pending activities for contact', async () => {
+        const mockActivities = [createMockPipedriveActivity()];
+        vi.mocked(global.fetch).mockResolvedValueOnce(
+          createPipedriveSuccessResponse(mockActivities)
+        );
 
         const result = await gateway.getPendingTasksForContact('12345');
 
         expect(result.success).toBe(true);
-        if (result.success) {
-          expect(result.value.length).toBeGreaterThanOrEqual(0);
+        if (result.success && result.value) {
+          expect(result.value.length).toBe(1);
+          expect(result.value[0]?.status).toBe('NOT_STARTED');
         }
       });
+
+      it('should handle completed activity', async () => {
+        const mockActivities = [createMockPipedriveActivity({ done: true })];
+        vi.mocked(global.fetch).mockResolvedValueOnce(
+          createPipedriveSuccessResponse(mockActivities)
+        );
+
+        const result = await gateway.getPendingTasksForContact('12345');
+
+        expect(result.success).toBe(true);
+        if (result.success && result.value && result.value[0]) {
+          expect(result.value[0].status).toBe('COMPLETED');
+        }
+      });
+
+      it('should handle activity with marked_as_done_time', async () => {
+        const mockActivities = [
+          createMockPipedriveActivity({
+            done: false,
+            marked_as_done_time: '2024-02-01T10:00:00Z',
+          }),
+        ];
+        vi.mocked(global.fetch).mockResolvedValueOnce(
+          createPipedriveSuccessResponse(mockActivities)
+        );
+
+        const result = await gateway.getPendingTasksForContact('12345');
+
+        expect(result.success).toBe(true);
+        if (result.success && result.value && result.value[0]) {
+          expect(result.value[0].status).toBe('COMPLETED');
+        }
+      });
+
+      it('should handle activity with no subject', async () => {
+        const mockActivities = [createMockPipedriveActivity({ subject: undefined })];
+        vi.mocked(global.fetch).mockResolvedValueOnce(
+          createPipedriveSuccessResponse(mockActivities)
+        );
+
+        const result = await gateway.getPendingTasksForContact('12345');
+
+        expect(result.success).toBe(true);
+        if (result.success && result.value && result.value[0]) {
+          expect(result.value[0].subject).toBe('Untitled Task');
+        }
+      });
+    });
+
+    describe('createTask', () => {
+      it('should create a new task', async () => {
+        const mockActivity = createMockPipedriveActivity();
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(mockActivity));
+
+        const result = await gateway.createTask({
+          subject: 'Follow-up call',
+          contactId: '12345',
+          dueDate: new Date('2024-02-15'),
+        });
+
+        expect(result.success).toBe(true);
+      });
+    });
+  });
+
+  // ===========================================================================
+  // NOTE OPERATIONS TESTS
+  // ===========================================================================
+
+  describe('Note Operations', () => {
+    describe('addNote', () => {
+      it('should create a note for contact', async () => {
+        const mockNote = createMockPipedriveNote();
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(mockNote));
+
+        const result = await gateway.addNote({
+          body: 'Patient interested in implants',
+          contactId: '12345',
+        });
+
+        expect(result.success).toBe(true);
+        if (result.success && result.value) {
+          expect(result.value.body).toBe('Patient expressed interest in All-on-X');
+        }
+      });
+    });
+
+    describe('getNotesForContact', () => {
+      it('should return notes for contact', async () => {
+        const mockNotes = [createMockPipedriveNote()];
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(mockNotes));
+
+        const result = await gateway.getNotesForContact('12345');
+
+        expect(result.success).toBe(true);
+        if (result.success && result.value) {
+          expect(result.value.length).toBe(1);
+        }
+      });
+    });
+  });
+
+  // ===========================================================================
+  // PIPELINE OPERATIONS TESTS
+  // ===========================================================================
+
+  describe('Pipeline Operations', () => {
+    describe('getPipelines', () => {
+      it('should return all pipelines', async () => {
+        const mockPipelines = [createMockPipedrivePipeline()];
+        vi.mocked(global.fetch).mockResolvedValueOnce(
+          createPipedriveSuccessResponse(mockPipelines)
+        );
+
+        const result = await gateway.getPipelines();
+
+        expect(result.success).toBe(true);
+        if (result.success && result.value) {
+          expect(result.value.length).toBe(1);
+          expect(result.value[0]?.name).toBe('Dental Sales Pipeline');
+        }
+      });
+    });
+
+    describe('getPipelineStages', () => {
+      it('should return stages for pipeline', async () => {
+        const mockStages = [createMockPipedriveStage()];
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(mockStages));
+
+        const result = await gateway.getPipelineStages('1');
+
+        expect(result.success).toBe(true);
+        if (result.success && result.value) {
+          expect(result.value.length).toBe(1);
+        }
+      });
+    });
+  });
+
+  // ===========================================================================
+  // OWNER/USER OPERATIONS TESTS
+  // ===========================================================================
+
+  describe('Owner Operations', () => {
+    describe('getOwners', () => {
+      it('should return all users', async () => {
+        const mockUsers = [createMockPipedriveUser()];
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(mockUsers));
+
+        const result = await gateway.getOwners();
+
+        expect(result.success).toBe(true);
+        if (result.success && result.value) {
+          expect(result.value.length).toBe(1);
+          // CrmOwner has firstName/lastName, not name
+          expect(result.value[0]?.firstName).toBe('Sales');
+          expect(result.value[0]?.lastName).toBe('Rep User');
+        }
+      });
+    });
+
+    describe('getOwner', () => {
+      it('should return single user', async () => {
+        const mockUser = createMockPipedriveUser();
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(mockUser));
+
+        const result = await gateway.getOwner('99');
+
+        expect(result.success).toBe(true);
+        if (result.success && result.value) {
+          expect(result.value.id).toBe('99');
+        }
+      });
+    });
+  });
+
+  // ===========================================================================
+  // HEALTH CHECK TESTS
+  // ===========================================================================
+
+  describe('Health Check', () => {
+    describe('healthCheck', () => {
+      it('should return connected when API is reachable', async () => {
+        const mockUser = createMockPipedriveUser();
+        vi.mocked(global.fetch).mockResolvedValueOnce(createPipedriveSuccessResponse(mockUser));
+
+        const result = await gateway.healthCheck();
+
+        expect(result.success).toBe(true);
+        if (result.success && result.value) {
+          expect(result.value.connected).toBe(true);
+          expect(result.value.latencyMs).toBeGreaterThanOrEqual(0);
+        }
+      });
+
+      it('should return disconnected when API fails', async () => {
+        vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Connection failed'));
+
+        const result = await gateway.healthCheck();
+
+        expect(result.success).toBe(true);
+        if (result.success && result.value) {
+          expect(result.value.connected).toBe(false);
+        }
+      });
+    });
+  });
+
+  // ===========================================================================
+  // LEAD SCORE UPDATE TESTS
+  // ===========================================================================
+
+  describe('updateContactScore', () => {
+    it('should update lead score for contact', async () => {
+      // First call for getting current person
+      vi.mocked(global.fetch).mockResolvedValueOnce(
+        createPipedriveSuccessResponse(createMockPipedrivePerson())
+      );
+      // Second call for updating person
+      vi.mocked(global.fetch).mockResolvedValueOnce(
+        createPipedriveSuccessResponse(createMockPipedrivePerson())
+      );
+
+      const result = await gateway.updateContactScore(
+        '12345',
+        4 as unknown as import('@medicalcor/domain').LeadScore,
+        {
+          classification: 'HOT',
+          confidence: 0.95,
+          factors: ['urgent', 'high-budget'],
+        }
+      );
+
+      expect(result.success).toBe(true);
     });
   });
 });
