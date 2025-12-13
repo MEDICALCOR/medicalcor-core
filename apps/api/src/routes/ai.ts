@@ -358,7 +358,7 @@ async function checkBudgetAndSetHeaders(
  * Build fallback response for scoring operations that timeout
  */
 function buildScoringFallbackResponse(
-  requestType: string,
+  requestType: 'function_call' | 'workflow' | 'natural',
   traceId: string,
   startTime: number
 ): Awaited<ReturnType<typeof router.process>> {
