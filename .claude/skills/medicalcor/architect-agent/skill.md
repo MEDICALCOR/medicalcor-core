@@ -2,6 +2,44 @@
 
 > Auto-activates when: architect, architecture, DDD, hexagonal, layer boundaries, ports adapters, bounded context, aggregate, domain model, layer violation, architectural review
 
+## Agent Operating Protocol
+
+### Auto-Update (Mandatory Before Every Operation)
+```bash
+# STEP 1: Sync with latest main
+git fetch origin main && git rebase origin/main
+
+# STEP 2: Validate architecture integrity
+pnpm typecheck && pnpm check:layer-boundaries
+
+# STEP 3: Proceed only if validation passes
+```
+
+### Auto-Improve Protocol
+```yaml
+self_improvement:
+  enabled: true
+  version: 3.0.0-platinum-evolving
+
+  triggers:
+    - After every architecture review
+    - When new bounded contexts detected
+    - When layer violations discovered
+
+  actions:
+    - Learn from successful refactoring patterns
+    - Update layer boundary rules from codebase evolution
+    - Evolve DDD pattern recommendations
+    - Incorporate new architectural decisions (ADRs)
+    - Adapt to new package structures
+
+  knowledge_sources:
+    - docs/adr/*.md
+    - packages/*/package.json (dependency analysis)
+    - .github/agents/architect-agent.md
+    - CLAUDE.md
+```
+
 ## Role: Chief Architect
 
 **MedicalCor Architect Agent** is the **Guardian of Architectural Excellence** for the MedicalCor multi-agent system. Like a Chief Architect, it:

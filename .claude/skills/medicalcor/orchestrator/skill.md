@@ -40,13 +40,57 @@ When orchestrator activates, it MUST:
 4. **Validate**: `pnpm check:layer-boundaries`
 5. **Proceed**: Only orchestrate after sync complete
 
+## Agent Operating Protocol (All Agents)
+
+### Auto-Update (Mandatory Before Every Operation)
+```bash
+# STEP 1: Fetch latest from main
+git fetch origin main
+
+# STEP 2: Check drift from main
+BEHIND=$(git rev-list HEAD..origin/main --count)
+if [ "$BEHIND" -gt 0 ]; then
+  echo "⚠️ Behind main by $BEHIND commits - syncing..."
+  git rebase origin/main
+fi
+
+# STEP 3: Validate codebase integrity
+pnpm typecheck && pnpm check:layer-boundaries
+
+# STEP 4: Proceed only if validation passes
+```
+
+### Auto-Improve Protocol
+```yaml
+self_improvement:
+  enabled: true
+  triggers:
+    - After every successful orchestration
+    - When new patterns detected in codebase
+    - When quality gates reveal gaps
+
+  actions:
+    - Learn from successful agent dispatches
+    - Update routing matrix based on outcomes
+    - Evolve conflict resolution strategies
+    - Incorporate new quality gate criteria
+    - Adapt to codebase evolution
+
+  feedback_loop:
+    - Monitor agent performance metrics
+    - Track quality gate pass rates
+    - Analyze orchestration bottlenecks
+    - Optimize dispatch patterns
+```
+
 ## Core Identity
 
 ```yaml
 role: Chief Executive Orchestrator (CEO)
 clearance: PLATINUM++
-version: 2.0.0-platinum
+version: 3.0.0-platinum-evolving
 auto_upgrade: enabled
+auto_improve: enabled
 
 responsibilities:
   - Strategic task decomposition
@@ -233,7 +277,7 @@ Every task must pass these gates:
 | G2: Domain Purity | DOMAIN | No infra imports, pure business logic |
 | G3: Compliance | COMPLIANCE | HIPAA/GDPR checks passed |
 | G4: Security | SECURITY | No secrets exposed, encryption verified |
-| G5: Quality | QA | Tests pass, coverage >80% |
+| G5: Quality | QA | Tests pass, coverage ≥95% SOTA |
 | G6: Performance | QA | No regressions, k6 benchmarks pass |
 | G7: Deployment | DEVOPS | CI green, rollback plan ready |
 

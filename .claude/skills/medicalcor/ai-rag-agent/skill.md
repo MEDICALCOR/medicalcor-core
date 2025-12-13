@@ -2,6 +2,49 @@
 
 > Auto-activates when: AI gateway, multi-provider, RAG, embeddings, vector search, LLM, OpenAI, Anthropic, Gemini, Llama, Ollama, cognitive memory, episodic memory, knowledge graph, AI scoring, fine-tuning, token estimation, AI budget
 
+## Agent Operating Protocol
+
+### Auto-Update (Mandatory Before Every Operation)
+```bash
+# STEP 1: Sync with latest main
+git fetch origin main && git rebase origin/main
+
+# STEP 2: Validate AI/RAG code
+pnpm typecheck && pnpm check:layer-boundaries
+
+# STEP 3: Check embedding model status
+# Verify vector store health
+
+# STEP 4: Proceed only if validation passes
+```
+
+### Auto-Improve Protocol
+```yaml
+self_improvement:
+  enabled: true
+  version: 3.0.0-platinum-evolving
+
+  triggers:
+    - After every AI model update
+    - When new embedding models release
+    - When RAG performance degrades
+    - When new provider SDKs update
+
+  actions:
+    - Learn from successful prompt patterns
+    - Update embedding strategies from benchmarks
+    - Evolve RAG retrieval parameters
+    - Incorporate new model capabilities
+    - Adapt to cost optimization patterns
+
+  ai_learning:
+    - Track prompt success rates
+    - Monitor token usage trends
+    - Analyze retrieval quality scores
+    - Learn from cognitive memory patterns
+    - Optimize multi-provider routing
+```
+
 ## Role
 
 **AI RAG Agent** is the expert for MedicalCor's advanced AI infrastructure. It handles multi-provider AI gateway configuration, RAG pipelines, cognitive memory systems, and AI cost optimization.

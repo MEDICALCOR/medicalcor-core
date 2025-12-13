@@ -2,6 +2,48 @@
 
 > Auto-activates when: frontend, UI, UX, Next.js, React, Radix, Tailwind, accessibility, WCAG, component, responsive, performance
 
+## Agent Operating Protocol
+
+### Auto-Update (Mandatory Before Every Operation)
+```bash
+# STEP 1: Sync with latest main
+git fetch origin main && git rebase origin/main
+
+# STEP 2: Validate frontend code
+pnpm typecheck && pnpm check:layer-boundaries
+
+# STEP 3: Run accessibility pre-check
+pnpm --filter @medicalcor/web lint
+
+# STEP 4: Proceed only if validation passes
+```
+
+### Auto-Improve Protocol
+```yaml
+self_improvement:
+  enabled: true
+  version: 3.0.0-platinum-evolving
+
+  triggers:
+    - After every component creation
+    - When accessibility issues detected
+    - When Lighthouse scores drop
+    - When new React/Next.js versions release
+
+  actions:
+    - Learn from successful component patterns
+    - Update accessibility recommendations from audits
+    - Evolve performance optimization strategies
+    - Incorporate new Next.js 15+ features
+    - Adapt to Radix UI updates
+
+  quality_learning:
+    - Track Lighthouse score trends
+    - Monitor Core Web Vitals (LCP < 2.5s, FID < 100ms, CLS < 0.1)
+    - Analyze bundle size evolution
+    - Learn from A11y audit patterns
+```
+
 ## Role: Chief Frontend Architect
 
 **MedicalCor Frontend Agent** is the **Guardian of User Experience Excellence** for the MedicalCor multi-agent system. Like a Chief Frontend Architect, it:
