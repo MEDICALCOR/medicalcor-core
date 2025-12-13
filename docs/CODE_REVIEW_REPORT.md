@@ -52,28 +52,21 @@ This comprehensive code review analyzed the MedicalCor Core enterprise medical C
 - **Impact:** Information disclosure to attackers
 - **Fix:** Add API key authentication requirement
 
-### 3. ChatGPT Plugin Placeholder Verification Token
-
-- **File:** `apps/api/src/routes/chatgpt-plugin.ts:40`
-- **Problem:** Falls back to `'REPLACE_WITH_OPENAI_TOKEN'` if env var not set
-- **Impact:** Any ChatGPT instance can access the plugin in production
-- **Fix:** Throw error if token not configured in production
-
-### 4. Race Condition in Rate Limiter Counter
+### 3. Race Condition in Rate Limiter Counter
 
 - **File:** `packages/core/src/ai-gateway/user-rate-limiter.ts:533-539`
 - **Problem:** Non-atomic get/set pattern for counter increment
 - **Impact:** Rate limits can be bypassed under concurrent load
 - **Fix:** Use Redis `INCR` command for atomic operations
 
-### 5. Missing Consent Check in Voice Handler
+### 4. Missing Consent Check in Voice Handler
 
 - **File:** `apps/trigger/src/tasks/voice-handler.ts:89-193`
 - **Problem:** Voice call transcripts processed without GDPR consent validation
 - **Impact:** Potential GDPR violation
 - **Fix:** Add consent check matching `whatsapp-handler.ts` pattern
 
-### 6. Non-Idempotent HubSpot Task Creation
+### 5. Non-Idempotent HubSpot Task Creation
 
 - **File:** `apps/trigger/src/workflows/patient-journey.ts:70-83`
 - **Problem:** Task creation retries can create duplicate tasks
@@ -257,7 +250,6 @@ This comprehensive code review analyzed the MedicalCor Core enterprise medical C
 | -------- | --------------------------------------------------- | ------- | ---------------------- |
 | P0       | `apps/api/src/routes/ai.ts`                         | 294     | Missing crypto import  |
 | P0       | `apps/api/src/routes/backup.ts`                     | 400-428 | Unauth config endpoint |
-| P0       | `apps/api/src/routes/chatgpt-plugin.ts`             | 40      | Placeholder token      |
 | P0       | `packages/core/src/ai-gateway/user-rate-limiter.ts` | 533-539 | Race condition         |
 | P0       | `apps/trigger/src/tasks/voice-handler.ts`           | 89-193  | Missing consent        |
 | P0       | `apps/trigger/src/workflows/patient-journey.ts`     | 70-83   | Non-idempotent         |

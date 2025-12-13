@@ -31,28 +31,7 @@ Comprehensive test coverage has been added for the `apps/api` package, significa
 - Database URL validation for restore operations
 - Service unavailability handling
 
-### 2. chatgpt-plugin-routes.test.ts (399 lines)
-
-**Route**: `/.well-known/ai-plugin.json`, `/openapi.json`, `/logo.png`, `/privacy`
-
-**Coverage**:
-
-- ✅ GET /.well-known/ai-plugin.json - ChatGPT plugin manifest
-- ✅ GET /openapi.json - OpenAPI 3.1 specification
-- ✅ GET /logo.png - SVG plugin logo
-- ✅ GET /privacy - Privacy policy HTML
-
-**Key Tests**:
-
-- 30+ test cases
-- Plugin manifest validation
-- OpenAPI spec generation
-- SVG logo rendering
-- Privacy policy content
-- Environment-specific configuration
-- Security validation (no secret exposure)
-
-### 3. diagnostics-routes.test.ts (518 lines)
+### 2. diagnostics-routes.test.ts (518 lines)
 
 **Route**: `/diagnostics/*`, `/metrics/*`
 
