@@ -750,6 +750,17 @@ describe('TCPA Do-Not-Call Compliance', () => {
   // ============================================================================
 
   describe('Comprehensive Outbound Call Validation', () => {
+    // Mock time to 2 PM Eastern to ensure we're within permitted calling hours (8 AM - 9 PM)
+    beforeEach(() => {
+      vi.useFakeTimers();
+      // Set to 2 PM Eastern Time (14:00 in America/New_York)
+      vi.setSystemTime(new Date('2024-06-15T14:00:00-04:00'));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     it('should permit transactional calls to non-DNC numbers', async () => {
       const result = await tcpaService.canMakeOutboundCall(
         '+14155551234',
