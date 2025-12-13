@@ -26,3 +26,5 @@ export { rlsTestRoutes } from './rls-test.js';
 export { apiDocsRoutes } from './api-docs.js';
 export { indexUsageRoutes } from './index-usage.js';
 export { dentalLabRoutes, createDentalLabRoutes } from './dental-lab.js';
+export { orchestrationRoutes, createOrchestrationRoutes } from './orchestration.js';
+export { revenueForecastRoutes, createRevenueForecastRoutes } from './revenue-forecast.js';
