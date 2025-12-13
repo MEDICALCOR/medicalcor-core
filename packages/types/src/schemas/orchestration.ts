@@ -57,10 +57,7 @@ export function createCorrelationId(value: string): CorrelationId {
   return value as CorrelationId;
 }
 
-export function createIdempotencyKey(
-  operation: string,
-  ...parts: string[]
-): IdempotencyKey {
+export function createIdempotencyKey(operation: string, ...parts: string[]): IdempotencyKey {
   return `${operation}:${parts.join(':')}` as IdempotencyKey;
 }
 
@@ -583,6 +580,7 @@ export function isValidStatusTransition(
 export const OrchestrationCheckpointSchema = z.object({
   version: z.number(),
   status: OrchestrationStatusSchema,
+  resumable: z.boolean().default(true),
   lastProcessedDirectiveId: z.string().uuid().optional(),
   completedAgents: z.array(AgentCodenameSchema),
   pendingAgents: z.array(AgentCodenameSchema),
@@ -922,9 +920,10 @@ export function getRequiredQualityGates(taskType: string): QualityGate[] {
 }
 
 /** Get default routing for a task type */
-export function getTaskRouting(
-  taskType: string
-): { primary: AgentCodename; support: AgentCodename[] } {
+export function getTaskRouting(taskType: string): {
+  primary: AgentCodename;
+  support: AgentCodename[];
+} {
   return TASK_TYPE_ROUTING[taskType] ?? { primary: 'DOMAIN', support: ['QA'] };
 }
 
@@ -937,9 +936,7 @@ export function calculateProgress(session: OrchestrationSession): number {
   if (session.status === 'DISPATCHING') return 30;
 
   const totalAgents = session.directives.length;
-  const completedAgents = session.reports.filter(
-    (r) => r.status === 'COMPLETED'
-  ).length;
+  const completedAgents = session.reports.filter((r) => r.status === 'COMPLETED').length;
   const agentProgress = totalAgents > 0 ? (completedAgents / totalAgents) * 40 : 0;
 
   const totalGates = session.analysis?.requiredQualityGates.length ?? 0;
@@ -972,5 +969,7 @@ export function generateSessionId(): OrchestrationSessionId {
 export function generateCorrelationId(prefix?: string): CorrelationId {
   const timestamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0];
   const random = crypto.randomUUID().split('-')[0];
-  return createCorrelationId(prefix ? `${prefix}-${timestamp}-${random}` : `${timestamp}-${random}`);
+  return createCorrelationId(
+    prefix ? `${prefix}-${timestamp}-${random}` : `${timestamp}-${random}`
+  );
 }

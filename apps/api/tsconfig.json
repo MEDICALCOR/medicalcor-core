@@ -7,5 +7,12 @@
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/__tests__/**"],
-  "references": [{ "path": "../../packages/core" }, { "path": "../../packages/types" }]
+  "references": [
+    { "path": "../../packages/types" },
+    { "path": "../../packages/core" },
+    { "path": "../../packages/domain" },
+    { "path": "../../packages/application" },
+    { "path": "../../packages/infrastructure" },
+    { "path": "../../packages/integrations" }
+  ]
 }

@@ -153,11 +153,13 @@ export {
 } from './PostgresLabCaseRepository.js';
 
 // =============================================================================
-// ORCHESTRATION REPOSITORY (Multi-Agent)
+// REVENUE SNAPSHOT REPOSITORY
 // =============================================================================
 
 export {
   // Class and factory
-  InMemoryOrchestrationRepository,
-  createInMemoryOrchestrationRepository,
-} from './InMemoryOrchestrationRepository.js';
+  PostgresRevenueSnapshotRepository,
+  createPostgresRevenueSnapshotRepository,
+  // Configuration types
+  type PostgresRevenueSnapshotRepositoryConfig,
+} from './PostgresRevenueSnapshotRepository.js';
