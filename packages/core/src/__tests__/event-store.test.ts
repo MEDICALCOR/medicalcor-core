@@ -413,6 +413,58 @@ describe('EventStore', () => {
       expect(events).toHaveLength(1);
       expect(events[0]!.type).toBe('Persisted');
     });
+
+    it('should handle event with undefined causationId', async () => {
+      const event = await eventStore.emit({
+        type: 'NoCausation',
+        correlationId: 'corr-no-cause',
+        payload: {},
+        causationId: undefined,
+      });
+
+      expect(event.metadata.causationId).toBeUndefined();
+    });
+
+    it('should handle event with all optional fields populated', async () => {
+      const event = await eventStore.emit({
+        type: 'CompleteEvent',
+        correlationId: 'corr-complete',
+        payload: { data: 'test' },
+        aggregateId: 'agg-complete',
+        aggregateType: 'CompleteAggregate',
+        version: 10,
+        causationId: 'cause-complete',
+        idempotencyKey: 'custom-complete-key',
+      });
+
+      expect(event.aggregateId).toBe('agg-complete');
+      expect(event.aggregateType).toBe('CompleteAggregate');
+      expect(event.version).toBe(10);
+      expect(event.metadata.causationId).toBe('cause-complete');
+      expect(event.metadata.idempotencyKey).toBe('custom-complete-key');
+    });
+
+    it('should generate different idempotency keys for rapid successive events', async () => {
+      const events = await Promise.all([
+        eventStore.emit({ type: 'RapidEvent', correlationId: 'corr-rapid', payload: {} }),
+        eventStore.emit({ type: 'RapidEvent', correlationId: 'corr-rapid', payload: {} }),
+        eventStore.emit({ type: 'RapidEvent', correlationId: 'corr-rapid', payload: {} }),
+      ]);
+
+      const keys = events.map((e) => e.metadata.idempotencyKey);
+      expect(new Set(keys).size).toBe(3); // All unique
+    });
+
+    it('should include type and correlationId in generated idempotency key', async () => {
+      const event = await eventStore.emit({
+        type: 'SpecialType',
+        correlationId: 'special-corr',
+        payload: {},
+      });
+
+      expect(event.metadata.idempotencyKey).toContain('SpecialType');
+      expect(event.metadata.idempotencyKey).toContain('special-corr');
+    });
   });
 
   describe('publishers', () => {
@@ -455,6 +507,41 @@ describe('EventStore', () => {
       });
 
       expect(event).toBeDefined();
+    });
+
+    it('should continue publishing to other publishers when one fails', async () => {
+      const failingPublisher: EventPublisher = {
+        publish: vi.fn().mockRejectedValue(new Error('Publish failed')),
+      };
+      const successPublisher: EventPublisher = {
+        publish: vi.fn().mockResolvedValue(undefined),
+      };
+
+      eventStore.addPublisher(failingPublisher);
+      eventStore.addPublisher(successPublisher);
+
+      const event = await eventStore.emit({
+        type: 'MixedPublish',
+        correlationId: 'corr-mixed',
+        payload: {},
+      });
+
+      // Allow async publish to complete
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(failingPublisher.publish).toHaveBeenCalledWith(event);
+      expect(successPublisher.publish).toHaveBeenCalledWith(event);
+    });
+
+    it('should work without any publishers', async () => {
+      const event = await eventStore.emit({
+        type: 'NoPublishers',
+        correlationId: 'corr-none',
+        payload: {},
+      });
+
+      expect(event).toBeDefined();
+      expect(event.type).toBe('NoPublishers');
     });
   });
 
@@ -574,5 +661,118 @@ describe('createInMemoryEventStore', () => {
     });
 
     expect(event.metadata.source).toBe('my-service');
+  });
+});
+
+describe('InMemoryEventStore - Edge Cases', () => {
+  let store: InMemoryEventStore;
+
+  beforeEach(() => {
+    store = new InMemoryEventStore();
+  });
+
+  const createEvent = (overrides: Partial<StoredEvent> = {}): StoredEvent => ({
+    id: `event-${Date.now()}-${Math.random()}`,
+    type: 'TestEvent',
+    aggregateId: undefined,
+    aggregateType: undefined,
+    version: undefined,
+    payload: { data: 'test' },
+    metadata: {
+      correlationId: 'corr-123',
+      causationId: undefined,
+      idempotencyKey: `idem-${Date.now()}-${Math.random()}`,
+      timestamp: new Date().toISOString(),
+      source: 'test',
+    },
+    ...overrides,
+  });
+
+  it('should handle version 0 correctly', async () => {
+    const event = createEvent({ aggregateId: 'agg-1', version: 0 });
+    await store.append(event);
+
+    const result = await store.getByAggregateId('agg-1');
+    expect(result).toHaveLength(1);
+    expect(result[0]!.version).toBe(0);
+  });
+
+  it('should allow version conflict check to pass when aggregateId is undefined but version is defined', async () => {
+    const event1 = createEvent({ aggregateId: undefined, version: 1 });
+    const event2 = createEvent({ aggregateId: undefined, version: 1 });
+
+    await store.append(event1);
+    await store.append(event2);
+
+    expect(store.getAll()).toHaveLength(2);
+  });
+
+  it('should allow version conflict check to pass when version is undefined but aggregateId is defined', async () => {
+    const event1 = createEvent({ aggregateId: 'agg-1', version: undefined });
+    const event2 = createEvent({ aggregateId: 'agg-1', version: undefined });
+
+    await store.append(event1);
+    await store.append(event2);
+
+    expect(store.getAll()).toHaveLength(2);
+  });
+
+  it('should filter by afterVersion when version is 0', async () => {
+    const aggregateId = 'agg-zero';
+    await store.append(createEvent({ aggregateId, version: 0 }));
+    await store.append(createEvent({ aggregateId, version: 1 }));
+    await store.append(createEvent({ aggregateId, version: 2 }));
+
+    const result = await store.getByAggregateId(aggregateId, 0);
+
+    expect(result).toHaveLength(2);
+    expect(result.map((e) => e.version)).toEqual([1, 2]);
+  });
+
+  it('should include version 0 when afterVersion is undefined', async () => {
+    const aggregateId = 'agg-include-zero';
+    await store.append(createEvent({ aggregateId, version: 0 }));
+    await store.append(createEvent({ aggregateId, version: 1 }));
+
+    const result = await store.getByAggregateId(aggregateId);
+
+    expect(result).toHaveLength(2);
+    expect(result.map((e) => e.version)).toEqual([0, 1]);
+  });
+
+  it('should handle mixed undefined and numeric versions in sorting', async () => {
+    const aggregateId = 'agg-mixed';
+    await store.append(createEvent({ aggregateId, version: undefined }));
+    await store.append(createEvent({ aggregateId, version: 2 }));
+    await store.append(createEvent({ aggregateId, version: undefined }));
+    await store.append(createEvent({ aggregateId, version: 1 }));
+
+    const result = await store.getByAggregateId(aggregateId);
+
+    // Should be sorted, with undefined versions treated as 0
+    expect(result).toHaveLength(4);
+    const versions = result.map((e) => e.version ?? 0);
+    expect(versions[0]).toBeLessThanOrEqual(versions[1]!);
+    expect(versions[1]).toBeLessThanOrEqual(versions[2]!);
+    expect(versions[2]).toBeLessThanOrEqual(versions[3]!);
+  });
+
+  it('should return empty array for non-existent aggregate', async () => {
+    const result = await store.getByAggregateId('non-existent');
+    expect(result).toEqual([]);
+  });
+
+  it('should return empty array for non-existent type', async () => {
+    const result = await store.getByType('NonExistentType');
+    expect(result).toEqual([]);
+  });
+
+  it('should handle limit larger than available events', async () => {
+    await store.append(createEvent({ type: 'LimitTest' }));
+    await store.append(createEvent({ type: 'LimitTest' }));
+
+    const result = await store.getByType('LimitTest', 100);
+
+    expect(result).toHaveLength(2);
   });
 });
