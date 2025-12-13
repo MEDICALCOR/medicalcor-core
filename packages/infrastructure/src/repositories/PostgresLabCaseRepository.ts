@@ -248,6 +248,7 @@ interface StatusHistoryRow {
   changed_by: string;
   changed_at: Date;
   reason: string | null;
+  sla_deadline: Date | null;
   metadata: Record<string, unknown>;
 }
 
@@ -265,8 +266,9 @@ interface SLATrackingRow {
   overall_status: string;
   days_remaining: number;
   percent_complete: number;
-  created_at: Date;
-  updated_at: Date;
+  last_calculated_at: Date | null;
+  created_at: Date | null;
+  updated_at: Date | null;
 }
 
 interface CollaborationThreadRow {
@@ -384,44 +386,53 @@ class LabCaseRowMapper {
       clinicId: row.clinic_id,
       patientId: row.patient_id,
       prescribingDentist: row.prescribing_dentist,
+      prescriptionDate: row.received_at, // Using received_at as prescription date
       status: row.status as LabCaseStatus,
       priority: row.priority as LabCasePriority,
+      prosthetics: [], // Will be populated by separate query
       receivedAt: row.received_at,
       dueDate: row.due_date,
+      currentSLADeadline: row.due_date, // Default to due date
       completedAt: row.completed_at ?? undefined,
-      shadeGuide: row.shade_guide ?? undefined,
-      shadeValue: row.shade_value ?? undefined,
       specialInstructions: row.special_instructions ?? undefined,
-      internalNotes: row.internal_notes ?? undefined,
       assignedTechnician: row.assigned_technician ?? undefined,
       assignedDesigner: row.assigned_designer ?? undefined,
-      estimatedHours: row.estimated_hours ?? undefined,
-      actualHours: row.actual_hours ?? undefined,
-      rushFee: row.rush_fee ? parseFloat(row.rush_fee) : undefined,
-      totalCost: row.total_cost ? parseFloat(row.total_cost) : undefined,
+      estimatedCost: row.estimated_hours ? row.estimated_hours * 100 : undefined,
+      actualCost: row.actual_hours ? row.actual_hours * 100 : undefined,
+      currency: 'RON',
       notes: row.notes ?? undefined,
-      metadata: row.metadata,
+      version: row.version,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
-      version: row.version,
+      deletedAt: row.deleted_at ?? undefined,
     };
   }
 
   static toDigitalScan(row: DigitalScanRow): DigitalScan {
+    // Map quality score to enum
+    const qualityMap: Record<number, DigitalScan['quality']> = {
+      4: 'EXCELLENT',
+      3: 'GOOD',
+      2: 'ACCEPTABLE',
+      1: 'POOR',
+    };
+    const quality = row.quality_score ? qualityMap[row.quality_score] : undefined;
+
     return {
       id: row.id,
       labCaseId: row.lab_case_id,
       scanType: row.scan_type as DigitalScan['scanType'],
       fileFormat: row.file_format as DigitalScan['fileFormat'],
-      storagePath: row.storage_path,
-      fileSizeBytes: row.file_size_bytes,
+      filePath: row.storage_path,
+      fileSize: row.file_size_bytes,
       checksum: row.checksum ?? undefined,
       scannerBrand: row.scanner_brand ?? undefined,
       scannerModel: row.scanner_model ?? undefined,
-      scanDate: row.scan_date,
-      uploadedBy: row.uploaded_by,
-      qualityScore: row.quality_score ?? undefined,
+      quality,
       notes: row.notes ?? undefined,
+      processed: false,
+      uploadedBy: row.uploaded_by ?? undefined,
+      uploadedAt: row.scan_date,
       createdAt: row.created_at,
     };
   }
@@ -430,19 +441,17 @@ class LabCaseRowMapper {
     return {
       id: row.id,
       labCaseId: row.lab_case_id,
-      version: row.version,
-      softwareName: row.software_name,
+      softwareUsed: row.software_name,
       softwareVersion: row.software_version ?? undefined,
-      fileFormat: row.file_format as CADDesign['fileFormat'],
-      storagePath: row.storage_path,
-      fileSizeBytes: row.file_size_bytes,
+      filePath: row.storage_path,
+      fileSize: row.file_size_bytes,
       designedBy: row.designed_by,
-      designHours: row.design_hours ?? undefined,
+      designedAt: row.created_at,
+      revisionNumber: row.version,
       approvalStatus: row.approval_status as CADDesign['approvalStatus'],
       approvedBy: row.approved_by ?? undefined,
       approvedAt: row.approved_at ?? undefined,
       notes: row.notes ?? undefined,
-      metadata: row.metadata,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -453,13 +462,12 @@ class LabCaseRowMapper {
       id: row.id,
       labCaseId: row.lab_case_id,
       method: row.method as FabricationRecord['method'],
-      equipmentId: row.equipment_id ?? undefined,
+      machineId: row.equipment_id ?? undefined,
       materialLotNumber: row.material_lot_number ?? undefined,
-      materialExpiry: row.material_expiry ?? undefined,
       technicianId: row.technician_id,
       startedAt: row.started_at,
       completedAt: row.completed_at ?? undefined,
-      machineTimeMinutes: row.machine_time_minutes ?? undefined,
+      durationMinutes: row.machine_time_minutes ?? undefined,
       parameters: row.parameters,
       notes: row.notes ?? undefined,
       createdAt: row.created_at,
@@ -467,17 +475,31 @@ class LabCaseRowMapper {
   }
 
   static toQCInspection(row: QCInspectionRow): QCInspection {
+    // Parse criteria from database format - could be object or array
+    let criteria: QCInspection['criteria'] = [];
+    if (Array.isArray(row.criteria)) {
+      criteria = row.criteria as QCInspection['criteria'];
+    } else if (row.criteria && typeof row.criteria === 'object') {
+      // Convert object format to array format
+      criteria = Object.entries(row.criteria).map(([key, value]) => {
+        const v = value as Record<string, unknown>;
+        return {
+          criterion: key as QCInspection['criteria'][number]['criterion'],
+          passed: Boolean(v.passed),
+          score: Number(v.score ?? 5),
+          notes: typeof v.notes === 'string' ? v.notes : undefined,
+        };
+      });
+    }
+
     return {
       id: row.id,
       labCaseId: row.lab_case_id,
-      inspectionType: row.inspection_type as QCInspection['inspectionType'],
       inspectedBy: row.inspected_by,
       inspectedAt: row.inspected_at,
       passed: row.passed,
       overallScore: row.overall_score,
-      criteria: row.criteria as QCInspection['criteria'],
-      defectsFound: row.defects_found ?? undefined,
-      correctiveActions: row.corrective_actions ?? undefined,
+      criteria,
       photos: row.photos ?? undefined,
       notes: row.notes ?? undefined,
       createdAt: row.created_at,
@@ -485,15 +507,29 @@ class LabCaseRowMapper {
   }
 
   static toTryInRecord(row: TryInRecordRow): TryInRecord {
+    // Parse adjustments from database format
+    const adjustmentsRequired = Array.isArray(row.adjustments_required)
+      ? row.adjustments_required.map((adj: unknown) => {
+          const a = adj as Record<string, unknown>;
+          const desc = typeof a.description === 'string' ? a.description : '';
+          return {
+            type: (a.type ?? 'OTHER') as TryInRecord['adjustmentsRequired'][number]['type'],
+            description: desc,
+            resolved: Boolean(a.resolved),
+            toothNumbers: a.toothNumbers as TryInRecord['adjustmentsRequired'][number]['toothNumbers'],
+          };
+        })
+      : [];
+
     return {
       id: row.id,
       labCaseId: row.lab_case_id,
       scheduledAt: row.scheduled_at,
       completedAt: row.completed_at ?? undefined,
-      clinicianId: row.clinician_id,
+      clinicianId: row.clinician_id ?? undefined,
       clinicianNotes: row.clinician_notes ?? undefined,
       patientSatisfaction: row.patient_satisfaction ?? undefined,
-      adjustmentsRequired: row.adjustments_required ?? undefined,
+      adjustmentsRequired,
       photos: row.photos ?? undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -504,17 +540,21 @@ class LabCaseRowMapper {
     return {
       id: row.id,
       labCaseId: row.lab_case_id,
-      fromStatus: row.from_status as LabCaseStatus | undefined,
-      toStatus: row.to_status as LabCaseStatus,
+      previousStatus: row.from_status as LabCaseStatus | undefined,
+      newStatus: row.to_status as LabCaseStatus,
       changedBy: row.changed_by,
       changedAt: row.changed_at,
       reason: row.reason ?? undefined,
-      metadata: row.metadata,
+      slaDeadline: row.sla_deadline ?? row.changed_at, // Use sla_deadline if available
+      eventType: 'STATUS_CHANGE',
+      eventData: row.metadata as Record<string, unknown> ?? {},
     };
   }
 
   static toSLATracking(row: SLATrackingRow): LabSLATracking {
+    const now = new Date();
     return {
+      id: row.id ?? crypto.randomUUID(),
       labCaseId: row.lab_case_id,
       slaType: row.sla_type as LabSLATracking['slaType'],
       milestones: row.milestones.map((m) => ({
@@ -526,48 +566,121 @@ class LabCaseRowMapper {
       overallStatus: row.overall_status as SLAStatus,
       daysRemaining: row.days_remaining,
       percentComplete: row.percent_complete,
+      lastCalculatedAt: row.last_calculated_at ?? now,
+      createdAt: row.created_at ?? now,
+      updatedAt: row.updated_at ?? now,
     };
   }
 
   static toCollaborationThread(row: CollaborationThreadRow): CollaborationThread {
+    // Parse participants from database format
+    const participants = Array.isArray(row.participants)
+      ? row.participants.map((p: unknown) => {
+          if (typeof p === 'string') {
+            return {
+              userId: p,
+              role: 'CLINICIAN' as const,
+              organization: 'CLINIC' as const,
+            };
+          }
+          const part = p as Record<string, unknown>;
+          const userId = typeof part.userId === 'string' ? part.userId : '';
+          return {
+            userId,
+            role: (part.role ?? 'CLINICIAN') as CollaborationThread['participants'][number]['role'],
+            organization: (part.organization ?? 'CLINIC') as CollaborationThread['participants'][number]['organization'],
+            lastSeen: part.lastSeen ? new Date(part.lastSeen as string) : undefined,
+          };
+        })
+      : [];
+
     return {
       id: row.id,
       labCaseId: row.lab_case_id,
       subject: row.subject,
-      threadType: row.thread_type as CollaborationThread['threadType'],
       priority: row.priority as CollaborationThread['priority'],
       status: row.status as CollaborationThread['status'],
-      participants: row.participants,
+      participants,
       createdBy: row.created_by,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       lastMessageAt: row.last_message_at ?? undefined,
+      resolvedAt: row.resolved_at ?? undefined,
     };
   }
 
   static toCollaborationMessage(row: CollaborationMessageRow): CollaborationMessage {
+    // Parse attachments from database format
+    const attachments = Array.isArray(row.attachments)
+      ? row.attachments.map((att: unknown) => {
+          const a = att as Record<string, unknown>;
+          const id = typeof a.id === 'string' ? a.id : crypto.randomUUID();
+          const filename = typeof a.filename === 'string' ? a.filename : '';
+          const url = typeof a.url === 'string' ? a.url : '';
+          return {
+            id,
+            filename,
+            url,
+            fileSize: Number(a.fileSize ?? a.size ?? 0),
+            fileType: (a.fileType ?? a.mimeType ?? 'IMAGE') as CollaborationMessage['attachments'][number]['fileType'],
+            thumbnailUrl: typeof a.thumbnailUrl === 'string' ? a.thumbnailUrl : undefined,
+          };
+        })
+      : [];
+
     return {
       id: row.id,
       threadId: row.thread_id,
-      senderId: row.sender_id,
-      senderType: row.sender_type as CollaborationMessage['senderType'],
+      sender: {
+        id: row.sender_id,
+        name: '', // Will need to be populated separately
+        role: 'CLINICIAN' as const,
+        organization: 'CLINIC' as const,
+      },
       content: row.content,
-      attachments: row.attachments ?? undefined,
+      messageType: row.message_type as CollaborationMessage['messageType'],
+      attachments,
+      readBy: [],
       createdAt: row.created_at,
       editedAt: row.edited_at ?? undefined,
     };
   }
 
   static toDesignFeedback(row: DesignFeedbackRow): DesignFeedback {
+    // Parse annotations from database format
+    const annotations = Array.isArray(row.annotations)
+      ? row.annotations.map((ann: unknown) => {
+          const a = ann as Record<string, unknown>;
+          const id = typeof a.id === 'string' ? a.id : crypto.randomUUID();
+          const description = typeof a.description === 'string' ? a.description : '';
+          return {
+            id,
+            type: (a.type ?? 'TEXT') as DesignFeedback['annotations'][number]['type'],
+            description,
+            priority: (a.priority ?? 'MEDIUM') as DesignFeedback['annotations'][number]['priority'],
+            coordinates: (a.coordinates ?? { x: 0, y: 0 }) as { x: number; y: number; z?: number },
+            resolved: Boolean(a.resolved),
+          };
+        })
+      : [];
+
+    // Default criteria scores for the new schema
+    const criteriaScores = [
+      { criterion: 'fit' as const, score: 5, notes: '' },
+      { criterion: 'aesthetics' as const, score: 5, notes: '' },
+    ];
+
     return {
       id: row.id,
       labCaseId: row.lab_case_id,
       designId: row.design_id,
       feedbackType: row.feedback_type as DesignFeedback['feedbackType'],
-      providedBy: row.provided_by,
-      content: row.content,
-      annotations: row.annotations ?? undefined,
-      createdAt: row.created_at,
+      reviewedBy: row.provided_by,
+      overallRating: 5,
+      criteriaScores,
+      annotations,
+      generalNotes: row.content,
+      reviewedAt: row.created_at,
     };
   }
 }
@@ -710,14 +823,14 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
         input.patientId,
         input.prescribingDentist,
         input.priority,
-        input.receivedAt ?? new Date(),
+        new Date(), // receivedAt is auto-set
         input.dueDate,
-        input.shadeGuide ?? null,
-        input.shadeValue ?? null,
+        null, // shadeGuide not in schema anymore
+        null, // shadeValue not in schema anymore
         input.specialInstructions ?? null,
-        input.internalNotes ?? null,
-        input.notes ?? null,
-        input.metadata ?? {},
+        null, // internalNotes not in schema anymore
+        null, // notes not in create schema
+        {},
       ]);
 
       const labCase = LabCaseRowMapper.toLabCase(caseResult.rows[0]!);
@@ -734,12 +847,14 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
         `;
 
         for (const prosthetic of input.prosthetics) {
+          // toothNumbers is an array in the new schema
+          const toothNumber = prosthetic.toothNumbers?.[0] ?? '11';
           await client.query(prostheticsSql, [
             labCase.id,
-            prosthetic.toothNumber,
-            prosthetic.prostheticType,
+            toothNumber,
+            prosthetic.type, // type instead of prostheticType
             prosthetic.material,
-            JSON.stringify(prosthetic.specifications ?? {}),
+            JSON.stringify({}),
           ]);
         }
       }
@@ -862,11 +977,11 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
     if (filters.patientId) {
       builder.addCondition('patient_id = ?', filters.patientId);
     }
-    if (filters.statuses && filters.statuses.length > 0) {
-      builder.addArrayCondition('status', filters.statuses);
+    if (filters.status && filters.status.length > 0) {
+      builder.addArrayCondition('status', filters.status);
     }
-    if (filters.priorities && filters.priorities.length > 0) {
-      builder.addArrayCondition('priority', filters.priorities);
+    if (filters.priority && filters.priority.length > 0) {
+      builder.addArrayCondition('priority', filters.priority);
     }
     if (filters.assignedTechnician) {
       builder.addCondition('assigned_technician = ?', filters.assignedTechnician);
@@ -880,10 +995,10 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
     if (filters.receivedFrom || filters.receivedTo) {
       builder.addRangeCondition('received_at', filters.receivedFrom, filters.receivedTo);
     }
-    if (filters.searchText) {
+    if (filters.search) {
       builder.addSearchCondition(
         ['case_number', 'notes', 'special_instructions'],
-        filters.searchText
+        filters.search
       );
     }
 
@@ -910,10 +1025,10 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
     `;
 
     const dataResult = await this.query<LabCaseRow>(dataSql, [...params, limit, offset]);
-    const data = dataResult.rows.map(LabCaseRowMapper.toLabCase);
+    const cases = dataResult.rows.map(LabCaseRowMapper.toLabCase);
 
     return {
-      data,
+      cases,
       total,
       page: pagination.page ?? 1,
       pageSize: limit,
@@ -955,6 +1070,15 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
   }
 
   async addScan(labCaseId: string, scan: CreateDigitalScan): Promise<DigitalScan> {
+    // Map quality enum to score
+    const qualityScoreMap: Record<string, number> = {
+      EXCELLENT: 4,
+      GOOD: 3,
+      ACCEPTABLE: 2,
+      POOR: 1,
+    };
+    const qualityScore = scan.quality ? qualityScoreMap[scan.quality] : null;
+
     const sql = `
       INSERT INTO lab_case_scans (
         id, lab_case_id, scan_type, file_format, storage_path,
@@ -972,14 +1096,14 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
       labCaseId,
       scan.scanType,
       scan.fileFormat,
-      scan.storagePath,
-      scan.fileSizeBytes,
+      scan.filePath,
+      scan.fileSize,
       scan.checksum ?? null,
       scan.scannerBrand ?? null,
       scan.scannerModel ?? null,
-      scan.scanDate ?? new Date(),
-      scan.uploadedBy,
-      scan.qualityScore ?? null,
+      scan.uploadedAt ?? new Date(),
+      scan.uploadedBy ?? null,
+      qualityScore,
       scan.notes ?? null,
     ]);
 
@@ -1034,16 +1158,16 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
     const result = await this.query<CADDesignRow>(sql, [
       labCaseId,
       version,
-      design.softwareName,
+      design.softwareUsed,
       design.softwareVersion ?? null,
-      design.fileFormat,
-      design.storagePath,
-      design.fileSizeBytes,
+      'STL', // Default file format - not in schema anymore
+      design.filePath,
+      design.fileSize ?? 0,
       design.designedBy,
-      design.designHours ?? null,
+      null, // designHours not in schema anymore
       design.approvalStatus,
       design.notes ?? null,
-      design.metadata ?? {},
+      {},
     ]);
 
     logger.info({ labCaseId, designId: result.rows[0]!.id, version }, 'Design added');
@@ -1130,9 +1254,9 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
     const result = await this.query<FabricationRecordRow>(sql, [
       labCaseId,
       record.method,
-      record.equipmentId ?? null,
+      record.machineId ?? null,
       record.materialLotNumber ?? null,
-      record.materialExpiry ?? null,
+      null, // materialExpiry not in schema anymore
       record.technicianId,
       record.parameters ?? {},
       record.notes ?? null,
@@ -1171,7 +1295,7 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
 
   async addQCInspection(
     labCaseId: string,
-    inspection: CreateQCInspection & { passed: boolean }
+    inspection: CreateQCInspection
   ): Promise<QCInspection> {
     const sql = `
       INSERT INTO lab_case_qc_inspections (
@@ -1186,20 +1310,21 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
       RETURNING *
     `;
 
-    // Calculate overall score from criteria
-    const criteriaEntries = Object.entries(inspection.criteria);
-    const totalScore = criteriaEntries.reduce((sum, [, value]) => sum + (value as { score: number }).score, 0);
-    const overallScore = Math.round(totalScore / criteriaEntries.length);
+    // Calculate overall score from criteria array
+    const totalScore = inspection.criteria.reduce((sum, c) => sum + c.score, 0);
+    const overallScore = inspection.criteria.length > 0
+      ? Math.round(totalScore / inspection.criteria.length)
+      : inspection.overallScore;
 
     const result = await this.query<QCInspectionRow>(sql, [
       labCaseId,
-      inspection.inspectionType,
+      'STANDARD', // Default inspection type - not in schema anymore
       inspection.inspectedBy,
       inspection.passed,
       overallScore,
       JSON.stringify(inspection.criteria),
-      inspection.defectsFound ?? null,
-      inspection.correctiveActions ?? null,
+      null, // defectsFound not in schema anymore
+      null, // correctiveActions not in schema anymore
       inspection.photos ?? null,
       inspection.notes ?? null,
     ]);
@@ -1988,7 +2113,7 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
     throw new Error('getThread not implemented - TODO');
   }
 
-  async getUnreadCount(_threadId: string, _userId: string): Promise<number> {
+  async getUnreadCount(_userId: string): Promise<number> {
     throw new Error('getUnreadCount not implemented - TODO');
   }
 
@@ -2012,11 +2137,11 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
     throw new Error('getUnreadThreadCount not implemented - TODO');
   }
 
-  async findByStatus(_clinicId: string, _status: LabCaseStatus): Promise<LabCase[]> {
+  async findByStatus(_clinicId: string, _statuses: LabCaseStatus[]): Promise<LabCase[]> {
     throw new Error('findByStatus not implemented - TODO');
   }
 
-  async updateScanStatus(_scanId: string, _status: string): Promise<void> {
+  async updateScanStatus(_scanId: string, _processed: boolean, _errors?: string[]): Promise<void> {
     throw new Error('updateScanStatus not implemented - TODO');
   }
 
