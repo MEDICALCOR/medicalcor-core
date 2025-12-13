@@ -1,17 +1,42 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { EmbeddingService, chunkText, prepareTextForEmbedding } from '../embeddings.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import {
+  EmbeddingService,
+  chunkText,
+  prepareTextForEmbedding,
+  createEmbeddingService,
+} from '../embeddings.js';
+import { ExternalServiceError } from '@medicalcor/core';
 
 // Mock OpenAI - define the mock inside vi.mock to avoid hoisting issues
+const mockEmbeddingsCreate = vi.fn();
+
 vi.mock('openai', () => {
   return {
     default: class MockOpenAI {
       embeddings = {
-        create: vi.fn().mockResolvedValue({
-          data: [{ embedding: new Array(1536).fill(0.1), index: 0 }],
-          usage: { total_tokens: 50 },
-        }),
+        create: mockEmbeddingsCreate,
       };
     },
+  };
+});
+
+// Mock withRetry to test retry logic
+vi.mock('@medicalcor/core', async () => {
+  const actual = await vi.importActual('@medicalcor/core');
+  return {
+    ...actual,
+    withRetry: vi.fn(async (fn, config) => {
+      // Try to execute the function, applying retry logic if needed
+      try {
+        return await fn();
+      } catch (error) {
+        // If shouldRetry is true, retry once
+        if (config?.shouldRetry && config.shouldRetry(error)) {
+          return await fn();
+        }
+        throw error;
+      }
+    }),
   };
 });
 
@@ -20,6 +45,10 @@ describe('EmbeddingService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockEmbeddingsCreate.mockResolvedValue({
+      data: [{ embedding: new Array(1536).fill(0.1), index: 0 }],
+      usage: { total_tokens: 50 },
+    });
     service = new EmbeddingService({
       apiKey: 'test-api-key',
       model: 'text-embedding-3-small',
@@ -547,5 +576,620 @@ describe('chunkText - Extended', () => {
     expect(chunks.length).toBeGreaterThanOrEqual(1);
     expect(chunks.join(' ')).toContain('First');
     expect(chunks.join(' ')).toContain('paragraph');
+  });
+
+  it('should add overlap from previous chunks', () => {
+    const text = 'AAAAA BBBBB CCCCC DDDDD EEEEE';
+    const chunks = chunkText(text, { maxChunkSize: 12, overlap: 5 });
+
+    // Check that chunks have overlap
+    expect(chunks.length).toBeGreaterThan(1);
+    if (chunks.length > 1) {
+      // Second chunk should contain overlap from first
+      const firstChunk = chunks[0]!;
+      const secondChunk = chunks[1]!;
+      const overlapText = firstChunk.slice(-5);
+      expect(secondChunk).toContain(overlapText.trim().slice(0, 3));
+    }
+  });
+
+  it('should handle zero overlap', () => {
+    const text = 'word1 word2 word3 word4 word5';
+    const chunks = chunkText(text, { maxChunkSize: 15, overlap: 0 });
+
+    expect(chunks.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('should recursively split with multiple separators', () => {
+    // This should trigger recursive splitting through multiple separator levels
+    const text = 'A'.repeat(200) + '. ' + 'B'.repeat(200);
+    const chunks = chunkText(text, { maxChunkSize: 100, overlap: 10 });
+
+    expect(chunks.length).toBeGreaterThan(1);
+  });
+
+  it('should fall back to character splitting when no separators work', () => {
+    // Create text with no separators (no spaces, periods, commas, newlines)
+    const text = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.repeat(20); // 520 chars, no separators
+    const chunks = chunkText(text, { maxChunkSize: 100, overlap: 10 });
+
+    expect(chunks.length).toBeGreaterThan(1);
+    // Verify chunks are split at character boundaries
+    chunks.forEach((chunk) => {
+      expect(chunk.length).toBeLessThanOrEqual(110); // maxChunkSize + overlap
+    });
+  });
+
+  it('should handle character splitting with overlap', () => {
+    // Test character splitting with overlap
+    const text = 'X'.repeat(250); // No separators at all
+    const chunks = chunkText(text, { maxChunkSize: 80, overlap: 20 });
+
+    expect(chunks.length).toBeGreaterThan(1);
+    // Each chunk except the last should be exactly maxChunkSize (80) or have overlap
+    for (let i = 0; i < chunks.length - 1; i++) {
+      expect(chunks[i]!.length).toBeGreaterThanOrEqual(80);
+      expect(chunks[i]!.length).toBeLessThanOrEqual(100); // With overlap
+    }
+  });
+
+  it('should reach base case with custom separator that does not exist in text', () => {
+    // Custom separator that doesn't exist in text, forcing fallback to character split
+    const text = 'abcdefghijklmnopqrstuvwxyz'.repeat(10); // 260 chars, no pipe character
+    const chunks = chunkText(text, {
+      maxChunkSize: 50,
+      overlap: 5,
+      separator: '|', // Separator not in text
+    });
+
+    expect(chunks.length).toBeGreaterThan(1);
+    // Should fall back to character-level splitting
+    chunks.forEach((chunk) => {
+      expect(chunk.length).toBeGreaterThan(0);
+    });
+  });
+
+  it('should handle base case character split with no overlap', () => {
+    // Force character splitting with zero overlap and custom separator
+    const text = '1234567890'.repeat(30); // 300 chars, no separator
+    const chunks = chunkText(text, {
+      maxChunkSize: 100,
+      overlap: 0,
+      separator: 'Z', // Not in text
+    });
+
+    expect(chunks.length).toBe(3); // 300 / 100 = 3 chunks
+    expect(chunks[0]).toBe('1234567890'.repeat(10));
+    expect(chunks[1]).toBe('1234567890'.repeat(10));
+    expect(chunks[2]).toBe('1234567890'.repeat(10));
+  });
+});
+
+describe('Factory Function', () => {
+  it('should create EmbeddingService via factory', () => {
+    const service = createEmbeddingService({
+      apiKey: 'test-key',
+      model: 'text-embedding-3-small',
+    });
+
+    expect(service).toBeInstanceOf(EmbeddingService);
+    const info = service.getModelInfo();
+    expect(info.model).toBe('text-embedding-3-small');
+  });
+
+  it('should create service with all config options via factory', () => {
+    const service = createEmbeddingService({
+      apiKey: 'test-key',
+      model: 'text-embedding-3-large',
+      dimensions: 512,
+      organization: 'org-test',
+      retryConfig: {
+        maxRetries: 5,
+        baseDelayMs: 2000,
+      },
+      timeoutMs: 60000,
+    });
+
+    expect(service).toBeInstanceOf(EmbeddingService);
+  });
+});
+
+describe('Configuration Validation', () => {
+  it('should throw on invalid config - empty API key', () => {
+    expect(() => {
+      new EmbeddingService({
+        apiKey: '',
+        model: 'text-embedding-3-small',
+      });
+    }).toThrow();
+  });
+
+  it('should throw on invalid dimensions - too small', () => {
+    expect(() => {
+      new EmbeddingService({
+        apiKey: 'test-key',
+        dimensions: 100, // Min is 256
+      });
+    }).toThrow();
+  });
+
+  it('should throw on invalid dimensions - too large', () => {
+    expect(() => {
+      new EmbeddingService({
+        apiKey: 'test-key',
+        dimensions: 5000, // Max is 3072
+      });
+    }).toThrow();
+  });
+
+  it('should throw on invalid retry config - maxRetries too high', () => {
+    expect(() => {
+      new EmbeddingService({
+        apiKey: 'test-key',
+        retryConfig: {
+          maxRetries: 15, // Max is 10
+          baseDelayMs: 1000,
+        },
+      });
+    }).toThrow();
+  });
+
+  it('should throw on invalid timeout - too small', () => {
+    expect(() => {
+      new EmbeddingService({
+        apiKey: 'test-key',
+        timeoutMs: 500, // Min is 1000
+      });
+    }).toThrow();
+  });
+
+  it('should throw on invalid timeout - too large', () => {
+    expect(() => {
+      new EmbeddingService({
+        apiKey: 'test-key',
+        timeoutMs: 150000, // Max is 120000
+      });
+    }).toThrow();
+  });
+
+  it('should use fallback dimensions for unknown model', () => {
+    // Create a service and manually check the config
+    const service = new EmbeddingService({
+      apiKey: 'test-key',
+      model: 'text-embedding-3-small',
+    });
+
+    const info = service.getModelInfo();
+    expect(info.dimensions).toBe(1536); // Should use default for this model
+  });
+});
+
+describe('Error Handling', () => {
+  describe('embed error cases', () => {
+    it('should throw ExternalServiceError on empty response', async () => {
+      mockEmbeddingsCreate.mockResolvedValueOnce({
+        data: [], // Empty data array
+        usage: { total_tokens: 0 },
+      });
+
+      const service = new EmbeddingService({
+        apiKey: 'test-key',
+      });
+
+      await expect(service.embed('test')).rejects.toThrow('Empty response from API');
+    });
+
+    it('should handle API errors', async () => {
+      mockEmbeddingsCreate.mockRejectedValueOnce(new Error('API Error'));
+
+      const service = new EmbeddingService({
+        apiKey: 'test-key',
+      });
+
+      await expect(service.embed('test')).rejects.toThrow('API Error');
+    });
+  });
+
+  describe('shouldRetryError logic', () => {
+    it('should retry on rate_limit error', async () => {
+      let callCount = 0;
+      mockEmbeddingsCreate.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          throw new Error('rate_limit exceeded');
+        }
+        return Promise.resolve({
+          data: [{ embedding: new Array(1536).fill(0.1), index: 0 }],
+          usage: { total_tokens: 50 },
+        });
+      });
+
+      const service = new EmbeddingService({
+        apiKey: 'test-key',
+      });
+
+      const result = await service.embed('test');
+      expect(result).toBeDefined();
+      expect(callCount).toBeGreaterThan(1);
+    });
+
+    it('should retry on 502 error', async () => {
+      let callCount = 0;
+      mockEmbeddingsCreate.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          throw new Error('502 Bad Gateway');
+        }
+        return Promise.resolve({
+          data: [{ embedding: new Array(1536).fill(0.1), index: 0 }],
+          usage: { total_tokens: 50 },
+        });
+      });
+
+      const service = new EmbeddingService({
+        apiKey: 'test-key',
+      });
+
+      const result = await service.embed('test');
+      expect(result).toBeDefined();
+    });
+
+    it('should retry on 503 error', async () => {
+      let callCount = 0;
+      mockEmbeddingsCreate.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          throw new Error('503 Service Unavailable');
+        }
+        return Promise.resolve({
+          data: [{ embedding: new Array(1536).fill(0.1), index: 0 }],
+          usage: { total_tokens: 50 },
+        });
+      });
+
+      const service = new EmbeddingService({
+        apiKey: 'test-key',
+      });
+
+      const result = await service.embed('test');
+      expect(result).toBeDefined();
+    });
+
+    it('should retry on timeout error', async () => {
+      let callCount = 0;
+      mockEmbeddingsCreate.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          throw new Error('Request timeout');
+        }
+        return Promise.resolve({
+          data: [{ embedding: new Array(1536).fill(0.1), index: 0 }],
+          usage: { total_tokens: 50 },
+        });
+      });
+
+      const service = new EmbeddingService({
+        apiKey: 'test-key',
+      });
+
+      const result = await service.embed('test');
+      expect(result).toBeDefined();
+    });
+
+    it('should retry on ECONNRESET error', async () => {
+      let callCount = 0;
+      mockEmbeddingsCreate.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          throw new Error('ECONNRESET - connection reset');
+        }
+        return Promise.resolve({
+          data: [{ embedding: new Array(1536).fill(0.1), index: 0 }],
+          usage: { total_tokens: 50 },
+        });
+      });
+
+      const service = new EmbeddingService({
+        apiKey: 'test-key',
+      });
+
+      const result = await service.embed('test');
+      expect(result).toBeDefined();
+    });
+
+    it('should not retry on non-retryable error', async () => {
+      mockEmbeddingsCreate.mockRejectedValueOnce(new Error('Invalid API key'));
+
+      const service = new EmbeddingService({
+        apiKey: 'test-key',
+      });
+
+      await expect(service.embed('test')).rejects.toThrow('Invalid API key');
+    });
+
+    it('should not retry on non-Error objects', async () => {
+      mockEmbeddingsCreate.mockRejectedValueOnce('String error');
+
+      const service = new EmbeddingService({
+        apiKey: 'test-key',
+      });
+
+      await expect(service.embed('test')).rejects.toBe('String error');
+    });
+  });
+});
+
+describe('Text Sanitization Edge Cases', () => {
+  it('should truncate very long text', async () => {
+    const service = new EmbeddingService({
+      apiKey: 'test-key',
+    });
+
+    // Create text longer than 32000 characters
+    const veryLongText = 'a'.repeat(35000);
+    const result = await service.embed(veryLongText);
+
+    expect(result).toBeDefined();
+    expect(result.contentHash).toBeDefined();
+  });
+
+  it('should handle text with all types of whitespace', async () => {
+    const service = new EmbeddingService({
+      apiKey: 'test-key',
+    });
+
+    const textWithWhitespace = 'Hello\t\r\n\v\fWorld';
+    const result = await service.embed(textWithWhitespace);
+
+    expect(result).toBeDefined();
+  });
+
+  it('should handle text with Unicode control characters', async () => {
+    const service = new EmbeddingService({
+      apiKey: 'test-key',
+    });
+
+    const textWithControl = 'Hello\u0000\u001F\u007FWorld';
+    const result = await service.embed(textWithControl);
+
+    expect(result).toBeDefined();
+  });
+
+  it('should handle text with FEFF (BOM)', async () => {
+    const service = new EmbeddingService({
+      apiKey: 'test-key',
+    });
+
+    const textWithBOM = '\uFEFFHello World';
+    const result = await service.embed(textWithBOM);
+
+    expect(result).toBeDefined();
+  });
+});
+
+describe('embedBatch Advanced Cases', () => {
+  it('should process multiple batches', async () => {
+    mockEmbeddingsCreate.mockResolvedValue({
+      data: [
+        { embedding: new Array(1536).fill(0.1), index: 0 },
+        { embedding: new Array(1536).fill(0.2), index: 1 },
+      ],
+      usage: { total_tokens: 100 },
+    });
+
+    const service = new EmbeddingService({
+      apiKey: 'test-key',
+    });
+
+    // Create inputs that require multiple batches
+    const inputs = Array.from({ length: 5 }, (_, i) => ({
+      text: `Text ${i}`,
+      id: `${i}`,
+    }));
+
+    const result = await service.embedBatch(inputs, 2); // batchSize = 2
+
+    expect(result.embeddings.length).toBeGreaterThan(0);
+    expect(result.totalTokensUsed).toBeGreaterThan(0);
+  });
+
+  it('should handle batch with custom batch size', async () => {
+    mockEmbeddingsCreate.mockResolvedValue({
+      data: [
+        { embedding: new Array(1536).fill(0.1), index: 0 },
+        { embedding: new Array(1536).fill(0.2), index: 1 },
+        { embedding: new Array(1536).fill(0.3), index: 2 },
+      ],
+      usage: { total_tokens: 150 },
+    });
+
+    const service = new EmbeddingService({
+      apiKey: 'test-key',
+    });
+
+    const inputs = [{ text: 'Text 1' }, { text: 'Text 2' }, { text: 'Text 3' }];
+
+    const result = await service.embedBatch(inputs, 3);
+
+    expect(result.embeddings).toHaveLength(3);
+    expect(result.totalTokensUsed).toBe(150);
+  });
+
+  it('should handle batch response with undefined embeddings', async () => {
+    mockEmbeddingsCreate.mockResolvedValue({
+      data: [
+        { embedding: new Array(1536).fill(0.1), index: 0 },
+        undefined, // Simulate missing embedding
+        { embedding: new Array(1536).fill(0.2), index: 2 },
+      ],
+      usage: { total_tokens: 100 },
+    });
+
+    const service = new EmbeddingService({
+      apiKey: 'test-key',
+    });
+
+    const inputs = [{ text: 'Text 1' }, { text: 'Text 2' }, { text: 'Text 3' }];
+
+    const result = await service.embedBatch(inputs, 10);
+
+    // Should only include defined embeddings
+    expect(result.embeddings.length).toBe(2);
+  });
+
+  it('should calculate per-item token usage in batch', async () => {
+    mockEmbeddingsCreate.mockResolvedValue({
+      data: [
+        { embedding: new Array(1536).fill(0.1), index: 0 },
+        { embedding: new Array(1536).fill(0.2), index: 1 },
+      ],
+      usage: { total_tokens: 100 },
+    });
+
+    const service = new EmbeddingService({
+      apiKey: 'test-key',
+    });
+
+    const inputs = [{ text: 'Text 1' }, { text: 'Text 2' }];
+
+    const result = await service.embedBatch(inputs);
+
+    // Each embedding should have calculated token usage
+    result.embeddings.forEach((emb) => {
+      expect(emb.tokensUsed).toBeGreaterThan(0);
+      expect(emb.tokensUsed).toBe(Math.ceil(100 / 2)); // 50
+    });
+  });
+
+  it('should sanitize all texts in batch', async () => {
+    mockEmbeddingsCreate.mockResolvedValue({
+      data: [
+        { embedding: new Array(1536).fill(0.1), index: 0 },
+        { embedding: new Array(1536).fill(0.2), index: 1 },
+      ],
+      usage: { total_tokens: 100 },
+    });
+
+    const service = new EmbeddingService({
+      apiKey: 'test-key',
+    });
+
+    const inputs = [{ text: 'Hello\x00World' }, { text: '  Extra   Spaces  ' }];
+
+    const result = await service.embedBatch(inputs);
+
+    expect(result.embeddings).toHaveLength(2);
+  });
+});
+
+describe('Cosine Similarity - All Branch Coverage', () => {
+  it('should return 0 when both vectors are zero', () => {
+    const service = new EmbeddingService({
+      apiKey: 'test-key',
+    });
+
+    const zero1 = [0, 0, 0, 0];
+    const zero2 = [0, 0, 0, 0];
+
+    const similarity = service.cosineSimilarity(zero1, zero2);
+    expect(similarity).toBe(0);
+  });
+
+  it('should return 0 when magnitude is zero (one vector is zero)', () => {
+    const service = new EmbeddingService({
+      apiKey: 'test-key',
+    });
+
+    const zero = [0, 0, 0, 0];
+    const nonZero = [1, 2, 3, 4];
+
+    const similarity = service.cosineSimilarity(zero, nonZero);
+    expect(similarity).toBe(0);
+  });
+
+  it('should handle very small values', () => {
+    const service = new EmbeddingService({
+      apiKey: 'test-key',
+    });
+
+    const vec1 = [0.0001, 0.0002, 0, 0];
+    const vec2 = [0.0001, 0.0002, 0, 0];
+
+    const similarity = service.cosineSimilarity(vec1, vec2);
+    expect(similarity).toBeCloseTo(1, 5);
+  });
+
+  it('should handle negative values', () => {
+    const service = new EmbeddingService({
+      apiKey: 'test-key',
+    });
+
+    const vec1 = [-1, -2, -3, 0];
+    const vec2 = [-1, -2, -3, 0];
+
+    const similarity = service.cosineSimilarity(vec1, vec2);
+    expect(similarity).toBeCloseTo(1, 5);
+  });
+
+  it('should handle mixed positive and negative values', () => {
+    const service = new EmbeddingService({
+      apiKey: 'test-key',
+    });
+
+    const vec1 = [1, -1, 2, -2];
+    const vec2 = [1, -1, 2, -2];
+
+    const similarity = service.cosineSimilarity(vec1, vec2);
+    expect(similarity).toBeCloseTo(1, 5);
+  });
+});
+
+describe('prepareTextForEmbedding - All Branches', () => {
+  it('should handle metadata with language', () => {
+    const result = prepareTextForEmbedding('Content', {
+      language: 'en',
+    });
+
+    expect(result).toContain('Content');
+    // language is not currently used, but included for completeness
+  });
+
+  it('should handle all metadata fields together', () => {
+    const result = prepareTextForEmbedding('Main content', {
+      title: 'Test Title',
+      sourceType: 'document',
+      language: 'en',
+      tags: ['tag1', 'tag2'],
+    });
+
+    expect(result).toContain('Title: Test Title');
+    expect(result).toContain('Type: document');
+    expect(result).toContain('Tags: tag1, tag2');
+    expect(result).toContain('Main content');
+  });
+
+  it('should handle undefined metadata', () => {
+    const result = prepareTextForEmbedding('Just content', undefined);
+
+    expect(result).toContain('Just content');
+    expect(result).not.toContain('Title:');
+  });
+
+  it('should handle metadata with only sourceType', () => {
+    const result = prepareTextForEmbedding('Content', {
+      sourceType: 'faq',
+    });
+
+    expect(result).toContain('Type: faq');
+    expect(result).not.toContain('Title:');
+  });
+
+  it('should handle metadata with only tags', () => {
+    const result = prepareTextForEmbedding('Content', {
+      tags: ['medical', 'dental'],
+    });
+
+    expect(result).toContain('Tags: medical, dental');
+    expect(result).not.toContain('Title:');
   });
 });

@@ -1213,4 +1213,645 @@ describe('FlexClient', () => {
       expect(stats.offline).toBe(1);
     });
   });
+
+  describe('requestWithTimeout edge cases', () => {
+    it('should handle non-JSON responses', async () => {
+      server.use(
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Workers', () => {
+          return new HttpResponse('OK', {
+            status: 200,
+            headers: { 'Content-Type': 'text/plain' },
+          });
+        })
+      );
+
+      await expect(client.listWorkers()).rejects.toThrow();
+    });
+
+    it('should handle request timeout', async () => {
+      const timeoutClient = new FlexClient({
+        ...testConfig,
+        timeoutMs: 100,
+      });
+
+      server.use(
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Workers', async () => {
+          await new Promise((resolve) => setTimeout(resolve, 200));
+          return HttpResponse.json({ workers: [] });
+        })
+      );
+
+      await expect(timeoutClient.listWorkers()).rejects.toThrow('timeout');
+      timeoutClient.destroy();
+    });
+
+    it('should handle HTTP error responses', async () => {
+      server.use(
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Workers', () => {
+          return new HttpResponse(null, { status: 500 });
+        })
+      );
+
+      await expect(client.listWorkers()).rejects.toThrow('Request failed with status 500');
+    });
+
+    it('should handle network errors', async () => {
+      server.use(
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Workers', () => {
+          return HttpResponse.error();
+        })
+      );
+
+      await expect(client.listWorkers()).rejects.toThrow();
+    });
+  });
+
+  describe('retry configuration', () => {
+    it('should use default retry config', () => {
+      const retryConfig = (client as any).getRetryConfig();
+
+      expect(retryConfig.maxRetries).toBe(3);
+      expect(retryConfig.baseDelayMs).toBe(1000);
+      expect(retryConfig.shouldRetry).toBeTypeOf('function');
+    });
+
+    it('should use custom retry config', () => {
+      const customClient = new FlexClient({
+        ...testConfig,
+        retryConfig: {
+          maxRetries: 5,
+          baseDelayMs: 2000,
+        },
+      });
+
+      const retryConfig = (customClient as any).getRetryConfig();
+
+      expect(retryConfig.maxRetries).toBe(5);
+      expect(retryConfig.baseDelayMs).toBe(2000);
+      customClient.destroy();
+    });
+
+    it('should retry on rate_limit errors', () => {
+      const retryConfig = (client as any).getRetryConfig();
+      const error = new Error('rate_limit exceeded');
+
+      expect(retryConfig.shouldRetry(error)).toBe(true);
+    });
+
+    it('should retry on 502 errors', () => {
+      const retryConfig = (client as any).getRetryConfig();
+      const error = new Error('Request failed with status 502');
+
+      expect(retryConfig.shouldRetry(error)).toBe(true);
+    });
+
+    it('should retry on 503 errors', () => {
+      const retryConfig = (client as any).getRetryConfig();
+      const error = new Error('Request failed with status 503');
+
+      expect(retryConfig.shouldRetry(error)).toBe(true);
+    });
+
+    it('should retry on timeout errors', () => {
+      const retryConfig = (client as any).getRetryConfig();
+      const error = new Error('Request timeout after 30000ms');
+
+      expect(retryConfig.shouldRetry(error)).toBe(true);
+    });
+
+    it('should not retry on non-retryable errors', () => {
+      const retryConfig = (client as any).getRetryConfig();
+      const error = new Error('Bad Request');
+
+      expect(retryConfig.shouldRetry(error)).toBe(false);
+    });
+
+    it('should not retry on non-Error objects', () => {
+      const retryConfig = (client as any).getRetryConfig();
+
+      expect(retryConfig.shouldRetry('string error')).toBe(false);
+      expect(retryConfig.shouldRetry(null)).toBe(false);
+      expect(retryConfig.shouldRetry(undefined)).toBe(false);
+    });
+  });
+
+  describe('encodeFormData edge cases', () => {
+    it('should filter out undefined values', async () => {
+      let capturedBody = '';
+      server.use(
+        http.post(
+          'https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Workers/:workerSid',
+          async ({ request }) => {
+            capturedBody = await request.text();
+            return HttpResponse.json({
+              sid: 'WK123',
+              friendly_name: 'Agent',
+              activity_name: 'Available',
+              activity_sid: 'WA123',
+              available: true,
+              attributes: '{}',
+              date_created: '2024-01-01T00:00:00Z',
+              date_updated: '2024-01-01T00:00:00Z',
+            });
+          }
+        )
+      );
+
+      await client.updateWorker({ workerSid: 'WK123' });
+      expect(capturedBody).not.toContain('ActivitySid');
+      expect(capturedBody).not.toContain('Attributes');
+    });
+  });
+
+  describe('transformWorker edge cases', () => {
+    it('should handle non-object parsed JSON', async () => {
+      server.use(
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Workers', () => {
+          return HttpResponse.json({
+            workers: [
+              {
+                sid: 'WK1',
+                friendly_name: 'Agent',
+                activity_name: 'Available',
+                activity_sid: 'WA1',
+                available: true,
+                attributes: 'null',
+                date_created: '2024-01-01T00:00:00Z',
+                date_updated: '2024-01-01T00:00:00Z',
+              },
+            ],
+          });
+        })
+      );
+
+      const workers = await client.listWorkers();
+      expect(workers[0].skills).toEqual([]);
+      expect(workers[0].languages).toEqual([]);
+      expect(workers[0].attributes).toEqual({});
+    });
+
+    it('should extract currentCallSid from attributes', async () => {
+      server.use(
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Workers', () => {
+          return HttpResponse.json({
+            workers: [
+              {
+                sid: 'WK1',
+                friendly_name: 'Agent',
+                activity_name: 'Busy',
+                activity_sid: 'WA1',
+                available: false,
+                attributes: JSON.stringify({ current_call_sid: 'CA123456' }),
+                date_created: '2024-01-01T00:00:00Z',
+                date_updated: '2024-01-01T00:00:00Z',
+              },
+            ],
+          });
+        })
+      );
+
+      const workers = await client.listWorkers();
+      expect(workers[0].currentCallSid).toBe('CA123456');
+    });
+  });
+
+  describe('transformQueue edge cases', () => {
+    it('should default current_size to 0 when missing', async () => {
+      server.use(
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/TaskQueues', () => {
+          return HttpResponse.json({
+            task_queues: [
+              {
+                sid: 'WQ123',
+                friendly_name: 'Test Queue',
+              },
+            ],
+          });
+        })
+      );
+
+      const queues = await client.listQueues();
+      expect(queues[0].currentSize).toBe(0);
+    });
+  });
+
+  describe('createTask without optional parameters', () => {
+    it('should create task with only required fields', async () => {
+      let capturedBody = '';
+      server.use(
+        http.post(
+          'https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Tasks',
+          async ({ request }) => {
+            capturedBody = await request.text();
+            return HttpResponse.json(
+              {
+                sid: 'WT123',
+                queue_sid: 'WQ123',
+                worker_sid: null,
+                attributes: JSON.stringify({ call_sid: 'CA123' }),
+                assignment_status: 'pending',
+                priority: 0,
+                reason: null,
+                date_created: '2024-01-01T00:00:00Z',
+                date_updated: '2024-01-01T00:00:00Z',
+                timeout: 86400,
+              },
+              { status: 201 }
+            );
+          }
+        )
+      );
+
+      await client.createTask({
+        workflowSid: 'WW123',
+        attributes: { call_sid: 'CA123' },
+      });
+
+      expect(capturedBody).not.toContain('Priority');
+      expect(capturedBody).not.toContain('Timeout');
+      expect(capturedBody).not.toContain('TaskChannel');
+    });
+  });
+
+  describe('updateTask without optional parameters', () => {
+    it('should update task with empty update object', async () => {
+      let capturedBody = '';
+      server.use(
+        http.post(
+          'https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Tasks/:taskSid',
+          async ({ request }) => {
+            capturedBody = await request.text();
+            return HttpResponse.json({
+              sid: 'WT123',
+              queue_sid: 'WQ123',
+              worker_sid: null,
+              attributes: '{}',
+              assignment_status: 'pending',
+              priority: 10,
+              reason: null,
+              date_created: '2024-01-01T00:00:00Z',
+              date_updated: '2024-01-01T00:00:00Z',
+              timeout: 120,
+            });
+          }
+        )
+      );
+
+      await client.updateTask('WT123', {});
+      expect(capturedBody).toBe('');
+    });
+  });
+
+  describe('updateParticipant without optional parameters', () => {
+    it('should update with empty update object', async () => {
+      let capturedBody = '';
+      server.use(
+        http.post(
+          'https://api.twilio.com/2010-04-01/Accounts/:accountSid/Conferences/:conferenceSid/Participants/:participantSid',
+          async ({ request }) => {
+            capturedBody = await request.text();
+            return HttpResponse.json({ call_sid: 'CA123' });
+          }
+        )
+      );
+
+      await client.updateParticipant('CF123', 'CA456', {});
+      expect(capturedBody).toBe('');
+    });
+  });
+
+  describe('addSupervisorToConference with CallSidToCoach', () => {
+    it('should set CallSidToCoach when in whisper mode', async () => {
+      let capturedBody = '';
+      server.use(
+        http.post(
+          'https://api.twilio.com/2010-04-01/Accounts/:accountSid/Conferences/:conferenceSid/Participants.json',
+          async ({ request }) => {
+            capturedBody = await request.text();
+            return HttpResponse.json({ call_sid: 'CA_SUPERVISOR' }, { status: 201 });
+          }
+        )
+      );
+
+      await client.addSupervisorToConference({
+        conferenceSid: 'CF123',
+        supervisorCallSid: 'CA_AGENT_TO_COACH',
+        mode: 'whisper',
+      });
+
+      expect(capturedBody).toContain('CallSidToCoach=CA_AGENT_TO_COACH');
+    });
+  });
+
+  describe('cleanupStaleEntries', () => {
+    it('should remove stale cache entries', () => {
+      const mockCall = {
+        callSid: 'CA_OLD',
+        customerPhone: '+40123456789',
+        state: 'in-progress' as const,
+        direction: 'inbound' as const,
+        startedAt: new Date(),
+        duration: 0,
+        flags: [],
+        recentTranscript: [],
+      };
+
+      client.registerActiveCall(mockCall);
+
+      const now = Date.now();
+      const staleTime = now - 6 * 60 * 1000;
+      (client as any).activeCallsCache.get('CA_OLD')!.updatedAt = staleTime;
+
+      const activeCalls = client.getActiveCalls();
+      expect(activeCalls).toHaveLength(0);
+    });
+
+    it('should keep fresh cache entries', () => {
+      const mockCall = {
+        callSid: 'CA_FRESH',
+        customerPhone: '+40123456789',
+        state: 'in-progress' as const,
+        direction: 'inbound' as const,
+        startedAt: new Date(),
+        duration: 0,
+        flags: [],
+        recentTranscript: [],
+      };
+
+      client.registerActiveCall(mockCall);
+
+      const activeCalls = client.getActiveCalls();
+      expect(activeCalls).toHaveLength(1);
+      expect(activeCalls[0].callSid).toBe('CA_FRESH');
+    });
+  });
+
+  describe('verifySignature edge cases', () => {
+    it('should handle empty param values', () => {
+      const authToken = 'test_token';
+      const url = 'https://example.com/webhook';
+      const params = { CallSid: 'CA123', From: '' };
+
+      const crypto = require('crypto');
+      let data = url;
+      Object.keys(params)
+        .sort()
+        .forEach((key) => {
+          data += key + (params[key as keyof typeof params] ?? '');
+        });
+      const signature = crypto.createHmac('sha1', authToken).update(data, 'utf-8').digest('base64');
+
+      const isValid = FlexClient.verifySignature(authToken, signature, url, params);
+      expect(isValid).toBe(true);
+    });
+
+    it('should handle undefined param values', () => {
+      const authToken = 'test_token';
+      const url = 'https://example.com/webhook';
+      const params: Record<string, string> = { CallSid: 'CA123', From: undefined as any };
+
+      const crypto = require('crypto');
+      let data = url;
+      Object.keys(params)
+        .sort()
+        .forEach((key) => {
+          data += key + (params[key] ?? '');
+        });
+      const signature = crypto.createHmac('sha1', authToken).update(data, 'utf-8').digest('base64');
+
+      const isValid = FlexClient.verifySignature(authToken, signature, url, params);
+      expect(isValid).toBe(true);
+    });
+
+    it('should return false for signature length mismatch', () => {
+      const isValid = FlexClient.verifySignature(
+        'test_token',
+        'short',
+        'https://example.com/webhook',
+        { CallSid: 'CA123' }
+      );
+      expect(isValid).toBe(false);
+    });
+  });
+
+  describe('listConferences without filters', () => {
+    it('should list all conferences when no status filter provided', async () => {
+      server.use(
+        http.get('https://api.twilio.com/2010-04-01/Accounts/:accountSid/Conferences.json', () => {
+          return HttpResponse.json({
+            conferences: [
+              {
+                sid: 'CF1',
+                friendly_name: 'Call-1',
+                status: 'completed',
+                date_created: '2024-01-01T00:00:00Z',
+                date_updated: '2024-01-01T00:00:00Z',
+              },
+              {
+                sid: 'CF2',
+                friendly_name: 'Call-2',
+                status: 'in-progress',
+                date_created: '2024-01-01T00:00:00Z',
+                date_updated: '2024-01-01T00:00:00Z',
+              },
+            ],
+          });
+        })
+      );
+
+      const conferences = await client.listConferences();
+      expect(conferences).toHaveLength(2);
+    });
+  });
+
+  describe('listWorkers without filters', () => {
+    it('should list all workers when no filters provided', async () => {
+      server.use(
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Workers', () => {
+          return HttpResponse.json({
+            workers: [
+              {
+                sid: 'WK1',
+                friendly_name: 'Agent 1',
+                activity_name: 'Available',
+                activity_sid: 'WA1',
+                available: true,
+                attributes: '{}',
+                date_created: '2024-01-01T00:00:00Z',
+                date_updated: '2024-01-01T00:00:00Z',
+              },
+              {
+                sid: 'WK2',
+                friendly_name: 'Agent 2',
+                activity_name: 'Busy',
+                activity_sid: 'WA2',
+                available: false,
+                attributes: '{}',
+                date_created: '2024-01-01T00:00:00Z',
+                date_updated: '2024-01-01T00:00:00Z',
+              },
+            ],
+          });
+        })
+      );
+
+      const workers = await client.listWorkers();
+      expect(workers).toHaveLength(2);
+    });
+  });
+
+  describe('transformTask edge cases', () => {
+    it('should convert null workerSid to undefined', async () => {
+      server.use(
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Tasks/:taskSid', () => {
+          return HttpResponse.json({
+            sid: 'WT123',
+            queue_sid: 'WQ123',
+            worker_sid: null,
+            attributes: '{}',
+            assignment_status: 'pending',
+            priority: 10,
+            reason: null,
+            date_created: '2024-01-01T00:00:00Z',
+            date_updated: '2024-01-01T00:00:00Z',
+            timeout: 120,
+          });
+        })
+      );
+
+      const task = await client.getTask('WT123');
+      expect(task.workerSid).toBeUndefined();
+      expect(task.reason).toBeUndefined();
+    });
+  });
+
+  describe('mapActivityName edge cases', () => {
+    it('should map offline activity', async () => {
+      server.use(
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Workers', () => {
+          return HttpResponse.json({
+            workers: [
+              {
+                sid: 'WK1',
+                friendly_name: 'Agent',
+                activity_name: 'Offline',
+                activity_sid: 'WA1',
+                available: false,
+                attributes: '{}',
+                date_created: '2024-01-01T00:00:00Z',
+                date_updated: '2024-01-01T00:00:00Z',
+              },
+            ],
+          });
+        })
+      );
+
+      const workers = await client.listWorkers();
+      expect(workers[0].activityName).toBe('offline');
+    });
+  });
+
+  describe('getFlexCredentials with missing partial credentials', () => {
+    const originalEnv = process.env;
+
+    beforeEach(() => {
+      process.env = { ...originalEnv };
+    });
+
+    afterEach(() => {
+      process.env = originalEnv;
+    });
+
+    it('should return null when only accountSid is missing', () => {
+      process.env.TWILIO_AUTH_TOKEN = 'token123';
+      process.env.TWILIO_FLEX_WORKSPACE_SID = 'WS123';
+
+      const credentials = getFlexCredentials();
+      expect(credentials).toBeNull();
+    });
+
+    it('should return null when only authToken is missing', () => {
+      process.env.TWILIO_ACCOUNT_SID = 'AC123';
+      process.env.TWILIO_FLEX_WORKSPACE_SID = 'WS123';
+
+      const credentials = getFlexCredentials();
+      expect(credentials).toBeNull();
+    });
+
+    it('should return null when only workspaceSid is missing', () => {
+      process.env.TWILIO_ACCOUNT_SID = 'AC123';
+      process.env.TWILIO_AUTH_TOKEN = 'token123';
+
+      const credentials = getFlexCredentials();
+      expect(credentials).toBeNull();
+    });
+
+    it('should return credentials without flexFlowSid when not set', () => {
+      process.env.TWILIO_ACCOUNT_SID = 'AC123';
+      process.env.TWILIO_AUTH_TOKEN = 'token123';
+      process.env.TWILIO_FLEX_WORKSPACE_SID = 'WS123';
+      delete process.env.TWILIO_FLEX_FLOW_SID;
+
+      const credentials = getFlexCredentials();
+      expect(credentials).toMatchObject({
+        accountSid: 'AC123',
+        authToken: 'token123',
+        workspaceSid: 'WS123',
+      });
+      expect(credentials?.flexFlowSid).toBeUndefined();
+    });
+  });
+
+  describe('getDashboardStats edge cases', () => {
+    it('should handle empty queues and conferences', async () => {
+      server.use(
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Workers', () => {
+          return HttpResponse.json({ workers: [] });
+        }),
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/TaskQueues', () => {
+          return HttpResponse.json({ task_queues: [] });
+        }),
+        http.get('https://api.twilio.com/2010-04-01/Accounts/:accountSid/Conferences.json', () => {
+          return HttpResponse.json({ conferences: [] });
+        })
+      );
+
+      const stats = await client.getDashboardStats();
+
+      expect(stats.activeCalls).toBe(0);
+      expect(stats.callsInQueue).toBe(0);
+      expect(stats.averageWaitTime).toBe(0);
+      expect(stats.agentsAvailable).toBe(0);
+    });
+
+    it('should calculate max wait time across multiple queues', async () => {
+      server.use(
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/Workers', () => {
+          return HttpResponse.json({ workers: [] });
+        }),
+        http.get('https://taskrouter.twilio.com/v1/Workspaces/:workspaceSid/TaskQueues', () => {
+          return HttpResponse.json({
+            task_queues: [
+              {
+                sid: 'WQ1',
+                friendly_name: 'Queue 1',
+                current_size: 2,
+              },
+              {
+                sid: 'WQ2',
+                friendly_name: 'Queue 2',
+                current_size: 3,
+              },
+            ],
+          });
+        }),
+        http.get('https://api.twilio.com/2010-04-01/Accounts/:accountSid/Conferences.json', () => {
+          return HttpResponse.json({ conferences: [] });
+        })
+      );
+
+      const stats = await client.getDashboardStats();
+      expect(stats.callsInQueue).toBe(5);
+    });
+  });
 });

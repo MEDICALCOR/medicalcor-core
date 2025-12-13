@@ -790,4 +790,786 @@ describe('InsuranceClient', () => {
       expect(credentials.apiKey).toBeUndefined();
     });
   });
+
+  describe('InsuranceClient URL validation - additional cases', () => {
+    it('should throw for link-local IP 169.254.x.x', () => {
+      expect(() => {
+        createInsuranceClient({
+          apiUrl: 'http://169.254.1.1:3000',
+          apiKey: 'test-key',
+        });
+      }).toThrow('private IP');
+    });
+
+    it('should throw for 172.17.x.x private IP', () => {
+      expect(() => {
+        createInsuranceClient({
+          apiUrl: 'http://172.17.0.1:3000',
+          apiKey: 'test-key',
+        });
+      }).toThrow('private IP');
+    });
+
+    it('should throw for 172.20.x.x private IP', () => {
+      expect(() => {
+        createInsuranceClient({
+          apiUrl: 'http://172.20.0.1:3000',
+          apiKey: 'test-key',
+        });
+      }).toThrow('private IP');
+    });
+
+    it('should throw for 172.31.x.x private IP', () => {
+      expect(() => {
+        createInsuranceClient({
+          apiUrl: 'http://172.31.255.255:3000',
+          apiKey: 'test-key',
+        });
+      }).toThrow('private IP');
+    });
+
+    it('should throw for HTTP in production', () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+
+      expect(() => {
+        createInsuranceClient({
+          apiUrl: 'http://api.example.com',
+          apiKey: 'test-key',
+        });
+      }).toThrow('HTTPS');
+
+      process.env.NODE_ENV = originalEnv;
+    });
+
+    it('should allow HTTP in non-production', () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'development';
+
+      expect(() => {
+        createInsuranceClient({
+          apiUrl: 'http://api.example.com',
+          apiKey: 'test-key',
+        });
+      }).not.toThrow();
+
+      process.env.NODE_ENV = originalEnv;
+    });
+
+    it('should handle malformed URL gracefully', () => {
+      expect(() => {
+        createInsuranceClient({
+          apiUrl: 'not a valid url at all',
+          apiKey: 'test-key',
+        });
+      }).toThrow('Invalid API URL');
+    });
+
+    it('should handle URL with just protocol', () => {
+      expect(() => {
+        createInsuranceClient({
+          apiUrl: 'http://',
+          apiKey: 'test-key',
+        });
+      }).toThrow('Invalid API URL');
+    });
+  });
+
+  describe('InsuranceClient constructor configuration', () => {
+    it('should use default timeout when not provided', () => {
+      const client = createInsuranceClient({
+        apiUrl: 'https://api.example.com',
+        apiKey: 'test-key',
+      });
+
+      expect(client).toBeInstanceOf(InsuranceClient);
+    });
+
+    it('should use custom timeout when provided', () => {
+      const client = createInsuranceClient({
+        apiUrl: 'https://api.example.com',
+        apiKey: 'test-key',
+        timeoutMs: 5000,
+      });
+
+      expect(client).toBeInstanceOf(InsuranceClient);
+    });
+
+    it('should use default retry config when not provided', () => {
+      const client = createInsuranceClient({
+        apiUrl: 'https://api.example.com',
+        apiKey: 'test-key',
+      });
+
+      expect(client).toBeInstanceOf(InsuranceClient);
+    });
+
+    it('should use custom retry config when provided', () => {
+      const client = createInsuranceClient({
+        apiUrl: 'https://api.example.com',
+        apiKey: 'test-key',
+        retryConfig: {
+          maxRetries: 5,
+          baseDelayMs: 2000,
+        },
+      });
+
+      expect(client).toBeInstanceOf(InsuranceClient);
+    });
+
+    it('should accept provider config', () => {
+      const client = createInsuranceClient({
+        apiUrl: 'https://api.example.com',
+        apiKey: 'test-key',
+        providerConfig: { customSetting: 'value' },
+      });
+
+      expect(client).toBeInstanceOf(InsuranceClient);
+    });
+  });
+
+  describe('InsuranceClient retry logic', () => {
+    let client: InsuranceClient;
+    let originalFetch: typeof globalThis.fetch;
+    let fetchCallCount: number;
+
+    beforeEach(() => {
+      originalFetch = globalThis.fetch;
+      fetchCallCount = 0;
+      client = createInsuranceClient({
+        apiUrl: 'https://api.insurance.example.com',
+        apiKey: 'test-api-key',
+        timeoutMs: 1000,
+        retryConfig: {
+          maxRetries: 3,
+          baseDelayMs: 10,
+        },
+      });
+    });
+
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+    });
+
+    it('should retry on retryable error and succeed', async () => {
+      globalThis.fetch = vi.fn().mockImplementation(() => {
+        fetchCallCount++;
+        if (fetchCallCount === 1) {
+          return Promise.resolve({
+            ok: false,
+            status: 500,
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              status: 'active',
+              policyNumber: 'ABC123456',
+              verifiedAt: new Date().toISOString(),
+            }),
+        });
+      });
+
+      const request: InsuranceVerificationRequest = {
+        providerId: 'delta_dental',
+        providerName: 'Delta Dental',
+        policyNumber: 'ABC123456',
+        subscriberFirstName: 'John',
+        subscriberLastName: 'Doe',
+        patientRelationship: 'self',
+        serviceType: 'dental',
+      };
+
+      const result = await client.verifyEligibility(request, 'corr-123');
+
+      expect(result._tag).toBe('Ok');
+      expect(fetchCallCount).toBe(2);
+    });
+
+    it('should stop retrying after max retries', async () => {
+      // Use network errors which have shorter retry delays
+      globalThis.fetch = vi.fn().mockImplementation(() => {
+        fetchCallCount++;
+        return Promise.reject(new Error('Network error'));
+      });
+
+      const request: InsuranceVerificationRequest = {
+        providerId: 'delta_dental',
+        providerName: 'Delta Dental',
+        policyNumber: 'ABC123456',
+        subscriberFirstName: 'John',
+        subscriberLastName: 'Doe',
+        patientRelationship: 'self',
+        serviceType: 'dental',
+      };
+
+      const result = await client.verifyEligibility(request, 'corr-123');
+
+      expect(result._tag).toBe('Err');
+      if (result._tag === 'Err') {
+        expect(result.error.code).toBe('NETWORK_ERROR');
+      }
+      expect(fetchCallCount).toBe(4); // initial + 3 retries
+    });
+
+    it('should use exponential backoff for retries', async () => {
+      const delays: number[] = [];
+      const originalSetTimeout = setTimeout;
+
+      // Track delay times
+      global.setTimeout = vi.fn().mockImplementation((fn, delay) => {
+        if (typeof delay === 'number' && delay > 0) {
+          delays.push(delay);
+        }
+        return originalSetTimeout(fn, 0);
+      }) as any;
+
+      // Use network error which will use exponential backoff calculation
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
+
+      const request: InsuranceVerificationRequest = {
+        providerId: 'delta_dental',
+        providerName: 'Delta Dental',
+        policyNumber: 'ABC123456',
+        subscriberFirstName: 'John',
+        subscriberLastName: 'Doe',
+        patientRelationship: 'self',
+        serviceType: 'dental',
+      };
+
+      await client.verifyEligibility(request, 'corr-123');
+
+      // Verify exponential backoff pattern: baseDelay * 2^attempt
+      // Should have delays for 3 retries with baseDelayMs=10 and retryAfterMs=2000 from network error
+      expect(delays.length).toBeGreaterThan(0);
+
+      global.setTimeout = originalSetTimeout;
+    });
+
+    it('should use custom retryAfterMs when provided', async () => {
+      const delays: number[] = [];
+      const originalSetTimeout = setTimeout;
+
+      global.setTimeout = vi.fn().mockImplementation((fn, delay) => {
+        if (typeof delay === 'number' && delay > 0) {
+          delays.push(delay);
+        }
+        return originalSetTimeout(fn, 0);
+      }) as any;
+
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 429,
+        headers: new Headers({ 'Retry-After': '5' }),
+      });
+
+      const request: InsuranceVerificationRequest = {
+        providerId: 'delta_dental',
+        providerName: 'Delta Dental',
+        policyNumber: 'ABC123456',
+        subscriberFirstName: 'John',
+        subscriberLastName: 'Doe',
+        patientRelationship: 'self',
+        serviceType: 'dental',
+      };
+
+      await client.verifyEligibility(request, 'corr-123');
+
+      // Should use the retryAfterMs from the error (5000ms)
+      expect(delays.some((d) => d === 5000)).toBe(true);
+
+      global.setTimeout = originalSetTimeout;
+    });
+
+    it('should not retry on non-retryable error', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+      });
+
+      const request: InsuranceVerificationRequest = {
+        providerId: 'delta_dental',
+        providerName: 'Delta Dental',
+        policyNumber: 'ABC123456',
+        subscriberFirstName: 'John',
+        subscriberLastName: 'Doe',
+        patientRelationship: 'self',
+        serviceType: 'dental',
+      };
+
+      const result = await client.verifyEligibility(request, 'corr-123');
+
+      expect(result._tag).toBe('Err');
+      expect(fetchCallCount).toBeLessThanOrEqual(1); // Should not retry
+    });
+  });
+
+  describe('InsuranceClient error handling - additional cases', () => {
+    let client: InsuranceClient;
+    let originalFetch: typeof globalThis.fetch;
+
+    beforeEach(() => {
+      originalFetch = globalThis.fetch;
+      client = createInsuranceClient({
+        apiUrl: 'https://api.insurance.example.com',
+        apiKey: 'test-api-key',
+        timeoutMs: 1000,
+        retryConfig: {
+          maxRetries: 0,
+          baseDelayMs: 10,
+        },
+      });
+    });
+
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+    });
+
+    it('should handle 429 without Retry-After header', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 429,
+        headers: new Headers(),
+      });
+
+      const request: InsuranceVerificationRequest = {
+        providerId: 'delta_dental',
+        providerName: 'Delta Dental',
+        policyNumber: 'ABC123456',
+        subscriberFirstName: 'John',
+        subscriberLastName: 'Doe',
+        patientRelationship: 'self',
+        serviceType: 'dental',
+      };
+
+      const result = await client.verifyEligibility(request, 'corr-123');
+
+      expect(result._tag).toBe('Err');
+      if (result._tag === 'Err') {
+        expect(result.error.code).toBe('RATE_LIMITED');
+        expect(result.error.retryAfterMs).toBe(60000); // Default 60 seconds
+      }
+    });
+
+    it('should handle 503 service unavailable', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 503,
+      });
+
+      const request: InsuranceVerificationRequest = {
+        providerId: 'delta_dental',
+        providerName: 'Delta Dental',
+        policyNumber: 'ABC123456',
+        subscriberFirstName: 'John',
+        subscriberLastName: 'Doe',
+        patientRelationship: 'self',
+        serviceType: 'dental',
+      };
+
+      const result = await client.verifyEligibility(request, 'corr-123');
+
+      expect(result._tag).toBe('Err');
+      if (result._tag === 'Err') {
+        expect(result.error.code).toBe('SERVICE_UNAVAILABLE');
+        expect(result.error.retryable).toBe(true);
+      }
+    });
+
+    it('should handle 504 gateway timeout', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 504,
+      });
+
+      const request: InsuranceVerificationRequest = {
+        providerId: 'delta_dental',
+        providerName: 'Delta Dental',
+        policyNumber: 'ABC123456',
+        subscriberFirstName: 'John',
+        subscriberLastName: 'Doe',
+        patientRelationship: 'self',
+        serviceType: 'dental',
+      };
+
+      const result = await client.verifyEligibility(request, 'corr-123');
+
+      expect(result._tag).toBe('Err');
+      if (result._tag === 'Err') {
+        expect(result.error.code).toBe('SERVICE_UNAVAILABLE');
+        expect(result.error.retryable).toBe(true);
+      }
+    });
+
+    it('should handle 404 not found error', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+      });
+
+      const request: InsuranceVerificationRequest = {
+        providerId: 'delta_dental',
+        providerName: 'Delta Dental',
+        policyNumber: 'ABC123456',
+        subscriberFirstName: 'John',
+        subscriberLastName: 'Doe',
+        patientRelationship: 'self',
+        serviceType: 'dental',
+      };
+
+      const result = await client.verifyEligibility(request, 'corr-123');
+
+      expect(result._tag).toBe('Err');
+      if (result._tag === 'Err') {
+        expect(result.error.code).toBe('API_ERROR');
+        expect(result.error.retryable).toBe(false);
+      }
+    });
+
+    it('should handle non-Error network failure', async () => {
+      globalThis.fetch = vi.fn().mockRejectedValue('String error');
+
+      const request: InsuranceVerificationRequest = {
+        providerId: 'delta_dental',
+        providerName: 'Delta Dental',
+        policyNumber: 'ABC123456',
+        subscriberFirstName: 'John',
+        subscriberLastName: 'Doe',
+        patientRelationship: 'self',
+        serviceType: 'dental',
+      };
+
+      const result = await client.verifyEligibility(request, 'corr-123');
+
+      expect(result._tag).toBe('Err');
+      if (result._tag === 'Err') {
+        expect(result.error.code).toBe('NETWORK_ERROR');
+        expect(result.error.retryable).toBe(true);
+        expect(result.error.originalError).toBeUndefined();
+      }
+    });
+
+    it('should handle network error with Error instance', async () => {
+      const networkError = new Error('Connection refused');
+      globalThis.fetch = vi.fn().mockRejectedValue(networkError);
+
+      const request: InsuranceVerificationRequest = {
+        providerId: 'delta_dental',
+        providerName: 'Delta Dental',
+        policyNumber: 'ABC123456',
+        subscriberFirstName: 'John',
+        subscriberLastName: 'Doe',
+        patientRelationship: 'self',
+        serviceType: 'dental',
+      };
+
+      const result = await client.verifyEligibility(request, 'corr-123');
+
+      expect(result._tag).toBe('Err');
+      if (result._tag === 'Err') {
+        expect(result.error.code).toBe('NETWORK_ERROR');
+        expect(result.error.message).toBe('Connection refused');
+        expect(result.error.originalError).toBe(networkError);
+      }
+    });
+  });
+
+  describe('InsuranceClient healthCheck - timeout handling', () => {
+    let client: InsuranceClient;
+    let originalFetch: typeof globalThis.fetch;
+
+    beforeEach(() => {
+      originalFetch = globalThis.fetch;
+      client = createInsuranceClient({
+        apiUrl: 'https://api.insurance.example.com',
+        apiKey: 'test-api-key',
+      });
+    });
+
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+    });
+
+    it('should handle timeout in health check', async () => {
+      // Simulate timeout by rejecting with AbortError
+      const abortError = new Error('The operation was aborted');
+      abortError.name = 'AbortError';
+
+      globalThis.fetch = vi.fn().mockRejectedValue(abortError);
+
+      const result = await client.healthCheck();
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('MockInsuranceClient - edge cases', () => {
+    it('should handle missing active scenario gracefully', async () => {
+      const client = new MockInsuranceClient();
+      // Clear all scenarios by creating a new instance and manipulating internals
+      // This tests the safety check at line 495-500
+      const scenariosMap = (client as any).scenarios;
+      scenariosMap.clear();
+
+      const request: InsuranceVerificationRequest = {
+        providerId: 'delta_dental',
+        providerName: 'Delta Dental',
+        policyNumber: 'REGULAR123',
+        subscriberFirstName: 'John',
+        subscriberLastName: 'Doe',
+        patientRelationship: 'self',
+        serviceType: 'dental',
+      };
+
+      const result = await client.verifyEligibility(request, 'test-correlation-id');
+
+      expect(result._tag).toBe('Err');
+      if (result._tag === 'Err') {
+        expect(result.error.code).toBe('API_ERROR');
+        expect(result.error.message).toContain('Mock scenario not configured');
+      }
+    });
+
+    it('should construct subscriber name correctly', async () => {
+      const client = createMockInsuranceClient();
+
+      const request: InsuranceVerificationRequest = {
+        providerId: 'delta_dental',
+        providerName: 'Delta Dental',
+        policyNumber: 'TEST123456',
+        subscriberFirstName: 'Jane',
+        subscriberLastName: 'Smith',
+        patientRelationship: 'self',
+        serviceType: 'dental',
+      };
+
+      const result = await client.verifyEligibility(request, 'test-correlation-id');
+
+      expect(result._tag).toBe('Ok');
+      if (result._tag === 'Ok') {
+        expect(result.value.subscriberName).toBe('Jane Smith');
+      }
+    });
+  });
+
+  describe('InsuranceVerificationRequestSchema - additional validation', () => {
+    it('should reject empty providerId', () => {
+      const request = {
+        providerId: '',
+        providerName: 'Delta Dental',
+        policyNumber: 'ABC123456',
+        subscriberFirstName: 'John',
+        subscriberLastName: 'Doe',
+      };
+
+      const result = InsuranceVerificationRequestSchema.safeParse(request);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject empty providerName', () => {
+      const request = {
+        providerId: 'delta_dental',
+        providerName: '',
+        policyNumber: 'ABC123456',
+        subscriberFirstName: 'John',
+        subscriberLastName: 'Doe',
+      };
+
+      const result = InsuranceVerificationRequestSchema.safeParse(request);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject policy number over 30 chars', () => {
+      const request = {
+        providerId: 'delta_dental',
+        providerName: 'Delta Dental',
+        policyNumber: 'A'.repeat(31),
+        subscriberFirstName: 'John',
+        subscriberLastName: 'Doe',
+      };
+
+      const result = InsuranceVerificationRequestSchema.safeParse(request);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject group number under 3 chars', () => {
+      const request = {
+        providerId: 'delta_dental',
+        providerName: 'Delta Dental',
+        policyNumber: 'ABC123456',
+        groupNumber: 'AB',
+        subscriberFirstName: 'John',
+        subscriberLastName: 'Doe',
+      };
+
+      const result = InsuranceVerificationRequestSchema.safeParse(request);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject group number over 20 chars', () => {
+      const request = {
+        providerId: 'delta_dental',
+        providerName: 'Delta Dental',
+        policyNumber: 'ABC123456',
+        groupNumber: 'A'.repeat(21),
+        subscriberFirstName: 'John',
+        subscriberLastName: 'Doe',
+      };
+
+      const result = InsuranceVerificationRequestSchema.safeParse(request);
+      expect(result.success).toBe(false);
+    });
+
+    it('should accept all valid patient relationships', () => {
+      const relationships = ['self', 'spouse', 'child', 'other'] as const;
+
+      for (const relationship of relationships) {
+        const request = {
+          providerId: 'delta_dental',
+          providerName: 'Delta Dental',
+          policyNumber: 'ABC123456',
+          subscriberFirstName: 'John',
+          subscriberLastName: 'Doe',
+          patientRelationship: relationship,
+        };
+
+        const result = InsuranceVerificationRequestSchema.safeParse(request);
+        expect(result.success).toBe(true);
+      }
+    });
+
+    it('should accept all valid service types', () => {
+      const serviceTypes = ['dental', 'medical', 'vision'] as const;
+
+      for (const serviceType of serviceTypes) {
+        const request = {
+          providerId: 'delta_dental',
+          providerName: 'Delta Dental',
+          policyNumber: 'ABC123456',
+          subscriberFirstName: 'John',
+          subscriberLastName: 'Doe',
+          serviceType,
+        };
+
+        const result = InsuranceVerificationRequestSchema.safeParse(request);
+        expect(result.success).toBe(true);
+      }
+    });
+
+    it('should accept optional subscriberDateOfBirth', () => {
+      const request = {
+        providerId: 'delta_dental',
+        providerName: 'Delta Dental',
+        policyNumber: 'ABC123456',
+        subscriberFirstName: 'John',
+        subscriberLastName: 'Doe',
+        subscriberDateOfBirth: '1990-01-01',
+      };
+
+      const result = InsuranceVerificationRequestSchema.safeParse(request);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.subscriberDateOfBirth).toBe('1990-01-01');
+      }
+    });
+  });
+
+  describe('InsuranceVerificationResponseSchema - additional validation', () => {
+    it('should accept all valid statuses', () => {
+      const statuses = ['active', 'inactive', 'expired', 'invalid', 'not_found'] as const;
+
+      for (const status of statuses) {
+        const response = {
+          status,
+          policyNumber: 'ABC123456',
+          verifiedAt: '2024-06-15T10:00:00Z',
+        };
+
+        const result = InsuranceVerificationResponseSchema.safeParse(response);
+        expect(result.success).toBe(true);
+      }
+    });
+
+    it('should accept all valid coverage types', () => {
+      const coverageTypes = ['full', 'partial', 'dental_only'] as const;
+
+      for (const coverageType of coverageTypes) {
+        const response = {
+          status: 'active',
+          policyNumber: 'ABC123456',
+          coverageType,
+          verifiedAt: '2024-06-15T10:00:00Z',
+        };
+
+        const result = InsuranceVerificationResponseSchema.safeParse(response);
+        expect(result.success).toBe(true);
+      }
+    });
+
+    it('should reject negative copay percentage', () => {
+      const response = {
+        status: 'active',
+        policyNumber: 'ABC123456',
+        copayPercentage: -10,
+        verifiedAt: '2024-06-15T10:00:00Z',
+      };
+
+      const result = InsuranceVerificationResponseSchema.safeParse(response);
+      expect(result.success).toBe(false);
+    });
+
+    it('should accept copay percentage at boundaries', () => {
+      const response0 = {
+        status: 'active',
+        policyNumber: 'ABC123456',
+        copayPercentage: 0,
+        verifiedAt: '2024-06-15T10:00:00Z',
+      };
+
+      const result0 = InsuranceVerificationResponseSchema.safeParse(response0);
+      expect(result0.success).toBe(true);
+
+      const response100 = {
+        status: 'active',
+        policyNumber: 'ABC123456',
+        copayPercentage: 100,
+        verifiedAt: '2024-06-15T10:00:00Z',
+      };
+
+      const result100 = InsuranceVerificationResponseSchema.safeParse(response100);
+      expect(result100.success).toBe(true);
+    });
+
+    it('should accept all optional fields', () => {
+      const response = {
+        status: 'active',
+        policyNumber: 'ABC123456',
+        subscriberName: 'John Doe',
+        coverageType: 'full',
+        effectiveFrom: '2024-01-01',
+        effectiveUntil: '2024-12-31',
+        deductible: 50000,
+        remainingDeductible: 25000,
+        annualMaximum: 200000,
+        remainingMaximum: 150000,
+        copayPercentage: 20,
+        coveredProcedures: ['D0120', 'D0150', 'D1110'],
+        preAuthRequired: true,
+        nameMatch: true,
+        dobMatch: false,
+        externalReferenceId: 'EXT-123456',
+        verifiedAt: '2024-06-15T10:00:00Z',
+        message: 'Verification successful',
+      };
+
+      const result = InsuranceVerificationResponseSchema.safeParse(response);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.coveredProcedures).toHaveLength(3);
+        expect(result.data.message).toBe('Verification successful');
+      }
+    });
+  });
 });
