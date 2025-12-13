@@ -210,7 +210,7 @@ export class PostgresRevenueSnapshotRepository implements IRevenueSnapshotReposi
   // CHECK SUFFICIENT DATA
   // ==========================================================================
 
-  async hasSufficientData(clinicId: string, minDataPoints: number = 6): Promise<boolean> {
+  async hasSufficientData(clinicId: string, minDataPoints = 6): Promise<boolean> {
     logger.debug({ clinicId, minDataPoints }, 'Checking for sufficient historical data');
 
     const sql = `
@@ -335,146 +335,81 @@ export class PostgresRevenueSnapshotRepository implements IRevenueSnapshotReposi
   // PRIVATE HELPER METHODS
   // ==========================================================================
 
+  /**
+   * Maps granularity to DATE_TRUNC function name
+   */
+  private readonly granularityToTruncFn: Record<
+    'daily' | 'weekly' | 'monthly' | 'quarterly',
+    string | null
+  > = {
+    daily: null,
+    weekly: 'week',
+    monthly: 'month',
+    quarterly: 'quarter',
+  };
+
+  /**
+   * Builds revenue query for both single clinic and batch operations.
+   * Consolidated to eliminate duplication between single/batch query builders.
+   */
+  private buildRevenueQuery(
+    granularity: 'daily' | 'weekly' | 'monthly' | 'quarterly',
+    options: { isBatch: boolean }
+  ): string {
+    const truncFn = this.granularityToTruncFn[granularity];
+    const clinicCondition = options.isBatch ? 'clinic_id = ANY($1)' : 'clinic_id = $1';
+    const orderBy = options.isBatch ? 'clinic_id, snapshot_date ASC' : 'snapshot_date ASC';
+
+    // Daily granularity: simple select without aggregation
+    if (!truncFn) {
+      return `
+        SELECT
+          clinic_id,
+          snapshot_date,
+          revenue,
+          cases_completed,
+          new_patients,
+          collection_rate,
+          avg_case_value,
+          high_value_revenue
+        FROM ${this.viewName}
+        WHERE ${clinicCondition}
+          AND snapshot_date >= $2
+          AND snapshot_date <= $3
+        ORDER BY ${orderBy}
+      `;
+    }
+
+    // Weekly/Monthly/Quarterly: aggregated query with DATE_TRUNC
+    return `
+      SELECT
+        clinic_id,
+        DATE_TRUNC('${truncFn}', snapshot_date) as snapshot_date,
+        SUM(revenue) as revenue,
+        SUM(cases_completed) as cases_completed,
+        SUM(new_patients) as new_patients,
+        AVG(collection_rate) as collection_rate,
+        AVG(avg_case_value) as avg_case_value,
+        SUM(high_value_revenue) as high_value_revenue
+      FROM ${this.viewName}
+      WHERE ${clinicCondition}
+        AND snapshot_date >= $2
+        AND snapshot_date <= $3
+      GROUP BY clinic_id, DATE_TRUNC('${truncFn}', snapshot_date)
+      ORDER BY ${orderBy}
+    `;
+  }
+
   private buildHistoricalRevenueQuery(
     granularity: 'daily' | 'weekly' | 'monthly' | 'quarterly'
   ): string {
-    // Base columns to select
-    const baseSelect = `
-      clinic_id,
-      snapshot_date,
-      revenue,
-      cases_completed,
-      new_patients,
-      collection_rate,
-      avg_case_value,
-      high_value_revenue
-    `;
-
-    switch (granularity) {
-      case 'daily':
-        return `
-          SELECT ${baseSelect}
-          FROM ${this.viewName}
-          WHERE clinic_id = $1
-            AND snapshot_date >= $2
-            AND snapshot_date <= $3
-          ORDER BY snapshot_date ASC
-        `;
-
-      case 'weekly':
-        return `
-          SELECT
-            clinic_id,
-            DATE_TRUNC('week', snapshot_date) as snapshot_date,
-            SUM(revenue) as revenue,
-            SUM(cases_completed) as cases_completed,
-            SUM(new_patients) as new_patients,
-            AVG(collection_rate) as collection_rate,
-            AVG(avg_case_value) as avg_case_value,
-            SUM(high_value_revenue) as high_value_revenue
-          FROM ${this.viewName}
-          WHERE clinic_id = $1
-            AND snapshot_date >= $2
-            AND snapshot_date <= $3
-          GROUP BY clinic_id, DATE_TRUNC('week', snapshot_date)
-          ORDER BY snapshot_date ASC
-        `;
-
-      case 'monthly':
-        return `
-          SELECT
-            clinic_id,
-            DATE_TRUNC('month', snapshot_date) as snapshot_date,
-            SUM(revenue) as revenue,
-            SUM(cases_completed) as cases_completed,
-            SUM(new_patients) as new_patients,
-            AVG(collection_rate) as collection_rate,
-            AVG(avg_case_value) as avg_case_value,
-            SUM(high_value_revenue) as high_value_revenue
-          FROM ${this.viewName}
-          WHERE clinic_id = $1
-            AND snapshot_date >= $2
-            AND snapshot_date <= $3
-          GROUP BY clinic_id, DATE_TRUNC('month', snapshot_date)
-          ORDER BY snapshot_date ASC
-        `;
-
-      case 'quarterly':
-        return `
-          SELECT
-            clinic_id,
-            DATE_TRUNC('quarter', snapshot_date) as snapshot_date,
-            SUM(revenue) as revenue,
-            SUM(cases_completed) as cases_completed,
-            SUM(new_patients) as new_patients,
-            AVG(collection_rate) as collection_rate,
-            AVG(avg_case_value) as avg_case_value,
-            SUM(high_value_revenue) as high_value_revenue
-          FROM ${this.viewName}
-          WHERE clinic_id = $1
-            AND snapshot_date >= $2
-            AND snapshot_date <= $3
-          GROUP BY clinic_id, DATE_TRUNC('quarter', snapshot_date)
-          ORDER BY snapshot_date ASC
-        `;
-
-      default: {
-        const _exhaustiveCheck: never = granularity;
-        return _exhaustiveCheck;
-      }
-    }
+    return this.buildRevenueQuery(granularity, { isBatch: false });
   }
 
   private buildBatchHistoricalRevenueQuery(
     granularity: 'daily' | 'weekly' | 'monthly' | 'quarterly'
   ): string {
-    switch (granularity) {
-      case 'daily':
-        return `
-          SELECT
-            clinic_id,
-            snapshot_date,
-            revenue,
-            cases_completed,
-            new_patients,
-            collection_rate,
-            avg_case_value,
-            high_value_revenue
-          FROM ${this.viewName}
-          WHERE clinic_id = ANY($1)
-            AND snapshot_date >= $2
-            AND snapshot_date <= $3
-          ORDER BY clinic_id, snapshot_date ASC
-        `;
-
-      case 'weekly':
-      case 'monthly':
-      case 'quarterly':
-        const truncFn =
-          granularity === 'weekly' ? 'week' : granularity === 'monthly' ? 'month' : 'quarter';
-        return `
-          SELECT
-            clinic_id,
-            DATE_TRUNC('${truncFn}', snapshot_date) as snapshot_date,
-            SUM(revenue) as revenue,
-            SUM(cases_completed) as cases_completed,
-            SUM(new_patients) as new_patients,
-            AVG(collection_rate) as collection_rate,
-            AVG(avg_case_value) as avg_case_value,
-            SUM(high_value_revenue) as high_value_revenue
-          FROM ${this.viewName}
-          WHERE clinic_id = ANY($1)
-            AND snapshot_date >= $2
-            AND snapshot_date <= $3
-          GROUP BY clinic_id, DATE_TRUNC('${truncFn}', snapshot_date)
-          ORDER BY clinic_id, snapshot_date ASC
-        `;
-
-      default: {
-        const _exhaustiveCheck: never = granularity;
-        return _exhaustiveCheck;
-      }
-    }
+    return this.buildRevenueQuery(granularity, { isBatch: true });
   }
 
   private mapRowToRevenuePoint(row: RevenueSnapshotRow): HistoricalRevenuePoint {

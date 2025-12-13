@@ -66,6 +66,7 @@ import type {
   DesignFeedback,
   CreateDesignFeedback,
   LabCasePriority,
+  LabNotificationPreferences,
 } from '@medicalcor/types';
 
 import type {
@@ -248,6 +249,7 @@ interface StatusHistoryRow {
   changed_by: string;
   changed_at: Date;
   reason: string | null;
+  sla_deadline: Date | null;
   metadata: Record<string, unknown>;
 }
 
@@ -265,8 +267,9 @@ interface SLATrackingRow {
   overall_status: string;
   days_remaining: number;
   percent_complete: number;
-  created_at: Date;
-  updated_at: Date;
+  last_calculated_at: Date | null;
+  created_at: Date | null;
+  updated_at: Date | null;
 }
 
 interface CollaborationThreadRow {
@@ -282,18 +285,20 @@ interface CollaborationThreadRow {
   created_at: Date;
   updated_at: Date;
   last_message_at: Date | null;
+  resolved_at: Date | null;
 }
 
 interface CollaborationMessageRow {
   [key: string]: unknown;
   id: string;
   thread_id: string;
+  lab_case_id: string;
   sender_id: string;
   sender_type: string;
   content: string;
+  message_type: string;
   attachments: Array<{ url: string; filename: string; mimeType: string }> | null;
   created_at: Date;
-  edited_at: Date | null;
 }
 
 interface DesignFeedbackRow {
@@ -384,44 +389,53 @@ class LabCaseRowMapper {
       clinicId: row.clinic_id,
       patientId: row.patient_id,
       prescribingDentist: row.prescribing_dentist,
+      prescriptionDate: row.received_at, // Using received_at as prescription date
       status: row.status as LabCaseStatus,
       priority: row.priority as LabCasePriority,
+      prosthetics: [], // Will be populated by separate query
       receivedAt: row.received_at,
       dueDate: row.due_date,
+      currentSLADeadline: row.due_date, // Default to due date
       completedAt: row.completed_at ?? undefined,
-      shadeGuide: row.shade_guide ?? undefined,
-      shadeValue: row.shade_value ?? undefined,
       specialInstructions: row.special_instructions ?? undefined,
-      internalNotes: row.internal_notes ?? undefined,
       assignedTechnician: row.assigned_technician ?? undefined,
       assignedDesigner: row.assigned_designer ?? undefined,
-      estimatedHours: row.estimated_hours ?? undefined,
-      actualHours: row.actual_hours ?? undefined,
-      rushFee: row.rush_fee ? parseFloat(row.rush_fee) : undefined,
-      totalCost: row.total_cost ? parseFloat(row.total_cost) : undefined,
+      estimatedCost: row.estimated_hours ? row.estimated_hours * 100 : undefined,
+      actualCost: row.actual_hours ? row.actual_hours * 100 : undefined,
+      currency: 'RON',
       notes: row.notes ?? undefined,
-      metadata: row.metadata,
+      version: row.version,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
-      version: row.version,
+      deletedAt: row.deleted_at ?? undefined,
     };
   }
 
   static toDigitalScan(row: DigitalScanRow): DigitalScan {
+    // Map quality score to enum
+    const qualityMap: Record<number, DigitalScan['quality']> = {
+      4: 'EXCELLENT',
+      3: 'GOOD',
+      2: 'ACCEPTABLE',
+      1: 'POOR',
+    };
+    const quality = row.quality_score ? qualityMap[row.quality_score] : undefined;
+
     return {
       id: row.id,
       labCaseId: row.lab_case_id,
       scanType: row.scan_type as DigitalScan['scanType'],
       fileFormat: row.file_format as DigitalScan['fileFormat'],
-      storagePath: row.storage_path,
-      fileSizeBytes: row.file_size_bytes,
+      filePath: row.storage_path,
+      fileSize: row.file_size_bytes,
       checksum: row.checksum ?? undefined,
       scannerBrand: row.scanner_brand ?? undefined,
       scannerModel: row.scanner_model ?? undefined,
-      scanDate: row.scan_date,
-      uploadedBy: row.uploaded_by,
-      qualityScore: row.quality_score ?? undefined,
+      quality,
       notes: row.notes ?? undefined,
+      processed: false,
+      uploadedBy: row.uploaded_by ?? undefined,
+      uploadedAt: row.scan_date,
       createdAt: row.created_at,
     };
   }
@@ -430,19 +444,17 @@ class LabCaseRowMapper {
     return {
       id: row.id,
       labCaseId: row.lab_case_id,
-      version: row.version,
-      softwareName: row.software_name,
+      softwareUsed: row.software_name,
       softwareVersion: row.software_version ?? undefined,
-      fileFormat: row.file_format as CADDesign['fileFormat'],
-      storagePath: row.storage_path,
-      fileSizeBytes: row.file_size_bytes,
+      filePath: row.storage_path,
+      fileSize: row.file_size_bytes,
       designedBy: row.designed_by,
-      designHours: row.design_hours ?? undefined,
+      designedAt: row.created_at,
+      revisionNumber: row.version,
       approvalStatus: row.approval_status as CADDesign['approvalStatus'],
       approvedBy: row.approved_by ?? undefined,
       approvedAt: row.approved_at ?? undefined,
       notes: row.notes ?? undefined,
-      metadata: row.metadata,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -453,13 +465,12 @@ class LabCaseRowMapper {
       id: row.id,
       labCaseId: row.lab_case_id,
       method: row.method as FabricationRecord['method'],
-      equipmentId: row.equipment_id ?? undefined,
+      machineId: row.equipment_id ?? undefined,
       materialLotNumber: row.material_lot_number ?? undefined,
-      materialExpiry: row.material_expiry ?? undefined,
       technicianId: row.technician_id,
       startedAt: row.started_at,
       completedAt: row.completed_at ?? undefined,
-      machineTimeMinutes: row.machine_time_minutes ?? undefined,
+      durationMinutes: row.machine_time_minutes ?? undefined,
       parameters: row.parameters,
       notes: row.notes ?? undefined,
       createdAt: row.created_at,
@@ -467,17 +478,31 @@ class LabCaseRowMapper {
   }
 
   static toQCInspection(row: QCInspectionRow): QCInspection {
+    // Parse criteria from database format - could be object or array
+    let criteria: QCInspection['criteria'] = [];
+    if (Array.isArray(row.criteria)) {
+      criteria = row.criteria as QCInspection['criteria'];
+    } else if (row.criteria && typeof row.criteria === 'object') {
+      // Convert object format to array format
+      criteria = Object.entries(row.criteria).map(([key, value]) => {
+        const v = value as Record<string, unknown>;
+        return {
+          criterion: key as QCInspection['criteria'][number]['criterion'],
+          passed: Boolean(v.passed),
+          score: Number(v.score ?? 5),
+          notes: typeof v.notes === 'string' ? v.notes : undefined,
+        };
+      });
+    }
+
     return {
       id: row.id,
       labCaseId: row.lab_case_id,
-      inspectionType: row.inspection_type as QCInspection['inspectionType'],
       inspectedBy: row.inspected_by,
       inspectedAt: row.inspected_at,
       passed: row.passed,
       overallScore: row.overall_score,
-      criteria: row.criteria as QCInspection['criteria'],
-      defectsFound: row.defects_found ?? undefined,
-      correctiveActions: row.corrective_actions ?? undefined,
+      criteria,
       photos: row.photos ?? undefined,
       notes: row.notes ?? undefined,
       createdAt: row.created_at,
@@ -485,15 +510,29 @@ class LabCaseRowMapper {
   }
 
   static toTryInRecord(row: TryInRecordRow): TryInRecord {
+    // Parse adjustments from database format
+    const adjustmentsRequired = Array.isArray(row.adjustments_required)
+      ? row.adjustments_required.map((adj: unknown) => {
+          const a = adj as Record<string, unknown>;
+          const desc = typeof a.description === 'string' ? a.description : '';
+          return {
+            type: (a.type ?? 'OTHER') as TryInRecord['adjustmentsRequired'][number]['type'],
+            description: desc,
+            resolved: Boolean(a.resolved),
+            toothNumbers: a.toothNumbers as TryInRecord['adjustmentsRequired'][number]['toothNumbers'],
+          };
+        })
+      : [];
+
     return {
       id: row.id,
       labCaseId: row.lab_case_id,
       scheduledAt: row.scheduled_at,
       completedAt: row.completed_at ?? undefined,
-      clinicianId: row.clinician_id,
+      clinicianId: row.clinician_id ?? undefined,
       clinicianNotes: row.clinician_notes ?? undefined,
       patientSatisfaction: row.patient_satisfaction ?? undefined,
-      adjustmentsRequired: row.adjustments_required ?? undefined,
+      adjustmentsRequired,
       photos: row.photos ?? undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -504,17 +543,21 @@ class LabCaseRowMapper {
     return {
       id: row.id,
       labCaseId: row.lab_case_id,
-      fromStatus: row.from_status as LabCaseStatus | undefined,
-      toStatus: row.to_status as LabCaseStatus,
+      previousStatus: row.from_status as LabCaseStatus | undefined,
+      newStatus: row.to_status as LabCaseStatus,
       changedBy: row.changed_by,
       changedAt: row.changed_at,
       reason: row.reason ?? undefined,
-      metadata: row.metadata,
+      slaDeadline: row.sla_deadline ?? row.changed_at, // Use sla_deadline if available
+      eventType: 'STATUS_CHANGE',
+      eventData: row.metadata as Record<string, unknown> ?? {},
     };
   }
 
   static toSLATracking(row: SLATrackingRow): LabSLATracking {
+    const now = new Date();
     return {
+      id: row.id ?? crypto.randomUUID(),
       labCaseId: row.lab_case_id,
       slaType: row.sla_type as LabSLATracking['slaType'],
       milestones: row.milestones.map((m) => ({
@@ -526,48 +569,121 @@ class LabCaseRowMapper {
       overallStatus: row.overall_status as SLAStatus,
       daysRemaining: row.days_remaining,
       percentComplete: row.percent_complete,
+      lastCalculatedAt: row.last_calculated_at ?? now,
+      createdAt: row.created_at ?? now,
+      updatedAt: row.updated_at ?? now,
     };
   }
 
   static toCollaborationThread(row: CollaborationThreadRow): CollaborationThread {
+    // Parse participants from database format
+    const participants = Array.isArray(row.participants)
+      ? row.participants.map((p: unknown) => {
+          if (typeof p === 'string') {
+            return {
+              userId: p,
+              role: 'CLINICIAN' as const,
+              organization: 'CLINIC' as const,
+            };
+          }
+          const part = p as Record<string, unknown>;
+          const userId = typeof part.userId === 'string' ? part.userId : '';
+          return {
+            userId,
+            role: (part.role ?? 'CLINICIAN') as CollaborationThread['participants'][number]['role'],
+            organization: (part.organization ?? 'CLINIC') as CollaborationThread['participants'][number]['organization'],
+            lastSeen: part.lastSeen ? new Date(part.lastSeen as string) : undefined,
+          };
+        })
+      : [];
+
     return {
       id: row.id,
       labCaseId: row.lab_case_id,
       subject: row.subject,
-      threadType: row.thread_type as CollaborationThread['threadType'],
       priority: row.priority as CollaborationThread['priority'],
       status: row.status as CollaborationThread['status'],
-      participants: row.participants,
-      createdBy: row.created_by,
+      participants,
+      unreadCount: {},
       createdAt: row.created_at,
       updatedAt: row.updated_at,
-      lastMessageAt: row.last_message_at ?? undefined,
+      resolvedAt: row.resolved_at ?? undefined,
     };
   }
 
   static toCollaborationMessage(row: CollaborationMessageRow): CollaborationMessage {
+    // Parse attachments from database format
+    const attachments = Array.isArray(row.attachments)
+      ? row.attachments.map((att: unknown) => {
+          const a = att as Record<string, unknown>;
+          const id = typeof a.id === 'string' ? a.id : crypto.randomUUID();
+          const filename = typeof a.filename === 'string' ? a.filename : '';
+          const url = typeof a.url === 'string' ? a.url : '';
+          return {
+            id,
+            filename,
+            url,
+            fileSize: Number(a.fileSize ?? a.size ?? 0),
+            fileType: (a.fileType ?? a.mimeType ?? 'IMAGE') as CollaborationMessage['attachments'][number]['fileType'],
+            thumbnailUrl: typeof a.thumbnailUrl === 'string' ? a.thumbnailUrl : undefined,
+          };
+        })
+      : [];
+
     return {
       id: row.id,
       threadId: row.thread_id,
-      senderId: row.sender_id,
-      senderType: row.sender_type as CollaborationMessage['senderType'],
+      labCaseId: row.lab_case_id,
+      sender: {
+        id: row.sender_id,
+        name: '', // Will need to be populated separately
+        role: 'CLINICIAN' as const,
+        organization: 'CLINIC' as const,
+      },
       content: row.content,
-      attachments: row.attachments ?? undefined,
+      messageType: row.message_type as CollaborationMessage['messageType'],
+      attachments,
+      references: [],
+      readBy: [],
       createdAt: row.created_at,
-      editedAt: row.edited_at ?? undefined,
     };
   }
 
   static toDesignFeedback(row: DesignFeedbackRow): DesignFeedback {
+    // Parse annotations from database format
+    const annotations = Array.isArray(row.annotations)
+      ? row.annotations.map((ann: unknown) => {
+          const a = ann as Record<string, unknown>;
+          const id = typeof a.id === 'string' ? a.id : crypto.randomUUID();
+          const description = typeof a.description === 'string' ? a.description : '';
+          return {
+            id,
+            type: (a.type ?? 'TEXT') as DesignFeedback['annotations'][number]['type'],
+            description,
+            priority: (a.priority ?? 'MEDIUM') as DesignFeedback['annotations'][number]['priority'],
+            coordinates: (a.coordinates ?? { x: 0, y: 0 }) as { x: number; y: number; z?: number },
+            resolved: Boolean(a.resolved),
+          };
+        })
+      : [];
+
+    // Default criteria scores for the new schema - must use QCCriterion enum values
+    const criteriaScores: DesignFeedback['criteriaScores'] = [
+      { criterion: 'MARGINAL_FIT', score: 5, notes: '' },
+      { criterion: 'AESTHETICS', score: 5, notes: '' },
+    ];
+
     return {
       id: row.id,
       labCaseId: row.lab_case_id,
       designId: row.design_id,
       feedbackType: row.feedback_type as DesignFeedback['feedbackType'],
-      providedBy: row.provided_by,
-      content: row.content,
-      annotations: row.annotations ?? undefined,
-      createdAt: row.created_at,
+      reviewedBy: row.provided_by as string,
+      overallRating: 5,
+      criteriaScores,
+      annotations,
+      generalNotes: row.content as string,
+      reviewedAt: row.created_at,
     };
   }
 }
@@ -710,14 +826,14 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
         input.patientId,
         input.prescribingDentist,
         input.priority,
-        input.receivedAt ?? new Date(),
+        new Date(), // receivedAt is auto-set
         input.dueDate,
-        input.shadeGuide ?? null,
-        input.shadeValue ?? null,
+        null, // shadeGuide not in schema anymore
+        null, // shadeValue not in schema anymore
         input.specialInstructions ?? null,
-        input.internalNotes ?? null,
-        input.notes ?? null,
-        input.metadata ?? {},
+        null, // internalNotes not in schema anymore
+        null, // notes not in create schema
+        {},
       ]);
 
       const labCase = LabCaseRowMapper.toLabCase(caseResult.rows[0]!);
@@ -734,12 +850,14 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
         `;
 
         for (const prosthetic of input.prosthetics) {
+          // toothNumbers is an array in the new schema
+          const toothNumber = prosthetic.toothNumbers?.[0] ?? '11';
           await client.query(prostheticsSql, [
             labCase.id,
-            prosthetic.toothNumber,
-            prosthetic.prostheticType,
+            toothNumber,
+            prosthetic.type, // type instead of prostheticType
             prosthetic.material,
-            JSON.stringify(prosthetic.specifications ?? {}),
+            JSON.stringify({}),
           ]);
         }
       }
@@ -862,11 +980,11 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
     if (filters.patientId) {
       builder.addCondition('patient_id = ?', filters.patientId);
     }
-    if (filters.statuses && filters.statuses.length > 0) {
-      builder.addArrayCondition('status', filters.statuses);
+    if (filters.status && filters.status.length > 0) {
+      builder.addArrayCondition('status', filters.status);
     }
-    if (filters.priorities && filters.priorities.length > 0) {
-      builder.addArrayCondition('priority', filters.priorities);
+    if (filters.priority && filters.priority.length > 0) {
+      builder.addArrayCondition('priority', filters.priority);
     }
     if (filters.assignedTechnician) {
       builder.addCondition('assigned_technician = ?', filters.assignedTechnician);
@@ -880,10 +998,10 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
     if (filters.receivedFrom || filters.receivedTo) {
       builder.addRangeCondition('received_at', filters.receivedFrom, filters.receivedTo);
     }
-    if (filters.searchText) {
+    if (filters.search) {
       builder.addSearchCondition(
         ['case_number', 'notes', 'special_instructions'],
-        filters.searchText
+        filters.search
       );
     }
 
@@ -910,10 +1028,10 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
     `;
 
     const dataResult = await this.query<LabCaseRow>(dataSql, [...params, limit, offset]);
-    const data = dataResult.rows.map(LabCaseRowMapper.toLabCase);
+    const cases = dataResult.rows.map(LabCaseRowMapper.toLabCase);
 
     return {
-      data,
+      cases,
       total,
       page: pagination.page ?? 1,
       pageSize: limit,
@@ -955,6 +1073,15 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
   }
 
   async addScan(labCaseId: string, scan: CreateDigitalScan): Promise<DigitalScan> {
+    // Map quality enum to score
+    const qualityScoreMap: Record<string, number> = {
+      EXCELLENT: 4,
+      GOOD: 3,
+      ACCEPTABLE: 2,
+      POOR: 1,
+    };
+    const qualityScore = scan.quality ? qualityScoreMap[scan.quality] : null;
+
     const sql = `
       INSERT INTO lab_case_scans (
         id, lab_case_id, scan_type, file_format, storage_path,
@@ -972,14 +1099,14 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
       labCaseId,
       scan.scanType,
       scan.fileFormat,
-      scan.storagePath,
-      scan.fileSizeBytes,
+      scan.filePath,
+      scan.fileSize,
       scan.checksum ?? null,
       scan.scannerBrand ?? null,
       scan.scannerModel ?? null,
-      scan.scanDate ?? new Date(),
-      scan.uploadedBy,
-      scan.qualityScore ?? null,
+      scan.uploadedAt ?? new Date(),
+      scan.uploadedBy ?? null,
+      qualityScore,
       scan.notes ?? null,
     ]);
 
@@ -1034,16 +1161,16 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
     const result = await this.query<CADDesignRow>(sql, [
       labCaseId,
       version,
-      design.softwareName,
+      design.softwareUsed,
       design.softwareVersion ?? null,
-      design.fileFormat,
-      design.storagePath,
-      design.fileSizeBytes,
+      'STL', // Default file format - not in schema anymore
+      design.filePath,
+      design.fileSize ?? 0,
       design.designedBy,
-      design.designHours ?? null,
+      null, // designHours not in schema anymore
       design.approvalStatus,
       design.notes ?? null,
-      design.metadata ?? {},
+      {},
     ]);
 
     logger.info({ labCaseId, designId: result.rows[0]!.id, version }, 'Design added');
@@ -1130,9 +1257,9 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
     const result = await this.query<FabricationRecordRow>(sql, [
       labCaseId,
       record.method,
-      record.equipmentId ?? null,
+      record.machineId ?? null,
       record.materialLotNumber ?? null,
-      record.materialExpiry ?? null,
+      null, // materialExpiry not in schema anymore
       record.technicianId,
       record.parameters ?? {},
       record.notes ?? null,
@@ -1171,7 +1298,7 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
 
   async addQCInspection(
     labCaseId: string,
-    inspection: CreateQCInspection & { passed: boolean }
+    inspection: CreateQCInspection
   ): Promise<QCInspection> {
     const sql = `
       INSERT INTO lab_case_qc_inspections (
@@ -1186,20 +1313,21 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
       RETURNING *
     `;
 
-    // Calculate overall score from criteria
-    const criteriaEntries = Object.entries(inspection.criteria);
-    const totalScore = criteriaEntries.reduce((sum, [, value]) => sum + (value as { score: number }).score, 0);
-    const overallScore = Math.round(totalScore / criteriaEntries.length);
+    // Calculate overall score from criteria array
+    const totalScore = inspection.criteria.reduce((sum, c) => sum + c.score, 0);
+    const overallScore = inspection.criteria.length > 0
+      ? Math.round(totalScore / inspection.criteria.length)
+      : inspection.overallScore;
 
     const result = await this.query<QCInspectionRow>(sql, [
       labCaseId,
-      inspection.inspectionType,
+      'STANDARD', // Default inspection type - not in schema anymore
       inspection.inspectedBy,
       inspection.passed,
       overallScore,
       JSON.stringify(inspection.criteria),
-      inspection.defectsFound ?? null,
-      inspection.correctiveActions ?? null,
+      null, // defectsFound not in schema anymore
+      null, // correctiveActions not in schema anymore
       inspection.photos ?? null,
       inspection.notes ?? null,
     ]);
@@ -1446,31 +1574,41 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
   async getTechnicianWorkloads(clinicId: string): Promise<TechnicianWorkload[]> {
     const sql = `
       SELECT
-        assigned_technician as technician_id,
-        COUNT(*) FILTER (WHERE status NOT IN ('COMPLETED', 'CANCELLED')) as active_cases,
-        COUNT(*) FILTER (WHERE status IN ('COMPLETED')) as completed_today,
-        SUM(COALESCE(estimated_hours, 0)) FILTER (
-          WHERE status NOT IN ('COMPLETED', 'CANCELLED')
-        ) as total_estimated_hours
-      FROM lab_cases
-      WHERE clinic_id = $1
-        AND assigned_technician IS NOT NULL
-        AND deleted_at IS NULL
-      GROUP BY assigned_technician
+        lc.assigned_technician as user_id,
+        COALESCE(u.name, 'Unknown') as user_name,
+        COUNT(*) FILTER (WHERE lc.status NOT IN ('COMPLETED', 'CANCELLED')) as assigned_cases,
+        COUNT(*) FILTER (WHERE lc.status = 'IN_PROGRESS') as in_progress_cases,
+        COUNT(*) FILTER (
+          WHERE lc.status = 'COMPLETED'
+          AND lc.completed_at >= NOW() - INTERVAL '7 days'
+        ) as completed_this_week,
+        AVG(
+          EXTRACT(EPOCH FROM (lc.completed_at - lc.received_at)) / 86400
+        ) FILTER (WHERE lc.completed_at IS NOT NULL) as avg_turnaround_days
+      FROM lab_cases lc
+      LEFT JOIN users u ON lc.assigned_technician = u.id
+      WHERE lc.clinic_id = $1
+        AND lc.assigned_technician IS NOT NULL
+        AND lc.deleted_at IS NULL
+      GROUP BY lc.assigned_technician, u.name
     `;
 
     const result = await this.query<{
-      technician_id: string;
-      active_cases: string;
-      completed_today: string;
-      total_estimated_hours: string;
+      user_id: string;
+      user_name: string;
+      assigned_cases: string;
+      in_progress_cases: string;
+      completed_this_week: string;
+      avg_turnaround_days: string | null;
     }>(sql, [clinicId]);
 
     return result.rows.map((row) => ({
-      technicianId: row.technician_id,
-      activeCases: parseInt(row.active_cases, 10),
-      completedToday: parseInt(row.completed_today, 10),
-      totalEstimatedHours: parseFloat(row.total_estimated_hours),
+      userId: row.user_id,
+      userName: row.user_name,
+      assignedCases: parseInt(row.assigned_cases, 10),
+      inProgressCases: parseInt(row.in_progress_cases, 10),
+      completedThisWeek: parseInt(row.completed_this_week, 10),
+      avgTurnaroundDays: row.avg_turnaround_days ? parseFloat(row.avg_turnaround_days) : null,
     }));
   }
 
@@ -1481,38 +1619,132 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
   async getStats(clinicId: string): Promise<LabCaseStats> {
     const sql = `
       SELECT
-        COUNT(*) as total,
-        COUNT(*) FILTER (WHERE status NOT IN ('COMPLETED', 'CANCELLED')) as active,
-        COUNT(*) FILTER (WHERE status = 'COMPLETED') as completed,
-        COUNT(*) FILTER (WHERE status = 'CANCELLED') as cancelled,
-        COUNT(*) FILTER (WHERE priority = 'STAT') as stat_priority,
-        COUNT(*) FILTER (WHERE priority = 'RUSH') as rush_priority,
-        AVG(EXTRACT(EPOCH FROM (completed_at - received_at)) / 3600)
-          FILTER (WHERE completed_at IS NOT NULL) as avg_completion_hours
+        COUNT(*) FILTER (WHERE status NOT IN ('COMPLETED', 'CANCELLED')) as total_active,
+        COUNT(*) FILTER (WHERE status = 'RECEIVED') as status_received,
+        COUNT(*) FILTER (WHERE status = 'PENDING_SCAN') as status_pending_scan,
+        COUNT(*) FILTER (WHERE status = 'SCAN_RECEIVED') as status_scan_received,
+        COUNT(*) FILTER (WHERE status = 'IN_DESIGN') as status_in_design,
+        COUNT(*) FILTER (WHERE status = 'DESIGN_REVIEW') as status_design_review,
+        COUNT(*) FILTER (WHERE status = 'DESIGN_APPROVED') as status_design_approved,
+        COUNT(*) FILTER (WHERE status = 'DESIGN_REVISION') as status_design_revision,
+        COUNT(*) FILTER (WHERE status = 'QUEUED_FOR_MILLING') as status_queued,
+        COUNT(*) FILTER (WHERE status = 'MILLING') as status_milling,
+        COUNT(*) FILTER (WHERE status = 'POST_PROCESSING') as status_post_processing,
+        COUNT(*) FILTER (WHERE status = 'FINISHING') as status_finishing,
+        COUNT(*) FILTER (WHERE status = 'QC_INSPECTION') as status_qc_inspection,
+        COUNT(*) FILTER (WHERE status = 'QC_FAILED') as status_qc_failed,
+        COUNT(*) FILTER (WHERE status = 'QC_PASSED') as status_qc_passed,
+        COUNT(*) FILTER (WHERE status = 'READY_FOR_PICKUP') as status_ready_pickup,
+        COUNT(*) FILTER (WHERE status = 'IN_TRANSIT') as status_in_transit,
+        COUNT(*) FILTER (WHERE status = 'DELIVERED') as status_delivered,
+        COUNT(*) FILTER (WHERE status = 'TRY_IN_SCHEDULED') as status_try_in,
+        COUNT(*) FILTER (WHERE status = 'ADJUSTMENT_REQUIRED') as status_adjustment,
+        COUNT(*) FILTER (WHERE status = 'ADJUSTMENT_IN_PROGRESS') as status_adjustment_in_progress,
+        COUNT(*) FILTER (WHERE status = 'COMPLETED') as status_completed,
+        COUNT(*) FILTER (WHERE status = 'ON_HOLD') as status_on_hold,
+        COUNT(*) FILTER (WHERE status = 'CANCELLED') as status_cancelled,
+        COUNT(*) FILTER (WHERE priority = 'STANDARD') as priority_standard,
+        COUNT(*) FILTER (WHERE priority = 'RUSH') as priority_rush,
+        COUNT(*) FILTER (WHERE priority = 'EMERGENCY') as priority_emergency,
+        COUNT(*) FILTER (WHERE priority = 'VIP') as priority_vip,
+        COUNT(*) FILTER (
+          WHERE status NOT IN ('COMPLETED', 'CANCELLED')
+          AND due_date <= NOW() + INTERVAL '2 days'
+          AND due_date > NOW()
+        ) as at_risk_count,
+        COUNT(*) FILTER (
+          WHERE status NOT IN ('COMPLETED', 'CANCELLED')
+          AND due_date < NOW()
+        ) as overdue_count,
+        AVG(EXTRACT(EPOCH FROM (completed_at - received_at)) / 86400)
+          FILTER (WHERE completed_at IS NOT NULL) as avg_turnaround_days,
+        (
+          SELECT CASE
+            WHEN COUNT(*) = 0 THEN NULL
+            ELSE (COUNT(*) FILTER (WHERE passed = true)::decimal / COUNT(*)::decimal * 100)
+          END
+          FROM lab_case_qc_inspections qc
+          JOIN lab_cases lc2 ON qc.lab_case_id = lc2.id
+          WHERE lc2.clinic_id = $1
+        ) as first_time_qc_pass_rate
       FROM lab_cases
       WHERE clinic_id = $1 AND deleted_at IS NULL
     `;
 
     const result = await this.query<{
-      total: string;
-      active: string;
-      completed: string;
-      cancelled: string;
-      stat_priority: string;
-      rush_priority: string;
-      avg_completion_hours: string | null;
+      total_active: string;
+      status_received: string;
+      status_pending_scan: string;
+      status_scan_received: string;
+      status_in_design: string;
+      status_design_review: string;
+      status_design_approved: string;
+      status_design_revision: string;
+      status_queued: string;
+      status_milling: string;
+      status_post_processing: string;
+      status_finishing: string;
+      status_qc_inspection: string;
+      status_qc_failed: string;
+      status_qc_passed: string;
+      status_ready_pickup: string;
+      status_in_transit: string;
+      status_delivered: string;
+      status_try_in: string;
+      status_adjustment: string;
+      status_adjustment_in_progress: string;
+      status_completed: string;
+      status_on_hold: string;
+      status_cancelled: string;
+      priority_standard: string;
+      priority_rush: string;
+      priority_emergency: string;
+      priority_vip: string;
+      at_risk_count: string;
+      overdue_count: string;
+      avg_turnaround_days: string | null;
+      first_time_qc_pass_rate: string | null;
     }>(sql, [clinicId]);
 
     const row = result.rows[0]!;
 
     return {
-      total: parseInt(row.total, 10),
-      active: parseInt(row.active, 10),
-      completed: parseInt(row.completed, 10),
-      cancelled: parseInt(row.cancelled, 10),
-      statPriority: parseInt(row.stat_priority, 10),
-      rushPriority: parseInt(row.rush_priority, 10),
-      avgCompletionHours: row.avg_completion_hours ? parseFloat(row.avg_completion_hours) : null,
+      totalActive: parseInt(row.total_active, 10),
+      byStatus: {
+        RECEIVED: parseInt(row.status_received, 10),
+        PENDING_SCAN: parseInt(row.status_pending_scan, 10),
+        SCAN_RECEIVED: parseInt(row.status_scan_received, 10),
+        IN_DESIGN: parseInt(row.status_in_design, 10),
+        DESIGN_REVIEW: parseInt(row.status_design_review, 10),
+        DESIGN_APPROVED: parseInt(row.status_design_approved, 10),
+        DESIGN_REVISION: parseInt(row.status_design_revision, 10),
+        QUEUED_FOR_MILLING: parseInt(row.status_queued, 10),
+        MILLING: parseInt(row.status_milling, 10),
+        POST_PROCESSING: parseInt(row.status_post_processing, 10),
+        FINISHING: parseInt(row.status_finishing, 10),
+        QC_INSPECTION: parseInt(row.status_qc_inspection, 10),
+        QC_FAILED: parseInt(row.status_qc_failed, 10),
+        QC_PASSED: parseInt(row.status_qc_passed, 10),
+        READY_FOR_PICKUP: parseInt(row.status_ready_pickup, 10),
+        IN_TRANSIT: parseInt(row.status_in_transit, 10),
+        DELIVERED: parseInt(row.status_delivered, 10),
+        TRY_IN_SCHEDULED: parseInt(row.status_try_in, 10),
+        ADJUSTMENT_REQUIRED: parseInt(row.status_adjustment, 10),
+        ADJUSTMENT_IN_PROGRESS: parseInt(row.status_adjustment_in_progress, 10),
+        COMPLETED: parseInt(row.status_completed, 10),
+        ON_HOLD: parseInt(row.status_on_hold, 10),
+        CANCELLED: parseInt(row.status_cancelled, 10),
+      },
+      byPriority: {
+        STANDARD: parseInt(row.priority_standard, 10),
+        RUSH: parseInt(row.priority_rush, 10),
+        EMERGENCY: parseInt(row.priority_emergency, 10),
+        VIP: parseInt(row.priority_vip, 10),
+      },
+      atRiskCount: parseInt(row.at_risk_count, 10),
+      overdueCount: parseInt(row.overdue_count, 10),
+      avgTurnaroundDays: row.avg_turnaround_days ? parseFloat(row.avg_turnaround_days) : null,
+      firstTimeQCPassRate: row.first_time_qc_pass_rate ? parseFloat(row.first_time_qc_pass_rate) : null,
     };
   }
 
@@ -1537,25 +1769,29 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
       SELECT
         COUNT(*) as total_cases,
         COUNT(*) FILTER (WHERE status = 'COMPLETED') as completed_cases,
-        AVG(EXTRACT(EPOCH FROM (completed_at - received_at)) / 3600)
-          FILTER (WHERE completed_at IS NOT NULL) as avg_turnaround_hours,
+        AVG(EXTRACT(EPOCH FROM (completed_at - received_at)) / 86400)
+          FILTER (WHERE completed_at IS NOT NULL) as avg_turnaround_days,
         COUNT(*) FILTER (
           WHERE completed_at IS NOT NULL AND completed_at <= due_date
         ) as on_time_deliveries,
         COUNT(*) FILTER (
           WHERE status = 'COMPLETED' AND completed_at IS NOT NULL
         ) as total_delivered,
+        (
+          SELECT CASE
+            WHEN COUNT(*) = 0 THEN NULL
+            ELSE (COUNT(*) FILTER (WHERE passed = true)::decimal / COUNT(*)::decimal * 100)
+          END
+          FROM lab_case_qc_inspections qc
+          JOIN lab_cases lc2 ON qc.lab_case_id = lc2.id
+          WHERE lc2.clinic_id = $1 AND lc2.received_at BETWEEN $2 AND $3
+        ) as first_time_qc_pass_rate,
         AVG(
-          (SELECT overall_score FROM lab_case_qc_inspections qc
-           WHERE qc.lab_case_id = lc.id
-           ORDER BY inspected_at DESC LIMIT 1)
-        ) as avg_qc_score,
-        COUNT(*) FILTER (
-          WHERE EXISTS (
-            SELECT 1 FROM lab_case_qc_inspections qc
-            WHERE qc.lab_case_id = lc.id AND qc.passed = false
-          )
-        ) as cases_with_rework
+          (SELECT ti.patient_satisfaction
+           FROM lab_case_try_ins ti
+           WHERE ti.lab_case_id = lc.id AND ti.patient_satisfaction IS NOT NULL
+           ORDER BY ti.completed_at DESC LIMIT 1)
+        ) as avg_patient_satisfaction
       FROM lab_cases lc
       WHERE clinic_id = $1
         AND deleted_at IS NULL
@@ -1565,26 +1801,36 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
     const result = await this.query<{
       total_cases: string;
       completed_cases: string;
-      avg_turnaround_hours: string | null;
+      avg_turnaround_days: string | null;
       on_time_deliveries: string;
       total_delivered: string;
-      avg_qc_score: string | null;
-      cases_with_rework: string;
+      first_time_qc_pass_rate: string | null;
+      avg_patient_satisfaction: string | null;
     }>(sql, [clinicId, periodStart, periodEnd]);
 
     const row = result.rows[0]!;
     const totalDelivered = parseInt(row.total_delivered, 10);
     const onTimeDeliveries = parseInt(row.on_time_deliveries, 10);
 
+    // Format dates as YYYY-MM-DD strings
+    const formatDate = (date: Date): string => {
+      return date.toISOString().split('T')[0]!;
+    };
+
     return {
-      periodStart,
-      periodEnd,
+      id: crypto.randomUUID(),
+      clinicId,
+      periodStart: formatDate(periodStart),
+      periodEnd: formatDate(periodEnd),
       totalCases: parseInt(row.total_cases, 10),
       completedCases: parseInt(row.completed_cases, 10),
-      avgTurnaroundHours: row.avg_turnaround_hours ? parseFloat(row.avg_turnaround_hours) : 0,
-      onTimeDeliveryRate: totalDelivered > 0 ? (onTimeDeliveries / totalDelivered) * 100 : 100,
-      avgQCScore: row.avg_qc_score ? parseFloat(row.avg_qc_score) : 0,
-      reworkRate: parseInt(row.cases_with_rework, 10) / Math.max(parseInt(row.total_cases, 10), 1) * 100,
+      avgTurnaroundDays: row.avg_turnaround_days ? parseFloat(row.avg_turnaround_days) : undefined,
+      onTimeDeliveryRate: totalDelivered > 0 ? (onTimeDeliveries / totalDelivered) * 100 : undefined,
+      firstTimeQCPassRate: row.first_time_qc_pass_rate ? parseFloat(row.first_time_qc_pass_rate) : undefined,
+      avgPatientSatisfaction: row.avg_patient_satisfaction ? parseFloat(row.avg_patient_satisfaction) : undefined,
+      breakdownByType: {},
+      breakdownByMaterial: {},
+      calculatedAt: new Date(),
     };
   }
 
@@ -1988,7 +2234,7 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
     throw new Error('getThread not implemented - TODO');
   }
 
-  async getUnreadCount(_threadId: string, _userId: string): Promise<number> {
+  async getUnreadCount(_userId: string): Promise<number> {
     throw new Error('getUnreadCount not implemented - TODO');
   }
 
@@ -2012,11 +2258,11 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
     throw new Error('getUnreadThreadCount not implemented - TODO');
   }
 
-  async findByStatus(_clinicId: string, _status: LabCaseStatus): Promise<LabCase[]> {
+  async findByStatus(_clinicId: string, _statuses: LabCaseStatus[]): Promise<LabCase[]> {
     throw new Error('findByStatus not implemented - TODO');
   }
 
-  async updateScanStatus(_scanId: string, _status: string): Promise<void> {
+  async updateScanStatus(_scanId: string, _processed: boolean, _errors?: string[]): Promise<void> {
     throw new Error('updateScanStatus not implemented - TODO');
   }
 
@@ -2026,6 +2272,182 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
 
   async getLatestQCInspection(_labCaseId: string): Promise<QCInspection | null> {
     throw new Error('getLatestQCInspection not implemented - TODO');
+  }
+
+  async unassignTechnician(labCaseId: string, unassignedBy: string): Promise<void> {
+    const sql = `
+      UPDATE lab_cases
+      SET assigned_technician = NULL, updated_at = NOW()
+      WHERE id = $1 AND deleted_at IS NULL
+    `;
+
+    await this.query(sql, [labCaseId]);
+    logger.info({ labCaseId, unassignedBy }, 'Technician unassigned');
+  }
+
+  async unassignDesigner(labCaseId: string, unassignedBy: string): Promise<void> {
+    const sql = `
+      UPDATE lab_cases
+      SET assigned_designer = NULL, updated_at = NOW()
+      WHERE id = $1 AND deleted_at IS NULL
+    `;
+
+    await this.query(sql, [labCaseId]);
+    logger.info({ labCaseId, unassignedBy }, 'Designer unassigned');
+  }
+
+  async getFeedbackForCase(labCaseId: string): Promise<DesignFeedback[]> {
+    const sql = `
+      SELECT * FROM lab_case_design_feedback
+      WHERE lab_case_id = $1
+      ORDER BY created_at DESC
+    `;
+
+    const result = await this.query<DesignFeedbackRow>(sql, [labCaseId]);
+    return result.rows.map(LabCaseRowMapper.toDesignFeedback);
+  }
+
+  async getNotificationPreferences(userId: string): Promise<LabNotificationPreferences | null> {
+    const sql = `
+      SELECT * FROM lab_notification_preferences
+      WHERE user_id = $1
+    `;
+
+    const result = await this.query<{
+      id: string;
+      user_id: string;
+      channels_email: boolean;
+      channels_sms: boolean;
+      channels_whatsapp: boolean;
+      channels_in_app: boolean;
+      channels_push: boolean;
+      triggers_status_change: boolean;
+      triggers_design_ready: boolean;
+      triggers_revision_requested: boolean;
+      triggers_qc_complete: boolean;
+      triggers_ready_for_pickup: boolean;
+      triggers_urgent_message: boolean;
+      triggers_delivery_update: boolean;
+      quiet_hours_start: string | null;
+      quiet_hours_end: string | null;
+      created_at: Date;
+      updated_at: Date;
+    }>(sql, [userId]);
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    const row = result.rows[0]!;
+    return {
+      id: row.id,
+      userId: row.user_id,
+      channels: {
+        email: row.channels_email,
+        sms: row.channels_sms,
+        whatsapp: row.channels_whatsapp,
+        inApp: row.channels_in_app,
+        push: row.channels_push,
+      },
+      triggers: {
+        statusChange: row.triggers_status_change,
+        designReady: row.triggers_design_ready,
+        revisionRequested: row.triggers_revision_requested,
+        qcComplete: row.triggers_qc_complete,
+        readyForPickup: row.triggers_ready_for_pickup,
+        urgentMessage: row.triggers_urgent_message,
+        deliveryUpdate: row.triggers_delivery_update,
+      },
+      quietHours: (row.quiet_hours_start && row.quiet_hours_end) ? {
+        start: row.quiet_hours_start,
+        end: row.quiet_hours_end,
+      } : undefined,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  async updateNotificationPreferences(
+    userId: string,
+    preferences: Partial<LabNotificationPreferences>
+  ): Promise<void> {
+    const updates: string[] = ['updated_at = NOW()'];
+    const values: unknown[] = [userId];
+    let paramIndex = 2;
+
+    if (preferences.channels) {
+      if (preferences.channels.email !== undefined) {
+        updates.push(`channels_email = $${paramIndex++}`);
+        values.push(preferences.channels.email);
+      }
+      if (preferences.channels.sms !== undefined) {
+        updates.push(`channels_sms = $${paramIndex++}`);
+        values.push(preferences.channels.sms);
+      }
+      if (preferences.channels.whatsapp !== undefined) {
+        updates.push(`channels_whatsapp = $${paramIndex++}`);
+        values.push(preferences.channels.whatsapp);
+      }
+      if (preferences.channels.inApp !== undefined) {
+        updates.push(`channels_in_app = $${paramIndex++}`);
+        values.push(preferences.channels.inApp);
+      }
+      if (preferences.channels.push !== undefined) {
+        updates.push(`channels_push = $${paramIndex++}`);
+        values.push(preferences.channels.push);
+      }
+    }
+
+    if (preferences.triggers) {
+      if (preferences.triggers.statusChange !== undefined) {
+        updates.push(`triggers_status_change = $${paramIndex++}`);
+        values.push(preferences.triggers.statusChange);
+      }
+      if (preferences.triggers.designReady !== undefined) {
+        updates.push(`triggers_design_ready = $${paramIndex++}`);
+        values.push(preferences.triggers.designReady);
+      }
+      if (preferences.triggers.revisionRequested !== undefined) {
+        updates.push(`triggers_revision_requested = $${paramIndex++}`);
+        values.push(preferences.triggers.revisionRequested);
+      }
+      if (preferences.triggers.qcComplete !== undefined) {
+        updates.push(`triggers_qc_complete = $${paramIndex++}`);
+        values.push(preferences.triggers.qcComplete);
+      }
+      if (preferences.triggers.readyForPickup !== undefined) {
+        updates.push(`triggers_ready_for_pickup = $${paramIndex++}`);
+        values.push(preferences.triggers.readyForPickup);
+      }
+      if (preferences.triggers.urgentMessage !== undefined) {
+        updates.push(`triggers_urgent_message = $${paramIndex++}`);
+        values.push(preferences.triggers.urgentMessage);
+      }
+      if (preferences.triggers.deliveryUpdate !== undefined) {
+        updates.push(`triggers_delivery_update = $${paramIndex++}`);
+        values.push(preferences.triggers.deliveryUpdate);
+      }
+    }
+
+    if (preferences.quietHours) {
+      if (preferences.quietHours.start) {
+        updates.push(`quiet_hours_start = $${paramIndex++}`);
+        values.push(preferences.quietHours.start);
+      }
+      if (preferences.quietHours.end) {
+        updates.push(`quiet_hours_end = $${paramIndex++}`);
+        values.push(preferences.quietHours.end);
+      }
+    }
+
+    const sql = `
+      UPDATE lab_notification_preferences
+      SET ${updates.join(', ')}
+      WHERE user_id = $1
+    `;
+
+    await this.query(sql, values);
+    logger.info({ userId }, 'Notification preferences updated');
   }
 }
 

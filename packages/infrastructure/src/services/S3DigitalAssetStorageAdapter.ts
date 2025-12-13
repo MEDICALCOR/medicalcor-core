@@ -55,6 +55,7 @@ import type { DigitalFileFormat } from '@medicalcor/types';
 interface AssetValidationResult {
   isValid: boolean;
   errors: string[];
+  warnings: string[];
 }
 
 /**
@@ -68,23 +69,7 @@ interface AssetInfo {
   metadata: AssetMetadata;
 }
 
-/**
- * Thumbnail request (internal type)
- */
-interface ThumbnailRequest {
-  sourcePath: string;
-  options: ThumbnailOptions;
-}
-
-/**
- * Thumbnail result (internal type)
- */
-interface ThumbnailResult {
-  thumbnailPath: string;
-  width: number;
-  height: number;
-  format: string;
-}
+// ThumbnailRequest and ThumbnailResult removed - using IDigitalAssetStoragePort types
 
 // =============================================================================
 // LOGGER
@@ -573,24 +558,25 @@ export class S3DigitalAssetStorageAdapter implements IDigitalAssetStoragePort {
   // THUMBNAIL GENERATION (Placeholder)
   // ===========================================================================
 
-  async generateThumbnail(request: ThumbnailRequest): Promise<ThumbnailResult> {
+  async generateThumbnail(sourceStoragePath: string, options: ThumbnailOptions): Promise<StoredAsset> {
     // In a production implementation, this would:
     // 1. Trigger a Lambda function for thumbnail generation
     // 2. Use a service like ImageMagick for 2D files
     // 3. Use a 3D rendering service for STL/PLY files
 
     logger.info(
-      { storagePath: request.storagePath, width: request.width, height: request.height },
+      { storagePath: sourceStoragePath, width: options.width, height: options.height },
       'Thumbnail generation requested (not implemented)'
     );
 
-    // Return placeholder for now
+    // Return a placeholder StoredAsset - in production this would be the actual thumbnail
+    const thumbnailPath = `${sourceStoragePath}.thumb.${options.format.toLowerCase()}`;
     return {
-      thumbnailPath: `${request.storagePath}.thumb.png`,
-      width: request.width,
-      height: request.height,
-      generated: false,
-      error: 'Thumbnail generation not yet implemented',
+      path: thumbnailPath,
+      fileSize: 0,
+      checksum: '',
+      contentType: `image/${options.format.toLowerCase()}`,
+      uploadedAt: new Date(),
     };
   }
 
@@ -701,10 +687,16 @@ export class S3DigitalAssetStorageAdapter implements IDigitalAssetStoragePort {
   }
 
   private parseS3Metadata(s3Metadata: Record<string, string>): AssetMetadata {
+    const formatValue = s3Metadata['x-format'];
+    const validFormats = ['STL', 'PLY', 'OBJ', 'DCM', 'DICOM', 'PNG', 'JPG', 'PDF'] as const;
+    const format: AssetMetadata['format'] = formatValue && validFormats.includes(formatValue as typeof validFormats[number])
+      ? formatValue as AssetMetadata['format']
+      : 'STL'; // Default to STL if not valid
+
     return {
       labCaseId: s3Metadata['x-lab-case-id'] ?? '',
       assetType: (s3Metadata['x-asset-type'] ?? 'SCAN') as AssetMetadata['assetType'],
-      format: s3Metadata['x-format'] ?? undefined,
+      format,
       uploadedBy: s3Metadata['x-uploaded-by'] ?? '',
       filename: s3Metadata['x-original-filename'] ?? '',
       mimeType: '',
@@ -730,6 +722,252 @@ export class S3DigitalAssetStorageAdapter implements IDigitalAssetStoragePort {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+  }
+
+  // ===========================================================================
+  // INTERFACE IMPLEMENTATION STUBS
+  // These methods implement IDigitalAssetStoragePort interface
+  // ===========================================================================
+
+  async upload(
+    data: Buffer,
+    metadata: AssetMetadata,
+    _options?: UploadOptions
+  ): Promise<StoredAsset> {
+    const storagePath = this.generateStoragePath(metadata);
+    const command = new PutObjectCommand({
+      Bucket: this.config.bucketName,
+      Key: storagePath,
+      Body: data,
+      ContentType: metadata.mimeType,
+      ContentLength: metadata.fileSize,
+      Metadata: this.buildS3Metadata(metadata),
+      StorageClass: this.config.storageClass,
+      ...(this.config.enableEncryption && this.getEncryptionParams()),
+    });
+
+    await this.client.send(command);
+    this.uploadCount++;
+
+    return {
+      path: storagePath,
+      fileSize: data.length,
+      checksum: '',
+      contentType: metadata.mimeType,
+      uploadedAt: new Date(),
+    };
+  }
+
+  async uploadStream(
+    _stream: NodeJS.ReadableStream,
+    _metadata: AssetMetadata,
+    _options?: UploadOptions
+  ): Promise<StoredAsset> {
+    throw new Error('uploadStream not implemented - TODO');
+  }
+
+  async confirmUpload(storagePath: string): Promise<StoredAsset> {
+    const command = new HeadObjectCommand({
+      Bucket: this.config.bucketName,
+      Key: storagePath,
+    });
+
+    const result = await this.client.send(command);
+
+    return {
+      path: storagePath,
+      fileSize: result.ContentLength ?? 0,
+      checksum: result.ETag ?? '',
+      contentType: result.ContentType ?? '',
+      uploadedAt: result.LastModified ?? new Date(),
+    };
+  }
+
+  async download(storagePath: string): Promise<Buffer> {
+    const command = new GetObjectCommand({
+      Bucket: this.config.bucketName,
+      Key: storagePath,
+    });
+
+    const result = await this.client.send(command);
+    this.downloadCount++;
+
+    if (!result.Body) {
+      throw new Error(`No body returned for ${storagePath}`);
+    }
+
+    const stream = result.Body as NodeJS.ReadableStream;
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) {
+      if (Buffer.isBuffer(chunk)) {
+        chunks.push(chunk);
+      } else if (typeof chunk === 'string') {
+        chunks.push(Buffer.from(chunk));
+      } else {
+        chunks.push(Buffer.from(chunk as unknown as Uint8Array));
+      }
+    }
+    return Buffer.concat(chunks);
+  }
+
+  async downloadStream(storagePath: string): Promise<NodeJS.ReadableStream> {
+    const command = new GetObjectCommand({
+      Bucket: this.config.bucketName,
+      Key: storagePath,
+    });
+
+    const result = await this.client.send(command);
+    this.downloadCount++;
+
+    if (!result.Body) {
+      throw new Error(`No body returned for ${storagePath}`);
+    }
+
+    return result.Body as NodeJS.ReadableStream;
+  }
+
+  async exists(storagePath: string): Promise<boolean> {
+    try {
+      const command = new HeadObjectCommand({
+        Bucket: this.config.bucketName,
+        Key: storagePath,
+      });
+      await this.client.send(command);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async getMetadata(storagePath: string): Promise<(StoredAsset & { metadata: AssetMetadata }) | null> {
+    try {
+      const command = new HeadObjectCommand({
+        Bucket: this.config.bucketName,
+        Key: storagePath,
+      });
+      const result = await this.client.send(command);
+      const s3Metadata = (result.Metadata ?? {}) as Record<string, string>;
+
+      return {
+        path: storagePath,
+        fileSize: result.ContentLength ?? 0,
+        checksum: result.ETag ?? '',
+        contentType: result.ContentType ?? '',
+        uploadedAt: result.LastModified ?? new Date(),
+        metadata: this.parseS3Metadata(s3Metadata),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  async delete(storagePath: string): Promise<void> {
+    const command = new DeleteObjectCommand({
+      Bucket: this.config.bucketName,
+      Key: storagePath,
+    });
+
+    await this.client.send(command);
+    logger.info({ storagePath }, 'Asset deleted');
+  }
+
+  async deleteMany(storagePaths: string[]): Promise<number> {
+    let deleted = 0;
+    for (const path of storagePaths) {
+      try {
+        await this.delete(path);
+        deleted++;
+      } catch (error) {
+        logger.error({ error, path }, 'Failed to delete asset');
+      }
+    }
+    return deleted;
+  }
+
+  async copy(sourcePath: string, destinationPath: string): Promise<StoredAsset> {
+    const command = new CopyObjectCommand({
+      Bucket: this.config.bucketName,
+      CopySource: `${this.config.bucketName}/${sourcePath}`,
+      Key: destinationPath,
+      ...(this.config.enableEncryption && this.getEncryptionParams()),
+    });
+
+    await this.client.send(command);
+
+    const metadata = await this.getMetadata(destinationPath);
+    if (!metadata) {
+      throw new Error(`Failed to copy asset to ${destinationPath}`);
+    }
+
+    return metadata;
+  }
+
+  async list(options: ListAssetsOptions): Promise<ListAssetsResult> {
+    const prefix = options.labCaseId ? `lab-cases/${options.labCaseId}/` : 'lab-cases/';
+
+    const command = new ListObjectsV2Command({
+      Bucket: this.config.bucketName,
+      Prefix: prefix,
+      MaxKeys: options.limit ?? 100,
+      ContinuationToken: options.cursor,
+    });
+
+    const result = await this.client.send(command);
+    const assets = await Promise.all(
+      (result.Contents ?? []).map(async (obj) => {
+        const metadata = await this.getMetadata(obj.Key!);
+        return metadata!;
+      })
+    );
+
+    return {
+      assets: assets.filter(Boolean),
+      nextCursor: result.NextContinuationToken,
+      totalCount: result.KeyCount,
+    };
+  }
+
+  supportsThumbnailGeneration(format: DigitalFileFormat): boolean {
+    return ['STL', 'PLY', 'OBJ'].includes(format);
+  }
+
+  async calculateChecksum(storagePath: string): Promise<string> {
+    const data = await this.download(storagePath);
+    const crypto = await import('crypto');
+    return crypto.createHash('sha256').update(data).digest('hex');
+  }
+
+  async verifyIntegrity(storagePath: string): Promise<boolean> {
+    try {
+      const metadata = await this.getMetadata(storagePath);
+      if (!metadata?.metadata.checksum) {
+        return true; // No checksum to verify
+      }
+      const currentChecksum = await this.calculateChecksum(storagePath);
+      return currentChecksum === metadata.metadata.checksum;
+    } catch {
+      return false;
+    }
+  }
+
+  async getStorageUsage(labCaseId: string): Promise<number> {
+    const assets = await this.list({ labCaseId });
+    return assets.assets.reduce((total, asset) => total + asset.fileSize, 0);
+  }
+
+  async getClinicStorageUsage(_clinicId: string): Promise<number> {
+    // Would need to query by clinic ID - stub implementation
+    throw new Error('getClinicStorageUsage not implemented - TODO');
+  }
+
+  async archiveOldAssets(_olderThan: Date, _labCaseId?: string): Promise<number> {
+    // Would need to implement lifecycle transitions
+    throw new Error('archiveOldAssets not implemented - TODO');
+  }
+
+  async restoreFromArchive(_storagePath: string): Promise<StoredAsset> {
+    // Would need to implement Glacier restore
+    throw new Error('restoreFromArchive not implemented - TODO');
   }
 }
 
