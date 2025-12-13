@@ -217,25 +217,10 @@ export class DentalLabProductionService implements IDentalLabProductionUseCase {
     private readonly labCaseRepository: ILabCaseRepository,
     private readonly collaborationRepository: ILabCollaborationRepository,
     private readonly assetStorage: IDigitalAssetStoragePort,
-    private readonly eventPublisher: EventPublisher,
+    private readonly eventPublisher: IEventPublisher,
     config?: Partial<DentalLabProductionServiceConfig>
   ) {
     this.config = { ...DEFAULT_CONFIG, ...config };
-  }
-
-  /**
-   * Helper to convert LabEvent to DomainEvent for publishing
-   */
-  private toDomainEvent(event: LabEvent, labCaseId: string, actorId: string): DomainEvent {
-    return createDomainEvent(
-      event.eventType,
-      labCaseId,
-      'LabCase',
-      1,
-      event,
-      labCaseId, // correlationId
-      actorId
-    );
   }
 
   // ===========================================================================

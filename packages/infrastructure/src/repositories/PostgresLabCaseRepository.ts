@@ -74,8 +74,12 @@ import type {
   LabCaseStats,
   LabCaseDashboard,
   TechnicianWorkload,
-  SLAStatus,
 } from '@medicalcor/application/ports/secondary/persistence/LabCaseRepository';
+
+import type { SLAOverallStatus } from '@medicalcor/types';
+
+// Alias for backward compatibility
+type SLAStatus = SLAOverallStatus;
 
 // =============================================================================
 // LOGGER
@@ -118,6 +122,7 @@ const DEFAULT_CONFIG: Required<Omit<PostgresLabCaseRepositoryConfig, 'connection
 // =============================================================================
 
 interface LabCaseRow {
+  [key: string]: unknown;
   id: string;
   case_number: string;
   clinic_id: string;
@@ -147,6 +152,7 @@ interface LabCaseRow {
 }
 
 interface DigitalScanRow {
+  [key: string]: unknown;
   id: string;
   lab_case_id: string;
   scan_type: string;
@@ -164,6 +170,7 @@ interface DigitalScanRow {
 }
 
 interface CADDesignRow {
+  [key: string]: unknown;
   id: string;
   lab_case_id: string;
   version: number;
@@ -184,6 +191,7 @@ interface CADDesignRow {
 }
 
 interface FabricationRecordRow {
+  [key: string]: unknown;
   id: string;
   lab_case_id: string;
   method: string;
@@ -200,6 +208,7 @@ interface FabricationRecordRow {
 }
 
 interface QCInspectionRow {
+  [key: string]: unknown;
   id: string;
   lab_case_id: string;
   inspection_type: string;
@@ -216,6 +225,7 @@ interface QCInspectionRow {
 }
 
 interface TryInRecordRow {
+  [key: string]: unknown;
   id: string;
   lab_case_id: string;
   scheduled_at: Date;
@@ -230,6 +240,7 @@ interface TryInRecordRow {
 }
 
 interface StatusHistoryRow {
+  [key: string]: unknown;
   id: string;
   lab_case_id: string;
   from_status: string | null;
@@ -241,6 +252,7 @@ interface StatusHistoryRow {
 }
 
 interface SLATrackingRow {
+  [key: string]: unknown;
   id: string;
   lab_case_id: string;
   sla_type: string;
@@ -258,6 +270,7 @@ interface SLATrackingRow {
 }
 
 interface CollaborationThreadRow {
+  [key: string]: unknown;
   id: string;
   lab_case_id: string;
   subject: string;
@@ -272,6 +285,7 @@ interface CollaborationThreadRow {
 }
 
 interface CollaborationMessageRow {
+  [key: string]: unknown;
   id: string;
   thread_id: string;
   sender_id: string;
@@ -283,12 +297,15 @@ interface CollaborationMessageRow {
 }
 
 interface DesignFeedbackRow {
+  [key: string]: unknown;
   id: string;
   lab_case_id: string;
   design_id: string;
   feedback_type: string;
-  provided_by: string;
-  content: string;
+  reviewed_by: string;
+  general_notes: string;
+  overall_rating: number;
+  criteria_scores: unknown;
   annotations: Record<string, unknown> | null;
   created_at: Date;
 }
@@ -1590,10 +1607,10 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
     const result = await this.query<CollaborationThreadRow>(sql, [
       input.labCaseId,
       input.subject,
-      input.threadType,
+      'GENERAL', // Default thread type
       input.priority ?? 'NORMAL',
-      input.participants,
-      input.createdBy,
+      JSON.stringify([{ id: input.sender.id, name: input.sender.name, role: input.sender.role }]),
+      input.sender.id,
     ]);
 
     logger.info({ threadId: result.rows[0]!.id, labCaseId: input.labCaseId }, 'Thread created');
@@ -1617,8 +1634,8 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
 
       const messageResult = await client.query<CollaborationMessageRow>(messageSql, [
         input.threadId,
-        input.senderId,
-        input.senderType,
+        input.sender.id,
+        input.sender.role,
         input.content,
         input.attachments ? JSON.stringify(input.attachments) : null,
       ]);
@@ -1669,10 +1686,10 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
   async addDesignFeedback(input: CreateDesignFeedback): Promise<DesignFeedback> {
     const sql = `
       INSERT INTO lab_design_feedback (
-        id, lab_case_id, design_id, feedback_type, provided_by,
-        content, annotations, created_at
+        id, lab_case_id, design_id, feedback_type, reviewed_by,
+        general_notes, overall_rating, criteria_scores, annotations, created_at
       ) VALUES (
-        gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW()
+        gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, NOW()
       )
       RETURNING *
     `;
@@ -1681,8 +1698,10 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
       input.labCaseId,
       input.designId,
       input.feedbackType,
-      input.providedBy,
-      input.content,
+      input.reviewedBy,
+      input.generalNotes,
+      input.overallRating,
+      JSON.stringify(input.criteriaScores),
       input.annotations ? JSON.stringify(input.annotations) : null,
     ]);
 
@@ -1793,7 +1812,6 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
     `;
 
     const result = await this.query<{
-      received: string;
       in_design: string;
       in_fabrication: string;
       in_qc: string;
@@ -1802,7 +1820,6 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
 
     const row = result.rows[0]!;
     return {
-      received: parseInt(row.received, 10),
       inDesign: parseInt(row.in_design, 10),
       inFabrication: parseInt(row.in_fabrication, 10),
       inQC: parseInt(row.in_qc, 10),
@@ -1868,15 +1885,19 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
     const sql = `
       SELECT id as case_id, case_number,
         CASE
-          WHEN due_date < NOW() THEN 'OVERDUE'
-          WHEN due_date < NOW() + INTERVAL '24 hours' THEN 'DUE_SOON'
-          WHEN priority = 'STAT' THEN 'STAT_PRIORITY'
-          ELSE 'AT_RISK'
-        END as urgency_type,
+          WHEN status = 'QC_FAILED' THEN 'QC_FAILED'
+          WHEN status = 'REVISION_REQUIRED' THEN 'REVISION_REQUIRED'
+          WHEN due_date < NOW() THEN 'SLA_BREACH'
+          WHEN due_date < NOW() + INTERVAL '24 hours' THEN 'SLA_BREACH'
+          WHEN priority = 'STAT' THEN 'SLA_BREACH'
+          ELSE 'SLA_BREACH'
+        END as issue,
         CASE
-          WHEN due_date < NOW() THEN 'Overdue by ' || EXTRACT(DAY FROM NOW() - due_date)::TEXT || ' days'
-          WHEN due_date < NOW() + INTERVAL '24 hours' THEN 'Due in ' || EXTRACT(HOUR FROM due_date - NOW())::TEXT || ' hours'
-          WHEN priority = 'STAT' THEN 'STAT priority case'
+          WHEN status = 'QC_FAILED' THEN 'QC inspection failed - requires attention'
+          WHEN status = 'REVISION_REQUIRED' THEN 'Design revision required'
+          WHEN due_date < NOW() THEN 'Overdue by ' || GREATEST(1, EXTRACT(DAY FROM NOW() - due_date)::INT)::TEXT || ' days'
+          WHEN due_date < NOW() + INTERVAL '24 hours' THEN 'Due in ' || GREATEST(1, EXTRACT(HOUR FROM due_date - NOW())::INT)::TEXT || ' hours'
+          WHEN priority = 'STAT' THEN 'STAT priority case - expedite'
           ELSE 'At risk of SLA breach'
         END as details
       FROM lab_cases
@@ -1886,9 +1907,15 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
         AND (
           due_date < NOW() + INTERVAL '24 hours'
           OR priority = 'STAT'
+          OR status IN ('QC_FAILED', 'REVISION_REQUIRED')
         )
       ORDER BY
-        CASE WHEN due_date < NOW() THEN 0 ELSE 1 END,
+        CASE
+          WHEN status = 'QC_FAILED' THEN 0
+          WHEN status = 'REVISION_REQUIRED' THEN 1
+          WHEN due_date < NOW() THEN 2
+          ELSE 3
+        END,
         due_date ASC
       LIMIT 10
     `;
@@ -1896,14 +1923,14 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
     const result = await this.query<{
       case_id: string;
       case_number: string;
-      urgency_type: string;
+      issue: string;
       details: string;
     }>(sql, [clinicId]);
 
     return result.rows.map((row) => ({
       caseId: row.case_id,
       caseNumber: row.case_number,
-      urgencyType: row.urgency_type as 'OVERDUE' | 'DUE_SOON' | 'STAT_PRIORITY' | 'AT_RISK',
+      issue: row.issue as 'SLA_BREACH' | 'QC_FAILED' | 'REVISION_REQUIRED' | 'URGENT_MESSAGE',
       details: row.details,
     }));
   }
@@ -1914,6 +1941,91 @@ export class PostgresLabCaseRepository implements ILabCaseRepository, ILabCollab
   async close(): Promise<void> {
     await this.pool.end();
     logger.info('PostgresLabCaseRepository connection pool closed');
+  }
+
+  // ===========================================================================
+  // STUB IMPLEMENTATIONS (TODO: Implement these methods)
+  // ===========================================================================
+
+  async softDelete(_id: string, _deletedBy: string): Promise<void> {
+    throw new Error('softDelete not implemented - TODO');
+  }
+
+  async findByPatientId(_patientId: string): Promise<LabCase[]> {
+    throw new Error('findByPatientId not implemented - TODO');
+  }
+
+  async findByAssignedTechnician(_technicianId: string, _activeOnly?: boolean): Promise<LabCase[]> {
+    throw new Error('findByAssignedTechnician not implemented - TODO');
+  }
+
+  async findByAssignedDesigner(_designerId: string, _activeOnly?: boolean): Promise<LabCase[]> {
+    throw new Error('findByAssignedDesigner not implemented - TODO');
+  }
+
+  async findByDateRange(_clinicId: string, _startDate: Date, _endDate: Date): Promise<LabCase[]> {
+    throw new Error('findByDateRange not implemented - TODO');
+  }
+
+  async findOverdue(_clinicId: string): Promise<LabCase[]> {
+    throw new Error('findOverdue not implemented - TODO');
+  }
+
+  async findAtRisk(_clinicId: string, _hoursThreshold: number): Promise<LabCase[]> {
+    throw new Error('findAtRisk not implemented - TODO');
+  }
+
+  async findByProstheticType(_clinicId: string, _prostheticType: string): Promise<LabCase[]> {
+    throw new Error('findByProstheticType not implemented - TODO');
+  }
+
+  async findPendingDesignApproval(_clinicId: string): Promise<LabCase[]> {
+    throw new Error('findPendingDesignApproval not implemented - TODO');
+  }
+
+  // ILabCollaborationRepository stubs
+  async getThread(_threadId: string): Promise<CollaborationThread | null> {
+    throw new Error('getThread not implemented - TODO');
+  }
+
+  async getUnreadCount(_threadId: string, _userId: string): Promise<number> {
+    throw new Error('getUnreadCount not implemented - TODO');
+  }
+
+  async updateThreadStatus(_threadId: string, _status: string): Promise<void> {
+    throw new Error('updateThreadStatus not implemented - TODO');
+  }
+
+  async resolveThread(_threadId: string, _resolvedBy: string): Promise<void> {
+    throw new Error('resolveThread not implemented - TODO');
+  }
+
+  async escalateThread(_threadId: string, _escalatedBy: string, _reason: string): Promise<void> {
+    throw new Error('escalateThread not implemented - TODO');
+  }
+
+  async updateDesignFeedbackStatus(_feedbackId: string, _status: string): Promise<void> {
+    throw new Error('updateDesignFeedbackStatus not implemented - TODO');
+  }
+
+  async getUnreadThreadCount(_labCaseId: string, _userId: string): Promise<number> {
+    throw new Error('getUnreadThreadCount not implemented - TODO');
+  }
+
+  async findByStatus(_clinicId: string, _status: LabCaseStatus): Promise<LabCase[]> {
+    throw new Error('findByStatus not implemented - TODO');
+  }
+
+  async updateScanStatus(_scanId: string, _status: string): Promise<void> {
+    throw new Error('updateScanStatus not implemented - TODO');
+  }
+
+  async getCurrentDesign(_labCaseId: string): Promise<CADDesign | null> {
+    throw new Error('getCurrentDesign not implemented - TODO');
+  }
+
+  async getLatestQCInspection(_labCaseId: string): Promise<QCInspection | null> {
+    throw new Error('getLatestQCInspection not implemented - TODO');
   }
 }
 

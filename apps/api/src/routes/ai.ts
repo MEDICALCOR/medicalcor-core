@@ -236,6 +236,289 @@ const FunctionQuerySchema = z.object({
 
 const ExecuteBodySchema = AIRequestSchema;
 
+// ============================================================================
+// AI Execute Handler Helpers
+// ============================================================================
+
+interface ExecutionContext {
+  correlationId: string;
+  traceId: string;
+  userId: string;
+  tenantId?: string;
+  userTier: UserTier;
+  operationType: AIOperationType;
+  startTime: number;
+}
+
+interface TokenEstimate {
+  input: number;
+  output: number;
+}
+
+interface CostEstimate {
+  totalCost: number;
+}
+
+/**
+ * Check rate limit and set response headers
+ * @returns null if allowed, or error response object if rate limited
+ */
+async function checkRateLimitAndSetHeaders(
+  userId: string,
+  userTier: UserTier,
+  estimatedTokens: TokenEstimate,
+  operationType: AIOperationType,
+  reply: FastifyReply
+): Promise<{ code: string; message: string; retryAfter: number; tier: UserTier } | null> {
+  if (!userRateLimiter) return null;
+
+  const result = await userRateLimiter.checkLimit(userId, {
+    tier: userTier,
+    estimatedTokens: estimatedTokens.input + estimatedTokens.output,
+    operationType,
+  });
+
+  reply.header('X-RateLimit-Limit', result.limit.toString());
+  reply.header('X-RateLimit-Remaining', result.remaining.toString());
+  reply.header('X-RateLimit-Reset', result.resetAt.toString());
+
+  if (!result.allowed) {
+    reply.header('Retry-After', (result.retryAfter ?? result.resetInSeconds).toString());
+    return {
+      code: 'RATE_LIMIT_EXCEEDED',
+      message: result.reason ?? 'Too many requests',
+      retryAfter: result.retryAfter ?? result.resetInSeconds,
+      tier: userTier,
+    };
+  }
+
+  return null;
+}
+
+interface BudgetCheckResult {
+  allowed: boolean;
+  warning?: string;
+  errorResponse?: {
+    code: string;
+    message: string;
+    status: string;
+    remainingDaily: number;
+    remainingMonthly: number;
+  };
+}
+
+/**
+ * Check budget and set response headers
+ */
+async function checkBudgetAndSetHeaders(
+  userId: string,
+  tenantId: string | undefined,
+  estimatedCost: CostEstimate,
+  estimatedTokens: TokenEstimate,
+  reply: FastifyReply
+): Promise<BudgetCheckResult> {
+  if (!budgetController) {
+    return { allowed: true };
+  }
+
+  const result = await budgetController.checkBudget({
+    userId,
+    ...(tenantId && { tenantId }),
+    estimatedCost: estimatedCost.totalCost,
+    model: 'gpt-4o',
+    estimatedTokens,
+  });
+
+  if (!result.allowed) {
+    return {
+      allowed: false,
+      errorResponse: {
+        code: 'BUDGET_EXCEEDED',
+        message: result.reason ?? 'AI budget exceeded',
+        status: result.status,
+        remainingDaily: result.remainingDaily,
+        remainingMonthly: result.remainingMonthly,
+      },
+    };
+  }
+
+  let warning: string | undefined;
+  if (result.status === 'warning' || result.status === 'critical') {
+    warning = `${result.status}: Daily $${result.remainingDaily.toFixed(2)} / Monthly $${result.remainingMonthly.toFixed(2)} remaining`;
+    reply.header('X-Budget-Warning', warning);
+  }
+
+  reply.header('X-Budget-Status', result.status);
+  reply.header('X-Estimated-Cost', estimatedCost.totalCost.toFixed(4));
+
+  return { allowed: true, warning };
+}
+
+/**
+ * Build fallback response for scoring operations that timeout
+ */
+function buildScoringFallbackResponse(
+  requestType: string,
+  traceId: string,
+  startTime: number
+): Awaited<ReturnType<typeof router.process>> {
+  return {
+    success: true,
+    requestId: crypto.randomUUID(),
+    type: requestType,
+    results: [
+      {
+        function: 'score_lead',
+        success: true,
+        result: {
+          score: 3,
+          classification: 'WARM',
+          confidence: 0.5,
+          reasoning: 'Fallback response due to timeout - manual review recommended',
+          suggestedAction: 'Queue for manual scoring',
+          usedFallback: true,
+        },
+        executionTimeMs: Date.now() - startTime,
+      },
+    ],
+    totalExecutionTimeMs: Date.now() - startTime,
+    traceId,
+  };
+}
+
+/**
+ * Execute AI request with adaptive timeout
+ */
+async function executeWithTimeout(
+  request: z.infer<typeof AIRequestSchema>,
+  context: FunctionContext,
+  timeoutConfig: { timeoutMs: number; instantFallback?: boolean },
+  execContext: ExecutionContext,
+  log: FastifyRequest['log']
+): Promise<{ response: Awaited<ReturnType<typeof router.process>>; usedFallback: boolean }> {
+  const executePromise = router.process(request, context);
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`Operation timed out after ${timeoutConfig.timeoutMs}ms`));
+    }, timeoutConfig.timeoutMs);
+  });
+
+  try {
+    const response = await Promise.race([executePromise, timeoutPromise]);
+    return { response, usedFallback: false };
+  } catch (error) {
+    // Handle timeout with fallback for scoring operations
+    if (
+      timeoutConfig.instantFallback &&
+      error instanceof Error &&
+      error.message.includes('timed out')
+    ) {
+      log.warn(
+        { correlationId: execContext.correlationId, operationType: execContext.operationType },
+        'Operation timed out, using fallback'
+      );
+
+      if (execContext.operationType === 'scoring') {
+        const fallbackResponse = buildScoringFallbackResponse(
+          request.type,
+          execContext.traceId,
+          execContext.startTime
+        );
+        return { response: fallbackResponse, usedFallback: true };
+      }
+    }
+    throw error;
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
+/**
+ * Record usage metrics after successful execution
+ */
+async function recordUsageMetrics(
+  ctx: ExecutionContext,
+  estimatedTokens: TokenEstimate,
+  estimatedCost: CostEstimate,
+  success: boolean,
+  log: FastifyRequest['log']
+): Promise<void> {
+  // Record cost
+  if (budgetController) {
+    try {
+      const actualCost = estimatedCost.totalCost * (success ? 1 : 0.1);
+      await budgetController.recordCost(actualCost, {
+        userId: ctx.userId,
+        ...(ctx.tenantId && { tenantId: ctx.tenantId }),
+        model: 'gpt-4o',
+        operation: ctx.operationType,
+      });
+    } catch (recordError) {
+      log.warn(
+        { error: recordError, correlationId: ctx.correlationId },
+        'Failed to record cost - continuing with response'
+      );
+    }
+  }
+
+  // Record token usage
+  if (userRateLimiter) {
+    try {
+      await userRateLimiter.recordTokenUsage(
+        ctx.userId,
+        estimatedTokens.input + estimatedTokens.output,
+        {
+          tier: ctx.userTier,
+          operationType: ctx.operationType,
+        }
+      );
+    } catch (recordError) {
+      log.warn(
+        { error: recordError, correlationId: ctx.correlationId },
+        'Failed to record token usage - continuing with response'
+      );
+    }
+  }
+}
+
+/**
+ * Set execution response headers
+ */
+function setExecutionHeaders(
+  reply: FastifyReply,
+  ctx: ExecutionContext,
+  timeoutMs: number,
+  usedFallback: boolean
+): void {
+  const executionTime = Date.now() - ctx.startTime;
+  reply.header('X-Correlation-Id', ctx.correlationId);
+  reply.header('X-Trace-Id', ctx.traceId);
+  reply.header('X-Execution-Time-Ms', executionTime.toString());
+  reply.header('X-Operation-Type', ctx.operationType);
+  reply.header('X-Timeout-Ms', timeoutMs.toString());
+  if (usedFallback) {
+    reply.header('X-Used-Fallback', 'true');
+  }
+}
+
+/**
+ * Estimate token usage for a request
+ */
+function estimateTokens(data: z.infer<typeof AIRequestSchema>): TokenEstimate {
+  if (data.type === 'natural') {
+    const estimate = tokenEstimator.estimate([{ role: 'user', content: data.query }], {
+      model: 'gpt-4o',
+      maxOutputTokens: 500,
+    });
+    return { input: estimate.inputTokens, output: estimate.estimatedOutputTokens };
+  }
+  return { input: 500, output: 500 };
+}
+
 export const aiRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * GET /ai/functions
@@ -468,11 +751,9 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       // SECURITY: Validate user/tenant IDs to prevent spoofing
-      // These are only trusted because API key auth has passed (enforced by apiAuthPlugin)
       const userId = validateUserId(request.headers['x-user-id']);
       const tenantId = validateTenantId(request.headers['x-tenant-id']);
 
-      // SECURITY: Require user context for all AI executions
       if (!userId) {
         return reply.status(401).send({
           code: 'USER_CONTEXT_REQUIRED',
@@ -480,89 +761,53 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
         });
       }
 
-      // Get user tier and operation type
+      // Build execution context
       const userTier = getUserTier(request.headers);
       const operationType = getOperationType(parseResult.data);
       const timeoutConfig = timeoutManager.getTimeoutConfig(operationType);
 
-      // Estimate tokens and cost before execution
-      let estimatedTokens = { input: 500, output: 500 }; // Default estimate
-      if (parseResult.data.type === 'natural') {
-        const estimate = tokenEstimator.estimate(
-          [{ role: 'user', content: parseResult.data.query }],
-          { model: 'gpt-4o', maxOutputTokens: 500 }
-        );
-        estimatedTokens = { input: estimate.inputTokens, output: estimate.estimatedOutputTokens };
-      }
+      const execContext: ExecutionContext = {
+        correlationId,
+        traceId,
+        userId,
+        tenantId,
+        userTier,
+        operationType,
+        startTime,
+      };
+
+      // Estimate tokens and cost
+      const estimatedTokens = estimateTokens(parseResult.data);
       const estimatedCost = tokenEstimator.estimateCost(
         [{ role: 'user', content: JSON.stringify(parseResult.data) }],
         { model: 'gpt-4o', maxOutputTokens: estimatedTokens.output }
       );
 
-      // Check user rate limit (if rate limiter is available)
-      if (userRateLimiter) {
-        const rateLimitResult = await userRateLimiter.checkLimit(userId, {
-          tier: userTier,
-          estimatedTokens: estimatedTokens.input + estimatedTokens.output,
-          operationType,
-        });
-
-        if (!rateLimitResult.allowed) {
-          reply.header('X-RateLimit-Limit', rateLimitResult.limit.toString());
-          reply.header('X-RateLimit-Remaining', rateLimitResult.remaining.toString());
-          reply.header('X-RateLimit-Reset', rateLimitResult.resetAt.toString());
-          reply.header(
-            'Retry-After',
-            (rateLimitResult.retryAfter ?? rateLimitResult.resetInSeconds).toString()
-          );
-
-          return reply.status(429).send({
-            code: 'RATE_LIMIT_EXCEEDED',
-            message: rateLimitResult.reason ?? 'Too many requests',
-            retryAfter: rateLimitResult.retryAfter ?? rateLimitResult.resetInSeconds,
-            tier: userTier,
-          });
-        }
-
-        // Set rate limit headers
-        reply.header('X-RateLimit-Limit', rateLimitResult.limit.toString());
-        reply.header('X-RateLimit-Remaining', rateLimitResult.remaining.toString());
-        reply.header('X-RateLimit-Reset', rateLimitResult.resetAt.toString());
+      // Check rate limit
+      const rateLimitError = await checkRateLimitAndSetHeaders(
+        userId,
+        userTier,
+        estimatedTokens,
+        operationType,
+        reply
+      );
+      if (rateLimitError) {
+        return reply.status(429).send(rateLimitError);
       }
 
-      // Check budget (if budget controller is available)
-      let budgetWarning: string | undefined;
-      if (budgetController) {
-        const budgetResult = await budgetController.checkBudget({
-          userId,
-          ...(tenantId && { tenantId }),
-          estimatedCost: estimatedCost.totalCost,
-          model: 'gpt-4o',
-          estimatedTokens,
-        });
-
-        if (!budgetResult.allowed) {
-          return reply.status(402).send({
-            code: 'BUDGET_EXCEEDED',
-            message: budgetResult.reason ?? 'AI budget exceeded',
-            status: budgetResult.status,
-            remainingDaily: budgetResult.remainingDaily,
-            remainingMonthly: budgetResult.remainingMonthly,
-          });
-        }
-
-        // Add budget warning header if near limit
-        if (budgetResult.status === 'warning' || budgetResult.status === 'critical') {
-          budgetWarning = `${budgetResult.status}: Daily $${budgetResult.remainingDaily.toFixed(2)} / Monthly $${budgetResult.remainingMonthly.toFixed(2)} remaining`;
-          reply.header('X-Budget-Warning', budgetWarning);
-        }
-
-        // Set budget headers
-        reply.header('X-Budget-Status', budgetResult.status);
-        reply.header('X-Estimated-Cost', estimatedCost.totalCost.toFixed(4));
+      // Check budget
+      const budgetResult = await checkBudgetAndSetHeaders(
+        userId,
+        tenantId,
+        estimatedCost,
+        estimatedTokens,
+        reply
+      );
+      if (!budgetResult.allowed) {
+        return reply.status(402).send(budgetResult.errorResponse);
       }
 
-      const context: FunctionContext = {
+      const functionContext: FunctionContext = {
         correlationId,
         traceId,
         userId,
@@ -570,125 +815,28 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
       };
 
       try {
-        // Execute with adaptive timeout and proper cleanup
-        const executePromise = router.process(parseResult.data, context);
-        let timeoutId: ReturnType<typeof setTimeout> | undefined;
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          timeoutId = setTimeout(() => {
-            reject(new Error(`Operation timed out after ${timeoutConfig.timeoutMs}ms`));
-          }, timeoutConfig.timeoutMs);
-        });
+        // Execute with timeout and fallback handling
+        const { response, usedFallback } = await executeWithTimeout(
+          parseResult.data,
+          functionContext,
+          timeoutConfig,
+          execContext,
+          request.log
+        );
 
-        let response: Awaited<ReturnType<typeof router.process>>;
-        let usedFallback = false;
-
-        try {
-          response = await Promise.race([executePromise, timeoutPromise]);
-        } catch (error) {
-          // If instant fallback is enabled and operation timed out
-          if (
-            timeoutConfig.instantFallback &&
-            error instanceof Error &&
-            error.message.includes('timed out')
-          ) {
-            request.log.warn(
-              { correlationId, operationType },
-              'Operation timed out, using fallback'
-            );
-            usedFallback = true;
-
-            // Return a fallback response for scoring operations
-            if (operationType === 'scoring') {
-              response = {
-                success: true,
-                requestId: crypto.randomUUID(),
-                type: parseResult.data.type,
-                results: [
-                  {
-                    function: 'score_lead',
-                    success: true,
-                    result: {
-                      score: 3, // Default mid-range score
-                      classification: 'WARM',
-                      confidence: 0.5,
-                      reasoning: 'Fallback response due to timeout - manual review recommended',
-                      suggestedAction: 'Queue for manual scoring',
-                      usedFallback: true,
-                    },
-                    executionTimeMs: Date.now() - startTime,
-                  },
-                ],
-                totalExecutionTimeMs: Date.now() - startTime,
-                traceId,
-              };
-            } else {
-              // Re-throw for non-fallback operations
-              throw error;
-            }
-          } else {
-            throw error;
-          }
-        } finally {
-          // Clean up timeout to prevent memory leaks
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-          }
-        }
-
+        // Record metrics
         const executionTime = Date.now() - startTime;
-
-        // Record actual cost (if budget controller available)
-        // Wrapped in try-catch to avoid failing the request if recording fails
-        if (budgetController) {
-          try {
-            // Use actual tokens if available, otherwise estimate
-            const actualCost = estimatedCost.totalCost * (response.success ? 1 : 0.1);
-            await budgetController.recordCost(actualCost, {
-              userId,
-              ...(tenantId && { tenantId }),
-              model: 'gpt-4o',
-              operation: operationType,
-            });
-          } catch (recordError) {
-            request.log.warn(
-              { error: recordError, correlationId },
-              'Failed to record cost - continuing with response'
-            );
-          }
-        }
-
-        // Record token usage (if rate limiter available)
-        // Wrapped in try-catch to avoid failing the request if recording fails
-        if (userRateLimiter) {
-          try {
-            await userRateLimiter.recordTokenUsage(
-              userId,
-              estimatedTokens.input + estimatedTokens.output,
-              {
-                tier: userTier,
-                operationType,
-              }
-            );
-          } catch (recordError) {
-            request.log.warn(
-              { error: recordError, correlationId },
-              'Failed to record token usage - continuing with response'
-            );
-          }
-        }
-
-        // Record performance metrics for adaptive timeout
+        await recordUsageMetrics(
+          execContext,
+          estimatedTokens,
+          estimatedCost,
+          response.success,
+          request.log
+        );
         timeoutManager.recordPerformance(operationType, executionTime, response.success);
 
-        // Set response headers
-        reply.header('X-Correlation-Id', correlationId);
-        reply.header('X-Trace-Id', traceId);
-        reply.header('X-Execution-Time-Ms', executionTime.toString());
-        reply.header('X-Operation-Type', operationType);
-        reply.header('X-Timeout-Ms', timeoutConfig.timeoutMs.toString());
-        if (usedFallback) {
-          reply.header('X-Used-Fallback', 'true');
-        }
+        // Set headers and send response
+        setExecutionHeaders(reply, execContext, timeoutConfig.timeoutMs, usedFallback);
 
         return reply.send({
           ...response,
@@ -697,13 +845,11 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
             timeoutMs: timeoutConfig.timeoutMs,
             estimatedCost: estimatedCost.totalCost,
             usedFallback,
-            budgetWarning,
+            budgetWarning: budgetResult.warning,
           },
         });
       } catch (error) {
         request.log.error({ error, correlationId, operationType }, 'AI execution error');
-
-        // Record failed execution
         timeoutManager.recordPerformance(operationType, Date.now() - startTime, false);
 
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
