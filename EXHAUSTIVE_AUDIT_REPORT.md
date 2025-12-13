@@ -71,7 +71,7 @@
 
 ### 3. Documentation Critical (5)
 
-1. **Undocumented API endpoints** - Booking, ChatGPT plugin, backup
+1. **Undocumented API endpoints** - Booking, backup
 2. **Missing workflow documentation** - Trigger.dev completely undocumented
 3. **No database migration docs** - Schema/migrations not explained
 4. **No accessibility documentation** - Zero WCAG/a11y guidance

@@ -30,7 +30,6 @@ import {
 } from './routes/index.js';
 import { Pool } from 'pg';
 import { createOpenAIClient, createEmbeddingService } from '@medicalcor/integrations';
-import { chatgptPluginRoutes } from './routes/chatgpt-plugin.js';
 import { instrumentFastify } from '@medicalcor/core/observability/instrumentation';
 import { rateLimitPlugin, type RateLimitConfig } from './plugins/rate-limit.js';
 import { apiAuthPlugin } from './plugins/api-auth.js';
@@ -271,7 +270,6 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
         { name: 'Diagnostics', description: 'System diagnostics and metrics' },
         { name: 'Metrics', description: 'Prometheus metrics for monitoring' },
         { name: 'Backup', description: 'Backup management operations' },
-        { name: 'ChatGPT Plugin', description: 'ChatGPT plugin integration endpoints' },
         { name: 'Documentation', description: 'API documentation portal and OpenAPI spec exports' },
       ],
       components: {
@@ -424,7 +422,6 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
   await fastify.register(workflowRoutes);
   await fastify.register(aiRoutes);
   await fastify.register(diagnosticsRoutes);
-  await fastify.register(chatgptPluginRoutes);
   await fastify.register(backupRoutes);
   await fastify.register(gdprRoutes);
   await fastify.register(gdprArticle30Routes);
