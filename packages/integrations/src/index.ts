@@ -554,6 +554,19 @@ export {
 } from './lib/index.js';
 
 // =============================================================================
+// Claude Agent SDK Integration
+// =============================================================================
+
+export {
+  ClaudeAgentClient,
+  createClaudeAgentClient,
+  type ClaudeAgentConfig,
+  type AgentExecutionInput,
+  type AgentExecutionResult,
+  type AgentProgressCallback,
+} from './claude-agent.js';
+
+// =============================================================================
 // Hexagonal Architecture Adapters
 // =============================================================================
 
