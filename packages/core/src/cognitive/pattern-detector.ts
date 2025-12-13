@@ -58,6 +58,119 @@ function calculateAverageResponseTime(events: EpisodicEvent[]): number | null {
 }
 
 // =============================================================================
+// Keyword Pattern Configuration (Declarative)
+// =============================================================================
+
+interface KeywordPatternConfig {
+  type: string;
+  /** Keywords to search in event summary (case-insensitive) */
+  summaryKeywords: string[];
+  /** Keywords to search in event intent (case-insensitive) */
+  intentKeywords?: string[];
+  /** Entity types to check in keyEntities */
+  entityTypes?: string[];
+  /** Minimum matches required for detection */
+  minMatches: number;
+  /** Confidence multiplier per match (capped at 1.0) */
+  confidencePerMatch: number;
+  /** Description template with {{confidence}} placeholder */
+  descriptionTemplate: string;
+}
+
+const KEYWORD_PATTERN_CONFIGS: KeywordPatternConfig[] = [
+  {
+    type: 'price_sensitive',
+    summaryKeywords: ['price', 'cost', 'afford', 'pret', 'discount', 'reducere'],
+    intentKeywords: ['price'],
+    entityTypes: ['amount'],
+    minMatches: 2,
+    confidencePerMatch: 0.3,
+    descriptionTemplate:
+      'Patient shows price sensitivity in communications ({{confidence}}% confidence). Emphasize value propositions and payment plans.',
+  },
+  {
+    type: 'quality_focused',
+    summaryKeywords: [
+      'quality',
+      'experience',
+      'best',
+      'calitate',
+      'experienta',
+      'specialist',
+      'expert',
+    ],
+    intentKeywords: ['quality'],
+    minMatches: 2,
+    confidencePerMatch: 0.35,
+    descriptionTemplate:
+      'Patient prioritizes quality and expertise ({{confidence}}% confidence). Highlight credentials and success stories.',
+  },
+];
+
+/**
+ * Creates a keyword-based pattern detector from configuration
+ */
+function createKeywordPatternRule(config: KeywordPatternConfig): PatternRule {
+  return {
+    type: config.type,
+    detect: (events) => {
+      const matchingEvents = events.filter((e) => {
+        const summaryLower = e.summary.toLowerCase();
+        const intentLower = e.intent?.toLowerCase() ?? '';
+
+        const hasSummaryMatch = config.summaryKeywords.some((kw) => summaryLower.includes(kw));
+        const hasIntentMatch =
+          config.intentKeywords?.some((kw) => intentLower.includes(kw)) ?? false;
+        const hasEntityMatch =
+          config.entityTypes?.some((type) =>
+            e.keyEntities.some((entity) => entity.type === type)
+          ) ?? false;
+
+        return hasSummaryMatch || hasIntentMatch || hasEntityMatch;
+      });
+
+      const confidence = Math.min(matchingEvents.length * config.confidencePerMatch, 1);
+
+      return {
+        detected: matchingEvents.length >= config.minMatches,
+        confidence,
+        supportingEvents: matchingEvents.map((e) => e.id),
+      };
+    },
+    description: (confidence) =>
+      config.descriptionTemplate.replace('{{confidence}}', String(Math.round(confidence * 100))),
+  };
+}
+
+// =============================================================================
+// Event Filtering Helpers
+// =============================================================================
+
+interface EventFilterCriteria {
+  eventTypeIncludes?: string[];
+  eventTypeEquals?: string[];
+  summaryIncludes?: string[];
+}
+
+/**
+ * Filters events based on criteria (event type or summary keywords)
+ */
+function filterEventsByCriteria(
+  events: EpisodicEvent[],
+  criteria: EventFilterCriteria
+): EpisodicEvent[] {
+  return events.filter((e) => {
+    const matchesEventTypeIncludes =
+      criteria.eventTypeIncludes?.some((t) => e.eventType.includes(t)) ?? false;
+    const matchesEventTypeEquals =
+      criteria.eventTypeEquals?.some((t) => e.eventType === t) ?? false;
+    const matchesSummary =
+      criteria.summaryIncludes?.some((s) => e.summary.toLowerCase().includes(s)) ?? false;
+    return matchesEventTypeIncludes || matchesEventTypeEquals || matchesSummary;
+  });
+}
+
+// =============================================================================
 // Rule-Based Pattern Detectors
 // =============================================================================
 
@@ -66,19 +179,17 @@ const PATTERN_RULES: PatternRule[] = [
   {
     type: 'appointment_rescheduler',
     detect: (events) => {
-      const rescheduleEvents = events.filter(
-        (e) =>
-          e.eventType.includes('reschedule') ||
-          e.eventType === 'appointment.rescheduled' ||
-          e.summary.toLowerCase().includes('reschedul')
-      );
+      const rescheduleEvents = filterEventsByCriteria(events, {
+        eventTypeIncludes: ['reschedule'],
+        eventTypeEquals: ['appointment.rescheduled'],
+        summaryIncludes: ['reschedul'],
+      });
 
-      const cancellations = events.filter(
-        (e) =>
-          e.eventType.includes('cancel') ||
-          e.eventType === 'appointment.cancelled' ||
-          e.summary.toLowerCase().includes('cancel')
-      );
+      const cancellations = filterEventsByCriteria(events, {
+        eventTypeIncludes: ['cancel'],
+        eventTypeEquals: ['appointment.cancelled'],
+        summaryIncludes: ['cancel'],
+      });
 
       const totalSchedulingIssues = rescheduleEvents.length + cancellations.length;
       const confidence = Math.min(totalSchedulingIssues * 0.25, 1);
@@ -90,13 +201,10 @@ const PATTERN_RULES: PatternRule[] = [
       };
     },
     description: (confidence, events) => {
-      const count = events.filter(
-        (e) =>
-          e.eventType.includes('reschedule') ||
-          e.eventType.includes('cancel') ||
-          e.summary.toLowerCase().includes('reschedul') ||
-          e.summary.toLowerCase().includes('cancel')
-      ).length;
+      const count = filterEventsByCriteria(events, {
+        eventTypeIncludes: ['reschedule', 'cancel'],
+        summaryIncludes: ['reschedul', 'cancel'],
+      }).length;
       return `Patient has rescheduled or cancelled appointments ${count} times (${Math.round(confidence * 100)}% confidence). Consider flexible scheduling options.`;
     },
   },
@@ -134,20 +242,16 @@ const PATTERN_RULES: PatternRule[] = [
     type: 'high_engagement',
     detect: (events) => {
       const communicationEvents = events.filter((e) => e.eventCategory === 'communication');
-
-      // Check channel diversity
       const channels = new Set(communicationEvents.map((e) => e.sourceChannel));
 
-      // Check frequency (events per month)
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const recentEvents = communicationEvents.filter((e) => e.occurredAt >= thirtyDaysAgo);
 
       const hasMultipleChannels = channels.size >= 2;
       const hasHighFrequency = recentEvents.length >= 5;
-      const hasPositiveSentiment =
-        communicationEvents.filter((e) => e.sentiment === 'positive').length >
-        communicationEvents.length * 0.5;
+      const positiveCount = communicationEvents.filter((e) => e.sentiment === 'positive').length;
+      const hasPositiveSentiment = positiveCount > communicationEvents.length * 0.5;
 
       const confidence =
         (hasMultipleChannels ? 0.35 : 0) +
@@ -178,27 +282,22 @@ const PATTERN_RULES: PatternRule[] = [
         (a, b) => a.occurredAt.getTime() - b.occurredAt.getTime()
       );
 
-      // Split into halves
       const midpoint = Math.floor(sortedEvents.length / 2);
       const firstHalf = sortedEvents.slice(0, midpoint);
       const secondHalf = sortedEvents.slice(midpoint);
 
-      // Calculate interaction frequency for each half
-      const firstHalfDuration =
-        firstHalf.length > 1
-          ? (firstHalf[firstHalf.length - 1]?.occurredAt.getTime() ?? 0) -
-            (firstHalf[0]?.occurredAt.getTime() ?? 0)
+      const calculateDuration = (half: EpisodicEvent[]): number =>
+        half.length > 1
+          ? (half[half.length - 1]?.occurredAt.getTime() ?? 0) -
+            (half[0]?.occurredAt.getTime() ?? 0)
           : 0;
-      const secondHalfDuration =
-        secondHalf.length > 1
-          ? (secondHalf[secondHalf.length - 1]?.occurredAt.getTime() ?? 0) -
-            (secondHalf[0]?.occurredAt.getTime() ?? 0)
-          : 0;
+
+      const firstHalfDuration = calculateDuration(firstHalf);
+      const secondHalfDuration = calculateDuration(secondHalf);
 
       const firstFrequency = firstHalfDuration > 0 ? firstHalf.length / firstHalfDuration : 0;
       const secondFrequency = secondHalfDuration > 0 ? secondHalf.length / secondHalfDuration : 0;
 
-      // Also check sentiment trend
       const recentNegative = secondHalf.filter((e) => e.sentiment === 'negative').length;
       const recentSentimentRatio = secondHalf.length > 0 ? recentNegative / secondHalf.length : 0;
 
@@ -227,7 +326,6 @@ const PATTERN_RULES: PatternRule[] = [
         return { detected: false, confidence: 0, supportingEvents: [] };
       }
 
-      // Quick responder = average response within 30 minutes
       const thirtyMinutes = 30 * 60 * 1000;
       const isQuick = avgResponseTime < thirtyMinutes;
       const confidence = isQuick ? Math.min(1 - avgResponseTime / thirtyMinutes, 1) : 0;
@@ -252,7 +350,6 @@ const PATTERN_RULES: PatternRule[] = [
         return { detected: false, confidence: 0, supportingEvents: [] };
       }
 
-      // Slow responder = average response over 4 hours
       const fourHours = 4 * 60 * 60 * 1000;
       const isSlow = avgResponseTime > fourHours;
       const confidence = isSlow ? Math.min((avgResponseTime - fourHours) / fourHours, 1) : 0;
@@ -267,61 +364,8 @@ const PATTERN_RULES: PatternRule[] = [
       `Patient typically takes longer to respond (${Math.round(confidence * 100)}% confidence). Allow adequate time before follow-ups.`,
   },
 
-  // Price Sensitive Pattern
-  {
-    type: 'price_sensitive',
-    detect: (events) => {
-      const priceRelatedEvents = events.filter(
-        (e) =>
-          e.summary.toLowerCase().includes('price') ||
-          e.summary.toLowerCase().includes('cost') ||
-          e.summary.toLowerCase().includes('afford') ||
-          e.summary.toLowerCase().includes('pret') ||
-          e.summary.toLowerCase().includes('discount') ||
-          e.summary.toLowerCase().includes('reducere') ||
-          (e.intent?.toLowerCase().includes('price') ?? false) ||
-          e.keyEntities.some((entity) => entity.type === 'amount')
-      );
-
-      const confidence = Math.min(priceRelatedEvents.length * 0.3, 1);
-
-      return {
-        detected: priceRelatedEvents.length >= 2,
-        confidence,
-        supportingEvents: priceRelatedEvents.map((e) => e.id),
-      };
-    },
-    description: (confidence) =>
-      `Patient shows price sensitivity in communications (${Math.round(confidence * 100)}% confidence). Emphasize value propositions and payment plans.`,
-  },
-
-  // Quality Focused Pattern
-  {
-    type: 'quality_focused',
-    detect: (events) => {
-      const qualityRelatedEvents = events.filter(
-        (e) =>
-          e.summary.toLowerCase().includes('quality') ||
-          e.summary.toLowerCase().includes('experience') ||
-          e.summary.toLowerCase().includes('best') ||
-          e.summary.toLowerCase().includes('calitate') ||
-          e.summary.toLowerCase().includes('experienta') ||
-          e.summary.toLowerCase().includes('specialist') ||
-          e.summary.toLowerCase().includes('expert') ||
-          e.intent?.toLowerCase().includes('quality')
-      );
-
-      const confidence = Math.min(qualityRelatedEvents.length * 0.35, 1);
-
-      return {
-        detected: qualityRelatedEvents.length >= 2,
-        confidence,
-        supportingEvents: qualityRelatedEvents.map((e) => e.id),
-      };
-    },
-    description: (confidence) =>
-      `Patient prioritizes quality and expertise (${Math.round(confidence * 100)}% confidence). Highlight credentials and success stories.`,
-  },
+  // Add keyword-based patterns from configuration
+  ...KEYWORD_PATTERN_CONFIGS.map(createKeywordPatternRule),
 ];
 
 // =============================================================================
