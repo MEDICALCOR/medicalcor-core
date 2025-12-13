@@ -26,6 +26,7 @@ import {
   rlsTestRoutes,
   apiDocsRoutes,
   createCognitiveRoutes,
+  orchestrationRoutes,
 } from './routes/index.js';
 import { Pool } from 'pg';
 import { createOpenAIClient, createEmbeddingService } from '@medicalcor/integrations';
@@ -366,6 +367,8 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
       '/gdpr',
       // Cognitive endpoints expose behavioral insights and patterns (contains PII)
       '/cognitive',
+      // Orchestration endpoints manage multi-agent workflows (administrative)
+      '/orchestration',
     ],
   });
 
@@ -428,6 +431,7 @@ Most endpoints require API key authentication via \`X-API-Key\` header.
   await fastify.register(loadTestingRoutes);
   await fastify.register(rlsTestRoutes);
   await fastify.register(apiDocsRoutes);
+  await fastify.register(orchestrationRoutes);
 
   // Cognitive routes - requires database and OpenAI dependencies
   // Only register if required environment variables are present

@@ -281,6 +281,142 @@ export class UnifiedGDPRErasureService {
   constructor(private readonly pool: DatabasePool) {}
 
   /**
+   * Process all tables for erasure in dependency order
+   */
+  private async processAllTables(
+    client: PoolClient,
+    subject: ErasureSubject,
+    leadIds: string[],
+    caseIds: string[],
+    options: UnifiedErasureOptions
+  ): Promise<{
+    tableResults: TableErasureResult[];
+    totalRecordsAffected: number;
+    errors: string[];
+  }> {
+    const tableResults: TableErasureResult[] = [];
+    const errors: string[] = [];
+    let totalRecordsAffected = 0;
+
+    const sortedTables = this.sortTablesByDependency(TABLE_CONFIGS);
+
+    for (const tableConfig of sortedTables) {
+      const result = await this.processTableErasure(
+        client,
+        tableConfig,
+        subject,
+        leadIds,
+        caseIds,
+        options
+      );
+
+      tableResults.push(result.tableResult);
+      totalRecordsAffected += result.tableResult.recordsAffected;
+      if (result.error) {
+        errors.push(result.error);
+      }
+    }
+
+    return { tableResults, totalRecordsAffected, errors };
+  }
+
+  /**
+   * Process erasure for a single table with error handling
+   */
+  private async processTableErasure(
+    client: PoolClient,
+    tableConfig: TableConfig,
+    subject: ErasureSubject,
+    leadIds: string[],
+    caseIds: string[],
+    options: UnifiedErasureOptions
+  ): Promise<{ tableResult: TableErasureResult; error?: string }> {
+    if (options.skipTables?.includes(tableConfig.name)) {
+      return {
+        tableResult: { tableName: tableConfig.name, recordsAffected: 0, erasureType: 'skipped' },
+      };
+    }
+
+    try {
+      const tableResult = await this.eraseFromTable(
+        client,
+        tableConfig,
+        subject,
+        leadIds,
+        caseIds,
+        options
+      );
+      return { tableResult };
+    } catch (err) {
+      const errorMsg = `Failed to erase from ${tableConfig.name}: ${err instanceof Error ? err.message : 'Unknown error'}`;
+      logger.error({ table: tableConfig.name, error: err }, 'Table erasure failed');
+      return {
+        tableResult: {
+          tableName: tableConfig.name,
+          recordsAffected: 0,
+          erasureType: 'skipped',
+          error: errorMsg,
+        },
+        error: errorMsg,
+      };
+    }
+  }
+
+  /**
+   * Build success result for erasure operation
+   */
+  private buildSuccessResult(
+    subject: ErasureSubject,
+    options: UnifiedErasureOptions,
+    tableResults: TableErasureResult[],
+    totalRecordsAffected: number,
+    errors: string[]
+  ): UnifiedErasureResult {
+    const permanentDeletionDate = new Date();
+    permanentDeletionDate.setDate(permanentDeletionDate.getDate() + this.RETENTION_PERIOD_DAYS);
+
+    return {
+      success: errors.length === 0,
+      identifier: subject.identifier,
+      identifierType: subject.identifierType,
+      totalRecordsAffected,
+      tableResults,
+      erasedAt: new Date(),
+      reason: options.reason,
+      requestedBy: options.requestedBy,
+      dsrRequestId: options.dsrRequestId,
+      correlationId: options.correlationId,
+      retentionPeriodDays: options.hardDelete ? undefined : this.RETENTION_PERIOD_DAYS,
+      estimatedPermanentDeletion: options.hardDelete ? undefined : permanentDeletionDate,
+      errors,
+    };
+  }
+
+  /**
+   * Build failure result for erasure operation
+   */
+  private buildFailureResult(
+    subject: ErasureSubject,
+    options: UnifiedErasureOptions,
+    tableResults: TableErasureResult[],
+    errorMessage: string
+  ): UnifiedErasureResult {
+    return {
+      success: false,
+      identifier: subject.identifier,
+      identifierType: subject.identifierType,
+      totalRecordsAffected: 0,
+      tableResults,
+      erasedAt: new Date(),
+      reason: options.reason,
+      requestedBy: options.requestedBy,
+      dsrRequestId: options.dsrRequestId,
+      correlationId: options.correlationId,
+      errors: [errorMessage],
+    };
+  }
+
+  /**
    * Erase all personal data for a subject across the entire system
    *
    * @param subject - The subject to erase
@@ -301,9 +437,7 @@ export class UnifiedGDPRErasureService {
   ): Promise<UnifiedErasureResult> {
     const client = await this.pool.connect();
     const startTime = Date.now();
-    const errors: string[] = [];
-    const tableResults: TableErasureResult[] = [];
-    let totalRecordsAffected = 0;
+    let tableResults: TableErasureResult[] = [];
 
     logger.info(
       {
@@ -319,7 +453,7 @@ export class UnifiedGDPRErasureService {
     try {
       await client.query('BEGIN');
 
-      // Step 1: Resolve all lead IDs for the subject
+      // Step 1: Resolve subject identifiers
       const leadIds = await this.resolveLeadIds(client, subject);
       const caseIds = await this.resolveCaseIds(client, leadIds);
 
@@ -332,79 +466,31 @@ export class UnifiedGDPRErasureService {
         'Resolved subject records'
       );
 
-      // Step 2: Process tables in dependency order (children first)
-      const sortedTables = this.sortTablesByDependency(TABLE_CONFIGS);
+      // Step 2: Process all tables
+      const {
+        tableResults: results,
+        totalRecordsAffected,
+        errors,
+      } = await this.processAllTables(client, subject, leadIds, caseIds, options);
+      tableResults = results;
 
-      for (const tableConfig of sortedTables) {
-        if (options.skipTables?.includes(tableConfig.name)) {
-          tableResults.push({
-            tableName: tableConfig.name,
-            recordsAffected: 0,
-            erasureType: 'skipped',
-          });
-          continue;
-        }
-
-        try {
-          const result = await this.eraseFromTable(
-            client,
-            tableConfig,
-            subject,
-            leadIds,
-            caseIds,
-            options
-          );
-          tableResults.push(result);
-          totalRecordsAffected += result.recordsAffected;
-        } catch (err) {
-          const errorMsg = `Failed to erase from ${tableConfig.name}: ${err instanceof Error ? err.message : 'Unknown error'}`;
-          errors.push(errorMsg);
-          logger.error({ table: tableConfig.name, error: err }, 'Table erasure failed');
-          tableResults.push({
-            tableName: tableConfig.name,
-            recordsAffected: 0,
-            erasureType: 'skipped',
-            error: errorMsg,
-          });
-        }
-      }
-
-      // Step 3: Log audit entry
+      // Step 3: Log audit entry and commit
       await this.logErasureAudit(client, subject, options, tableResults, totalRecordsAffected);
-
       await client.query('COMMIT');
 
-      const duration = Date.now() - startTime;
       logger.info(
         {
           identifier: this.maskIdentifier(subject.identifier),
           totalRecordsAffected,
           tableCount: tableResults.length,
           errorCount: errors.length,
-          durationMs: duration,
+          durationMs: Date.now() - startTime,
           correlationId: options.correlationId,
         },
         'Unified GDPR erasure completed'
       );
 
-      const permanentDeletionDate = new Date();
-      permanentDeletionDate.setDate(permanentDeletionDate.getDate() + this.RETENTION_PERIOD_DAYS);
-
-      return {
-        success: errors.length === 0,
-        identifier: subject.identifier,
-        identifierType: subject.identifierType,
-        totalRecordsAffected,
-        tableResults,
-        erasedAt: new Date(),
-        reason: options.reason,
-        requestedBy: options.requestedBy,
-        dsrRequestId: options.dsrRequestId,
-        correlationId: options.correlationId,
-        retentionPeriodDays: options.hardDelete ? undefined : this.RETENTION_PERIOD_DAYS,
-        estimatedPermanentDeletion: options.hardDelete ? undefined : permanentDeletionDate,
-        errors,
-      };
+      return this.buildSuccessResult(subject, options, tableResults, totalRecordsAffected, errors);
     } catch (error) {
       await client.query('ROLLBACK');
 
@@ -418,19 +504,7 @@ export class UnifiedGDPRErasureService {
         'Unified GDPR erasure failed'
       );
 
-      return {
-        success: false,
-        identifier: subject.identifier,
-        identifierType: subject.identifierType,
-        totalRecordsAffected: 0,
-        tableResults,
-        erasedAt: new Date(),
-        reason: options.reason,
-        requestedBy: options.requestedBy,
-        dsrRequestId: options.dsrRequestId,
-        correlationId: options.correlationId,
-        errors: [errorMessage],
-      };
+      return this.buildFailureResult(subject, options, tableResults, errorMessage);
     } finally {
       client.release();
     }
@@ -550,7 +624,111 @@ export class UnifiedGDPRErasureService {
   }
 
   /**
-   * Erase records from a single table
+   * Execute soft delete strategy on a table
+   */
+  private async executeSoftDelete(
+    client: PoolClient,
+    tableName: string,
+    hasSoftDelete: boolean,
+    whereClause: { condition: string; params: unknown[] }
+  ): Promise<{ recordsAffected: number; erasureType: 'soft_delete' | 'hard_delete' }> {
+    if (hasSoftDelete) {
+      const result = await client.query(
+        `UPDATE ${tableName}
+         SET deleted_at = NOW(), updated_at = NOW()
+         WHERE ${whereClause.condition} AND deleted_at IS NULL
+         RETURNING id`,
+        whereClause.params
+      );
+      return { recordsAffected: result.rowCount ?? 0, erasureType: 'soft_delete' };
+    }
+
+    // Fallback to hard delete if no soft delete column
+    const result = await client.query(
+      `DELETE FROM ${tableName} WHERE ${whereClause.condition} RETURNING id`,
+      whereClause.params
+    );
+    return { recordsAffected: result.rowCount ?? 0, erasureType: 'hard_delete' };
+  }
+
+  /**
+   * Execute hard delete strategy on a table
+   */
+  private async executeHardDelete(
+    client: PoolClient,
+    tableName: string,
+    whereClause: { condition: string; params: unknown[] }
+  ): Promise<{ recordsAffected: number; erasureType: 'hard_delete' }> {
+    const result = await client.query(
+      `DELETE FROM ${tableName} WHERE ${whereClause.condition} RETURNING id`,
+      whereClause.params
+    );
+    return { recordsAffected: result.rowCount ?? 0, erasureType: 'hard_delete' };
+  }
+
+  /**
+   * Execute anonymization for domain_events table (special JSONB handling)
+   */
+  private async anonymizeDomainEvents(
+    client: PoolClient,
+    whereClause: { condition: string; params: unknown[] }
+  ): Promise<number> {
+    const result = await client.query(
+      `UPDATE domain_events
+       SET payload = jsonb_set(
+         jsonb_set(
+           jsonb_set(payload, '{phone}', '"[REDACTED]"'::jsonb, false),
+           '{email}', '"[REDACTED]"'::jsonb, false
+         ),
+         '{name}', '"[REDACTED]"'::jsonb, false
+       ),
+       updated_at = NOW()
+       WHERE ${whereClause.condition}
+       RETURNING id`,
+      whereClause.params
+    );
+    return result.rowCount ?? 0;
+  }
+
+  /**
+   * Execute generic field anonymization on a table
+   */
+  private async anonymizeFields(
+    client: PoolClient,
+    tableName: string,
+    fields: string[],
+    whereClause: { condition: string; params: unknown[] }
+  ): Promise<number> {
+    const setClauses = fields.map((field) => `${field} = '[REDACTED - GDPR]'`).join(', ');
+    const result = await client.query(
+      `UPDATE ${tableName} SET ${setClauses} WHERE ${whereClause.condition} RETURNING id`,
+      whereClause.params
+    );
+    return result.rowCount ?? 0;
+  }
+
+  /**
+   * Execute anonymize strategy on a table
+   */
+  private async executeAnonymize(
+    client: PoolClient,
+    tableName: string,
+    anonymizeFields: string[] | undefined,
+    whereClause: { condition: string; params: unknown[] }
+  ): Promise<{ recordsAffected: number; erasureType: 'anonymize' }> {
+    let recordsAffected = 0;
+
+    if (tableName === 'domain_events') {
+      recordsAffected = await this.anonymizeDomainEvents(client, whereClause);
+    } else if (anonymizeFields && anonymizeFields.length > 0) {
+      recordsAffected = await this.anonymizeFields(client, tableName, anonymizeFields, whereClause);
+    }
+
+    return { recordsAffected, erasureType: 'anonymize' };
+  }
+
+  /**
+   * Erase records from a single table using the configured strategy
    */
   private async eraseFromTable(
     client: PoolClient,
@@ -560,7 +738,6 @@ export class UnifiedGDPRErasureService {
     caseIds: string[],
     options: UnifiedErasureOptions
   ): Promise<TableErasureResult> {
-    // Check if table exists
     const tableExists = await this.tableExists(client, config.name);
     if (!tableExists) {
       return { tableName: config.name, recordsAffected: 0, erasureType: 'skipped' };
@@ -571,84 +748,37 @@ export class UnifiedGDPRErasureService {
       return { tableName: config.name, recordsAffected: 0, erasureType: 'skipped' };
     }
 
-    let recordsAffected = 0;
-    let erasureType: 'soft_delete' | 'hard_delete' | 'anonymize' | 'skipped';
-
     const strategy = options.hardDelete ? 'hard_delete' : config.strategy;
 
     switch (strategy) {
-      case 'soft_delete':
-        if (config.hasSoftDelete) {
-          const softResult = await client.query(
-            `UPDATE ${config.name}
-             SET deleted_at = NOW(),
-                 updated_at = NOW()
-             WHERE ${whereClause.condition} AND deleted_at IS NULL
-             RETURNING id`,
-            whereClause.params
-          );
-          recordsAffected = softResult.rowCount ?? 0;
-          erasureType = 'soft_delete';
-        } else {
-          // Fallback to hard delete if no soft delete column
-          const hardResult = await client.query(
-            `DELETE FROM ${config.name} WHERE ${whereClause.condition} RETURNING id`,
-            whereClause.params
-          );
-          recordsAffected = hardResult.rowCount ?? 0;
-          erasureType = 'hard_delete';
-        }
-        break;
-
-      case 'hard_delete':
-        const deleteResult = await client.query(
-          `DELETE FROM ${config.name} WHERE ${whereClause.condition} RETURNING id`,
-          whereClause.params
+      case 'soft_delete': {
+        const result = await this.executeSoftDelete(
+          client,
+          config.name,
+          config.hasSoftDelete,
+          whereClause
         );
-        recordsAffected = deleteResult.rowCount ?? 0;
-        erasureType = 'hard_delete';
-        break;
+        return { tableName: config.name, ...result };
+      }
 
-      case 'anonymize':
-        if (config.name === 'domain_events') {
-          // Special handling for domain_events - mask PII in payload
-          const anonymizeResult = await client.query(
-            `UPDATE ${config.name}
-             SET payload = jsonb_set(
-               jsonb_set(
-                 jsonb_set(payload, '{phone}', '"[REDACTED]"'::jsonb, false),
-                 '{email}', '"[REDACTED]"'::jsonb, false
-               ),
-               '{name}', '"[REDACTED]"'::jsonb, false
-             ),
-             updated_at = NOW()
-             WHERE ${whereClause.condition}
-             RETURNING id`,
-            whereClause.params
-          );
-          recordsAffected = anonymizeResult.rowCount ?? 0;
-        } else if (config.anonymizeFields && config.anonymizeFields.length > 0) {
-          // Generic anonymization
-          const setClauses = config.anonymizeFields
-            .map((field) => `${field} = '[REDACTED - GDPR]'`)
-            .join(', ');
-          const anonymizeResult = await client.query(
-            `UPDATE ${config.name}
-             SET ${setClauses}
-             WHERE ${whereClause.condition}
-             RETURNING id`,
-            whereClause.params
-          );
-          recordsAffected = anonymizeResult.rowCount ?? 0;
-        }
-        erasureType = 'anonymize';
-        break;
+      case 'hard_delete': {
+        const result = await this.executeHardDelete(client, config.name, whereClause);
+        return { tableName: config.name, ...result };
+      }
+
+      case 'anonymize': {
+        const result = await this.executeAnonymize(
+          client,
+          config.name,
+          config.anonymizeFields,
+          whereClause
+        );
+        return { tableName: config.name, ...result };
+      }
 
       default:
-        erasureType = 'skipped';
+        return { tableName: config.name, recordsAffected: 0, erasureType: 'skipped' };
     }
-
-    return { tableName: config.name, recordsAffected, erasureType };
   }
 
   /**

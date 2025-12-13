@@ -14,4 +14,3 @@ export * from './LocationHistoryRepository.js';
 export * from './LabCaseRepository.js';
 export * from './RevenueSnapshotRepository.js';
 export * from './OrchestrationRepository.js';
-export * from './AppointmentRepository.js';
