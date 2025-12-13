@@ -1899,39 +1899,67 @@ export {
 } from './schemas/dental-lab.js';
 
 // =============================================================================
-// Orchestration Schemas (Multi-Agent Coordination)
+// Orchestration Schemas (Multi-Agent Coordination) - Platinum++ Standard
 // =============================================================================
 export {
-  // Agent Codenames & Roles
+  // Branded Types & Factories
+  createSessionId,
+  createDirectiveId,
+  createCorrelationId,
+  createIdempotencyKey,
+  IdempotencyKeys,
+  // Agent Fleet
+  AGENT_CODENAMES,
   AgentCodenameSchema,
+  AGENT_FLEET,
   // Task Complexity & Risk
+  TASK_COMPLEXITIES,
   TaskComplexitySchema,
+  RISK_LEVELS,
   RiskLevelSchema,
   // Quality Gates
+  QUALITY_GATES,
   QualityGateSchema,
+  QUALITY_GATE_STATUSES,
   QualityGateStatusSchema,
   QualityGateResultSchema,
+  QualityGateConfigSchema,
   // Task Analysis
   TaskAnalysisSchema,
   // Agent Directives & Reports
+  TASK_PRIORITIES,
   TaskPrioritySchema,
+  REPORTING_FREQUENCIES,
   ReportingFrequencySchema,
   AgentDirectiveSchema,
+  AGENT_TASK_STATUSES,
   AgentTaskStatusSchema,
+  FINDING_TYPES,
+  FindingTypeSchema,
   FindingSchema,
   RecommendationSchema as OrchestrationRecommendationSchema,
+  BLOCKER_TYPES,
+  BlockerTypeSchema,
   BlockerSchema,
   AgentReportSchema,
   // Conflict Resolution
+  CONFLICT_TYPES,
   ConflictTypeSchema,
+  CONFLICT_ACTIONS,
+  ConflictActionSchema,
   ConflictResolutionSchema,
-  // Orchestration Session
+  // Orchestration Session & State Machine
+  ORCHESTRATION_STATUSES,
   OrchestrationStatusSchema,
+  VALID_STATUS_TRANSITIONS,
+  isValidStatusTransition,
+  OrchestrationCheckpointSchema,
   OrchestrationSessionSchema,
   // Events
+  ORCHESTRATION_EVENT_TYPES,
   OrchestrationEventTypeSchema,
   OrchestrationEventBaseSchema,
-  SessionStartedEventSchema,
+  SessionCreatedEventSchema,
   TaskAnalyzedEventSchema,
   AgentDispatchedEventSchema,
   AgentCompletedEventSchema,
@@ -1941,6 +1969,8 @@ export {
   // Request/Response
   CreateOrchestrationSessionSchema,
   OrchestrationReportSchema,
+  // Resilience Configuration
+  OrchestrationResilienceConfigSchema,
   // Constants
   AGENT_PRIORITY,
   TASK_TYPE_QUALITY_GATES,
@@ -1949,16 +1979,35 @@ export {
   getConflictResolver,
   hasHigherPriority,
   allQualityGatesPassed,
+  getFailedQualityGates,
   getRequiredQualityGates,
   getTaskRouting,
-  // Types
+  calculateProgress,
+  isResumable,
+  getAgentMetadata,
+  generateSessionId,
+  generateCorrelationId,
+  // Branded Types
+  type OrchestrationSessionId,
+  type AgentDirectiveId,
+  type ConflictId,
+  type TraceId,
+  type IdempotencyKey,
+  type CorrelationId,
+  // Agent Types
   type AgentCodename,
+  type AgentMetadata,
+  // Task & Risk Types
   type TaskComplexity,
   type RiskLevel,
+  // Quality Gate Types
   type QualityGate,
   type QualityGateStatus,
   type QualityGateResult,
+  type QualityGateConfig,
+  // Task Analysis Types
   type TaskAnalysis,
+  // Directive & Report Types
   type TaskPriority,
   type ReportingFrequency,
   type AgentDirective,
@@ -1967,18 +2016,25 @@ export {
   type Recommendation as OrchestrationRecommendation,
   type Blocker,
   type AgentReport,
+  // Conflict Types
   type ConflictType,
   type ConflictResolution,
+  // Session Types
   type OrchestrationStatus,
+  type OrchestrationCheckpoint,
   type OrchestrationSession,
+  // Event Types
   type OrchestrationEventType,
-  type SessionStartedEvent,
+  type SessionCreatedEvent,
   type TaskAnalyzedEvent,
   type AgentDispatchedEvent,
   type AgentCompletedEvent,
   type QualityGateCheckedEvent,
   type ConflictDetectedEvent,
   type SessionCompletedEvent,
+  // Request/Response Types
   type CreateOrchestrationSession,
   type OrchestrationReport,
+  // Resilience Types
+  type OrchestrationResilienceConfig,
 } from './schemas/orchestration.js';

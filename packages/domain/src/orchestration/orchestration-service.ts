@@ -1,11 +1,17 @@
 /**
- * MedicalCor Orchestration Service
+ * MedicalCor Orchestration Service - Platinum++ Standard
  *
- * Domain service for coordinating multi-agent workflows.
- * Handles task analysis, agent dispatch, quality gate enforcement,
- * and conflict resolution.
+ * Domain service for coordinating multi-agent workflows with surgical precision.
+ * Implements 0.1% worldwide execution patterns with:
+ * - State machine with checkpointing
+ * - Idempotent operations
+ * - Comprehensive audit trail
+ * - Resilience patterns
+ *
+ * Standards: Medical-Grade | Banking-Level Security | Surgical Execution
  *
  * @module @medicalcor/domain/orchestration
+ * @version 2.0.0-platinum
  */
 
 import { createLogger } from '@medicalcor/core';
@@ -20,20 +26,29 @@ import type {
   QualityGateResult,
   ConflictResolution,
   OrchestrationSession,
+  OrchestrationCheckpoint,
   CreateOrchestrationSession,
   OrchestrationReport,
   TaskPriority,
   ConflictType,
+  OrchestrationStatus,
+  CorrelationId,
 } from '@medicalcor/types';
 import {
   AGENT_PRIORITY,
+  AGENT_FLEET,
   TASK_TYPE_QUALITY_GATES,
   TASK_TYPE_ROUTING,
   getConflictResolver,
   hasHigherPriority,
   allQualityGatesPassed,
+  getFailedQualityGates,
   getRequiredQualityGates,
   getTaskRouting,
+  isValidStatusTransition,
+  generateSessionId,
+  generateCorrelationId,
+  IdempotencyKeys,
 } from '@medicalcor/types';
 
 const logger = createLogger({ name: 'orchestration-service' });
